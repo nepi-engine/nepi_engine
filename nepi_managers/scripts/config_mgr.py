@@ -327,7 +327,6 @@ class config_mgr(object):
         self.save_params(USER_CFG_PATH, namespace)
     
     def save_params(self, cfg_path, namespace):
-        success = False
         if os.path.exists(cfg_path):
             config_pathname = self.get_config_pathname(cfg_path, namespace)
             backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
@@ -384,6 +383,7 @@ class config_mgr(object):
 
 
     def restore_cfgs(self,config_folders = ['factory_cfg','system_cfg','user_cfg']): 
+        return False
         success = False
         target_dir = NEPI_ETC_PATH
         for name in config_folders:
@@ -419,6 +419,7 @@ class config_mgr(object):
 
 
     def reset_handler(self,namespace, cfg_path = USER_CFG_PATH):
+        return False
         success = True
         if cfg_path != USER_CFG_PATH:
             # First delete user config files if it exists
