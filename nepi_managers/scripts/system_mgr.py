@@ -76,12 +76,21 @@ class SystemMgrNode():
                         "databases", 
                         "databases/targets", 
                         "license", 
+<<<<<<< HEAD
                         ".logs", 
                         ".logs/ros_log",
                         ".logs/automation_script_logs", 
                         "nepi_src",
                         "user_cfg",
                         "user_cfg/cal",]
+=======
+                        "logs", 
+                        "logs/ros_log",
+                        "logs/automation_script_logs", 
+                        "nepi_src",
+                        "user_cfg",
+                        "user_cfg/cal"]
+>>>>>>> e55227ff83693a57b3f51e04fa69896de061d6bd
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
@@ -186,6 +195,18 @@ class SystemMgrNode():
             if self.nepi_config[key] is None:
                 self.nepi_config[key]=[]
 
+        check_path=self.nepi_config['NEPI_IMPORT_PATH']
+        if check_path not in self.REQD_STORAGE_SUBDIRS:
+            self.REQD_STORAGE_SUBDIRS.append(check_path)
+        check_path=self.nepi_config['NEPI_EXPORT_PATH']
+        if check_path not in self.REQD_STORAGE_SUBDIRS:
+            self.REQD_STORAGE_SUBDIRS.append(check_path)
+        check_config=self.nepi_config['NEPI_CONFIG']
+        if os.path.exists(check_config) == False:
+            new_folder = os.path.join(self.nepi_config['NEPI_STORAGE'],'nepi_config')
+            os.mkdir(new_folder)
+            self.nepi_config['NEPI_CONFIG']=new_folder
+
         nepi_system.set_nepi_config(self.nepi_config)
 
 
@@ -220,8 +241,8 @@ class SystemMgrNode():
         self.emmc_device = "/dev/mmcblk0p"
         self.ssd_device = "/dev/nvme0n1p"
 
-        self.config_folder = "/mnt/nepi_config"
-        self.storage_folder = "/mnt/nepi_storage"
+        self.config_folder = self.nepi_config['NEPI_CONFIG']
+        self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
         if self.in_container == True:
