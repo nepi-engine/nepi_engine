@@ -65,34 +65,23 @@ class SystemMgrNode():
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
     SYS_ENV_PATH = NEPI_FOLDER + "/sys_env.bash"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
-    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_config.yaml'
+    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_system_config.yaml'
 
     STATES_DICT = dict()
 
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
-                        "ai_training",
                         "automation_scripts", 
-                        "automation_scripts/sys_trigger_scripts",
-                        "automation_scripts/sys_state_scripts",
                         "data", 
                         "databases", 
                         "databases/targets", 
-                        "install",
-                        "install/apps",
-                        "install/ai_frameworks",
-                        "install/drivers",
                         "license", 
-                        "logs", 
-                        "logs/ros_log",
-                        "logs/automation_script_logs", 
-                        "nepi_full_img", 
-                        "nepi_full_img_archive", 
+                        ".logs", 
+                        ".logs/ros_log",
+                        ".logs/automation_script_logs", 
                         "nepi_src",
                         "user_cfg",
-                        "user_cfg/cal",
-                        "sample_data",
-                        "tmp"]
+                        "user_cfg/cal",]
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
