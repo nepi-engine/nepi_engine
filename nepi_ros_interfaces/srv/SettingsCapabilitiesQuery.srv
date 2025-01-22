@@ -1,0 +1,6 @@
+# This service definition provides the capabilities report for a NEPI Settings
+
+---
+int32 settings_count
+SettingCap[] setting_caps_list
+

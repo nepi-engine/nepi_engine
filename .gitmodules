@@ -1,0 +1,3 @@
+[submodule "nepi_env"]
+	path = nepi_env
+	url = git@github.com:nepi-engine/nepi_env.git
