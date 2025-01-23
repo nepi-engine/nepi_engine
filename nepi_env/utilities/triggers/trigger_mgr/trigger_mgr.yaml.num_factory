@@ -1,0 +1,3 @@
+display_name: trigger_mgr                 # User-friendly name for display purposes	
+default_periodic_trig_mask: 0x7fffffff    # Trigger mask for a default start-up software trigger
+default_periodic_trig_rate: 10.0          # Trigger rate (Hz) for a default start-up software trigger

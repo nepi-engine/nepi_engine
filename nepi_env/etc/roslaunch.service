@@ -1,0 +1,12 @@
+[Unit]
+Description=NEPI ROS Launch
+After=network.target chrony.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/nepi/ros/etc/roslaunch.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
