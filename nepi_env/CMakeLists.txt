@@ -253,18 +253,6 @@ install(DIRECTORY utilities/
 )
 
 
-
-## Mark other files for installation 
-set( NEPI_ENV_CONFIG_FOLDER 
-  # Must hard-coded 
-  /opt/nepi/config
-)
-
-install(DIRECTORY config/
-  DESTINATION ${NEPI_ENV_CONFIG_FOLDER} 
-)
-
-
 #############
 ## Testing General ##
 #############
