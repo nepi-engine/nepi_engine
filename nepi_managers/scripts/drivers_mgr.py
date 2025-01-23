@@ -247,6 +247,7 @@ class NepiDriversMgr(object):
       self.drivers_files = nepi_drv.getDriverFilesList(self.drivers_folder)
       self.drivers_install_files = nepi_drv.getDriverPackagesList(self.drivers_install_folder)
       drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
+      drvs_dict = nepi_drv.refreshDriversDict(self.drivers_param_folder,drvs_dict)
       self.init_drvs_dict = drvs_dict
       #nepi_drv.printDict(drvs_dict)
       self.resetParamServer(do_updates)

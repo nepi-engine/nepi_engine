@@ -104,6 +104,7 @@ class NepiAppsMgr(object):
     time.sleep(3)
     apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
     apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
+    
     app_dict = dict()
     #nepi_msg.publishMsgWarn(self,"Got init apps dict: " + str(apps_dict))
     for app_name in apps_dict:
@@ -214,8 +215,9 @@ class NepiAppsMgr(object):
       self.init_backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
       self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
       self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-      self.init_apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
-
+      apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
+      apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
+      self.init_apps_dict = apps_dict
       self.resetParamServer(do_updates)
       #self.printND()
 
