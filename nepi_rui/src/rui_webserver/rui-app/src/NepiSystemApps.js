@@ -130,6 +130,7 @@ class AppsMgr extends Component {
       connected: true
     })    
 
+    this.props.ros.appNames = message.apps_ordered_list
   }
 
   // Function for configuring and subscribing to Status
@@ -163,6 +164,7 @@ class AppsMgr extends Component {
       order: message.order,
       msg_str: message.msg_str
     })
+
     const groups = this.state.group_list
     const group_index = groups.indexOf(message.group)
     const group_names = this.state.group_names

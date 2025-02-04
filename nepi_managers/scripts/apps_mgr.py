@@ -319,16 +319,15 @@ class NepiAppsMgr(object):
 
 
   def appStatusService(self,request):
-    app_name = request.name
+    app_name = request.app_name
     response = self.getAppStatusServiceMsg(app_name)
     return response
 
 
-  def getAppStatusServiceMsg(self):
+  def getAppStatusServiceMsg(self, app_name):
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
-    app_name = self.selected_app
     status_app_msg = AppStatusQueryResponse()
-    status_app_msg.name = app_name
+    status_app_msg.app_name = app_name
     if app_name in apps_dict.keys() and app_name != 'NONE':
       app = apps_dict[app_name]
       try:

@@ -6,6 +6,7 @@
  *
  * License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
  */
+
 import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
@@ -14,12 +15,8 @@ import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
 import NepiDashboardData from "./NepiDashboardData"
-import FilePubImgApp from "./NepiAppFilePubImg"
-import FilePubVidApp from "./NepiAppFilePubVid"
-import FilePubPcdApp from "./NepiAppFilePubPcd"
-import PointcloudViewerApp from "./NepiAppPointcloudViewer"
-import ImageViewerApp from "./NepiAppImageViewer"
-//import ImageSequencer from "./NepiAppImageSequencer"
+
+import AppRender from "./AppRender"
 
 
 @inject("ros")
@@ -61,6 +58,7 @@ class AppsDataSelector extends Component {
       appListener: null,
       selected_app_install_pkg: null,
       needs_update: true
+
     }
 
 
@@ -97,7 +95,7 @@ class AppsDataSelector extends Component {
       apps_rui_list: message.apps_rui_list,
       connected: true
     })    
-
+    this.props.ros.appNames = message.apps_ordered_list
   }
 
   // Function for configuring and subscribing to Status
@@ -114,8 +112,6 @@ class AppsDataSelector extends Component {
     this.setState({ appsListener: appsListener,
       needs_update: false})
   }
-
-
 
 
   // Lifecycle method called when compnent updates.
@@ -142,118 +138,6 @@ class AppsDataSelector extends Component {
     }
   }
 
-  renderNoneApp() {
-    return (
-      <Columns>
-        <Column>
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderDataDashboard() {
-    return (
-      <Columns>
-        <Column>
-
-        <NepiDashboardData
-         title={"Data Dashboard"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderFilePubImgApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <FilePubImgApp
-         title={"Img_File_Publisher"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  renderFilePubVidApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <FilePubVidApp
-         title={"Vid_File_Publisher"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  renderFilePubPcdApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <FilePubPcdApp
-         title={"PCD_File_Publisher"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  /*
-  renderImageSequencerApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <ImageSequencer
-         title={"ImageSequencer"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-  */
-
-  renderImageViewerApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <ImageViewerApp
-         title={"ImageViewerApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderPointcloudViewerApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <PointcloudViewerApp
-         title={"PointcloudViewerApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
 
   toggleViewableApps() {
     const viewable = !this.state.viewableApps
@@ -262,7 +146,7 @@ class AppsDataSelector extends Component {
 
 
   onToggleAppSelection(event){
-    const app_name = event.target.innerText
+    const app_name = event.target.value
     this.setState({selected_app: app_name})
   }
 
@@ -282,7 +166,7 @@ class AppsDataSelector extends Component {
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
           if (groupList[i] === "DATA" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
-            items.push(<Option value={ruiList[i]}>{ruiList[i]}</Option>)
+            items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
@@ -336,87 +220,52 @@ class AppsDataSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    if (sel_app === "NONE"){
+    const {appNameList, appStatusList} = this.props.ros
+  
+    if (sel_app === "Data Dashboard"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderNoneApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Data Dashboard"){
-      return (
-        <React.Fragment>
-            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
+            {sel_app}
             </label>
-            {this.renderDataDashboard()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Image File Publisher"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderFilePubImgApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Video File Publisher"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderFilePubVidApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Pointcloud File Publisher"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderFilePubPcdApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Image Viewer"){
-      return (
-        <React.Fragment>
-            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-            </label>
-            {this.renderImageViewerApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Pointcloud Viewer"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderPointcloudViewerApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Image Sequencer"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderImageSequencerApp()}    
+            <Columns>
+            <Column>
+
+              <NepiDashboardData
+              title={"Data Dashboard"}
+              />
+
+          </Column>
+          </Columns>  
         </React.Fragment>
       )
     }
 
+
+    else if (appNameList.indexOf(sel_app) !== -1){
+     return (
+        <AppRender
+        sel_app={sel_app}
+        />
+      );
+    }
+  
+
+    else {
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+          </label>
+
+          <Columns>
+          <Column>
+
+          </Column>
+          </Columns> 
+        </React.Fragment>
+      )
+    }
 
   }
 
@@ -428,6 +277,7 @@ class AppsDataSelector extends Component {
 
       <div style={{ display: 'flex' }}>
         <div style={{ width: '10%' }}>
+
           {this.renderSelection()}
         </div>
 

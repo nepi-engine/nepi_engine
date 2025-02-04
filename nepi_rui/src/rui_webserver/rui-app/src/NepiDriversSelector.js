@@ -14,7 +14,8 @@ import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
 import DriversMgr from "./NepiSystemDrivers"
-import OnvifMgr from "./NepiAppOnvifMgr"
+
+import AppRender from "./AppRender"
 
 
 @inject("ros")
@@ -93,6 +94,8 @@ class DriversSelector extends Component {
       connected: true
     })    
 
+    this.props.ros.appNames = message.apps_ordered_list
+
   }
 
   // Function for configuring and subscribing to Status
@@ -137,45 +140,7 @@ class DriversSelector extends Component {
     }
   }
 
-  renderNoneApp() {
-    return (
-      <Columns>
-        <Column>
 
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderDriversMgr() {
-    return (
-      <Columns>
-        <Column>
-
-        <DriversMgr
-         title={"Drivers Mgr"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderOnvifMgr() {
-    return (
-      <Columns>
-        <Column>
-
-        <OnvifMgr
-         title={"ONVIF_MGR"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
 
   toggleViewableApps() {
     const viewable = !this.state.viewableApps
@@ -184,7 +149,7 @@ class DriversSelector extends Component {
 
 
   onToggleAppSelection(event){
-    const app_name = event.target.innerText
+    const app_name = event.target.value
     this.setState({selected_app: app_name})
   }
 
@@ -205,7 +170,7 @@ class DriversSelector extends Component {
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
           if (groupList[i] === "DRIVER" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1){
-            items.push(<Option value={ruiList[i]}>{ruiList[i]}</Option>)
+            items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
@@ -258,38 +223,55 @@ class DriversSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    if (sel_app === "NONE"){
+    const {appNameList, appStatusList} = this.props.ros
+  
+    if (sel_app === "Driver Manager"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderNoneApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "Driver Manager"){
-      return (
-        <React.Fragment>
-            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
+            {sel_app}
             </label>
-            {this.renderDriversMgr()}    
+            <Columns>
+            <Column>
+
+              <DriversMgr
+              title={"Driver Manager"}
+              />
+
+          </Column>
+          </Columns>  
         </React.Fragment>
       )
     }
-    else if (sel_app === "ONVIF_MGR"){
+
+
+    else if (appNameList.indexOf(sel_app) !== -1){
+     return (
+        <AppRender
+        sel_app={sel_app}
+        />
+      );
+    }
+  
+
+    else {
       return (
         <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
           </label>
-          {this.renderOnvifMgr()}    
+
+          <Columns>
+          <Column>
+
+          </Column>
+          </Columns> 
         </React.Fragment>
       )
     }
-    
+
   }
+
 
 
 

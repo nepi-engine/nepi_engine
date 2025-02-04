@@ -15,9 +15,7 @@ import Styles from "./Styles"
 
 import AutomationMgr from "./NepiMgrAutomation"
 
-
-import AiPtTrackerApp from "./NepiAppAiPtTracker"
-
+import AppRender from "./AppRender"
 
 @inject("ros")
 @observer
@@ -95,6 +93,8 @@ class AppsAutoSelector extends Component {
       connected: true
     })    
 
+    this.props.ros.appNames = message.apps_ordered_list
+
   }
 
   // Function for configuring and subscribing to Status
@@ -131,57 +131,6 @@ class AppsAutoSelector extends Component {
     }
   }
 
-  // Lifecycle method called just before the component umounts.
-  // Used to unsubscribe to Status message
-  componentWillUnmount() {
-    if (this.state.appsListener) {
-      this.state.appsListener.unsubscribe()
-    }
-  }
-
-  renderNoneApp() {
-    return (
-      <Columns>
-        <Column>
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  
-  renderAutomationMgr() {
-    return (
-      <Columns>
-        <Column>
-
-        <AutomationMgr
-         title={"AutomationMgr"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  renderAiPtTrackerApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <AiPtTrackerApp
-         title={"AiPtTrackerApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-  
-
-
-
   
 
   toggleViewableApps() {
@@ -191,7 +140,7 @@ class AppsAutoSelector extends Component {
 
 
   onToggleAppSelection(event){
-    const app_name = event.target.innerText
+    const app_name = event.target.value
     this.setState({selected_app: app_name})
   }
 
@@ -212,7 +161,7 @@ class AppsAutoSelector extends Component {
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
           if (groupList[i] === "AUTOMATION" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
-            items.push(<Option value={ruiList[i]}>{ruiList[i]}</Option>)
+            items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
@@ -267,38 +216,55 @@ class AppsAutoSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    if (sel_app === "NONE"){
+    const {appNameList, appStatusList} = this.props.ros
+  
+    if (sel_app === "Automation Manager"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderNoneApp()}    
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
+
+              <AutomationMgr
+              title={"Automation Manager"}
+              />
+
+          </Column>
+          </Columns>  
         </React.Fragment>
       )
     }
-    else if (sel_app === "Automation Mgr"){
+
+
+    else if (appNameList.indexOf(sel_app) !== -1){
+     return (
+        <AppRender
+        sel_app={sel_app}
+        />
+      );
+    }
+  
+
+    else {
       return (
         <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
           </label>
-          {this.renderAutomationMgr()}    
+
+          <Columns>
+          <Column>
+
+          </Column>
+          </Columns> 
         </React.Fragment>
       )
     }
-    else if (sel_app === "PanTilt Object Tracker"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderAiPtTrackerApp()}    
-        </React.Fragment>
-      )
-    }
-    
+
   }
+
 
 
 

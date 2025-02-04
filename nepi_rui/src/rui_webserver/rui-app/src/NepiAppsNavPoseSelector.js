@@ -15,6 +15,7 @@ import Styles from "./Styles"
 
 import NavPoseMgr from "./NepiMgrNavPose"
 
+import AppRender from "./AppRender"
 
 @inject("ros")
 @observer
@@ -93,6 +94,8 @@ class AppsNavPoseSelector extends Component {
       connected: true
     })    
 
+    this.props.ros.appNames = message.apps_ordered_list
+
   }
 
   // Function for configuring and subscribing to Status
@@ -137,31 +140,6 @@ class AppsNavPoseSelector extends Component {
     }
   }
 
-  renderNoneApp() {
-    return (
-      <Columns>
-        <Column>
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderNavPoseManager() {
-    return (
-      <Columns>
-        <Column>
-
-        <NavPoseMgr
-         title={"NavPose Manager"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
 
   toggleViewableApps() {
     const viewable = !this.state.viewableApps
@@ -170,7 +148,7 @@ class AppsNavPoseSelector extends Component {
 
 
   onToggleAppSelection(event){
-    const app_name = event.target.innerText
+    const app_name = event.target.value
     this.setState({selected_app: app_name})
   }
 
@@ -191,7 +169,7 @@ class AppsNavPoseSelector extends Component {
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
           if (groupList[i] === "NAVPOSE" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
-            items.push(<Option value={ruiList[i]}>{ruiList[i]}</Option>)
+            items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
@@ -244,29 +222,54 @@ class AppsNavPoseSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    if (sel_app === "NONE"){
+    const {appNameList, appStatusList} = this.props.ros
+  
+    if (sel_app === "NavPose Manager"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderNoneApp()}    
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
+
+              <NavPoseMgr
+              title={"NavPose Manager"}
+              />
+
+          </Column>
+          </Columns>  
         </React.Fragment>
       )
     }
-    else if (sel_app === "NavPose Manager"){
+
+
+    else if (appNameList.indexOf(sel_app) !== -1){
+     return (
+        <AppRender
+        sel_app={sel_app}
+        />
+      );
+    }
+  
+
+    else {
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-            </label>
-            {this.renderNavPoseManager()}    
+            {sel_app}
+          </label>
+
+          <Columns>
+          <Column>
+
+          </Column>
+          </Columns> 
         </React.Fragment>
       )
     }
 
   }
-
 
 
   render() {

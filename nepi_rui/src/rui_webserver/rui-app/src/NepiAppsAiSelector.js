@@ -14,9 +14,8 @@ import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
 import AiDetectorApp from "./NepiAppAiDetector"
-import AiTargetingApp from "./NepiAppAiTargeting"
-import AiAlertsApp from "./NepiAppAiAlerts"
 
+import AppRender from "./AppRender"
 
 
 
@@ -99,6 +98,8 @@ class AppsAiSelector extends Component {
       connected: true
     })    
 
+    this.props.ros.appNames = message.apps_ordered_list
+
   }
 
   // Function for configuring and subscribing to Status
@@ -143,61 +144,6 @@ class AppsAiSelector extends Component {
     }
   }
 
-  renderNoneApp() {
-    return (
-      <Columns>
-        <Column>
-
-      </Column>
-      </Columns>
-    )
-  }
-
-
-  renderAiDetectorApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <AiDetectorApp
-         title={"AiDetectorApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  renderAiTargetingApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <AiTargetingApp
-         title={"AiTargetingApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  renderAiAlertsApp() {
-    return (
-      <Columns>
-        <Column>
-
-        <AiAlertsApp
-         title={"AiAlertsApp"}
-         />
-
-      </Column>
-      </Columns>
-    )
-  }
-
-  
-
 
 
   toggleViewableApps() {
@@ -207,7 +153,7 @@ class AppsAiSelector extends Component {
 
 
   onToggleAppSelection(event){
-    const app_name = event.target.innerText
+    const app_name = event.target.value
     this.setState({selected_app: app_name})
   }
 
@@ -229,7 +175,7 @@ class AppsAiSelector extends Component {
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
           if (groupList[i] === "AI" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
-            items.push(<Option value={ruiList[i]}>{ruiList[i]}</Option>)
+            items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
@@ -283,48 +229,53 @@ class AppsAiSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    if (sel_app === "NONE"){
+    const {appNameList, appStatusList} = this.props.ros
+  
+    if (sel_app === "AI Detector"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderNoneApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "AI Detector"){
-      return (
-        <React.Fragment>
-            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
+            {sel_app}
             </label>
-            {this.renderAiDetectorApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "AI Targeting"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderAiTargetingApp()}    
-        </React.Fragment>
-      )
-    }
-    else if (sel_app === "AI Alerts"){
-      return (
-        <React.Fragment>
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {this.state.selected_app}
-          </label>
-          {this.renderAiAlertsApp()}    
+            <Columns>
+            <Column>
+
+              <AiDetectorApp
+              title={"AI Detector"}
+              />
+
+          </Column>
+          </Columns>  
         </React.Fragment>
       )
     }
 
-    
+
+    else if (appNameList.indexOf(sel_app) !== -1){
+     return (
+        <AppRender
+        sel_app={sel_app}
+        />
+      );
+    }
+  
+
+    else {
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+          </label>
+
+          <Columns>
+          <Column>
+
+          </Column>
+          </Columns> 
+        </React.Fragment>
+      )
+    }
+
   }
 
 

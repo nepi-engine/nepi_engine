@@ -11,6 +11,8 @@ string serial_num
 string hw_version
 string sw_version
 
+# URL to RTSP video stream if exists
+string rtsp_url
 
 # user updatable device name
 string user_name

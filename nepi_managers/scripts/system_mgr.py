@@ -360,6 +360,9 @@ class SystemMgrNode():
         return self.DRIVERS_PATH
 
     def publish_periodic_status(self, event):
+        self.publish_status()
+
+    def publish_status(self):
         self.status_msg.sys_time = event.current_real
 
         # Populate the rest of the message contents
@@ -516,7 +519,7 @@ class SystemMgrNode():
         decompressed_img_filename = msg.data
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
-
+        self.publish_status()
         status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 

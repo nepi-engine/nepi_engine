@@ -857,19 +857,31 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 nvm install 8.11.1 # RUI-required Node version as of this script creation
+# Upgrade node version
+nvm install 14.1.0
+nvm use 14.1.0
+npm install -g yarn
+yarn add ffmpeg-kit-react-native
+
+rm /opt/nepi/nepi_rui/.nvmrc
+echo 14.1.0 >> /opt/nepi/nepi_rui/.nvmrc
 
 cd /opt/nepi/nepi_rui
 python -m virtualenv venv
 source ./devenv.sh
 pip install -r requirements.txt
-
-
-cd src/rui_webserver/rui-app
 npm install
+deactivate
+
+
+# Build RUI
+cd /opt/nepi/nepi_rui
+source ./devenv.sh
+cd src/rui_webserver/rui-app
 npm run build
+deactivate
 
-
-
+# Run RUI
 sudo /opt/nepi/nepi_rui/etc/start_rui.sh
 
 //rosrun nepi_rui run_webserver.py

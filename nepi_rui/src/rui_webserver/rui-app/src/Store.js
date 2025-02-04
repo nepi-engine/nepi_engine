@@ -212,6 +212,10 @@ class ROSConnectionStore {
   @observable topicQueryLock = false
   @observable topicNames = null
   @observable topicTypes = null
+  @observable appNames = []
+  @observable appNamesLast = []
+  @observable appNameList = []
+  @observable appStatusList = []
   @observable imageTopics = []
   @observable pointcloudTopics = []
   @observable idxSensors = {}
@@ -403,7 +407,7 @@ class ROSConnectionStore {
         var newImageTopics = this.updateImageTopics()
         var newMessageTopics = this.updateMessageTopics()
         var newPointcloudTopics = this.updatePointcloudTopics()
-                
+        this.updateAppStatusList()
         this.updateIDXSensorList()
         this.updatePTXUnits()
 		    this.updateLSXUnits()
@@ -517,6 +521,19 @@ class ROSConnectionStore {
     } else {
       return false
     }
+  }
+
+  @action.bound
+  updateAppStatusList() {
+    const appNames = this.appNames
+    const appNamesLast = this.appNamesLast
+    if (appNames.length > 0 && appNames !== appNamesLast) {
+      for (var i = 0; i < appNames.length; i++) {
+          this.callAppStatusQueryService(appNames[i])
+      }
+      this.appNamesLast = appNames
+    }
+
   }
 
   @action.bound
@@ -1623,6 +1640,27 @@ class ROSConnectionStore {
       name: "sw_update_status_query",
       messageType: "nepi_ros_interfaces/SystemSoftwareStatusQuery"
     })
+  }
+
+  @action.bound
+  async callAppStatusQueryService(appName) {
+    const appStatus = await this.callService({
+      name: 'apps_mgr/app_status_query',
+      messageType: "nepi_ros_interfaces/AppStatusQuery",
+      args: {app_name : appName},
+    })
+    const appNames = this.appNameList
+    const appInd = appNames.indexOf(appName)
+    if (appInd === -1){
+      this.appStatusList.push(appStatus)
+      this.appNameList.push(appName)
+
+    }
+    else {
+
+      this.appNameList[appInd] = appName
+      this.appStatusList[appInd] = appStatus
+    }
   }
 
   @action.bound

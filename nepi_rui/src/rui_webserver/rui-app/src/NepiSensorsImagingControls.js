@@ -30,6 +30,8 @@ class NepiSensorsImagingControls extends Component {
 
     // these states track the values through IDX Status messages
     this.state = {
+
+      rtsp_url: "",
       controlsEnable: null,
       autoAdjust: null,
       resolutionAdjustment: null,
@@ -81,6 +83,7 @@ class NepiSensorsImagingControls extends Component {
   // Callback for handling ROS StatusIDX messages
   statusListener(message) {
     this.setState({
+      rtsp_url: message.rtsp_url,
       controlsEnable: message.controls_enable,
       autoAdjust: message.auto_adjust,
       resolutionAdjustment: message.resolution_mode,
@@ -204,6 +207,9 @@ class NepiSensorsImagingControls extends Component {
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
 
+
+
+
   render() {
     const { idxSensors, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
     const capabilities = idxSensors[this.props.idxSensorNamespace]
@@ -211,10 +217,19 @@ class NepiSensorsImagingControls extends Component {
     const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
     const resetControlsNamespace = this.props.idxSensorNamespace + "/idx/reset_controls"
     const imageName = this.props.idxImageName 
+    //const rtsp_url = this.state.rtsp_url
     return (
 
 
       <Section title={"Post Processing Controls"}>
+
+              {/*}
+              <div hidden={!this.state.rtsp_url === ""}>
+              <ButtonMenu>
+                <Button onClick={() => window.open(rtsp_url, '_blank')}>{"Open Live Stream"}</Button>
+              </ButtonMenu>
+              </div>
+            */}
 
               <RadioButtonAdjustment
                   title={"Framerate"}

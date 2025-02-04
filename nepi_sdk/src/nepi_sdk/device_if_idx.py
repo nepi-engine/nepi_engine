@@ -118,10 +118,12 @@ class ROSIDXSensorIF:
     pc_img_has_subs = False
     pc_has_subs = False
     
+    rtsp_url = None
 
     def __init__(self, device_info, capSettings=None, 
                  factorySettings=None, settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
+                 get_rtsp_url = None,
                  setContrast=None, setBrightness=None, setThresholding=None,
                  setResolutionMode=None, setFramerateMode=None, 
                  setRange=None, getFramerate=None,
@@ -169,6 +171,9 @@ class ROSIDXSensorIF:
         # Set up standard IDX parameters with ROS param and subscriptions
         # Defer actually setting these on the camera via the parent callbacks... the parent may need to do some 
         # additional setup/calculation first. Parent can then get these all applied by calling updateFromParamServer()
+
+        self.get_rtsp_url = get_rtsp_url
+
 
         self.setControlsEnable = setControlsEnable
         if setControlsEnable is not None:
@@ -1029,6 +1034,13 @@ class ROSIDXSensorIF:
             self.status_msg.serial_num = self.serial_num
             self.status_msg.hw_version = self.hw_version
             self.status_msg.sw_version = self.sw_version
+            
+            rtsp_url = ""
+            if self.get_rtsp_url is not None:
+                rtsp_url = self.get_rtsp_url()
+                if rtsp_url is None:
+                    rtsp_url = ""
+            self.status_msg.rtsp_url = rtsp_url
 
             self.status_msg.controls_enable = idx_params['controls_enable'] if 'controls_enable' in idx_params else True
             self.status_msg.auto_adjust = idx_params['auto_adjust'] if 'auto_adjust' in idx_params else False
