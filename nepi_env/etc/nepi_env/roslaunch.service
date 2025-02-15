@@ -5,7 +5,7 @@ After=network.target chrony.service
 [Service]
 Type=simple
 User=root
-ExecStart=/opt/nepi/ros/etc/roslaunch.sh
+ExecStart=/opt/nepi/ros/etc/nepi_env/roslaunch.sh
 Restart=always
 
 [Install]

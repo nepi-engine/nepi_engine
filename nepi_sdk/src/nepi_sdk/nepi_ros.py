@@ -504,7 +504,45 @@ def check_if_container():
   return in_cn
 
 
+def save_config_file(config_file_path, namespace):
+    #Try and initialize app param values
+    try:
+      rosparam.dump_params(config_file_path, namespace)
+    except Exception as e:
+      print("Could not create config file: " + str(e))
+  
 
- 
+def load_config_file(config_file_path, defualt_config_dict, namespace):
+    #Try and initialize app param values
+    if not os.path.exists(config_file_path):
+        rospy.logwarn("Config file " + config_file_path + ".yaml not present... will create")
+        try:
+          rosparam.dump_params(config_file_path, namespace)
+        except Exception as e:
+          print("Could not create config file: " + str(e))
+    if os.path.exists(config_file_path):
+      try:
+        load_params_from_file(config_file_path, namespace)
+      except Exception as e:
+        print("Could not get params from config file: " + config_file_path + " " + str(e))
+    else:
+      print("Could not find config file at: " + config_file_path + " starting with factory settings")
+
+
+
+def print_node_params(self):
+  node_name = rospy.get_name()
+  all_params = rospy.get_param_names()
+  node_params = [param for param in all_params if node_name in param]
+  if node_params:
+      print(f"Parameters for node '{node_name}':")
+      for param in node_params:
+          try:
+              param_value = rospy.get_param(param)
+              print(f"  {param}: {param_value}")
+          except Exception as e:
+              print(f"  {param}: Error retrieving value - {e}")
+  else:
+      print(f"No parameters found for node '{node_name}'.")
 
   

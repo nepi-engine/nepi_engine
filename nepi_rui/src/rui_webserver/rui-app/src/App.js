@@ -45,14 +45,15 @@ class App extends Component {
   }
 
   render() {
-    const { commercial_licensed, license_server } = this.props.ros
+    const { license_valid, license_server, license_type } = this.props.ros
     const unlicensed = (license_server !== null) && 
       (license_server.readyState === 1) && 
-      (commercial_licensed === false) 
+      (license_valid === false) 
       return (
       <Page>
         <Nav
           unlicensed={unlicensed}
+          license_type={license_type}
           pages={[
             { path: "/", label: "Dashboard" },
             { path: "/devices_selector", label: "Devices"},

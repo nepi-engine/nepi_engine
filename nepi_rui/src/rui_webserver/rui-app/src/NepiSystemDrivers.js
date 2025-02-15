@@ -73,8 +73,8 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       group_list: ['IDX','LSX','PTX','RBX','NPX'],
       group_names: ['Imaging','Lights','PanTilts','Robots','NavPose'],
       drivers_group_list: [],
-      selected_group: "None",
-      needs_update: true
+      selected_group: "All",
+      needs_update: false
     }
 
 
@@ -192,7 +192,11 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       this.setState({ driverListener: driverListener})
     }
 
+    componentDidMount(){
+      this.setState({needs_update: true})
+    }
 
+    
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {

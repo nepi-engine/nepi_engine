@@ -57,7 +57,7 @@ class AppsDataSelector extends Component {
       appsListener: null,
       appListener: null,
       selected_app_install_pkg: null,
-      needs_update: true
+      needs_update: false
 
     }
 
@@ -113,6 +113,9 @@ class AppsDataSelector extends Component {
       needs_update: false})
   }
 
+  componentDidMount(){
+    this.setState({needs_update: true})
+  }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic

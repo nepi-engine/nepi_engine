@@ -155,7 +155,7 @@ NavItem.defaultProps = {
 
 class Nav extends Component {
   render() {
-    const { pages, unlicensed } = this.props
+    const { pages, unlicensed, license_type} = this.props
     return (
       <div style={styles.root}>
         <Columns>
@@ -191,6 +191,13 @@ class Nav extends Component {
           <Label
             labelStyle={{ color: Styles.vars.colors.red, fontWeight: "bold", fontSize: Styles.vars.fontSize.large}}
             title={"LICENSE ACTIVATION REQUIRED"}
+          />
+          : null
+        }
+        {(license_type === "education" || license_type === "Education") ?
+          <Label
+            labelStyle={{ fontWeight: "bold", fontSize: Styles.vars.fontSize.medium}}
+            title={"EDUCATION LICENSE"}
           />
           : null
         }

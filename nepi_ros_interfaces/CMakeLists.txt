@@ -55,7 +55,7 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs 
 
 ## Generate messages in the 'msg' folder
 add_message_files(FILES
-    AiFrameworksStatus.msg
+    AiMgrStatus.msg
     Annotation.msg
     Reset.msg
     SaveData.msg
@@ -128,6 +128,7 @@ add_message_files(FILES
     UpdateOption.msg
     AppsStatus.msg
     AppStatus.msg
+    ImageClassifierStatus.msg
     ImageMuxInput.msg
     ImageMuxSequence.msg
     ImageSelection.msg
@@ -136,7 +137,7 @@ add_message_files(FILES
     PointcloudProcessStatus.msg
     PointcloudRenderStatus.msg
     PointcloudSelectionStatus.msg
-    NavPosePub.msg
+    NavPoseData.msg
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
@@ -157,8 +158,6 @@ add_service_files(
     IPAddrQuery.srv
     WifiQuery.srv
     OpEnvironmentQuery.srv
-    ImageClassifierListQuery.srv
-    ImageClassifierStatusQuery.srv
     DataProductQuery.srv
     NEPILinkStatusQuery.srv
     BandwidthUsageQuery.srv

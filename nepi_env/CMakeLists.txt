@@ -170,7 +170,6 @@ add_library(${PROJECT_NAME}
 
 catkin_install_python(PROGRAMS
   scripts/image_color_converter.py
-  scripts/fake_gps.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -217,35 +216,34 @@ install(DIRECTORY
 )
 
 # sys_env.bash goes in parent of the install folder
-SET(SYS_ENV_DIR ${CMAKE_INSTALL_PREFIX}/..)
-SET(SYS_ENV_FILE ${SYS_ENV_DIR}/sys_env.bash)
+#SET(SYS_ENV_DIR ${CMAKE_INSTALL_PREFIX}/..)
+#SET(SYS_ENV_FILE ${SYS_ENV_DIR}/sys_env.bash)
 
 # Developer convenience to create a backup sys_env file before overwriting with the non-functional one in the repo.
-install(FILES ${SYS_ENV_FILE}
-  DESTINATION ${SYS_ENV_DIR}
-  RENAME sys_env.bash.bak
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
-  OPTIONAL)
+#install(FILES ${SYS_ENV_FILE}
+#  DESTINATION ${SYS_ENV_DIR}
+#  RENAME sys_env.bash.bak
+#  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
+#  OPTIONAL)
 
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
 install(DIRECTORY etc/
   DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
   USE_SOURCE_PERMISSIONS
-  PATTERN "sys_env.bash" EXCLUDE
 )
 
 # Install sys_env file in case it doesn't yet exist
-install(FILES etc/sys_env.bash
-  DESTINATION ${SYS_ENV_DIR}
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
-)
+#install(FILES etc/sys_env.bash
+#  DESTINATION ${SYS_ENV_DIR}
+#  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
+#)
 
 # Developer convenience to restore a backup sys_env file if one exists
-install(FILES ${SYS_ENV_DIR}/sys_env.bash.bak
-  DESTINATION ${SYS_ENV_DIR}
-  RENAME sys_env.bash
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
-  OPTIONAL)
+#install(FILES ${SYS_ENV_DIR}/sys_env.bash.bak
+#  DESTINATION ${SYS_ENV_DIR}
+#  RENAME sys_env.bash
+#  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
+#  OPTIONAL)
 
 install(DIRECTORY utilities/
   DESTINATION ${CATKIN_GLOBAL_SHARE_DESTINATION}

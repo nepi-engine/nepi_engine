@@ -26,39 +26,21 @@ class AiDetectorApp extends Component {
     this.state = {
       appName: "ai_detector_mgr",
     }
-    this.getAppNamespace = this.getAppNamespace.bind(this)
+    this.getMgrNamespace = this.getMgrNamespace.bind(this)
   }
 
-  getAppNamespace(){
+  getMgrNamespace(){
     const { namespacePrefix, deviceId} = this.props.ros
-    var appNamespace = null
+    var mgrNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      appNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.appName
+      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.appName
     }
-    return appNamespace
+    return mgrNamespace
   }
 
   render() {
-    const appNamespace = this.getAppNamespace()
-    //var imageTopic = this.props.ros.getClassifierImageTopic()
-    //if (imageTopic === 'None'){
-    //  imageTopic = null
-    //}
-    //const imageText = this.props.ros.getClassifierImageText()
-    const classifier_running = ((this.props.ros.reportedClassifier) && (this.props.ros.reportedClassifier.classifier_state === "Running"))?
-    true : false
-    const detection_img_topic = "/" + this.props.ros.namespacePrefix + "/" + this.props.ros.deviceId + '/ai_detector_mgr/detection_image'
-    var displayImageTopic = 'None'
-    var displayImageText = 'None'
-    if (detection_img_topic.indexOf('null') === -1 && classifier_running === true){
-      displayImageTopic = detection_img_topic
-      displayImageText = 'Detection Image'
-    }
-    else {
-      displayImageTopic = null
-      displayImageText = 'Waiting for detection image'
-    }
-
+    const mgrNamespace = this.getMgrNamespace()
+    const displayImageTopic = mgrNamespace + '/detection_image'
     return (
 
 
@@ -69,11 +51,16 @@ class AiDetectorApp extends Component {
 
       <CameraViewer
         imageTopic={displayImageTopic}
-        title={displayImageText}
+        title={'Detection Image'}
         hideQualitySelector={false}
       />
 
-
+      <div hidden={mgrNamespace === null}>
+        <NepiIFSaveData
+              saveNamespace={mgrNamespace}
+              title={"Nepi_IF_SaveData"}
+          />
+      </div>
 
       </Column>
       <Column>
@@ -81,15 +68,12 @@ class AiDetectorApp extends Component {
 
       <AiDetectorMgr
               title={"Nepi_Mgr_AI_Detector"}
+              showSettingsControl = {false}
               showSettings = {true}
+
           />
       
-      <div hidden={appNamespace === null}>
-        <NepiIFSaveData
-              saveNamespace={appNamespace}
-              title={"Nepi_IF_SaveData"}
-          />
-      </div>
+
 
       </Column>
       </Columns>

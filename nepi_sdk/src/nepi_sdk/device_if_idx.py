@@ -1036,11 +1036,15 @@ class ROSIDXSensorIF:
             self.status_msg.sw_version = self.sw_version
             
             rtsp_url = ""
+            rtsp_username = ""
+            rtsp_password = ""
             if self.get_rtsp_url is not None:
-                rtsp_url = self.get_rtsp_url()
+                [rtsp_url,rtsp_username,rtsp_password] = self.get_rtsp_url()
                 if rtsp_url is None:
                     rtsp_url = ""
             self.status_msg.rtsp_url = rtsp_url
+            self.status_msg.rtsp_username = rtsp_username
+            self.status_msg.rtsp_password = rtsp_password
 
             self.status_msg.controls_enable = idx_params['controls_enable'] if 'controls_enable' in idx_params else True
             self.status_msg.auto_adjust = idx_params['auto_adjust'] if 'auto_adjust' in idx_params else False

@@ -50,10 +50,10 @@ fi
 
 # Check for and restore any broken config files, since that will cause roslaunch to fail
 echo "Running pre-launch config file checks"
-python /opt/nepi/ros/etc/fix_broken_cfg_file_links.py
+python /opt/nepi/ros/etc/nepi_env/fix_broken_cfg_file_links.py
 
 # Tune ethernet interfaces for fast sensor throughput (especially important for genicam)
 echo "Running pre-launch ethernet interface tuning"
-python /opt/nepi/ros/etc/tune_ethernet_interfaces.py
+python /opt/nepi/ros/etc/nepi_env/tune_ethernet_interfaces.py
 
 roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}

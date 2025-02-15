@@ -17,7 +17,7 @@ Basic interface for the global and private save_config topics.
 '''
 class SaveCfgIF(object):
 
-    def __init__(self, updateParamsCallback=None, paramsModifiedCallback=None, namespace = None):
+    def __init__(self, updateParamsCallback=None, paramsModifiedCallback=None, namespace = None, addNamespaceList = None):
         self.updateParams = updateParamsCallback
         self.paramsModified = paramsModifiedCallback
         self.store_params_publisher = rospy.Publisher('store_params', String, queue_size=1)
@@ -27,14 +27,24 @@ class SaveCfgIF(object):
             self.namespace = namespace
             save_topic = namespace + '/save_config'
             reset_topic = namespace + '/reset_config'
+            rospy.Subscriber(save_topic, Empty, self.saveConfigCb)
+            rospy.Subscriber(reset_topic, Reset, self.resetConfigCb)
         else:
             self.namespace = rospy.get_name()
             save_topic = '~save_config'
             reset_topic = '~reset_config'   
+            rospy.Subscriber(save_topic, Empty, self.saveConfigCb)
+            rospy.Subscriber(reset_topic, Reset, self.resetConfigCb)
+
+        if addNamespaceList != None:
+            for namespace in addNamespaceList:
+              save_topic = namespace + '/save_config'
+              reset_topic = namespace + '/reset_config'
+              rospy.Subscriber(save_topic, Empty, self.saveConfigCb)
+              rospy.Subscriber(reset_topic, Reset, self.resetConfigCb)
 
         
-        rospy.Subscriber(save_topic, Empty, self.saveConfigCb)
-        rospy.Subscriber(reset_topic, Reset, self.resetConfigCb)
+
         
         rospy.Subscriber('save_config', Empty, self.saveConfigCb)
         rospy.Subscriber('reset_config', Reset, self.resetConfigCb)

@@ -325,7 +325,7 @@ class NepiIFSaveData extends Component {
 
   getNavNamespace()  {
     const nsStrList = this.props.saveNamespace.split("/")
-    const navNamespace = "/" + nsStrList[1] + "/" + nsStrList[2] + "/nav_pose_mgr"
+    const navNamespace = "/" + nsStrList[1] + "/" + nsStrList[2] + "/nav_pose_pub"
     return navNamespace
   }
 
@@ -463,7 +463,12 @@ class NepiIFSaveData extends Component {
                   <Button onClick={this.onSnapshotTriggered}>{"Take Snapshot"}</Button>
                 </ButtonMenu>
 
-
+                <Label title="Show Settings">
+                    <Toggle
+                      checked={this.state.showSettings===true}
+                      onClick={this.onClickToggleShowSettings}>
+                    </Toggle>
+                  </Label>
 
               </Column>
               <Column>
@@ -478,12 +483,7 @@ class NepiIFSaveData extends Component {
                 />
               </Label>
 
-              <Label title="Show Settings">
-                    <Toggle
-                      checked={this.state.showSettings===true}
-                      onClick={this.onClickToggleShowSettings}>
-                    </Toggle>
-                  </Label>
+
 
             </Column>
             </Columns>

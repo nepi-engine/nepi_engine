@@ -13,6 +13,8 @@ string sw_version
 
 # URL to RTSP video stream if exists
 string rtsp_url
+string rtsp_username
+string rtsp_password
 
 # user updatable device name
 string user_name

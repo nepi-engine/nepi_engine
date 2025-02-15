@@ -20,7 +20,7 @@ import yaml
 
 CFG_PATH = "/opt/nepi/ros/etc"
 CFG_SUFFIX = ".yaml"
-FACTORY_SUFFIX = ".num_factory"
+FACTORY_SUFFIX = ".factory"
 
 # Moving symlinks is typically faster and more robust than copying files, so to reduce the
 # chance of filesystem corruption in the event of e.g., power failure, we use a symlink-based config

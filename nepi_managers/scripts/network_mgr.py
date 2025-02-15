@@ -54,7 +54,7 @@ class NetworkMgr:
     ENABLE_DISABLE_WIFI_ADAPTER_PRE = ["ip", "link", "set"]
     ENABLE_WIFI_ADAPTER_POST = ["up"]
     DISABLE_WIFI_ADAPTER_POST = ["down"]
-    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/ros/etc/network_mgr/nepi_wpa_supplicant.conf"
+    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/ros/etc/nepi_env/nepi_wpa_supplicant.conf"
     WPA_START_SUPPLICANT_CMD_PRE = ["wpa_supplicant", "-B" ,"-i"]
     WPA_START_SUPPLICANT_CMD_POST = ["-c", WPA_SUPPLICANT_CONF_PATH]
     WPA_GENERATE_SUPPLICANT_CONF_CMD = "wpa_passphrase"
@@ -537,8 +537,8 @@ class NetworkMgr:
 
     def set_wifi_client_from_params(self):
         self.wifi_client_enabled = nepi_ros.get_param(self,'~wifi/enable_client', False)
-        self.wifi_client_ssid = nepi_ros.get_param(self,"~wifi/client_ssid", None)
-        self.wifi_client_passphrase = nepi_ros.get_param(self,"~wifi/client_passphrase", None)
+        self.wifi_client_ssid = nepi_ros.get_param(self,"~wifi/client_ssid", "None")
+        self.wifi_client_passphrase = nepi_ros.get_param(self,"~wifi/client_passphrase", "None")
 
         if self.wifi_client_enabled is True:
             if self.wifi_iface is None:
@@ -549,11 +549,11 @@ class NetworkMgr:
                 link_up_cmd = self.ENABLE_DISABLE_WIFI_ADAPTER_PRE + [self.wifi_iface] + self.ENABLE_WIFI_ADAPTER_POST
                 subprocess.check_call(link_up_cmd)
                 
-                if (self.wifi_client_ssid):
+                if (self.wifi_client_ssid != "None"):
                     try:
                         with open(self.WPA_SUPPLICANT_CONF_PATH, 'w') as f:
 
-                            if (self.wifi_client_passphrase):
+                            if (self.wifi_client_passphrase != "None"):
                                 wpa_generate_supplicant_conf_cmd = [self.WPA_GENERATE_SUPPLICANT_CONF_CMD, self.wifi_client_ssid,
                                                                     self.wifi_client_passphrase]
                                 subprocess.check_call(wpa_generate_supplicant_conf_cmd, stdout=f)

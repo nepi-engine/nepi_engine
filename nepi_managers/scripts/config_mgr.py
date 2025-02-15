@@ -30,7 +30,7 @@ NEPI_ENV_PACKAGE = 'nepi_env'
 
 CFG_PATH = '/opt/nepi/ros/etc'
 CFG_SUFFIX = '.yaml'
-FACTORY_SUFFIX = '.num_factory'
+FACTORY_SUFFIX = '.factory'
 
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 USER_SUFFIX = '.user'
@@ -124,19 +124,25 @@ class config_mgr(object):
     def get_cfg_pathname(self,qualified_node_name):
         node_name = self.separate_node_name_in_msg(qualified_node_name)
         subfolder_name = "/"
+        mgr_file_path = os.path.join(CFG_PATH,"nepi_managers",node_name + '.yaml')
+        #nepi_msg.publishMsgWarn(self,"Mgr File Path " + mgr_file_path)
         if nepi_ros.find_topic(qualified_node_name + "/idx").find("idx") != -1:
-            subfolder_name = "/drivers/"
+            subfolder_name = "/nepi_drivers/" + node_name
         elif nepi_ros.find_topic(qualified_node_name + "/lsx").find("lsx") != -1:
-            subfolder_name = "/drivers/"
+            subfolder_name = "/nepi_drivers/" + node_name
         elif nepi_ros.find_topic(qualified_node_name + "/ptx").find("ptx") != -1:
-            subfolder_name = "/drivers/"
+            subfolder_name = "/nepi_drivers/" + node_name
         elif nepi_ros.find_topic(qualified_node_name + "/rbx").find("rbx") != -1:
-            subfolder_name = "/drivers/"
+            subfolder_name = "/nepi_drivers/" + node_name
         elif nepi_ros.find_topic(qualified_node_name + "/npx").find("npx") != -1:
-            subfolder_name = "/drivers/"
-        #nepi_msg.publishMsgInfo(self,node_name)
-        cfg_pathname = CFG_PATH + subfolder_name + node_name  + '/' + node_name + CFG_SUFFIX
-        #nepi_msg.publishMsgInfo(self,cfg_pathname)
+            subfolder_name = "/nepi_drivers/" + node_name
+        elif os.path.islink(mgr_file_path): # Check if a manager config
+            nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
+            subfolder_name = "/nepi_managers"
+        else:
+            subfolder_name = subfolder_name + node_name
+        cfg_pathname = CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
+        #nepi_msg.publishMsgWarn(self,"Config " + qualified_node_name + " " + cfg_pathname)
         return cfg_pathname
 
     def get_user_cfg_pathname(self,qualified_node_name):
@@ -205,7 +211,8 @@ class config_mgr(object):
                         nepi_msg.publishMsgInfo(self,"Updating " + link_name + " to user config: " + user_cfg_name)
                         self.symlink_force(user_cfg_name, link_name)
                     else:
-                    	nepi_msg.publishMsgInfo(self,"User config file does not exist at " + user_cfg_name)
+                        pass
+                    	#nepi_msg.publishMsgInfo(self,"User config file does not exist at " + user_cfg_name)
 
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE:

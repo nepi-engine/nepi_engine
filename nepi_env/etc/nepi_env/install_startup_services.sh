@@ -13,7 +13,7 @@
 # Must be run as root (or via 'sudo')
 SYSTEMD_SERVICE_PATH=/etc/systemd/system
 
-cp /opt/nepi/ros/etc/roslaunch.service $SYSTEMD_SERVICE_PATH
+cp /opt/nepi/ros/etc/nepi_env/roslaunch.service $SYSTEMD_SERVICE_PATH
 systemctl enable roslaunch
 #systemctl status roslaunch # Some status printout
 

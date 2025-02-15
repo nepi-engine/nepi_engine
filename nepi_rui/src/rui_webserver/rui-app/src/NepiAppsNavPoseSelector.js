@@ -56,7 +56,7 @@ class AppsNavPoseSelector extends Component {
       appListener: null,
 
       selected_app_install_pkg: null,
-      needs_update: true
+      needs_update: false
     }
 
 
@@ -114,7 +114,9 @@ class AppsNavPoseSelector extends Component {
   }
 
 
-
+  componentDidMount(){
+    this.setState({needs_update: true})
+  }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic

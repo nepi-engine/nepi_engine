@@ -1,4 +1,5 @@
 Header header
+string classifier_name
 Header image_header
 string image_topic
 int64 image_height

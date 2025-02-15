@@ -32,6 +32,8 @@ class NepiSensorsImagingControls extends Component {
     this.state = {
 
       rtsp_url: "",
+      rtsp_username: "",
+      rtsp_password: "",
       controlsEnable: null,
       autoAdjust: null,
       resolutionAdjustment: null,
@@ -84,6 +86,8 @@ class NepiSensorsImagingControls extends Component {
   statusListener(message) {
     this.setState({
       rtsp_url: message.rtsp_url,
+      rtsp_username: message.rtsp_username,
+      rtsp_password: message.rtsp_password,
       controlsEnable: message.controls_enable,
       autoAdjust: message.auto_adjust,
       resolutionAdjustment: message.resolution_mode,
@@ -209,27 +213,53 @@ class NepiSensorsImagingControls extends Component {
 
 
 
-
-  render() {
+ renderLive() {
     const { idxSensors, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
     const capabilities = idxSensors[this.props.idxSensorNamespace]
     const has_auto_adjust = (capabilities && capabilities.auto_adjustment && !this.state.disabled)
     const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
     const resetControlsNamespace = this.props.idxSensorNamespace + "/idx/reset_controls"
     const imageName = this.props.idxImageName 
-    //const rtsp_url = this.state.rtsp_url
+    const rtsp_url = this.state.rtsp_url
+    const rtsp_username = this.state.rtsp_username
+    const rtsp_password = this.state.rtsp_password
     return (
 
+      <Section title={"Open RSTP Camera Stream"}>
+
+      <Columns>
+      <Column>
+
+
+      <ButtonMenu>
+        <Button onClick={() => window.open(rtsp_url, '_blank').focus()}>{"Open Live Stream"}</Button>
+      </ButtonMenu>
+
+      </Column>
+      <Column>
+
+      <pre style={{ height: "50px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+        {"URL: " + rtsp_url + "\nUsername: " + rtsp_username + "\nPassword: " + rtsp_password}
+        </pre>
+
+
+      </Column>
+      </Columns>
+
+      </Section>
+    )
+  }
+
+  renderControls() {
+    const { idxSensors, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
+    const capabilities = idxSensors[this.props.idxSensorNamespace]
+    const has_auto_adjust = (capabilities && capabilities.auto_adjustment && !this.state.disabled)
+    const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
+    const resetControlsNamespace = this.props.idxSensorNamespace + "/idx/reset_controls"
+    const imageName = this.props.idxImageName 
+    return (
 
       <Section title={"Post Processing Controls"}>
-
-              {/*}
-              <div hidden={!this.state.rtsp_url === ""}>
-              <ButtonMenu>
-                <Button onClick={() => window.open(rtsp_url, '_blank')}>{"Open Live Stream"}</Button>
-              </ButtonMenu>
-              </div>
-            */}
 
               <RadioButtonAdjustment
                   title={"Framerate"}
@@ -559,6 +589,21 @@ class NepiSensorsImagingControls extends Component {
       </Section>
     )
   }
+
+  render() {
+    const rtsp_url = this.state.rtsp_url
+    return (
+
+      <div hidden={!this.state.rtsp_url === ""}>
+
+      {this.renderLive()}
+      {this.renderControls()}
+
+      </div>
+
+    )
+  }
+
 
 }
 export default NepiSensorsImagingControls

@@ -11,9 +11,9 @@
 
   <arg name="run_mgr_network" default="true" />
   <arg name="run_mgr_time_sync" default="true" />
-  <arg name="run_mgr_ai_detector" default="true" />
   <arg name="run_mgr_nav_pose" default="true" />
   <arg name="run_gpsd_ros_client" default="false" />
+  <arg name="run_mgr_ai_detector" default="true" />
   <arg name="run_mgr_drivers" default="true" />
   <arg name="run_mgr_apps" default="true" />
   <arg name="run_mgr_automation" default="true" />
@@ -23,9 +23,9 @@
   <group ns="$(arg device_ns)">
     <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="true" output="$(arg output_destination)" />
 
-    <rosparam command="load" file="$(arg config_file_root)/system_mgr/system_mgr.yaml" ns="system_mgr" />
+    <rosparam command="load" file="$(arg config_file_root)/nepi_managers/system_mgr.yaml" ns="system_mgr" />
     <!-- Partition layout depends on system type. Should be passed in from specialized launch file -->
-    <rosparam command="load" file="$(arg config_file_root)/system_mgr/$(arg partition_layout_file)" ns="system_mgr" />
+    <rosparam command="load" file="$(arg config_file_root)/nepi_env/nepi_partitions/$(arg partition_layout_file)" ns="system_mgr" />
     <node name="system_mgr" pkg="nepi_managers" type="system_mgr.py" respawn="true" output="$(arg output_destination)" />
 
 
@@ -49,21 +49,25 @@
 
     <!-- MGR:  Network -->
     <group if="$(arg run_mgr_network)" >
-    <rosparam command="load" file="$(arg config_file_root)/network_mgr/network_mgr.yaml" ns="network_mgr" />
+    <rosparam command="load" file="$(arg config_file_root)/nepi_managers/network_mgr.yaml" ns="network_mgr" />
     <node name="network_mgr" pkg="nepi_managers" type="network_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group> 
 
     <!-- MGR:  Time Sync -->
     <group if="$(arg run_mgr_time_sync)" >
-    <rosparam command="load" file="$(arg config_file_root)/time_sync_mgr/time_sync_mgr.yaml" ns="time_sync_mgr" />
+    <rosparam command="load" file="$(arg config_file_root)/nepi_managers/time_sync_mgr.yaml" ns="time_sync_mgr" />
     <node name="time_sync_mgr" pkg="nepi_managers" type="time_sync_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group> 
 
     <!-- MGR:  Nav/Pose -->
     <group if="$(arg run_mgr_nav_pose)" >
       <!-- Nav/Pose Mgr -->
-      <rosparam command="load" file="$(arg config_file_root)/nav_pose_mgr/nav_pose_mgr.yaml" ns="nav_pose_mgr" />
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_mgr.yaml" ns="nav_pose_mgr" />
       <node name="nav_pose_mgr" pkg="nepi_managers" type="nav_pose_mgr" respawn="true" output="$(arg output_destination)" />
+      
+      <!-- Nav/Pose Pub -->
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_pub.yaml" ns="nav_pose_pub" />
+      <node name="nav_pose_pub" pkg="nepi_managers" type="nav_pose_pub.py" respawn="true" output="$(arg output_destination)" />
     </group>      
     
  <!-- GPSD ROS Client -->
@@ -72,29 +76,29 @@
       <node name="gpsd_ros_client" pkg="nepi_gpsd_ros_client" type="gpsd_ros_client_node" respawn="true" output="$(arg output_destination)" />
     </group>  
     
+ <!-- MGR: AI Detector Mgr -->
+    <group if="$(arg run_mgr_ai_detector)" >
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/ai_detector_mgr.yaml" ns="ai_detector_mgr" />
+      <node name="ai_detector_mgr" pkg="nepi_managers" type="ai_detector_mgr.py" respawn="true" output="$(arg output_destination)" />
+    </group>
+
 
    <!-- MGR: Drivers -->
     <group if="$(arg run_mgr_drivers)" >
-      <rosparam command="load" file="$(arg config_file_root)/drivers_mgr/drivers_mgr.yaml" ns="drivers_mgr" />
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/drivers_mgr.yaml" ns="drivers_mgr" />
       <node name="drivers_mgr" pkg="nepi_managers" type="drivers_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group>
     
    <!-- MGR: Apps -->
     <group if="$(arg run_mgr_apps)" >
-      <rosparam command="load" file="$(arg config_file_root)/apps_mgr/apps_mgr.yaml" ns="apps_mgr" />
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/apps_mgr.yaml" ns="apps_mgr" />
       <node name="apps_mgr" pkg="nepi_managers" type="apps_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group>
 
 
- <!-- MGR: AI Detector Mgr -->
-    <group if="$(arg run_mgr_ai_detector)" >
-      <rosparam command="load" file="$(arg config_file_root)/ai_detector_mgr/ai_detector_mgr.yaml" ns="ai_detector_mgr" />
-      <node name="ai_detector_mgr" pkg="nepi_managers" type="ai_detector_mgr.py" respawn="true" output="$(arg output_destination)" />
-    </group>
-
        <!-- MGR: Automation -->
     <group if="$(arg run_mgr_automation)" >
-      <rosparam command="load" file="$(arg config_file_root)/automation_mgr/automation_mgr.yaml" ns="automation_mgr" />
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/automation_mgr.yaml" ns="automation_mgr" />
       <node name="automation_mgr" pkg="nepi_managers" type="automation_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group>
 

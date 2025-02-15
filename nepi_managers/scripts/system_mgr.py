@@ -38,7 +38,7 @@ class SystemMgrNode():
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
-    FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
+    FW_VERSION_PATH = "/opt/nepi/ros/etc/nepi_env/fw_version.txt"
 
     status_msg = SystemStatus()
     system_defs_msg = SystemDefs()
@@ -60,6 +60,7 @@ class SystemMgrNode():
                             "nepi_full_img_archive", 
                             "nepi_src",
                             "user_cfg",
+                            "user_cfg/ros",
                             "sample_data",
                             "tmp"]
                             
@@ -72,13 +73,14 @@ class SystemMgrNode():
                             "logs/automation_script_logs", 
                             "nepi_src",
                             "user_cfg",
+                            "user_cfg/ros",
                             "sample_data",
                             "tmp"]
     
     DRIVERS_PATH = '/opt/nepi/ros/lib/nepi_drivers'
     DRIVERS_PARAM_PATH = '/opt/nepi/ros/share/nepi_drivers/params'
     APPS_PARAM_PATH = '/opt/nepi/ros/share/nepi_apps'
-    AI_IF_FOLDER_PATH = '/opt/nepi/ros/share/nepi_aifs'
+    AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
 
     # disk_usage_deque = deque(maxlen=10)
     # Shorter period for more responsive updates
@@ -98,6 +100,8 @@ class SystemMgrNode():
     installing_new_image = False
     archiving_inactive_image = False
 
+    in_container = False
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -110,7 +114,12 @@ class SystemMgrNode():
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
         ##############################
 
-        self.in_container = nepi_ros.check_if_container()
+        self.first_stage_rootfs_device = nepi_ros.get_param(self,
+            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
+
+        if self.first_stage_rootfs_device == "container":
+            self.in_container = True
+
         if self.in_container == False:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         else:
@@ -170,8 +179,6 @@ class SystemMgrNode():
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
         self.storage_mountpoint = nepi_ros.get_param(self,
             "~storage_mountpoint", self.storage_mountpoint)
-        self.first_stage_rootfs_device = nepi_ros.get_param(self,
-            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
         
         # Need to identify the rootfs scheme because it is used in init_msgs()
         self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
@@ -360,11 +367,7 @@ class SystemMgrNode():
         return self.DRIVERS_PATH
 
     def publish_periodic_status(self, event):
-        self.publish_status()
-
-    def publish_status(self):
         self.status_msg.sys_time = event.current_real
-
         # Populate the rest of the message contents
         # Temperature(s)
         self.update_temperatures()
@@ -438,12 +441,12 @@ class SystemMgrNode():
         os.system('chmod -R 0775 ' + self.APPS_PARAM_PATH)
         self.storage_subdirs['apps'] = self.APPS_PARAM_PATH
         # Do the same for the AI IF Folder
-        if not os.path.isdir(self.AI_IF_FOLDER_PATH):
-                rospy.logwarn("AIF folder " + self.AI_IF_FOLDER_PATH + " not present... will create")
-                os.makedirs(self.AI_IF_FOLDER_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AI_IF_FOLDER_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.AI_IF_FOLDER_PATH)
-        self.storage_subdirs['ais'] = self.AI_IF_FOLDER_PATH
+        if not os.path.isdir(self.AIFS_SHARE_PATH):
+                rospy.logwarn("AIF folder " + self.AIFS_SHARE_PATH + " not present... will create")
+                os.makedirs(self.AIFS_SHARE_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AIFS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.AIFS_SHARE_PATH)
+        self.storage_subdirs['aifs'] = self.AIFS_SHARE_PATH
         return True
 
     def clear_data_folder(self, msg):
@@ -519,7 +522,6 @@ class SystemMgrNode():
         decompressed_img_filename = msg.data
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
-        self.publish_status()
         status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 

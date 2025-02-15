@@ -51,10 +51,10 @@ import numpy as np
 import math
 import random
 import copy
-from nepi_edge_sdk_base import nepi_ros 
-from nepi_edge_sdk_base import nepi_msg
-from nepi_edge_sdk_base import nepi_nav
-from nepi_edge_sdk_base import nepi_rbx
+from nepi_sdk import nepi_ros 
+from nepi_sdk import nepi_msg
+from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_rbx
 
 from std_msgs.msg import Empty, Bool, UInt8, Int8, Float32, Float64, String, Header
 from geometry_msgs.msg import Point
@@ -335,15 +335,17 @@ class RBXFakeGPS:
   ### Setup a regular background navpose get and update heading data
   def update_current_heading_callback(self,timer):
     # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
-    try:
-      get_navpose_service = rospy.ServiceProxy(self.nepi_nav_service_name, NavPoseQuery)
-      nav_pose_response = get_navpose_service(NavPoseQueryRequest())
-      self.current_heading_deg = nav_pose_response.nav_pose.heading.heading
-      self.current_yaw_enu_deg = nepi_nav.get_navpose_orientation_enu_degs(nav_pose_response)[2]
-      #nepi_msg.publishMsgInfo(self,'')
-      #nepi_msg.publishMsgInfo(self,"Update current heading to: " + "%.2f" % (self.current_heading_deg))
-    except Exception as e:
-      nepi_msg.publishMsgInfo(self,"navpose service call failed: " + str(e))
+    if not rospy.is_shutdown():
+      try:
+        get_navpose_service = rospy.ServiceProxy(self.nepi_nav_service_name, NavPoseQuery)
+        nav_pose_response = get_navpose_service(NavPoseQueryRequest())
+        self.current_heading_deg = nav_pose_response.nav_pose.heading.heading
+        self.current_yaw_enu_deg = nepi_nav.get_navpose_orientation_enu_degs(nav_pose_response)[2]
+        #nepi_msg.publishMsgInfo(self,'')
+        #nepi_msg.publishMsgInfo(self,"Update current heading to: " + "%.2f" % (self.current_heading_deg))
+      except Exception as e:
+        pass
+        #nepi_msg.publishMsgInfo(self,"navpose service call failed: " + str(e))
 
 
   #######################

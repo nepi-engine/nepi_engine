@@ -65,6 +65,28 @@ def cv2img_to_rosimg(cv2_img, encoding="bgr8"): # "bgr8", "rgb8", or "mono8"
   bridge = CvBridge()
   ros_img_msg = bridge.cv2_to_imgmsg(cv2_img, encoding = encoding)
   return ros_img_msg
+
+
+def grayscale_to_rgb(gray_image):
+    """
+    Converts a grayscale image to an RGB image.
+
+    Args:
+        gray_image (numpy.ndarray): A grayscale image with shape (H, W) or (H, W, 1).
+
+    Returns:
+        numpy.ndarray: An RGB image with shape (H, W, 3).
+    """
+
+    if len(gray_image.shape) == 2:
+        height, width = gray_image.shape
+    elif len(gray_image.shape) == 3 and gray_image.shape[2] == 1:
+        height, width, _ = gray_image.shape
+    else:
+        raise ValueError("Input image must be grayscale with shape (H, W) or (H, W, 1)")
+
+    rgb_image = cv2.cvtColor(gray_image, cv2.COLOR_GRAY2RGB)
+    return rgb_image
     
 ###########################################
 ### Image filter functions    
@@ -77,8 +99,11 @@ def cv2img_to_rosimg(cv2_img, encoding="bgr8"): # "bgr8", "rgb8", or "mono8"
 
 ###########################################
 ### Image process functions
-def isgray(cv2_img):
-    if len(cv2_img.shape) < 3:
+def is_gray(cv2_img):
+    cv_shape = cv2_img.shape
+    if len(cv_shape) == 2:
+      return True
+    elif len(cv_shape) == 3 and cv_shape[2] == 1:
       return True
     else:
       return False

@@ -26,7 +26,6 @@ const EULER_ORDER_FOR_CANNON = "YZX" // Only supported angle ordering for Cannon
 // TODO: Would be better to query the display_name property of all nodes to generate
 // this dictionary... requires a new SDKNode service to do so
 const NODE_DISPLAY_NAMES = {
-  stereo_cam_mgr: "Stereo Camera",
   config_mgr: "Config Manager",
   nav_pose_mgr: "Nav./Pose/GPS",
   network_mgr: "Network",
@@ -236,16 +235,12 @@ class ROSConnectionStore {
   
   @observable lastUpdate = new Date()
 
-  @observable classifierImageTopic = 'None'
-  @observable classifierImageText = 'None'
-  @observable classifierLists = null
-  @observable classifierImgTopic = null
   @observable targLocalizerImgTopic = null
 
   @observable ip_query_response = null
   @observable bandwidth_usage_query_response = null
   @observable wifi_query_response = null
-
+  /*
   @observable NUID = "INVALID"
   @observable NEPIConnectStatus = null
   @observable alias = ""
@@ -268,8 +263,7 @@ class ROSConnectionStore {
   @observable hb_data_queue_size_mb = null
   @observable hb_auto_data_offloading_enabled = null
   @observable log_storage_enabled = null
-
-  @observable reportedClassifier = null
+  */
 
   @observable streamingImageQuality = 95
   @observable nepiLinkHbAutoDataOffloadingCheckboxVisible = false
@@ -284,13 +278,9 @@ class ROSConnectionStore {
   @observable imgMuxSequences = null
   @observable drivers_list_query
 
-  @observable onvifDeviceStatuses = null
-  @observable onvifDeviceConfigs = null
-  @observable onvifIDXDeviceDrivers = []
-  @observable onvifPTXDeviceDrivers = []
-
   @observable license_server = null
-  @observable commercial_licensed = true // Default to true to avoid initial DEVELOPER message
+  @observable license_valid = true // Default to true to avoid initial DEVELOPER message]
+  @observable license_type = 'Unlicensed'
   @observable license_info = null
   @observable license_request_info = null
   @observable license_request_mode = false
@@ -309,14 +299,15 @@ class ROSConnectionStore {
           if ('licensed_components' in response_dict)
           {
             this.license_info = yaml.load(event.data)
-            if (this.license_info['licensed_components']['nepi_base']['commercial_license_type'] === 'Unlicensed') {
-              this.commercial_licensed = false
+            this.license_type = this.license_info['licensed_components']['nepi_base']['commercial_license_type']
+            if ( this.license_type === 'Unlicensed') {
+              this.license_valid = false
             }
             else {
-              if (this.license_request_mode && !this.commercial_licensed) {
+              if (this.license_request_mode && !this.license_valid) {
                 this.license_request_mode = false
               }
-              this.commercial_licensed = true
+              this.license_valid = true
             }
           }
 
@@ -336,7 +327,7 @@ class ROSConnectionStore {
         console.error("License server not running")
         this.license_server = null
         this.license_yaml = null
-        this.commercial_licensed = false 
+        this.license_valid = false 
         this.license_info = null
         this.license_request_info = null
         this.license_request_mode = false
@@ -351,7 +342,7 @@ class ROSConnectionStore {
 
     else if (this.license_server.readyState === 3) { // CLOSED
       this.license_server = null
-      this.commercial_licensed = false
+      this.license_valid = false
       this.license_info = null
       this.license_request_info = null
       this.license_request_mode = false
@@ -485,7 +476,7 @@ class ROSConnectionStore {
     // Function for updating image topics list
     var newImageTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "sensor_msgs/Image") {
+      if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
       }
     }
@@ -843,17 +834,13 @@ class ROSConnectionStore {
     // services
     this.callSystemDefsService()
     this.callSystemSoftwareStatusQueryService()
-    this.callNepiStatusService()
-    this.callImgClassifierListQueryService()
     this.startPollingIPAddrQueryService()
     this.startPollingBandwidthUsageService()
     this.startPollingWifiQueryService()
     this.startPollingOpEnvironmentQueryService()
-    this.startPollingTriggerStatusQueryService()
     this.startPollingNavPoseService()
     this.startPollingNavPoseStatusService()
     this.startPollingTimeStatusService()
-    this.startPollingImgClassifierStatusQueryService()
     
     // automation manager services
     this.startPollingGetScriptsService()  // populate listbox with files
@@ -863,11 +850,9 @@ class ROSConnectionStore {
     //this.callGetSystemStatsQueryService() // get script and system status
 
     // sequential image mux services
-    this.callMuxSequenceQuery(true) // Start it polling
+    //this.callMuxSequenceQuery(true) // Start it polling
 
-    // onvif mgr services
-    this.callOnvifDeviceListQueryService(true) // Start it polling
-    this.callOnvifDeviceDriverListQueryService(true) // Start it polling
+
   }
 
   @action.bound
@@ -1536,44 +1521,6 @@ class ROSConnectionStore {
     }
 
 
-
-  async callNepiStatusService(oneshot = false) {
-    const _pollOnce = async () => {
-      this.NEPIConnectStatus = await this.callService({
-        name: "nepi_link_status_query",
-        messageType: "nepi_ros_interfaces/NEPIConnectStatusQuery",
-        msgKey: "status"
-      })
-      this.NUID = this.NEPIConnectStatus.nuid
-      this.alias = this.NEPIConnectStatus.alias
-      this.ssh_public_key = this.NEPIConnectStatus.public_ssh_key
-      this.bot_running = this.NEPIConnectStatus.bot_running
-      this.NEPIConnectenabled = this.NEPIConnectStatus.enabled
-      this.lb_last_connection_time = moment.unix(this.NEPIConnectStatus.lb_last_connection_time.secs)
-      this.hb_last_connection_time = moment.unix(this.NEPIConnectStatus.hb_last_connection_time.secs)
-      this.lb_do_msg_count = this.NEPIConnectStatus.lb_do_msg_count
-      this.lb_dt_msg_count = this.NEPIConnectStatus.lb_dt_msg_count
-      this.hb_do_transfered_mb = this.NEPIConnectStatus.hb_do_transfered_mb
-      this.hb_dt_transfered_mb = this.NEPIConnectStatus.hb_dt_transfered_mb
-      this.lb_data_sets_per_hour = this.NEPIConnectStatus.lb_data_sets_per_hour
-      this.lb_enabled = this.NEPIConnectStatus.lb_enabled
-      this.hb_enabled = this.NEPIConnectStatus.hb_enabled
-      this.lb_available_data_sources = this.NEPIConnectStatus.lb_available_data_sources
-      this.lb_selected_data_sources = this.NEPIConnectStatus.lb_selected_data_sources
-      this.lb_comms_types = this.NEPIConnectStatus.lb_comms_types
-      this.auto_attempts_per_hour = this.NEPIConnectStatus.auto_attempts_per_hour
-      this.lb_data_queue_size_kb = this.NEPIConnectStatus.lb_data_queue_size_kb
-      this.hb_data_queue_size_mb = this.NEPIConnectStatus.hb_data_queue_size_mb
-      this.hb_auto_data_offloading_enabled = this.NEPIConnectStatus.hb_auto_data_offloading_enabled
-      this.log_storage_enabled = this.NEPIConnectStatus.log_storage_enabled
-
-      if (this.connectedToROS && (oneshot === false)) {
-        setTimeout(_pollOnce, 3000)
-      }
-    }
-    _pollOnce()
-  }
-
   async callSystemDefsService() {
     this.systemDefs = await this.callService({
       name: "system_defs_query",
@@ -1690,13 +1637,6 @@ class ROSConnectionStore {
     })
   }  
 
-  async callImgClassifierListQueryService() {
-    this.classifierLists = await this.callService({
-      name: "ai_detector_mgr/img_classifier_list_query",
-      messageType: "nepi_ros_interfaces/ImageClassifierListQuery",
-    })
-  }
-
   async startPollingIPAddrQueryService() {
     const _pollOnce = async () => {
       this.ip_query_response = await this.callService({
@@ -1760,24 +1700,6 @@ class ROSConnectionStore {
     _pollOnce()
   }
 
-  async startPollingTriggerStatusQueryService() {
-    const _pollOnce = async () => {
-      this.triggerStatus = await this.callService({
-        name: "trigger_status_query",
-        messageType: "nepi_ros_interfaces/TriggerStatusQuery",
-        args: {trig_val : this.triggerMask},
-        msgKey: "status"
-      })
-      // Leading '+' here keeps us from displaying trailing zeros by converting the string back to a number
-      this.triggerAutoRateHz = +this.triggerStatus.auto_rate.toFixed(2)
-
-      if (this.connectedToROS) {
-        setTimeout(_pollOnce, 5000)
-      }
-    }
-
-    _pollOnce()
-  }
 
   startPollingNavPoseService() {
     var resp = null
@@ -1928,20 +1850,6 @@ class ROSConnectionStore {
     _pollOnce()
   }
 
-  async startPollingImgClassifierStatusQueryService() {
-    const _pollOnce = async () => {
-      this.reportedClassifier = await this.callService({
-        name: "ai_detector_mgr/img_classifier_status_query",
-        messageType: "nepi_ros_interfaces/ImageClassifierStatusQuery"
-      })
-
-      if (this.connectedToROS) {
-        setTimeout(_pollOnce, 1000)
-      }
-    }
-
-    _pollOnce()
-  }
 
   async startPollingGetScriptsService() {
     const _pollOnce = async () => {
@@ -2017,202 +1925,6 @@ class ROSConnectionStore {
       _pollOnce()
     }
     
-  }
-
-  async callMuxSequenceQuery(poll = false) {
-    const _pollOnce = async () => {
-      this.imgMuxSequences = await this.callService({
-        name: "app_image_sequencer/mux_sequence_query",
-        messageType: "nepi_app_image_sequencer/ImageMuxSequenceQuery",
-        msgKey: "img_mux_sequences"
-      })
-      
-      if (this.connectedToROS && poll) {
-        setTimeout(_pollOnce, 1000)
-      }
-    }
-
-    _pollOnce()
-  }
-
-  async callDriversListQuery(poll = true) {
-    const _pollOnce = async () => {
-      const resp = await this.callService({
-        name: "app_onvif_mgr/drivers_list_query",
-        messageType: "nepi_ros_interfaces/OnvifDeviceListQuery",
-      })
-
-      this.DriversListQuery = resp['drivers_list_query']
-      this.onvifDeviceConfigs = resp['device_cfgs']
-    
-      if (this.connectedToROS && poll) {
-        setTimeout(_pollOnce, 5000)
-      }
-    }
-
-    _pollOnce()
-  }
-
-  async callOnvifDeviceListQueryService(poll = true) {
-    const _pollOnce = async () => {
-      const resp = await this.callService({
-        name: "app_onvif_mgr/device_list_query",
-        messageType: "nepi_ros_interfaces/OnvifDeviceListQuery",
-      })
-
-      this.onvifDeviceStatuses = resp['device_statuses']
-      this.onvifDeviceConfigs = resp['device_cfgs']
-    
-      if (this.connectedToROS && poll) {
-        setTimeout(_pollOnce, 5000)
-      }
-    }
-
-    _pollOnce()
-  }
-
-  async callOnvifDeviceDriverListQueryService(poll = true) {
-    const _pollOnce = async () => {
-      const resp = await this.callService({
-        name: "app_onvif_mgr/device_driver_list_query",
-        messageType: "nepi_ros_interfaces/OnvifDeviceDriverListQuery"
-      })
-
-      this.onvifIDXDeviceDrivers = resp['idx_drivers']
-      this.onvifPTXDeviceDrivers = resp['ptx_drivers']
-    }
-
-    if (this.connectedToROS && poll) {
-      setTimeout(_pollOnce, 10000) // Slow because it doesn't really change
-    }
-    _pollOnce()
-  }
-  //=====
-  
-  @action.bound
-  onNEPIConnectConnectNow() {
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/connect_now",
-      messageType: "std_msgs/Empty",
-      data: {}
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onNEPIConnectDataSetNow() {
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/lb/create_data_set_now",
-      messageType: "std_msgs/Empty",
-      data: {}
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onEventTriggered() {
-    this.publishMessage({
-      name: "event_trigger",
-      messageType: "std_msgs/Empty",
-      data: {}
-    })
-  }
-
-  @action.bound
-  onToggleTopic(e) {
-    const topic = e.target.getAttribute("data-topic")
-    const enable_topic = !(this.lb_selected_data_sources.includes(topic))
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/lb/select_data_source",
-      messageType: "nepi_ros_interfaces/StringEnable",
-      data: { entry: topic, enable: enable_topic }
-    }) 
-    
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onToggleLB(e) {
-    const checked = e.target.checked
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/lb/enable",
-      messageType: "std_msgs/Bool",
-      data: { data: checked ? true : false }
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onToggleAutoOffloading(e) {
-    const checked = e.target.checked
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/hb/set_auto_data_offloading",
-      messageType: "std_msgs/Bool",
-      data: { data: checked ? true : false }
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onToggleHB(e) {
-    const checked = e.target.checked
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/hb/enable",
-      messageType: "std_msgs/Bool",
-      data: { data: checked ? true : false }
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onToggleLogStorage(e) {
-    const checked = e.target.checked
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/enable_nepi_log_storage",
-      messageType: "std_msgs/Bool",
-      data: { data: checked ? true : false }
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onToggleNEPIConnectComms(e) {
-    const checked = e.target.checked
-    this.publishMessage({
-      name: "nepi_link_ros_bridge/enable",
-      messageType: "std_msgs/Bool",
-      data: { data: checked ? true : false }
-    })
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
-  }
-
-  @action.bound
-  onChangeNEPIConnect(topic, value) {
-    let rate = parseFloat(value)
-    if (isNaN(rate)) {
-      rate = 0
-    }
-    this.publishMessage({
-      name: topic,
-      messageType: "std_msgs/Float32",
-      data: {data: rate}
-    })
-
-    if (rate === 0) {
-      this.lb_data_sets_per_hour = rate
-    }
-    else {
-      this.lb_data_sets_per_hour = value
-    }
-
-    this.callNepiStatusService(true) // One-shot for rapid feedback
   }
 
   @action.bound
@@ -2446,41 +2158,7 @@ class ROSConnectionStore {
   }
 
 
-  setClassifierImageInfo(classifierImageTopic,classifierImageText){
-    this.classifierImageTopic = classifierImageTopic
-    this.classifierImageText = classifierImageText
-  }
 
-
-  getClassifierImageTopic(){
-    return this.classifierImageTopic
-  }
-
-  getClassifierImageText(){
-    return this.classifierImageText
-  }
-
-  @action.bound
-  startClassifier(selectedImageTopic, selectedClassifier, detectionThreshold) {
-    this.publishMessage({
-      name: "ai_detector_mgr/start_classifier",
-      messageType: "nepi_ros_interfaces/ClassifierSelection",
-      data: {
-        img_topic: selectedImageTopic,
-        classifier: selectedClassifier,
-        detection_threshold: detectionThreshold
-      }
-    })
-  }
-
-  @action.bound
-  stopClassifier() {
-    this.publishMessage({
-      name: "ai_detector_mgr/stop_classifier",
-      messageType: "std_msgs/Empty",
-      data: {}
-    })
-  }
 
   @action.bound
   addIPAddr(addr) {
@@ -2961,25 +2639,7 @@ class ROSConnectionStore {
     })
   }
 
-  @action.bound
-  async onOnvifDeviceCfgUpdate(updatedDeviceCfg) {
-    await this.callService({
-      name: "app_onvif_mgr/set_device_cfg",
-      messageType: "nepi_ros_interfaces/OnvifDeviceCfgUpdate",
-      args: {cfg : updatedDeviceCfg}
-    })
-  }
-
-  @action.bound
-  async onOnvifDeviceCfgDelete(uuid) {
-    await this.callService({
-      name: "app_onvif_mgr/delete_device_cfg",
-      messageType: "nepi_ros_interfaces/OnvifDeviceCfgDelete",
-      args: {device_uuid : uuid}
-    })
-  }
 }
-
 const stores = {
   ros: new ROSConnectionStore(),
 }

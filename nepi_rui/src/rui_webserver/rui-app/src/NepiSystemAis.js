@@ -21,25 +21,25 @@ import Button, { ButtonMenu } from "./Button"
 @inject("ros")
 @observer
 
-class AiFrameworksMgr extends Component {
+class AisMgr extends Component {
   constructor(props) {
     super(props)
 
     this.state = {
-      show_delete_ai: false,
+
       mgrName: "ai_detector_mgr",
       mgrNamespace: null,
 
-      viewableAis: false,
+      viewable_frameworks: false,
 
-      ais_list: [],
-      last_ais_list: [],
-      ais_active_list: [],
-      ai_name: 'NONE',
-      ai_active_state: false,
-      selected_ai: 'NONE',
+      frameworks_list: [],
+      last_frameworks_list: [],
+      frameworks_active_list: [],
+      framework_name: 'NONE',
+      framework_active_state: false,
+      selected_framework: 'NONE',
     
-      viewableModels: false, 
+      viewable_models: false, 
 
       models_list: [],
       models_active_list: [],
@@ -49,8 +49,8 @@ class AiFrameworksMgr extends Component {
 
       connected: false,
 
-      aisListener: null,
-      needs_update: true
+      aiMgrListener: null,
+      needs_update: false
 
     }
 
@@ -58,13 +58,13 @@ class AiFrameworksMgr extends Component {
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
 
-    this.toggleviewableAis = this.toggleviewableAis.bind(this)
-    this.getAiOptions = this.getAiOptions.bind(this)
-    this.onToggleAiSelection = this.onToggleAiSelection.bind(this)
-    this.getDisabledAiStr = this.getDisabledAiStr.bind(this)
-    this.getActiveAiStr = this.getActiveAiStr.bind(this)
+    this.toggleViewableFrameworks = this.toggleViewableFrameworks.bind(this)
+    this.getFrameworkOptions = this.getFrameworkOptions.bind(this)
+    this.onToggleFrameworkSelection = this.onToggleFrameworkSelection.bind(this)
+    this.getDisabledFrameworkStr = this.getDisabledFrameworkStr.bind(this)
+    this.getActiveFrameworkStr = this.getActiveFrameworkStr.bind(this)
 
-    this.toggleviewableModels = this.toggleviewableModels.bind(this)
+    this.toggleViewableModels = this.toggleViewableModels.bind(this)
     this.getModelOptions = this.getModelOptions.bind(this)
     this.onToggleModelSelection = this.onToggleModelSelection.bind(this)
     this.getDisabledModelStr = this.getDisabledModelStr.bind(this)
@@ -72,8 +72,8 @@ class AiFrameworksMgr extends Component {
 
 
 
-    this.updateAisStatusListener = this.updateAisStatusListener.bind(this)
-    this.aisStatusListener = this.aisStatusListener.bind(this)
+    this.updateAiMgrStatusListener = this.updateAiMgrStatusListener.bind(this)
+    this.aiMgrStatusListener = this.aiMgrStatusListener.bind(this)
 
 
 
@@ -90,34 +90,36 @@ class AiFrameworksMgr extends Component {
   }
 
   // Callback for handling ROS Status messages
-  aisStatusListener(message) {
+  aiMgrStatusListener(message) {
     this.setState({
-      ais_list: message.ai_frameworks,
-      ais_active_list: message.active_ai_frameworks,
+      frameworks_list: message.ai_frameworks,
+      frameworks_active_list: message.active_ai_frameworks,
       models_list: message.ai_models,
       models_active_list: message.active_ai_models,
+      classifier_namespace_list: message.classifier_namespace_list,
+      active_classifier: message.active_classifier,
       connected: true
     })    
-
   }
 
   // Function for configuring and subscribing to Status
-  updateAisStatusListener() {
+  updateAiMgrStatusListener() {
     const statusNamespace = this.getMgrNamespace() + '/status'
-    if (this.state.aisListener) {
-      this.state.aisListener.unsubscribe()
+    if (this.state.aiMgrListener) {
+      this.state.aiMgrListener.unsubscribe()
     }
-    var aisListener = this.props.ros.setupStatusListener(
+    var aiMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AiFrameworksStatus",
-          this.aisStatusListener
+          "nepi_ros_interfaces/AiMgrStatus",
+          this.aiMgrStatusListener
         )
-    this.setState({ aisListener: aisListener,
+    this.setState({ aiMgrListener: aiMgrListener,
       needs_update: false})
   }
 
-
-
+  componentDidMount(){
+    this.setState({needs_update: true})
+  }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
@@ -130,7 +132,7 @@ class AiFrameworksMgr extends Component {
         this.setState({
           mgrNamespace: namespace
         })
-        this.updateAisStatusListener()
+        this.updateAiMgrStatusListener()
       } 
     }
   }
@@ -138,24 +140,24 @@ class AiFrameworksMgr extends Component {
   // Lifecycle method called just before the component umounts.
   // Used to unsubscribe to Status message
   componentWillUnmount() {
-    if (this.state.aisListener) {
-      this.state.aisListener.unsubscribe()
+    if (this.state.aiMgrListener) {
+      this.state.aiMgrListener.unsubscribe()
     }
   }
 
-  toggleviewableAis() {
-    const set = !this.state.viewableAis
-    this.setState({viewableAis: set})
+  toggleViewableFrameworks() {
+    const set = !this.state.viewable_frameworks
+    this.setState({viewable_frameworks: set})
   }
 
   // Function for creating image topic options.
-  getAiOptions() {
-    const aisList = this.state.ais_list  
+  getFrameworkOptions() {
+    const frameworksList = this.state.frameworks_list  
     var items = []
     items.push(<Option>{"NONE"}</Option>) 
-    if (aisList.length > 0){
-      for (var i = 0; i < aisList.length; i++) {
-          items.push(<Option value={aisList[i]}>{aisList[i]}</Option>)
+    if (frameworksList.length > 0){
+      for (var i = 0; i < frameworksList.length; i++) {
+          items.push(<Option value={frameworksList[i]}>{frameworksList[i]}</Option>)
      }
     }
     else{
@@ -167,13 +169,13 @@ class AiFrameworksMgr extends Component {
   }
 
 
-  onToggleAiSelection(event){
-    const ai_name = event.target.value
-    this.setState({selected_ai: ai_name})
+  onToggleFrameworkSelection(event){
+    const framework_name = event.target.value
+    this.setState({selected_framework: framework_name})
   }
 
-  getActiveAiStr(){
-    const active =  this.state.ais_active_list
+  getActiveFrameworkStr(){
+    const active =  this.state.frameworks_active_list
     var config_str_list = []
     for (var i = 0; i < active.length; i++) {
       config_str_list.push(active[i])
@@ -184,9 +186,9 @@ class AiFrameworksMgr extends Component {
   }
 
   
-  getDisabledAiStr(){
-    const installed = this.state.ais_list
-    const active =  this.state.ais_active_list
+  getDisabledFrameworkStr(){
+    const installed = this.state.frameworks_list
+    const active =  this.state.frameworks_active_list
     var config_str_list = []
     for (var i = 0; i < installed.length; i++) {
       if (active.indexOf(installed[i]) === -1){
@@ -203,11 +205,11 @@ class AiFrameworksMgr extends Component {
 
   renderFrameworkConfig() {
     const { sendUpdateActiveStateMsg} = this.props.ros
-    const selected_ai = this.state.selected_ai
-    const viewableAis = this.state.viewableAis
-    const ai_options = this.getAiOptions()
-    const active_ai_list = this.state.ais_active_list
-    const ai_state = this.state.ais_active_list.indexOf(this.state.selected_ai) !== -1 
+    const selected_framework = this.state.selected_framework
+    const viewable_frameworks = this.state.viewable_frameworks
+    const framework_options = this.getFrameworkOptions()
+    const active_framework_list = this.state.frameworks_active_list
+    const framework_state = this.state.frameworks_active_list.indexOf(this.state.selected_framework) !== -1 
 
     return (
 
@@ -218,22 +220,22 @@ class AiFrameworksMgr extends Component {
           {"Select AI Framework"}
          </label>
 
-          <div onClick={this.toggleviewableAis} style={{backgroundColor: Styles.vars.colors.grey0}}>
+          <div onClick={this.toggleViewableFrameworks} style={{backgroundColor: Styles.vars.colors.grey0}}>
             <Select style={{width: "10px"}}/>
           </div>
-          <div hidden={!viewableAis}>
-          {ai_options.map((ai) =>
-          <div onClick={this.onToggleAiSelection}
+          <div hidden={!viewable_frameworks}>
+          {framework_options.map((framework) =>
+          <div onClick={this.onToggleFrameworkSelection}
             style={{
               textAlign: "center",
               padding: `${Styles.vars.spacing.xs}`,
               color: Styles.vars.colors.black,
-              backgroundColor: (ai.props.value === selected_ai) ?
+              backgroundColor: (framework.props.value === selected_framework) ?
                 Styles.vars.colors.green :
-                (active_ai_list.includes(ai.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                (active_framework_list.includes(framework.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
               cursor: "pointer",
               }}>
-              <body ai-topic ={ai} style={{color: Styles.vars.colors.black}}>{ai}</body>
+              <body framework-topic ={framework} style={{color: Styles.vars.colors.black}}>{framework}</body>
           </div>
           )}
           </div>
@@ -248,7 +250,7 @@ class AiFrameworksMgr extends Component {
           </label>
 
         <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getActiveAiStr()}
+        {this.getActiveFrameworkStr()}
         </pre>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -257,7 +259,7 @@ class AiFrameworksMgr extends Component {
           </label>
 
         <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getDisabledAiStr()}
+        {this.getDisabledFrameworkStr()}
         </pre>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -269,25 +271,25 @@ class AiFrameworksMgr extends Component {
 
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {this.state.ai_name}
+          {this.state.framework_name}
           </label>
 
-          <div hidden={(this.state.selected_ai === "NONE")}>
+          <div hidden={(this.state.selected_framework === "NONE")}>
 
         <Label title="Enable AI Framework"> </Label>
           <Toggle
-            checked={ai_state }
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_ai_state", this.state.selected_ai, !ai_state)}>
+            checked={framework_state }
+            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
         </Toggle>
 
           </div>
 
         <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_ais")}>{"Enable All"}</Button>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_frameworks")}>{"Enable All"}</Button>
         </ButtonMenu>
 
         <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_ais")}>{"Disable All"}</Button>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_frameworks")}>{"Disable All"}</Button>
         </ButtonMenu>
 
         </Column>
@@ -297,9 +299,9 @@ class AiFrameworksMgr extends Component {
   }
 
 
-  toggleviewableModels() {
-    const set = !this.state.viewableModels
-    this.setState({viewableModels: set})
+  toggleViewableModels() {
+    const set = !this.state.viewable_models
+    this.setState({viewable_models: set})
   }
 
   // Function for creating image topic options.
@@ -359,7 +361,7 @@ class AiFrameworksMgr extends Component {
   renderModelConfig() {
     const { sendUpdateActiveStateMsg} = this.props.ros
     const selected_model = this.state.selected_model
-    const viewableModels = this.state.viewableModels
+    const viewable_models = this.state.viewable_models
     const model_options = this.getModelOptions()
     const active_model_list = this.state.models_active_list
     const model_state = this.state.models_active_list.indexOf(this.state.selected_model) !== -1 
@@ -375,10 +377,10 @@ class AiFrameworksMgr extends Component {
           {"Select AI Framework"}
          </label>
 
-          <div onClick={this.toggleviewableModels} style={{backgroundColor: Styles.vars.colors.grey0}}>
+          <div onClick={this.toggleViewableModels} style={{backgroundColor: Styles.vars.colors.grey0}}>
             <Select style={{width: "10px"}}/>
           </div>
-          <div hidden={!viewableModels}>
+          <div hidden={!viewable_models}>
           {model_options.map((model) =>
           <div onClick={this.onToggleModelSelection}
             style={{
@@ -465,7 +467,7 @@ render() {
       <Column>
 
        <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/refresh_ais")}>{"Refresh"}</Button>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/refresh_frameworks")}>{"Refresh"}</Button>
         </ButtonMenu>
 
         </Column>
@@ -504,4 +506,4 @@ render() {
 }
 
 
-export default AiFrameworksMgr
+export default AisMgr

@@ -28,7 +28,7 @@ from nepi_ros_interfaces.msg import TimeStatus
 
 from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryResponse
 
-FACTORY_CFG_SUFFIX = '.num_factory'
+FACTORY_CFG_SUFFIX = '.factory'
 USER_CFG_SUFFIX = '.user'
 
 CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'

@@ -152,10 +152,13 @@ sudo apt install wpasupplicant
 sudo apt install -y psmisc
 sudo apt install scapy
 
-- installed PyUSB
+#install PyUSB
 sudo pip install PyUSB
 
-- installed scipy
+#install jetson-stats
+sudo -H pip install jetson-stats
+
+#install scipy
 sudo apt-get install python3-scipy
 pip install --upgrade scipy
 //sudo pip install --upgrade scipy
@@ -860,11 +863,15 @@ nvm install 8.11.1 # RUI-required Node version as of this script creation
 # Upgrade node version
 nvm install 14.1.0
 nvm use 14.1.0
+npm install -S rtsp-relay express
 npm install -g yarn
-yarn add ffmpeg-kit-react-native
+//yarn add ffmpeg-kit-react-native
 
 rm /opt/nepi/nepi_rui/.nvmrc
 echo 14.1.0 >> /opt/nepi/nepi_rui/.nvmrc
+
+
+
 
 cd /opt/nepi/nepi_rui
 python -m virtualenv venv
@@ -910,6 +917,8 @@ sudo systemctl status nepi_rui.service
 ########
 # install license managers
 
+sudo apt-get install gnupg
+sudo apt-get install kgpg
 
 sudo rm -R /opt/nepi/config
 sudo cp -r /mnt/nepi_storage/tmp/nepi/config/ ./

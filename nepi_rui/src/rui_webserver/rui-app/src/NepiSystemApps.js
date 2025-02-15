@@ -51,7 +51,7 @@ class AppsMgr extends Component {
 
       group_list: ['DEVICE','DATA','NAVPOSE','AI','AUTOMATION','DRIVER'],
       group_names: ['Device','Data','NavPose','AI','Automation','Driver'],
-      selected_group: "None",
+      selected_group: "All",
 
 
       app_name: 'None',
@@ -76,7 +76,7 @@ class AppsMgr extends Component {
 
 
       selected_app_install_pkg: null,
-      needs_update: true
+      needs_update: false
     }
 
 
@@ -188,6 +188,10 @@ class AppsMgr extends Component {
       this.setState({ appListener: appListener})
     }
 
+
+    componentDidMount(){
+      this.setState({needs_update: true})
+    }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
@@ -549,10 +553,14 @@ class AppsMgr extends Component {
 
   getActiveStr(){
     const active =  this.state.apps_active_list
+    const app_list = this.state.apps_list
+    const rui_list = this.state.apps_rui_list
     var config_str_list = []
-    for (var i = 0; i < active.length; i++) {
-      config_str_list.push(this.getShortName(active[i]))
-      config_str_list.push("\n")
+    for (var i = 0; i < app_list.length; i++) {
+      if (active.indexOf(app_list[i]) !== -1){
+        config_str_list.push(rui_list[i])
+        config_str_list.push("\n")
+      }
     }
     const config_str =config_str_list.join("")
     return config_str
@@ -560,12 +568,13 @@ class AppsMgr extends Component {
 
   
   getDisabledStr(){
-    const installed = this.state.apps_list
     const active =  this.state.apps_active_list
+    const app_list = this.state.apps_list
+    const rui_list = this.state.apps_rui_list
     var config_str_list = []
-    for (var i = 0; i < installed.length; i++) {
-      if (active.indexOf(installed[i]) === -1){
-        config_str_list.push(this.getShortName(installed[i]))
+    for (var i = 0; i < app_list.length; i++) {
+      if (active.indexOf(app_list[i]) === -1){
+        config_str_list.push(rui_list[i])
         config_str_list.push("\n")
       }
     }
