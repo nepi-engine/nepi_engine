@@ -13,7 +13,7 @@
   <arg name="run_mgr_time_sync" default="true" />
   <arg name="run_mgr_nav_pose" default="true" />
   <arg name="run_gpsd_ros_client" default="false" />
-  <arg name="run_mgr_ai_detector" default="true" />
+  <arg name="run_mgr_ai_models" default="true" />
   <arg name="run_mgr_drivers" default="true" />
   <arg name="run_mgr_apps" default="true" />
   <arg name="run_mgr_automation" default="true" />
@@ -76,10 +76,10 @@
       <node name="gpsd_ros_client" pkg="nepi_gpsd_ros_client" type="gpsd_ros_client_node" respawn="true" output="$(arg output_destination)" />
     </group>  
     
- <!-- MGR: AI Detector Mgr -->
-    <group if="$(arg run_mgr_ai_detector)" >
-      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/ai_detector_mgr.yaml" ns="ai_detector_mgr" />
-      <node name="ai_detector_mgr" pkg="nepi_managers" type="ai_detector_mgr.py" respawn="true" output="$(arg output_destination)" />
+ <!-- MGR: AI Model Mgr -->
+    <group if="$(arg run_mgr_ai_models)" >
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/ai_model_mgr.yaml" ns="ai_model_mgr" />
+      <node name="ai_model_mgr" pkg="nepi_managers" type="ai_model_mgr.py" respawn="true" output="$(arg output_destination)" />
     </group>
 
 

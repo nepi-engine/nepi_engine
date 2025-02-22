@@ -81,6 +81,7 @@ class NavPosePublisher(object):
     self.navpose_pub_options_report.pub_rate_min_max = self.NAVPOSE_PUB_RATE_OPTIONS
     self.navpose_pub_options_report.frame_3d_options = self.NAVPOSE_3D_FRAME_OPTIONS
     self.navpose_pub_options_report.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
+    # Node Services
     rospy.Service('~navpose_pub_options_query', NavPosePubQuery, self.provide_navpose_capabilities)
     # NavPose Heading, Orientation, Location, and Position Publish Topics
     ## Define Class Services Calls
@@ -89,6 +90,7 @@ class NavPosePublisher(object):
     nepi_msg.publishMsgInfo(self,"looking for nav_pose service at " + self.NAVPOSE_SERVICE_NAME)
     rospy.wait_for_service(self.NAVPOSE_SERVICE_NAME)
     nepi_msg.publishMsgInfo(self,"found nav_pose service")
+    self.get_navpose_service = rospy.ServiceProxy(self.NAVPOSE_SERVICE_NAME, NavPoseQuery)
  
     ## Create Class Publishers
     self.navpose_pub = rospy.Publisher(self.sub_pub_namespace + '/navpose', NavPoseData, queue_size=1, latch = True)
@@ -98,6 +100,8 @@ class NavPosePublisher(object):
     rospy.Subscriber(self.sub_pub_namespace + '/set_3d_frame', String, self.set3dFrameCb, queue_size=1) # start local callback
     rospy.Subscriber(self.sub_pub_namespace + '/set_alt_frame', String, self.setAltFrameCb, queue_size=1) # start local callback
     ## Set up save and config interfaces
+
+    time.sleep(1)
 
     factory_data_rates = {}
     for d in self.data_products:
@@ -177,10 +181,9 @@ class NavPosePublisher(object):
     set_alt_frame = nepi_ros.get_param(self,"~frame_alt",self.init_alt_frame)
     # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
     current_navpose = None
+    nav_pose_response = None
     try:
-      nav_pose_response = None
-      get_navpose_service = rospy.ServiceProxy(self.NAVPOSE_SERVICE_NAME, NavPoseQuery)
-      nav_pose_response = get_navpose_service(NavPoseQueryRequest())
+      nav_pose_response = self.get_navpose_service(NavPoseQueryRequest())
       current_navpose = nav_pose_response.nav_pose
     except rospy.ServiceException as e:
       nepi_msg.publishMsgInfo(self,"Service call failed: " + str(e))

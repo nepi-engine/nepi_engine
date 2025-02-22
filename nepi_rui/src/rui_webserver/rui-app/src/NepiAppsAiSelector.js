@@ -13,7 +13,11 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import AiDetectorApp from "./NepiAppAiDetector"
+import AiDetectorMgr from "./NepiMgrAiDetector"
+import AiSegmentorMgr from "./NepiMgrAiSegmentor"
+import AiPoserMgr from "./NepiMgrAiPoser"
+import AiOrientatorMgr from "./NepiMgrAiOrientator"
+import AifsMgr from "./NepiSystemAIFs"
 
 import AppRender from "./AppRender"
 
@@ -57,6 +61,18 @@ class AppsAiSelector extends Component {
       appsListener: null,
       appListener: null,
 
+      aiMgrName: "ai_model_mgr",
+      aiMgrNamespace: null,
+
+
+      frameworks_list: [],
+      active_framework: "None",
+      models_list:  [],
+      models_aifs: [],
+      models_types: [],
+      active_models_list:  [],
+      active_models_types: [],
+
 
       selected_app_install_pkg: null,
       needs_update: false
@@ -64,9 +80,15 @@ class AppsAiSelector extends Component {
 
 
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
+    this.getAiMgrNamespace = this.getAiMgrNamespace.bind(this)
 
     this.updateAppsStatusListener = this.updateAppsStatusListener.bind(this)
     this.appsStatusListener = this.appsStatusListener.bind(this)
+
+    this.updateAiMgrStatusListener = this.updateAiMgrStatusListener.bind(this)
+    this.aiMgrStatusListener = this.aiMgrStatusListener.bind(this)
+    
+
 
     this.toggleViewableApps = this.toggleViewableApps.bind(this)  
     this.onToggleAppSelection = this.onToggleAppSelection.bind(this)  
@@ -81,6 +103,15 @@ class AppsAiSelector extends Component {
       mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.mgrName
     }
     return mgrNamespace
+  }
+
+  getAiMgrNamespace(){
+    const { namespacePrefix, deviceId} = this.props.ros
+    var aiMgrNamespace = null
+    if (namespacePrefix !== null && deviceId !== null){
+      aiMgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.aiMgrName
+    }
+    return aiMgrNamespace
   }
 
   // Callback for handling ROS Status messages
@@ -118,6 +149,37 @@ class AppsAiSelector extends Component {
   }
 
 
+
+  // Callback for handling ROS Status messages
+  aiMgrStatusListener(message) {
+    this.setState({
+      frameworks_list: message.ai_frameworks,
+      models_list: message.ai_models,
+      models_aifs: message.ai_models_frameworks,
+      models_types: message.ai_models_types,
+      active_framework: message.active_ai_framework,
+      active_models_list: message.active_ai_models,
+      active_models_types: message.active_ai_models_types
+    })    
+
+  }
+
+  // Function for configuring and subscribing to Status
+  updateAiMgrStatusListener() {
+    const statusNamespace = this.getAiMgrNamespace() + '/status'
+    if (this.state.aiMgrListener) {
+      this.state.aiMgrListener.unsubscribe()
+    }
+    var aiMgrListener = this.props.ros.setupStatusListener(
+          statusNamespace,
+          "nepi_ros_interfaces/AiModelMgrStatus",
+          this.aiMgrStatusListener
+        )
+    this.setState({ aiMgrListener: aiMgrListener})
+  }
+
+
+
   componentDidMount(){
     this.setState({needs_update: true})
   }
@@ -134,6 +196,17 @@ class AppsAiSelector extends Component {
           mgrNamespace: namespace,
         })
         this.updateAppsStatusListener()
+      } 
+    }
+
+    const aiNamespace = this.getAiMgrNamespace()
+    const aiNamespace_updated = (prevState.aiNamespace !== aiNamespace && aiNamespace !== null)
+    if (namespace_updated ) {
+      if (aiNamespace.indexOf('null') === -1){
+        this.setState({
+          aiMgrNamespace: aiNamespace,
+        })
+        this.updateAiMgrStatusListener()
       } 
     }
   }
@@ -165,22 +238,36 @@ class AppsAiSelector extends Component {
     const appsList = this.state.apps_list
     const ruiList = this.state.apps_rui_list 
     const groupList = this.state.apps_group_list
-    const activeList = this.state.apps_active_list
+    const activeAppList = this.state.apps_active_list
+    const activeModelTypes = this.state.active_models_types
     var items = []
     const connected = this.state.connected
     if (connected !== true){
       items.push(<Option value={'Connecting'}>{'Connecting'}</Option>)
     }
     else {
-      items.push(<Option value={'AI Detector'}>{'AI Detector'}</Option>)
+      if (activeModelTypes.indexOf('detection') !== -1){
+        items.push(<Option value={'AI Detector'}>{'AI Detector'}</Option>)
+      }
+      if (activeModelTypes.indexOf('segmentation') !== -1){
+        items.push(<Option value={'AI Segmetation'}>{'AI Segmetation'}</Option>)
+      }
+      if (activeModelTypes.indexOf('pose') !== -1){
+        items.push(<Option value={'AI Pose'}>{'AI Pose'}</Option>)
+      }
+      if (activeModelTypes.indexOf('orientation') !== -1){
+        items.push(<Option value={'AI Orienation'}>{'AI Orienation'}</Option>)
+      }
 
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
-          if (groupList[i] === "AI" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
+          if (groupList[i] === "AI" && ruiList[i] !== "None" && activeAppList.indexOf(appsList[i]) !== -1 ){
             items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
+
+      items.push(<Option value={'AI Model Manager'}>{'AI Model Manager'}</Option>)
       //items.push(<Option value={"AI PanTilt Tracker"}>{"AI PanTilt Tracker"}</Option>)
     }
     return items
@@ -242,7 +329,7 @@ class AppsAiSelector extends Component {
             <Columns>
             <Column>
 
-              <AiDetectorApp
+              <AiDetectorMgr
               title={"AI Detector"}
               />
 
@@ -251,7 +338,78 @@ class AppsAiSelector extends Component {
         </React.Fragment>
       )
     }
+    if (sel_app === "AI Segmentor"){
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
 
+              <AiSegmentorMgr
+              title={"AI Segmentor"}
+              />
+
+          </Column>
+          </Columns>  
+        </React.Fragment>
+      )
+    }
+    if (sel_app === "AI Poser"){
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
+
+              <AiPoserMgr
+              title={"AI Poser"}
+              />
+
+          </Column>
+          </Columns>  
+        </React.Fragment>
+      )
+    }
+    if (sel_app === "AI Orientator"){
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
+
+              <AiOrientatorMgr
+              title={"AI Orientator"}
+              />
+
+          </Column>
+          </Columns>  
+        </React.Fragment>
+      )
+    }
+    if (sel_app === "AI Model Manager"){
+      return (
+        <React.Fragment>
+            <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {sel_app}
+            </label>
+            <Columns>
+            <Column>
+
+              <AifsMgr
+              title={"AI Model Manager"}
+              />
+
+          </Column>
+          </Columns>  
+        </React.Fragment>
+      )
+    }
 
     else if (appNameList.indexOf(sel_app) !== -1){
      return (

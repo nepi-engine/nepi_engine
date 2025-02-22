@@ -27,25 +27,36 @@ class AisMgr extends Component {
 
     this.state = {
 
-      mgrName: "ai_detector_mgr",
+      mgrName: "ai_model_mgr",
       mgrNamespace: null,
 
       viewable_frameworks: false,
 
       frameworks_list: [],
       last_frameworks_list: [],
-      frameworks_active_list: [],
-      framework_name: 'NONE',
+      active_framework: 'None',
+      //frameworks_active_list: [],
+      framework_name: 'None',
       framework_active_state: false,
-      selected_framework: 'NONE',
+      selected_framework: 'None',
     
       viewable_models: false, 
 
       models_list: [],
-      models_active_list: [],
-      model_name: 'NONE',
+      models_types: [],
+      models_aifs: [],
+      models_descriptions: [],
+      models_image_sizes: [],
+      models_classes_str: [],
+      
+      active_models_list: [],
+      active_models_types: [],
+
+
+
       model_active_state: false,
-      selected_model: 'NONE',
+      selected_model: 'None',
+      selected_model_type: 'Unknown',
 
       connected: false,
 
@@ -61,7 +72,7 @@ class AisMgr extends Component {
     this.toggleViewableFrameworks = this.toggleViewableFrameworks.bind(this)
     this.getFrameworkOptions = this.getFrameworkOptions.bind(this)
     this.onToggleFrameworkSelection = this.onToggleFrameworkSelection.bind(this)
-    this.getDisabledFrameworkStr = this.getDisabledFrameworkStr.bind(this)
+    this.getInactiveFrameworkStr = this.getInactiveFrameworkStr.bind(this)
     this.getActiveFrameworkStr = this.getActiveFrameworkStr.bind(this)
 
     this.toggleViewableModels = this.toggleViewableModels.bind(this)
@@ -93,11 +104,20 @@ class AisMgr extends Component {
   aiMgrStatusListener(message) {
     this.setState({
       frameworks_list: message.ai_frameworks,
-      frameworks_active_list: message.active_ai_frameworks,
+
       models_list: message.ai_models,
-      models_active_list: message.active_ai_models,
-      classifier_namespace_list: message.classifier_namespace_list,
-      active_classifier: message.active_classifier,
+      models_aifs: message.ai_models_frameworks,
+      models_types: message.ai_models_types,
+
+      models_descriptions: message.ai_models_descriptions,
+      models_image_sizes: message.ai_models_image_sizes_str,
+      models_classes_str: message.ai_models_classes_str,
+
+      active_framework: message.active_ai_framework,
+
+      active_models_list: message.active_ai_models,
+      active_models_types: message.active_ai_models_types,
+
       connected: true
     })    
   }
@@ -110,7 +130,7 @@ class AisMgr extends Component {
     }
     var aiMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AiMgrStatus",
+          "nepi_ros_interfaces/AiModelMgrStatus",
           this.aiMgrStatusListener
         )
     this.setState({ aiMgrListener: aiMgrListener,
@@ -154,17 +174,13 @@ class AisMgr extends Component {
   getFrameworkOptions() {
     const frameworksList = this.state.frameworks_list  
     var items = []
-    items.push(<Option>{"NONE"}</Option>) 
+    items.push(<Option value={'None'}>{'None'}</Option>)
     if (frameworksList.length > 0){
       for (var i = 0; i < frameworksList.length; i++) {
           items.push(<Option value={frameworksList[i]}>{frameworksList[i]}</Option>)
      }
     }
-    else{
-      items.push(<Option value={'NONE'}>{'NONE'}</Option>)
-      //items.push(<Option value={'TEST1'}>{'TEST1'}</Option>)
-      //items.push(<Option value={'TEST2'}>{'TEST2'}</Option>)
-    }
+
     return items
   }
 
@@ -175,41 +191,40 @@ class AisMgr extends Component {
   }
 
   getActiveFrameworkStr(){
-    const active =  this.state.frameworks_active_list
-    var config_str_list = []
-    for (var i = 0; i < active.length; i++) {
-      config_str_list.push(active[i])
-      config_str_list.push("\n")
+    const active_aif = this.state.active_framework
+    var active_str = ""
+    if (active_aif !== 'None') {
+      active_str = active_aif
     }
-    const config_str =config_str_list.join("")
-    return config_str
+    return active_str
   }
 
   
-  getDisabledFrameworkStr(){
-    const installed = this.state.frameworks_list
-    const active =  this.state.frameworks_active_list
-    var config_str_list = []
-    for (var i = 0; i < installed.length; i++) {
-      if (active.indexOf(installed[i]) === -1){
-        config_str_list.push(installed[i])
-        config_str_list.push("\n")
+  getInactiveFrameworkStr(){
+    const aif_list = this.state.frameworks_list
+    const active_aif =  this.state.active_framework
+    var inactive_str_list = []
+    for (var i = 0; i < aif_list.length; i++) {
+      if (aif_list[i] !== active_aif){
+        inactive_str_list.push(aif_list[i])
+        inactive_str_list.push("\n")
       }
     }
-    const config_str =config_str_list.join("")
-    return config_str
+    const inactive_str =inactive_str_list.join("")
+    return inactive_str
   }
 
  
 
 
   renderFrameworkConfig() {
-    const { sendUpdateActiveStateMsg} = this.props.ros
-    const selected_framework = this.state.selected_framework
+    const { sendStringMsg, sendUpdateActiveStateMsg} = this.props.ros
     const viewable_frameworks = this.state.viewable_frameworks
     const framework_options = this.getFrameworkOptions()
-    const active_framework_list = this.state.frameworks_active_list
-    const framework_state = this.state.frameworks_active_list.indexOf(this.state.selected_framework) !== -1 
+    const selected_framework = this.state.selected_framework
+    const active_framework = this.state.active_framework
+    const framework_state = (active_framework === selected_framework || selected_framework === "None")
+    const framework_state_change = (framework_state) ? "None" : selected_framework
 
     return (
 
@@ -232,38 +247,13 @@ class AisMgr extends Component {
               color: Styles.vars.colors.black,
               backgroundColor: (framework.props.value === selected_framework) ?
                 Styles.vars.colors.green :
-                (active_framework_list.includes(framework.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                (active_framework === framework.props.value) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
               cursor: "pointer",
               }}>
               <body framework-topic ={framework} style={{color: Styles.vars.colors.black}}>{framework}</body>
           </div>
           )}
           </div>
-
-
-        </Column>
-        <Column>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Active AI Frameworks List "}
-          </label>
-
-        <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getActiveFrameworkStr()}
-        </pre>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Disabled AI Frameworks List "}
-          </label>
-
-        <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getDisabledFrameworkStr()}
-        </pre>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
 
         </Column>
         <Column>
@@ -274,23 +264,44 @@ class AisMgr extends Component {
           {this.state.framework_name}
           </label>
 
-          <div hidden={(this.state.selected_framework === "NONE")}>
+          <div hidden={(this.state.selected_framework === "None")}>
 
-        <Label title="Enable AI Framework"> </Label>
+        <Label title="Set As Active AI Framework"> </Label>
           <Toggle
             checked={framework_state }
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
+            onClick={() => sendStringMsg(this.state.mgrNamespace + "/set_active_framework", framework_state_change)}>
         </Toggle>
 
           </div>
 
         <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_frameworks")}>{"Enable All"}</Button>
-        </ButtonMenu>
-
-        <ButtonMenu>
         <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_frameworks")}>{"Disable All"}</Button>
         </ButtonMenu>
+
+
+
+        </Column>
+        <Column>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {"Active AI Frameworks List "}
+          </label>
+
+        <pre style={{ height: "20px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+        {this.getActiveFrameworkStr()}
+        </pre>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {"Disabled AI Frameworks List "}
+          </label>
+
+        <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+        {this.getInactiveFrameworkStr()}
+        </pre>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
         </Column>
         </Columns> 
@@ -306,16 +317,21 @@ class AisMgr extends Component {
 
   // Function for creating image topic options.
   getModelOptions() {
-    const modelsList = this.state.models_list  
+    const models_list = this.state.models_list  
+    const models_aifs = this.state.models_aifs
+    const sel_aif = this.state.selected_framework
+
     var items = []
-    items.push(<Option>{"NONE"}</Option>) 
-    if (modelsList.length > 0){
-      for (var i = 0; i < modelsList.length; i++) {
-          items.push(<Option value={modelsList[i]}>{modelsList[i]}</Option>)
+    items.push(<Option>{"None"}</Option>) 
+    if (models_list.length > 0){
+      for (var i = 0; i < models_list.length; i++) {
+          if (models_aifs[i] === sel_aif){
+            items.push(<Option value={models_list[i]}>{models_list[i]}</Option>)
+          }
      }
     }
     else{
-      items.push(<Option value={'NONE'}>{'NONE'}</Option>)
+      items.push(<Option value={'None'}>{'None'}</Option>)
       //items.push(<Option value={'TEST1'}>{'TEST1'}</Option>)
       //items.push(<Option value={'TEST2'}>{'TEST2'}</Option>)
     }
@@ -325,34 +341,58 @@ class AisMgr extends Component {
 
   onToggleModelSelection(event){
     const model_name = event.target.value
-    this.setState({selected_model: model_name})
+    const model_names = this.state.models_list
+    const model_types = this.state.models_types
+    var model_type = 'Unknown'
+    const ind = model_names.indexOf(model_name)
+    if (ind !== -1){
+      model_type = model_types[ind]
+    }
+    this.setState({selected_model: model_name,
+                  selected_model_type: model_type  
+    })
   }
 
 
   getActiveModelStr(){
-    const active =  this.state.models_active_list
-    var config_str_list = []
-    for (var i = 0; i < active.length; i++) {
-      config_str_list.push(active[i])
-      config_str_list.push("\n")
+    const models_list = this.state.models_list  
+    const models_aifs = this.state.models_aifs
+    const sel_aif = this.state.selected_framework
+    const active_model_list =  this.state.active_models_list
+    var active_str_list = []
+    var active_model = ""
+    var model_aif = ""
+    var ind = 0
+    for (var i = 0; i < active_model_list.length; i++) {
+      active_model = active_model_list[i]
+      ind = models_list.indexOf(active_model)
+      model_aif = models_aifs[ind]
+      if (model_aif === sel_aif){
+        active_str_list.push(active_model)
+        active_str_list.push("\n")
+      }
     }
-    const config_str =config_str_list.join("")
-    return config_str
+    const active_str =active_str_list.join("")
+    return active_str
   }
 
   
   getDisabledModelStr(){
-    const installed = this.state.models_list
-    const active =  this.state.models_active_list
-    var config_str_list = []
-    for (var i = 0; i < installed.length; i++) {
-      if (active.indexOf(installed[i]) === -1){
-        config_str_list.push(installed[i])
-        config_str_list.push("\n")
+    const models_list = this.state.models_list
+    const models_aifs = this.state.models_aifs
+    const sel_aif = this.state.selected_framework
+    const active_model_list =  this.state.active_models_list
+    var inactive_str_list = []
+    var model_aif = ""
+    for (var i = 0; i < models_list.length; i++) {
+      model_aif = models_aifs[i]
+      if (active_model_list.indexOf(models_list[i]) === -1 && model_aif === sel_aif){
+        inactive_str_list.push(models_list[i])
+        inactive_str_list.push("\n")
       }
     }
-    const config_str =config_str_list.join("")
-    return config_str
+    const inactive_str =inactive_str_list.join("")
+    return inactive_str
   }
 
  
@@ -361,11 +401,11 @@ class AisMgr extends Component {
   renderModelConfig() {
     const { sendUpdateActiveStateMsg} = this.props.ros
     const selected_model = this.state.selected_model
+    const selected_type = this.state.selected_model_type
     const viewable_models = this.state.viewable_models
     const model_options = this.getModelOptions()
-    const active_model_list = this.state.models_active_list
-    const model_state = this.state.models_active_list.indexOf(this.state.selected_model) !== -1 
-
+    const active_model_list = this.state.active_models_list
+    const model_state = this.state.active_models_list.indexOf(this.state.selected_model) !== -1 
 
 
     return (
@@ -374,7 +414,7 @@ class AisMgr extends Component {
       <Column>
 
       <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Select AI Framework"}
+          {"Select AI Model"}
          </label>
 
           <div onClick={this.toggleViewableModels} style={{backgroundColor: Styles.vars.colors.grey0}}>
@@ -396,6 +436,37 @@ class AisMgr extends Component {
           </div>
           )}
           </div>
+
+
+
+
+
+        </Column>
+        <Column>
+
+
+        <div hidden={(this.state.selected_model === "None")}>
+
+        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {selected_model + ' : ' + selected_type}
+          </label>
+
+
+        <Label title="Enable"> </Label>
+          <Toggle
+            checked={model_state===true}
+            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !model_state)}>
+        </Toggle>
+
+        </div>
+
+        <ButtonMenu>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_models")}>{"Enable All"}</Button>
+        </ButtonMenu>
+
+        <ButtonMenu>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_models")}>{"Disable All"}</Button>
+        </ButtonMenu>
 
 
         </Column>
@@ -421,34 +492,6 @@ class AisMgr extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-
-        </Column>
-        <Column>
-
-
-        <div hidden={(this.state.selected_model === "NONE")}>
-
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {this.state.model_name}
-          </label>
-
-        <Label title="Enable"> </Label>
-          <Toggle
-            checked={model_state===true}
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !model_state)}>
-        </Toggle>
-
-        </div>
-
-        <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_models")}>{"Enable All"}</Button>
-        </ButtonMenu>
-
-        <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_models")}>{"Disable All"}</Button>
-        </ButtonMenu>
-
-
         </Column>
         </Columns> 
 
@@ -458,7 +501,9 @@ class AisMgr extends Component {
 
 
 render() {
-
+  const selected_framework = this.state.selected_framework
+  const active_framework = this.state.active_framework
+  const framework_state = (active_framework === selected_framework && selected_framework !== "None")
     return (
 
     <Section title={"AI Framework and Model Settings"}>
@@ -493,6 +538,7 @@ render() {
 
       {this.renderModelConfig()}
       <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
 
        </Column>
      </Columns>

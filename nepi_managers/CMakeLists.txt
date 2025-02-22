@@ -114,7 +114,7 @@ catkin_install_python(PROGRAMS
   scripts/drivers_mgr.py
   scripts/apps_mgr.py
   scripts/automation_mgr.py
-  scripts/ai_detector_mgr.py
+  scripts/ai_model_mgr.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 #########################################

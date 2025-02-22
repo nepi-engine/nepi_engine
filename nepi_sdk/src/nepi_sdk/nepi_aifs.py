@@ -50,8 +50,8 @@ def getAIFsDict(search_path):
               new_dict = nepi_save.read_yaml2dict(file_path)
               #rospy.logwarn("NEPI_AIFS: Got ais dict: " + str(new_dict))
               new_dict['if_path'] = search_path
-              new_dict['active'] = True
-              aifs_dict[new_dict['pkg_name']] = new_dict
+              new_dict['active'] = False
+              aifs_dict[new_dict['framework_name']] = new_dict
             except Exception as e:
               rospy.logwarn("NEPI_AIFS: Failed to import param file: " + f + " " + str(e))
     else:

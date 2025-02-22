@@ -58,7 +58,7 @@ def write_dict2yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False)
 #***************************
 # NEPI data saving utility functions
 
-def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_check=True):
+def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -66,14 +66,16 @@ def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_ch
         snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(data_product)
         # Save data if enabled
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-                full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                        node_name + "-" + data_product, 'txt')
-                if os.path.isfile(full_path_filename) is False:
-                    with open(full_path_filename, 'w') as f:
-                        f.write(str(data))
-                        self.save_data_if.data_product_snapshot_reset(data_product)
+            if add_text != "":
+                add_text = '-' + add_text 
+            full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
+                                                                            node_name + add_text + "-" + data_product, 'txt')
+            if os.path.isfile(full_path_filename) is False:
+                with open(full_path_filename, 'w') as f:
+                    f.write(str(data))
+                    self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True):
+def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -81,15 +83,17 @@ def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True):
         snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(data_product)
         # Save data if enabled
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-              full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                      node_name + "-" + data_product, 'yaml')
-              if os.path.isfile(full_path_filename) is False:
-                  with open(full_path_filename, 'w') as f:
-                      yaml.dump(data_dict, f)
-              self.save_data_if.data_product_snapshot_reset(data_product)
+            if add_text != "":
+                add_text = '-' + add_text 
+            full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
+                                                                              node_name + add_text + "-" + data_product, 'yaml')
+            if os.path.isfile(full_path_filename) is False:
+                with open(full_path_filename, 'w') as f:
+                    yaml.dump(data_dict, f)
+            self.save_data_if.data_product_snapshot_reset(data_product)
 
 
-def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True):
+def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -98,13 +102,15 @@ def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True):
         # Save data if enabled
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
             if cv2_img is not None:
+                if add_text != "":
+                  add_text = '-' + add_text 
                 full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                        node_name + "-" + data_product, 'png')
+                                                                              node_name + add_text + "-" + data_product, 'png')
                 if os.path.isfile(full_path_filename) is False:
                     cv2.imwrite(full_path_filename, cv2_img)
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True):
+def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -114,15 +120,18 @@ def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True):
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
             if ros_img is not None:
                 cv2_img = nepi_img.rosimg_to_cv2img(ros_img)
+                #nepi_msg.publishMsgWarn(self,'CV2 img size: ' + str(cv2_img.shape))
+                if add_text != "":
+                  add_text = '-' + add_text 
                 full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                        node_name + "-" + data_product, 'png')
+                                                                              node_name + add_text + "-" + data_product, 'png')
                 if os.path.isfile(full_path_filename) is False:
                     cv2.imwrite(full_path_filename, cv2_img)
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
             
 
-def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True):
+def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -131,13 +140,15 @@ def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True):
         # Save data if enabled
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
             if o3d_pc is not None:
+                if add_text != "":
+                  add_text = '-' + add_text 
                 full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                        node_name + "-" + data_product, 'pcd')
+                                                                              node_name + add_text + "-" + data_product, 'pcd')
                 if os.path.isfile(full_path_filename) is False:
                     nepi_pc.save_pointcloud(o3d_pc,full_path_filename)
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_ros_pc2file(self,data_product,ros_pc,ros_timestamp,save_check=True):
+def save_ros_pc2file(self,data_product,ros_pc,ros_timestamp,save_check=True,add_text = ''):
     node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
@@ -147,8 +158,10 @@ def save_ros_pc2file(self,data_product,ros_pc,ros_timestamp,save_check=True):
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
             if ros_pc is not None:
                 o3d_pc = nepi_pc.rospc_to_o3dpc(ros_pc, remove_nans=True)
+                if add_text != "":
+                  add_text = '-' + add_text 
                 full_path_filename = self.save_data_if.get_full_path_filename(nepi_ros.get_datetime_str_from_stamp(ros_timestamp), 
-                                                                                        node_name + "-" + data_product, 'pcd')
+                                                                              node_name + add_text + "-" + data_product, 'pcd')
                 if os.path.isfile(full_path_filename) is False:
                     nepi_pc.save_pointcloud(o3d_pc,full_path_filename)
                     self.save_data_if.data_product_snapshot_reset(data_product)

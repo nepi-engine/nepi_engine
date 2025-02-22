@@ -29,7 +29,7 @@ import DriversSelector from "./NepiDriversSelector"
 import DeviceMgr from "./NepiSystemDevice"
 import NavPoseMgr from "./NepiMgrNavPose"
 import SoftwareMgr from "./NepiSystemSoftware"
-import AisMgr from "./NepiSystemAis"
+import AifsMgr from "./NepiSystemAIFs"
 import AppsMgr from "./NepiSystemApps"
 
 
@@ -70,7 +70,7 @@ class App extends Component {
                 { path: "/software_mgr", label: "Software" },
                 { path: "/drivers_selector", label: "Drivers"},
                 { path: "/apps_mgr", label: "Apps"},
-                { path: "/ais_mgr", label: "AI Models"}
+                { path: "/ai_model_mgr", label: "AI Models"}
               ]
             },
             {
@@ -99,7 +99,7 @@ class App extends Component {
           <Route path="/device_config" component={DeviceMgr} />
           <Route path="/software_mgr" component={SoftwareMgr} />
           <Route path="/apps_mgr" component={AppsMgr} />
-          <Route path="/ais_mgr" component={AisMgr} />
+          <Route path="/ai_model_mgr" component={AifsMgr} />
 
 
 

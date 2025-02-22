@@ -154,18 +154,18 @@ export function createShortUniqueValues(list) {
 }
 
 
-export function createShortValuesFromNamespaces(inputList) {
+export function createShortValuesFromNamespaces(namespacesList) {
   var tokenizedList = []
   var outputList = []
   var shortName = ''
-  for (var i = 0; i < inputList.length; ++i) {
-      tokenizedList = inputList[i].split("/")
+  for (var i = 0; i < namespacesList.length; ++i) {
+      tokenizedList = namespacesList[i].split("/")
       var tokens_len = tokenizedList.length
       if(tokenizedList.length === 2){
         shortName = tokenizedList[1]
       }     
       if(tokenizedList.length === 3){
-        shortName = tokenizedList[1] + "/" + tokenizedList[2]
+        shortName = tokenizedList[2]
       }
       else if(tokenizedList.length === 4){
         shortName = tokenizedList[2] + "/" + tokenizedList[3]
@@ -179,6 +179,31 @@ export function createShortValuesFromNamespaces(inputList) {
       outputList.push(shortName)
   }
   return outputList
+}
+
+export function createShortImagesFromNamespaces(baseNamespace,namespacesList) {
+  const filterList = [baseNamespace + '/' , 'idx/', 'ptx/', 'rbx/' , 'lsx/', 'npx/', 'ai/' ]
+  var outputList = []
+  var shortName = ""
+  for (var i = 0; i < namespacesList.length; ++i) {
+      shortName = namespacesList[i]
+      for (var i2 = 0; i2 < filterList.length; ++i2) {
+        shortName = shortName.replace(filterList[i2],"")
+      }
+      outputList.push(shortName)
+    }
+  return outputList
+}
+
+export function createShortImageFromNamespace(baseNamespace,namespace) {
+  const filterList = [baseNamespace + '/', 'idx/', 'ptx/', 'rbx/' , 'lsx/', 'npx/', 'ai/' ]
+  var outputList = []
+  var shortName = ""
+  var shortName = namespace
+  for (var i2 = 0; i2 < filterList.length; ++i2) {
+    shortName = shortName.replace(filterList[i2],"")
+  }
+  return shortName
 }
 
 

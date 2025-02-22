@@ -581,7 +581,8 @@ class NetworkMgr:
                                         self.wifi_client_passphrase + "): " + str(e))
                         # Auto retry in 3 seconds
                         nepi_msg.publishMsgInfo(self,"Automatically retrying Wifi connect in 3 seconds")
-                        self.retry_wifi_timer = nepi_ros.timer(nepi_ros.duration(3), self.auto_retry_wifi_client_connect, oneshot=True)
+                        if not rospy.is_shutdown():
+                            self.retry_wifi_timer = nepi_ros.timer(nepi_ros.duration(3), self.auto_retry_wifi_client_connect, oneshot=True)
                 else:
                     nepi_msg.publishMsgInfo(self,"Wifi client ready -- need SSID and passphrase to connect")
                     self.retry_wifi_timer = None

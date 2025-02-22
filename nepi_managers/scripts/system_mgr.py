@@ -38,7 +38,7 @@ class SystemMgrNode():
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
-    FW_VERSION_PATH = "/opt/nepi/ros/etc/nepi_env/fw_version.txt"
+    FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
 
     status_msg = SystemStatus()
     system_defs_msg = SystemDefs()

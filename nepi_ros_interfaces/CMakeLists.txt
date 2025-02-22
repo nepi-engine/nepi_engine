@@ -55,7 +55,7 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs 
 
 ## Generate messages in the 'msg' folder
 add_message_files(FILES
-    AiMgrStatus.msg
+    AiModelMgrStatus.msg
     Annotation.msg
     Reset.msg
     SaveData.msg
@@ -87,7 +87,6 @@ add_message_files(FILES
     TimeStatus.msg
     TriggerIndexSettings.msg
     OotStatus.msg
-    ClassifierSelection.msg
     Heading.msg
     NEPILinkStatus.msg
     ObjectCount.msg
@@ -128,7 +127,9 @@ add_message_files(FILES
     UpdateOption.msg
     AppsStatus.msg
     AppStatus.msg
-    ImageClassifierStatus.msg
+    AiDetectorStatus.msg
+    AiSegmentorStatus.msg
+    AiPoseStatus.msg
     ImageMuxInput.msg
     ImageMuxSequence.msg
     ImageSelection.msg
@@ -185,6 +186,7 @@ add_service_files(
     DriverStatusQuery.srv
     NavPosePubQuery.srv
     MgrStatusQuery.srv
+    SetBoolState.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -216,6 +216,7 @@ class ROSConnectionStore {
   @observable appNameList = []
   @observable appStatusList = []
   @observable imageTopics = []
+  @observable imageDetectionTopics = []
   @observable pointcloudTopics = []
   @observable idxSensors = {}
   @observable settingCaps = {}
@@ -475,9 +476,13 @@ class ROSConnectionStore {
   updateImageTopics() {
     // Function for updating image topics list
     var newImageTopics = []
+    var newImageDetectionTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
+        if (this.topicNames[i].indexOf('detection_image') !== -1){
+          newImageDetectionTopics.push(this.topicNames[i])
+        }
       }
     }
 
@@ -486,6 +491,7 @@ class ROSConnectionStore {
 
     if (!this.imageTopics.equals(newImageTopics)) {
       this.imageTopics = newImageTopics
+      this.imageDetectionTopics = newImageDetectionTopics
       return true
     } else {
       return false
@@ -1083,12 +1089,23 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  sendStringMsg(strNamespace,strMsg) {
+  sendStringMsg(strNamespace,str) {
     const namespace = strNamespace
     this.publishMessage({
       name: namespace,
       messageType: "std_msgs/String",
-      data: {'data':strMsg},
+      data: {'data':str},
+      noPrefix: true
+    })
+  }
+
+  @action.bound
+  sendStringArrayMsg(strNamespace,strArray) {
+    const namespace = strNamespace
+    this.publishMessage({
+      name: namespace,
+      messageType: "nepi_ros_interfaces/StringArray",
+      data: {'data':strArray},
       noPrefix: true
     })
   }
