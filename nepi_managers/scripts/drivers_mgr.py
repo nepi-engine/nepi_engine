@@ -25,6 +25,7 @@ from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_drv
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
+from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder, UpdateOption #, DriverUpdateMsg
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryResponse
@@ -81,6 +82,28 @@ class NepiDriversMgr(object):
     nepi_msg.createMsgPublishers(self)
     nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
     ##############################
+    # Wait for NEPI core managers to start
+    system_status_topic = os.path.join(self.base_namespace,'system_status')
+    nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
+    nepi_ros.wait_for_topic(system_status_topic)
+    self.sys_status = None
+    sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
+    nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
+    while(self.sys_status is None):
+      nepi_ros.sleep(1)
+    sys_status_sub.unregister()
+    
+    config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
+    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
+    nepi_ros.wait_for_topic(config_status_topic)
+    self.cfg_status = None
+    cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
+    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
+    while(self.cfg_status is None):
+      nepi_ros.sleep(1)
+    cfg_status_sub.unregister()
+    ##############################
+
     '''
     # Get driver folder paths
     get_folder_name_service = self.base_namespace + 'system_storage_folder_query'
@@ -123,7 +146,7 @@ class NepiDriversMgr(object):
     self.save_cfg_if = SaveCfgIF(updateParamsCallback=self.initParamServerValues, 
                                  paramsModifiedCallback=self.updateFromParamServer)
     self.save_cfg_if.userReset()
-    time.sleep(3)
+    time.sleep(1)
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
     drvs_dict = nepi_drv.refreshDriversDict(self.drivers_param_folder,drvs_dict)
     #nepi_msg.publishMsgWarn(self,"Got init drvs dict: " + str(drvs_dict))
@@ -135,11 +158,7 @@ class NepiDriversMgr(object):
     self.init_drvs_dict = drvs_dict
     nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
 
-    
     self.initParamServerValues(do_updates = True)
-
-
-
 
     # Setup Node Status Publisher
     self.drivers_status_pub = rospy.Publisher("~status", DriversStatus, queue_size=1, latch=True)
@@ -151,10 +170,6 @@ class NepiDriversMgr(object):
     # Setup message publisher and init param server
     nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
 
-
-
-        
- 
     ## Mgr ROS Setup 
     mgr_reset_sub = rospy.Subscriber('~factory_reset', Empty, self.resetMgrCb, queue_size = 10)
     mgr_reset_sub = rospy.Subscriber('~refresh_drivers', Empty, self.refreshCb, queue_size = 10)
@@ -193,7 +208,14 @@ class NepiDriversMgr(object):
     nepi_ros.spin()
     #########################################################
 
+  #######################
+  # Wait for System and Config Statuses Callbacks
+  def systemStatusCb(self,msg):
+    self.sys_status = msg
 
+  def configStatusCb(self,msg):
+    self.cfg_status = True
+  
 
   #######################
   ### Mgr Config Functions

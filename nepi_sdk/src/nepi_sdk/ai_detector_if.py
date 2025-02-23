@@ -816,8 +816,8 @@ class AiDetectorIF:
         status_msg.model_name = self.model_name
         status_msg.model_type = self.model_type
         status_msg.model_description = self.model_description
-        status_msg.img_height = self.model_img_heigh
-        status_msg.img_width = self.model_img_width = img_width
+        status_msg.img_height = self.model_img_height
+        status_msg.img_width = self.model_img_width
         status_msg.model_classes = self.classes_list
 
         status_msg.model_namespace = self.node_namespace

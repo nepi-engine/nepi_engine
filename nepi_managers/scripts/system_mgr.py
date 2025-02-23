@@ -8,6 +8,7 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
+import time
 import shutil
 from collections import deque
 import re
@@ -142,28 +143,8 @@ class SystemMgrNode():
         self.save_data_pub = rospy.Publisher(
             'save_data', SaveData, queue_size=1)
 
+        time.sleep(1)
         self.current_throttle_ratio = 1.0
-
-        # Subscribe to topics
-        rospy.Subscriber('save_data', SaveData, self.set_save_status)
-        rospy.Subscriber('clear_data_folder', Empty, self.clear_data_folder)
-        rospy.Subscriber('set_op_environment', String, self.set_op_environment)
-
-        rospy.Subscriber('set_device_id', String,
-                         self.set_device_id)  # Public ns
-
-        rospy.Subscriber('submit_system_error_msg', String,
-                         self.handle_system_error_msg)
-
-        rospy.Subscriber('install_new_image', String,
-                         self.handle_install_new_img, queue_size=1)
-
-        rospy.Subscriber('switch_active_inactive_rootfs', Empty,
-                         self.handle_switch_active_inactive_rootfs)
-
-        rospy.Subscriber('archive_inactive_rootfs', Empty, self.handle_archive_inactive_rootfs, queue_size=1)
-
-        rospy.Subscriber('save_data_prefix', String, self.save_data_prefix_callback)
 
         # Advertise services
         rospy.Service('system_defs_query', SystemDefsQuery,
@@ -173,6 +154,7 @@ class SystemMgrNode():
         rospy.Service('sw_update_status_query', SystemSoftwareStatusQuery,
                        self.provide_sw_update_status)
 
+        nepi_msg.publishMsgWarn(self,"System Mgr services ready")
         self.save_cfg_if = SaveCfgIF(
             updateParamsCallback=None, paramsModifiedCallback=self.updateFromParamServer)
 
@@ -196,7 +178,7 @@ class SystemMgrNode():
 
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-        #rospy.sleep(3)
+
         self.updateFromParamServer()
 
         if self.in_container == False:
@@ -211,12 +193,27 @@ class SystemMgrNode():
 
         rospy.Timer(nepi_ros.duration(self.STATUS_PERIOD),
                     self.publish_periodic_status)
-
+        nepi_msg.publishMsgWarn(self,"System status ready")
+        
         # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
         # established
-        rospy.sleep(3)
         self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
         
+
+        # Subscribe to topics
+        rospy.Subscriber('save_data', SaveData, self.set_save_status)
+        rospy.Subscriber('clear_data_folder', Empty, self.clear_data_folder)
+        rospy.Subscriber('set_op_environment', String, self.set_op_environment)
+        rospy.Subscriber('set_device_id', String,
+                         self.set_device_id)  # Public ns
+        rospy.Subscriber('submit_system_error_msg', String,
+                         self.handle_system_error_msg)
+        rospy.Subscriber('install_new_image', String,
+                         self.handle_install_new_img, queue_size=1)
+        rospy.Subscriber('switch_active_inactive_rootfs', Empty,
+                         self.handle_switch_active_inactive_rootfs)
+        rospy.Subscriber('archive_inactive_rootfs', Empty, self.handle_archive_inactive_rootfs, queue_size=1)
+        rospy.Subscriber('save_data_prefix', String, self.save_data_prefix_callback)
 
         #########################################################
         ## Initiation Complete

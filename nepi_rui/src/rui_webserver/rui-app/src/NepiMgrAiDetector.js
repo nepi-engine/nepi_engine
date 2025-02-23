@@ -58,7 +58,7 @@ class AiDetectorMgr extends Component {
 
       active_models_list: [],
       active_models_types: [],
-      active_model_nodes: [],
+      active_models_nodes: [],
       active_models_namespaces: [],
 
       all_namespace: null,
@@ -139,9 +139,9 @@ class AiDetectorMgr extends Component {
       models_types: message.ai_models_types,
 
       active_models_list: message.active_ai_models,
-      active_models_types: message.active_ai_model_types,
-      active_mdoels_nodes: message.active_ai_model_nodes,
-      active_models_namespaces: message.active_ai_model_namespaces,
+      active_models_types: message.active_ai_models_types,
+      active_mdoels_nodes: message.active_ai_models_nodes,
+      active_models_namespaces: message.active_ai_modes_namespaces,
 
       
       all_namespace: message.all_namespace,
@@ -196,11 +196,11 @@ class AiDetectorMgr extends Component {
         model_connected: false})
     }
     const models = this.state.active_models_list
-    const active_model_namespaces = this.state.active_models_namespaces
+    const active_models_namespaces = this.state.active_models_namespaces
     const selected_model = this.state.selected_model
     const model_ind = models.indexOf(selected_model)
     if (model_ind !== -1){
-      const model_namespace = active_model_namespaces[model_ind]
+      const model_namespace = active_models_namespaces[model_ind]
       const statusNamespace = model_namespace + '/status'
       var modelListener = this.props.ros.setupStatusListener(
         statusNamespace,
@@ -335,8 +335,9 @@ class AiDetectorMgr extends Component {
     const selected_model = this.state.selected_model
     const model_selected = (selected_model !== "None")
 
+    const model_loading = (model_name === selected_model)? this.state.model_connected === false : false
     const model_name = this.state.model_name
-    const model_connected = (this.state.model_connected === true && model_name === selected_model)
+    const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
     const model_enabled = this.state.model_enabled
@@ -407,7 +408,7 @@ class AiDetectorMgr extends Component {
               </Label>
     
 
-              <div hidden={model_connected === true}>
+              <div hidden={model_loading === false}>
 
                   <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
                   {"Loading..."}
@@ -418,7 +419,7 @@ class AiDetectorMgr extends Component {
           </Column>
           </Columns>
 
-          <div hidden={model_connected === false && model_selected === false}>
+          <div hidden={model_connected === false}>
 
               <Columns>
               <Column>
@@ -868,7 +869,7 @@ renderModelSettings() {
       <Column>
 
 
-      {this.renderAIDetector()}
+      {this.renderAiDetector()}
       
 
 

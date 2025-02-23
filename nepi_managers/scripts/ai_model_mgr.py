@@ -27,6 +27,7 @@ from nepi_sdk import nepi_img
 
 
 from std_msgs.msg import Empty, Float32, String, Bool, Int32
+from nepi_ros_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from cv_bridge import CvBridge
@@ -70,6 +71,27 @@ class AIDetectorManager:
         self.base_namespace = nepi_ros.get_base_namespace()
         nepi_msg.createMsgPublishers(self)
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        ##############################
+        # Wait for NEPI core managers to start
+        system_status_topic = os.path.join(self.base_namespace,'system_status')
+        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
+        nepi_ros.wait_for_topic(system_status_topic)
+        self.sys_status = None
+        sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
+        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
+        while(self.sys_status is None):
+            nepi_ros.sleep(1)
+        sys_status_sub.unregister()
+        
+        config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
+        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
+        nepi_ros.wait_for_topic(config_status_topic)
+        self.cfg_status = None
+        cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
+        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
+        while(self.cfg_status is None):
+            nepi_ros.sleep(1)
+        cfg_status_sub.unregister()
         ##############################
 
         message = "LOADING MODELS"
@@ -178,6 +200,21 @@ class AIDetectorManager:
         #########################################################
 
 
+
+
+    ####################
+    # Wait for System and Config Statuses Callbacks
+    def systemStatusCb(self,msg):
+        self.sys_status = True
+
+    def configStatusCb(self,msg):
+        self.cfg_status = True
+        
+
+
+    #######################
+    ### Mgr Config Functions
+
     def refreshFrameworksCb(self,msg):
         self.refreshFrameworks()
 
@@ -232,8 +269,6 @@ class AIDetectorManager:
                         #nepi_msg.publishMsgWarn(self,"Got Models Dict " + str(models_dict))
                         for model_name in aif_models_dict.keys():
                             model_dict = aif_models_dict[model_name]
-                            model_dict['ai_framework'] = aif_name
-                            model_dict['type'] = aif_name
                             model_dict['active'] = False
                             models_dict[model_name] = model_dict
                             self.aif_classes_dict[model_name] = aif_if_class_instance
@@ -283,7 +318,7 @@ class AIDetectorManager:
         active_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
 
         for model_name in self.running_models_list:
-            model_aif = models_dict[model_name]['ai_framework']
+            model_aif = models_dict[model_name]['framework']
             if model_name not in active_models_list or model_aif != active_aif:
                 nepi_msg.publishMsgWarn(self,"Killing model: " + model_name)
                 models_dict[model_name]['active'] = False
@@ -294,7 +329,7 @@ class AIDetectorManager:
 
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
         for model_name in active_models_list:
-            model_aif = models_dict[model_name]['ai_framework']
+            model_aif = models_dict[model_name]['framework']
             if model_name not in self.running_models_list and model_aif == active_aif:
                 nepi_msg.publishMsgWarn(self,"Loading model: " + model_name)
                 self.loadModel(model_name)
@@ -484,7 +519,7 @@ class AIDetectorManager:
         sizes_list = []
         classes_list = []
         for model_name in ai_models:
-            aif_list.append(models_dict[model_name]['ai_framework'])
+            aif_list.append(models_dict[model_name]['framework'])
             type_list.append(models_dict[model_name]['type'])
             desc_list.append(models_dict[model_name]['description'])
             img_height = models_dict[model_name]['img_height']

@@ -64,10 +64,6 @@
       <!-- Nav/Pose Mgr -->
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_mgr.yaml" ns="nav_pose_mgr" />
       <node name="nav_pose_mgr" pkg="nepi_managers" type="nav_pose_mgr" respawn="true" output="$(arg output_destination)" />
-      
-      <!-- Nav/Pose Pub -->
-      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_pub.yaml" ns="nav_pose_pub" />
-      <node name="nav_pose_pub" pkg="nepi_managers" type="nav_pose_pub.py" respawn="true" output="$(arg output_destination)" />
     </group>      
     
  <!-- GPSD ROS Client -->

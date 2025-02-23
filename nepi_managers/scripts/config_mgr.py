@@ -17,6 +17,7 @@ import rospy
 import rosparam
 
 import os
+import time
 import errno
 
 from nepi_sdk import nepi_ros
@@ -67,6 +68,8 @@ class config_mgr(object):
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
         ##############################
 
+
+
         rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
         rospy.Subscriber('store_params', String, self.store_params)
         rospy.Subscriber('full_user_restore', Empty, self.restore_user_cfgs_mgr)
@@ -74,6 +77,9 @@ class config_mgr(object):
         rospy.Service('factory_reset', FileReset, self.factory_reset)
         rospy.Service('user_reset', FileReset, self.user_reset)
 
+        self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
+        time.sleep(1)
+        self.status_pub.publish()
         # Restore user configurations
         self.restore_user_cfgs()
 

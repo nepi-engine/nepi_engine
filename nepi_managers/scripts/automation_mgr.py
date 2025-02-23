@@ -23,6 +23,7 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_msg 
 
 from std_msgs.msg import Empty
+from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.srv import (
     GetScriptsQuery,
     GetScriptsQueryResponse,
@@ -56,6 +57,27 @@ class AutomationManager:
         self.base_namespace = nepi_ros.get_base_namespace()
         nepi_msg.createMsgPublishers(self)
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        ##############################
+        # Wait for NEPI core managers to start
+        system_status_topic = os.path.join(self.base_namespace,'system_status')
+        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
+        nepi_ros.wait_for_topic(system_status_topic)
+        self.sys_status = None
+        sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
+        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
+        while(self.sys_status is None):
+            nepi_ros.sleep(1)
+        sys_status_sub.unregister()
+        
+        config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
+        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
+        nepi_ros.wait_for_topic(config_status_topic)
+        self.cfg_status = None
+        cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
+        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
+        while(self.cfg_status is None):
+            nepi_ros.sleep(1)
+        cfg_status_sub.unregister()
         ##############################
         
         get_folder_name_service = self.base_namespace + 'system_storage_folder_query'
@@ -128,6 +150,20 @@ class AutomationManager:
         # Spin forever (until object is detected)
         nepi_ros.spin()
         #########################################################
+
+    #######################
+    # Wait for System and Config Statuses Callbacks
+    def systemStatusCb(self,msg):
+        self.sys_status = msg
+
+    def configStatusCb(self,msg):
+        self.cfg_status = True
+    
+
+
+    #######################
+    ### Mgr Config Functions
+
 
     def setupScriptConfigs(self, single_script=None):
         script_list = []
