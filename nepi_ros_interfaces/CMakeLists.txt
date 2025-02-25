@@ -142,6 +142,8 @@ add_message_files(FILES
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
+    AiModelInfo.msg
+    AiModelsInfo.msg
     
 )
 

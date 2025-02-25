@@ -31,7 +31,7 @@ from nepi_ros_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from cv_bridge import CvBridge
-from nepi_ros_interfaces.msg import UpdateState, AiModelMgrStatus, AiDetectorStatus
+from nepi_ros_interfaces.msg import UpdateState, AiModelInfo, AiModelMgrStatus, AiDetectorStatus
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery
 from nepi_ros_interfaces.msg import BoundingBoxes, ObjectCount
 
@@ -104,7 +104,7 @@ class AIDetectorManager:
 
         self.all_namespace = os.path.join(self.base_namespace,'ai')
         nepi_msg.publishMsgInfo(self,"Staring all detectors on namespace " + self.all_namespace)
-        self.detection_image_pub = rospy.Publisher(self.all_namespace + '/detection_image', Image,queue_size=1, latch=True)
+        self.detection_image_pub = rospy.Publisher(self.all_namespace + '/all_detectors/detection_image', Image,queue_size=1, latch=True)
         time.sleep(1)
         self.ros_loading_img.header.stamp = nepi_ros.time_now()
         self.detection_image_pub.publish(self.ros_loading_img)
@@ -180,8 +180,8 @@ class AIDetectorManager:
         # Create status pub
 
 
-        rospy.Subscriber(self.all_namespace + "/detection_image", Image, self.detectionImageCb, queue_size = 1)
-        rospy.Subscriber(self.all_namespace + "/bounding_boxes", BoundingBoxes, self.boundingBoxesCb, queue_size = 1)
+        rospy.Subscriber(self.all_namespace + "/all_detectors/detection_image", Image, self.detectionImageCb, queue_size = 1)
+        rospy.Subscriber(self.all_namespace + "/all_detectors/bounding_boxes", BoundingBoxes, self.boundingBoxesCb, queue_size = 1)
 
         time.sleep(1)
        
@@ -502,6 +502,20 @@ class AIDetectorManager:
         nepi_save.save_dict2file(self,data_product,bbs_dict,ros_timestamp)
 
 
+
+    def getModelInfo(self,model_name,models_dict):
+        model_dict = models_dict[model_name]
+        info_msg = AiModelInfo()
+        info_msg.name = model_name
+        info_msg.framework = model_dict['framework']
+        info_msg.type = model_dict['type']
+        info_msg.size_mbytes = model_dict['size']
+        info_msg.description = model_dict['description']
+        info_msg.img_height = model_dict['img_height']
+        info_msg.img_width = model_dict['img_width']
+        info_msg.classes = model_dict['classes']
+        return info_msg
+
     def publish_status(self):
         aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
         active_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
@@ -513,26 +527,18 @@ class AIDetectorManager:
 
         ai_models = nepi_aifs.getModelsSortedList(models_dict)
         status_msg.ai_models = ai_models
-        type_list = []
+
         aif_list = []
-        desc_list = []
-        sizes_list = []
-        classes_list = []
+        type_list = []
+        info_list = []
         for model_name in ai_models:
-            aif_list.append(models_dict[model_name]['framework'])
             type_list.append(models_dict[model_name]['type'])
-            desc_list.append(models_dict[model_name]['description'])
-            img_height = models_dict[model_name]['img_height']
-            img_width = models_dict[model_name]['img_width']
-            size_str = str(img_height) + "x" + str(img_width)
-            sizes_list.append(size_str)
-            classes_str =' '.join(map(str,models_dict[model_name]['classes']))
-            classes_list.append(classes_str)
+            aif_list.append(models_dict[model_name]['framework'])
+            info_list.append(self.getModelInfo(model_name,models_dict))
         status_msg.ai_models_frameworks = aif_list
         status_msg.ai_models_types = type_list
-        status_msg.ai_models_descriptions = desc_list
-        status_msg.ai_models_image_sizes = sizes_list
-        status_msg.ai_models_classes = classes_list
+        status_msg.ai_models_info = info_list
+
 
 
         #status_msg.active_ai_frameworks = nepi_aifs.getAIFsActiveSortedList(aifs_dict)
@@ -559,15 +565,16 @@ class AIDetectorManager:
 
         status_msg.all_namespace = self.all_namespace
 
-
+        #nepi_msg.publishMsgWarn(self,"Sending Model Mgr Status Msg: " + str(status_msg))
         if not nepi_ros.is_shutdown():
             self.status_pub.publish(status_msg)
 
     def publishDetectorStatus(self):
         status_msg = AiDetectorStatus()
         status_msg.model_name = "None"
-        status_msg.model_state = "Stopped"
-        #nepi_msg.publishMsgWarn(self,"Sending Status Msg: " + str(status_msg))
+        status_msg.state = "Stopped"
+        #nepi_msg.publishMsgWarn(self,"Sending Model Status Msg: " + str(status_msg))
+
         if not rospy.is_shutdown():
             self.status_model_pub.publish(status_msg)
 

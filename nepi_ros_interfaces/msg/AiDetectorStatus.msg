@@ -4,24 +4,20 @@ string MODEL_STATE_LOADING=Loading
 string MODEL_STATE_LOADED=Loaded
 string MODEL_STATE_WAITING=Waiting
 string MODEL_STATE_RUNNING=Running
+string ALL_IMAGES=All
 
 string model_name
-string model_type
-string model_description
-int32 img_height
-int32 img_width
-string[] model_classes
+AiModelInfo model_info
 
-string model_namespace
-
-bool model_enabled
-string model_state
+string namespace
+bool enabled
+string state
 
 string[] image_source_topics
-string[] image_namespaces
+string[] image_detect_namespaces
 
-string image_topic
-bool image_connected
+string detection_image_topic
+bool detection_image_connected
 
 bool img_tiling
 bool overlay_labels

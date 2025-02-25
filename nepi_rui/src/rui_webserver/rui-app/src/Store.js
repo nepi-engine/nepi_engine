@@ -1105,7 +1105,7 @@ class ROSConnectionStore {
     this.publishMessage({
       name: namespace,
       messageType: "nepi_ros_interfaces/StringArray",
-      data: {'data':strArray},
+      data: {'entries':strArray},
       noPrefix: true
     })
   }
