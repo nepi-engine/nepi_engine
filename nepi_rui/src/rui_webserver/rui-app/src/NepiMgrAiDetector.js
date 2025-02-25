@@ -68,17 +68,18 @@ class AiDetectorMgr extends Component {
       last_selected_model: "None",
 
       modelListener: null,
+      model_name: "None",
       model_namespace: null,
    
       model_status_msg: null,
       model_connected: false,  
       model_enabled: false,  
-      model_img_topics: [],
-      model_img_namespaces: [],
-      model_img_topic: "None",
+      model_img_source_topics: [],
+      model_img_detect_namespaces: [],
+      det_img_topic: "None",
 
       showSettingsControl: this.props.showSettingsControl ? this.props.showSettingsControl : false,      
-      showSettings: this.props.showSettings ? this.props.showSettings : false,
+      showSettings: false,
 
       selected_model: "None",
       selected_model_namespace: "None",
@@ -141,7 +142,7 @@ class AiDetectorMgr extends Component {
       active_models_list: message.active_ai_models,
       active_models_types: message.active_ai_models_types,
       active_mdoels_nodes: message.active_ai_models_nodes,
-      active_models_namespaces: message.active_ai_modes_namespaces,
+      active_models_namespaces: message.active_ai_models_namespaces,
 
       
       all_namespace: message.all_namespace,
@@ -171,11 +172,12 @@ class AiDetectorMgr extends Component {
   modelStatusListener(message) {
     this.setState({
      model_status_msg: message,
-     model_enabled: message.model_enabled,
-     model_namespace: message.model_namespace,
-     model_img_topics: message.image_source_topics,
-     model_img_namespaces: message.image_namespaces,
-     model_img_topic: message.image_topic
+     model_name: message.model_name,
+     model_enabled: message.enabled,
+     model_namespace: message.namespace,
+     model_img_source_topics: message.image_source_topics,
+     model_img_detect_namespaces: message.image_detect_namespaces,
+     det_img_topic: message.detection_image_topic
     })    
     this.setState({model_connected: true})
 
@@ -187,11 +189,12 @@ class AiDetectorMgr extends Component {
       this.state.modelListener.unsubscribe()
       this.setState({model_namespace: null, 
         model_status_msg: null,
+        model_name: "None",
         model_enabled: false,
         model_namespace: null,
-        model_img_topics: [],
-        model_img_namespaces: [],
-        model_img_topic: "None",
+        model_img_source_topics: [],
+        model_img_detect_namespaces: [],
+        det_img_topic: "None",
 
         model_connected: false})
     }
@@ -220,7 +223,7 @@ class AiDetectorMgr extends Component {
     this.setState({
       selected_model: "None",
       last_selected_model: "None", 
-      model_img_topic: "None",
+      det_img_topic: "None",
       needs_update: true})
   }
 
@@ -297,7 +300,7 @@ class AiDetectorMgr extends Component {
       const { namespacePrefix, deviceId} = this.props.ros
       const base_namespace = "/" + namespacePrefix + "/" + deviceId + "/"
       var items = []
-      const img_topics = this.state.model_img_topics
+      const img_topics = this.state.model_img_source_topics
       var imageTopicShortnames = createShortImagesFromNamespaces(base_namespace, img_topics)
       items.push(<Option value={'None'}>{'None'}</Option>)
       if (img_topics.length > 0) {
@@ -313,7 +316,7 @@ class AiDetectorMgr extends Component {
     onModelImageTopicSelected(event){
       const {sendStringMsg} = this.props.ros
       const model_namespace = this.state.model_namespace
-      const model_img_namespace = model_namespace + "/set_img_topic"
+      const model_img_namespace = model_namespace + "/set_detection_img_topic"
       const img_topic = event.target.value
   
       sendStringMsg(model_img_namespace,img_topic)
@@ -335,15 +338,15 @@ class AiDetectorMgr extends Component {
     const selected_model = this.state.selected_model
     const model_selected = (selected_model !== "None")
 
-    const model_loading = (model_name === selected_model)? this.state.model_connected === false : false
     const model_name = this.state.model_name
-    const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
+    const model_loading = (model_name === selected_model)? this.state.model_connected === false : true
+     const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
     const model_enabled = this.state.model_enabled
     const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
-    const img_topic = this.state.model_img_topic
+    const img_topic = this.state.det_img_topic
 
     const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
@@ -388,7 +391,6 @@ class AiDetectorMgr extends Component {
         </Columns>
       )
     }
-
 
     else{
       return (
@@ -437,8 +439,11 @@ class AiDetectorMgr extends Component {
               </Column>
               </Columns>
 
-              <div hidden={model_enabled === false}>
-          
+
+
+        
+              <Columns>
+                  <Column>
 
                     <Label title="Select Active Image Stream">
 
@@ -450,9 +455,19 @@ class AiDetectorMgr extends Component {
                     </Label>
 
 
+                    <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+              </Column>
+              </Columns>
+
+
+
+
 
                   <Columns>
                   <Column>
+
+
 
                     <Label title="Show Model Settings">
                       <Toggle
@@ -461,19 +476,21 @@ class AiDetectorMgr extends Component {
                       </Toggle>
                     </Label>
 
+                    <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
                   </Column>
                   <Column>
 
+
                   </Column>
                   </Columns>
+   
 
-     
+                    <div hidden={this.state.showSettings === false} >
+      
+                        {this.renderModelSettings()}
 
-                  <div hidden={this.state.showSettingsControl === false} >
-       
-                      {this.renderModelSettings()}
-
-                  </div>
+                    </div>
 
                       <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -502,7 +519,6 @@ class AiDetectorMgr extends Component {
                       </Column>
                     </Columns>
 
-              </div>
 
           </div>
 
@@ -550,7 +566,7 @@ class AiDetectorMgr extends Component {
     const remove_imgs_namespace = model_namespace + "/remove_img_topics"
     const filter_str_list = this.state.img_filter_str_list
     const img_options = filterStrList(imageTopics,filter_str_list)
-    const img_topics = this.state.model_img_topics
+    const img_topics = this.state.model_img_source_topics
     const img_topic = event.target.value
     //this.setState({selected_img: img_topic})
 
@@ -578,15 +594,12 @@ renderModelSettings() {
   const sel_img = this.state.selected_img
   if (message !== null && model_namespace !== null && selected_model !== "None"){
     const model_name = message.model_name 
-    const model_enabled = message.model_enabled
-    const model_state = message.model_state
-    const img_connected = message.img_connected
 
     if (selected_model === model_name){
 
-      const model_enabled = message.model_enabled
-      const model_state = message.model_state
-      const model_classes = message.model_classes
+      const model_enabled = message.enabled
+      const model_state = message.state
+      const model_classes = message.model_info.classes
 
       const img_topics = message.image_source_topics
       const img_tiling = message.img_tiling
@@ -594,7 +607,7 @@ renderModelSettings() {
       const overlay_model_name = message.overlay_model_name
       const overlay_img_name = message.overlay_img_name
       const img_topic = message.img_topic
-      const img_connected = message.img_connected
+      const det_img_connected = message.detection_image_connected
 
       const threshold = message.threshold
       const max_rate = message.max_rate_hz 
@@ -772,7 +785,8 @@ renderModelSettings() {
       const all_ns = this.state.all_namespace
       const model_name = this.state.model_name
       const model_ns = this.state.model_namespace
-      const img_nss = this.state.model_img_namespaces
+      const img_nss = this.state.model_img_detect_namespaces
+      var img_ns = ""
       var img_text = ""
       var items = []
       if (model_ns){
@@ -781,11 +795,20 @@ renderModelSettings() {
         if (img_topics.indexOf(model_img) !== -1){
           items.push(<Option value={model_img}>{img_text}</Option>)
         }
+        const sel_img = this.state.selected_img
+        if (sel_img === ""){
+          this.setState({selected_img: model_img,
+                        selected_img_text: img_text
+          })
+
+        }
+
         var img_img = ""
         for (var i = 0; i < img_nss.length; i++) {
-          img_img = img_nss[i] + "/detection_image"
+          img_ns = img_nss[i]
+          img_img = img_ns + "/detection_image"
           if (img_topics.indexOf(img_img) !== -1){
-            img_text = img_nss.split(model_name + '/')[1]
+            img_text = img_ns.split(model_name + '/')[1]
             items.push(<Option value={model_ns}>{img_text}</Option>)
           }
         }
@@ -839,7 +862,7 @@ renderModelSettings() {
           <Column>
 
                   <Label title="Select Detector Image Stream">
-                      <Select id="ImgSelect" onChange={this.onDetTopicSelected} 
+                      <Select id="ImgSelect" onChange={this.onDisplayImgSelected} 
                       value={sel_img}
                       disabled={false}>
                         {img_options}

@@ -30,9 +30,9 @@ SaveDataInterface::SaveDataInterface(SDKNode *parent, ros::NodeHandle *parent_pu
 	_save_raw{"save_data_raw", false, parent}
 {
 	// First, get the data directory
-	if (false == ros::service::waitForService("system_storage_folder_query", 20000)) // Timeout is in ms, so 20 seconds
+	if (false == ros::service::waitForService("system_storage_folder_query", 1000)) // Timeout is in ms, so 10 seconds
 	{
-		ROS_INFO("Failed to obtain system storage folder falling back to /mnt/nepi_storage/data/");
+		ROS_INFO("save_data_if: Failed to obtain system storage folder falling back to /mnt/nepi_storage/data/");
 		_save_data_dir = "/mnt/nepi_storage/data/";
 	}
 	else
@@ -42,7 +42,7 @@ SaveDataInterface::SaveDataInterface(SDKNode *parent, ros::NodeHandle *parent_pu
 		data_folder_query.request.type = "data";
 		if (false == data_folder_query_client.call(data_folder_query))
 		{
-			ROS_INFO("Failed to obtain system data folder falling back to /mnt/nepi_storage/data/");
+			ROS_INFO("save_data_if: Failed to obtain system data folder falling back to /mnt/nepi_storage/data/");
 			_save_data_dir = "/mnt/nepi_storage/data/";
 		}
 		else
@@ -55,14 +55,14 @@ SaveDataInterface::SaveDataInterface(SDKNode *parent, ros::NodeHandle *parent_pu
 	boost::filesystem::path p(_save_data_dir);
 	if (false == boost::filesystem::exists(p))
 	{
-		//ROS_WARN("Reported data folder does not exist... falling back to /mnt/nepi_storage/data/");
+		//ROS_WARN("save_data_if: Reported data folder does not exist... falling back to /mnt/nepi_storage/data/");
 		_save_data_dir = "/mnt/nepi_storage/data/";
 	}
 
 	boost::filesystem::path p2(_save_data_dir);
 	if (false == boost::filesystem::exists(p2))
 	{
-		ROS_ERROR("Reported data folder does not exist... Data saving disabled");
+		ROS_ERROR("save_data_if: Reported data folder does not exist... Data saving disabled");
 		_save_data_dir = "";
 	}
 	else
@@ -71,7 +71,7 @@ SaveDataInterface::SaveDataInterface(SDKNode *parent, ros::NodeHandle *parent_pu
 		struct stat stat_buf;
 		if (0 != stat(_save_data_dir.c_str(), &stat_buf))
 		{
-			ROS_ERROR("Unable to obtain ownership details of Data folder");
+			ROS_ERROR("save_data_if: Unable to obtain ownership details of Data folder");
 		}
 		else
 		{
@@ -142,7 +142,7 @@ void SaveDataInterface::registerDataProduct(const std::string product_name, doub
 		}
 		float save_rate_float = (float) save_rate_hz;
 		data_product_registry[product_name] = {save_rate_hz, 0.0, max_save_rate_hz, 0.0};
-		ROS_INFO("Registered new data product %s, with %f hz", product_name.c_str(),save_rate_float);
+		ROS_INFO("save_data_if: Registered new data product %s, with %f hz", product_name.c_str(),save_rate_float);
 		publishSaveStatus();
 }
 
@@ -398,10 +398,10 @@ void SaveDataInterface::saveDataRateHandler(const nepi_ros_interfaces::SaveDataR
 	double save_rate_double = (double) msg->save_rate_hz;
 	float save_rate_float = (float) save_rate_double;
 	std::string product_name = msg->data_product;
-	ROS_INFO("Recieved rate update for %s, to %f hz", product_name.c_str(),save_rate_float);
+	ROS_INFO("save_data_if: Recieved rate update for %s, to %f hz", product_name.c_str(),save_rate_float);
 	if (save_rate_double < 0.0)
 	{
-		ROS_ERROR("Can't set a negative save rate... aborting");
+		ROS_ERROR("save_data_if: Can't set a negative save rate... aborting");
 		return;
 	}
 
@@ -414,7 +414,7 @@ void SaveDataInterface::saveDataRateHandler(const nepi_ros_interfaces::SaveDataR
 			entry.second[1] = 0.0;
 			data_product_registry[entry.first] = entry.second;
 			product_name = entry.first;
-			ROS_INFO("Updated data product %s, to %f hz", product_name.c_str(),save_rate_float);
+			ROS_INFO("save_data_if: Updated data product %s, to %f hz", product_name.c_str(),save_rate_float);
 		}
 	}
 	else
@@ -425,13 +425,13 @@ void SaveDataInterface::saveDataRateHandler(const nepi_ros_interfaces::SaveDataR
 			entry[0] = (save_rate_double <= entry[2])? save_rate_double : entry[2]; // Ensure max_save_rate_double is respected
 			entry[1] = 0.0;
 			data_product_registry[product_name] = entry;
-			ROS_INFO("Updating data product %s, to %f hz", product_name.c_str(),save_rate_float);
+			ROS_INFO("save_data_if: Updating data product %s, to %f hz", product_name.c_str(),save_rate_float);
 		}
 		catch (...)
 		{
-			ROS_WARN("Data product not registered %s", msg->data_product.c_str());
+			ROS_WARN("save_data_if: Data product not registered %s", msg->data_product.c_str());
 		}
-		ROS_WARN("Updated save rate for data product %s", msg->data_product.c_str());
+		ROS_WARN("save_data_if: Updated save rate for data product %s", msg->data_product.c_str());
 	}
 	publishSaveStatus();
 }

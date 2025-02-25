@@ -45,9 +45,7 @@ class AisMgr extends Component {
       models_list: [],
       models_types: [],
       models_aifs: [],
-      models_descriptions: [],
-      models_image_sizes: [],
-      models_classes_str: [],
+      models_info: [],
       
       active_models_list: [],
       active_models_types: [],
@@ -108,10 +106,7 @@ class AisMgr extends Component {
       models_list: message.ai_models,
       models_aifs: message.ai_models_frameworks,
       models_types: message.ai_models_types,
-
-      models_descriptions: message.ai_models_descriptions,
-      models_image_sizes: message.ai_models_image_sizes_str,
-      models_classes_str: message.ai_models_classes_str,
+      models_info: message.ai_models_info,
 
       active_framework: message.active_ai_framework,
 
