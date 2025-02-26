@@ -49,6 +49,8 @@ class AisMgr extends Component {
       
       active_models_list: [],
       active_models_types: [],
+      active_models_nodes: [],
+      active_models_namespaces: [],
 
 
 
@@ -112,6 +114,8 @@ class AisMgr extends Component {
 
       active_models_list: message.active_ai_models,
       active_models_types: message.active_ai_models_types,
+      active_mdoels_nodes: message.active_ai_models_nodes,
+      active_models_namespaces: message.active_ai_models_namespaces,
 
       connected: true
     })    
@@ -213,7 +217,6 @@ class AisMgr extends Component {
 
 
   renderFrameworkConfig() {
-    const { sendStringMsg} = this.props.ros
     const viewable_frameworks = this.state.viewable_frameworks
     const framework_options = this.getFrameworkOptions()
     const selected_framework = this.state.selected_framework
@@ -264,7 +267,7 @@ class AisMgr extends Component {
         <Label title="Set As Active AI Framework"> </Label>
           <Toggle
             checked={framework_state }
-            onClick={() => sendStringMsg(this.state.mgrNamespace + "/set_active_framework", framework_state_change)}>
+            onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
         </Toggle>
 
           </div>
@@ -394,7 +397,6 @@ class AisMgr extends Component {
 
 
   renderModelConfig() {
-    const { sendUpdateActiveStateMsg} = this.props.ros
     const selected_model = this.state.selected_model
     const selected_type = this.state.selected_model_type
     const viewable_models = this.state.viewable_models
@@ -450,7 +452,7 @@ class AisMgr extends Component {
         <Label title="Enable"> </Label>
           <Toggle
             checked={model_state===true}
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !model_state)}>
+            onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !model_state)}>
         </Toggle>
 
         </div>
@@ -496,6 +498,9 @@ class AisMgr extends Component {
 
 
 render() {
+  const selected_framework = this.state.selected_framework
+  const active_framework = this.state.active_framework
+  const framework_state = (active_framework === selected_framework && selected_framework !== "None")
     return (
 
     <Section title={"AI Framework and Model Settings"}>

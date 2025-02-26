@@ -15,9 +15,11 @@ import Section from "./Section"
 import Button, { ButtonMenu } from "./Button"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
+import Input from "./Input"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 import Toggle from "react-toggle"
+import BooleanIndicator from "./BooleanIndicator"
 import {SliderAdjustment} from "./AdjustmentWidgets"
 
 import CameraViewer from "./CameraViewer"
@@ -25,6 +27,11 @@ import CameraViewer from "./CameraViewer"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
 import {filterStrList, createShortImagesFromNamespaces,onChangeSwitchStateValue} from "./Utilities"
+
+function round(value, decimals = 0) {
+  return Number(value).toFixed(decimals)
+  //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
+}
 
 @inject("ros")
 @observer
@@ -69,6 +76,7 @@ class AiDetectorMgr extends Component {
       model_enabled: false,  
       model_img_source_topics: [],
       model_img_detect_namespaces: [],
+      model_detect_time: 0,
       sel_img_topic: "None",
 
       showSettingsControl: this.props.showSettingsControl ? this.props.showSettingsControl : false,      
@@ -170,7 +178,8 @@ class AiDetectorMgr extends Component {
      model_namespace: message.namespace,
      model_img_source_topics: message.image_source_topics,
      model_img_detect_namespaces: message.image_detect_namespaces,
-     sel_img_topic: message.selected_image_topic
+     sel_img_topic: message.selected_image_topic,
+     model_detect_time: message.detect_time
     })    
     this.setState({model_connected: true})
 
@@ -180,11 +189,11 @@ class AiDetectorMgr extends Component {
   updateModelStatusListener() {
     if (this.state.modelListener) {
       this.state.modelListener.unsubscribe()
-      this.setState({
-        model_namespace: null, 
+      this.setState({model_namespace: null, 
         model_status_msg: null,
         model_name: "None",
         model_enabled: false,
+        model_namespace: null,
         model_img_source_topics: [],
         model_img_detect_namespaces: [],
         sel_img_topic: "None",
@@ -321,7 +330,7 @@ class AiDetectorMgr extends Component {
   renderAiDetector() {
     const {sendTriggerMsg, sendBoolMsg} = this.props.ros
     const mgr_namespace = this.getMgrNamespace()
-    const mgr_connected = this.state.mgr_connected === true
+    const mgr_connected = this.state.mgr_connected == true
 
     const has_framework = this.active_framework !== "None"
 
@@ -329,14 +338,19 @@ class AiDetectorMgr extends Component {
     const has_models = model_options.length > 1
 
     const selected_model = this.state.selected_model
+    const model_selected = (selected_model !== "None")
 
     const model_name = this.state.model_name
-    const model_loading = (model_name === selected_model && selected_model !== "None")? this.state.model_connected === false : true
+    const model_loading = (model_name === selected_model && selected_model !== "None")? this.state.model_connected === false : selected_model !== "None"
      const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
+    const model_enabled = this.state.model_enabled
+    const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
     const img_topic = this.state.sel_img_topic
+
+    const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
     if (mgr_connected === false){
       return(
@@ -411,101 +425,77 @@ class AiDetectorMgr extends Component {
 
           <div hidden={model_connected === false}>
 
-              <Columns>
-              <Column>
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-              <Label title="Enable Model">
-                    <Toggle
-                    checked={this.state.model_enabled===true}
-                    onClick={() => sendBoolMsg(model_namespace + "/enable",!this.state.model_enabled)}>
-                    </Toggle>
-              </Label>
+          <Columns>
+          <Column>
 
-              </Column>
-              <Column>
+          <Label title="Enable Model">
+                <Toggle
+                checked={this.state.model_enabled===true}
+                onClick={() => sendBoolMsg(model_namespace + "/enable",!this.state.model_enabled)}>
+                </Toggle>
+          </Label>
 
-              </Column>
-              </Columns>
+          </Column>
+          <Column>
+
+          </Column>
+          </Columns>
 
 
 
         
-              <Columns>
-                  <Column>
+          <Columns>
+          <Column>
 
-                    <Label title="Select Active Image Stream">
+            <Label title="Select Active Image Stream">
 
-                      <Select id="ImgSelect" onChange={this.onModelImageTopicSelected} 
-                      value={img_topic}
-                      disabled={false}>
-                        {img_options}
-                      </Select>
-                    </Label>
+              <Select id="ImgSelect" onChange={this.onModelImageTopicSelected} 
+              value={img_topic}
+              disabled={false}>
+                {img_options}
+              </Select>
+            </Label>
 
-
-                    <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-              </Column>
-              </Columns>
+          </Column>
+          </Columns>
 
 
+          <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+          {"Detection Time: " + this.state.model_detect_time}
+          </pre>
 
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+                
+          <Columns>
+            <Column>
+            
+                  <ButtonMenu style={{marginTop: "10px"}}>
+                    <Button onClick={() => this.props.ros.sendTriggerMsg(model_namespace + "/reset_config")}>{"Reset Config"}</Button>
+                  </ButtonMenu>
 
+        
+          </Column>
+          <Column>
+                    
+                  <ButtonMenu style={{marginTop: "10px"}}>
+                    <Button onClick={() => this.props.ros.sendTriggerMsg(model_namespace + "/save_config")}>{"Save Config"}</Button>
+                  </ButtonMenu>
+        
+          </Column>
+          <Column>
+                
+                <ButtonMenu style={{marginTop: "10px"}}>
+                    <Button onClick={() => this.props.ros.sendTriggerMsg(model_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
+                  </ButtonMenu>
+        
+            </Column>
+          </Columns>
 
-                  <Columns>
-                  <Column>
-
-
-
-                    <Label title="Show Model Settings">
-                      <Toggle
-                      checked={(this.state.showSettings === true)}
-                      onClick={() => onChangeSwitchStateValue.bind(this)("showSettings",this.state.showSettings)}>
-                      </Toggle>
-                    </Label>
-
-                    <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                  </Column>
-                  <Column>
-
-
-                  </Column>
-                  </Columns>
    
-
-                    <div hidden={this.state.showSettings === false} >
-      
                         {this.renderModelSettings()}
 
-                    </div>
-
-                      <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                         
-                      <Columns>
-                        <Column>
-                        <ButtonMenu style={{marginTop: "10px"}}>
-                          <Button onClick={() => sendTriggerMsg(mgr_namespace + "/reset_config")}>{"Reset Config"}</Button>
-                        </ButtonMenu>
-
-
-                        </Column>
-                        <Column>
-                          
-                        <ButtonMenu style={{marginTop: "10px"}}>
-                          <Button onClick={() => sendTriggerMsg(mgr_namespace+ "/save_config")}>{"Save Config"}</Button>
-                        </ButtonMenu>
-
-                      </Column>
-                      <Column>
-                      
-                      <ButtonMenu style={{marginTop: "10px"}}>
-                          <Button onClick={() => sendTriggerMsg(mgr_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
-                        </ButtonMenu>
-
-                      </Column>
-                    </Columns>
 
 
           </div>
@@ -575,6 +565,7 @@ class AiDetectorMgr extends Component {
 
 renderModelSettings() {
   const { sendTriggerMsg } = this.props.ros
+  const mgr_namespace = this.getMgrNamespace()
   const message = this.state.model_status_msg
   const model_namespace = this.state.model_namespace
   const selected_model = this.state.selected_model
@@ -584,26 +575,39 @@ renderModelSettings() {
 
     if (selected_model === model_name){
 
+      const model_enabled = message.enabled
+      const model_state = message.state
+      const model_classes = message.model_info.classes
+
       const img_topics = message.image_source_topics
+      const img_tiling = message.img_tiling
       const overlay_labels = message.overlay_labels
       const overlay_model_name = message.overlay_model_name
       const overlay_img_name = message.overlay_img_name
+      const img_topic = message.img_topic
+      const det_img_connected = message.image_connected
 
       const threshold = message.threshold
       const max_rate = message.max_rate_hz 
 
+
       const img_options = this.createImageTopicsOptions()
 
-      return (
+      const img_list_viewable = this.state.img_list_viewable
 
+      const model_display_name = model_name.toUpperCase()
+
+      return (
 
         <Columns>
         <Column>
 
-  
+        
+          <Columns>
+          <Column>
 
-            <Columns>
-            <Column>
+            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
 
           <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
             {"Select Image Streams to Connect"}
@@ -682,8 +686,8 @@ renderModelSettings() {
                   </Toggle>
                   </Label>
 
-                  </Column>
-                  <Column>
+              </Column>
+              <Column>
 
                 <Label title="Overlay Model">
                   <Toggle
@@ -703,34 +707,7 @@ renderModelSettings() {
             </Column>
             </Columns>
 
-            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-                    
-                    <Columns>
-                      <Column>
-                
-                      <ButtonMenu style={{marginTop: "10px"}}>
-                        <Button onClick={() => sendTriggerMsg(model_namespace + "/reset_config")}>{"Reset Config"}</Button>
-                      </ButtonMenu>
-
-            
-                      </Column>
-                      <Column>
-                        
-                      <ButtonMenu style={{marginTop: "10px"}}>
-                        <Button onClick={() => sendTriggerMsg(model_namespace + "/save_config")}>{"Save Config"}</Button>
-                      </ButtonMenu>
-            
-                    </Column>
-                    <Column>
-                    
-                    <ButtonMenu style={{marginTop: "10px"}}>
-                        <Button onClick={() => sendTriggerMsg(model_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
-                      </ButtonMenu>
-
-
-            
-                    </Column>
-                  </Columns>
+ 
 
           </Column>
           </Columns>
@@ -779,13 +756,13 @@ renderModelSettings() {
 
         }
 
-        var img_img = ""
+        var img_topic = ""
         for (var i = 0; i < img_nss.length; i++) {
           img_ns = img_nss[i]
-          img_img = img_ns + "/detection_image"
-          if (img_topics.indexOf(img_img) !== -1){
+          img_topic = img_ns + "/detection_image"
+          if (img_topics.indexOf(img_topic) !== -1){
             img_text = img_ns.split(model_name + '/')[1]
-            items.push(<Option value={model_ns}>{img_text}</Option>)
+            items.push(<Option value={img_topic}>{img_text}</Option>)
           }
         }
       }

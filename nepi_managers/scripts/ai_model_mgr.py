@@ -94,6 +94,10 @@ class AIDetectorManager:
         cfg_status_sub.unregister()
         ##############################
 
+        message = "NO MODELS ENABLED"
+        cv2_img = nepi_img.create_message_image(message)
+        self.ros_no_models_img = nepi_img.cv2img_to_rosimg(cv2_img) 
+
         message = "LOADING MODELS"
         cv2_img = nepi_img.create_message_image(message)
         self.ros_loading_img = nepi_img.cv2img_to_rosimg(cv2_img) 
@@ -111,9 +115,9 @@ class AIDetectorManager:
 
 
         get_folder_name_service = self.base_namespace + 'system_storage_folder_query'
-        nepi_msg.publishMsgInfo(self,"Waiting for system automation scripts folder query service " + get_folder_name_service)
+        nepi_msg.publishMsgInfo(self,"Waiting for system folder query service " + get_folder_name_service)
         rospy.wait_for_service(get_folder_name_service)
-        nepi_msg.publishMsgInfo(self,"Calling system automation scripts folder query service " + get_folder_name_service)
+        nepi_msg.publishMsgInfo(self,"Calling system folder query service " + get_folder_name_service)
         try:
             folder_query_service = rospy.ServiceProxy(get_folder_name_service, SystemStorageFolderQuery)
             time.sleep(1)
@@ -164,10 +168,10 @@ class AIDetectorManager:
 
         ## Mgr ROS Setup 
         #mgr_reset_sub = rospy.Subscriber('~factory_reset', Empty, self.resetMgrCb, queue_size = 10)
-        mgr_reset_sub = rospy.Subscriber('~refreshFrameworks', Empty, self.refreshFrameworksCb, queue_size = 10)
+        mgr_reset_sub = rospy.Subscriber('~refresh_frameworks', Empty, self.refreshFrameworksCb, queue_size = 10)
 
         # Framework Management Scubscirbers
-        rospy.Subscriber('~set_active_framework', String, self.setActiveFwCb, queue_size = 1)
+        rospy.Subscriber('~update_framework_state', UpdateState, self.updateFrameworkStateCb, queue_size = 1)
 
         #rospy.Subscriber('~enable_all_frameworks', Empty, self.enableAllFwsCb, queue_size = 10)
         rospy.Subscriber('~disable_all_frameworks', Empty, self.disableAllFwsCb, queue_size = 10)
@@ -337,6 +341,10 @@ class AIDetectorManager:
                 self.publish_status()
                 nepi_ros.sleep(1)
         nepi_ros.set_param(self,"~models_dict",models_dict)
+        if len(active_models_list) == 0:
+            self.self.ros_no_models_img.header.stamp = nepi_ros.time_now()
+            self.detection_image_pub.publish(self.ros_no_models_img)
+            
         nepi_ros.timer(nepi_ros.duration(1), self.updaterCb, oneshot = True)
 
 
@@ -381,15 +389,26 @@ class AIDetectorManager:
         self.save_cfg_if.saveConfig(do_param_updates = False) # Save config after initialization for drvt time
 
 
-    def setActiveFwCb(self,msg):
-        active_aif = msg.data
+    def updateFrameworkStateCb(self,msg):
+        nepi_msg.publishMsgWarn(self,"Recieved Framework State Update: " + str(msg))
+        framework_name = msg.name
+        new_active_state = msg.active_state
         current_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
         aifs_dict = nepi_ros.get_param(self,'~aifs_dict', self.init_aifs_dict)
-        if active_aif != current_aif:
-            if active_aif in aifs_dict.keys():
-                nepi_ros.set_param(self,'~active_framework', active_aif)
+        if new_active_state == True:
+            if framework_name != current_aif:
+                nepi_msg.publishMsgWarn(self,"Setting Activew Framework: " + str(framework_name))
+                if framework_name in aifs_dict.keys():
+                    nepi_ros.set_param(self,'~active_framework', framework_name)
+                    self.refreshFrameworks()
+                    self.saveSettings() # Save config
+        else:
+            if framework_name == current_aif:
+                nepi_msg.publishMsgWarn(self,"Setting Active Framework to None")
+                nepi_ros.set_param(self,'~active_framework', "None")
                 self.refreshFrameworks()
                 self.saveSettings() # Save config
+
         self.publish_status()
         
 
@@ -452,7 +471,7 @@ class AIDetectorManager:
         self.publish_status()
 
     def updateModelStateCb(self,msg):
-        nepi_msg.publishMsgInfo(self,str(msg))
+        nepi_msg.publishMsgWarn(self,"Recieved Model State Update: " + str(msg))
         model_name = msg.name
         new_active_state = msg.active_state
         models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)

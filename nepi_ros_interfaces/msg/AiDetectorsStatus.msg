@@ -27,5 +27,7 @@ bool overlay_img_name
 float32 threshold
 float32 max_rate_hz
 
+float32 detect_time
+
 
 

@@ -112,9 +112,9 @@ class SystemMgrNode():
         self.node_name = nepi_ros.get_node_name()
         self.base_namespace = nepi_ros.get_base_namespace()
         nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        nepi_msg.publishMsgWarn(self,"Starting Initialization Processes")
         ##############################
-
+        nepi_msg.publishMsgWarn(self,"Getting System Info")
         self.first_stage_rootfs_device = nepi_ros.get_param(self,
             "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
@@ -126,8 +126,9 @@ class SystemMgrNode():
         else:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS_CN
         
-        self.status_msg.in_container = self.in_container
 
+        nepi_msg.publishMsgWarn(self,"Creating System Publishers")
+        self.status_msg.in_container = self.in_container
         status_period = nepi_ros.duration(1)  # TODO: Configurable rate?
 
         # Announce published topics
@@ -142,10 +143,10 @@ class SystemMgrNode():
         # For auto-stop of save data; disk full protection
         self.save_data_pub = rospy.Publisher(
             'save_data', SaveData, queue_size=1)
-
         time.sleep(1)
-        self.current_throttle_ratio = 1.0
 
+        nepi_msg.publishMsgWarn(self,"Creating System Services")
+        self.current_throttle_ratio = 1.0
         # Advertise services
         rospy.Service('system_defs_query', SystemDefsQuery,
                       self.provide_system_defs)
@@ -155,18 +156,23 @@ class SystemMgrNode():
                        self.provide_sw_update_status)
 
         nepi_msg.publishMsgWarn(self,"System Mgr services ready")
+
+        nepi_msg.publishMsgWarn(self,"Creating System Config IF")
         self.save_cfg_if = SaveCfgIF(
             updateParamsCallback=None, paramsModifiedCallback=self.updateFromParamServer)
 
+        nepi_msg.publishMsgWarn(self,"Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
         self.storage_mountpoint = nepi_ros.get_param(self,
             "~storage_mountpoint", self.storage_mountpoint)
         
+        nepi_msg.publishMsgWarn(self,"Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
         self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
-
         self.init_msgs()
 
+
+        nepi_msg.publishMsgWarn(self,"Checking Storage Folders")
         # Ensure that the user partition is properly laid out
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
@@ -174,23 +180,26 @@ class SystemMgrNode():
             rospy.Service('system_storage_folder_query', SystemStorageFolderQuery,
                 self.provide_system_data_folder)
 
+
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-
+        nepi_msg.publishMsgWarn(self,"Updating From Param Server")
         self.updateFromParamServer()
 
         if self.in_container == False:
-          # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
-          # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
-          # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
-          if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
-              status, err_msg = sw_update_utils.resetBootFailCounter(
-                  self.first_stage_rootfs_device)
-              if status is False:
-                  rospy.logerr("Failed to reset boot fail counter: " + err_msg)
+            nepi_msg.publishMsgWarn(self,"Updating Rootfs Load Fail Counter")
+            # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
+            # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
+            # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
+            if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
+                status, err_msg = sw_update_utils.resetBootFailCounter(
+                    self.first_stage_rootfs_device)
+                if status is False:
+                    rospy.logerr("Failed to reset boot fail counter: " + err_msg)
 
+        nepi_msg.publishMsgWarn(self,"Starting System Status Messages")
         rospy.Timer(nepi_ros.duration(self.STATUS_PERIOD),
                     self.publish_periodic_status)
         nepi_msg.publishMsgWarn(self,"System status ready")
@@ -199,7 +208,7 @@ class SystemMgrNode():
         # established
         self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
         
-
+        nepi_msg.publishMsgWarn(self,"Creating Subscribers")
         # Subscribe to topics
         rospy.Subscriber('save_data', SaveData, self.set_save_status)
         rospy.Subscriber('clear_data_folder', Empty, self.clear_data_folder)
@@ -217,7 +226,7 @@ class SystemMgrNode():
 
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        nepi_msg.publishMsgWarn(self,"Initialization Complete")
         rospy.spin()
 
 

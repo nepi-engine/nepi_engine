@@ -21,6 +21,7 @@ import os.path
 import os
 import subprocess
 import shlex
+import psutil
 
 import rospy
 
@@ -53,6 +54,27 @@ MAX_BOOT_FAILURE_ENV_VAR_NAME = "MAX_BOOT_FAILURE_COUNT"
 ###################################################################################################
 JETSON_ROOTFS_AB_DEVICES = {'A': '/dev/nvme0n1p1', 'B': '/dev/nvme0n1p2'}
 
+def CheckPartitionBusy(partition_path):
+    """
+    Checks if a partition is busy by verifying if any process is using it.
+
+    Args:
+        partition_path (str): The path to the partition (e.g., "/mnt/data").
+
+    Returns:
+        bool: True if the partition is busy, False otherwise.
+    """
+    for proc in psutil.process_iter(['open_files', 'cwd']):
+        try:
+            with proc.oneshot():
+                for file in proc.open_files():
+                    if file.path.startswith(partition_path):
+                        return True
+                if proc.cwd() == partition_path:
+                    return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return False
 
 def mountPartition(part_device_pathname, part_mountpoint):
     # Might already be mounted
@@ -76,7 +98,10 @@ def mountPartition(part_device_pathname, part_mountpoint):
 def unmountPartition(part_mountpoint):
     # Might already be unmounted
     if not os.path.ismount(part_mountpoint):
-        return True, "Already unmounted"
+        return True, "Partition Already unmounted"
+
+    if CheckPartitionBusy(part_mountpoint) == True:
+        return False, "Partition Busy"
 
     unmount_rc = subprocess.call(["umount", part_mountpoint])
     if unmount_rc == 0:
