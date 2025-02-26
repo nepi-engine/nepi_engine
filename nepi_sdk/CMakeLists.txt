@@ -172,10 +172,10 @@ install(TARGETS ${PROJECT_NAME}
 
 
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
-install(DIRECTORY etc/
-  DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
-  USE_SOURCE_PERMISSIONS
-)
+#install(DIRECTORY etc/
+#  DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
+#  USE_SOURCE_PERMISSIONS
+#)
 
 
 
