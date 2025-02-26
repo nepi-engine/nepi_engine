@@ -76,7 +76,7 @@ class AiDetectorMgr extends Component {
       model_enabled: false,  
       model_img_source_topics: [],
       model_img_detect_namespaces: [],
-      det_img_topic: "None",
+      sel_img_topic: "None",
 
       showSettingsControl: this.props.showSettingsControl ? this.props.showSettingsControl : false,      
       showSettings: false,
@@ -177,7 +177,7 @@ class AiDetectorMgr extends Component {
      model_namespace: message.namespace,
      model_img_source_topics: message.image_source_topics,
      model_img_detect_namespaces: message.image_detect_namespaces,
-     det_img_topic: message.detection_image_topic
+     sel_img_topic: message.selected_image_topic
     })    
     this.setState({model_connected: true})
 
@@ -194,7 +194,7 @@ class AiDetectorMgr extends Component {
         model_namespace: null,
         model_img_source_topics: [],
         model_img_detect_namespaces: [],
-        det_img_topic: "None",
+        sel_img_topic: "None",
 
         model_connected: false})
     }
@@ -207,7 +207,7 @@ class AiDetectorMgr extends Component {
       const statusNamespace = model_namespace + '/status'
       var modelListener = this.props.ros.setupStatusListener(
         statusNamespace,
-        "nepi_ros_interfaces/AiDetectorStatus",
+        "nepi_ros_interfaces/AiDetectorsStatus",
         this.modelStatusListener
       )
       this.setState({ 
@@ -223,7 +223,7 @@ class AiDetectorMgr extends Component {
     this.setState({
       selected_model: "None",
       last_selected_model: "None", 
-      det_img_topic: "None",
+      sel_img_topic: "None",
       needs_update: true})
   }
 
@@ -339,14 +339,14 @@ class AiDetectorMgr extends Component {
     const model_selected = (selected_model !== "None")
 
     const model_name = this.state.model_name
-    const model_loading = (model_name === selected_model)? this.state.model_connected === false : true
+    const model_loading = (model_name === selected_model && selected_model !== "None")? this.state.model_connected === false : true
      const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
     const model_enabled = this.state.model_enabled
     const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
-    const img_topic = this.state.det_img_topic
+    const img_topic = this.state.sel_img_topic
 
     const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
@@ -607,7 +607,7 @@ renderModelSettings() {
       const overlay_model_name = message.overlay_model_name
       const overlay_img_name = message.overlay_img_name
       const img_topic = message.img_topic
-      const det_img_connected = message.detection_image_connected
+      const det_img_connected = message.image_connected
 
       const threshold = message.threshold
       const max_rate = message.max_rate_hz 

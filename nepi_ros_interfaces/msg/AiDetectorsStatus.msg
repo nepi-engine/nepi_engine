@@ -13,8 +13,11 @@ string namespace
 bool enabled
 string state
 
-string image_source_topic
-bool image_connected
+string[] image_source_topics
+string[] image_detect_namespaces
+bool images_connected
+
+string selected_image_topic
 
 bool img_tiling
 bool overlay_labels

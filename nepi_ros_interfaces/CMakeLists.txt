@@ -128,6 +128,7 @@ add_message_files(FILES
     AppsStatus.msg
     AppStatus.msg
     AiDetectorStatus.msg
+    AiDetectorsStatus.msg
     AiSegmentorStatus.msg
     AiPoseStatus.msg
     ImageMuxInput.msg
