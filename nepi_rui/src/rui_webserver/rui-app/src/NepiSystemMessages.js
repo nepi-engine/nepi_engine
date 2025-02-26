@@ -64,8 +64,6 @@ class NepiSystemMessages extends Component {
 
     // Callback for handling ROS Status messages
     messagesStatusListener(message) {
-      const allNamespace = this.getAllNamespace()
-      const {messagesNamespace} = this.props
       const msg_str = message.message
       const paused = this.state.paused
       const queue_size = this.state.queue_size

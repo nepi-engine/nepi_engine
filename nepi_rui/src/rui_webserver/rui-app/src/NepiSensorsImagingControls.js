@@ -214,12 +214,7 @@ class NepiSensorsImagingControls extends Component {
 
 
  renderLive() {
-    const { idxSensors, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
-    const capabilities = idxSensors[this.props.idxSensorNamespace]
-    const has_auto_adjust = (capabilities && capabilities.auto_adjustment && !this.state.disabled)
-    const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
-    const resetControlsNamespace = this.props.idxSensorNamespace + "/idx/reset_controls"
-    const imageName = this.props.idxImageName 
+    const { idxSensors} = this.props.ros
     const rtsp_url = this.state.rtsp_url
     const rtsp_username = this.state.rtsp_username
     const rtsp_password = this.state.rtsp_password
@@ -591,7 +586,6 @@ class NepiSensorsImagingControls extends Component {
   }
 
   render() {
-    const rtsp_url = this.state.rtsp_url
     return (
 
       <div hidden={!this.state.rtsp_url === ""}>

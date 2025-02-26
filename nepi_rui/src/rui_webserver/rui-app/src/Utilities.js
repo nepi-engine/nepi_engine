@@ -197,9 +197,7 @@ export function createShortImagesFromNamespaces(baseNamespace,namespacesList) {
 
 export function createShortImageFromNamespace(baseNamespace,namespace) {
   const filterList = [baseNamespace + '/', 'idx/', 'ptx/', 'rbx/' , 'lsx/', 'npx/', 'ai/' ]
-  var outputList = []
   var shortName = ""
-  var shortName = namespace
   for (var i2 = 0; i2 < filterList.length; ++i2) {
     shortName = shortName.replace(filterList[i2],"")
   }

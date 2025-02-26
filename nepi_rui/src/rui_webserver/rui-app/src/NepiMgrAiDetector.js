@@ -15,11 +15,9 @@ import Section from "./Section"
 import Button, { ButtonMenu } from "./Button"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
-import Input from "./Input"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 import Toggle from "react-toggle"
-import BooleanIndicator from "./BooleanIndicator"
 import {SliderAdjustment} from "./AdjustmentWidgets"
 
 import CameraViewer from "./CameraViewer"
@@ -27,11 +25,6 @@ import CameraViewer from "./CameraViewer"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
 import {filterStrList, createShortImagesFromNamespaces,onChangeSwitchStateValue} from "./Utilities"
-
-function round(value, decimals = 0) {
-  return Number(value).toFixed(decimals)
-  //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
-}
 
 @inject("ros")
 @observer
@@ -187,11 +180,11 @@ class AiDetectorMgr extends Component {
   updateModelStatusListener() {
     if (this.state.modelListener) {
       this.state.modelListener.unsubscribe()
-      this.setState({model_namespace: null, 
+      this.setState({
+        model_namespace: null, 
         model_status_msg: null,
         model_name: "None",
         model_enabled: false,
-        model_namespace: null,
         model_img_source_topics: [],
         model_img_detect_namespaces: [],
         sel_img_topic: "None",
@@ -328,7 +321,7 @@ class AiDetectorMgr extends Component {
   renderAiDetector() {
     const {sendTriggerMsg, sendBoolMsg} = this.props.ros
     const mgr_namespace = this.getMgrNamespace()
-    const mgr_connected = this.state.mgr_connected == true
+    const mgr_connected = this.state.mgr_connected === true
 
     const has_framework = this.active_framework !== "None"
 
@@ -336,19 +329,14 @@ class AiDetectorMgr extends Component {
     const has_models = model_options.length > 1
 
     const selected_model = this.state.selected_model
-    const model_selected = (selected_model !== "None")
 
     const model_name = this.state.model_name
     const model_loading = (model_name === selected_model && selected_model !== "None")? this.state.model_connected === false : true
      const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
-    const model_enabled = this.state.model_enabled
-    const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
     const img_topic = this.state.sel_img_topic
-
-    const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
     if (mgr_connected === false){
       return(
@@ -587,7 +575,6 @@ class AiDetectorMgr extends Component {
 
 renderModelSettings() {
   const { sendTriggerMsg } = this.props.ros
-  const mgr_namespace = this.getMgrNamespace()
   const message = this.state.model_status_msg
   const model_namespace = this.state.model_namespace
   const selected_model = this.state.selected_model
@@ -597,26 +584,15 @@ renderModelSettings() {
 
     if (selected_model === model_name){
 
-      const model_enabled = message.enabled
-      const model_state = message.state
-      const model_classes = message.model_info.classes
-
       const img_topics = message.image_source_topics
-      const img_tiling = message.img_tiling
       const overlay_labels = message.overlay_labels
       const overlay_model_name = message.overlay_model_name
       const overlay_img_name = message.overlay_img_name
-      const img_topic = message.img_topic
-      const det_img_connected = message.image_connected
 
       const threshold = message.threshold
       const max_rate = message.max_rate_hz 
 
       const img_options = this.createImageTopicsOptions()
-
-      const img_list_viewable = this.state.img_list_viewable
-
-      const model_display_name = model_name.toUpperCase()
 
       return (
 

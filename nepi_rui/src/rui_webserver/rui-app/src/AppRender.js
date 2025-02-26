@@ -10,9 +10,7 @@
 import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
-import Section from "./Section"
 import { Columns, Column } from "./Columns"
-import Label from "./Label"
 
 import OnvifMgr from "./NepiAppOnvifMgr"
 import AiTargetingApp from "./NepiAppAiTargeting"
@@ -60,13 +58,9 @@ class AppRender extends Component {
     if (appInd !== -1){
       appStatusMsg =appStatusList[appInd]
     }
-    var app_name = ""
-    var rui_main_file = ""
     var rui_main_class = ""
     var rui_menu_name = ""
     if (appStatusMsg !== null){
-      app_name = appStatusMsg.app_name
-      rui_main_file = appStatusMsg.rui_main_file
       rui_main_class = appStatusMsg.rui_main_class
       rui_menu_name = appStatusMsg.rui_menu_name
     }

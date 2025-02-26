@@ -213,7 +213,7 @@ class AisMgr extends Component {
 
 
   renderFrameworkConfig() {
-    const { sendStringMsg, sendUpdateActiveStateMsg} = this.props.ros
+    const { sendStringMsg} = this.props.ros
     const viewable_frameworks = this.state.viewable_frameworks
     const framework_options = this.getFrameworkOptions()
     const selected_framework = this.state.selected_framework
@@ -496,9 +496,6 @@ class AisMgr extends Component {
 
 
 render() {
-  const selected_framework = this.state.selected_framework
-  const active_framework = this.state.active_framework
-  const framework_state = (active_framework === selected_framework && selected_framework !== "None")
     return (
 
     <Section title={"AI Framework and Model Settings"}>

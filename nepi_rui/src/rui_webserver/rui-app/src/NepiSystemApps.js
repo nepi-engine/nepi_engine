@@ -334,7 +334,6 @@ class AppsMgr extends Component {
 
   renderAppConfigure() {
     const { sendStringMsg, sendUpdateOrderMsg, sendUpdateActiveStateMsg} = this.props.ros
-    const app_name = this.state.app_name
     const rui_name = this.state.rui_name
     return (
       <React.Fragment>
