@@ -19,6 +19,8 @@ import Input from "./Input"
 import NepiDeviceInfo from "./NepiDeviceInfo"
 import Toggle from "react-toggle"
 
+import NepiIFSettings from "./Nepi_IF_Settings"
+
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
@@ -422,7 +424,12 @@ class NepiControlsLights extends Component {
               : null
             }
 
-
+          <div hidden={(false)}>
+            <NepiIFSettings
+              settingsNamespace={lsxNamespace}
+              title={"Nepi_IF_Settings"}
+            />
+          </div>
 
           </Column>
         </Columns>
