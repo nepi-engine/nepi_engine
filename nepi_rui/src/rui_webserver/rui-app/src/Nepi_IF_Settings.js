@@ -32,7 +32,6 @@ class Nepi_IF_Settings extends Component {
 
     // these states track the values through  Status messages
     this.state = {
-      show_settings: true,
       capSettingsTypes: ['Menu','Discrete','String','Bool','Int','Float'],
       capSettingsNamesList: [],
       capSettingsTypesList: [],
@@ -70,6 +69,7 @@ class Nepi_IF_Settings extends Component {
     this.getSelectedSettingInfo = this.getSelectedSettingInfo.bind(this)
     this.getSortedStrList = this.getSortedStrList.bind(this)
 
+    this.renderSettings = this.renderSettings.bind(this)
   }
 
   // Callback for handling ROS Settings Status messages
@@ -270,7 +270,7 @@ class Nepi_IF_Settings extends Component {
     return sortedStrList
   }
 
-  render() {
+  renderSettings() {
     const { sendTriggerMsg} = this.props.ros
     const selSetInfo = this.getSelectedSettingInfo()
     const selSetType = selSetInfo[1]
@@ -280,26 +280,8 @@ class Nepi_IF_Settings extends Component {
     const selSetOptions= selSetInfo[6]
     const capSettingNamesOrdered = this.getSortedStrList(this.state.capSettingsNamesList)
     return (
-      <Section title={"Device Settings"}>
-
-          <Columns>
+      <Columns>
           <Column>
-
-          <Label title={"Show Settings Menu"}>
-          <Toggle
-            checked={ (this.state.show_settings === true)}
-            onClick={() => onChangeSwitchStateValue.bind(this)("show_settings",this.state.show_settings)}
-          />
-        </Label>
-
-            </Column>
-            <Column>
-
-            </Column>
-            </Columns>
-
-
-        <div hidden={!this.state.show_settings}>
 
         <Columns>
           <Column>
@@ -381,10 +363,30 @@ class Nepi_IF_Settings extends Component {
             {this.getSettingsAsString()}
           </pre>
 
-        </div>
  
-      </Section>
+          </Column>
+        </Columns>
     )
+  }
+
+  render() {
+    const make_section = (this.props.make_section)? this.props.make_section: true
+    if (make_section === true){
+      return (
+        <Section title={"Device Settings"}>
+          {this.renderSettings()}
+        </Section>
+      )
+    }
+    else {
+      return (
+        <Columns>
+          <Column>
+          {this.renderSettings()}
+          </Column>
+        </Columns>
+      )
+    }
   }
 
 }

@@ -23,6 +23,7 @@ import warnings
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_drv
+from nepi_sdk import nepi_settings
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
 from nepi_ros_interfaces.msg import SystemStatus
@@ -30,6 +31,7 @@ from nepi_ros_interfaces.msg import DriversStatus, DriverStatus, UpdateState, Up
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryResponse
 
+from nepi_sdk.settings_if import SettingsIF
 from nepi_sdk.save_cfg_if import SaveCfgIF
 
 DRIVERS_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
@@ -414,8 +416,16 @@ class NepiDriversMgr(object):
     # And now that we are finished, start a timer for the drvt runDiscovery()
     nepi_ros.sleep(self.UPDATE_CHECK_INTERVAL,100)
     nepi_ros.timer(nepi_ros.duration(1), self.checkAndUpdateCb, oneshot=True)
-   
+  '''
+  def createDriverSettings(driver_name):
+    capSettings = 
+    factorySettings = 
+    settingsUpdateFunction =
+    getSettingsFunction = 
+    settings_if = SettingsIF(capSettings, factorySettings, settingUpdateFunction, getSettingsFunction)
   
+  def killDriverSettings(driver_name);
+  '''
 
   def driverStatusService(self,request):
     driver_name = request.name

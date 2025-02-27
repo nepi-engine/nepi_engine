@@ -19,6 +19,7 @@ import Button, { ButtonMenu } from "./Button"
 import Input from "./Input"
 import BooleanIndicator from "./BooleanIndicator"
 
+import NepiIFSettings from "./Nepi_IF_Settings"
 
 import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedSetState } from "./Utilities"
 
@@ -338,6 +339,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   renderDriverConfigure() {
     const { sendStringMsg, sendUpdateOrderMsg, sendUpdateActiveStateMsg, } = this.props.ros
     const NoneOption = <Option>None</Option>
+    const setting_namespace = this.state.mgrNamespace + '/' + this.state.driver_name
 
     return (
       <React.Fragment>
@@ -454,6 +456,15 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         </Label>
         </div>
 
+        <label style={{fontWeight: 'bold'}}>
+            {"Discovery Options Settings"}
+          </label>
+
+        <NepiIFSettings
+          settingsNamespace={setting_namespace}
+          make_section = {false}
+          title={"Nepi_IF_Settings"}
+        />
 
       </Column>
       <Column>
