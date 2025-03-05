@@ -27,10 +27,10 @@ class SettingsIF(object):
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
     factorySettings = nepi_settings.NONE_SETTINGS
     initSettings = nepi_settings.NONE_SETTINGS
-    SettingFunction = None
+    setSettingFunction = None
 
     capabilities_report = SettingsCapabilitiesQueryResponse()
-    def __init__(self, capSettings=None, factorySettings=None,SettingFunction=None, getSettingsFunction=None, namespace=None ):
+    def __init__(self, capSettings=None, factorySettings=None,setSettingFunction=None, getSettingsFunction=None, namespace=None ):
         ####  IF INIT SETUP ####
         self.node_name = nepi_ros.get_node_name()
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -41,11 +41,12 @@ class SettingsIF(object):
             if namespace[-1] != '/':
                 namespace = namespace + '/'
                 nepi_msg.publishMsgInfo(self,"Using namespace: " + namespace)
-            else:
-                namespace = namespace + ''
+        else:
+            namespace = '~'
+        self.namespace = namespace
         # Initialize Sensor Settings from Node
         
-        self.settings_status_pub = rospy.Publisher(namespace + 'settings_status', Settings, queue_size=1, latch=True)
+        self.settings_status_pub = rospy.Publisher(self.namespace + 'settings_status', Settings, queue_size=1, latch=True)
         time.sleep(1)
 
         if capSettings is None:
@@ -65,18 +66,18 @@ class SettingsIF(object):
                 self.factory_settings = factorySettings
             #nepi_msg.publishMsgWarn(self,"" + str(self.factory_settings))
 
-            if SettingFunction is None:
-                self.SettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
+            if setSettingFunction is None:
+                self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
             else:
-                self.SettingFunction = SettingFunction
+                self.setSettingFunction = setSettingFunction
             
             if getSettingsFunction is None:
                 self.getSettingsFunction = nepi_settings.GET_NONE_SETTINGS_FUNCTION
             else:
                 self.getSettingsFunction = getSettingsFunction
             #Reset Settings and Update Param Server
-        self.init_settings = nepi_ros.get_param(self,namespace + 'settings',self.factory_settings)
-        nepi_ros.set_param(self,namespace + 'settings', self.init_settings )
+        self.init_settings = nepi_ros.get_param(self,self.namespace + 'settings',self.factory_settings)
+        nepi_ros.set_param(self,self.namespace + 'settings', self.init_settings )
         nepi_msg.publishMsgInfo(self,"Initialize settings: " + str(self.init_settings))
         self.resetFactorySettings(update_params = False, update_status = False)
         self.initializeParamServer(do_updates = False)     
@@ -85,20 +86,20 @@ class SettingsIF(object):
        # Update settings  and publish current values
         self.updateFromParamServer()
 
-        rospy.Subscriber(namespace + 'update_setting', Setting, self.updateSettingCb, queue_size=1) # start local callbac
-        rospy.Subscriber(namespace + 'publish_settings', Empty, self.publishSettingsCb, queue_size=1) # start local callback
-        rospy.Subscriber(namespace + 'reset_settings', Empty, self.resetInitSettingsCb, queue_size=1) # start local callback
+        rospy.Subscriber(self.namespace + 'update_setting', Setting, self.updateSettingCb, queue_size=1) # start local callbac
+        rospy.Subscriber(self.namespace + 'publish_settings', Empty, self.publishSettingsCb, queue_size=1) # start local callback
+        rospy.Subscriber(self.namespace + 'reset_settings', Empty, self.resetInitSettingsCb, queue_size=1) # start local callback
 
         # Subscribe to global resets as well
         rospy.Subscriber('reset_settings', Empty, self.resetInitSettingsCb, queue_size=1) # start local callback
 
 
         # Start capabilities services
-        rospy.Service(namespace + 'settings_capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
+        rospy.Service(self.namespace + 'settings_capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
 
  
 
-    def provide_capabilities(self, _):
+    def provide_capabilities(self, req):
         return self.capabilities_report
 
     def publishSettingsCb(self, msg):
@@ -106,7 +107,7 @@ class SettingsIF(object):
 
     def publishSettingsStatus(self):
         current_settings = self.getSettingsFunction()
-        nepi_ros.set_param(self,namespace + 'settings', current_settings)
+        nepi_ros.set_param(self,self.namespace + 'settings', current_settings)
         settings_msg = nepi_settings.create_msg_data_from_settings(current_settings)
         self.settings_status_pub.publish(settings_msg)
 
@@ -122,16 +123,16 @@ class SettingsIF(object):
         updated_settings = copy.deepcopy(current_settings)
         #nepi_msg.publishMsgWarn(self,"New Setting:" + str(new_setting))
         s_name = new_setting['name']
-        if self.SettingFunction != None:
+        if self.setSettingFunction != None:
             [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(new_setting,current_settings)
             if value_match == False: # name_match would be true for value_match to be true
                 nepi_msg.publishMsgInfo(self,"Will try to update setting " + str(new_setting))
-                [success,msg] = nepi_settings.try_to_update_setting(new_setting,current_settings,self.cap_settings,self.SettingFunction)
+                [success,msg] = nepi_settings.try_to_update_setting(new_setting,current_settings,self.cap_settings,self.setSettingFunction)
                 nepi_msg.publishMsgInfo(self,msg)
                 if success:
                     if update_param:
                         updated_settings[s_name] = new_setting
-                        nepi_ros.set_param(self,namespace + 'settings', updated_settings)
+                        nepi_ros.set_param(self,self.namespace + 'settings', updated_settings)
                     if update_status:
                         self.publishSettingsStatus() 
         else:
@@ -141,7 +142,7 @@ class SettingsIF(object):
     def initializeParamServer(self, do_updates = True):
         nepi_msg.publishMsgInfo(self,"Setting init values to param server values")
         current_settings = self.getSettingsFunction()
-        self.init_settings = nepi_ros.get_param(self,namespace + 'settings', current_settings)
+        self.init_settings = nepi_ros.get_param(self,self.namespace + 'settings', current_settings)
         if do_updates:
             for setting_name in self.init_settings:
                 setting = self.init_settings[setting_name]
@@ -156,14 +157,14 @@ class SettingsIF(object):
 
     def resetParamServer(self, do_updates = True):
         nepi_msg.publishMsgInfo(self,"Resettings to inititial values: " + str(self.init_settings))
-        nepi_ros.set_param(self,namespace + 'settings', self.init_settings)
+        nepi_ros.set_param(self,self.namespace + 'settings', self.init_settings)
         if do_updates:
             self.updateFromParamServer()
             self.publishSettingsStatus()
 
     def updateFromParamServer(self):
         nepi_msg.publishMsgInfo(self,"Updating Settings From Param Server")
-        settings = nepi_ros.get_param(self,namespace + 'settings', self.init_settings )
+        settings = nepi_ros.get_param(self,self.namespace + 'settings', self.init_settings )
         current_settings = self.getSettingsFunction()
         for setting_name in settings:
             setting = settings[setting_name]

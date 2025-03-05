@@ -35,23 +35,19 @@ def read_yaml2dict(file_path):
             with open(file_path) as f:
                 dict_from_file = yaml.load(f, Loader=yaml.FullLoader)
         except:
-            nepi_msg.publishMsgWarn(self,"Failed to get dict from file: " + file_path + " " + str(e))
+            print("Failed to get dict from file: " + file_path + " " + str(e))
     else:
-        nepi_msg.publishMsgWarn(self,"Failed to find dict file: " + file_path)
+        print("Failed to find dict file: " + file_path)
     return dict_from_file
 
 def write_dict2yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
     success = False
-    path = os.path.dirname(file_path)
-    if os.path.exists(path):
-        try:
-            with open(file_path, "w") as f:
-                yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
-            success = True
-        except:
-            nepi_msg.publishMsgWarn(self,"Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
-    else:
-        nepi_msg.publishMsgWarn(self,"Failed to find file path: " + path)
+    try:
+        with open(file_path, "w") as f:
+            yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
+        success = True
+    except:
+        print("Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
     return success
   
   

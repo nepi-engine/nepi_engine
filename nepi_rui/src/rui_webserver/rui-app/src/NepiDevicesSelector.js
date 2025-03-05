@@ -39,13 +39,13 @@ class DevicesSelector extends Component {
       drvs_list: ['NONE'],
       last_drvs_list: [],
       drvs_active_list: [],
-      drvs_active_group_list: [],
+      drvs_active_type_list: [],
       drvs_install_path: null,
       drvs_install_list: [],
       selected_app: 'NONE',
 
       drvs_rui_list: null,
-      drvs_group_list: [],
+      drvs_type_list: [],
 
       drv_name: 'NONE',
       drv_description: null,
@@ -88,11 +88,10 @@ class DevicesSelector extends Component {
   // Callback for handling ROS Status messages
   drvsStatusListener(message) {
     this.setState({
-      drvs_path: message.drivers_path,
-      drvs_list: message.drivers_ordered_list,
-      drvs_group_list: message.drivers_group_list,
-      drvs_active_list: message.drivers_active_list,
-      drvs_active_group_list: message.drivers_active_group_list,
+      drvs_list: message.pkg_list,
+      drvs_type_list: message.type_list,
+      drvs_active_list: message.active_pkg_list,
+      drvs_active_type_list: message.active_type_list,
       connected: true
     })    
 
@@ -243,25 +242,25 @@ class DevicesSelector extends Component {
 
   // Function for creating image topic options.
   getdrvOptions() {
-    const groupList = this.state.drvs_active_group_list
+    const typeList = this.state.drvs_active_type_list
     var items = []
     const connected = this.state.connected
     if (connected !== true){
       items.push(<Option value={'Connecting'}>{'Connecting'}</Option>)
     }
     else{
-      if (groupList) {
-        if (groupList.length > 0){
-            if (groupList.indexOf("IDX") !== -1){
+      if (typeList) {
+        if (typeList.length > 0){
+            if (typeList.indexOf("IDX") !== -1){
               items.push(<Option value={"Imaging"}>{"Imaging"}</Option>)
             }
-            if (groupList.indexOf("PTX") !== -1){
+            if (typeList.indexOf("PTX") !== -1){
               items.push(<Option value={"PanTilts"}>{"PanTilts"}</Option>)
             }
-            if (groupList.indexOf("LSX") !== -1){
+            if (typeList.indexOf("LSX") !== -1){
               items.push(<Option value={"Lights"}>{"Lights"}</Option>)
             }
-            if (groupList.indexOf("RBX") !== -1){
+            if (typeList.indexOf("RBX") !== -1){
               items.push(<Option value={"Robots"}>{"Robots"}</Option>)
             }
         }

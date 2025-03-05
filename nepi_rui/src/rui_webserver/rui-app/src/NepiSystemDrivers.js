@@ -37,44 +37,42 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         mgrNamespace: null,
 
       viewableDrivers: false,
-      viewableGroups: false,
+      viewabletypes: false,
 
-      drivers_list: [],
-      last_drivers_list: [],
-      drivers_active_list: [],
+      drivers_pkg_list: [],
+      last_drivers_pkg_list: [],
+      drivers_name_list: [],
+      drivers_type_list: [],
+      drivers_active_pkg_list: [],
+      drivers_active_name_list: [],
+      drivers_active_namespace_list: [],
       drivers_install_path: null,
       drivers_install_list: [],
+      backup_removed_drivers: true,
       selected_driver: null,
 
-      driver_name: 'None',
+      settings_namespace: 'None',
+      driver_pkg: 'None',
+      driver_display_name: 'None',
       driver_description: null,
-      drivers_path: null,
-      group: null,
-      group_name: "None",
-      group_id: null,
-      drivers_interfaces: null, 
-      options_1_name: null, 
-      options_1: [],
-      set_option_1: null,
-      options_2_name: null, 
-      options_2: [],
-      set_option_2: null,
-      discovery: null,
-      other_users_list: null,
-      driver_options_menu: null,
-      active_state: null,
-
-      backup_removed_drivers: true,
+      driver_type: null,
+      driver_type_name: "None",
+      driver_group_id: null,
+      driver_interfaces: null, 
+      driver_active_state: null,
+      driver_order: 0,
+      driver_msg_str: "",
+    
 
       connected: false,
 
       driversListener: null,
       driverListener: null,
       selected_driver_install_pkg: null,
-      group_list: ['IDX','LSX','PTX','RBX','NPX'],
-      group_names: ['Imaging','Lights','PanTilts','Robots','NavPose'],
-      drivers_group_list: [],
-      selected_group: "All",
+      type_list: ['IDX','LSX','PTX','RBX','NPX'],
+      type_names: ['Imaging','Lights','PanTilts','Robots','NavPose'],
+      selected_type: "All",
+      
       needs_update: false
     }
 
@@ -83,11 +81,11 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
     this.sendDriverUpdateOrder = this.sendDriverUpdateOrder.bind(this)
     this.toggleViewableDrivers = this.toggleViewableDrivers.bind(this)
-    this.toggleViewableGroups = this.toggleViewableGroups.bind(this)
+    this.toggleViewabletypes = this.toggleViewabletypes.bind(this)
     this.getDriverOptions = this.getDriverOptions.bind(this)
     this.getInstallOptions = this.getInstallOptions.bind(this)
-    this.getGroupOptions = this.getGroupOptions.bind(this)
-    this.onChangeGroupSelection = this.onChangeGroupSelection.bind(this)
+    this.gettypeOptions = this.gettypeOptions.bind(this)
+    this.onChangetypeSelection = this.onChangetypeSelection.bind(this)
     this.onToggleDriverSelection = this.onToggleDriverSelection.bind(this)
 
     this.updateDriversStatusListener = this.updateDriversStatusListener.bind(this)
@@ -100,7 +98,9 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
     this.getDisabledStr = this.getDisabledStr.bind(this)
     this.getActiveStr = this.getActiveStr.bind(this)
-    this.getReadyStr = this.getReadyStr.bind(this)
+    this.getInstallStr = this.getInstallStr.bind(this)
+
+    this.getSettingsNamespace = this.getSettingsNamespace.bind(this)
 
     
   
@@ -121,12 +121,14 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   // Callback for handling ROS Status messages
   driversStatusListener(message) {
     this.setState({
-      drivers_path: message.drivers_path,
-      drivers_list: message.drivers_ordered_list,
-      drivers_group_list: message.drivers_group_list,
-      drivers_active_list: message.drivers_active_list,
-      drivers_install_path: message.drivers_install_path,
-      drivers_install_list: message.drivers_install_list,
+      drivers_pkg_list: message.pkg_list,
+      drivers_name_list: message.name_list,
+      drivers_type_list: message.type_list,
+      drivers_active_pkg_list: message.active_pkg_list,
+      drivers_active_name_list: message.active_name_list,
+      drivers_active_namespace_list: message.active_namespace_list,
+      drivers_install_path: message.install_path,
+      drivers_install_list: message.install_list,
       backup_removed_drivers: message.backup_removed_drivers,
       selected_driver: message.selected_driver,
       connected: true
@@ -152,29 +154,20 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   statusDriverListener(message) {
     this.setState({
   
-      driver_name: message.name,
+      driver_pkg: message.pkg_name,
+      driver_display_name: message.display_name,
       driver_description: message.description,
-      drivers_path: message.path,
-      group: message.group,
-      group_id: message.group_id,
-      drivers_interfaces: message.interfaces.join(','),
-      options_1_name: message.options_1_name,
-      options_1: message.options_1,
-      set_option_1: message.set_option_1,
-      options_2_name: message.options_2_name,
-      options_2: message.options_2,
-      set_option_2: message.set_option_2,
-      discovery: message.discovery,
-      other_users_list: message.other_users_list.join(','),
-      active_state: message.active_state,
-      order: message.order,
-      msg_str: message.msg_str
+      driver_type: message.type,
+      driver_group_id: message.group_id,
+      driver_active_state: message.active_state,
+      driver_order: message.order,
+      driver_msg_str: message.msg_str
     })
-    const groups = this.state.group_list
-    const group_index = groups.indexOf(message.group)
-    const group_names = this.state.group_names
-    if ( group_index !== -1){
-      this.state.group_name = group_names[group_index]
+    const types = this.state.type_list
+    const type_index = types.indexOf(message.type)
+    const type_names = this.state.type_names
+    if ( type_index !== -1){
+      this.state.driver_type_name = type_names[type_index]
     }
   }
 
@@ -228,21 +221,22 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     this.setState({viewableDrivers: set})
   }
 
-  toggleViewableGroups() {
-    const set = !this.state.viewableGroups
-    this.setState({viewableGroups: set})
+  toggleViewabletypes() {
+    const set = !this.state.viewabletypes
+    this.setState({viewabletypes: set})
   }
 
   // Function for creating image topic options.
   getDriverOptions() {
-    const driversList = this.state.drivers_list  
-    const groupsList = this.state.drivers_group_list
-    const sel_group = this.state.selected_group
+    const driversList = this.state.drivers_pkg_list  
+    const namesList = this.state.drivers_name_list
+    const typesList = this.state.drivers_type_list
+    const sel_type = this.state.selected_type
     var items = []
     if (driversList.length > 0){
       for (var i = 0; i < driversList.length; i++) {
-          if (sel_group === "All" || groupsList[i] === sel_group){
-            items.push(<Option value={driversList[i]}>{driversList[i]}</Option>)
+          if (sel_type === "All" || typesList[i] === sel_type){
+            items.push(<Option value={driversList[i]}>{namesList[i]}</Option>)
           }
      }
     }
@@ -254,18 +248,18 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     return items
   }
 
-  // Function for creating group topic options.
-  getGroupOptions() { 
-    const groups = this.state.drivers_group_list
-    const groupIds = this.state.group_list
-    const groupNames = this.state.group_names
+  // Function for creating type topic options.
+  gettypeOptions() { 
+    const types = this.state.drivers_type_list
+    const typeIds = this.state.type_list
+    const typeNames = this.state.type_names
     var items = []
     items.push(<Option value={'None'}>{'None'}</Option>)
     items.push(<Option value={'All'}>{'All'}</Option>)
-    if (groups.length > 0){
-      for (var i = 0; i < groupIds.length; i++) {
-        if (groups.indexOf(groupIds[i]) !== -1){
-          items.push(<Option value={groupIds[i]}>{groupNames[i]}</Option>)
+    if (types.length > 0){
+      for (var i = 0; i < typeIds.length; i++) {
+        if (types.indexOf(typeIds[i]) !== -1){
+          items.push(<Option value={typeIds[i]}>{typeNames[i]}</Option>)
         }
       }
     }
@@ -276,18 +270,18 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
   onToggleDriverSelection(event){
     const {sendStringMsg} = this.props.ros
-    const driver_name = event.target.value
+    const driver_pkg = event.target.value
     const selectNamespace = this.state.mgrNamespace + "/select_driver"
-    sendStringMsg(selectNamespace,driver_name)
+    sendStringMsg(selectNamespace,driver_pkg)
   }
 
 
   sendDriverUpdateOrder(){
     const {sendUpdateOrderMsg} = this.props.ros
     var namespace = this.state.mgrNamespace
-    var driver_name = this.state.driver_name
+    var driver_pkg = this.state.driver_pkg
     var move_cmd = this.state.move_cmd
-    sendUpdateOrderMsg(namespace,driver_name,move_cmd)
+    sendUpdateOrderMsg(namespace,driver_pkg,move_cmd)
   }
   convertDriverStrInstallToStrList(inputStr) {
     var strList = []
@@ -330,29 +324,45 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     const {sendUpdateOptionMsg} = this.props.ros
     const topic = event.target.id
     const namespace = this.state.mgrNamespace + "/" + topic
-    const driver_name = this.state.driver_name
+    const driver_pkg = this.state.driver_pkg
     const option_str = event.target.value
-    sendUpdateOptionMsg(namespace, driver_name, option_str)
+    sendUpdateOptionMsg(namespace, driver_pkg, option_str)
   }
 
+
+  getSettingsNamespace(){
+    const active_drivers = this.state.drivers_active_pkg_list
+    const active_topics = this.state.drivers_active_namespace_list
+    const sel_drv = this.state.driver_pkg
+    const set_namespace = this.state.settings_namespace
+    const ind = active_drivers.indexOf(sel_drv)
+    var cur_namespace = 'None'
+    if (ind !== -1){
+      cur_namespace = active_topics[ind]
+      if (set_namespace !== cur_namespace){  
+        this.props.ros.callSettingsCapabilitiesQueryService(cur_namespace)
+        this.setState({ settings_namespace: cur_namespace})
+      }
+    }
+    return cur_namespace
+  }
 
   renderDriverConfigure() {
     const { sendStringMsg, sendUpdateOrderMsg, sendUpdateActiveStateMsg, } = this.props.ros
     const NoneOption = <Option>None</Option>
-    const setting_namespace = this.state.mgrNamespace + '/' + this.state.driver_name
+    const settings_namespace = this.getSettingsNamespace()
 
     return (
       <React.Fragment>
 
-        <Section title={"Configure Driver"}>
-        <Label title={"Turn off unused drivers for faster startup times"}> </Label>
+        <Section title={this.state.driver_display_name}>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-        <div hidden={(this.state.driver_name === 'None')}>
+        <div hidden={(this.state.driver_pkg === 'None')}>
 
           <label style={{}} align={"left"} textAlign={"left"}>
-            {this.state.driver_name}
+            {this.state.driver_display_name}
           </label>
     
 
@@ -364,14 +374,10 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       <Columns equalWidth={true}>
       <Column>
 
-      <pre style={{ height: "50px", overflowY: "auto" }}>
-          {"Type: " + this.state.group_name}
-          </pre>
-
         <Label title="Enable/Disable Driver">
           <Toggle
-            checked={this.state.active_state===true}
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_state", this.state.driver_name, !this.state.active_state)}>
+            checked={this.state.driver_active_state===true}
+            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_state", this.state.driver_pkg, !this.state.driver_active_state)}>
           </Toggle>
           </Label>
 
@@ -379,19 +385,15 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       </Column>
       <Column>
 
-      <pre style={{ height: "50px", overflowY: "auto" }}>
-          {"Group: " + this.state.group}
-          </pre>
-
       <Label title={"Driver Enabled"}>
-          <BooleanIndicator value={(this.state.active_state !== null)? this.state.active_state : false} />
+          <BooleanIndicator value={(this.state.driver_active_state !== null)? this.state.driver_active_state : false} />
         </Label>
         
       </Column>
       <Column>
 
       <pre style={{ height: "50px", overflowY: "auto" }}>
-          {"Subgroup: " + this.state.group_id}
+          {"Subtype: " + this.state.driver_group_id}
           </pre>
 
       </Column>
@@ -402,97 +404,65 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
           <Column>
 
 
-      <Label title={"Name"}>
-        <Input disabled value={this.state.driver_name} />
+      <Label title={"Type"}>
+        <Input disabled value={this.state.driver_type} />
       </Label>
-
-
-      <Label title={"group"}>
-        <Input disabled value={this.state.group} />
+      <Label title={"Group ID"}>
+        <Input disabled value={this.state.driver_group_id} />
       </Label>
-      <Label title={"group_id"}>
-        <Input disabled value={this.state.group_id} />
-      </Label>
-
-      <div hidden={!this.state.options_2_name==="None"}>
-      <Label title={this.state.options_1_name}> 
-        <Select
-          id="update_option_1"
-          onChange={this.onDropdownSelectedSendDriverOption}
-          value={this.state.set_option_1}
-        >
-          {this.state.options_1
-            ? createMenuListFromStrList(this.state.options_1, false, [],[],[])
-            : NoneOption}
-        </Select>
-        </Label>
-        </div>
-
 
       </Column>
       <Column>
 
-      <Label title={"Interfaces"}>
-        <Input disabled value={this.state.interfaces} />
-      </Label>
-      <Label title={"discovery"}>
-        <Input disabled value={this.state.discovery} />
-      </Label>
-      <Label title={"other_users_list"}>
-        <Input disabled value={this.state.other_users_list} />
+      <Label title={"Package"}>
+        <Input disabled value={this.state.driver_pkg} />
       </Label>
 
-      <div hidden={!this.state.options_2_name==="None"}>
-      <Label title={this.state.options_2_name}> 
-        <Select
-          id="update_option_2"
-          onChange={this.onDropdownSelectedSendDriverOption}
-          value={this.state.set_option_2}
-        >
-          {this.state.options_2
-            ? createMenuListFromStrList(this.state.options_2, false, [],[],[])
-            : NoneOption}
-        </Select>
-        </Label>
-        </div>
 
-        <label style={{fontWeight: 'bold'}}>
-            {"Discovery Options Settings"}
-          </label>
-
-        <NepiIFSettings
-          settingsNamespace={setting_namespace}
-          make_section = {false}
-          title={"Nepi_IF_Settings"}
-        />
 
       </Column>
       <Column>
 
 
         <Label title={"Driver Start Order"}>
-          <Input disabled value={this.state.order} />
+          <Input disabled value={this.state.driver_order} />
         </Label>
 
 
         <ButtonMenu>
-        <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_name, "top")}>{"Move to Top"}</Button>
+        <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_pkg, "top")}>{"Move to Top"}</Button>
         </ButtonMenu>
 
         <ButtonMenu>
-        <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_name, "up")}>{"Move    Up"}</Button>
+        <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_pkg, "up")}>{"Move    Up"}</Button>
         </ButtonMenu>
 
         <ButtonMenu>
-          <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_name, "down")}>{"Move Down"}</Button>
+          <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_pkg, "down")}>{"Move Down"}</Button>
         </ButtonMenu>
 
         <ButtonMenu>
-          <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_name, "bottom")}>{"Move to Bottom"}</Button>
+          <Button onClick={() => sendUpdateOrderMsg(this.state.mgrNamespace + "/update_order", this.state.driver_pkg, "bottom")}>{"Move to Bottom"}</Button>
         </ButtonMenu>
         </Column>
         </Columns>
 
+        <div hidden={settings_namespace === 'None'}>
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <label style={{fontWeight: 'bold'}}>
+            {"Discovery Options Settings"}
+          </label>
+
+
+          <NepiIFSettings
+            settingsNamespace={settings_namespace}
+            make_section={false}
+            title={"Nepi_IF_Settings"}
+          />
+
+          </div>
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
         <Columns equalWidth={true}>
           <Column>
@@ -609,10 +579,10 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
 
   getActiveStr(){
-    const active =  this.state.drivers_active_list
+    const active_names =  this.state.drivers_active_name_list
     var config_str_list = []
-    for (var i = 0; i < active.length; i++) {
-      config_str_list.push(active[i])
+    for (var i = 0; i < active_names.length; i++) {
+      config_str_list.push(active_names[i])
       config_str_list.push("\n")
     }
     const config_str =config_str_list.join("")
@@ -621,11 +591,11 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
   
   getDisabledStr(){
-    const installed = this.state.drivers_list
-    const active =  this.state.drivers_active_list
+    const installed = this.state.drivers_pkg_list
+    const active_names =  this.state.drivers_active_name_list
     var config_str_list = []
     for (var i = 0; i < installed.length; i++) {
-      if (active.indexOf(installed[i]) === -1){
+      if (active_names.indexOf(installed[i]) === -1){
         config_str_list.push(installed[i])
         config_str_list.push("\n")
       }
@@ -635,20 +605,20 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   }
 
 
-  getReadyStr(){
-    const ready = this.state.drivers_install_list
+  getInstallStr(){
+    const install_list = this.state.drivers_install_list
     var config_str_list = []
-    for (var i = 0; i < ready.length; i++) {
-      config_str_list.push(ready[i])
+    for (var i = 0; i < install_list.length; i++) {
+      config_str_list.push(install_list[i])
       config_str_list.push("\n")
     }
     const config_str =config_str_list.join("")
     return config_str
   }
 
-  onChangeGroupSelection(event){
-    var selected_group = event.target.value
-    this.setState({selected_group: selected_group})
+  onChangetypeSelection(event){
+    var selected_type = event.target.value
+    this.setState({selected_type: selected_type})
   }
 
   render() {
@@ -657,15 +627,15 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     }
     const selected_driver = this.state.selected_driver
     const driver_options = this.getDriverOptions()
-    const active_driver_list = this.state.drivers_active_list
+    const active_driver_list = this.state.drivers_active_pkg_list
     const hide_driver_list = !this.state.viewableDrivers && !this.state.connected
-    const drv_group_options = this.getGroupOptions()
+    const drv_type_options = this.gettypeOptions()
     return (
 
 
     <Columns>
       <Column>
-
+      <Label title={"Turn off unused drivers for faster startup times"}> </Label>
 
       <Columns equalWidth={true}>
         <Column>
@@ -678,10 +648,10 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
           <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
 
-            <Select onChange={this.onChangeGroupSelection}
-            id="DrvGroupSelector"
-            value={this.state.selected_group}>
-            {drv_group_options}
+            <Select onChange={this.onChangetypeSelection}
+            id="DrvtypeSelector"
+            value={this.state.selected_type}>
+            {drv_type_options}
             </Select>
 
             <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -740,7 +710,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
           </label>
 
         <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getReadyStr()}
+        {this.getInstallStr()}
         </pre>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -774,6 +744,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
       {this.renderDriverConfigure()}
 
+      {this.renderDriverInstall()}
 
        </Column>
      </Columns>

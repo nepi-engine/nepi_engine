@@ -573,9 +573,9 @@ class ROSConnectionStore {
         const ptx_unit_namespace = this.topicNames[i].split("/ptx")[0]
         if (!(ptx_units_detected.includes(ptx_unit_namespace))) {
           this.callPTXCapabilitiesQueryService(ptx_unit_namespace)
-          //this.callSettingsCapabilitiesQueryService(ptx_unit_namespace)
+          this.callSettingsCapabilitiesQueryService(ptx_unit_namespace)
           const ptxUnit = this.ptxUnits[ptx_unit_namespace]
-          //const settingCaps = this.settingCaps[ptx_unit_namespace]
+          const settingCaps = this.settingCaps[ptx_unit_namespace]
           if (ptxUnit)
           {
             ptx_units_detected.push(ptx_unit_namespace)
@@ -605,7 +605,7 @@ class ROSConnectionStore {
         const lsx_unit_namespace = this.topicNames[i].split("/lsx")[0]
         if (!(lsx_units_detected.includes(lsx_unit_namespace))) {
           this.callLSXCapabilitiesQueryService(lsx_unit_namespace)
-          //this.callSettingsCapabilitiesQueryService(lsx_unit_namespace)
+          this.callSettingsCapabilitiesQueryService(lsx_unit_namespace)
           const lsxUnits = this.lsxUnits[lsx_unit_namespace]
           const settingCaps = this.settingCaps[lsx_unit_namespace]
           if (lsxUnits && settingCaps)
@@ -1555,6 +1555,7 @@ class ROSConnectionStore {
     const capabilities = await this.callService({
       name: namespace + "/settings_capabilities_query",
       messageType: "nepi_ros_interfaces/SettingsCapabilitiesQuery",  
+      args: {namespace : namespace},
     })
     this.settingCaps[namespace] = capabilities
   }

@@ -1,12 +1,18 @@
-string drivers_path
-string[] drivers_ordered_list
-string[] drivers_group_list
-string[] drivers_group_id_list
-string[] drivers_active_list
-string[] drivers_active_group_list
-string drivers_install_path
-string[] drivers_install_list
-string driver_backup_path
-bool backup_removed_drivers
+#  Drivers Status Msg.  Drivers listed in current order
+
+string[] pkg_list
+string[] name_list
+string[] type_list
+string[] group_id_list
+
+string[] active_pkg_list
+string[] active_name_list
+string[] active_type_list
+string[] active_namespace_list
+
+string install_path
+string[] install_list
+string backup_path
+bool backup_on_remove
 string selected_driver
 
