@@ -77,6 +77,8 @@ class AiDetectorIF:
     img_msg = None
     last_img_msg = None
     img_msg_topic = ""
+    img_msg_header = None
+    cv2_img = None
     img_lock = threading.Lock()
 
     last_time = time.time()
@@ -298,8 +300,7 @@ class AiDetectorIF:
 
     def addImageTopic(self,img_topic):   
         img_topics = rospy.get_param('~img_topics', self.init_selected_img_topics)
-        img_topic_check = nepi_ros.find_topic(img_topic)
-        if img_topic not in img_topics and img_topic_check not in img_topics:
+        if img_topic not in img_topics:
             img_topics.append(img_topic)
         nepi_ros.set_param(self,'~img_topics', img_topics)
         self.publishStatus()
@@ -318,8 +319,7 @@ class AiDetectorIF:
 
     def removeImageTopic(self,img_topic):         
         img_topics = rospy.get_param('~img_topics', self.init_selected_img_topics)
-        img_topic_check = nepi_ros.find_topic(img_topic)
-        if img_topic in img_topics or img_topic_check in img_topics:
+        if img_topic in img_topics:
             img_topics.remove(img_topic)
         nepi_ros.set_param(self,'~img_topics', img_topics)
         self.publishStatus()
@@ -496,7 +496,9 @@ class AiDetectorIF:
         if get_image == True:
             self.img_lock.acquire()
             self.img_msg = image_msg
+            self.img_msg_header = image_msg.header
             self.img_msg_topic = img_topic
+            self.cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
             self.img_lock.release()
             #self.last_img_msg = copy.deepcopy(image_msg)
 
@@ -516,18 +518,18 @@ class AiDetectorIF:
                 detect_dict_list = None
                 img_in_msg = None
                 self.img_lock.acquire()
-                img_in_msg = copy.deepcopy(self.img_msg) 
-                self.img_msg = None # Clear the last image   
+                ros_img_header = self.img_msg_header
                 img_topic = self.img_msg_topic    
                 self.img_msg_topic = ""
+
+                cv2_img = copy.deepcopy(self.cv2_img) 
+                self.cv2_img = None # Clear the last image   
+
                 self.img_lock.release()
                 img_topics = rospy.get_param('~img_topics', self.init_selected_img_topics)
-                img_not_none = (img_in_msg is not None) and (img_topic in img_topics)
+                img_not_none = (cv2_img is not None) and (img_topic in img_topics)
                 #nepi_msg.publishMsgWarn(self,'Got Image not None: ' + str(img_not_none))
                 if img_not_none == True:
-                    ros_img_header = img_in_msg.header
-                    detect_img_msg = img_in_msg
-                    cv2_img = nepi_img.rosimg_to_cv2img(img_in_msg)
                     cv2_shape = cv2_img.shape
                     img_width = cv2_shape[1] 
                     img_height = cv2_shape[0] 
@@ -568,7 +570,7 @@ class AiDetectorIF:
                         image_text = img_topic.replace(self.base_namespace,"")
                         image_text = image_text.replace('/idx',"")
                         image_text = image_text.replace('/','_')
-                        ros_timestamp = img_in_msg.header.stamp
+                        ros_timestamp = ros_img_header.stamp
                         nepi_save.save_ros_img2file(self,data_product,img_in_msg,ros_timestamp, add_text = image_text)
                     else:
                         nepi_ros.signal_shutdown("Something went wrong in detection process call")

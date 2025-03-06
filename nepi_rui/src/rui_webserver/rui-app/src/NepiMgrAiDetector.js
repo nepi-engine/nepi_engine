@@ -342,13 +342,15 @@ class AiDetectorMgr extends Component {
 
     const model_name = this.state.model_name
     const model_loading = (model_name === selected_model && selected_model !== "None")? this.state.model_connected === false : selected_model !== "None"
-     const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
+    const model_connected = (model_name === selected_model)? (this.state.model_connected === true && model_name === selected_model):false
 
     const model_namespace = this.state.model_namespace
     const model_enabled = this.state.model_enabled
     const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
     const img_topic = this.state.sel_img_topic
+
+    const det_time = round(this.state.model_detect_time, 3)
 
     const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
@@ -463,7 +465,7 @@ class AiDetectorMgr extends Component {
 
 
           <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-          {"Detection Time: " + this.state.model_detect_time}
+          {"\nDetection Time: " + det_time }
           </pre>
 
           <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -602,7 +604,7 @@ renderModelSettings() {
         <Columns>
         <Column>
 
-        
+
           <Columns>
           <Column>
 
