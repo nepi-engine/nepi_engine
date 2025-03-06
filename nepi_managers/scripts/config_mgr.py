@@ -143,7 +143,7 @@ class config_mgr(object):
         elif nepi_ros.find_topic(qualified_node_name + "/npx").find("npx") != -1:
             subfolder_name = "/nepi_drivers/" + node_name
         elif os.path.islink(mgr_file_path): # Check if a manager config
-            nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
+            #nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
             subfolder_name = "/nepi_managers"
         else:
             subfolder_name = subfolder_name + node_name

@@ -54,6 +54,10 @@ class SystemMgrNode():
                             "automation_scripts", 
                             "data", 
                             "databases", 
+                            "install",
+                            "install/apps",
+                            "install/ai_frameworks",
+                            "install/drivers",
                             "license", 
                             "logs", 
                             "logs/automation_script_logs", 
@@ -69,6 +73,10 @@ class SystemMgrNode():
                             "automation_scripts", 
                             "data", 
                             "databases", 
+                            "install",
+                            "install/apps",
+                            "install/ai_frameworks",
+                            "install/drivers",
                             "license", 
                             "logs", 
                             "logs/automation_script_logs", 
@@ -78,8 +86,9 @@ class SystemMgrNode():
                             "sample_data",
                             "tmp"]
     
+    CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
     DRIVERS_PATH = '/opt/nepi/ros/lib/nepi_drivers'
-    DRIVERS_PARAM_PATH = '/opt/nepi/ros/share/nepi_drivers/params'
+    DRIVERS_ETC_PATH = '/opt/nepi/ros/etc/nepi_drivers'
     APPS_PARAM_PATH = '/opt/nepi/ros/share/nepi_apps'
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
 
@@ -364,7 +373,7 @@ class SystemMgrNode():
     def provide_system_data_folder(self, req):
         response = SystemStorageFolderQueryResponse()
         if req.type not in self.storage_subdirs:
-            response.folder_path = None
+            response.folder_path = ''
         else:
             response.folder_path = self.storage_subdirs[req.type]
         return response
@@ -430,14 +439,14 @@ class SystemMgrNode():
                 os.makedirs(self.DRIVERS_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.DRIVERS_PATH)
+        self.storage_subdirs['drivers'] = self.DRIVERS_PATH
 
-        self.storage_subdirs['drivers'] = self.DRIVERS_PARAM_PATH
-        if not os.path.isdir(self.DRIVERS_PARAM_PATH):
-                rospy.logwarn("Driver folder " + self.DRIVERS_PARAM_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_PARAM_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PARAM_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_PARAM_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_PARAM_PATH
+        if not os.path.isdir(self.DRIVERS_ETC_PATH):
+                rospy.logwarn("Driver folder " + self.DRIVERS_ETC_PATH + " not present... will create")
+                os.makedirs(self.DRIVERS_ETC_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.DRIVERS_ETC_PATH)
+        self.storage_subdirs['drivers_etc'] = self.DRIVERS_ETC_PATH
 
         # Do the same for the Apps Info Folder
         if not os.path.isdir(self.APPS_PARAM_PATH):

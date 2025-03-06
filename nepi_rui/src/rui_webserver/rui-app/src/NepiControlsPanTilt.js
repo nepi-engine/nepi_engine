@@ -660,7 +660,7 @@ class NepiControlsPanTilt extends Component {
 
   render() {
     const { ptxUnits, onPTXJogYaw, onPTXJogPitch, onPTXStop, sendTriggerMsg } = this.props.ros
-    const { ptxNamespace, yawNowRatio, pitchNowRatio, yawGoalRatio, pitchGoalRatio} = this.state
+    const { ptxNamespace, yawNowRatio, pitchNowRatio} = this.state
 
     const ptxImageViewerElement = document.getElementById("ptxImageViewer")
     const pitchSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"

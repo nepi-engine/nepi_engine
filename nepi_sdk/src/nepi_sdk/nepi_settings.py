@@ -33,9 +33,9 @@ from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
 
 
 SETTING_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
-
-NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
 NONE_CAP_SETTINGS = {"None":{"name":"None","type":"None","optons":[]}}
+NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
+
 
 def TEST_UPDATE_FUNCTION_SUCCESS(setting):
   s_str = get_setting_as_str(setting)
@@ -211,8 +211,8 @@ def check_valid_setting(setting,cap_settings):
           try:
             val = int(s_value)
             valid = True
-          except:
-            pass
+          except Exception as e:
+            print(str(e))
           if valid == True:
             if len(c_options) == 2:
               try:
@@ -226,8 +226,8 @@ def check_valid_setting(setting,cap_settings):
           try:
             val = float(s_value)
             valid = True
-          except:
-            pass
+          except Exception as e:
+            print(str(e))
           if valid == True:
             if len(c_options) == 2:
               try:
@@ -235,8 +235,8 @@ def check_valid_setting(setting,cap_settings):
                 max = float(c_options[1])
                 if val < min or val > max:
                   valid = False
-              except:
-                pass
+              except Exception as e:
+                print(str(e))
   return valid
 
 
@@ -257,7 +257,7 @@ def try_to_update_setting(setting_to_update,settings,cap_settings,update_setting
         except Exception as e:
           msg = ("Failed to update setting: " + s_str + " with exception: " + str(e) )
       else:
-        msg = ("Failed to update setting: " + s_str + " Invalid setting name or value")
+        msg = ("Failed to update setting: " + s_str + " Invalid setting name or value with cap settings: " + str(cap_settings))
     else:
       msg = ("Failed to update setting: " + s_str + " No update function provided")
   else:

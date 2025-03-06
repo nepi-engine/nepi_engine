@@ -19,6 +19,8 @@ import Input from "./Input"
 import NepiDeviceInfo from "./NepiDeviceInfo"
 import Toggle from "react-toggle"
 
+import NepiIFSettings from "./Nepi_IF_Settings"
+
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
@@ -67,6 +69,8 @@ class NepiControlsLights extends Component {
 
       listener: null,
       disabled: true,
+
+      connected: false,
 
     }
 
@@ -128,6 +132,8 @@ class NepiControlsLights extends Component {
 
       lxsIdentifier: message.identifier,
       lxsUserName: message.user_namenull,
+
+      connected: true
     })
   }
 
@@ -162,6 +168,7 @@ class NepiControlsLights extends Component {
   componentWillUnmount() {
     if (this.state.listener) {
       this.state.listener.unsubscribe()
+      this.setState({connected: false})
     }
   }
 
@@ -241,6 +248,22 @@ class NepiControlsLights extends Component {
             </div>
 
 
+
+            <div hidden={!has_intensity_control || this.state.lsxOnOffState===false}>    
+                <SliderAdjustment
+                    title={"Intensity ratio"}
+                    msgType={"std_msgs/Float32"}
+                    adjustment={this.state.lsxIntensityRatio}
+                    topic={lsxNamespace + "/lsx/set_intensity_ratio"}
+                    scaled={.01}
+                    min={0}
+                    max={100}
+                    tooltip={"Speed as a percentage (0%=min, 100%=max)"}
+                    unit={"%"}
+                  />
+            </div>
+
+
             <div hidden={false}> 
             <div hidden={!has_color_control}>    
             <Label title={"Select Color"}>
@@ -257,12 +280,6 @@ class NepiControlsLights extends Component {
                     </div>
 
             <div hidden={!has_blink_control}>    
-            <Label title="Set Blink State">
-                  <Toggle
-                    checked={this.state.lsxBlinkState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(this.state.lsxNamespace + "/lsx/blink_on_off",!this.state.lsxBlinkState)}>
-                  </Toggle>
-            </Label>
 
             <SliderAdjustment
                     title={"Blink Interval (ms)"}
@@ -288,6 +305,9 @@ class NepiControlsLights extends Component {
 
                 disabled={!has_intensity_control}
 */}                
+
+
+
             <div hidden={!has_kelvin_control}>    
                   <SliderAdjustment
                     title={"Kelvin Setting"}
@@ -302,19 +322,6 @@ class NepiControlsLights extends Component {
                   />
             </div>
 
-            <div hidden={!has_intensity_control}>    
-                <SliderAdjustment
-                    title={"Intensity ratio"}
-                    msgType={"std_msgs/Float32"}
-                    adjustment={this.state.lsxIntensityRatio}
-                    topic={lsxNamespace + "/lsx/set_intensity_ratio"}
-                    scaled={.01}
-                    min={0}
-                    max={100}
-                    tooltip={"Speed as a percentage (0%=min, 100%=max)"}
-                    unit={"%"}
-                  />
-            </div>
 
             <div hidden={!reports_temperature}>    
                   <Label title={"Temperature C"}>
@@ -350,6 +357,7 @@ class NepiControlsLights extends Component {
   render() {
     const { lsxUnits } = this.props.ros
     const { lsxNamespace } = this.state
+    const connected = this.state.connected
 
     //const lsxImageViewerElement = document.getElementById("lsxImageViewer")
 
@@ -417,10 +425,18 @@ class NepiControlsLights extends Component {
 
             </Section>
 
-            { lsxNamespace?
-              this.renderControlPanel()
-              : null
-            }
+          <div hidden={connected === false}>
+            
+            {this.renderControlPanel()}
+            
+
+            <NepiIFSettings
+            settingsNamespace={this.state.lsxNamespace}
+            title={"Nepi_IF_Settings"}
+          />
+
+        </div>
+
 
 
 

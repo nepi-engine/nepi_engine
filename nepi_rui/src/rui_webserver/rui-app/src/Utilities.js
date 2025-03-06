@@ -159,7 +159,7 @@ export function createShortValuesFromNamespaces(namespacesList) {
   var outputList = []
   var shortName = ''
   for (var i = 0; i < namespacesList.length; ++i) {
-      tokenizedList = namespacesList[i].split("/")
+      tokenizedList = namespacesList[i].slice(1).split("/")
       var tokens_len = tokenizedList.length
       if(tokenizedList.length === 2){
         shortName = tokenizedList[1]
@@ -197,9 +197,7 @@ export function createShortImagesFromNamespaces(baseNamespace,namespacesList) {
 
 export function createShortImageFromNamespace(baseNamespace,namespace) {
   const filterList = [baseNamespace + '/', 'idx/', 'ptx/', 'rbx/' , 'lsx/', 'npx/', 'ai/' ]
-  var outputList = []
   var shortName = ""
-  var shortName = namespace
   for (var i2 = 0; i2 < filterList.length; ++i2) {
     shortName = shortName.replace(filterList[i2],"")
   }

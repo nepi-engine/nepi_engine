@@ -15,7 +15,7 @@ import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Label from "./Label"
 import Button, { ButtonMenu } from "./Button"
-import Select, { Option } from "./Select"
+import { Option } from "./Select"
 import Styles from "./Styles"
 
 import NepiSaveSelector from "./NepiSaveSelector"

@@ -15,21 +15,14 @@ import Section from "./Section"
 import Button, { ButtonMenu } from "./Button"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
-import Input from "./Input"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 import Toggle from "react-toggle"
-import BooleanIndicator from "./BooleanIndicator"
 import {SliderAdjustment} from "./AdjustmentWidgets"
 
 import CameraViewer from "./CameraViewer"
 
 import {filterStrList, createShortImagesFromNamespaces,onChangeSwitchStateValue} from "./Utilities"
-
-function round(value, decimals = 0) {
-  return Number(value).toFixed(decimals)
-  //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
-}
 
 @inject("ros")
 @observer
@@ -297,7 +290,7 @@ class AiSegmentorMgr extends Component {
   renderAIManager() {
     const {sendTriggerMsg, sendBoolMsg} = this.props.ros
     const mgr_namespace = this.getMgrNamespace()
-    const mgr_connected = this.state.mgr_connected == true
+    const mgr_connected = this.state.mgr_connected === true
     const modelsList = this.state.models_list
     const no_models = (modelsList.length === 0)
     const model_options = this.getModelOptions()
@@ -308,8 +301,6 @@ class AiSegmentorMgr extends Component {
     const hide_model_info = (show_loading_msg === true || model_not_connected === true)
 
     const model_namespace = this.state.model_namespace
-    const model_enabled = this.state.model_enabled
-    const message = this.state.model_status_msg
     const img_options = this.getModelImageOptions()
     const img_topic = this.state.model_img_topic
 
@@ -542,39 +533,24 @@ class AiSegmentorMgr extends Component {
 
 renderModelSettings() {
   const { sendTriggerMsg } = this.props.ros
-  const mgr_namespace = this.getMgrNamespace()
   const message = this.state.model_status_msg
   const model_namespace = this.state.model_namespace
   const selected_model = this.state.selected_model
   const sel_img = this.state.selected_img
   if (message !== null && model_namespace !== null && selected_model !== "None"){
     const model_name = message.model_name 
-    const model_enabled = message.model_enabled
-    const model_state = message.model_state
-    const img_connected = message.img_connected
 
     if (selected_model === model_name){
 
-      const model_enabled = message.model_enabled
-      const model_state = message.model_state
-      const model_classes = message.model_classes
-
       const img_topics = message.img_topics
-      const img_tiling = message.img_tiling
       const overlay_labels = message.overlay_labels
       const overlay_model_name = message.overlay_model_name
       const overlay_img_name = message.overlay_img_name
-      const img_topic = message.img_topic
-      const img_connected = message.img_connected
 
       const threshold = message.threshold
       const max_rate = message.max_rate_hz 
 
       const img_options = this.createImageTopicsOptions()
-
-      const img_list_viewable = this.state.img_list_viewable
-
-      const model_display_name = model_name.toUpperCase()
 
       return (
 

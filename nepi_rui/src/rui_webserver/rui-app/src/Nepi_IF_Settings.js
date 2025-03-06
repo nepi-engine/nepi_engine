@@ -32,7 +32,6 @@ class Nepi_IF_Settings extends Component {
 
     // these states track the values through  Status messages
     this.state = {
-      show_settings: true,
       capSettingsTypes: ['Menu','Discrete','String','Bool','Int','Float'],
       capSettingsNamesList: [],
       capSettingsTypesList: [],
@@ -41,6 +40,7 @@ class Nepi_IF_Settings extends Component {
       settingsTypesList: [],
       settingsValuesList: [],
       settings: null,
+      settingsCount: 0,
       selectedSettingInd: 0,
       selectedSettingName: "",
       selectedSettingType: "",
@@ -49,6 +49,8 @@ class Nepi_IF_Settings extends Component {
       selectedSettingUpperLimit: "",
       selectedSettingOptions: [],
       selectedSettingInput: "",
+
+      settings_namespace: 'None',
 
       settingsListener: null,
     }
@@ -70,6 +72,7 @@ class Nepi_IF_Settings extends Component {
     this.getSelectedSettingInfo = this.getSelectedSettingInfo.bind(this)
     this.getSortedStrList = this.getSortedStrList.bind(this)
 
+    this.renderSettings = this.renderSettings.bind(this)
   }
 
   // Callback for handling ROS Settings Status messages
@@ -83,9 +86,12 @@ class Nepi_IF_Settings extends Component {
       typesList.push(settings[ind].type_str)
       valuesList.push(settings[ind].value_str)
     }
-    this.setState({settingsNamesList:namesList})      
-    this.setState({settingsTypesList:typesList})
-    this.setState({settingsValuesList:valuesList})
+    const count = namesList.length
+    this.setState({settingsNamesList:namesList,
+                   settingsTypesList:typesList,
+                   settingsValuesList:valuesList,
+                   settingsCount: count
+    })
 
     this.updateCapSettingsLists() 
   }
@@ -125,30 +131,41 @@ class Nepi_IF_Settings extends Component {
   // Function for creating settings options list from capabilities
   updateCapSettingsLists() {
     const {settingCaps} = this.props.ros
-    const namespace = this.props.settingsNamespace
+    const cur_namespace = this.props.settingsNamespace
     var namesList = []
     var typesList = []
     var optionsLists = []
-    namesList.push("None")
-    typesList.push("None")
-    if (settingCaps && namespace){
+    if (settingCaps && cur_namespace){
       if (settingCaps[this.props.settingsNamespace]){
-        const capabilities = settingCaps[this.props.settingsNamespace]
-        const cap_settings = capabilities.setting_caps_list
-        if (capabilities !== undefined){
-          namesList = []
-          typesList = []
-          for (let ind = 0; ind < cap_settings.length; ind++){
-            namesList.push(cap_settings[ind].name_str)
-            typesList.push(cap_settings[ind].type_str)
-            optionsLists.push(cap_settings[ind].options_list)
+        const set_namespace = this.state.settings_namespace
+        if (set_namespace !== cur_namespace){
+
+          const capabilities = settingCaps[this.props.settingsNamespace]
+          const cap_settings = capabilities.setting_caps_list
+          if (capabilities !== undefined){
+            for (let ind = 0; ind < cap_settings.length; ind++){
+              namesList.push(cap_settings[ind].name_str)
+              typesList.push(cap_settings[ind].type_str)
+              optionsLists.push(cap_settings[ind].options_list)
+            }
+            this.setState({
+              capSettingsNamesList:namesList,      
+              capSettingsTypesList:typesList,
+              capSettingsOptionsLists:optionsLists
+            })
           }
+          else{
+            this.setState({settings_namespace: cur_namespace,
+              capSettingsNamesList:['None'],      
+              capSettingsTypesList:['None'],
+              capSettingsOptionsLists:['None']
+            })
+
+          }
+          this.setState({settings_namespace: cur_namespace })
         }
       }
-    }
-    this.setState({capSettingsNamesList:namesList})      
-    this.setState({capSettingsTypesList:typesList})
-    this.setState({capSettingsOptionsLists:optionsLists})
+    } 
   }
   
   getSettingValue(settingName) {
@@ -270,7 +287,7 @@ class Nepi_IF_Settings extends Component {
     return sortedStrList
   }
 
-  render() {
+  renderSettings() {
     const { sendTriggerMsg} = this.props.ros
     const selSetInfo = this.getSelectedSettingInfo()
     const selSetType = selSetInfo[1]
@@ -279,27 +296,11 @@ class Nepi_IF_Settings extends Component {
     const selSetMax = selSetInfo[5]
     const selSetOptions= selSetInfo[6]
     const capSettingNamesOrdered = this.getSortedStrList(this.state.capSettingsNamesList)
+    const settingsHeight = this.state.settingsCount * 25
+    const settingsHeightStr = settingsHeight.toString() + 'px'
     return (
-      <Section title={"Device Settings"}>
-
-          <Columns>
+      <Columns>
           <Column>
-
-          <Label title={"Show Settings Menu"}>
-          <Toggle
-            checked={ (this.state.show_settings === true)}
-            onClick={() => onChangeSwitchStateValue.bind(this)("show_settings",this.state.show_settings)}
-          />
-        </Label>
-
-            </Column>
-            <Column>
-
-            </Column>
-            </Columns>
-
-
-        <div hidden={!this.state.show_settings}>
 
         <Columns>
           <Column>
@@ -374,17 +375,48 @@ class Nepi_IF_Settings extends Component {
           </Column>
         </Columns>
 
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+          
           <Label title={"Current Settings"} >
           </Label>
-          <pre style={{ height: "400px", overflowY: "auto" }}>
+          <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
             {this.getSettingsAsString()}
           </pre>
 
-        </div>
  
-      </Section>
+          </Column>
+        </Columns>
     )
+  }
+
+  render() {
+    const make_section = (this.props.make_section === false )? this.props.make_section: true
+    const cur_namespace = this.props.settingsNamespace
+    if (cur_namespace !== "None" && make_section === true){
+      return (
+        <Section title={"Device Settings"}>
+          {this.renderSettings()}
+        </Section>
+      )
+    }
+    else if (cur_namespace !== "None" && make_section === false) {
+      return (
+        <Columns>
+          <Column>
+          {this.renderSettings()}
+          </Column>
+        </Columns>
+      )
+    }
+    else {
+      return (
+        <Columns>
+          <Column>
+
+          </Column>
+        </Columns>
+      )
+    }
+    
   }
 
 }

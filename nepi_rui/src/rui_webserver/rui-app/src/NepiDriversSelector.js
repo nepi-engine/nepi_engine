@@ -223,7 +223,7 @@ class DriversSelector extends Component {
   renderApplication() {
     const sel_app = this.state.selected_app
 
-    const {appNameList, appStatusList} = this.props.ros
+    const {appNameList} = this.props.ros
   
     if (sel_app === "Driver Manager"){
       return (
