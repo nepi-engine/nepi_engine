@@ -373,7 +373,7 @@ class SystemMgrNode():
     def provide_system_data_folder(self, req):
         response = SystemStorageFolderQueryResponse()
         if req.type not in self.storage_subdirs:
-            response.folder_path = None
+            response.folder_path = ''
         else:
             response.folder_path = self.storage_subdirs[req.type]
         return response
@@ -439,14 +439,14 @@ class SystemMgrNode():
                 os.makedirs(self.DRIVERS_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.DRIVERS_PATH)
+        self.storage_subdirs['drivers'] = self.DRIVERS_PATH
 
-        self.storage_subdirs['drivers'] = self.DRIVERS_ETC_PATH
         if not os.path.isdir(self.DRIVERS_ETC_PATH):
                 rospy.logwarn("Driver folder " + self.DRIVERS_ETC_PATH + " not present... will create")
                 os.makedirs(self.DRIVERS_ETC_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.DRIVERS_ETC_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_ETC_PATH
+        self.storage_subdirs['drivers_etc'] = self.DRIVERS_ETC_PATH
 
         # Do the same for the Apps Info Folder
         if not os.path.isdir(self.APPS_PARAM_PATH):

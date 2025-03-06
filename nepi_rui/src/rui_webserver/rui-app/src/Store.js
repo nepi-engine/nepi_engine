@@ -388,7 +388,7 @@ class ROSConnectionStore {
     // topicQueryLock is used so we don't call getTopics many times
     // while witing for it to return.  With many topics on a slow
     // target it takes a few seconds to retrun.
-    if (this.ros && !this.topicQueryLock) {
+    if (this.ros && !this.topicQueryLock && this.connectedToROS) {
       this.topicQueryLock = true
       this.ros.getTopics(result => {
         this.topicNames = result.topics

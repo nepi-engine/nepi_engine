@@ -159,7 +159,7 @@ export function createShortValuesFromNamespaces(namespacesList) {
   var outputList = []
   var shortName = ''
   for (var i = 0; i < namespacesList.length; ++i) {
-      tokenizedList = namespacesList[i].split("/")
+      tokenizedList = namespacesList[i].slice(1).split("/")
       var tokens_len = tokenizedList.length
       if(tokenizedList.length === 2){
         shortName = tokenizedList[1]
