@@ -410,10 +410,8 @@ class AutomationManager:
                         # Update the cumulative run time whether exited on success or error
                         self.script_counters[script]['cumulative_run_time'] += (nepi_ros.time_now() - nepi_ros.time_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
+                        nepi_ros.sleep(1)
         
-            # Output script counters
-            for script, counter in self.script_counters.items():
-              nepi_ros.sleep(1)
 
     def handle_get_system_stats(self, req):
         script_name = req.script

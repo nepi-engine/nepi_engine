@@ -587,13 +587,19 @@ class NepiSensorsImagingControls extends Component {
 
   render() {
     return (
+      <Columns>
+          <Column>
 
-      <div hidden={!this.state.rtsp_url === ""}>
+      <div hidden={this.state.rtsp_url === ""}>
 
       {this.renderLive()}
-      {this.renderControls()}
 
       </div>
+
+      {this.renderControls()}
+
+      </Column>
+      </Columns>
 
     )
   }

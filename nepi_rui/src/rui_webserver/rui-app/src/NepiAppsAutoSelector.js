@@ -220,7 +220,7 @@ class AppsAutoSelector extends Component {
 
     const {appNameList} = this.props.ros
   
-    if (sel_app === "Automation Manager"){
+    if (sel_app === "Automation Mgr"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>

@@ -342,7 +342,7 @@ class AIDetectorManager:
                 nepi_ros.sleep(1)
         nepi_ros.set_param(self,"~models_dict",models_dict)
         if len(active_models_list) == 0:
-            self.self.ros_no_models_img.header.stamp = nepi_ros.time_now()
+            self.ros_no_models_img.header.stamp = nepi_ros.time_now()
             self.detection_image_pub.publish(self.ros_no_models_img)
             
         nepi_ros.timer(nepi_ros.duration(1), self.updaterCb, oneshot = True)

@@ -21,6 +21,8 @@ import './Automation.css';
 import Styles from "./Styles"
 
 
+import NepiSystemMessages from "./NepiSystemMessages"
+
 // Utilities
 function bytesToKBString(bytes) {
   return ((bytes/1024.0).toFixed(2) + "KB")
@@ -42,6 +44,9 @@ class AutomationMgr extends Component {
     this.handleStopScriptClick = this.handleStopScriptClick.bind(this)
     this.handleStartScriptClick = this.handleStartScriptClick.bind(this)
     this.handleCheckboxChange = this.handleCheckboxChange.bind(this) 
+
+    this.renderSelection = this.renderSelection.bind(this)
+    this.renderControls = this.renderControls.bind(this)
 
     this.prevRunningScripts = null;
   }
@@ -79,7 +84,8 @@ class AutomationMgr extends Component {
     this.props.ros.callGetSystemStatsQueryService(script, false) // Fire off a one-shot request for faster feedback
   }
 
-  render() {
+
+  renderSelection() {
     const { scripts, running_scripts, systemStats} = this.props.ros;
     //const { scripts, running_scripts, systemStats} = this.props.ros;
     let filesForListBox = []
@@ -104,6 +110,7 @@ class AutomationMgr extends Component {
       this.state.automationSelectedScript : this.state.runningSelectedScript
     
     return (
+     
       <Columns>
         <Column>
           <Section title={"Automation Scripts"}>
@@ -127,8 +134,41 @@ class AutomationMgr extends Component {
             />
           </Section>
         </Column>
+        </Columns>
+    )
+  }
+
+
+
+  renderControls() {
+    const { scripts, running_scripts, systemStats} = this.props.ros;
+    //const { scripts, running_scripts, systemStats} = this.props.ros;
+    let filesForListBox = []
+    let runningFilesForListBox = [];
+
+    //console.log('Automation scripts:', scripts);
+    filesForListBox = toJS(scripts)  
+    //  console.log('Automation scripts (filesForListBox):', filesForListBox);
+    //console.log('systemStats:', systemStats);
+    //_systemStats = toJS(systemStats)
+    //console.log('_systemStats:', _systemStats);
+    //console.log('_systemStats:', _systemStats && _systemStats.cpu_percent);
+    //console.log('_systemStats:', _systemStats && _systemStats.disk_usage);
+    //console.log('_systemStats:', _systemStats && _systemStats.memory_usage);
+    //console.log('_systemStats:', _systemStats && _systemStats.swap_info);
+    //console.log('_systemStats:', _systemStats && _systemStats.file_size);
+    
+    runningFilesForListBox = toJS(running_scripts);
+    //console.log('Running scripts (runningFilesForListBox):', runningFilesForListBox);
+
+    const selectedScript = (this.state.automationSelectedScript !== '')? 
+      this.state.automationSelectedScript : this.state.runningSelectedScript
+    
+    return (
+     
+      <Columns>
         <Column>
-          <Section title={"Control and Status"}>
+             <Section title={"Control and Status"}>
             <Label title={"File name"} >
               <Input 
                 disabled 
@@ -243,6 +283,70 @@ class AutomationMgr extends Component {
       </Columns>
     )
   }
-};
+
+
+
+
+
+  renderMessages() {
+    const { namespacePrefix, deviceId} = this.props.ros
+    const script_file = this.state.automationSelectedScript
+    const msg_namespace = "/" + namespacePrefix + "/" + deviceId + "/" + script_file.split('.')[0]
+
+    return (
+      <React.Fragment>
+
+      <Columns>
+        <Column>
+
+        <label style={{fontWeight: 'bold'}}>
+            {msg_namespace}
+          </label>
+
+        <NepiSystemMessages
+        messagesNamespace={msg_namespace}
+        title={"NepiSystemMessages"}
+        />
+
+      </Column>
+      </Columns>
+
+      </React.Fragment>
+    )
+  }
+
+
+
+  render() {
+    const hide_app = this.state.selected_topic === "Connecting"
+    return (
+
+
+      <div style={{ display: 'flex' }}>
+        <div style={{ width: '60%' }}>
+          {this.renderSelection()}
+
+
+          {this.renderMessages()}
+
+
+        </div>
+
+        <div style={{ width: '5%' }}>
+          {}
+        </div>
+
+        <div hidden={hide_app} style={{ width: '35%' }}>
+
+        {this.renderControls()}
+
+        </div>
+      </div>
+
+    )
+  }
+
+}
+
 
 export default AutomationMgr

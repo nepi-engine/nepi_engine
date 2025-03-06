@@ -104,9 +104,12 @@ class NepiSystemMessages extends Component {
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
+    const {topicNames} = this.props.ros
     const namespace = this.props.messagesNamespace
     const namespace_updated = (prevState.messagesNamespace !== namespace && namespace !== null)
-    const needs_update = (this.state.needs_update && namespace !== null)
+    const msg_namespace = namespace + "/messages"
+    const message_publishing = topicNames.indexOf(msg_namespace) !== -1
+    const needs_update = (this.state.needs_update && namespace !== null && message_publishing == true)
     if (namespace_updated || needs_update) {
       if (namespace.indexOf('null') === -1){
         this.setState({messagesNamespace: namespace})
