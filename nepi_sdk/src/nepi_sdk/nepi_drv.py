@@ -544,7 +544,7 @@ def importDriverClass(file_name,file_path,module_name,class_name):
         except Exception as e:
             rospy.logwarn("NEPI_DRV: Failed to import module %s with exception: %s", module_name, str(e))
       else:
-        rospy.logwarn("NEPI_DRV: Failed to find file %s in path %s for module %s", file_name, file_path, module_name)
+        rospy.logwarn("NEPI_DRV: Failed to find file %s in path %s", file_name, file_path)
       return success, msg, module_class
 
 

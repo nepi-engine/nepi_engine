@@ -49,7 +49,7 @@ def getAIFsDict(search_path):
               file_path = os.path.join(search_path,f)
               new_dict = nepi_save.read_yaml2dict(file_path)
               framework_name = new_dict['framework_name']
-              rospy.logwarn("NEPI_AIFS: Got ais dict: " + str(new_dict))
+              #rospy.logwarn("NEPI_AIFS: Got ais dict: " + str(new_dict))
               new_dict['if_path'] = search_path
               new_dict['active'] = False
               aifs_dict[framework_name] = new_dict
