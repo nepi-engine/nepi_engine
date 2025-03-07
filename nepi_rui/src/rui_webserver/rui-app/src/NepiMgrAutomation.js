@@ -36,7 +36,8 @@ class AutomationMgr extends Component {
 
     this.state = {
       automationSelectedScript: '',
-      runningSelectedScript: ''
+      runningSelectedScript: '',
+      needs_update: false
     };
 
     this.handleAutomationScriptSelect = this.handleAutomationScriptSelect.bind(this)
@@ -49,6 +50,10 @@ class AutomationMgr extends Component {
     this.renderControls = this.renderControls.bind(this)
 
     this.prevRunningScripts = null;
+  }
+
+  componentDidMount(){
+    this.setState({needs_update: true})
   }
 
   handleAutomationScriptSelect = (item) => {
@@ -290,8 +295,11 @@ class AutomationMgr extends Component {
 
   renderMessages() {
     const { namespacePrefix, deviceId} = this.props.ros
+    const {topicNames} = this.props.ros
     const script_file = this.state.automationSelectedScript
-    const msg_namespace = "/" + namespacePrefix + "/" + deviceId + "/" + script_file.split('.')[0]
+    const check_topic = "/" + namespacePrefix + "/" + deviceId + "/" + script_file.split('.')[0] + "/messages"
+    const topic_publishing = topicNames ? topicNames.indexOf(check_topic) !== -1 : false
+    const msg_namespace = topic_publishing ? check_topic  : "Waiting for Topic to Publish"
 
     return (
       <React.Fragment>

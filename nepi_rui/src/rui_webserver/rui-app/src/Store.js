@@ -379,7 +379,7 @@ class ROSConnectionStore {
     if (this.rosAutoReconnect) {
       setTimeout(async () => {
         await this.checkROSConnection()
-      }, 3500)
+      }, 1000)
     }
   }
 

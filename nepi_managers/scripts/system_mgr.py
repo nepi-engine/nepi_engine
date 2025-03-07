@@ -108,9 +108,14 @@ class SystemMgrNode():
     sw_update_progress = ""
 
     installing_new_image = False
+    new_img_file = ""
+    new_img_version = ""
+    new_img_filesize = ""
+    install_status = True
     archiving_inactive_image = False
 
     in_container = False
+
 
     #######################
     ### Node Initialization
@@ -339,14 +344,15 @@ class SystemMgrNode():
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
-            resp.new_sys_img = 'busy'
-            resp.new_sys_img_version = 'busy'
+            resp.new_sys_img = self.new_img_file
+            resp.new_sys_img_version = self.new_img_version
+            resp.new_sys_img_size_mb = self.new_img_filesize / BYTES_PER_MEGABYTE
             return resp
         
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, new_img_file, new_img_version, new_img_filesize) = sw_update_utils.checkForNewImageAvailable(
+        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = sw_update_utils.checkForNewImageAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
             rospy.logwarn("Unable to update software status: " + err_string)
@@ -357,10 +363,10 @@ class SystemMgrNode():
             return resp
         
         # Update the response
-        if new_img_file:
-            resp.new_sys_img = new_img_file
-            resp.new_sys_img_version = new_img_version
-            resp.new_sys_img_size_mb = new_img_filesize / BYTES_PER_MEGABYTE
+        if self.new_img_file:
+            resp.new_sys_img = self.new_img_file
+            resp.new_sys_img_version = self.new_img_version
+            resp.new_sys_img_size_mb = self.new_img_filesize / BYTES_PER_MEGABYTE
             self.status_msg.sys_img_update_status = "ready to install"
         else:
             resp.new_sys_img = 'none detected'
@@ -525,6 +531,8 @@ class SystemMgrNode():
 
     def receive_sw_update_progress(self, progress_val):
         self.status_msg.sys_img_update_progress = progress_val
+        if progress_val > 0 and progress_val < 1:
+            self.status_msg.sys_img_update_status = 'flashing'
 
     def receive_archive_progress(self, progress_val):
         self.status_msg.sys_img_archive_progress = progress_val
@@ -537,12 +545,13 @@ class SystemMgrNode():
         decompressed_img_filename = msg.data
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
-        status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
+        self.install_status = True
+        self.install_status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
         self.installing_new_image = False
-        if status is False:
+        if self.install_status is False:
             rospy.logerr("Failed to flash image: " + err_msg)
             self.status_msg.sys_img_update_status = 'failed'
             return
@@ -551,8 +560,8 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
-        status, err_msg = sw_update_utils.checkAndRepairPartition(self.inactive_rootfs_device)
-        if status is False:
+        self.install_status, err_msg = sw_update_utils.checkAndRepairPartition(self.inactive_rootfs_device)
+        if self.install_status is False:
             rospy.logerr("Newly flashed image has irrepairable filesystem issues: ", err_msg)
             self.status_msg.sys_img_update_status = 'failed - fs errors'
             return

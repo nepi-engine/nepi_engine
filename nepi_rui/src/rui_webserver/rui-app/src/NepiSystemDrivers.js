@@ -350,7 +350,12 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   renderDriverConfigure() {
     const { sendStringMsg, sendUpdateOrderMsg, sendUpdateActiveStateMsg, } = this.props.ros
     const NoneOption = <Option>None</Option>
-    const settings_namespace = this.getSettingsNamespace()
+    const namespace = this.getSettingsNamespace()
+    const check_topic = namespace + "/settings_status"
+    const {topicNames} = this.props.ros
+    const topic_publishing = topicNames ? topicNames.indexOf(check_topic) !== -1 : false
+    const settings_namespace = topic_publishing ? namespace : ""
+
 
     return (
       <React.Fragment>

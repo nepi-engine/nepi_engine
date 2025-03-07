@@ -122,8 +122,13 @@ class AppsNavPoseSelector extends Component {
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
     const namespace = this.getMgrNamespace()
+    const {topicNames} = this.props.ros
+    const script_file = this.state.automationSelectedScript
+    const check_topic = namespace + "/status"
+    const topic_publishing = topicNames ? topicNames.indexOf(check_topic) !== -1 : false
+
     const namespace_updated = (prevState.mgrNamespace !== namespace && namespace !== null)
-    const needs_update = (this.state.needs_update && namespace !== null)
+    const needs_update = (this.state.needs_update && namespace !== null && topic_publishing)
     if (namespace_updated || needs_update) {
       if (namespace.indexOf('null') === -1){
         this.setState({
