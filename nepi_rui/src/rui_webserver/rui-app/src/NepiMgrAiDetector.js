@@ -87,7 +87,7 @@ class AiDetectorMgr extends Component {
 
       img_list_viewable: false,
       img_filter_str_list: ['detection_image','targeting_image','alert_image','tracking_image'],
-      selected_img: "",
+      selected_img_topic: "",
       selected_img_text: "",
 
       needs_update: false
@@ -548,7 +548,7 @@ class AiDetectorMgr extends Component {
     const img_options = filterStrList(imageTopics,filter_str_list)
     const img_topics = this.state.model_img_source_topics
     const img_topic = event.target.value
-    //this.setState({selected_img: img_topic})
+    //this.setState({selected_img_topic: img_topic})
 
     if (img_topic === "None"){
         sendStringArrayMsg(remove_imgs_namespace,img_options)
@@ -571,7 +571,7 @@ renderModelSettings() {
   const message = this.state.model_status_msg
   const model_namespace = this.state.model_namespace
   const selected_model = this.state.selected_model
-  const sel_img = this.state.selected_img
+  const sel_img = this.state.selected_img_topic
   if (message !== null && model_namespace !== null && selected_model !== "None"){
     const model_name = message.model_name 
 
@@ -727,7 +727,7 @@ renderModelSettings() {
     const img_topic = event.target.value
     const model_name = this.state.model_name
     const img_name = model_name + img_topic.split(model_name)[1]
-    this.setState({selected_img: img_topic,
+    this.setState({selected_img_topic: img_topic,
                    selected_img_text: img_name
     })
   }   
@@ -750,9 +750,9 @@ renderModelSettings() {
         if (img_topics.indexOf(model_img) !== -1){
           items.push(<Option value={model_img}>{img_text}</Option>)
         }
-        const sel_img = this.state.selected_img
+        const sel_img = this.state.selected_img_topic
         if (sel_img === ""){
-          this.setState({selected_img: model_img,
+          this.setState({selected_img_topic: model_img,
                         selected_img_text: img_text
           })
 
@@ -799,8 +799,11 @@ renderModelSettings() {
 
 
   render() {
-    const sel_img = this.state.selected_img
-    const sel_img_text = this.state.selected_img_text
+    const {topicNames} = this.props.ros
+    const sel_img_topic = this.state.selected_img_topic
+    const img_publishing = topicNames.indexOf(sel_img_topic) !== -1
+    const sel_img = img_publishing? sel_img_topic : ""
+    const sel_img_text = img_publishing?  this.state.selected_img_text : 'Waiting for image to publish'
     const img_options = this.getDisplayImgOptions()
     const saveNamespace = this.getSaveNamespace()
 

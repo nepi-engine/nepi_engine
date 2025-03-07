@@ -225,9 +225,8 @@ class AIDetectorManager:
     def refreshFrameworks(self):
         ## Find AI Frameworks
         # Get ai framework dict form param server and update
-        get_aifs_dict = nepi_aifs.getAIFsDict(self.AIFS_SHARE_PATH)
         #nepi_msg.publishMsgWarn(self,"Got latest ais dict " + str(get_aifs_dict))
-        aifs_dict = nepi_ros.get_param(self,'~aifs_dict', get_aifs_dict)
+        aifs_dict = nepi_ros.get_param(self,'~aifs_dict', dict())
         self.init_aifs_dict = nepi_aifs.refreshAIFsDict(self.AIFS_SHARE_PATH,aifs_dict)
         nepi_ros.set_param(self,'~aifs_dict', self.init_aifs_dict)
         current_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
@@ -240,6 +239,7 @@ class AIDetectorManager:
         self.init_active_framework = active_aif
         nepi_ros.set_param(self,'~active_framework', self.init_active_framework)
         #nepi_msg.publishMsgWarn(self,"Got updated ais dict from param server " + str(self.init_aifs_dict))
+        nepi_msg.publishMsgWarn(self,"Got updated ais dict keys " + str(self.init_aifs_dict.keys()))
         models_dict = dict()
         for aif_name in self.init_aifs_dict.keys():
             aif_dict = self.init_aifs_dict[aif_name]
@@ -254,7 +254,7 @@ class AIDetectorManager:
             [success, msg, aif_class] = nepi_aifs.importAIFClass(file_name,file_path,module_name,class_name)
             if success == False:
                 nepi_msg.publishMsgWarn(self,"Failed to import ai framework if file " + file_name)
-                break
+                continue
             else:
                 success = False
                 try:
@@ -278,7 +278,7 @@ class AIDetectorManager:
                             self.aif_classes_dict[model_name] = aif_if_class_instance
                     except Exception as e:
                         nepi_msg.publishMsgWarn(self,"Failed to get models from class " + class_name + " " + str(e))
-                        break
+                        continue
                     
                     if (len(models_dict.keys()) < 1):
                         nepi_msg.publishMsgWarn(self,"No models found for this ai framework: " + aif_name)
@@ -317,9 +317,9 @@ class AIDetectorManager:
 
 
     def updaterCb(self,timer):
+        active_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
         models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
-        active_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
 
         for model_name in self.running_models_list:
             model_aif = models_dict[model_name]['framework']
