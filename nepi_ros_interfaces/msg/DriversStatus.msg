@@ -16,3 +16,5 @@ string backup_path
 bool backup_on_remove
 string selected_driver
 
+bool retry_enabled
+

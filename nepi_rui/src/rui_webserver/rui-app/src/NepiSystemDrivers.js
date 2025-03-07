@@ -62,7 +62,8 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       driver_active_state: null,
       driver_order: 0,
       driver_msg_str: "",
-    
+      
+      retry_enabled: false,
 
       connected: false,
 
@@ -131,6 +132,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       drivers_install_list: message.install_list,
       backup_removed_drivers: message.backup_removed_drivers,
       selected_driver: message.selected_driver,
+      retry_enabled: message.retry_enabled,
       connected: true
     })    
 
@@ -738,6 +740,13 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         <ButtonMenu>
         <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/factory_reset")}>{"Factory Reset"}</Button>
       </ButtonMenu>
+
+      <Label title="Allow Retry on Error">
+          <Toggle
+            checked={this.state.retry_enabled}
+            onClick={() => this.props.ros.sendBoolMsg(this.state.mgrNamespace + "/enable_retry", !this.state.retry_enabled)}>
+          </Toggle>
+          </Label>
 
         </Column>
       </Columns>

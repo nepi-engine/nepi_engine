@@ -185,6 +185,7 @@ class NepiDriversMgr(object):
     rospy.Subscriber('~select_driver', String, self.selectDriverCb)
     rospy.Subscriber('~update_state', UpdateState, self.updateStateCb)
     rospy.Subscriber('~update_order', UpdateOrder, self.updateOrderCb)
+    rospy.Subscriber('~enable_retry', Bool, self.enableRetryCb)
     #rospy.Subscriber('~select_driver_status', DriverUpdateMsg, self.updateMsgCb)
 
     rospy.Subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
@@ -227,6 +228,7 @@ class NepiDriversMgr(object):
 
   def resetMgr(self):
     # reset drivers dict
+    nepi_ros.set_param(self,"~retry_enabled",False)
     nepi_ros.set_param(self,"~backup_enabled",True)
     self.drivers_files = nepi_drv.getDriverFilesList(self.drivers_folder)
     self.drivers_install_files = nepi_drv.getDriverPackagesList(self.drivers_install_folder)
@@ -254,7 +256,10 @@ class NepiDriversMgr(object):
     pass # Left empty for sim, Should update from param server
 
   def setCurrentAsDefault(self):
-    nepi_ros.set_param(self,"~backup_enabled", True)
+    self.retry_enabled = nepi_ros.get_param(self,"~retry_enabled",False)
+    self.backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
+
+    
     self.initParamServerValues(do_updates = False)
     self.publish_status()
 
@@ -267,6 +272,7 @@ class NepiDriversMgr(object):
   def initParamServerValues(self,do_updates = True):
       self.selected_driver = 'NONE'
       nepi_msg.publishMsgInfo(self,"Setting init values to param values")
+      self.init_retry_enabled = nepi_ros.get_param(self,"~retry_enabled", False)
       self.init_backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
       self.drivers_files = nepi_drv.getDriverFilesList(self.drivers_folder)
       self.drivers_install_files = nepi_drv.getDriverPackagesList(self.drivers_install_folder)
@@ -279,6 +285,7 @@ class NepiDriversMgr(object):
 
   def resetParamServer(self,do_updates = True):
       nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
+      nepi_ros.set_param(self,"~retry_enabled",self.init_retry_enabled)
       nepi_ros.set_param(self,"~backup_enabled",self.init_backup_enabled)
       nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
       if do_updates:
@@ -388,7 +395,9 @@ class NepiDriversMgr(object):
                 self.discovery_classes_dict[driver_name] = discovery_class
                 nepi_msg.publishMsgInfo(self,"Instantiated discovery class " + discovery_class_name + " for driver " + driver_name)
               else: 
-                self.failed_class_import_list.append(driver_name)
+                retry = nepi_ros.get_param(self,"~retry_enabled",self.init_retry_enabled)
+                if retry == False:
+                  self.failed_class_import_list.append(driver_name)
                 nepi_msg.publishMsgInfo(self,"Failed to import discovery class " + discovery_class_name + " for driver " + driver_name)
             elif driver_name not in self.failed_class_import_list:
               #nepi_msg.publishMsgInfo(self,"")
@@ -634,6 +643,8 @@ class NepiDriversMgr(object):
     status_drivers_msg.backup_path = self.drivers_install_folder
     status_drivers_msg.backup_on_remove = nepi_ros.get_param(self,"~backup_enabled",self.init_backup_enabled)
     status_drivers_msg.selected_driver = self.selected_driver
+
+    status_drivers_msg.retry_enabled = nepi_ros.get_param(self,"~retry_enabled",self.init_retry_enabled)
     return status_drivers_msg
 
   
@@ -757,6 +768,12 @@ class NepiDriversMgr(object):
     self.publish_status()
 
  
+  def enableRetryCb(self,msg):
+    nepi_msg.publishMsgInfo(self,str(msg))
+    retry_enabled = msg.data
+    nepi_ros.set_param(self,"~retry_enabled",retry_enabled)
+    self.publish_status()
+
   def installDriverPkgCb(self,msg):
     nepi_msg.publishMsgInfo(self,str(msg))
     pkg_name = msg.data
