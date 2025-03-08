@@ -393,7 +393,7 @@ class AiDetectorIF:
             img_name = img_topic.replace(self.base_namespace,"")
             #nepi_msg.publishMsgWarn(self,'Subsribing to image name: ' + img_name)
             pub_sub_namespace = os.path.join(self.node_namespace,img_name)
-            nepi_msg.publishMsgWarn(self,'Publishing to image topic: ' + img_name)
+            nepi_msg.publishMsgWarn(self,'Publishing to image topic: ' + ipub_sub_namespace)
             found_object_pub = self.found_object_pub = rospy.Publisher(pub_sub_namespace + '/found_object', ObjectCount,  queue_size = 1)
             bounding_box_pub = self.bounding_boxes_pub = rospy.Publisher(pub_sub_namespace + '/bounding_boxes', BoundingBoxes, queue_size = 1)
             detection_image_pub = rospy.Publisher(pub_sub_namespace + '/detection_image', Image,  queue_size = 1)
@@ -550,18 +550,18 @@ class AiDetectorIF:
                         if len(detect_dict_list) > 0:
                             #nepi_msg.publishMsgWarn(self,"Starting detect image: " + str(cv2_img.shape))
                             cv2_detect_img = self.apply_detection_overlay(img_topic, detect_dict_list,cv2_img)
-                            #nepi_msg.publishMsgWarn(self,"Return detect image: " + str(cv2_detect_img.shape))
-                            detect_img_msg = nepi_img.cv2img_to_rosimg(cv2_detect_img, encoding="bgr8")
-                            detect_img_msg.header.stamp = nepi_ros.time_now()
-                            if not rospy.is_shutdown() and self.detection_image_pub is not None:
-                                self.detection_image_pub.publish(detect_img_msg)
-                                self.detection_image_all_pub.publish(detect_img_msg)
+                        #nepi_msg.publishMsgWarn(self,"Return detect image: " + str(cv2_detect_img.shape))
+                        detect_img_msg = nepi_img.cv2img_to_rosimg(cv2_detect_img, encoding="bgr8")
+                        detect_img_msg.header.stamp = nepi_ros.time_now()
+                        if not rospy.is_shutdown() and self.detection_image_pub is not None:
+                            self.detection_image_pub.publish(detect_img_msg)
+                            self.detection_image_all_pub.publish(detect_img_msg)
 
-                                if img_topic in self.imgs_pub_sub_dict.keys():
-                                    img_dict = self.imgs_pub_sub_dict[img_topic]
-                                    #nepi_msg.publishMsgWarn(self,"Got Img Dict: " + str(img_dict))
-                                    detection_image_pub = img_dict['detection_image_pub']
-                                    detection_image_pub.publish(detect_img_msg)
+                            if img_topic in self.imgs_pub_sub_dict.keys():
+                                img_dict = self.imgs_pub_sub_dict[img_topic]
+                                #nepi_msg.publishMsgWarn(self,"Got Img Dict: " + str(img_dict))
+                                detection_image_pub = img_dict['detection_image_pub']
+                                detection_image_pub.publish(detect_img_msg)
                         self.publishDetectionData(img_topic, detect_dict_list,ros_img_header)
 
 
