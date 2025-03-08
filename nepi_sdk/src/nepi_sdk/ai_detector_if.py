@@ -393,7 +393,7 @@ class AiDetectorIF:
             img_name = img_topic.replace(self.base_namespace,"")
             #nepi_msg.publishMsgWarn(self,'Subsribing to image name: ' + img_name)
             pub_sub_namespace = os.path.join(self.node_namespace,img_name)
-            nepi_msg.publishMsgWarn(self,'Publishing to image topic: ' + ipub_sub_namespace)
+            nepi_msg.publishMsgWarn(self,'Publishing to image topic: ' + pub_sub_namespace)
             found_object_pub = self.found_object_pub = rospy.Publisher(pub_sub_namespace + '/found_object', ObjectCount,  queue_size = 1)
             bounding_box_pub = self.bounding_boxes_pub = rospy.Publisher(pub_sub_namespace + '/bounding_boxes', BoundingBoxes, queue_size = 1)
             detection_image_pub = rospy.Publisher(pub_sub_namespace + '/detection_image', Image,  queue_size = 1)
