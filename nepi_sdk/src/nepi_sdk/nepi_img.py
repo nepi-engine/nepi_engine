@@ -115,7 +115,7 @@ def adjust_auto(cv2_img, sensitivity_ratio = 0.5):
   cv2_img=adjust_sharpness(cv2_img, sensitivity_ratio = 0.2)
   #rospy.loginfo("input image shape and type")
   #rospy.loginfo(cv2_img.shape)
-  if isgray(cv2_img) is True:
+  if is_gray(cv2_img) is True:
     gray = cv2_img
   else:
     # Color Correction optimization
