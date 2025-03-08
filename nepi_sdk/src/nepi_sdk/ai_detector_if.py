@@ -550,6 +550,8 @@ class AiDetectorIF:
                         if len(detect_dict_list) > 0:
                             #nepi_msg.publishMsgWarn(self,"Starting detect image: " + str(cv2_img.shape))
                             cv2_detect_img = self.apply_detection_overlay(img_topic, detect_dict_list,cv2_img)
+                        else:
+                            cv2_detect_img = cv2_img
                         #nepi_msg.publishMsgWarn(self,"Return detect image: " + str(cv2_detect_img.shape))
                         detect_img_msg = nepi_img.cv2img_to_rosimg(cv2_detect_img, encoding="bgr8")
                         detect_img_msg.header.stamp = nepi_ros.time_now()
