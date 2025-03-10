@@ -129,6 +129,7 @@ Object.defineProperty(Array.prototype, "equals", { enumerable: false })
 //////////////////////////////////////////////////////////////
 
 class ROSConnectionStore {
+  @observable rosCheckStarted = false
   @observable connectedToROS = false
   @observable rosAutoReconnect = true
   @observable messageLog = ""
@@ -355,10 +356,11 @@ class ROSConnectionStore {
   }
 
   async checkROSConnection() {
+    this.rosCheckStarted = true
     if (!this.connectedToROS) {
       try {
         // setup rosbridge connection
-        if (!this.ros) {
+        if (!this.ros || !this.connectedToROS) {
           this.ros = new ROS.Ros({
             url: ROS_WS_URL
           })
@@ -388,7 +390,10 @@ class ROSConnectionStore {
     // topicQueryLock is used so we don't call getTopics many times
     // while witing for it to return.  With many topics on a slow
     // target it takes a few seconds to retrun.
-    if (this.ros && !this.topicQueryLock && this.connectedToROS) {
+    if (this.ros && !this.connectedToROS && !this.rosCheckStarted){
+      this.checkROSConnection()
+    }
+    else if (this.ros && !this.topicQueryLock && this.connectedToROS) {
       this.topicQueryLock = true
       this.ros.getTopics(result => {
         this.topicNames = result.topics

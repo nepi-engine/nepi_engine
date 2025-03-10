@@ -24,6 +24,7 @@ bool standby
 
 # The resolution_mode field indicates the generic resolution setting for the device
 uint8 resolution_mode
+string resolution_current
 
 # The frame_rate_mode field indicates the generic frame rate setting for the device
 uint8 framerate_mode

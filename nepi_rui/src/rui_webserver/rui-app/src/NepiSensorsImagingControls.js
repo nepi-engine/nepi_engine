@@ -34,9 +34,10 @@ class NepiSensorsImagingControls extends Component {
       rtsp_url: "",
       rtsp_username: "",
       rtsp_password: "",
-      controlsEnable: null,
+      controlsEnable: true,
       autoAdjust: null,
       resolutionAdjustment: null,
+      resolutionString: null,
       framerateAdjustment: null,
       framerateCurrent: null,
       contrastAdjustment: null,
@@ -91,6 +92,7 @@ class NepiSensorsImagingControls extends Component {
       controlsEnable: message.controls_enable,
       autoAdjust: message.auto_adjust,
       resolutionAdjustment: message.resolution_mode,
+      resolutionString : message.resolution_current,
       framerateAdjustment: message.framerate_mode,
       framerateCurrent: message.framerate_current,
       contrastAdjustment: message.contrast,
@@ -218,6 +220,7 @@ class NepiSensorsImagingControls extends Component {
     const rtsp_url = this.state.rtsp_url
     const rtsp_username = this.state.rtsp_username
     const rtsp_password = this.state.rtsp_password
+    
     return (
 
       <Section title={"Open RSTP Camera Stream"}>
@@ -252,6 +255,7 @@ class NepiSensorsImagingControls extends Component {
     const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
     const resetControlsNamespace = this.props.idxSensorNamespace + "/idx/reset_controls"
     const imageName = this.props.idxImageName 
+    const framerate_str = round(this.state.framerateCurrent,1).toString()
     return (
 
       <Section title={"Post Processing Controls"}>
@@ -262,7 +266,7 @@ class NepiSensorsImagingControls extends Component {
                   msgType={"std_msgs/UInt8"}
                   adjustment={(capabilities && capabilities.adjustable_framerate)? this.state.framerateAdjustment : null}
                   disabled={(capabilities && capabilities.adjustable_framerate && !this.state.disabled)? false : true}
-                  entries={["Low", "Medium", "High", "Ultra"]}
+                  entries={["25%", "50%", "75%", "Max"]}
               />
 
 
@@ -271,13 +275,30 @@ class NepiSensorsImagingControls extends Component {
 
               <Label title={"Current Framerate"}>
               <Input
-                value={this.state.framerateCurrent}
+                value={framerate_str}
                 id="framerate"
-                style={{ width: "40%" }}
+                style={{ width: "100%" }}
                 disabled={true}
               />
             </Label>
    
+                </Column>
+                <Column>
+
+   
+                </Column>
+              </Columns>
+        
+
+
+
+
+{/*
+
+              <Columns>
+            <Column>
+
+  
               <div align={"left"} textAlign={"left"}>
                 <Label title={"Enable Controls"}>
                   <Toggle
@@ -290,19 +311,51 @@ class NepiSensorsImagingControls extends Component {
                 </Column>
                 <Column>
 
-                    <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg(resetControlsNamespace)}>{"Reset Controls"}</Button>
-                    </ButtonMenu>
    
                 </Column>
-              </Columns>
-        
+              </Columns>       
 
-
+    */}
 
           <div hidden={!this.state.controlsEnable }>
 
+
             <div hidden={(imageName !== 'bw_2d_image' && imageName !== 'color_2d_image')}>
+
+
+
+
+            <RadioButtonAdjustment
+                  title={"Resolution"}
+                  topic={this.props.idxSensorNamespace + '/idx/set_resolution_mode'}
+                  msgType={"std_msgs/UInt8"}
+                  adjustment={(capabilities && capabilities.adjustable_resolution)? this.state.resolutionAdjustment : null}
+                  disabled={(capabilities && capabilities.adjustable_resolution && !this.state.disabled)? false : true}
+                  entries={["25%", "50%", "75%", "Full"]}
+              />
+
+
+
+            <Columns>
+            <Column>
+
+              <Label title={"Current Resolution"}>
+              <Input
+                value={this.state.resolutionString}
+                id="framerate"
+                style={{ width: "100%" }}
+                disabled={true}
+              />
+            </Label>
+
+                </Column>
+                <Column>
+
+                </Column>
+              </Columns>             
+
+
+
 
 
               <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
@@ -365,14 +418,7 @@ class NepiSensorsImagingControls extends Component {
                 />
               </div>
            
-              <RadioButtonAdjustment
-                  title={"Resolution"}
-                  topic={this.props.idxSensorNamespace + '/idx/set_resolution_mode'}
-                  msgType={"std_msgs/UInt8"}
-                  adjustment={(capabilities && capabilities.adjustable_resolution)? this.state.resolutionAdjustment : null}
-                  disabled={(capabilities && capabilities.adjustable_resolution && !this.state.disabled)? false : true}
-                  entries={["Low", "Medium", "High", "Ultra"]}
-              />
+
 
             </div>
 
@@ -580,6 +626,20 @@ class NepiSensorsImagingControls extends Component {
                 </Column>
               </Columns>
         </div>
+
+             <Columns>
+              <Column>
+
+        
+                </Column>
+                <Column>
+
+                    <ButtonMenu>
+                      <Button onClick={() => sendTriggerMsg(resetControlsNamespace)}>{"Reset Controls"}</Button>
+                    </ButtonMenu>
+   
+                </Column>
+              </Columns>
 
       </Section>
     )

@@ -31,7 +31,7 @@ from nepi_ros_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from cv_bridge import CvBridge
-from nepi_ros_interfaces.msg import UpdateState, AiModelInfo, AiModelMgrStatus, AiDetectorStatus
+from nepi_ros_interfaces.msg import UpdateState, AiModelMgrStatus, AiDetectorStatus
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery
 from nepi_ros_interfaces.msg import BoundingBoxes, ObjectCount
 
@@ -522,19 +522,6 @@ class AIDetectorManager:
 
 
 
-    def getModelInfo(self,model_name,models_dict):
-        model_dict = models_dict[model_name]
-        info_msg = AiModelInfo()
-        info_msg.name = model_name
-        info_msg.framework = model_dict['framework']
-        info_msg.type = model_dict['type']
-        info_msg.size_mbytes = model_dict['size']
-        info_msg.description = model_dict['description']
-        info_msg.img_height = model_dict['img_height']
-        info_msg.img_width = model_dict['img_width']
-        info_msg.classes = model_dict['classes']
-        return info_msg
-
     def publish_status(self):
         aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
         active_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
@@ -553,10 +540,8 @@ class AIDetectorManager:
         for model_name in ai_models:
             type_list.append(models_dict[model_name]['type'])
             aif_list.append(models_dict[model_name]['framework'])
-            info_list.append(self.getModelInfo(model_name,models_dict))
         status_msg.ai_models_frameworks = aif_list
         status_msg.ai_models_types = type_list
-        status_msg.ai_models_info = info_list
 
 
 

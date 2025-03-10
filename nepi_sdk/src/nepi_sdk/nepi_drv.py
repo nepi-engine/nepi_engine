@@ -34,7 +34,7 @@ from nepi_sdk import nepi_save
 ### Driver Utility Functions
 
 DRIVERS_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
-DRIVERS_CFG_FOLDER = '/opt/nepi/ros/etc/nepi_drivers'
+DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 DRIVER_FILE_TYPES = ['Node','Driver', 'Discovery']
 DRIVER_KEYS = ['node','driver','discovery']
 

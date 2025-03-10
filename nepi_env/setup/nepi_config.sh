@@ -137,6 +137,7 @@ sudo -H pip install python-gnupg
 sudo -H pip install onvif_zeep
 sudo -H pip install onvif 
 
+
 pip install --user labelImg # For onboard training
 pip install --user licenseheaders # For updating license files and source code comments
 

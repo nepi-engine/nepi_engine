@@ -219,17 +219,20 @@ def adjust_sharpness(cv2_img, sensitivity_ratio = 0.0):
     #cv2_img * sensitivity_ratio
   return cv2_img
 
-def adjust_resolution(cv2_img, resolution_ratio = 1):
-  if resolution_ratio != 1:
-    res_scale = 0.3 + 0.7 * resolution_ratio
-    new_resolution = (int(cv2_img.shape[0] * res_scale),int(cv2_img.shape[1] * res_scale))
+def adjust_resolution(cv2_img, res_mode):
+  res_modes = [25,50,75,100]
+  if res_mode != 3:
+    res_scale = float(res_modes[res_mode]) / 100.0
+    new_resolution = (int(cv2_img.shape[1] * res_scale),int(cv2_img.shape[0] * res_scale))
     cv2_img = cv2.resize(cv2_img,(new_resolution), 0, 0, interpolation = cv2.INTER_NEAREST)
   return cv2_img,cv2_img.shape
 
 def adjust_framerate(current_fps,fr_mode):
   adj_fr = current_fps
-  if fr_mode < 3:
-    adj_fr = (fr_mode + 1)/4 * float(1)/(3-fr_mode) *  current_fps
+  fr_modes = [25,50,75,100]
+  if fr_mode != 3:
+    frame_scale = float(fr_modes[fr_mode]) / 100.0
+    adj_fr = frame_scale *  current_fps
   return adj_fr
 
 def get_contours(cv2_img):

@@ -128,7 +128,6 @@ add_message_files(FILES
     AppsStatus.msg
     AppStatus.msg
     AiDetectorStatus.msg
-    AiDetectorsStatus.msg
     AiSegmentorStatus.msg
     AiPoseStatus.msg
     ImageMuxInput.msg
@@ -143,8 +142,6 @@ add_message_files(FILES
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
-    AiModelInfo.msg
-    AiModelsInfo.msg
     
 )
 
@@ -190,6 +187,7 @@ add_service_files(
     NavPosePubQuery.srv
     MgrStatusQuery.srv
     SetBoolState.srv
+    AiDetectorInfoQuery.srv
 )
 
 ## Generate actions in the 'action' folder

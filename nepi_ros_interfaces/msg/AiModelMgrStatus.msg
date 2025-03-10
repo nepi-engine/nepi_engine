@@ -4,7 +4,6 @@ string[] ai_frameworks
 string[] ai_models
 string[] ai_models_frameworks
 string[] ai_models_types
-AiModelInfo[] ai_models_info
 
 string active_ai_framework
 

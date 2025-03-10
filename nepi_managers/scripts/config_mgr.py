@@ -29,12 +29,15 @@ from nepi_ros_interfaces.srv import FileReset
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
-CFG_PATH = '/opt/nepi/ros/etc'
+NEPI_CFG_PATH = '/opt/nepi/ros/etc'
+USER_CFG_PATH = '/mnt/nepi_storage/user_cfg/ros'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
 
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 USER_SUFFIX = '.user'
+
+USER_CFGS_FILTER_LIST = ['idx','lsx','ptx','rbx','npx']
 
 pending_nodes = {}
 
@@ -67,8 +70,6 @@ class config_mgr(object):
         nepi_msg.createMsgPublishers(self)
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
         ##############################
-
-
 
         rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
         rospy.Subscriber('store_params', String, self.store_params)
@@ -128,26 +129,26 @@ class config_mgr(object):
         return [True]
 
     def get_cfg_pathname(self,qualified_node_name):
+        cfg_pathname = USER_CFG_PATH # Fallback path
         node_name = self.separate_node_name_in_msg(qualified_node_name)
-        subfolder_name = "/"
-        mgr_file_path = os.path.join(CFG_PATH,"nepi_managers",node_name + '.yaml')
         #nepi_msg.publishMsgWarn(self,"Mgr File Path " + mgr_file_path)
-        if nepi_ros.find_topic(qualified_node_name + "/idx").find("idx") != -1:
-            subfolder_name = "/nepi_drivers/" + node_name
-        elif nepi_ros.find_topic(qualified_node_name + "/lsx").find("lsx") != -1:
-            subfolder_name = "/nepi_drivers/" + node_name
-        elif nepi_ros.find_topic(qualified_node_name + "/ptx").find("ptx") != -1:
-            subfolder_name = "/nepi_drivers/" + node_name
-        elif nepi_ros.find_topic(qualified_node_name + "/rbx").find("rbx") != -1:
-            subfolder_name = "/nepi_drivers/" + node_name
-        elif nepi_ros.find_topic(qualified_node_name + "/npx").find("npx") != -1:
-            subfolder_name = "/nepi_drivers/" + node_name
-        elif os.path.islink(mgr_file_path): # Check if a manager config
-            #nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
-            subfolder_name = "/nepi_managers"
-        else:
-            subfolder_name = subfolder_name + node_name
-        cfg_pathname = CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
+        topics = nepi_ros.get_topic_list()
+        path_set = False
+        for filter_str in USER_CFGS_FILTER_LIST:
+            filter_topic = os.path.join(qualified_node_name,filter_str)
+            if filter_topic in topics:
+                cfg_pathname = USER_CFG_PATH  + '/' + node_name + CFG_SUFFIX
+                path_set = True
+                break
+        if path_set == False:
+            mgr_file_path = os.path.join(NEPI_CFG_PATH,"nepi_managers",node_name + '.yaml')
+            if os.path.islink(mgr_file_path): # Check if a manager config
+                #nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
+                subfolder_name = "/nepi_managers"
+                cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
+            else:
+                subfolder_name = subfolder_name + node_name
+                cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
         #nepi_msg.publishMsgWarn(self,"Config " + qualified_node_name + " " + cfg_pathname)
         return cfg_pathname
 
@@ -207,7 +208,7 @@ class config_mgr(object):
 
     def restore_user_cfgs(self):
         # First handle the NEPI-ROS user configs.
-        for root, dirs, files in os.walk(CFG_PATH):
+        for root, dirs, files in os.walk(NEPI_CFG_PATH):
             for name in files:
                 full_name = os.path.join(root, name)
                 if full_name.endswith(CFG_SUFFIX) and os.path.islink(full_name):

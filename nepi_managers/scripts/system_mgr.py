@@ -50,6 +50,9 @@ class SystemMgrNode():
     storage_uid = 1000 # default to nepi
     storage_gid = 130 # default to "sambashare" # TODO This is very fragile
 
+
+    check_ignore_folders = ["data","logs","logs/automation_script_logs","nepi_src","tmp"]
+
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                             "automation_scripts", 
                             "data", 
@@ -87,8 +90,7 @@ class SystemMgrNode():
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
-    DRIVERS_PATH = '/opt/nepi/ros/lib/nepi_drivers'
-    DRIVERS_ETC_PATH = '/opt/nepi/ros/etc/nepi_drivers'
+    DRIVERS_PARAM_PATH = '/opt/nepi/ros/lib/nepi_drivers'
     APPS_PARAM_PATH = '/opt/nepi/ros/share/nepi_apps'
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
 
@@ -185,8 +187,29 @@ class SystemMgrNode():
         self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
         self.init_msgs()
 
+        nepi_msg.publishMsgWarn(self,"Checking User Storage Partition")
+        # First check that the storage partition is actually mounted
+        if not os.path.ismount(self.storage_mountpoint):
+           rospy.logwarn("NEPI Storage partition is not mounted... attempting to mount")
+           ret, msg = sw_update_utils.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
+           if ret is False:
+               rospy.logwarn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+               #return False # Allow it continue on local storage...
 
-        nepi_msg.publishMsgWarn(self,"Checking Storage Folders")
+        # ... as long as there is enough space
+        self.update_storage()
+        if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:
+            rospy.logerr("Insufficient space on storage partition")
+            self.storage_mountpoint = ""
+            return False
+
+        # Gather owner and group details for storage mountpoint
+        stat_info = os.stat(self.storage_mountpoint)
+        self.storage_uid = stat_info.st_uid
+        self.storage_gid = stat_info.st_gid
+
+
+        nepi_msg.publishMsgWarn(self,"Checking System Folders")
         # Ensure that the user partition is properly laid out
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
@@ -195,8 +218,12 @@ class SystemMgrNode():
                 self.provide_system_data_folder)
 
 
+
+        nepi_msg.publishMsgWarn(self,"Checking valid device id")
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
+
+        
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
         nepi_msg.publishMsgWarn(self,"Updating From Param Server")
@@ -385,7 +412,7 @@ class SystemMgrNode():
         return response
 
     def provide_driver_folder(self, req):
-        return self.DRIVERS_PATH
+        return self.DRIVERS_PARAM_PATH
 
     def publish_periodic_status(self, event):
         self.status_msg.sys_time = event.current_real
@@ -406,62 +433,42 @@ class SystemMgrNode():
         self.status_msg.save_all_enabled = save_msg.save_continuous
 
     def ensure_reqd_storage_subdirs(self):
-        # First check that the storage partition is actually mounted
-        if not os.path.ismount(self.storage_mountpoint):
-           rospy.logwarn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = sw_update_utils.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
-           if ret is False:
-               rospy.logwarn("Unable to mount NEPI Storage partition... system may be dysfunctional")
-               #return False # Allow it continue on local storage...
-
-        # ... as long as there is enough space
-        self.update_storage()
-        if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:
-            rospy.logerr("Insufficient space on storage partition")
-            self.storage_mountpoint = ""
-            return False
-
-        # Gather owner and group details for storage mountpoint
-        stat_info = os.stat(self.storage_mountpoint)
-        self.storage_uid = stat_info.st_uid
-        self.storage_gid = stat_info.st_gid
-
         # Check for and create subdirectories as necessary
+        nepi_msg.publishMsgWarn(self,"Checking user storage partition folders")
         for subdir in self.req_storage_subdirs:
             full_path_subdir = os.path.join(self.storage_mountpoint, subdir)
             if not os.path.isdir(full_path_subdir):
-                rospy.logwarn("Required storage subdir " + subdir + " not present... will create")
+                nepi_msg.publishMsgWarn(self,"Required storage subdir " + subdir + " not present... will create")
                 os.makedirs(full_path_subdir)
-            
-            # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
-            # TODO: Different owner:group for different folders?
-            os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
-            #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)
-            os.system('chmod -R 0775 ' + full_path_subdir)
+                # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
+                # TODO: Different owner:group for different folders?
+            if subdir not in self.check_ignore_folders:
+                nepi_msg.publishMsgWarn(self,"Checking user storage partition folder permissions: " + subdir)
+                os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)
+                os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
-        # Do the same for the Drivers Folder
-        if not os.path.isdir(self.DRIVERS_PATH):
-                rospy.logwarn("Driver folder " + self.DRIVERS_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_PATH
 
-        if not os.path.isdir(self.DRIVERS_ETC_PATH):
-                rospy.logwarn("Driver folder " + self.DRIVERS_ETC_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_ETC_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_ETC_PATH)
-        self.storage_subdirs['drivers_etc'] = self.DRIVERS_ETC_PATH
 
-        # Do the same for the Apps Info Folder
+
+        # Check system folders
+        nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
+        if not os.path.isdir(self.DRIVERS_PARAM_PATH):
+                rospy.logwarn("Driver folder " + self.DRIVERS_PARAM_PATH + " not present... will create")
+                os.makedirs(self.DRIVERS_PARAM_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PARAM_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.DRIVERS_PARAM_PATH)
+        self.storage_subdirs['drivers'] = self.DRIVERS_PARAM_PATH
+
+        nepi_msg.publishMsgWarn(self,"Checking nepi_apps param folder")
         if not os.path.isdir(self.APPS_PARAM_PATH):
                 rospy.logwarn("Apps folder " + self.APPS_PARAM_PATH + " not present... will create")
                 os.makedirs(self.APPS_PARAM_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_PARAM_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.APPS_PARAM_PATH)
         self.storage_subdirs['apps'] = self.APPS_PARAM_PATH
-        # Do the same for the AI IF Folder
+
+        nepi_msg.publishMsgWarn(self,"Checking nepi_aifs param folder")
         if not os.path.isdir(self.AIFS_SHARE_PATH):
                 rospy.logwarn("AIF folder " + self.AIFS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.AIFS_SHARE_PATH)

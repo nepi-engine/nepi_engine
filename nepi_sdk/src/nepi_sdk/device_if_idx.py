@@ -120,6 +120,10 @@ class ROSIDXSensorIF:
     
     rtsp_url = None
 
+
+    img_height = 0
+    img_width = 0
+
     def __init__(self, device_info, capSettings=None, 
                  factorySettings=None, settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
@@ -419,7 +423,7 @@ class ROSIDXSensorIF:
             self.settings_if.resetFactorySettings(update_status = False, update_params = True)
         rospy.set_param('~idx/device_name', self.factory_device_name)
         rospy.set_param('~idx/controls_enable',self.factory_controls_dict.get('controls_enable'))
-        rospy.set_param('~idx/auto', self.factory_controls_dict.get('auto_adjust'))  
+        rospy.set_param('~idx/auto_adjust', self.factory_controls_dict.get('auto_adjust'))  
         rospy.set_param('~idx/brightness', self.factory_controls_dict.get('brightness_ratio'))      
         rospy.set_param('~idx/contrast', self.factory_controls_dict.get('contrast_ratio'))
         rospy.set_param('~idx/thresholding', self.factory_controls_dict.get('threshold_ratio'))
@@ -475,7 +479,7 @@ class ROSIDXSensorIF:
     def resetParamServer(self,do_updates = False):
         rospy.set_param('~idx/device_name', self.init_device_name)
         rospy.set_param('~idx/controls_enable',self.init_controls_enable)
-        rospy.set_param('~idx/auto', self.init_auto_adjust)       
+        rospy.set_param('~idx/auto_adjust', self.init_auto_adjust)       
         rospy.set_param('~idx/brightness', self.init_brightness_ratio)
         rospy.set_param('~idx/contrast', self.init_contrast_ratio)        
         rospy.set_param('~idx/thresholding', self.init_threshold_ratio)
@@ -498,7 +502,7 @@ class ROSIDXSensorIF:
             self.settings_if.initializeParamServer(do_updates)
         self.init_device_name = rospy.get_param('~idx/device_name', self.factory_device_name)
         self.init_controls_enable = rospy.get_param('~idx/controls_enable',  self.factory_controls_dict["controls_enable"])
-        self.init_auto_adjust = rospy.get_param('~idx/auto',  self.factory_controls_dict["auto_adjust"])
+        self.init_auto_adjust = rospy.get_param('~idx/auto_adjust',  self.factory_controls_dict["auto_adjust"])
         self.init_brightness_ratio = rospy.get_param('~idx/brightness',  self.factory_controls_dict["brightness_ratio"])
         self.init_contrast_ratio = rospy.get_param('~idx/contrast',  self.factory_controls_dict["contrast_ratio"])
         self.init_threshold_ratio = rospy.get_param('~idx/thresholding',  self.factory_controls_dict["threshold_ratio"])
@@ -588,7 +592,7 @@ class ROSIDXSensorIF:
     def setBrightnessCb(self, msg):
         nepi_msg.publishMsgInfo(self,"Recived Brightness update message: " + str(msg))
         new_brightness = msg.data
-        if rospy.get_param('~idx/auto', self.init_auto_adjust):
+        if rospy.get_param('~idx/auto_adjust', self.init_auto_adjust):
             nepi_msg.publishMsgInfo(self,"Ignoring Set Brightness request. Auto Adjust enabled")
         else:
             if self.setBrightness is None:
@@ -610,7 +614,7 @@ class ROSIDXSensorIF:
     def setContrastCb(self, msg):
         nepi_msg.publishMsgInfo(self,"Recived Contrast update message: " + str(msg))
         new_contrast = msg.data
-        if rospy.get_param('~idx/auto', self.init_auto_adjust):
+        if rospy.get_param('~idx/auto_adjust', self.init_auto_adjust):
             nepi_msg.publishMsgInfo(self,"Ignoring Set Contrast request. Auto Adjust enabled")
         else:
             if self.setContrast is None:
@@ -826,7 +830,15 @@ class ROSIDXSensorIF:
                         continue   
                     if (has_subscribers is True):
                         if isinstance(image,np.ndarray):  # CV2 image. Convert to ROS Image   
-                            # Convert cv to ros   
+                            # Convert cv to ros  
+                            cur_width = self.img_width
+                            cur_height = self.img_height
+                            cv2_shape = image.shape
+                            self.img_width = cv2_shape[1] 
+                            self.img_height = cv2_shape[0] 
+                            #nepi_msg.publishMsgWarn(self,"Got image size: " + str(self.img_width) + ":" + str(self.img_height))
+                            if cur_width != self.img_width or cur_height != self.img_height:
+                                self.publishStatus()
                             ros_img = nepi_img.cv2img_to_rosimg(image, encoding=encoding)
                             ros_img.header.stamp = ros_timestamp
                             ros_img.header.frame_id = rospy.get_param('~idx/frame_3d',  self.init_frame_3d )
@@ -1010,8 +1022,9 @@ class ROSIDXSensorIF:
 
     def applyIDXControls2Image(self,cv2_img,IDXcontrols_dict=DEFAULT_CONTROLS_DICT,current_fps = 20):
         if IDXcontrols_dict.get("controls_enable"): 
-            resolution_ratio = IDXcontrols_dict.get("resolution_mode")/3
-            [cv2_img,new_res] = nepi_img.adjust_resolution(cv2_img, resolution_ratio)
+            res_mode = IDXcontrols_dict.get("resolution_mode", self.init_resolution_mode)
+            [cv2_img,new_res] = nepi_img.adjust_resolution(cv2_img, res_mode)
+
             if IDXcontrols_dict.get("auto_adjust") is False:
                 cv2_img = nepi_img.adjust_brightness(cv2_img,IDXcontrols_dict.get("brightness_ratio"))
                 cv2_img = nepi_img.adjust_contrast(cv2_img,IDXcontrols_dict.get("contrast_ratio"))
@@ -1048,7 +1061,11 @@ class ROSIDXSensorIF:
 
             self.status_msg.controls_enable = idx_params['controls_enable'] if 'controls_enable' in idx_params else True
             self.status_msg.auto_adjust = idx_params['auto_adjust'] if 'auto_adjust' in idx_params else False
+            
             self.status_msg.resolution_mode = idx_params['resolution_mode'] if 'resolution_mode' in idx_params else 0
+            res_str = str(self.img_width) + ":" + str(self.img_height)
+            self.status_msg.resolution_current = res_str
+
             self.status_msg.framerate_mode = idx_params['framerate_mode'] if 'framerate_mode' in idx_params else 0
             fr = 0.0
             if self.getFramerate is not None:

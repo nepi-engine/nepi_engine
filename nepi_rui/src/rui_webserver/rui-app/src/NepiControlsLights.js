@@ -9,6 +9,7 @@
 import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
+import Styles from "./Styles"
 import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
@@ -16,8 +17,11 @@ import CameraViewer from "./CameraViewer"
 import { SliderAdjustment } from "./AdjustmentWidgets"
 import Label from "./Label"
 import Input from "./Input"
-import NepiDeviceInfo from "./NepiDeviceInfo"
+import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
+
+import NepiDeviceInfo from "./NepiDeviceInfo"
+
 
 import NepiIFSettings from "./Nepi_IF_Settings"
 
@@ -204,6 +208,7 @@ class NepiControlsLights extends Component {
 
   
   renderControlPanel() {
+    const { sendTriggerMsg } = this.props.ros
     const { lsxNamespace, lsxTempC } = this.state
     const { lsxUnits } = this.props.ros
     const lsx_id = lsxNamespace? lsxNamespace.split('/').slice(-1) : "No Light Selected"
@@ -350,6 +355,34 @@ class NepiControlsLights extends Component {
             </Label>
             </div>
 
+            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          <Columns>
+            <Column>
+
+              <ButtonMenu>
+                <Button onClick={() => sendTriggerMsg( this.state.lsxNamespace + "/reset_device")}>{"Reset Device"}</Button>
+              </ButtonMenu>
+
+              </Column>
+            <Column>
+
+                <ButtonMenu>
+                  <Button onClick={() => sendTriggerMsg(this.state.lsxNamespace + "/save_config")}>{"Save Config"}</Button>
+            </ButtonMenu>
+
+            </Column>
+            <Column>
+
+            <ButtonMenu>
+                  <Button onClick={() => sendTriggerMsg( this.state.lsxNamespace + "/reset_config")}>{"Reset Config"}</Button>
+            </ButtonMenu>
+
+
+            </Column>
+          </Columns>
+
+
                </Section>
     )
   }
@@ -426,7 +459,7 @@ class NepiControlsLights extends Component {
             </Section>
 
           <div hidden={connected === false}>
-            
+          
             {this.renderControlPanel()}
             
 
