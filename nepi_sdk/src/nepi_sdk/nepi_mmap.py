@@ -11,7 +11,6 @@
 
 # NEPI memmory mapping utility functions 
 
-import nepi_ros
 import time
 import subprocess
 
@@ -76,7 +75,7 @@ def wait_for_unlock_mmap(mmap_id, timeout = 1):
 IMG_ENCODING_OPTIONS = ['mono8','rgb8','bgr8','32FC1']
 
 NONE_CV2IMG_INFO_DICT = dict()
-NONE_CV2IMG_INFO_DICT['mmap_id'] = mmap_id
+NONE_CV2IMG_INFO_DICT['mmap_id'] = "nepis2xsomething"
 NONE_CV2IMG_INFO_DICT['timestamp'] = nepi_ros.get_time_sec()
 NONE_CV2IMG_INFO_DICT['img_width'] = 0
 NONE_CV2IMG_INFO_DICT['img_height'] = 0
