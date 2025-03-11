@@ -339,7 +339,7 @@ def sec_from_ros_stamp(stamp):
   return sec
   
 
-def duration(time_s):
+def ros_duration(time_s):
   return rospy.Duration(time_s)
 
 def ros_rate(time_s):
