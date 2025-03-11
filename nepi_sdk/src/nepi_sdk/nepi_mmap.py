@@ -15,6 +15,7 @@ import nepi_ros
 import time
 import subprocess
 
+from nepi_sdk import nepi_ros
 
 from datetime import datetime
 from std_msgs.msg import Empty, Float32
@@ -60,7 +61,7 @@ def wait_for_unlock_mmap(mmap_id, timeout = 1):
   unlocked = False
   start_time = nepi_ros.get_time_now()
   timer = 0
-  while locked == True and timer < timeout and and not rospy.is_shutdown():
+  while locked == True and timer < timeout and not rospy.is_shutdown():
     locked = check_lock_mmap(mmap_id)
     if locked is not None:
       if locked == False:
@@ -85,8 +86,8 @@ def create_cv2img_mmap(mmap_id, cv2_img,img_encoding = 'bgr8'):
   success = False
   msg = "Failed"
   if img_encoding not in IMG_ENCODING_OPTIONS:
-    msg = "Specified encoding not supported: " + img_encoding + " Options are: " + str(IMG_ENCODING_OPTIONS):
-    returm False, msg
+    msg = "Specified encoding not supported: " + img_encoding + " Options are: " + str(IMG_ENCODING_OPTIONS)
+    return False, msg
   # Future work
   msg = "Success"
   return success, msg
@@ -131,7 +132,7 @@ def get_cv2img_mmap_info(mmap_id,cv2_img):
   
   
   
- def read_cv2img_mmap_data(mmap_id):
+def read_cv2img_mmap_data(mmap_id):
   # Init return values
   success = False
   msg = "Failed"
