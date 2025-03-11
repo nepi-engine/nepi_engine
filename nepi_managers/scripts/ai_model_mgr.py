@@ -110,7 +110,7 @@ class AIDetectorManager:
         nepi_msg.publishMsgInfo(self,"Staring all detectors on namespace " + self.all_namespace)
         self.detection_image_pub = rospy.Publisher(self.all_namespace + '/all_detectors/detection_image', Image,queue_size=1, latch=True)
         time.sleep(1)
-        self.ros_loading_img.header.stamp = nepi_ros.ros_ros_time_now()
+        self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
         self.detection_image_pub.publish(self.ros_loading_img)
 
 
@@ -192,9 +192,9 @@ class AIDetectorManager:
         # Load default params
         self.updateFromParamServer()
         self.saveSettings() # Save config
-        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.updaterCb, oneshot = True)
+        nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
 
-        self.ros_waiting_img.header.stamp = nepi_ros.ros_ros_time_now()
+        self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
         self.detection_image_pub.publish(self.ros_waiting_img)
         #########################################################
         ## Initiation Complete
@@ -340,10 +340,10 @@ class AIDetectorManager:
                 nepi_ros.sleep(1)
         nepi_ros.set_param(self,"~models_dict",models_dict)
         if len(active_models_list) == 0:
-            self.ros_no_models_img.header.stamp = nepi_ros.ros_ros_time_now()
+            self.ros_no_models_img.header.stamp = nepi_ros.ros_time_now()
             self.detection_image_pub.publish(self.ros_no_models_img)
         self.publish_status()
-        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.updaterCb, oneshot = True)
+        nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
 
 
     def loadModel(self, model_name):

@@ -196,8 +196,8 @@ class NepiDriversMgr(object):
     rospy.Service('~driver_status_query', DriverStatusQuery, self.driverStatusService)
 
     # Setup a driver folder timed check
-    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.checkAndUpdateCb, oneshot=True)
-    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(self.PUBLISH_STATUS_INTERVAL), self.publishStatusCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_duration(self.PUBLISH_STATUS_INTERVAL), self.publishStatusCb, oneshot=True)
     time.sleep(1)
     ## Publish Status
     self.publish_status()
@@ -422,7 +422,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     # And now that we are finished, start a timer for the drvt runDiscovery()
     nepi_ros.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.checkAndUpdateCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
     nepi_msg.publishMsgInfo(self,"Creating driver options dict: " + driver_name)

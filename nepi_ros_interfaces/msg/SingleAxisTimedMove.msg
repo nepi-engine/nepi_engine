@@ -6,5 +6,5 @@ int8 DIRECTION_NEGATIVE=-1
 # Direction indicator
 int8 direction
 
-# Duration, -1.0 for infinite ros_ros_ros_duration
-float32 ros_ros_ros_duration_s
+# Duration, -1.0 for infinite duration
+float32 duration_s

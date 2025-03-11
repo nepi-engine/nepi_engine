@@ -13,7 +13,7 @@ string[] ntp_sources
 # Indicate whether NTP sources are currently sync'd (same indexing as ntp_sources)
 bool[] currently_syncd
 
-# Time since last sync message received from indexed server (seconds if no time-ros_ros_ros_duration suffix)
+# Time since last sync message received from indexed server (seconds if no time-duration suffix)
 string[] last_ntp_sync
 
 # Estimated clock offset from indexed server (units indicated in string)

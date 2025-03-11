@@ -271,11 +271,11 @@ def load_params_from_file(file_path, params_namespace = None):
 #########################
 ### Publisher, Subscriber, and Service Utility Functions
 
-def start_timer_process(ros_ros_ros_duration, callback_function, oneshot = False):
-  rospy.Timer(ros_ros_ros_duration, callback_function, oneshot)
+def start_timer_process(duration, callback_function, oneshot = False):
+  rospy.Timer(duration, callback_function, oneshot)
 
-def timer(ros_ros_ros_duration, callback_function, oneshot = False):
-  rospy.Timer(ros_ros_ros_duration, callback_function, oneshot)
+def timer(duration, callback_function, oneshot = False):
+  rospy.Timer(duration, callback_function, oneshot)
 
 '''
 def getPublisher(namespace, msg_type, queue_size=1):
@@ -288,7 +288,7 @@ def startSubscriber(namespace, msg_type, callback_function, queue_size=1):
 #########################
 ### Time Helper Functions
 
-def ros_ros_time_now():
+def ros_time_now():
   return rospy.Time.now()
 
 '''
@@ -300,7 +300,7 @@ def get_rostime():
 def ros_time_from_ros_stamp(stamp):
   return rospy.Time.from_sec(stamp)
 
-def ros_ros_time_from_sec(time_sec):
+def ros_time_from_sec(time_sec):
   return rospy.Time.from_sec(time_sec)
 
 def sec_from_ros_time(ros_time):
@@ -329,7 +329,7 @@ def ros_stamp_from_ros_time(ros_time):
   return ros_stamp
 
 def ros_stamp_from_sec(time_sec):
-  ros_time = ros_ros_time_from_sec(time_sec)
+  ros_time = ros_time_from_sec(time_sec)
   ros_stamp = ros_stamp_from_ros_time(ros_time)
   return ros_stamp
 
@@ -339,7 +339,7 @@ def sec_from_ros_stamp(stamp):
   return sec
   
 
-def ros_ros_ros_duration(time_s):
+def duration(time_s):
   return rospy.Duration(time_s)
 
 def ros_rate(time_s):

@@ -172,12 +172,12 @@ def register_detector(self, det_namespace, timeout = 5):
     nepi_msg.publishMsgInfo(self,"Waiting for status message")
     success = False
     timer = 0
-    time_start = time.ros_ros_time_now()
+    time_start = time.ros_time_now()
     connected = None
     while connected is None and timer > timeout and not rospy.is_shutdown():
         nepi_ros.sleep(.2)
         connected = self.dets_dict[det_namespace]['connected'] 
-        timer = time.ros_ros_time_now() - time_start
+        timer = time.ros_time_now() - time_start
     if connected is not None:
         success = True
     else:

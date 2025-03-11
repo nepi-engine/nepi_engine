@@ -137,10 +137,10 @@ class NetworkMgr:
         rospy.Service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
         rospy.Service('wifi_query', WifiQuery, self.handle_wifi_query)
 
-        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(self.BANDWIDTH_MONITOR_PERIOD_S), self.monitor_bandwidth_usage)
+        nepi_ros.timer(nepi_ros.ros_duration(self.BANDWIDTH_MONITOR_PERIOD_S), self.monitor_bandwidth_usage)
 
-        # Long ros_ros_ros_duration internet check -- do oneshot and reschedule from within the callback
-        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
+        # Long duration internet check -- do oneshot and reschedule from within the callback
+        nepi_ros.timer(nepi_ros.ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
 
         self.store_params_publisher = rospy.Publisher('store_params', String, queue_size=1)
 
@@ -617,7 +617,7 @@ class NetworkMgr:
                         # Auto retry in 3 seconds
                         nepi_msg.publishMsgInfo(self,"Automatically retrying Wifi connect in 3 seconds")
                         if not rospy.is_shutdown():
-                            self.retry_wifi_timer = nepi_ros.timer(nepi_ros.ros_ros_ros_duration(3), self.auto_retry_wifi_client_connect, oneshot=True)
+                            self.retry_wifi_timer = nepi_ros.timer(nepi_ros.ros_duration(3), self.auto_retry_wifi_client_connect, oneshot=True)
                 else:
                     nepi_msg.publishMsgInfo(self,"Wifi client ready -- need SSID and passphrase to connect")
                     self.retry_wifi_timer = None
@@ -695,7 +695,7 @@ class NetworkMgr:
             with self.internet_connected_lock:
                 self.internet_connected = connected
 
-        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
+        nepi_ros.timer(nepi_ros.ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
 
 
     def internet_connection(self):

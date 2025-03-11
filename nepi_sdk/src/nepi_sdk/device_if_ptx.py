@@ -602,15 +602,15 @@ class ROSPTXActuatorIF:
 
     def jogTimedYawHandler(self, msg):
         direction = msg.direction if self.reverse_yaw_control is False else (-1 * msg.direction)
-        ros_ros_ros_duration = 1000000.0 if (msg.ros_ros_ros_duration_s < 0.0) else msg.ros_ros_ros_duration_s
-        self.moveYawCb(direction,  ros_ros_ros_duration)
+        duration = 1000000.0 if (msg.duration_s < 0.0) else msg.duration_s
+        self.moveYawCb(direction,  duration)
         nepi_msg.publishMsgInfo(self,"Jogging yaw")
         
 
     def jogTimedPitchHandler(self, msg):
         direction = msg.direction if self.reverse_pitch_control is False else (-1 * msg.direction)
-        ros_ros_ros_duration = 1000000.0 if (msg.ros_ros_ros_duration_s < 0.0) else msg.ros_ros_ros_duration_s
-        self.movePitchCb(direction, ros_ros_ros_duration)
+        duration = 1000000.0 if (msg.duration_s < 0.0) else msg.duration_s
+        self.movePitchCb(direction, duration)
         nepi_msg.publishMsgInfo(self,"Jogging pitch")
         
 

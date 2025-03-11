@@ -92,7 +92,7 @@ def create_cv2img_mmap(mmap_id, cv2_img,img_encoding = 'bgr8'):
   return success, msg
   
   
-def write_cv2img_mmap_data(mmap_id, cv2_img, encoding = 'bgr8', ros_timestamp = nepi_ros.ros_ros_time_now()):
+def write_cv2img_mmap_data(mmap_id, cv2_img, encoding = 'bgr8', ros_timestamp = nepi_ros.ros_time_now()):
   success = False
   msg = ""
   # Future work

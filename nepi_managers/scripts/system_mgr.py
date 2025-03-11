@@ -146,7 +146,7 @@ class SystemMgrNode():
 
         nepi_msg.publishMsgWarn(self,"Creating System Publishers")
         self.status_msg.in_container = self.in_container
-        status_period = nepi_ros.ros_ros_ros_duration(1)  # TODO: Configurable rate?
+        status_period = nepi_ros.ros_duration(1)  # TODO: Configurable rate?
 
         # Announce published topics
         self.status_pub = rospy.Publisher(
@@ -242,7 +242,7 @@ class SystemMgrNode():
                     rospy.logerr("Failed to reset boot fail counter: " + err_msg)
 
         nepi_msg.publishMsgWarn(self,"Starting System Status Messages")
-        rospy.Timer(nepi_ros.ros_ros_ros_duration(self.STATUS_PERIOD),
+        rospy.Timer(nepi_ros.ros_duration(self.STATUS_PERIOD),
                     self.publish_periodic_status)
         nepi_msg.publishMsgWarn(self,"System status ready")
         
@@ -274,7 +274,7 @@ class SystemMgrNode():
 
     def add_info_string(self, string, level):
         self.status_msg.info_strings.append(StampedString(
-            timestamp=nepi_ros.ros_ros_time_now(), payload=string, priority=level))
+            timestamp=nepi_ros.ros_time_now(), payload=string, priority=level))
 
     def get_device_sn(self):
         with open(self.SYS_ENV_PATH, "r") as f:

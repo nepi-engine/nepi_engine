@@ -167,7 +167,7 @@ class AiDetectorIF:
             self.dets_pub_sub_lock.release()
             nepi_msg.publishMsgWarn(self,'Registered : ' + det_namespace +  ' ' + str(self.dets_pub_sub_dict[det_namespace]))
             time.sleep(1)
-            self.ros_no_img_img.header.stamp = nepi_ros.ros_ros_time_now()
+            self.ros_no_img_img.header.stamp = nepi_ros.ros_time_now()
             detection_image_pub.publish(self.ros_no_img_img)
             return True
         
@@ -226,15 +226,15 @@ class AiDetectorIF:
         if not rospy.is_shutdown():
             if self.enabled == True:
                 if img_selected == 0:
-                    self.ros_no_det_namespace_img.header.stamp = nepi_ros.ros_ros_time_now()
+                    self.ros_no_det_namespace_img.header.stamp = nepi_ros.ros_time_now()
                     self.detection_image_pub.publish(self.ros_no_det_namespace_img)
                     self.detection_image_all_pub.publish(self.ros_no_det_namespace_img)
                 elif img_connected == False:
-                    self.ros_no_img_img.header.stamp = nepi_ros.ros_ros_time_now()
+                    self.ros_no_img_img.header.stamp = nepi_ros.ros_time_now()
                     self.detection_image_pub.publish(self.ros_no_img_img)
                     self.detection_image_all_pub.publish(self.ros_no_img_img)
             else: # Loaded, but not enabled
-                self.ros_not_enabled_img.header.stamp = nepi_ros.ros_ros_time_now()
+                self.ros_not_enabled_img.header.stamp = nepi_ros.ros_time_now()
                 self.detection_image_pub.publish(self.ros_not_enabled_img)
 
         rospy.Timer(rospy.Duration(.1), self.updaterCb, oneshot = True)
@@ -391,7 +391,7 @@ class AiDetectorIF:
                             self.dets_info_dict[det_namespace]['detect_time'] = detect_time
                             #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
 
-                        current_time = nepi_ros.ros_ros_time_now()
+                        current_time = nepi_ros.ros_time_now()
                         ros_timestamp = img_dict['ros_img_stamp']
                         latency = (current_time.to_sec() - ros_timestamp.to_sec())
                         self.dets_info_dict[det_namespace]['detect_latency_time'] = latency
@@ -436,7 +436,7 @@ class AiDetectorIF:
                         self.dets_info_dict[det_namespace]['postprocess_time'] = postprocess_time
                         #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
 
-                        current_time = nepi_ros.ros_ros_time_now()
+                        current_time = nepi_ros.ros_time_now()
                         ros_timestamp = img_dict['ros_img_stamp']
                         latency = (current_time.to_sec() - ros_timestamp.to_sec())
                         self.dets_info_dict[det_namespace]['image_latency_time'] = latency
@@ -462,7 +462,7 @@ class AiDetectorIF:
                 cv2_detect_img = cv2_img
             #nepi_msg.publishMsgWarn(self,"Return detect image: " + str(cv2_detect_img.shape))
             detect_img_msg = nepi_img.cv2img_to_rosimg(cv2_detect_img, encoding="bgr8")
-            detect_img_msg.header.stamp = nepi_ros.ros_ros_time_now()
+            detect_img_msg.header.stamp = nepi_ros.ros_time_now()
             if not rospy.is_shutdown() and self.detection_image_pub is not None:
                 self.detection_image_pub.publish(detect_img_msg)
                 
