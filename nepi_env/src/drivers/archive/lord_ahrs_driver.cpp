@@ -441,7 +441,7 @@ bool LORDAHRSDriver::receiveLatestData(AHRSDataSet &data_out)
   LORDMIPPkt pkt_out_2;
   // Allow twice as long as necessary
   const float rate_for_timeout_hz = (data_stream_rate_hz > 0.0f)? data_stream_rate_hz : 1.0f;
-  std::chrono::milliseconds timeout = std::chrono::duration<int, std::milli>((int)(2000.0f / rate_for_timeout_hz));
+  std::chrono::milliseconds timeout = std::chrono::ros_ros_ros_duration<int, std::milli>((int)(2000.0f / rate_for_timeout_hz));
   if ((false == rcvPktBlocking(pkt_out_1, timeout)) ||
       (false == rcvPktBlocking(pkt_out_2, timeout)))
     {
@@ -956,7 +956,7 @@ bool LORDAHRSDriver::transmitMIPPktSynchronous(const LORDMIPPkt &pkt, std::vecto
 
   bool still_waiting_for_rx = true;
   std::chrono::time_point<std::chrono::steady_clock> timeout_time = std::chrono::steady_clock::now() +
-    std::chrono::duration<uint32_t, std::milli>(rx_timeout_ms);
+    std::chrono::ros_ros_ros_duration<uint32_t, std::milli>(rx_timeout_ms);
 
   // Wait for the ACK/NACK response
   LORDMIPPkt resp_pkt(MIP_DESC_SET_INVALID);
@@ -969,7 +969,7 @@ bool LORDAHRSDriver::transmitMIPPktSynchronous(const LORDMIPPkt &pkt, std::vecto
       return false;
     }
 
-    const std::chrono::milliseconds remaining_timeout_ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeout_time - curr_time);
+    const std::chrono::milliseconds remaining_timeout_ms = std::chrono::ros_ros_ros_duration_cast<std::chrono::milliseconds>(timeout_time - curr_time);
     if (false == rcvPktBlocking(resp_pkt, remaining_timeout_ms))
     {
       return false;
@@ -1115,7 +1115,7 @@ bool LORDAHRSDriver::rcvPktBlocking(LORDMIPPkt &pkt_out, const std::chrono::mill
   {
     // First, check if a timeout has occurred
     const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
-    const std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(curr_time - function_start_time);
+    const std::chrono::milliseconds elapsed = std::chrono::ros_ros_ros_duration_cast<std::chrono::milliseconds>(curr_time - function_start_time);
     if (elapsed >= timeout_ms)
     {
       // Timeout expired -- this is the only error for which we exit the function,

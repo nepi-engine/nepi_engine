@@ -459,8 +459,9 @@ renderDetectorSettings() {
       const detector_enabled = message.enabled
       const detector_state = message.state
 
+      const has_tiling = message.has_tiling
+      const is_tiling = message.img_tiling
 
-      const img_tiling = message.img_tiling
       const overlay_labels = message.overlay_labels
       const overlay_detector_name = message.overlay_detector_name
       const overlay_img_name = message.overlay_img_name
@@ -473,13 +474,10 @@ renderDetectorSettings() {
       const img_selected = message.image_selected
       const img_connected = message.image_connected
 
-      const using_latest = message.using_latest_img
-      const has_tiling = message.has_tiling
-      const is_tiling = message.img_tiling
-
-      const pre_time = round(message.avg_preprocess_time, 3)
-      const det_time = round(message.avg_detect_time, 3)
-      const post_time = round(message.avg_postprocess_time, 3)
+      const img_latency = round(message.image_latency_time, 3)
+      const det_latency = round(message.detect_latency_time, 3)
+      const pre_time = round(message.preprocess_time, 3)
+      const det_time = round(message.detect_time, 3)
 
       const img_options = this.createImageTopicsOptions()
 
@@ -535,8 +533,9 @@ renderDetectorSettings() {
 
 
 
-        <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-        {"\n Process Times (Pre,Detect,Post): " + pre_time + " , " + det_time  + " , " + post_time }
+        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+        {"\n Start Latency: " + img_latency + "  Detection Latency: " + det_latency + 
+        "\n Process Times (Image,Detect): " + pre_time + " , " + det_time}
         </pre>
 
 
@@ -640,15 +639,7 @@ renderDetectorSettings() {
               </Column>
               <Column>
 
-
                  
-                <Label title="Overlay Latest Image">
-                  <Toggle
-                  checked={using_latest===true}
-                  onClick={() => this.props.ros.sendBoolMsg(detector_namespace + "/set_use_latest_img", using_latest===false)}>
-                  </Toggle>
-                  </Label>
-
 
 
             <div hidden={has_tiling === false}>           

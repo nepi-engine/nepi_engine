@@ -177,16 +177,16 @@ void TriggerMgrBase::runPeriodicTrig(uint32_t trig_mask)
 		// are picked up in a timely fashion (rather than at next rate clock expiration)
 		// This complicates things a bit
 		static constexpr double MAX_SLEEP_DURATION = 1.0; // Guaranteed response within 1 second.
-		const double rate_based_sleep_duration = 1.0 / my_rate;
+		const double rate_based_sleep_ros_ros_ros_duration = 1.0 / my_rate;
 
-		const double remaining_rate_based_sleep = rate_based_sleep_duration - elapsed_sleep;
-		const double sleep_duration = std::min(remaining_rate_based_sleep, MAX_SLEEP_DURATION);
+		const double remaining_rate_based_sleep = rate_based_sleep_ros_ros_ros_duration - elapsed_sleep;
+		const double sleep_ros_ros_ros_duration = std::min(remaining_rate_based_sleep, MAX_SLEEP_DURATION);
 
-		ros::Duration(sleep_duration).sleep();
-		elapsed_sleep += sleep_duration;
+		ros::Duration(sleep_ros_ros_ros_duration).sleep();
+		elapsed_sleep += sleep_ros_ros_ros_duration;
 
 		// If we've slept long enough, send the trigger and reset values
-		if (elapsed_sleep >= rate_based_sleep_duration)
+		if (elapsed_sleep >= rate_based_sleep_ros_ros_ros_duration)
 		{
 			// Finally, publish a trigger message to inform this node and all others that subscribe
 			// of the trigger

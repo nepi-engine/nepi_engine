@@ -35,6 +35,7 @@ from nepi_sdk import nepi_save
 from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
+from nepi_sdk import nepi_mmap
 
 
 #***************************
@@ -46,7 +47,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
     threshold_ratio =  0.5,
-    resolution_mode = 3, # LOW, MED, HIGH, MAX
+    resolution_mode = 1, # LOW, MED, HIGH, MAX
     framerate_mode = 1, # LOW, MED, HIGH, MAX
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
@@ -124,6 +125,8 @@ class ROSIDXSensorIF:
     img_height = 0
     img_width = 0
 
+    mmap_dict = dict()
+
     def __init__(self, device_info, capSettings=None, 
                  factorySettings=None, settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
@@ -168,7 +171,7 @@ class ROSIDXSensorIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-        #nepi_msg.publishMsgWarn(self,"Starting with IDX Controls: " + str(self.factory_controls_dict))
+        #nepi_msg.publishMsgWarn(self,"Starting mmap_idX Controls: " + str(self.factory_controls_dict))
 
         self.initializeParamServer(do_updates = False)
 
@@ -836,6 +839,29 @@ class ROSIDXSensorIF:
                             cv2_shape = image.shape
                             self.img_width = cv2_shape[1] 
                             self.img_height = cv2_shape[0] 
+                            # Try and save image to memory map]
+                            img_topic = os.path.join(self.node_namespace,'~idx/',data_product)
+                            mmap_id = get_mmap_id_from_topic(img_topic)
+                            if mmap_id not in self.mmap_dict.keys():
+                                [success,msg] = nepi_mmap.create_cv2img_mmap(mmap_id, image,img_encoding = encoding)
+                                self.mmap_dict[mmap_id] = dict()
+                                self.mmap_dict[mmap_id]['id'] = mmap_id
+                                if success == True:
+                                    self.mmap_dict[mmap_id]['valid'] = True
+                                    nepi_msg.publishMsgInfo(self,"Created mmap for topic: " + img_topic + " mmap_id: " + mmap_id)
+                                else:
+                                    self.mmap_dict[mmap_id]['valid'] = False
+                                    nepi_msg.publishMsgWarn(self,"Failed to create mmap for topic: " + img_topic + " mmap_id: " + mmap_id + " with msg " + msg)
+                            elif self.mmap_dict[mmap_id]['valid'] == True:
+                                locked = nepi_mmap.check_lock_mmap(mmap_id)
+                                if locked == False:
+                                    locked = nepi_mmap.lock_mmap(mmap_id)
+                                    if locked == True:
+                                        [success,msg] = nepi_mmap.write_cv2img_mmap_data(mmap_id, image, encoding = encoding, ros_timestamp = ros_timestamp)
+                                        unlocked = nepi_mmap.unlock_mmap(mmap_id)
+                                        if success == False:
+                                            nepi_msg.publishMsgWarn(self,"Failed to save mmap for topic: " + img_topic + " mmap_id: " + mmap_id + " with msg " + msg)
+                                            self.mmap_dict[mmap_id]['valid'] = False
                             #nepi_msg.publishMsgWarn(self,"Got image size: " + str(self.img_width) + ":" + str(self.img_height))
                             if cur_width != self.img_width or cur_height != self.img_height:
                                 self.publishStatus()

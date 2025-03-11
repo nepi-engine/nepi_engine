@@ -171,8 +171,8 @@ class NepiAppsMgr(object):
 
 
     # Setup a app folder timed check
-    nepi_ros.timer(nepi_ros.duration(1), self.checkAndUpdateCb, oneshot=True)
-    nepi_ros.timer(nepi_ros.duration(self.PUBLISH_STATUS_INTERVAL), self.publishStatusCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.checkAndUpdateCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(self.PUBLISH_STATUS_INTERVAL), self.publishStatusCb, oneshot=True)
     time.sleep(1)
     ## Publish Status
     self.publish_status()
@@ -346,7 +346,7 @@ class NepiAppsMgr(object):
     self.publish_status()
     # And now that we are finished, start a timer for the appt runDiscovery()
     nepi_ros.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_ros.timer(nepi_ros.duration(1), self.checkAndUpdateCb, oneshot=True)
+    nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.checkAndUpdateCb, oneshot=True)
    
 
 

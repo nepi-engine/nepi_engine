@@ -367,7 +367,7 @@ class AutomationManager:
             try:
                 process.terminate()
                 process.wait(timeout=self.script_stop_timeout_s)
-                self.script_counters[req.script]['cumulative_run_time'] += (nepi_ros.time_now() - nepi_ros.time_from_sec(self.processes[req.script]['start_time'])).to_sec()
+                self.script_counters[req.script]['cumulative_run_time'] += (nepi_ros.ros_ros_time_now() - nepi_ros.ros_ros_time_from_sec(self.processes[req.script]['start_time'])).to_sec()
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
@@ -408,7 +408,7 @@ class AutomationManager:
                             self.script_counters[script]['errored_out'] += 1
                                                
                         # Update the cumulative run time whether exited on success or error
-                        self.script_counters[script]['cumulative_run_time'] += (nepi_ros.time_now() - nepi_ros.time_from_sec(process['start_time'])).to_sec()
+                        self.script_counters[script]['cumulative_run_time'] += (nepi_ros.ros_ros_time_now() - nepi_ros.ros_ros_time_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
                         nepi_ros.sleep(1)
         
@@ -462,7 +462,7 @@ class AutomationManager:
             response.memory_percent = 100.0 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
                         
             # Get creation/start-up time
-            response.run_time_s = (nepi_ros.time_now() - nepi_ros.time_from_sec(process.create_time())).to_sec()
+            response.run_time_s = (nepi_ros.ros_ros_time_now() - nepi_ros.ros_ros_time_from_sec(process.create_time())).to_sec()
             # The script_counters cumulative run time only gets updated on script termination, so to keep this value moving in the response,
             # increment it here.
             response.cumulative_run_time_s += response.run_time_s

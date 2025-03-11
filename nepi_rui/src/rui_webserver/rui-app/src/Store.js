@@ -2606,7 +2606,7 @@ class ROSConnectionStore {
       name: ptxNamespace + "/ptx/jog_timed_yaw",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
-             "duration_s": -1},
+             "ros_ros_ros_duration_s": -1},
       noPrefix: true
     })
   }
@@ -2617,7 +2617,7 @@ class ROSConnectionStore {
       name: ptxNamespace + "/ptx/jog_timed_pitch",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
-             "duration_s": -1},
+             "ros_ros_ros_duration_s": -1},
       noPrefix: true
     })
   }

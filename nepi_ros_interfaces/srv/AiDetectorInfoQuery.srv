@@ -1,5 +1,6 @@
-# Image Detection Model Status Message
+# Image Detection Info Query Service
 
+---
 string name
 string framework
 string type

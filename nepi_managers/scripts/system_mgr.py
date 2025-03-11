@@ -90,6 +90,7 @@ class SystemMgrNode():
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
+    SDK_LIB_PATH = '/opt/nepi/ros/lib/nepi_sdk'
     DRIVERS_PARAM_PATH = '/opt/nepi/ros/lib/nepi_drivers'
     APPS_PARAM_PATH = '/opt/nepi/ros/share/nepi_apps'
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
@@ -145,7 +146,7 @@ class SystemMgrNode():
 
         nepi_msg.publishMsgWarn(self,"Creating System Publishers")
         self.status_msg.in_container = self.in_container
-        status_period = nepi_ros.duration(1)  # TODO: Configurable rate?
+        status_period = nepi_ros.ros_ros_ros_duration(1)  # TODO: Configurable rate?
 
         # Announce published topics
         self.status_pub = rospy.Publisher(
@@ -241,7 +242,7 @@ class SystemMgrNode():
                     rospy.logerr("Failed to reset boot fail counter: " + err_msg)
 
         nepi_msg.publishMsgWarn(self,"Starting System Status Messages")
-        rospy.Timer(nepi_ros.duration(self.STATUS_PERIOD),
+        rospy.Timer(nepi_ros.ros_ros_ros_duration(self.STATUS_PERIOD),
                     self.publish_periodic_status)
         nepi_msg.publishMsgWarn(self,"System status ready")
         
@@ -273,7 +274,7 @@ class SystemMgrNode():
 
     def add_info_string(self, string, level):
         self.status_msg.info_strings.append(StampedString(
-            timestamp=nepi_ros.get_rostime(), payload=string, priority=level))
+            timestamp=nepi_ros.ros_ros_time_now(), payload=string, priority=level))
 
     def get_device_sn(self):
         with open(self.SYS_ENV_PATH, "r") as f:
@@ -452,6 +453,15 @@ class SystemMgrNode():
 
 
         # Check system folders
+        nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
+        if not os.path.isdir(self.SDK_LIB_PATH):
+                rospy.logwarn("Driver folder " + self.SDK_LIB_PATH + " not present... will create")
+                os.makedirs(self.SDK_LIB_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_LIB_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SDK_LIB_PATH)
+        self.storage_subdirs['sdk'] = self.SDK_LIB_PATH
+
+
         nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
         if not os.path.isdir(self.DRIVERS_PARAM_PATH):
                 rospy.logwarn("Driver folder " + self.DRIVERS_PARAM_PATH + " not present... will create")

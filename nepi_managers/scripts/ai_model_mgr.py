@@ -63,7 +63,7 @@ class AIDetectorManager:
     ### Node Initialization
 
 
-    DEFAULT_NODE_NAME = "aif_detector_mgr" # Can be overwitten by luanch command
+    DEFAULT_NODE_NAME = "ai_model_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### MGR NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
@@ -110,7 +110,7 @@ class AIDetectorManager:
         nepi_msg.publishMsgInfo(self,"Staring all detectors on namespace " + self.all_namespace)
         self.detection_image_pub = rospy.Publisher(self.all_namespace + '/all_detectors/detection_image', Image,queue_size=1, latch=True)
         time.sleep(1)
-        self.ros_loading_img.header.stamp = nepi_ros.time_now()
+        self.ros_loading_img.header.stamp = nepi_ros.ros_ros_time_now()
         self.detection_image_pub.publish(self.ros_loading_img)
 
 
@@ -192,9 +192,9 @@ class AIDetectorManager:
         # Load default params
         self.updateFromParamServer()
         self.saveSettings() # Save config
-        nepi_ros.timer(nepi_ros.duration(1), self.updaterCb, oneshot = True)
+        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.updaterCb, oneshot = True)
 
-        self.ros_waiting_img.header.stamp = nepi_ros.time_now()
+        self.ros_waiting_img.header.stamp = nepi_ros.ros_ros_time_now()
         self.detection_image_pub.publish(self.ros_waiting_img)
         #########################################################
         ## Initiation Complete
@@ -328,7 +328,6 @@ class AIDetectorManager:
                 models_dict[model_name]['active'] = False
                 self.running_models_list.remove(model_name)
                 self.killModel(model_name)
-                self.publish_status()
                 nepi_ros.sleep(1)
 
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
@@ -338,14 +337,13 @@ class AIDetectorManager:
                 nepi_msg.publishMsgWarn(self,"Loading model: " + model_name)
                 self.loadModel(model_name)
                 self.running_models_list.append(model_name)
-                self.publish_status()
                 nepi_ros.sleep(1)
         nepi_ros.set_param(self,"~models_dict",models_dict)
         if len(active_models_list) == 0:
-            self.ros_no_models_img.header.stamp = nepi_ros.time_now()
+            self.ros_no_models_img.header.stamp = nepi_ros.ros_ros_time_now()
             self.detection_image_pub.publish(self.ros_no_models_img)
-            
-        nepi_ros.timer(nepi_ros.duration(1), self.updaterCb, oneshot = True)
+        self.publish_status()
+        nepi_ros.timer(nepi_ros.ros_ros_ros_duration(1), self.updaterCb, oneshot = True)
 
 
     def loadModel(self, model_name):

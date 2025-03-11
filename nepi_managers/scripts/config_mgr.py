@@ -147,7 +147,7 @@ class config_mgr(object):
                 subfolder_name = "/nepi_managers"
                 cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
             else:
-                subfolder_name = subfolder_name + node_name
+                subfolder_name = "/" + node_name
                 cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
         #nepi_msg.publishMsgWarn(self,"Config " + qualified_node_name + " " + cfg_pathname)
         return cfg_pathname

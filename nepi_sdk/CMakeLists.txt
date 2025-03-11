@@ -119,6 +119,12 @@ catkin_package(
   CATKIN_DEPENDS image_transport nepi_ros_interfaces
 )
 
+
+catkin_install_python(PROGRAMS
+  scripts/nepi_ai_detection_image_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 ###########
 ## Build 
 ###########

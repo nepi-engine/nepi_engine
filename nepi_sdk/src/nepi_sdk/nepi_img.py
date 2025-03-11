@@ -34,6 +34,28 @@ from std_msgs.msg import UInt8, Empty, String, Bool
 from nepi_sdk import nepi_ros
 
 
+#########################
+### Misc Functions
+
+def create_cv2_test_img(width,height):
+  # Create a black image (all zeros)
+  img = np.zeros((height, width, 3), dtype=np.uint8)
+
+  # Draw a white circle in the center
+  center_coordinates = (width // 2, height // 2)
+  radius = 100
+  color = (255, 255, 255)  # White color in BGR
+  thickness = -1  # Fill the circle
+  cv2.circle(img, center_coordinates, radius, color, thickness)
+
+  # Draw a blue rectangle
+  start_point = (width // 4, height // 4)
+  end_point = (3 * width // 4, 3 * height // 4)
+  color = (255, 0, 0)  # Blue color in BGR
+  thickness = 5
+  img_out = copy.deepcopy(img)
+  cv2.rectangle(img_out, start_point, end_point, color, -1)
+  return img_out
 
 ###########################################
 ### Image conversion functions
@@ -96,6 +118,26 @@ def grayscale_to_rgb(gray_image):
 ###########################################
 ### Image manipulation functions
 
+
+def resize_proportionally(image, new_width, new_height, interp = cv2.INTER_NEAREST):
+    height, width = image.shape[:2]
+
+    if new_width is None and new_height is None:
+        return image
+    
+    if new_width is None:
+        ratio = new_height / height
+        new_width = int(width * ratio)
+    elif new_height is None:
+        ratio = new_width / width
+        new_height = int(height * ratio)
+    else:
+        ratio = min(new_width / width, new_height / height)
+        new_width = int(width * ratio)
+        new_height = int(height * ratio)
+
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=interp)
+    return resized_image
 
 ###########################################
 ### Image process functions
@@ -251,6 +293,10 @@ def get_contours(cv2_img):
   contours3, hierarchy3 = cv2.findContours(thresh2, cv2.RETR_LIST, 
                                        cv2.CHAIN_APPROX_NONE)
   return contours3, hierarchy3
+
+
+
+
 
 ###########################################
 ### Image overlay functions

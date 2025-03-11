@@ -54,8 +54,9 @@ def write_dict2yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False)
 #***************************
 # NEPI data saving utility functions
 
-def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)
@@ -71,8 +72,9 @@ def save_data2file(self,data_product,data,ros_timestamp,device_name = '',save_ch
                     f.write(str(data))
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)
@@ -89,8 +91,9 @@ def save_dict2file(self,data_product,data_dict,ros_timestamp,save_check=True,add
             self.save_data_if.data_product_snapshot_reset(data_product)
 
 
-def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)
@@ -106,8 +109,9 @@ def save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=True,add_te
                     cv2.imwrite(full_path_filename, cv2_img)
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)
@@ -127,8 +131,9 @@ def save_ros_img2file(self,data_product,ros_img,ros_timestamp,save_check=True,ad
 
             
 
-def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)
@@ -144,8 +149,9 @@ def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True,add_text
                     nepi_pc.save_pointcloud(o3d_pc,full_path_filename)
                     self.save_data_if.data_product_snapshot_reset(data_product)
 
-def save_ros_pc2file(self,data_product,ros_pc,ros_timestamp,save_check=True,add_text = ''):
-    node_name = nepi_ros.get_node_name()
+def save_ros_pc2file(self,data_product,ros_pc,ros_timestamp,save_check=True,add_text = '', node_name = None):
+    if node_name == None:
+        node_name = nepi_ros.get_node_name()
     if self.save_data_if is not None:
         saving_is_enabled = self.save_data_if.data_product_saving_enabled(data_product)
         should_save = self.save_data_if.data_product_should_save(data_product)

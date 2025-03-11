@@ -33,7 +33,7 @@ import subprocess
 
 
 from datetime import datetime
-from std_msgs.msg import Empty, Float32
+from std_msgs.msg import Empty, Float32, Header
 from std_srvs.srv import Empty, EmptyRequest, Trigger
 from nepi_ros_interfaces.srv import GetScriptsQuery,GetRunningScriptsQuery ,LaunchScript, StopScript
 from nepi_ros_interfaces.msg import  Setting
@@ -271,11 +271,11 @@ def load_params_from_file(file_path, params_namespace = None):
 #########################
 ### Publisher, Subscriber, and Service Utility Functions
 
-def start_timer_process(duration, callback_function, oneshot = False):
-  rospy.Timer(duration, callback_function, oneshot)
+def start_timer_process(ros_ros_ros_duration, callback_function, oneshot = False):
+  rospy.Timer(ros_ros_ros_duration, callback_function, oneshot)
 
-def timer(duration, callback_function, oneshot = False):
-  rospy.Timer(duration, callback_function, oneshot)
+def timer(ros_ros_ros_duration, callback_function, oneshot = False):
+  rospy.Timer(ros_ros_ros_duration, callback_function, oneshot)
 
 '''
 def getPublisher(namespace, msg_type, queue_size=1):
@@ -288,25 +288,62 @@ def startSubscriber(namespace, msg_type, callback_function, queue_size=1):
 #########################
 ### Time Helper Functions
 
-def duration(time_s):
-  return rospy.Duration(time_s)
-
-def time_from_timestamp(timestamp):
-  return rospy.Time.from_sec(timestamp)
-  
-def time_from_sec(time_sec):
-  return rospy.Time.from_sec(time_sec)
-
-
-def time_now():
+def ros_ros_time_now():
   return rospy.Time.now()
 
-def rate(time_s):
-  return rospy.Rate(time_s)
-
+'''
+# Anothe way to get ros_time
 def get_rostime():
   return rospy.get_rostime()
- 
+'''
+
+def ros_time_from_ros_stamp(stamp):
+  return rospy.Time.from_sec(stamp)
+
+def ros_ros_time_from_sec(time_sec):
+  return rospy.Time.from_sec(time_sec)
+
+def sec_from_ros_time(ros_time):
+  ros_time_str = str(ros_time)
+  if len(ros_time_str) > 9:
+    sec_str = ros_time_str[0:-9]
+  else:
+    sec_str = '0'
+  dec_str = ros_time_str[-9:]
+  time_str = sec_str + '.' + dec_str
+  time_sec = float(time_str)
+  return time_sec
+
+
+def ros_stamp_from_ros_time(ros_time):
+  ros_time_str = str(ros_time)
+  if len(ros_time_str) > 9:
+    sec_str = ros_time_str[0:-9]
+  else:
+    sec_str = '0'
+  nsecs_str = ros_time_str[-9:]
+  header = Header()
+  ros_stamp = stamp = header.stamp
+  ros_stamp.sec = int(sec_str)
+  ros_stamp.nsecs =  int(nsecs_str)
+  return ros_stamp
+
+def ros_stamp_from_sec(time_sec):
+  ros_time = ros_ros_time_from_sec(time_sec)
+  ros_stamp = ros_stamp_from_ros_time(ros_time)
+  return ros_stamp
+
+def sec_from_ros_stamp(stamp):
+  sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
+  sec = float(sec_str)
+  return sec
+  
+
+def ros_ros_ros_duration(time_s):
+  return rospy.Duration(time_s)
+
+def ros_rate(time_s):
+  return rospy.Rate(time_s)
 
 
 # Sleep process that breaks sleep into smaller times for better shutdown
@@ -359,7 +396,7 @@ def get_datetime_dict_from_stamp(ros_stamp_msg):
   datatime['sec'] = (tm.tm_sec)
   return datatime
 
-def get_time():
+def get_time_sec():
   return time.time_ns() / 1000000000
 
 
@@ -547,5 +584,16 @@ def print_node_params(self):
               print(f"  {param}: Error retrieving value - {e}")
   else:
       print(f"No parameters found for node '{node_name}'.")
+
+  read_time = get_time()
+  info_dict = get_cv2img_mmap_info(mmap_id)
+  ros_timestamp = get_time()
+  img_encofing = 'None'
+  latency_sec = (current_time.to_sec() - ros_timestamp.to_sec())
+  cv2_img = None
+  # Future work
+  return success, cv2_img, img_encofing, ros_timestamp, latency_sec
+  
+  
 
   
