@@ -382,7 +382,7 @@ class ROSPTXActuatorIF:
                 self.status_msg.yaw_max_softstop_deg = max_yaw_softstop_deg
                 self.status_msg.yaw_min_softstop_deg = min_yaw_softstop_deg
                 self.status_msg.yaw_goal_deg = self.yaw_goal_deg * self.ryi
-                self.status_msg.yaw_home_pos_deg = self.yaw_home_pos_deg * self.ryi
+                self.status_msg.yaw_home_pos_deg = self.home_yaw_deg * self.ryi
 
                 yaw_now_ratio =  1 - (yaw_now_deg - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
                 #nepi_msg.publishMsgWarn(self,"yaw_now, min_yaw, max_yaw, yaw_now_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_now_ratio]))
@@ -421,7 +421,7 @@ class ROSPTXActuatorIF:
                 self.status_msg.pitch_max_softstop_deg = max_pitch_softstop_deg
                 self.status_msg.pitch_min_softstop_deg = min_pitch_softstop_deg
                 self.status_msg.pitch_goal_deg = self.pitch_goal_deg * self.ryi
-                self.status_msg.pitch_home_pos_deg = self.pitch_home_pos_deg * self.ryi
+                self.status_msg.pitch_home_pos_deg = self.home_pitch_deg * self.ryi
 
                 pitch_now_ratio =  1 - (pitch_now_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
                 #nepi_msg.publishMsgWarn(self,"pitch_now, min_pitch, max_pitch,pitch_now_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_now_ratio]))
