@@ -96,7 +96,7 @@ class AiDetectorIF:
 
     init_enabled = False
 
-    last_detect_time = nepi_ros.get_time_sec()
+    last_detect_time = nepi_ros.get_time()
     imgs_pub_sub_dict = dict()
     imgs_pub_sub_lock = threading.Lock()
     imgs_info_dict = dict()
@@ -550,7 +550,7 @@ class AiDetectorIF:
             self.imgs_info_dict[img_topic]['image_latency_time'] = latency
             #nepi_msg.publishMsgInfo(self,"Detect Pub Latency: {:.2f}".format(latency))
 
-            start_time = nepi_ros.get_time_sec()   
+            start_time = nepi_ros.get_time()   
     
             if img_topic in self.imgs_info_dict.keys():
                 self.imgs_info_dict[img_topic]['connected'] = True
@@ -586,7 +586,7 @@ class AiDetectorIF:
                         self.img_dict_lock.release()
                         self.got_img_topic = img_topic
 
-                        preprocess_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
+                        preprocess_time = round( (nepi_ros.get_time() - start_time) , 3)
                         self.imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
 
     def imageMmapThread(self,img_topic, mmap_id):    
@@ -595,7 +595,7 @@ class AiDetectorIF:
             current_time = nepi_ros.get_time_now()
             mmap_list = nepi_mmap.get_mmap_list()
 
-            start_time = nepi_ros.get_time_sec()   
+            start_time = nepi_ros.get_time()   
 
             if img_topic in self.imgs_info_dict.keys():
                 self.imgs_info_dict[img_topic]['connected'] = True
@@ -647,7 +647,7 @@ class AiDetectorIF:
                                         self.img_dict_lock.release()
                                         self.got_img_topic = img_topic
 
-                                        preprocess_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
+                                        preprocess_time = round( (nepi_ros.get_time() - start_time) , 3)
                                         self.imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
 
                                         unlocked = nepi_mmap.unlock_mmap(mmap_id)
@@ -660,7 +660,7 @@ class AiDetectorIF:
 
 
     def updateDetectionTopicCb(self,timer):
-        start_time = nepi_ros.get_time_sec()
+        start_time = nepi_ros.get_time()
         enabled = nepi_ros.get_param(self,'~detector/enabled', self.init_enabled)
         if enabled == True:
             img_topics = nepi_ros.get_param(self,'~detector/img_topics', self.init_selected_img_topics)
@@ -675,7 +675,7 @@ class AiDetectorIF:
                 # check timer
                 max_rate = nepi_ros.get_param(self,'~detector/max_rate', self.init_max_rate)
                 delay_time = float(1) / max_rate 
-                current_time = nepi_ros.get_time_sec()
+                current_time = nepi_ros.get_time()
                 timer = round((current_time - self.last_detect_time), 3)
                 #nepi_msg.publishMsgWarn(self,"Delay and Timer: " + str(delay_time) + " " + str(timer))
 
@@ -701,7 +701,7 @@ class AiDetectorIF:
                 if img_topic == "None" and next_img_topic != "None":
                     self.get_img_topic = next_img_topic
                     self.cur_img_topic = next_img_topic
-                    self.last_detect_time = nepi_ros.get_time_sec()
+                    self.last_detect_time = nepi_ros.get_time()
 
                 ##############################
                 # Check for non responding image streams                   
@@ -711,7 +711,7 @@ class AiDetectorIF:
                         self.imgs_info_dict[img_topic]['connected'] = False
                     self.get_img_topic = next_img_topic
                     self.cur_img_topic = next_img_topic
-                    self.last_detect_time = nepi_ros.get_time_sec()
+                    self.last_detect_time = nepi_ros.get_time()
 
                 elif timer > delay_time: 
 
@@ -721,7 +721,7 @@ class AiDetectorIF:
                         #nepi_msg.publishMsgWarn(self,"Setting next topic to: " +  next_img_topic)
                         self.cur_img_topic = next_img_topic
                         self.get_img_topic = next_img_topic
-                        self.last_detect_time = nepi_ros.get_time_sec()
+                        self.last_detect_time = nepi_ros.get_time()
 
                     #nepi_msg.publishMsgWarn(self,"Timer over delay check, looking for image topic: " +  img_topic)
                     if img_topic != "None" and img_topic in connected_list and img_topic == self.got_img_topic :
@@ -760,7 +760,7 @@ class AiDetectorIF:
 
                                 self.publishDetectionData(img_topic,detect_dict_list,ros_img_header)
                                 
-                            detect_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
+                            detect_time = round( (nepi_ros.get_time() - start_time) , 3)
                             self.imgs_info_dict[img_topic]['detect_time'] = detect_time
                             #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
 

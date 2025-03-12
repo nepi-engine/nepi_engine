@@ -396,7 +396,7 @@ def get_datetime_dict_from_stamp(ros_stamp_msg):
   datatime['sec'] = (tm.tm_sec)
   return datatime
 
-def get_time_sec():
+def get_time():
   return time.time_ns() / 1000000000
 
 

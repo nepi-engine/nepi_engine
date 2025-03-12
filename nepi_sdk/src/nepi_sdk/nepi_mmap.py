@@ -76,7 +76,7 @@ IMG_ENCODING_OPTIONS = ['mono8','rgb8','bgr8','32FC1']
 
 NONE_CV2IMG_INFO_DICT = dict()
 NONE_CV2IMG_INFO_DICT['mmap_id'] = "nepis2xsomething"
-NONE_CV2IMG_INFO_DICT['timestamp'] = nepi_ros.get_time_sec()
+NONE_CV2IMG_INFO_DICT['timestamp'] = time.time_ns()
 NONE_CV2IMG_INFO_DICT['img_width'] = 0
 NONE_CV2IMG_INFO_DICT['img_height'] = 0
 NONE_CV2IMG_INFO_DICT['img_encoding'] = "None"
@@ -92,7 +92,7 @@ def create_cv2img_mmap(mmap_id, cv2_img,img_encoding = 'bgr8'):
   return success, msg
   
   
-def write_cv2img_mmap_data(mmap_id, cv2_img, encoding = 'bgr8', ros_timestamp = nepi_ros.ros_time_now()):
+def write_cv2img_mmap_data(mmap_id, cv2_img, encoding = 'bgr8', timestamp = time.time_ns()):
   success = False
   msg = ""
   # Future work
@@ -117,7 +117,7 @@ def get_cv2img_mmap_info(mmap_id,cv2_img):
   if success == True:
     try:
       info_dict['mmap_id'] = mmap_id
-      info_dict['timestamp'] = nepi_ros.get_time_sec_sec()
+      info_dict['timestamp'] = time.time_ns()
       info_dict['img_width'] = 0
       info_dict['img_height'] = 0
       info_dict['img_encoding'] = "None"
@@ -150,7 +150,7 @@ def read_cv2img_mmap_data(mmap_id):
       if 'img_encoding' in info_dict:
         img_encoding = info_dict['img_encoding']      
   # Calc latency
-  read_time = nepi_ros.get_time_sec_sec()
+  read_time = time.time_ns()
   latency_sec = (read_time - timestamp)
 
   return success, msg, cv2_img, img_encoding, timestamp, latency_sec

@@ -242,7 +242,7 @@ class AiDetectorIF:
 
 
     def imageCb(self,image_msg, args):      
-        start_time = nepi_ros.get_time_sec_sec()   
+        start_time = nepi_ros.get_time_sec()   
         det_namespace = args 
         if det_namespace in self.dets_info_dict.keys():
             self.dets_info_dict[det_namespace]['img_connected'] = True
@@ -277,13 +277,13 @@ class AiDetectorIF:
                     self.got_detect_det_namespace = det_namespace
                     self.got_post_det_namespace = det_namespace
 
-                    preprocess_time = round( (nepi_ros.get_time_sec_sec() - start_time) , 3)
+                    preprocess_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
                     self.dets_info_dict[det_namespace]['preprocess_time'] = preprocess_time
             
 
 
     def updateDetectionTopicCb(self,timer):
-        start_time = nepi_ros.get_time_sec_sec()
+        start_time = nepi_ros.get_time_sec()
         enabled = nepi_ros.get_param(self,'~detector/enabled', self.init_enabled)
         if enabled == True:
             det_namespaces = nepi_ros.get_param(self,'~detector/det_namespaces', self.init_selected_det_namespaces)
@@ -298,7 +298,7 @@ class AiDetectorIF:
                 # check timer
                 max_rate = nepi_ros.get_param(self,'~detector/max_rate', self.init_max_rate)
                 delay_time = float(1) / max_rate 
-                current_time = nepi_ros.get_time_sec_sec()
+                current_time = nepi_ros.get_time_sec()
                 timer = round((current_time - self.last_detect_time), 3)
                 #nepi_msg.publishMsgWarn(self,"Delay and Timer: " + str(delay_time) + " " + str(timer))
 
@@ -325,7 +325,7 @@ class AiDetectorIF:
                 if det_namespace == "None" and next_det_namespace != "None":
                     self.get_det_namespace = next_det_namespace
                     self.cur_det_namespace = next_det_namespace
-                    self.last_detect_time = nepi_ros.get_time_sec_sec()
+                    self.last_detect_time = nepi_ros.get_time_sec()
 
                 ##############################
                 # Check for non responding image streams                   
@@ -335,7 +335,7 @@ class AiDetectorIF:
                         self.dets_info_dict[det_namespace]['img_connected'] = False
                     self.get_det_namespace = next_det_namespace
                     self.cur_det_namespace = next_det_namespace
-                    self.last_detect_time = nepi_ros.get_time_sec_sec()
+                    self.last_detect_time = nepi_ros.get_time_sec()
 
                 elif timer > delay_time: 
                     #nepi_msg.publishMsgWarn(self,"Setting next topic to: " +  next_det_namespace)
@@ -347,7 +347,7 @@ class AiDetectorIF:
 
                         #nepi_msg.publishMsgWarn(self,"Got image topic: " +  det_namespace)
                         self.got_detect_det_namespace = "None"
-                        self.last_detect_time = nepi_ros.get_time_sec_sec()
+                        self.last_detect_time = nepi_ros.get_time_sec()
 
                         # Process got image
                         #nepi_msg.publishMsgWarn(self,"Copying img_dict from topic callback:  " + det_namespace)
@@ -387,7 +387,7 @@ class AiDetectorIF:
 
 
 
-                            detect_time = round( (nepi_ros.get_time_sec_sec() - start_time) , 3)
+                            detect_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
                             self.dets_info_dict[det_namespace]['detect_time'] = detect_time
                             #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
 
@@ -403,7 +403,7 @@ class AiDetectorIF:
 
 
     def processImgageCb(self,timer):
-        start_time = nepi_ros.get_time_sec_sec()
+        start_time = nepi_ros.get_time_sec()
         enabled = nepi_ros.get_param(self,'~detector/enabled', self.init_enabled)
         if enabled == True:
             if self.got_post_det_namespace != "None":
@@ -432,7 +432,7 @@ class AiDetectorIF:
                             success = self.postProcessDetectionImage(det_namespace,img_dict, detect_dict_list)
                         except:
                             pass
-                        postprocess_time = round( (nepi_ros.get_time_sec_sec() - start_time) , 3)
+                        postprocess_time = round( (nepi_ros.get_time_sec() - start_time) , 3)
                         self.dets_info_dict[det_namespace]['postprocess_time'] = postprocess_time
                         #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
 
