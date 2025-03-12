@@ -585,14 +585,6 @@ def print_node_params(self):
   else:
       print(f"No parameters found for node '{node_name}'.")
 
-  read_time = get_time()
-  info_dict = get_cv2img_mmap_info(mmap_id)
-  ros_timestamp = get_time()
-  img_encofing = 'None'
-  latency_sec = (current_time.to_sec() - ros_timestamp.to_sec())
-  cv2_img = None
-  # Future work
-  return success, cv2_img, img_encofing, ros_timestamp, latency_sec
   
   
 
