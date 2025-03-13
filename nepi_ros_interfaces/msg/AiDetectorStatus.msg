@@ -32,9 +32,9 @@ bool overlay_img_name
 float32 threshold
 float32 max_rate_hz
 
-
+string[] image_detector_namespaces
 string[] image_source_topics
-string[] image_detect_namespaces
+
 bool[] images_connected
 float32[] image_latency_times
 float32[] detect_latency_times

@@ -31,10 +31,14 @@ from nepi_ros_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from rospy.numpy_msg import numpy_msg
 from cv_bridge import CvBridge
-from nepi_ros_interfaces.msg import UpdateState, AiModelMgrStatus, AiDetectorStatus
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery
+
+from nepi_ros_interfaces.msg import UpdateState, AiModelMgrStatus
+from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_ros_interfaces.msg import BoundingBoxes, ObjectCount
 
+from nepi_ros_interfaces.srv import SystemStorageFolderQuery
+from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryResponse
+from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest
 
 from nepi_sdk.save_cfg_if import SaveCfgIF
 from nepi_sdk.save_data_if import SaveDataIF
@@ -43,8 +47,12 @@ DEFAULT_FRAMEWORK = 'yolov5'
 
 class AIDetectorManager:   
 
+
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
     AI_MODELS_PATH = '/mnt/nepi_storage/ai_models/'
+
+    MODEL_TYPE_LIST = ['detection']
+    MODEL_INFO_INTERVAL = 5
 
     data_products = ['bounding_boxes','detection_image']
 
@@ -58,6 +66,8 @@ class AIDetectorManager:
 
     running_models_list = []
     model_namespace_dict = dict()
+
+    detctor_info_dict = dict()
 
     #######################
     ### Node Initialization
@@ -161,7 +171,9 @@ class AIDetectorManager:
             factory_data_rates['detection_image'] = [1.0, 0.0, 100.0] 
         self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
 
-
+        # Create Services
+        rospy.Service('active_models_info_query', AiMgrActiveModelsInfoQuery,
+                self.handleInfoRequest)
  
         # Setup Node Subscribers
         app_reset_app_sub = rospy.Subscriber('~reset_factory', Empty, self.resetAppCb, queue_size = 10)
@@ -193,6 +205,7 @@ class AIDetectorManager:
         self.updateFromParamServer()
         self.saveSettings() # Save config
         nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
+        nepi_ros.timer(nepi_ros.ros_duration(1), self.modelsInfoUpdaterCb, oneshot = True)
 
         self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
         self.detection_image_pub.publish(self.ros_waiting_img)
@@ -325,6 +338,10 @@ class AIDetectorManager:
             model_aif = models_dict[model_name]['framework']
             if model_name not in active_models_list or model_aif != active_aif:
                 nepi_msg.publishMsgWarn(self,"Killing model: " + model_name)
+                try:
+                    del self.detctor_info_dict[model_name]
+                except:
+                    pass
                 models_dict[model_name]['active'] = False
                 self.running_models_list.remove(model_name)
                 self.killModel(model_name)
@@ -338,12 +355,38 @@ class AIDetectorManager:
                 self.loadModel(model_name)
                 self.running_models_list.append(model_name)
                 nepi_ros.sleep(1)
+                model_type = models_dict[model_name]['type']
+                if model_type == "detection":
+                    self.detctor_info_dict[model_name] = None
         nepi_ros.set_param(self,"~models_dict",models_dict)
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_ros.ros_time_now()
             self.detection_image_pub.publish(self.ros_no_models_img)
         self.publish_status()
         nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
+
+    def modelsInfoUpdaterCb(self,timer):
+        # Update detector info
+        for model_name in self.detctor_info_dict.keys():
+            if self.detctor_info_dict[model_name] is None:
+                # Check for service
+                service_namespace = os.path.join(self.base_namespace,'detector_info_query')
+                service_exists = rospy.check_for_service(service_namespace)
+                if service_exists == True:
+                    try:
+                        nepi_msg.publishMsgInfo(self,"Getting model info service " + service_namespace)
+                        info_service = rospy.ServiceProxy(service_namespace, AiDetectorInfoQuery)
+                    except Exception as e:
+                        nepi_msg.publishMsgWarn(self,"Failed to obtain model info service: " + str(e))
+                    try:
+                        nepi_msg.publishMsgInfo(self,"Requesting model info for service" + service_namespace)
+                        request = AiDetectorInfoQueryRequest()
+                        response = folder_query_service(request)
+                        nepi_msg.publishMsgInfo(self,"Got model info response: " + str(response))
+                        self.detctor_info_dict[model_name] = response
+                    except Exception as e:
+                        nepi_msg.publishMsgInfo(self,"Failed to obtain model info, will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+        nepi_ros.timer(nepi_ros.ros_duration(self.MODEL_INFO_INTERVAL), self.modelsInfoUpdaterCb, oneshot = True)
 
 
     def loadModel(self, model_name):
@@ -518,6 +561,17 @@ class AIDetectorManager:
         bbs_dict['bounding_boxes'] = bb_list
         nepi_save.save_dict2file(self,data_product,bbs_dict,ros_timestamp)
 
+    def handleInfoRequest(self,_):
+        resp = AiMgrActiveModelsInfoQueryResponse()
+        model_name_list = []
+        model_info_list = []
+        for model_name in self.detctor_info_dict.key():
+            if self.detctor_info_dict[model_name] is not None:
+                model_name_list.append(model_name)
+                model_info_list.append(self.detctor_info_dict[model_name])
+        resp.detector_name_list = model_name_list
+        resp.detector_info_list = model_info_list
+        return resp
 
 
     def publish_status(self):

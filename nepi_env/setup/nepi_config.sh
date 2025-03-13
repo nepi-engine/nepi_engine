@@ -136,6 +136,7 @@ sudo -H pip install WSDiscovery
 sudo -H pip install python-gnupg 
 sudo -H pip install onvif_zeep
 sudo -H pip install onvif 
+sudo -H pip install rospy_message_converter
 
 
 pip install --user labelImg # For onboard training

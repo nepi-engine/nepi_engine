@@ -121,7 +121,7 @@ catkin_package(
 
 
 catkin_install_python(PROGRAMS
-  scripts/nepi_ai_detection_image_node.py
+  scripts/nepi_ai_detector_image_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

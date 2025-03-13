@@ -297,7 +297,7 @@ class NepiAppsMgr(object):
           node_name = self.apps_active_dict[app_name]['node_name']
           if node_name in node_list:
             sub_process = self.apps_active_dict[app_name]['subprocess']
-            success = nepi_apps.killAppNode(node_name,sub_process)
+            success = nepi_ros.kill_node_process(node_name,sub_process)
             if success:
               purge_list.append(app_name)
     # purge from active discovery dict
@@ -335,7 +335,7 @@ class NepiAppsMgr(object):
           #Try and launch node
           nepi_msg.publishMsgInfo(self,"")
           nepi_msg.publishMsgInfo(self,"Launching application node: " + app_node_name)
-          [success, msg, sub_process] = nepi_apps.launchAppNode(app_pkg_name, app_file_name, app_node_name)
+          [success, msg, sub_process] = nepi_ros.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success:
             apps_dict[app_name]['msg'] = "Discovery process lanched"
             self.apps_active_dict[app_name]=dict()

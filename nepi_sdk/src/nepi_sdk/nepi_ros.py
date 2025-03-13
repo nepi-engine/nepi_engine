@@ -89,14 +89,47 @@ def check_for_node(node_name):
   return node_exists
 
 ### Function to wait for a node
-def wait_for_node(node_name):
+def wait_for_node(node_name, timeout = float('inf')):
+  start_time = get_time()
+  timer = 0
   rospy.loginfo("NEPI_ROS: Waiting for node with name: " + node_name)
   node = ""
-  while node == "" and not rospy.is_shutdown():
+  while node == "" and timer < timeout and not rospy.is_shutdown():
     node=find_node(node_name)
     time.sleep(.1)
+    timer = get_time() - start_time
   rospy.loginfo("NEPI_ROS: Found node: " + node)
   return node
+
+
+def launch_node(pkg_name, file_name, ros_node_name, device_path = None):
+  sub_process = None
+  msg = 'Success'
+  success = False
+  if device_path is None:
+    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name]
+  else:
+    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '_device_path:=' + device_path]
+  try:
+    sub_process = subprocess.Popen(device_node_run_cmd)
+    success = True
+  except Exception as e:
+    msg = str("Failed to launch node %s with exception: %s", ros_node_name, str(e))
+    rospy.logwarn("NEPI_NEX: " + msg)
+  if success: 
+    if sub_process.poll() is not None:
+      msg = ("Failed to start " + device_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
+      rospy.logerr(msg)
+      sub_process = None
+      success = False
+  return success, msg, sub_process
+  
+def check_node(node_namespace,sub_process):
+    running = True
+    if sub_process.poll() is None:
+      running = False
+    return running
+
 
 def kill_node(node_name):
   kill_node = ""
@@ -108,6 +141,28 @@ def kill_node(node_name):
         break
   if kill_node != "":
     os.system("rosnode kill " + kill_node)
+
+def kill_node_process(node_namespace,sub_process):
+    success = False
+    if sub_process.poll() is None:
+      sub_process.terminate()
+      terminate_timeout = 3
+      node_dead = False
+      while (terminate_timeout > 0):
+        time.sleep(1)
+        if sub_process.poll() is None:
+          terminate_timeout -= 1
+        else:
+          node_dead = True
+          break
+      if not node_dead:
+        # Escalate it
+        sub_process.kill()
+        time.sleep(1)
+    if sub_process.poll() is not None:
+      success = True
+    return success
+        
 
 def kill_node_namespace(node_namespace):
   try:
@@ -176,12 +231,15 @@ def check_for_topic(topic_name):
   return topic_exists
 
 # Function to wait for a topic
-def wait_for_topic(topic_name):
+def wait_for_topic(topic_name, timeout = float('inf')):
+  start_time = get_time()
+  timer = 0
   rospy.loginfo("NEPI_ROS: Waiting for topic with name: " + topic_name)
   topic = ""
-  while topic == "" and not rospy.is_shutdown():
+  while topic == "" and timer < timeout and not rospy.is_shutdown():
     topic=find_topic(topic_name)
     time.sleep(.1)
+    timer = get_time() - start_time
   rospy.loginfo("NEPI_ROS: Found topic: " + topic)
   return topic
 
@@ -221,12 +279,15 @@ def check_for_service(service_name):
   return service_exists
 
 # Function to wait for a service
-def wait_for_service(service_name):
+def wait_for_service(service_name, timeout = float('inf')):
+  start_time = get_time()
+  timer = 0
   rospy.loginfo("NEPI_ROS: Waiting for servcie name: " + service_name)
   service = ""
-  while service == "" and not rospy.is_shutdown():
+  while service == "" and timer < timeout and not rospy.is_shutdown():
     service=find_service(service_name)
     time.sleep(.1)
+    timer = get_time() - start_time
   rospy.loginfo("NEPI_ROS: Found service: " + service)
   return service
 

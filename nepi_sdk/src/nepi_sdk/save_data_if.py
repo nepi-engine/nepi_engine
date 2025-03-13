@@ -33,7 +33,7 @@ class SaveDataIF(object):
     snapshot_dict = dict()
     init_data_rate_dict = dict()
 
-    def __init__(self, data_product_names=None,factory_data_rate_dict = None, namespace = None):
+    def __init__(self, data_product_names=None,factory_data_rate_dict = None, pub_sub_namespace = None):
         ####  IF INIT SETUP ####
         self.node_name = nepi_ros.get_node_name()
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -110,20 +110,20 @@ class SaveDataIF(object):
             rospy.Subscriber('save_data_rate', SaveDataRate, self.save_data_rate_callback)
 
 
-            if namespace is not None:
-                if namespace[-1] != '/':
-                    namespace = namespace + '/'
+            if pub_sub_namespace is not None:
+                if pub_sub_namespace[-1] != '/':
+                    pub_sub_namespace = pub_sub_namespace + '/'
             else:
-                namespace = '~'
-            rospy.Subscriber(namespace + 'save_data', SaveData, self.save_data_callback)
-            rospy.Subscriber(namespace + 'snapshot_trigger', Empty, self.snapshot_callback)
-            rospy.Subscriber(namespace + 'save_data_prefix', String, self.save_data_prefix_pub_ns_callback)
-            rospy.Subscriber(namespace + 'save_data_rate', SaveDataRate, self.save_data_rate_callback)
-            rospy.Subscriber(namespace + 'save_data_reset', Empty, self.save_data_reset_callback)
-            rospy.Subscriber(namespace + 'save_data_reset_factory', Empty, self.save_data_reset_factory_callback)
+                pub_sub_namespace = '~'
+            rospy.Subscriber(pub_sub_namespace + 'save_data', SaveData, self.save_data_callback)
+            rospy.Subscriber(pub_sub_namespace + 'snapshot_trigger', Empty, self.snapshot_callback)
+            rospy.Subscriber(pub_sub_namespace + 'save_data_prefix', String, self.save_data_prefix_pub_ns_callback)
+            rospy.Subscriber(pub_sub_namespace + 'save_data_rate', SaveDataRate, self.save_data_rate_callback)
+            rospy.Subscriber(pub_sub_namespace + 'save_data_reset', Empty, self.save_data_reset_callback)
+            rospy.Subscriber(pub_sub_namespace + 'save_data_reset_factory', Empty, self.save_data_reset_factory_callback)
 
-            if namespace is not None:
-                # Handled by base namespace
+            if pub_sub_namespace is None:
+                # Handled by base self.namespace
                 rospy.Service('~query_data_products', DataProductQuery, self.query_data_products_callback)
 
 
