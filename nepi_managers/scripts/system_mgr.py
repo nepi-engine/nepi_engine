@@ -90,9 +90,9 @@ class SystemMgrNode():
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
-    SDK_LIB_PATH = '/opt/nepi/ros/lib/nepi_sdk'
-    DRIVERS_PARAM_PATH = '/opt/nepi/ros/lib/nepi_drivers'
-    APPS_PARAM_PATH = '/opt/nepi/ros/share/nepi_apps'
+    SDK_SHARE_PATH = '/opt/nepi/ros/share/nepi_sdk'
+    DRIVERS_SHARE_PATH = '/opt/nepi/ros/lib/nepi_drivers'
+    APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
 
     # disk_usage_deque = deque(maxlen=10)
@@ -413,7 +413,7 @@ class SystemMgrNode():
         return response
 
     def provide_driver_folder(self, req):
-        return self.DRIVERS_PARAM_PATH
+        return self.DRIVERS_SHARE_PATH
 
     def publish_periodic_status(self, event):
         self.status_msg.sys_time = event.current_real
@@ -453,30 +453,30 @@ class SystemMgrNode():
 
 
         # Check system folders
-        nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
-        if not os.path.isdir(self.SDK_LIB_PATH):
-                rospy.logwarn("Driver folder " + self.SDK_LIB_PATH + " not present... will create")
-                os.makedirs(self.SDK_LIB_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_LIB_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.SDK_LIB_PATH)
-        self.storage_subdirs['sdk'] = self.SDK_LIB_PATH
+        nepi_msg.publishMsgWarn(self,"Checking nepi_sdk share folder")
+        if not os.path.isdir(self.SDK_SHARE_PATH):
+                rospy.logwarn("Driver folder " + self.SDK_SHARE_PATH + " not present... will create")
+                os.makedirs(self.SDK_SHARE_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SDK_SHARE_PATH)
+        self.storage_subdirs['sdk'] = self.SDK_SHARE_PATH
 
 
         nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
-        if not os.path.isdir(self.DRIVERS_PARAM_PATH):
-                rospy.logwarn("Driver folder " + self.DRIVERS_PARAM_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_PARAM_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_PARAM_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_PARAM_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_PARAM_PATH
+        if not os.path.isdir(self.DRIVERS_SHARE_PATH):
+                rospy.logwarn("Driver folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
+                os.makedirs(self.DRIVERS_SHARE_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.DRIVERS_SHARE_PATH)
+        self.storage_subdirs['drivers'] = self.DRIVERS_SHARE_PATH
 
         nepi_msg.publishMsgWarn(self,"Checking nepi_apps param folder")
-        if not os.path.isdir(self.APPS_PARAM_PATH):
-                rospy.logwarn("Apps folder " + self.APPS_PARAM_PATH + " not present... will create")
-                os.makedirs(self.APPS_PARAM_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_PARAM_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.APPS_PARAM_PATH)
-        self.storage_subdirs['apps'] = self.APPS_PARAM_PATH
+        if not os.path.isdir(self.APPS_SHARE_PATH):
+                rospy.logwarn("Apps folder " + self.APPS_SHARE_PATH + " not present... will create")
+                os.makedirs(self.APPS_SHARE_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.APPS_SHARE_PATH)
+        self.storage_subdirs['apps'] = self.APPS_SHARE_PATH
 
         nepi_msg.publishMsgWarn(self,"Checking nepi_aifs param folder")
         if not os.path.isdir(self.AIFS_SHARE_PATH):

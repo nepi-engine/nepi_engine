@@ -33,7 +33,9 @@ float32 threshold
 float32 max_rate_hz
 
 string[] image_detector_namespaces
+bool[] image_detector_states
 string[] image_source_topics
+
 
 bool[] images_connected
 float32[] image_latency_times

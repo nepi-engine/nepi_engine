@@ -70,6 +70,8 @@ class AppsMgr extends Component {
 
       connected: false,
 
+      restart_enabled: false,
+
       appsListener: null,
       appListener: null,
 
@@ -127,6 +129,7 @@ class AppsMgr extends Component {
       apps_install_list: message.apps_install_list,
       backup_removed_apps: message.backup_removed_apps,
       selected_app: message.selected_app,
+      restart_enabled: message.restart_enabled,
       connected: true
     })    
 
@@ -710,6 +713,14 @@ class AppsMgr extends Component {
         <ButtonMenu>
         <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/factory_reset")}>{"Factory Reset"}</Button>
       </ButtonMenu>
+
+
+      <Label title="Allow Restart on Crash">
+          <Toggle
+            checked={this.state.restart_enabled}
+            onClick={() => this.props.ros.sendBoolMsg(this.state.mgrNamespace + "/enable_restart", !this.state.restart_enabled)}>
+          </Toggle>
+          </Label>
 
         </Column>
       </Columns>

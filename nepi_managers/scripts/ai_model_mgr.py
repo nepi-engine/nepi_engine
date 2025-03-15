@@ -25,6 +25,7 @@ from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_msg 
 from nepi_sdk import nepi_img
 
+from rospy_message_converter import message_converter
 
 from std_msgs.msg import Empty, Float32, String, Bool, Int32
 from nepi_ros_interfaces.msg import SystemStatus
@@ -49,6 +50,7 @@ class AIDetectorManager:
 
 
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
+    AIFS_INSTALL_PATH = '/mnt/nepi_storage/instals/ai_frameworks'
     AI_MODELS_PATH = '/mnt/nepi_storage/ai_models/'
 
     MODEL_TYPE_LIST = ['detection']
@@ -148,7 +150,7 @@ class AIDetectorManager:
         except Exception as e:
             nepi_msg.publishMsgWarn(self,"Failed to obtain AI Models folder, falling back to: " + self.AI_MODELS_PATH + " " + str(e))
 
-
+        self.aifs_param_folder = self.AIFS_SHARE_PATH + "/params"
 
 
 
@@ -240,7 +242,7 @@ class AIDetectorManager:
         # Get ai framework dict form param server and update
         #nepi_msg.publishMsgWarn(self,"Got latest ais dict " + str(get_aifs_dict))
         aifs_dict = nepi_ros.get_param(self,'~aifs_dict', dict())
-        self.init_aifs_dict = nepi_aifs.refreshAIFsDict(self.AIFS_SHARE_PATH,aifs_dict)
+        self.init_aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,aifs_dict)
         nepi_ros.set_param(self,'~aifs_dict', self.init_aifs_dict)
         current_aif = nepi_ros.get_param(self,'~active_framework', self.init_active_framework)
         active_aif = current_aif
@@ -371,7 +373,7 @@ class AIDetectorManager:
             if self.detctor_info_dict[model_name] is None:
                 # Check for service
                 service_namespace = os.path.join(self.base_namespace,'detector_info_query')
-                service_exists = rospy.check_for_service(service_namespace)
+                service_exists = nepi_ros.check_for_service(service_namespace)
                 if service_exists == True:
                     try:
                         nepi_msg.publishMsgInfo(self,"Getting model info service " + service_namespace)
@@ -534,31 +536,9 @@ class AIDetectorManager:
         nepi_save.save_ros_img2file(self,data_product,img_msg,ros_timestamp)
 
     def boundingBoxesCb(self,bbs_msg):
-
-        ros_timestamp = bbs_msg.header.stamp
-        bbs_dict = dict()
-        bbs_dict['timestamp'] =  nepi_ros.get_datetime_str_from_stamp(bbs_msg.header.stamp)
-        bbs_dict['model_name'] = bbs_msg.model_name
-        bbs_dict['image_topic'] = bbs_msg.image_topic
-        bbs_dict['image_height'] = bbs_msg.image_height
-        bbs_dict['image_width'] = bbs_msg.image_width
-
         data_product = 'bounding_boxes'
-        bb_list = []
-        for ind, bb_msg in enumerate(bbs_msg.bounding_boxes):
-            bb_dict = dict()
-            bb_dict['class'] = bb_msg.Class
-            bb_dict['id'] = bb_msg.id
-            bb_dict['uid'] = bb_msg.uid
-            bb_dict['probability'] = bb_msg.probability
-            bb_dict['xmin'] = bb_msg.xmin
-            bb_dict['ymin'] = bb_msg.ymin
-            bb_dict['xmax'] = bb_msg.xmax
-            bb_dict['ymax'] = bb_msg.ymax
-            bb_dict['area_pixels'] = bb_msg.area_pixels
-            bb_dict['area_ratio'] = bb_msg.area_ratio
-            bb_list.append(bb_dict)
-        bbs_dict['bounding_boxes'] = bb_list
+        ros_timestamp = bbs_msg.header.stamp
+        bbs_dict = message_converter.convert_ros_message_to_dictionary(bbs_msg)
         nepi_save.save_dict2file(self,data_product,bbs_dict,ros_timestamp)
 
     def handleInfoRequest(self,_):

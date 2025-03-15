@@ -63,13 +63,18 @@ class CameraViewer extends Component {
       streamWidth,
       streamHeight
     } = this.state
+
+    const width_changed = this.canvas.width !== streamWidth
+    const height_changed = this.canvas.height !== streamHeight
+    const size_changed = (widht_changed === true || height_changed === true)
+    const updateCheck = ( shouldUpdate || size_changed)
     //const { imageRecognitions } = this.props.ros
     if (shouldUpdate && hasInitialized && this.canvas) {
-      if (this.canvas.width !== streamWidth) {
+      if (width_changed === true) {
         this.canvas.width = streamWidth
       }
 
-      if (this.canvas.height !== streamHeight) {
+      if (height_changed === true) {
         this.canvas.height = streamHeight
       }
 

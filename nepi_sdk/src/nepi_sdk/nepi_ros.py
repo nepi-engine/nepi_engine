@@ -31,6 +31,7 @@ import rosparam
 import time
 import subprocess
 
+from rospy_message_converter import message_converter
 
 from datetime import datetime
 from std_msgs.msg import Empty, Float32, Header
@@ -124,7 +125,12 @@ def launch_node(pkg_name, file_name, ros_node_name, device_path = None):
       success = False
   return success, msg, sub_process
   
-def check_node(node_namespace,sub_process):
+def check_node_by_name(node_name):
+    running = check_for_node(node_name)
+    return running
+
+
+def check_node_by_process(sub_process):
     running = True
     if sub_process.poll() is None:
       running = False
@@ -470,6 +476,15 @@ def tm_2_str(tm_val):
 
 #########################
 ### Misc Helper Functions
+
+def convert_msg2dict(msg):
+  msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
+  return msg_dict
+
+def clear_end_slash(str_2_check):
+    if str_2_check[-1] == '/':
+      str_2_check[0:-1]
+    return str_2_check
 
 def is_shutdown():
   return rospy.is_shutdown()

@@ -57,6 +57,12 @@ def create_cv2_test_img(width,height):
   cv2.rectangle(img_out, start_point, end_point, color, -1)
   return img_out
 
+
+def getImgShortName(det_namespace):
+    short_name = det_namespace.replace(self.base_namespace,"")
+    if short_name.find("idx") != -1:
+        short_name = short_name.replace("/idx","")
+    return short_name
 ###########################################
 ### Image conversion functions
 
@@ -119,25 +125,25 @@ def grayscale_to_rgb(gray_image):
 ### Image manipulation functions
 
 
-def resize_proportionally(image, new_width, new_height, interp = cv2.INTER_NEAREST):
+def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEAREST):
     height, width = image.shape[:2]
 
-    if new_width is None and new_height is None:
+    if max_width is None and max_height is None:
         return image
     
-    if new_width is None:
-        ratio = new_height / height
-        new_width = int(width * ratio)
-    elif new_height is None:
-        ratio = new_width / width
-        new_height = int(height * ratio)
+    if max_width is None:
+        ratio = max_height / height
+        max_width = int(width * ratio)
+    elif max_height is None:
+        ratio = max_width / width
+        max_height = int(height * ratio)
     else:
-        ratio = min(new_width / width, new_height / height)
+        ratio = min(max_width / width, max_height / height)
         new_width = int(width * ratio)
         new_height = int(height * ratio)
 
     resized_image = cv2.resize(image, (new_width, new_height), interpolation=interp)
-    return resized_image
+    return resized_image, ratio, new_width, new_height
 
 ###########################################
 ### Image process functions
@@ -354,9 +360,15 @@ def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px =
       cv2_img_out = copy.deepcopy(cv2_img)
       cv2.rectangle(cv2_img_out, (x_px, y_px), (w_px, h_px), color_rgb, -1)
       
-def create_message_image(message, image_size = (350, 700, 3),font_color = (0, 255, 0) ):
+def create_blank_image(image_size = (350, 700, 3) ):
     # Create a blank img for when not running
     cv2_img = np.zeros(image_size, dtype = np.uint8) # Empty Black Image
+    return cv2_img
+
+
+def create_message_image(message, image_size = (350, 700, 3),font_color = (0, 255, 0) ):
+    # Create a blank img for when not running
+    cv2_img = create_blank_image(image_size) # Empty Black Image
     # Overlay text data on OpenCV image
     font = cv2.FONT_HERSHEY_DUPLEX
     fontScale              = 0.5

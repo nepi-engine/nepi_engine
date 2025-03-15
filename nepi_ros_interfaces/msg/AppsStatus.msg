@@ -8,4 +8,5 @@ string[] apps_rui_list
 string app_backup_path
 bool backup_removed_apps
 string selected_app
+bool restart_enabled
 

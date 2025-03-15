@@ -31,9 +31,9 @@ from nepi_ros_interfaces.srv import AppStatusQuery, AppStatusQueryResponse
 
 from nepi_sdk.save_cfg_if import SaveCfgIF
 
-APPS_PARAM_FOLDER = '/opt/nepi/ros/share/nepi_apps'
+APPS_SHARE_FOLDER = '/opt/nepi/ros/share/nepi_apps'
 APPS_CONFIG_FOLDER = '/opt/nepi/ros/etc'
-APPS_INSTALL_FOLDER = '/opt/nepi/ros/share/nepi_apps'
+APPS_INSTALL_FOLDER = '/mnt/nepi_storage/install/apps'
 
 #########################################
 
@@ -57,6 +57,8 @@ class NepiAppsMgr(object):
   apps_active_dict = dict()
   status_apps_msg = AppsStatus()
   status_app_msg = AppStatus()
+
+  failed_app_list = []
 
   #######################
   ### Node Initialization
@@ -112,9 +114,9 @@ class NepiAppsMgr(object):
     self.apps_install_folder = self.apps_param_folder
     '''
   
-    self.apps_param_folder = APPS_PARAM_FOLDER
+    self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
     self.apps_config_folder = APPS_CONFIG_FOLDER
-    self.apps_install_folder = APPS_PARAM_FOLDER
+    self.apps_install_folder = APPS_INSTALL_FOLDER
 
     #nepi_msg.publishMsgInfo(self,"App folder set to " + self.apps_param_folder)
     self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
@@ -162,6 +164,7 @@ class NepiAppsMgr(object):
     rospy.Subscriber('~update_state', UpdateState, self.updateStateCb)
     rospy.Subscriber('~update_order', UpdateOrder, self.updateOrderCb)
 
+    rospy.Subscriber('~enable_restart', Bool, self.enableRestartCb)
     #rospy.Subscriber('~install_app_pkg', String, self.installAppPkgCb)
     #rospy.Subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
     #rospy.Subscriber('~remove_app', String, self.removeAppCb)
@@ -226,6 +229,7 @@ class NepiAppsMgr(object):
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
     apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
     nepi_ros.set_param(self,"~apps_dict",apps_dict)
+    nepi_ros.set_param(self,"~restart_enabled",False)
     self.publish_status()
 
   def saveConfigCb(self, msg):  # Just update Class init values. Saving done by Config IF system
@@ -233,6 +237,7 @@ class NepiAppsMgr(object):
 
   def setCurrentAsDefault(self):
     nepi_ros.set_param(self,"~backup_enabled", True)
+    nepi_ros.set_param(self,"~restart_enabled",False)
     self.initParamServerValues(do_updates = False)
     self.publish_status()
 
@@ -250,6 +255,7 @@ class NepiAppsMgr(object):
       apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
       apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
       self.init_apps_dict = apps_dict
+      self.init_restart_enabled = nepi_ros.get_param(self,"~restart_enabled",False)
       self.resetParamServer(do_updates)
       #self.printND()
 
@@ -257,6 +263,7 @@ class NepiAppsMgr(object):
       nepi_ros.set_param(self,"~apps_dict",self.init_apps_dict)
       nepi_ros.set_param(self,"~backup_enabled",self.init_backup_enabled)
       nepi_ros.set_param(self,"~apps_dict",self.init_apps_dict)
+      nepi_ros.set_param(self,"~restart_enabled",self.init_restart_enabled)
       if do_updates:
           self.updateFromParamServer()
 
@@ -305,9 +312,14 @@ class NepiAppsMgr(object):
       if app_name in self.apps_active_dict.keys():
         del self.apps_active_dict[app_name]
 
+        # Clear from failed list if disabled and killed
+        if app_name in self.failed_app_list:
+          self.failed_app_list.remove(app_name)
+
 
     ################################    
     ## Process Apps
+    restart = nepi_ros.get_param(self,"~restart_enabled",self.init_restart_enabled)
     for app_name in self.apps_ordered_list:
       if app_name in apps_active_list and app_name in apps_dict.keys():
         app_dict = apps_dict[app_name]
@@ -319,7 +331,11 @@ class NepiAppsMgr(object):
         app_path_name = app_dict['APP_DICT']['app_path']
         app_node_name = app_dict['APP_DICT']['node_name']
         app_file_path = app_path_name + '/' + app_file_name
-        if app_name not in self.apps_active_dict.keys():
+        if app_name in self.apps_active_dict.keys():
+          # Need to add running and restart check
+          pass
+
+        elif app_name not in self.failed_app_list:
           #Try and initialize app param values
           config_file_path = self.apps_config_folder + "/" + app_config_file_name.split(".")[0] + "/" + app_config_file_name
           params_namespace = os.path.join(self.base_namespace, app_node_name)
@@ -341,6 +357,15 @@ class NepiAppsMgr(object):
             self.apps_active_dict[app_name]=dict()
             self.apps_active_dict[app_name]['node_name'] = app_node_name
             self.apps_active_dict[app_name]['subprocess'] = sub_process
+          else:
+            if restart == False:
+              nepi_msg.publishMsgWarn(self,"Node not started: " + node_name  + " - Will not restart")
+              self.failed_app_list.append(app_name)
+            else:
+              nepi_msg.publishMsgWarn(self,"Node not running: " + node_name  + " - Will attempt restart")
+
+              
+
 
     # Publish Status
     self.publish_status()
@@ -433,6 +458,7 @@ class NepiAppsMgr(object):
     status_apps_msg.app_backup_path = self.apps_install_folder
     status_apps_msg.backup_removed_apps = nepi_ros.get_param(self,"~backup_enabled",self.init_backup_enabled)
     status_apps_msg.selected_app = self.selected_app
+    status_apps_msg.restart_enabled = nepi_ros.get_param(self,"~restart_enabled",self.init_restart_enabled)
     return status_apps_msg
 
   
@@ -526,6 +552,12 @@ class NepiAppsMgr(object):
     if app_name in apps_dict.keys():
       apps_dict = moveFunction(app_name,apps_dict)
     nepi_ros.set_param(self,"~apps_dict",apps_dict)
+    self.publish_status()
+
+  def enableRestartCb(self,msg):
+    nepi_msg.publishMsgInfo(self,str(msg))
+    restart_enabled = msg.data
+    nepi_ros.set_param(self,"~restart_enabled",restart_enabled)
     self.publish_status()
 
 

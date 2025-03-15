@@ -88,7 +88,14 @@ def getDriversDict(search_path):
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['type'] = 'None'
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options'] = []
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['default'] = 'None'
-                        new_dict['DISCOVERY_DICT']['OPTIONS']['None']['value'] = 'None'
+                      options_dict = new_dict['DISCOVERY_DICT']['OPTIONS']
+                      # Clean up options
+                      for option_name in options_dict.keys():
+                        option_dict = new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]
+                        if 'options' not in options_dict.keys():
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'] = []
+                        default_val = options_dict[option_name]['default']
+                        new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = default_val
 
                       #rospy.logwarn("NEPI_DRVS: Got driver dict from file: " + str(new_dict))
 

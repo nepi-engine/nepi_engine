@@ -741,7 +741,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/factory_reset")}>{"Factory Reset"}</Button>
       </ButtonMenu>
 
-      <Label title="Allow Retry on Error">
+      <Label title="Allow Discovery Retry">
           <Toggle
             checked={this.state.retry_enabled}
             onClick={() => this.props.ros.sendBoolMsg(this.state.mgrNamespace + "/enable_retry", !this.state.retry_enabled)}>

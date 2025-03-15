@@ -120,10 +120,10 @@ catkin_package(
 )
 
 
-catkin_install_python(PROGRAMS
-  scripts/nepi_ai_detector_image_node.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#catkin_install_python(PROGRAMS
+#  scripts/nepi_ai_detector_img_pub_node.py
+#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ###########
 ## Build 
@@ -184,7 +184,15 @@ install(TARGETS ${PROJECT_NAME}
 #)
 
 
+set( NEPI_SDK_SHARE_FOLDER 
+  # Must hard-coded 
+  /opt/nepi/ros/share/nepi_sdk/scripts
+)
 
+install(DIRECTORY scripts/
+  DESTINATION ${NEPI_SDK_SHARE_FOLDER} 
+  FILES_MATCHING PATTERN "*.py"
+)
 
 
 #############
