@@ -94,6 +94,7 @@ class AiDetectionIF:
     ### IF Initialization
     log_name = "AiDetectionIF"
     def __init__(self):
+        #################################
         ####  IF INIT SETUP ####
         self.node_name = nepi_ros.get_node_name()
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -103,10 +104,11 @@ class AiDetectionIF:
         
         #################################
         nepi_msg.publishMsgInfo(self,":" + self.log_name + ": IF Initialization Complete")
-        
+        #################################
 
     #######################
     # Class Public Methods
+    #######################
 
     def get_available_detector_namespaces(self):
         namespaces = []
@@ -223,10 +225,9 @@ class AiDetectionIF:
             timer = nepi_ros.ros_time_now() - time_start
         if self.status_msg is None:
             nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Status msg topic subscribe timed out " + str(status_topic))
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Unregistering detector " + str(namespace))
             success = False
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got detector status message " + str(self.status_msg))
+            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got status msg " + str(self.status_msg))
 
         ####################
         # Wrap Up
@@ -269,6 +270,7 @@ class AiDetectionIF:
 
     #######################
     # Class Private Methods
+    #######################
 
     def detectorStatusCb(self, status_msg):
         self.status_msg = status_msg

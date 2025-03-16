@@ -42,7 +42,7 @@ EXAMPLE_AI_MGR_STATUS_DICT = {
 #You must use the classes img_dict_lock.aquire() and img_dict_lock.release() thread save functions 
 #When accessing the classes img_dict
 
-class AiManagerIF:
+class MgrAiModelIF:
 
     # AI Mgr Vars
     AI_MGR_NODE_NAME = 'ai_model_mgr'

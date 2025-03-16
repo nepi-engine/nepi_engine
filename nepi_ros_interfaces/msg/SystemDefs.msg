@@ -25,6 +25,9 @@ float32[] critical_temps
 # Total data storage capacity (MB)
 float32 disk_capacity
 
+# Running in Container
+bool in_container
+
 # Current FIRST_STAGE ROOTFS partition
 string first_stage_rootfs_device
 

@@ -7,6 +7,10 @@
 #
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
+
+
+import rospy
+
 import os
 import os.path
 from shutil import copyfile
@@ -15,7 +19,6 @@ import errno
 import subprocess
 import sys
 
-import rospy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_msg 
@@ -28,6 +31,9 @@ from nepi_ros_interfaces.msg import Reset
 from nepi_ros_interfaces.msg import TimeStatus
 
 from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryResponse
+
+from nepi_sdk.mgr_if_system import MgrSystemIF
+
 
 FACTORY_CFG_SUFFIX = '.factory'
 USER_CFG_SUFFIX = '.user'
@@ -54,16 +60,21 @@ class time_sync_mgr(object):
         nepi_msg.createMsgPublishers(self)
         nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
         ##############################
-        # Wait for NEPI core managers to start
-        system_status_topic = os.path.join(self.base_namespace,'system_status')
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
-        nepi_ros.wait_for_topic(system_status_topic)
-        self.sys_status = None
-        sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
-        while(self.sys_status is None):
-            nepi_ros.sleep(1)
-        sys_status_sub.unregister()
+
+
+        ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = MgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+        sys_stats_dict = mgr_sys_if.get_system_stats_dict()
+        in_container = False
+        if sys_stats_dict is not None: 
+            #nepi_msg.publishMsgInfo(self,"Got System Stats Dict: " + str(sys_stats_dict))
+            in_container = sys_stats_dict['in_container']
+        self.in_container = in_container
         
         config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
         nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
@@ -74,7 +85,7 @@ class time_sync_mgr(object):
         while(self.cfg_status is None):
             nepi_ros.sleep(1)
         cfg_status_sub.unregister()
-        self.in_container = self.sys_status.in_container
+        
         ###############
         
 
@@ -114,10 +125,6 @@ class time_sync_mgr(object):
         nepi_ros.spin()
         #########################################################
 
-    #######################
-    # Wait for System and Config Statuses Callbacks
-    def systemStatusCb(self,msg):
-        self.sys_status = msg
 
     def configStatusCb(self,msg):
         self.cfg_status = True

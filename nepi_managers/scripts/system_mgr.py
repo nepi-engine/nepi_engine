@@ -137,6 +137,7 @@ class SystemMgrNode():
 
         if self.first_stage_rootfs_device == "container":
             self.in_container = True
+        self.system_defs_msg.in_container = self.in_container
 
         if self.in_container == False:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS

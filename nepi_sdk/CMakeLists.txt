@@ -194,6 +194,21 @@ install(DIRECTORY scripts/
   FILES_MATCHING PATTERN "*.py"
 )
 
+set( NEPI_SDK_FOLDER 
+  # Must hard-coded 
+  /opt/nepi/ros/lib/python3/dist-packages/nepi_sdk
+)
+
+install(DIRECTORY sdk/
+  DESTINATION ${NEPI_SDK_FOLDER} 
+  FILES_MATCHING PATTERN "*.py"
+)
+
+install(DIRECTORY ifs/
+  DESTINATION ${NEPI_SDK_FOLDER} 
+  FILES_MATCHING PATTERN "*.py"
+)
+
 
 #############
 ## Testing General ##
