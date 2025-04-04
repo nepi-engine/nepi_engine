@@ -1082,7 +1082,7 @@ class IDXDeviceIF:
         res_ratio = rospy.get_param('~resolution_ratio', self.init_resolution_ratio)   
 
         if enabled == True: 
-            if res_ratio > 0.99:
+            if res_ratio < 0.99:
                 [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
             if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
                 if auto is False:
