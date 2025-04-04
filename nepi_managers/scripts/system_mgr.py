@@ -19,16 +19,33 @@ import subprocess
 import rospy
 
 
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+
+import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import String, Empty, Float32
 from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveData
 from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryResponse, OpEnvironmentQuery, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryResponse, SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 
-from nepi_sdk.save_cfg_if import SaveCfgIF
-import nepi_sdk.nepi_software_update_utils as sw_update_utils
+
+from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+
+from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.sys_if_save_cfg import SaveCfgIF
+from nepi_api.sys_if_states import StatesIF
+from nepi_api.sys_if_triggers import TriggersIF
+
+
+from nepi_sdk import nepi_ros
+ 
+from nepi_sdk import nepi_states
+from nepi_sdk import nepi_triggers
+
 
 BYTES_PER_MEGABYTE = 2**20
 
@@ -55,6 +72,8 @@ class SystemMgrNode():
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                             "automation_scripts", 
+                            "automation_scripts/sys_trigger_scripts",
+                            "automation_scripts/sys_state_scripts",
                             "data", 
                             "databases", 
                             "install",
@@ -90,7 +109,8 @@ class SystemMgrNode():
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
-    SDK_SHARE_PATH = '/opt/nepi/ros/share/nepi_sdk'
+    SDK_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk'
+    API_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_api'
     DRIVERS_SHARE_PATH = '/opt/nepi/ros/lib/nepi_drivers'
     APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
     AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
@@ -119,6 +139,12 @@ class SystemMgrNode():
 
     in_container = False
 
+    triggers_status_pub = None
+    triggers_status_interval = 1.0
+
+    states_status_pub = None
+    states_status_interval = 1.0
+
 
     #######################
     ### Node Initialization
@@ -126,12 +152,19 @@ class SystemMgrNode():
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgWarn(self,"Starting Initialization Processes")
-        ##############################
-        nepi_msg.publishMsgWarn(self,"Getting System Info")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+
+        
+        self.msg_if.pub_warn("Getting System Info")
         self.first_stage_rootfs_device = nepi_ros.get_param(self,
             "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
@@ -145,7 +178,7 @@ class SystemMgrNode():
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS_CN
         
 
-        nepi_msg.publishMsgWarn(self,"Creating System Publishers")
+        self.msg_if.pub_warn("Creating System Publishers")
         self.status_msg.in_container = self.in_container
         status_period = nepi_ros.ros_duration(1)  # TODO: Configurable rate?
 
@@ -161,9 +194,20 @@ class SystemMgrNode():
         # For auto-stop of save data; disk full protection
         self.save_data_pub = rospy.Publisher(
             'save_data', SaveData, queue_size=1)
+        self.triggers_pub = rospy.Publisher(
+            'system_trigger', SystemTrigger, queue_size=1)
         time.sleep(1)
 
-        nepi_msg.publishMsgWarn(self,"Creating System Services")
+        # Set up system states and triggers status pubs
+        self.sys_if_states = StatesIF(self.getStatesDictCb)
+        self.sys_if_triggers = TriggersIF()
+        time.sleep(1)
+        #self.sys_if_states.create_states_status_pub_service()
+        
+
+
+        # Create System Services
+        self.msg_if.pub_warn("Creating System Services")
         self.current_throttle_ratio = 1.0
         # Advertise services
         rospy.Service('system_defs_query', SystemDefsQuery,
@@ -173,35 +217,34 @@ class SystemMgrNode():
         rospy.Service('sw_update_status_query', SystemSoftwareStatusQuery,
                        self.provide_sw_update_status)
 
-        nepi_msg.publishMsgWarn(self,"System Mgr services ready")
+        self.msg_if.pub_warn("System Mgr services ready")
 
-        nepi_msg.publishMsgWarn(self,"Creating System Config IF")
-        self.save_cfg_if = SaveCfgIF(
-            updateParamsCallback=None, paramsModifiedCallback=self.updateFromParamServer)
+        self.msg_if.pub_warn("Creating System Config IF")
+        self.save_cfg_if = SaveCfgIF(initCb=self.initConfig, init_params = False)
 
-        nepi_msg.publishMsgWarn(self,"Mounting Storage Drive")
+        self.msg_if.pub_warn("Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
         self.storage_mountpoint = nepi_ros.get_param(self,
             "~storage_mountpoint", self.storage_mountpoint)
         
-        nepi_msg.publishMsgWarn(self,"Updating Rootfs Scheme")
+        self.msg_if.pub_warn("Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
         self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
         self.init_msgs()
 
-        nepi_msg.publishMsgWarn(self,"Checking User Storage Partition")
+        self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_mountpoint):
-           rospy.logwarn("NEPI Storage partition is not mounted... attempting to mount")
+           self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
            ret, msg = sw_update_utils.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
            if ret is False:
-               rospy.logwarn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+               self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
 
         # ... as long as there is enough space
         self.update_storage()
         if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:
-            rospy.logerr("Insufficient space on storage partition")
+            self.msg_if.pub_warn("Insufficient space on storage partition")
             self.storage_mountpoint = ""
             return False
 
@@ -211,7 +254,7 @@ class SystemMgrNode():
         self.storage_gid = stat_info.st_gid
 
 
-        nepi_msg.publishMsgWarn(self,"Checking System Folders")
+        self.msg_if.pub_warn("Checking System Folders")
         # Ensure that the user partition is properly laid out
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
@@ -221,18 +264,18 @@ class SystemMgrNode():
 
 
 
-        nepi_msg.publishMsgWarn(self,"Checking valid device id")
+        self.msg_if.pub_warn("Checking valid device id")
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
 
         
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-        nepi_msg.publishMsgWarn(self,"Updating From Param Server")
-        self.updateFromParamServer()
+        self.msg_if.pub_warn("Updating From Param Server")
+        self.initConfig()
 
         if self.in_container == False:
-            nepi_msg.publishMsgWarn(self,"Updating Rootfs Load Fail Counter")
+            self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
             # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
             # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
             # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
@@ -240,18 +283,15 @@ class SystemMgrNode():
                 status, err_msg = sw_update_utils.resetBootFailCounter(
                     self.first_stage_rootfs_device)
                 if status is False:
-                    rospy.logerr("Failed to reset boot fail counter: " + err_msg)
+                    self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
-        nepi_msg.publishMsgWarn(self,"Starting System Status Messages")
-        rospy.Timer(nepi_ros.ros_duration(self.STATUS_PERIOD),
-                    self.publish_periodic_status)
-        nepi_msg.publishMsgWarn(self,"System status ready")
+
         
         # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
         # established
         self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
         
-        nepi_msg.publishMsgWarn(self,"Creating Subscribers")
+        self.msg_if.pub_warn("Creating Subscribers")
         # Subscribe to topics
         rospy.Subscriber('save_data', SaveData, self.set_save_status)
         rospy.Subscriber('clear_data_folder', Empty, self.clear_data_folder)
@@ -267,10 +307,91 @@ class SystemMgrNode():
         rospy.Subscriber('archive_inactive_rootfs', Empty, self.handle_archive_inactive_rootfs, queue_size=1)
         rospy.Subscriber('save_data_prefix', String, self.save_data_prefix_callback)
 
+        '''
+        # Create Triggers Status Pub
+        self.triggers_status_interval = 1.0
+        self.triggers_status_pub = rospy.Publisher('system_triggers_status', SystemTriggersStatus, queue_size=1)
+        time.sleep(1)
+        self.msg_if.pub_info(":" + self.class_name + ": Starting triggers status pub service: ")
+        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.triggers_status_interval), self.triggersStatusPubCb, oneshot = True)
+
+        # Create States Status Pub
+        self.states_status_interval = 1.0
+        self.states_status_pub = rospy.Publisher('system_states_status', SystemStatesStatus, queue_size=1)
+        time.sleep(1)
+        self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
+        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.states_status_interval), self.statesStatusPubCb, oneshot = True)
+        '''
+
+
+        # Crate system status pub
+        self.msg_if.pub_warn("Starting System Status Messages")
+        rospy.Timer(nepi_ros.ros_duration(self.STATUS_PERIOD), self.publish_periodic_status)
+        self.msg_if.pub_warn("System status ready")
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgWarn(self,"Initialization Complete")
+        self.msg_if.pub_warn("Initialization Complete")
         rospy.spin()
+
+
+    def getStatesDictCb(self):
+        return dict()
+
+    def triggersStatusPubCb(self):
+        triggers_dict = dict()
+        msg = TriggersStatus()
+        namespaces = nepi_triggers.get_triggers_publisher_namespaces()
+        for namespace in namespaces:
+            topic = os.path.join(namespace,'system_triggers_query')
+            if topic not in self.service_dict.keys():
+                service = nepi_ros.create_service(topic,SystemTrigger)
+                if service is not None:
+                    self.service_dict[topic] = service
+                    time.sleep(1)
+            if topic in self.service_dict.keys():
+                service = self.service_dict[topic]
+                req = SystemTriggersQueryRequest()
+                try:
+                    resp = nepi_ros.call_service(service, req)
+                    got_dict = nepi_triggers.parse_triggers_query_resp(resp)
+                    triggers_dict.update(got_dict)
+                except:
+                    self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+        try:
+            msg = nepi_triggers.create_triggers_status_msg_from_triggers_dict(self.node_name,triggers_dict)
+        except:
+            self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
+        self.triggers_status_pub.publish(msg)
+        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.triggers_status_interval), self.triggersStatusPubCb, oneshot = True)
+
+
+
+    def statesStatusPubCb(self):
+        states_dict = dict()
+        msg = StatesStatus()
+        namespaces = nepi_states.get_states_publisher_namespaces()
+        for namespace in namespaces:
+            topic = os.path.join(namespace,'system_states_query')
+            if topic not in self.service_dict.keys():
+                service = nepi_ros.create_service(topic,SystemState)
+                if service is not None:
+                    self.service_dict[topic] = service
+                    time.sleep(1)
+            if topic in self.service_dict.keys():
+                service = self.service_dict[topic]
+                req = SystemStatesQueryRequest()
+                try:
+                    resp = nepi_ros.call_service(service, req)
+                    got_dict = nepi_states.parse_states_query_resp(resp)
+                    states_dict.update(got_dict)
+                except:
+                    self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+        try:
+            msg = nepi_states.create_states_status_msg_from_states_dict(self.node_name,states_dict)
+        except:
+            self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
+        self.states_status_pub.publish(msg)
+        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.states_status_interval), self.statesStatusPubCb, oneshot = True)
 
 
     def add_info_string(self, string, level):
@@ -334,7 +455,7 @@ class SystemMgrNode():
             if (throttle_ratio_min != self.current_throttle_ratio):
                 self.throttle_ratio_pub.publish(Float32(throttle_ratio_min))
                 self.current_throttle_ratio = throttle_ratio_min
-                #rospy.logwarn("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
+                #self.msg_if.pub_warn("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
 
     def update_storage(self):
         # Data partition
@@ -342,7 +463,7 @@ class SystemMgrNode():
             statvfs = os.statvfs(self.storage_mountpoint)
         except Exception as e:
             warn_str = "Error checking data storage status of " + self.storage_mountpoint + ": " + e.what()
-            rospy.logwarn(warn_str)
+            self.msg_if.pub_warn(warn_str)
             self.add_info_string("warn_str")
             self.status_msg.disk_usage = 0
             self.storage_rate = 0
@@ -384,7 +505,7 @@ class SystemMgrNode():
         (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = sw_update_utils.checkForNewImageAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
-            rospy.logwarn("Unable to update software status: " + err_string)
+            self.msg_if.pub_warn("Unable to update software status: " + err_string)
             resp.new_sys_img = 'query failed'
             resp.new_sys_img_version = 'query failed'
             resp.new_sys_img_size_mb = 0
@@ -436,16 +557,16 @@ class SystemMgrNode():
 
     def ensure_reqd_storage_subdirs(self):
         # Check for and create subdirectories as necessary
-        nepi_msg.publishMsgWarn(self,"Checking user storage partition folders")
+        self.msg_if.pub_warn("Checking user storage partition folders")
         for subdir in self.req_storage_subdirs:
             full_path_subdir = os.path.join(self.storage_mountpoint, subdir)
             if not os.path.isdir(full_path_subdir):
-                nepi_msg.publishMsgWarn(self,"Required storage subdir " + subdir + " not present... will create")
+                self.msg_if.pub_warn("Required storage subdir " + subdir + " not present... will create")
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
             if subdir not in self.check_ignore_folders:
-                nepi_msg.publishMsgWarn(self,"Checking user storage partition folder permissions: " + subdir)
+                self.msg_if.pub_warn("Checking user storage partition folder permissions: " + subdir)
                 os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)
                 os.system('chmod -R 0775 ' + full_path_subdir)
@@ -454,34 +575,43 @@ class SystemMgrNode():
 
 
         # Check system folders
-        nepi_msg.publishMsgWarn(self,"Checking nepi_sdk share folder")
+        self.msg_if.pub_warn("Checking nepi_sdk share folder")
         if not os.path.isdir(self.SDK_SHARE_PATH):
-                rospy.logwarn("Driver folder " + self.SDK_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Driver folder " + self.SDK_SHARE_PATH + " not present... will create")
                 os.makedirs(self.SDK_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.SDK_SHARE_PATH)
         self.storage_subdirs['sdk'] = self.SDK_SHARE_PATH
 
+        self.msg_if.pub_warn("Checking nepi_api share folder")
+        if not os.path.isdir(self.API_SHARE_PATH):
+                self.msg_if.pub_warn("Driver folder " + self.API_SHARE_PATH + " not present... will create")
+                os.makedirs(self.API_SHARE_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.API_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.API_SHARE_PATH)
+        self.storage_subdirs['api'] = self.API_SHARE_PATH
 
-        nepi_msg.publishMsgWarn(self,"Checking nepi_drivers lib folder")
+
+
+        self.msg_if.pub_warn("Checking nepi_drivers lib folder")
         if not os.path.isdir(self.DRIVERS_SHARE_PATH):
-                rospy.logwarn("Driver folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Driver folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.DRIVERS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.DRIVERS_SHARE_PATH)
         self.storage_subdirs['drivers'] = self.DRIVERS_SHARE_PATH
 
-        nepi_msg.publishMsgWarn(self,"Checking nepi_apps param folder")
+        self.msg_if.pub_warn("Checking nepi_apps param folder")
         if not os.path.isdir(self.APPS_SHARE_PATH):
-                rospy.logwarn("Apps folder " + self.APPS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Apps folder " + self.APPS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.APPS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.APPS_SHARE_PATH)
         self.storage_subdirs['apps'] = self.APPS_SHARE_PATH
 
-        nepi_msg.publishMsgWarn(self,"Checking nepi_aifs param folder")
+        self.msg_if.pub_warn("Checking nepi_aifs param folder")
         if not os.path.isdir(self.AIFS_SHARE_PATH):
-                rospy.logwarn("AIF folder " + self.AIFS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("AIF folder " + self.AIFS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.AIFS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AIFS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.AIFS_SHARE_PATH)
@@ -490,14 +620,14 @@ class SystemMgrNode():
 
     def clear_data_folder(self, msg):
         if (self.status_msg.save_all_enabled is True):
-            rospy.logwarn(
+            self.msg_if.pub_warn(
                 "Refusing to clear data folder because data saving is currently enabled")
             return
 
-        rospy.loginfo("Clearing data folder by request")
+        self.msg_if.pub_info("Clearing data folder by request")
         data_folder = self.storage_subdirs['data']
         if not os.path.isdir(data_folder):
-            rospy.logwarn(
+            self.msg_if.pub_warn(
                 "No such folder " + data_folder + "... nothing to clear"
             )
             return
@@ -510,19 +640,19 @@ class SystemMgrNode():
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                rospy.logwarn('Failed to delete %s. Reason: %s' %
+                self.msg_if.pub_warn('Failed to delete %s. Reason: %s' %
                               (file_path, e))
 
     def set_op_environment(self, msg):
         if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
-            rospy.logwarn(
+            self.msg_if.pub_warn(
                 "Setting environment parameter to a non-standard value: %s", msg.data)
         nepi_ros.set_param(self,"~op_environment", msg.data)
 
     def set_device_id(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
         if (msg.data) and (not self.valid_device_id_re.match(msg.data)):
-            rospy.logerr("Invalid device ID: %s", msg.data)
+            self.msg_if.pub_warn("Invalid device ID: %s", msg.data)
             return
 
         # Otherwise, overwrite the DEVICE_ID in sys_env.bash
@@ -540,7 +670,7 @@ class SystemMgrNode():
 
         # Now overwrite the original file as an autonomous operation
         os.rename(tmp_filename, self.SYS_ENV_PATH)
-        rospy.logwarn("Device ID Updated - Requires device reboot")
+        self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
         self.add_info_string(
             "Device ID updated - Requires device reboot", StampedString.PRI_ELEVATED)
 
@@ -557,7 +687,7 @@ class SystemMgrNode():
     
     def handle_install_new_img(self, msg):
         if self.installing_new_image:
-            rospy.logwarn("New image is already being installed")
+            self.msg_if.pub_warn("New image is already being installed")
             return
 
         decompressed_img_filename = msg.data
@@ -570,21 +700,21 @@ class SystemMgrNode():
         # Finished installing
         self.installing_new_image = False
         if self.install_status is False:
-            rospy.logerr("Failed to flash image: " + err_msg)
+            self.msg_if.pub_warn("Failed to flash image: " + err_msg)
             self.status_msg.sys_img_update_status = 'failed'
             return
         else:
-            rospy.loginfo("Finished flashing new image to inactive partition")
+            self.msg_if.pub_info("Finished flashing new image to inactive partition")
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
         self.install_status, err_msg = sw_update_utils.checkAndRepairPartition(self.inactive_rootfs_device)
         if self.install_status is False:
-            rospy.logerr("Newly flashed image has irrepairable filesystem issues: ", err_msg)
+            self.msg_if.pub_warn("Newly flashed image has irrepairable filesystem issues: ", err_msg)
             self.status_msg.sys_img_update_status = 'failed - fs errors'
             return
         else:
-            rospy.loginfo("New image filesystem checked and repaired (as necessary)")
+            self.msg_if.pub_info("New image filesystem checked and repaired (as necessary)")
 
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
@@ -597,9 +727,9 @@ class SystemMgrNode():
                 status = False
                 
             if status is False:
-                rospy.logwarn("Automatic rootfs active/inactive switch failed: " + err_msg)
+                self.msg_if.pub_warn("Automatic rootfs active/inactive switch failed: " + err_msg)
             else:
-                rospy.loginfo("Executed automatic rootfs A/B switch... on next reboot new image will load")
+                self.msg_if.pub_info("Executed automatic rootfs A/B switch... on next reboot new image will load")
                 self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
                 self.status_msg.sys_img_update_status = 'complete - needs reboot'
     
@@ -613,16 +743,16 @@ class SystemMgrNode():
             status = False
             
         if status is False:
-            rospy.logwarn("Failed to switch active/inactive rootfs: " + err_msg)
+            self.msg_if.pub_warn("Failed to switch active/inactive rootfs: " + err_msg)
             return
 
         self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
-        rospy.logwarn(
+        self.msg_if.pub_warn(
             "Switched active and inactive rootfs. Must reboot system for changes to take effect")
 
     def handle_archive_inactive_rootfs(self, msg):
         if self.archiving_inactive_image is True:
-            rospy.logwarn("Already in the process of archiving image")
+            self.msg_if.pub_warn("Already in the process of archiving image")
             return
 
         now = datetime.now()
@@ -640,10 +770,10 @@ class SystemMgrNode():
         self.archiving_inactive_image = False
 
         if status is False:
-            rospy.logerr("Failed to backup inactive rootfs: " + err_msg)
+            self.msg_if.pub_warn("Failed to backup inactive rootfs: " + err_msg)
             self.status_msg.sys_img_archive_status = 'failed'
         else:
-            rospy.loginfo("Finished archiving inactive rootfs")
+            self.msg_if.pub_info("Finished archiving inactive rootfs")
             self.status_msg.sys_img_archive_status = 'archive complete'
     
     def provide_system_defs(self, req):
@@ -664,7 +794,7 @@ class SystemMgrNode():
         full_path = os.path.join(data_folder, save_data_prefix)
         parent_path = os.path.dirname(full_path)
         if not os.path.exists(parent_path):
-            rospy.loginfo("Creating new data subdirectory " + parent_path)
+            self.msg_if.pub_info("Creating new data subdirectory " + parent_path)
             os.makedirs(parent_path)
             
             # Gather owner and group details for data folder to propagate them
@@ -711,7 +841,7 @@ class SystemMgrNode():
             self.system_defs_msg.first_stage_rootfs_device = 'N/A'
             (status, err_msg, rootfs_ab_settings_dict) = sw_update_utils.getRootfsABStatusJetson()
         else:
-            rospy.logerr("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
+            self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
         if status is True:
             self.system_defs_msg.active_rootfs_device = self.get_device_friendly_name(rootfs_ab_settings_dict[
@@ -731,7 +861,7 @@ class SystemMgrNode():
             self.system_defs_msg.max_boot_fail_count = rootfs_ab_settings_dict[
                 'max_boot_fail_count']
         else:
-            rospy.logwarn(
+            self.msg_if.pub_warn(
                 "Unable to gather ROOTFS A/B system definitions: " + err_msg)
             self.system_defs_msg.active_rootfs_device = "Unknown"
             self.system_defs_msg.inactive_rootfs_device = "Unknown"
@@ -756,23 +886,23 @@ class SystemMgrNode():
                           candidate = line.split()[0] # First token is the device
                           if candidate.startswith('/dev/'):
                               self.nepi_storage_device = candidate
-                              rospy.loginfo('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
+                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
                               return
                           else:
-                              rospy.logwarn('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
+                              self.msg_if.pub_warn('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
             
           # If we get here, failed to get the storage device from /etc/fstab
-          rospy.logwarn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
+          self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
           if not nepi_ros.has_param(self,"~nepi_storage_device"):
-              rospy.logerr("Parameter nepi_storage_device not available -- falling back to hard-coded " + self.nepi_storage_device)
+              self.msg_if.pub_warn("Parameter nepi_storage_device not available -- falling back to hard-coded " + self.nepi_storage_device)
           else:
               self.nepi_storage_device = nepi_ros.get_param(self,
                 "~nepi_storage_device", self.nepi_storage_device)
-              rospy.loginfo("Identified NEPI storage device " + self.nepi_storage_device + ' from config file')
+              self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage_device + ' from config file')
         else:
             self.nepi_storage_device = self.storage_mountpoint
     
-    def updateFromParamServer(self):
+    def initConfig(self):
         op_env = nepi_ros.get_param(self,
             "~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
         # Publish it to all subscribers (which includes this node) to ensure the parameter is applied

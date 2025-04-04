@@ -138,16 +138,20 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-   src/sdk_node.cpp
-   src/sdk_interface.cpp
-   src/sdk_utils.cpp
-   src/save_data_interface.cpp
-   src/algorithms/approx_moving_avg.cpp
+    src/sdk_utils.cpp
+    src/sdk_node.cpp
+    src/sdk_interface.cpp
+    src/algorithms/approx_moving_avg.cpp
 
 )
 
 
- 
+catkin_install_python(PROGRAMS
+  scripts/nepi_ai_detector_img_pub_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+
 #############
 ## Install 
 #############
@@ -184,30 +188,7 @@ install(TARGETS ${PROJECT_NAME}
 #)
 
 
-set( NEPI_SDK_SHARE_FOLDER 
-  # Must hard-coded 
-  /opt/nepi/ros/share/nepi_sdk/scripts
-)
 
-install(DIRECTORY scripts/
-  DESTINATION ${NEPI_SDK_SHARE_FOLDER} 
-  FILES_MATCHING PATTERN "*.py"
-)
-
-set( NEPI_SDK_FOLDER 
-  # Must hard-coded 
-  /opt/nepi/ros/lib/python3/dist-packages/nepi_sdk
-)
-
-install(DIRECTORY sdk/
-  DESTINATION ${NEPI_SDK_FOLDER} 
-  FILES_MATCHING PATTERN "*.py"
-)
-
-install(DIRECTORY ifs/
-  DESTINATION ${NEPI_SDK_FOLDER} 
-  FILES_MATCHING PATTERN "*.py"
-)
 
 
 #############

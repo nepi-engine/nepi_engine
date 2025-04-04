@@ -34,9 +34,12 @@ from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryResponse
 from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
 
-from nepi_sdk.mgr_if_system import MgrSystemIF
-from nepi_sdk.settings_if import SettingsIF
-from nepi_sdk.save_cfg_if import SaveCfgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+from nepi_api.sys_if_settings import SettingsIF
+from nepi_api.sys_if_save_cfg import SaveCfgIF
 
 
 DRIVERS_SHARE_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
@@ -84,90 +87,115 @@ class NepiDriversMgr(object):
 
   active_node_dict = dict()
 
+  drivers_status_pub = None
+  driver_status_pub = None
+
+  init_drvs_dict = dict()      
+  init_retry_enabled =  False
+  init_backup_enabled = True
+
   #######################
   ### Node Initialization
   DEFAULT_NODE_NAME = "drivers_mgr" # Can be overwitten by luanch command
   def __init__(self):
     #### APP NODE INIT SETUP ####
     nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-    self.node_name = nepi_ros.get_node_name()
     self.base_namespace = nepi_ros.get_base_namespace()
-    nepi_msg.createMsgPublishers(self)
-    nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
-    ##############################
+    self.node_name = nepi_ros.get_node_name()
+    self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+    ##############################  
+    # Create Msg Class
+    self.msg_if = MsgIF(log_name = None)
+    self.msg_if.pub_info("Starting IF Initialization Processes")
 
     ##############################
+    # Initialize Params
+    self.initCb(do_updates = False)
+
+    ###########################
     ## Wait for NEPI core managers to start
     # Wait for System Manager
-    mgr_sys_if = MgrSystemIF()
-    success = mgr_sys_if.wait_for_status()
+    self.msg_if.pub_info("Starting ConnectSystemIF processes")
+    mgr_sys_if = ConnectMgrSystemIF()
+    self.msg_if.pub_info("Waiting for system if initialiation to complete")
+    success = mgr_sys_if.wait_for_connection()
+    self.msg_if.pub_info("Got system connection: " + str(success))
     if success == False:
       nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
     self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
-    nepi_msg.publishMsgInfo(self,"Using Drivers Share Folder: " + str(self.drivers_share_folder))
+    self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
     self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
-    nepi_msg.publishMsgInfo(self,"Using Drivers Install Folder: " + str(self.drivers_install_folder))
+    self.msg_if.pub_info("Using Drivers Install Folder: " + str(self.drivers_install_folder))
     self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg/ros',USER_CFG_FOLDER)
-    nepi_msg.publishMsgInfo(self,"Using User Config Folder: " + str(self.user_cfg_folder))
+    self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
     
-    config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
-    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
-    nepi_ros.wait_for_topic(config_status_topic)
-    self.cfg_status = None
-    cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
-    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
-    while(self.cfg_status is None):
-      nepi_ros.sleep(1)
-    cfg_status_sub.unregister()
-    ##############################
+    # Wait for Config Manager
+    mgr_cfg_if = ConnectMgrConfigIF()
+    success = mgr_cfg_if.wait_for_status()
+    #if success == False:
+      #nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+    
 
-   
-    # Setup drvs_mgr params
-    self.save_cfg_if = SaveCfgIF(updateParamsCallback=self.initParamServerValues, 
-                                 paramsModifiedCallback=self.updateFromParamServer)
-    self.save_cfg_if.userReset()
-    time.sleep(1)
-    drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
-    drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
-    ###nepi_msg.publishMsgWarn(self,"Got init drvs dict: " + str(drvs_dict))
-    node_name = 'None'
-    self.init_drvs_dict = drvs_dict
-    nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
 
-    self.initParamServerValues(do_updates = True)
-
+  
+    ###########################
     # Setup Node Status Publisher
     self.drivers_status_pub = rospy.Publisher("~status", DriversStatus, queue_size=1, latch=True)
     self.driver_status_pub = rospy.Publisher("~status_driver", DriverStatus, queue_size=1, latch=True)
 
     time.sleep(1)
-    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
-
-    # Setup message publisher and init param server
-    nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
 
     ## Mgr ROS Setup 
-    mgr_reset_sub = rospy.Subscriber('~factory_reset', Empty, self.resetMgrCb, queue_size = 10)
     mgr_reset_sub = rospy.Subscriber('~refresh_drivers', Empty, self.refreshCb, queue_size = 10)
 
-
-    # Drivers Management Scubscirbers
     rospy.Subscriber('~enable_all_drivers', Empty, self.enableAllCb, queue_size = 10)
     rospy.Subscriber('~disable_all_drivers', Empty, self.disableAllCb, queue_size = 10)
     rospy.Subscriber('~select_driver', String, self.selectDriverCb)
     rospy.Subscriber('~update_state', UpdateState, self.updateStateCb)
     rospy.Subscriber('~update_order', UpdateOrder, self.updateOrderCb)
     rospy.Subscriber('~enable_retry', Bool, self.enableRetryCb)
-
-
-    #rospy.Subscriber('~select_driver_status', DriverUpdateMsg, self.updateMsgCb)
-
     rospy.Subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
     rospy.Subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
     rospy.Subscriber('~remove_driver', String, self.removeDriverCb)
 
     # Start capabilities services
     rospy.Service('~driver_status_query', DriverStatusQuery, self.driverStatusService)
+
+    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
+    ready = self.save_cfg_if.wait_for_ready()
+
+    ###########################
+    # Initialize Params
+    drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
+    self.msg_if.pub_warn("Got start drvs keys: " + str(drvs_dict.keys()))
+    adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    self.msg_if.pub_warn("Got start active drvs: " + str(adrvs))
+    #self.msg_if.pub_warn("Got start drvs dict: " + str(drvs_dict))
+
+    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
+    ready = self.save_cfg_if.wait_for_ready()
+
+    drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
+    self.msg_if.pub_warn("Got cfg_if drvs keys: " + str(drvs_dict.keys()))
+    adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    self.msg_if.pub_warn("Got cfg_if active drvs: " + str(adrvs))
+    #self.msg_if.pub_warn("Got cfg_if drvs dict: " + str(drvs_dict))
+
+    time.sleep(1)
+    drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
+    drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
+    self.msg_if.pub_warn("Got refreshed drvs keys: " + str(drvs_dict.keys()))
+    adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    self.msg_if.pub_warn("Got refreshed active drvs: " + str(adrvs))
+    #self.msg_if.pub_warn("Got init drvs dict: " + str(drvs_dict))
+    node_name = 'None'
+    self.init_drvs_dict = drvs_dict
+    nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
+    self.initCb(do_updates = True)
+
+    ###########################
+    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
 
     # Setup a driver folder timed check
     nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
@@ -178,7 +206,7 @@ class NepiDriversMgr(object):
 
     #########################################################
     ## Initiation Complete
-    nepi_msg.publishMsgInfo(self,"Initialization Complete")
+    self.msg_if.pub_info("Initialization Complete")
     #Set up node shutdown
     nepi_ros.on_shutdown(self.cleanup_actions)
     # Spin forever (until object is detected)
@@ -197,22 +225,41 @@ class NepiDriversMgr(object):
   #######################
   ### Mgr Config Functions
 
-  def resetMgrCb(self,msg):
-    self.resetMgr()
 
-  def resetMgr(self):
-    # reset drivers dict
-    nepi_ros.set_param(self,"~retry_enabled",False)
-    nepi_ros.set_param(self,"~backup_enabled",True)
-    self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
-    self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
-    drvs_dict = nepi_drvs.getDriversgetDriversDict(self.drivers_share_folder)
-    drvs_dict = nepi_drvs.setFactoryDriverOrder(drvs_dict)
-    drvs_dict = activateAllDrivers(drvs_dict)
-    nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
-    self.resetParamServer()
-    self.publish_status()
+  def factoryResetCb(self):
+      self.selected_driver = 'NONE'
+      # reset drivers dict
+      nepi_ros.set_param(self,"~retry_enabled",False)
+      nepi_ros.set_param(self,"~backup_enabled",True)
+      self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
+      self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
+      drvs_dict = nepi_drvs.getDriversgetDriversDict(self.drivers_share_folder)
+      drvs_dict = nepi_drvs.setFactoryDriverOrder(drvs_dict)
+      drvs_dict = activateAllDrivers(drvs_dict)
+      nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
+      self.publish_status()
 
+    
+  def initCb(self,do_updates = False):
+      self.msg_if.pub_info("Setting init values to param values")
+      self.init_retry_enabled = nepi_ros.get_param(self,"~retry_enabled", False)
+      self.init_backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
+      self.init_drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
+      #nepi_drvs.printDict(drvs_dict)
+      if do_updates == True:
+        self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
+        self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
+        self.init_drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,self.init_drvs_dict)
+        self.resetCb(do_updates)
+        #nepi_drvs.printDict(drvs_dict)
+
+  def resetCb(self,do_updates = True):
+      self.msg_if.pub_warn("Reseting drvs_dict with keys: " + str(self.init_drvs_dict.keys()))
+      nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
+      nepi_ros.set_param(self,"~retry_enabled",self.init_retry_enabled)
+      nepi_ros.set_param(self,"~backup_enabled",self.init_backup_enabled)
+      nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
+      self.publish_status()
 
   def refreshCb(self,msg):
     self.refresh()
@@ -226,45 +273,6 @@ class NepiDriversMgr(object):
     nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
     self.publish_status()
 
-  def saveConfigCb(self, msg):  # Just update Class init values. Saving done by Config IF system
-    pass # Left empty for sim, Should update from param server
-
-  def setCurrentAsDefault(self):
-    self.retry_enabled = nepi_ros.get_param(self,"~retry_enabled",False)
-    self.backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
-
-    
-    self.initParamServerValues(do_updates = False)
-    self.publish_status()
-
-  def updateFromParamServer(self):
-    #nepi_msg.publishMsgWarn(self,"Debugging: param_dict = " + str(param_dict))
-    #Run any functions that need updating on value change
-    # Don't need to run any additional functionsinstallDriverPkgCb
-    pass
-    
-  def initParamServerValues(self,do_updates = True):
-      self.selected_driver = 'NONE'
-      nepi_msg.publishMsgInfo(self,"Setting init values to param values")
-      self.init_retry_enabled = nepi_ros.get_param(self,"~retry_enabled", False)
-      self.init_backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
-      self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
-      self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
-      drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
-      drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
-      self.init_drvs_dict = drvs_dict
-      #nepi_drvs.printDict(drvs_dict)
-      self.resetParamServer(do_updates)
-      #nepi_drvs.printDict(drvs_dict)
-
-  def resetParamServer(self,do_updates = True):
-      nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
-      nepi_ros.set_param(self,"~retry_enabled",self.init_retry_enabled)
-      nepi_ros.set_param(self,"~backup_enabled",self.init_backup_enabled)
-      nepi_ros.set_param(self,"~drvs_dict",self.init_drvs_dict)
-      if do_updates:
-          self.updateFromParamServer()
-
 
   def publishStatusCb(self,timer):
     self.publish_status()
@@ -272,12 +280,14 @@ class NepiDriversMgr(object):
   def checkAndUpdateCb(self,_):
     ###############################
     ## First update Database
+    #self.msg_if.pub_warn("Driver update check checking drivers folder: " + str(self.drivers_share_folder))
     drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
+    #self.msg_if.pub_warn("Driver update check got driver files: " + str(drivers_files))
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     need_update = self.drivers_files != drivers_files
     if need_update:
-      nepi_msg.publishMsgInfo(self,"Need to Update Drv Database")
-      self.initParamServerValues()
+      self.msg_if.pub_warn("Need to Update Drv Database")
+      self.initCb(do_updates = True)
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
@@ -314,14 +324,14 @@ class NepiDriversMgr(object):
 
     ################################    
     ## Do Discovery
-    #nepi_msg.publishMsgWarn(self, "Checking on driver discovery for list: " + str(drvs_ordered_list))
+    #self.msg_if.pub_warn( "Checking on driver discovery for list: " + str(drvs_ordered_list))
     
     retry = nepi_ros.get_param(self,"~retry_enabled",self.init_retry_enabled)
     for driver_name in drvs_ordered_list:
       if driver_name in drvs_active_list:
         drv_dict = drvs_dict[driver_name]
         drv_dict['user_cfg_path'] = self.user_cfg_folder
-        #nepi_msg.publishMsgWarn(self, "Checking on driver discovery for: " + driver_name)
+        #self.msg_if.pub_warn( "Checking on driver discovery for: " + driver_name)
         if drv_dict['DISCOVERY_DICT']['file_name'] != "None":
           discovery_path = drv_dict['path']
           discovery_file = drv_dict['DISCOVERY_DICT']['file_name']
@@ -331,7 +341,7 @@ class NepiDriversMgr(object):
 
 
 
-          #nepi_msg.publishMsgWarn(self,"Processing discovery process for driver %s with method %s and process %s",driver_name,discovery_method,discovery_process)
+          #self.msg_if.pub_warn("Processing discovery process for driver %s with method %s and process %s",driver_name,discovery_method,discovery_process)
           ############################
           # Check Auto-Node processes
           remove_from_dict = False
@@ -344,28 +354,28 @@ class NepiDriversMgr(object):
               do_check = (cur_time - launch_time) > self.NODE_LAUNCH_TIME_SEC
               if do_check == True:
                 node_name = self.discovery_node_dict[driver_name]['node_name']
-                running = check_node_by_name(node_name)  
+                running = nepi_ros.check_node_by_name(node_name)  
                 if running == True:
                   drvs_dict[driver_name]['msg'] = "Discovery process running"
                 else:
                   remove_from_dict = True
                   if retry == False:
-                    nepi_msg.publishMsgWarn(self,"Node not running: " + node_name  + " - Will not restart")
+                    self.msg_if.pub_warn("Node not running: " + node_name  + " - Will not restart")
                     self.failed_class_import_list.append(driver_name)
                   else:
-                    nepi_msg.publishMsgWarn(self,"Node not running: " + node_name  + " - Will attempt restart")
+                    self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
             else: 
               if driver_name not in self.failed_class_import_list: # Check for not retry on non-running nodes
                 #Setup required param server drv_dict for discovery node
                 dict_param_name = os.path.join(discovery_node_name, "drv_dict")
-                #nepi_msg.publishMsgWarn(self,"Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
+                #self.msg_if.pub_warn("Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
                 nepi_ros.set_param(self,dict_param_name,drv_dict)
                 #Try and launch node
-                nepi_msg.publishMsgInfo(self,"")
-                nepi_msg.publishMsgInfo(self,"Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))
+                self.msg_if.pub_info("")
+                self.msg_if.pub_info("Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))
                 [success, msg, sub_process] = nepi_drvs.launchDriverNode(discovery_file, discovery_node_name)
                 if success:
-                  nepi_msg.publishMsgInfo(self,"Discovery node: " + discovery_node_name  + " launched with msg: " + msg)
+                  self.msg_if.pub_info("Discovery node: " + discovery_node_name  + " launched with msg: " + msg)
                   drvs_dict[driver_name]['msg'] = "Discovery process lanched"
                   self.discovery_node_dict[driver_name]=dict()
                   self.discovery_node_dict[driver_name]['process'] = "LAUNCH"
@@ -373,11 +383,11 @@ class NepiDriversMgr(object):
                   self.discovery_node_dict[driver_name]['subprocess'] = sub_process
                   self.discovery_node_dict[driver_name]['launch_time'] =  nepi_ros.get_time()  
                 else:
-                  nepi_msg.publishMsgWarn(self,"Failed to Launch discovery node: " + discovery_node_name  + " with msg: " + msg)
+                  self.msg_if.pub_warn("Failed to Launch discovery node: " + discovery_node_name  + " with msg: " + msg)
                   drvs_dict[driver_name]['msg'] = msg
                   if retry == False:
                     self.failed_class_import_list.append(discovery_node_name)
-                    nepi_msg.publishMsgWarn(self,"Will not retry discovery node launch: " + discovery_node_name )
+                    self.msg_if.pub_warn("Will not retry discovery node launch: " + discovery_node_name )
 
               
 
@@ -391,24 +401,24 @@ class NepiDriversMgr(object):
           ############################
           # Call Auto-Call processes 
           if discovery_process == "CALL":
-            #nepi_msg.publishMsgWarn(self, "Checking on driver discovery class for: " + driver_name + " with drv_dict " + str(drv_dict))
+            #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name + " with drv_dict " + str(drv_dict))
             if driver_name not in self.discovery_classes_dict.keys() and driver_name not in self.failed_class_import_list:
-              nepi_msg.publishMsgInfo(self,"")
-              nepi_msg.publishMsgInfo(self,"Importing discovery class " + discovery_class_name + " for driver " + driver_name)
+              self.msg_if.pub_info("")
+              self.msg_if.pub_info("Importing discovery class " + discovery_class_name + " for driver " + driver_name)
               discovery_module = discovery_file.split('.')[0]
               [success, msg,imported_class] = nepi_drvs.importDriverClass(discovery_file,discovery_path,discovery_module,discovery_class_name)
               if success:
-                nepi_msg.publishMsgInfo(self,"Instantiating discovery class " + discovery_class_name + " with drv_dict " + str(drv_dict))
+                self.msg_if.pub_info("Instantiating discovery class " + discovery_class_name + " with drv_dict " + str(drv_dict))
                 discovery_class = imported_class()
                 self.discovery_classes_dict[driver_name] = discovery_class
-                nepi_msg.publishMsgInfo(self,"Instantiated discovery class " + discovery_class_name + " for driver " + driver_name)
+                self.msg_if.pub_info("Instantiated discovery class " + discovery_class_name + " for driver " + driver_name)
               else: 
                 if retry == False:
                   self.failed_class_import_list.append(driver_name)
-                nepi_msg.publishMsgInfo(self,"Failed to import discovery class " + discovery_class_name + " for driver " + driver_name)
+                self.msg_if.pub_info("Failed to import discovery class " + discovery_class_name + " for driver " + driver_name)
             elif driver_name not in self.failed_class_import_list:
-              #nepi_msg.publishMsgInfo(self,"")
-              #nepi_msg.publishMsgWarn(self,"Calling discovery function for class: " + discovery_class_name + " for driver " + driver_name)
+              #self.msg_if.pub_info("")
+              #self.msg_if.pub_warn("Calling discovery function for class: " + discovery_class_name + " for driver " + driver_name)
               discovery_class = self.discovery_classes_dict[driver_name]
               active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
               if active_paths_list is None:
@@ -420,8 +430,9 @@ class NepiDriversMgr(object):
           # update options in param server
           if driver_name not in self.discovery_options_dict.keys() and driver_name not in self.failed_class_import_list:
               success = self.createDriverOptionsIf(driver_name,drvs_dict)
-              self.save_cfg_if.saveConfig(do_param_updates = False) # Save config on options change
-              nepi_msg.publishMsgInfo(self,"Instantiated discovery settings IF class " + discovery_node_name + " for driver " + driver_name)
+              if self.save_cfg_if is not None:
+                self.save_cfg_if.save() # Save config on options change
+              self.msg_if.pub_info("Instantiated discovery settings IF class " + discovery_node_name + " for driver " + driver_name)
           if driver_name in self.discovery_options_dict.keys():
             self.publishOptionsStatus(driver_name) 
 
@@ -432,14 +443,14 @@ class NepiDriversMgr(object):
     nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
-    nepi_msg.publishMsgInfo(self,"Creating driver options dict: " + driver_name)
+    self.msg_if.pub_info("Creating driver options dict: " + driver_name)
     self.discovery_options_dict[driver_name] = dict()
     drv_dict = drvs_dict[driver_name]
     options_node_name = drv_dict['DISCOVERY_DICT']['node_name']
     options_namespace = os.path.join(self.base_namespace,options_node_name)
     self.discovery_options_dict[driver_name]['namespace'] = options_namespace
 
-    nepi_msg.publishMsgInfo(self,driver_name + ": Starting discovery options processes for namespace: " + options_namespace)
+    self.msg_if.pub_info("Starting discovery options processes for namespace: " + options_namespace)
 
     options_status_pub = rospy.Publisher(options_namespace + '/settings_status', Settings, queue_size=1, latch=True)
     self.discovery_options_dict[driver_name]['status_pub'] = options_status_pub
@@ -456,14 +467,14 @@ class NepiDriversMgr(object):
 
   def provide_capabilities(self, req):
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
-    nepi_msg.publishMsgInfo(self,"Got capabilities req: " + str(req))
+    self.msg_if.pub_info("Got capabilities req: " + str(req))
     namespace = req.namespace
     capabilities_report = SettingsCapabilitiesQueryResponse()
     for driver_name in self.discovery_options_dict.keys():
       options_dict = self.discovery_options_dict[driver_name]
       dict_namespace = options_dict['namespace']
-      #nepi_msg.publishMsgInfo(self,"Looking for namespace: " + namespace)
-      #nepi_msg.publishMsgInfo(self,"Have namespace: " + dict_namespace)
+      #self.msg_if.pub_info("Looking for namespace: " + namespace)
+      #self.msg_if.pub_info("Have namespace: " + dict_namespace)
       if namespace == dict_namespace:
         drv_dict = drvs_dict[driver_name]
         drv_options = drv_dict['DISCOVERY_DICT']['OPTIONS']
@@ -484,19 +495,19 @@ class NepiDriversMgr(object):
    
   def updateSettingCb(self,msg, args):
       namespace = args
-      nepi_msg.publishMsgInfo(self,"Received settings update msg " + str(msg))
+      self.msg_if.pub_info("Received settings update msg " + str(msg))
       found_driver_name = None
       for driver_name in self.discovery_options_dict.keys():
         options_dict = self.discovery_options_dict[driver_name]
         dict_namespace = options_dict['namespace']
-        #nepi_msg.publishMsgInfo(self,"Looking for namespace: " + namespace)
-        #nepi_msg.publishMsgInfo(self,"Have namespace: " + dict_namespace)
+        #self.msg_if.pub_info("Looking for namespace: " + namespace)
+        #self.msg_if.pub_info("Have namespace: " + dict_namespace)
         if namespace == dict_namespace:
           found_driver_name = driver_name
           break
       if found_driver_name is not None:
         setting = nepi_settings.parse_setting_update_msg_data(msg)
-        nepi_msg.publishMsgInfo(self,"Updating option: " + str(setting) + " for driver " + found_driver_name)
+        self.msg_if.pub_info("Updating option: " + str(setting) + " for driver " + found_driver_name)
         self.updateSetting(found_driver_name,setting)
 
   def updateSetting(self,driver_name, setting):
@@ -514,18 +525,18 @@ class NepiDriversMgr(object):
         option_cap['options'] =  drv_option['options']
       valid = nepi_settings.check_valid_setting(setting,options_cap_dict)
       if valid == True:
-        #nepi_msg.publishMsgWarn(self,"Updating setting " + str(setting))
+        #self.msg_if.pub_warn("Updating setting " + str(setting))
         option_name = setting['name']
         option_value = setting['value']
         try:
           drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = option_value
           nepi_ros.set_param(self,"~drvs_dict",drvs_dict)
-          nepi_msg.publishMsgInfo(self,"Update option " + str(setting) + " for driver: " + driver_name)
+          self.msg_if.pub_info("Update option " + str(setting) + " for driver: " + driver_name)
         except Exception as e:
-          nepi_msg.publishMsgWarn(self,"Failed to update option " + str(setting) + " for driver: " + driver_name + " with e " + str(e))
+          self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " with e " + str(e))
       else:
-        nepi_msg.publishMsgWarn(self,"Failed to update option " + str(setting) + " for driver: " + driver_name + " NOT VALID")
-      self.save_cfg_if.saveConfig(do_param_updates = False)
+        self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " NOT VALID")
+      self.save_cfg_if.save()
       self.publishOptionsStatus(driver_name)   
 
 
@@ -562,10 +573,10 @@ class NepiDriversMgr(object):
     service_driver_msg.pkg_name = driver_name
     if driver_name in drvs_dict.keys() and driver_name != 'NONE':
       drv_dict = drvs_dict[driver_name]
-      #nepi_msg.publishMsgInfo(self,"Creating Drv Status Msg from Dict: " + str(drv_dict))
-      #nepi_msg.publishMsgInfo(self,"")
+      #self.msg_if.pub_info("Creating Drv Status Msg from Dict: " + str(drv_dict))
+      #self.msg_if.pub_info("")
       try:
-        #nepi_msg.publishMsgInfo(self,"Driver Dict: " + str(drv_dict))
+        #self.msg_if.pub_info("Driver Dict: " + str(drv_dict))
         service_driver_msg.type = drv_dict['type']
         service_driver_msg.group_id = drv_dict['group_id']
         service_driver_msg.display_name = drv_dict['display_name']
@@ -574,9 +585,9 @@ class NepiDriversMgr(object):
         service_driver_msg.order  = drv_dict['order']
         service_driver_msg.msg_str = drv_dict['msg']
       except Exception as e:
-        nepi_msg.publishMsgWarn(self,"Failed to create drv status msg for : " + str(drv_dict) + " " + str(e))
-      #nepi_msg.publishMsgInfo(self,"Returning Drv Status Msg: " + str(service_driver_msg))
-      #nepi_msg.publishMsgInfo(self,"")
+        self.msg_if.pub_warn("Failed to create drv status msg for : " + str(drv_dict) + " " + str(e))
+      #self.msg_if.pub_info("Returning Drv Status Msg: " + str(service_driver_msg))
+      #self.msg_if.pub_info("")
     return service_driver_msg
 
 
@@ -585,14 +596,14 @@ class NepiDriversMgr(object):
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
-    nepi_msg.publishMsgInfo(self,'')
-    nepi_msg.publishMsgInfo(self,'*******************')
-    nepi_msg.publishMsgInfo(self,'Printing Drv Driver Dictionary')
+    self.msg_if.pub_info('')
+    self.msg_if.pub_info('*******************')
+    self.msg_if.pub_info('Printing Drv Driver Dictionary')
     for driver_name in drvs_dict.keys():
       drv_dict = drvs_dict[driver_name]
-      nepi_msg.publishMsgInfo(self,'')
-      nepi_msg.publishMsgInfo(self,driver_name)
-      nepi_msg.publishMsgInfo(self,str(drv_dict))
+      self.msg_if.pub_info('')
+      self.msg_if.pub_info()
+      self.msg_if.pub_info(str(drv_dict))
 
   def publish_status(self):
     self.publish_drivers_status()
@@ -605,18 +616,19 @@ class NepiDriversMgr(object):
   def publish_drivers_status(self):
     self.last_status_drivers_msg = self.status_drivers_msg
     self.status_drivers_msg = self.getDriversStatusMsg()
-    if not nepi_ros.is_shutdown():
-      #nepi_msg.publishMsgWarn(self,"DriversStatus: " + str(self.status_drivers_msg))
+    if self.drivers_status_pub is not None and not nepi_ros.is_shutdown():
+      #self.msg_if.pub_warn("DriversStatus: " + str(self.status_drivers_msg))
       self.drivers_status_pub.publish(self.status_drivers_msg)
-      if self.last_status_drivers_msg != self.status_drivers_msg:
-        self.save_cfg_if.saveConfig(do_param_updates = False) # Save config after initialization for drvt time
+      if self.save_cfg_if is not None:
+        if self.last_status_drivers_msg != self.status_drivers_msg:
+          self.save_cfg_if.save() # Save config after initialization for drvt time
 
   def getDriversStatusMsg(self):
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
-    #nepi_msg.publishMsgWarn(self,"DriversStatus Drv List: " + str(drvs_ordered_list))
+    #self.msg_if.pub_warn("DriversStatus Drv List: " + str(drvs_ordered_list))
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    #nepi_msg.publishMsgWarn(self,"DriversStatus Active List: " + str(drvs_active_list))
+    #self.msg_if.pub_warn("DriversStatus Active List: " + str(drvs_active_list))
     status_drivers_msg = DriversStatus()
     status_drivers_msg.pkg_list = drvs_ordered_list
     name_list = []
@@ -656,11 +668,11 @@ class NepiDriversMgr(object):
   def publish_driver_status(self):
     self.last_status_driver_msg = self.status_driver_msg
     self.status_driver_msg = self.getDriverStatusMsg()
-    if not nepi_ros.is_shutdown():
-      #nepi_msg.publishMsgWarn(self,"DriverStatus: " + str(self.status_driver_msg))
+    if self.driver_status_pub is not None and not nepi_ros.is_shutdown():
+      #self.msg_if.pub_warn("DriverStatus: " + str(self.status_driver_msg))
       self.driver_status_pub.publish(self.status_driver_msg)
       if self.last_status_driver_msg != self.status_driver_msg:
-        self.save_cfg_if.saveConfig(do_param_updates = False) # Save config after initialization for drvt time
+        self.save_cfg_if.save() # Save config after initialization for drvt time
 
 
   def getDriverStatusMsg(self):
@@ -670,10 +682,10 @@ class NepiDriversMgr(object):
     status_driver_msg.pkg_name = driver_name
     if driver_name in drvs_dict.keys() and driver_name != 'NONE':
       drv_dict = drvs_dict[driver_name]
-      #nepi_msg.publishMsgWarn(self,"Creating Drv Status Msg from Dict: " + str(drv_dict))
-      #nepi_msg.publishMsgWarn(self,"")
+      #self.msg_if.pub_warn("Creating Drv Status Msg from Dict: " + str(drv_dict))
+      #self.msg_if.pub_warn("")
       try:
-        #nepi_msg.publishMsgWarn(self,"Driver Dict: " + str(drv_dict))
+        #self.msg_if.pub_warn("Driver Dict: " + str(drv_dict))
         status_driver_msg.type = drv_dict['type']
         status_driver_msg.group_id = drv_dict['group_id']
         status_driver_msg.display_name = drv_dict['display_name']
@@ -682,9 +694,9 @@ class NepiDriversMgr(object):
         status_driver_msg.order  = drv_dict['order']
         status_driver_msg.msg_str = drv_dict['msg']
       except Exception as e:
-        nepi_msg.publishMsgWarn(self,"Failed to create drv status msg for : " + str(drv_dict) + " " + str(e))
-      #nepi_msg.publishMsgWarn(self,"Returning Drv Status Msg: " + str(status_driver_msg))
-      #nepi_msg.publishMsgWarn(self,"")
+        self.msg_if.pub_warn("Failed to create drv status msg for : " + str(drv_dict) + " " + str(e))
+      #self.msg_if.pub_warn("Returning Drv Status Msg: " + str(status_driver_msg))
+      #self.msg_if.pub_warn("")
     return status_driver_msg
 
 
@@ -709,7 +721,7 @@ class NepiDriversMgr(object):
 
 
   def selectDriverCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     driver_name = msg.data
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
     if driver_name in drvs_dict.keys() or driver_name == "NONE":
@@ -717,7 +729,7 @@ class NepiDriversMgr(object):
     self.publish_status()
 
   def updateStateCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     driver_name = msg.name
     new_active_state = msg.active_state
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
@@ -735,7 +747,7 @@ class NepiDriversMgr(object):
 
 
   def updateOrderCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     driver_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
@@ -763,7 +775,7 @@ class NepiDriversMgr(object):
     return drvs_dict
     
   def updateMsgCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     driver_name = msg.name
     msg_data = msg.data
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
@@ -774,13 +786,13 @@ class NepiDriversMgr(object):
 
  
   def enableRetryCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     retry_enabled = msg.data
     nepi_ros.set_param(self,"~retry_enabled",retry_enabled)
     self.publish_status()
 
   def installDriverPkgCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
     if pkg_name in self.drivers_install_files:
@@ -789,7 +801,7 @@ class NepiDriversMgr(object):
     self.publish_status()
 
   def removeDriverCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     driver_name = msg.data
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",self.init_drvs_dict)
     backup_folder = None
@@ -803,7 +815,7 @@ class NepiDriversMgr(object):
 
 
   def enableBackupCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     backup_enabled = msg.data
     nepi_ros.set_param(self,"~backup_enabled",backup_enabled)
     self.publish_status()
@@ -823,7 +835,7 @@ class NepiDriversMgr(object):
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    nepi_msg.publishMsgInfo(self,"Shutting down: Executing script cleanup actions")
+    self.msg_if.pub_info("Shutting down: Executing script cleanup actions")
 
 
 #########################################

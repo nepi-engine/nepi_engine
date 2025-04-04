@@ -21,23 +21,24 @@ import time
 import errno
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+from nepi_sdk import nepi_utils
+ 
 
 from std_msgs.msg import String, Empty
 from nepi_ros_interfaces.srv import FileReset
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
 NEPI_CFG_PATH = '/opt/nepi/ros/etc'
-USER_CFG_PATH = '/mnt/nepi_storage/user_cfg/ros'
+USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
-
-USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 USER_SUFFIX = '.user'
-
-USER_CFGS_FILTER_LIST = ['idx','lsx','ptx','rbx','npx']
 
 pending_nodes = {}
 
@@ -65,11 +66,26 @@ class config_mgr(object):
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
         ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+        ###########################
+
+
 
         rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
         rospy.Subscriber('store_params', String, self.store_params)
@@ -86,7 +102,7 @@ class config_mgr(object):
 
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_ros.spin()
         #########################################################
@@ -96,60 +112,58 @@ class config_mgr(object):
     # chance of filesystem corruption in the event of e.g., power failure, we use a symlink-based config
     # file scheme.
     def symlink_force(self,target, link_name):
+        self.msg_if.pub_info("Will try link update for link " +  link_name  + " with target: " + target )
         link_dirname = os.path.dirname(link_name)
         if not os.path.exists(link_dirname):
-            rospy.logwarn("Skipping symlink for " + link_name + " because path does not exist... missing factory config?")
+            self.msg_if.pub_info("Skipping symlink for " + link_name + " because path does not exist... missing factory config?")
             return False
         try:
             os.symlink(target, link_name)
+            self.msg_if.pub_info("Updated link " +  link_name  + " with target: " + target )
         except OSError as e:
+            self.msg_if.pub_info("Got error updating existing link " +  link_name  + " with target: " + target)
             if e.errno == errno.EEXIST:
+                self.msg_if.pub_info("Recreating link" +  link_name  + " with target: " + target)
                 os.remove(link_name)
                 os.symlink(target, link_name)
             else:
-                rospy.logerr("Unable to create symlink %s for %s: (%s)", link_name, target, str(e))
+                rospy.logerr("Unable to create symlink " + str(e))
                 return False
+        link = nepi_utils.get_symlink_target(link_name)
+        self.msg_if.pub_info("File " + target + " updated with link: " + str(link))
         return True
 
     def separate_node_name_in_msg(self,qualified_node_name):
         return qualified_node_name.split("/")[-1]
 
     def update_from_file(self,file_pathname, namespace):
-        nepi_msg.publishMsgInfo(self,"Updating Params for namespace: " + namespace  + " from file " + file_pathname )
+        self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
         try:
             paramlist = rosparam.load_file(file_pathname, namespace, verbose=False)
-            #nepi_msg.publishMsgWarn(self,"Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
+            #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
 
             for params, ns in paramlist:
                 rosparam.upload_params(ns, params, verbose=False)
         except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Unable to load factory parameters from file " + file_pathname + " " + str(e))
+            self.msg_if.pub_warn("Unable to load factory parameters from file " + file_pathname + " " + str(e))
             return [False]
 
         return [True]
 
     def get_cfg_pathname(self,qualified_node_name):
-        cfg_pathname = USER_CFG_PATH # Fallback path
         node_name = self.separate_node_name_in_msg(qualified_node_name)
-        #nepi_msg.publishMsgWarn(self,"Mgr File Path " + mgr_file_path)
-        topics = nepi_ros.get_topic_list()
-        path_set = False
-        for filter_str in USER_CFGS_FILTER_LIST:
-            filter_topic = os.path.join(qualified_node_name,filter_str)
-            if filter_topic in topics:
-                cfg_pathname = USER_CFG_PATH  + '/' + node_name + CFG_SUFFIX
-                path_set = True
-                break
-        if path_set == False:
-            mgr_file_path = os.path.join(NEPI_CFG_PATH,"nepi_managers",node_name + '.yaml')
-            if os.path.islink(mgr_file_path): # Check if a manager config
-                #nepi_msg.publishMsgInfo(self,"Found manager config: " + qualified_node_name)
-                subfolder_name = "/nepi_managers"
-                cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
-            else:
-                subfolder_name = "/" + node_name
-                cfg_pathname = NEPI_CFG_PATH + subfolder_name  + '/' + node_name + CFG_SUFFIX
-        #nepi_msg.publishMsgWarn(self,"Config " + qualified_node_name + " " + cfg_pathname)
+        self.msg_if.pub_warn("Got node_name: " + qualified_node_name + " " + node_name)
+        cfg_pathname = os.path.join(USER_CFG_PATH,'ros',node_name + CFG_SUFFIX + FACTORY_SUFFIX)
+        mgr_file_path = os.path.join(NEPI_CFG_PATH,"nepi_managers",node_name + CFG_SUFFIX)
+        if os.path.islink(mgr_file_path): # Check if a manager config
+            #self.msg_if.pub_info("Found manager config: " + qualified_node_name)
+            cfg_pathname = mgr_file_path  
+        else:
+            pathname = os.path.join(NEPI_CFG_PATH, node_name + CFG_SUFFIX)    
+            if os.path.islink(pathname) == True:
+                cfg_pathname = pathname
+                    
+        self.msg_if.pub_warn("Got config file path: " + qualified_node_name + " " + cfg_pathname)
         return cfg_pathname
 
     def get_user_cfg_pathname(self,qualified_node_name):
@@ -166,7 +180,7 @@ class config_mgr(object):
     def user_reset(self,req):
         qualified_node_name = req.node_name
         cfg_pathname = self.get_cfg_pathname(qualified_node_name)
-        nepi_msg.publishMsgInfo(self,"User reseting params for node_name: " + qualified_node_name  + " from file " + cfg_pathname)
+        self.msg_if.pub_info("Reseting params for node_name: " + qualified_node_name  + " from file " + cfg_pathname)
         # Now update the param server
         return self.update_from_file(cfg_pathname, qualified_node_name)
 
@@ -176,16 +190,16 @@ class config_mgr(object):
         factory_cfg_pathname = cfg_pathname + FACTORY_SUFFIX
 
         # First, move the symlink
-        if False == self.symlink_force(factory_cfg_pathname, cfg_pathname):
-            return [False] # Error logged upstream
-
+        if os.path.islink(cfg_pathname):
+            if False == self.symlink_force(factory_cfg_pathname, cfg_pathname):
+                return [False] # Error logged upstream
         # Now update the param server
         return self.update_from_file(cfg_pathname, qualified_node_name)
 
     def store_params(self,msg):
         qualified_node_name = msg.data
         user_cfg_pathname = self.get_user_cfg_pathname(qualified_node_name)
-        
+        self.msg_if.pub_info("Storing Params for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # First, write to the user file
         rosparam.dump_params(user_cfg_pathname, qualified_node_name)
 
@@ -214,12 +228,13 @@ class config_mgr(object):
                 if full_name.endswith(CFG_SUFFIX) and os.path.islink(full_name):
                     user_cfg_name = os.path.join(USER_CFG_PATH, 'ros', name + USER_SUFFIX)
                     if os.path.exists(user_cfg_name): # Restrict to those with present user configs
-                        link_name = os.path.join(root, name.replace(FACTORY_SUFFIX, ''))
-                        nepi_msg.publishMsgInfo(self,"Updating " + link_name + " to user config: " + user_cfg_name)
-                        self.symlink_force(user_cfg_name, link_name)
+                        if os.path.islink(name):
+                            link_name = os.path.join(root, name.replace(FACTORY_SUFFIX, ''))
+                            self.msg_if.pub_info("Updating " + link_name + " to user config: " + user_cfg_name)
+                            self.symlink_force(user_cfg_name, link_name)
                     else:
                         pass
-                    	#nepi_msg.publishMsgInfo(self,"User config file does not exist at " + user_cfg_name)
+                    	#self.msg_if.pub_info("User config file does not exist at " + user_cfg_name)
 
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE:
@@ -228,7 +243,7 @@ class config_mgr(object):
                 if os.path.isdir(full_name):
                     full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
-                nepi_msg.publishMsgInfo(self,"Upettings_capabilities_query:1672] call_service InvalidServiceException: Service /nedating " + target + " from user config")
+                self.msg_if.pub_info("Upettings_capabilities_query:1672] call_service InvalidServiceException: Service /nedating " + target + " from user config")
                 # don't overwrite changes to the system's NEPI_ENV_PACKAGE
                 if name == 'sys_env.bash':
                     file_lines = []

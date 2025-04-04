@@ -10,6 +10,7 @@
 
 import os
 from nepi_edge_sdk_base import nepi_ros
+from nepi_sdk import nepi_utils
 
      
 if __name__ == '__main__':
@@ -17,7 +18,7 @@ if __name__ == '__main__':
   USER_CFG_PATH = "/mnt/nepi_storage/user_cfg"
   CAL_BACKUP_PATH = USER_CFG_PATH + "/zed_cals"
   # Try to backup camera calibration files
-  [success,files_copied,files_not_copied] = nepi_ros.copy_files_from_folder(CAL_SRC_PATH,CAL_BACKUP_PATH)
+  [success,files_copied,files_not_copied] = nepi_utils.copy_files_from_folder(CAL_SRC_PATH,CAL_BACKUP_PATH)
   if success:
     #print("Backed up zed cal files")
     if len(files_copied) > 0:
@@ -28,7 +29,7 @@ if __name__ == '__main__':
 
 
     # Try to restore camera calibration files from
-  [success,files_copied,files_not_copied] = nepi_ros.copy_files_from_folder(CAL_BACKUP_PATH,CAL_SRC_PATH)
+  [success,files_copied,files_not_copied] = nepi_utils.copy_files_from_folder(CAL_BACKUP_PATH,CAL_SRC_PATH)
   if success:
     if len(files_copied) > 0:
       strList = str(files_copied)

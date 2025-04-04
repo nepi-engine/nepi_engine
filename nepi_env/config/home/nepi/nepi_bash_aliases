@@ -61,6 +61,11 @@ alias ruibld="
 cd $SRC/..
 ./build_nepi_rui.sh"
 
+# NEPI stop and start shortcuts
+alias nepistop="sudo systemctl stop roslaunch"
+alias nepistart="sudo /opt/nepi/ros/etc/nepi_env/roslaunch.sh"
+
+
 # NEPI ros stop and start shortcuts
 alias rosstop="sudo systemctl stop roslaunch"
 alias rosstart="sudo /opt/nepi/ros/etc/nepi_env/roslaunch.sh"

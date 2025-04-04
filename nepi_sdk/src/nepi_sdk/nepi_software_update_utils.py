@@ -23,7 +23,6 @@ import subprocess
 import shlex
 import psutil
 
-import rospy
 
 # Local rootfs definitions - These can be freely changed
 ###################################################################################################
@@ -156,8 +155,7 @@ def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removabl
     # Detected a single image, so grab the version string from inside it (with the staging parition still mounted, of course)... 
     # this validates that it the image file mountable and is (probably) a nepi rootfs image
     new_img_pathname = img_files[0]
-    status, err_msg, new_img_version = getFWVersionStringForPartition(
-        new_img_pathname)
+    status, err_msg, new_img_version = getFWVersionStringForPartition(new_img_pathname)
     
     if os.path.exists(new_img_pathname):
         new_img_filesize = os.path.getsize(new_img_pathname)

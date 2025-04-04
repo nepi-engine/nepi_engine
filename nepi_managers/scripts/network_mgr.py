@@ -18,12 +18,18 @@ import threading
 import requests
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+ 
 
 from std_msgs.msg import String, Bool, Empty, Int32
 from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.msg import Reset, WifiCredentials
 from nepi_ros_interfaces.srv import IPAddrQuery, FileReset, BandwidthUsageQuery, WifiQuery
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+
 
 class NetworkMgr:
     """The Network Manager Node of the NEPI core SDK.
@@ -73,33 +79,32 @@ class NetworkMgr:
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
-        ##############################
-        # Wait for NEPI core managers to start
-        system_status_topic = os.path.join(self.base_namespace,'system_status')
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
-        nepi_ros.wait_for_topic(system_status_topic)
-        self.sys_status = None
-        sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
-        while(self.sys_status is None):
-            nepi_ros.sleep(1)
-        sys_status_sub.unregister()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
         
-        config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
-        nepi_ros.wait_for_topic(config_status_topic)
-        self.cfg_status = None
-        cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
-        while(self.cfg_status is None):
-            nepi_ros.sleep(1)
-        cfg_status_sub.unregister()
-        self.in_container = self.sys_status.in_container
-        ###############
+        ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+
+        
+        
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+        
 
 
 
@@ -110,7 +115,7 @@ class NetworkMgr:
         self.wifi_iface = None
         self.detectWifiDevice()
         if self.wifi_iface:
-            nepi_msg.publishMsgInfo(self,"Detected WiFi (interface queried = " + self.wifi_iface + ")")
+            self.msg_if.pub_info("Detected WiFi (interface queried = " + self.wifi_iface + ")")
             self.wifi_ap_enabled = False
             self.wifi_ap_ssid = self.DEFAULT_WIFI_AP_SSID
             self.wifi_ap_passphrase = self.DEFAULT_WIFI_AP_PASSPHRASE
@@ -120,29 +125,7 @@ class NetworkMgr:
 
         self.set_upload_bw_limit_from_params()
 
-        # Public namespace stuff
-        rospy.Subscriber('add_ip_addr', String, self.add_ip)
-        rospy.Subscriber('remove_ip_addr', String, self.remove_ip)
-        rospy.Subscriber('enable_dhcp', Bool, self.enable_dhcp)
-        rospy.Subscriber('reset', Reset, self.reset)
-        rospy.Subscriber('save_config', Empty, self.save_config)
-        rospy.Subscriber('set_tx_bw_limit_mbps', Int32, self.set_upload_bwlimit)
-        rospy.Subscriber('set_rosmaster', String, self.set_rosmaster)
 
-        # Private namespace stuff
-        rospy.Subscriber('~reset', Reset, self.reset)
-        rospy.Subscriber('~save_config', Empty, self.save_config)
-
-        rospy.Service('ip_addr_query', IPAddrQuery, self.handle_ip_addr_query)
-        rospy.Service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
-        rospy.Service('wifi_query', WifiQuery, self.handle_wifi_query)
-
-        nepi_ros.timer(nepi_ros.ros_duration(self.BANDWIDTH_MONITOR_PERIOD_S), self.monitor_bandwidth_usage)
-
-        # Long duration internet check -- do oneshot and reschedule from within the callback
-        nepi_ros.timer(nepi_ros.ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
-
-        self.store_params_publisher = rospy.Publisher('store_params', String, queue_size=1)
 
         # Wifi stuff -- only enabled if WiFi is present
         self.wifi_ap_enabled = False
@@ -157,9 +140,33 @@ class NetworkMgr:
         self.available_wifi_networks_lock = threading.Lock()
         self.internet_connected = False
         self.internet_connected_lock = threading.Lock()
-        
+
         if self.wifi_iface:
-            nepi_msg.publishMsgInfo(self,"Detected WiFi on " + self.wifi_iface)
+            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+            self.set_wifi_ap_from_params()
+            self.set_wifi_client_from_params()
+        ###########################
+
+
+        # Private namespace stuff
+        rospy.Subscriber('~reset', Reset, self.reset)
+        rospy.Subscriber('~save_config', Empty, self.save_config)
+
+
+        ###########################
+
+        # Public namespace stuff
+        rospy.Subscriber('add_ip_addr', String, self.add_ip)
+        rospy.Subscriber('remove_ip_addr', String, self.remove_ip)
+        rospy.Subscriber('enable_dhcp', Bool, self.enable_dhcp)
+        rospy.Subscriber('reset', Reset, self.reset)
+        rospy.Subscriber('save_config', Empty, self.save_config)
+        rospy.Subscriber('set_tx_bw_limit_mbps', Int32, self.set_upload_bwlimit)
+        rospy.Subscriber('set_rosmaster', String, self.set_rosmaster)
+
+
+        if self.wifi_iface:
+            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
             self.set_wifi_ap_from_params()
             self.set_wifi_client_from_params()
 
@@ -171,11 +178,31 @@ class NetworkMgr:
 
             rospy.Subscriber('refresh_available_wifi_networks', Empty, self.refresh_available_networks_handler)
         else:
-            nepi_msg.publishMsgInfo(self,"No WiFi detected")
+            self.msg_if.pub_info("No WiFi detected")
+
+
+
+        rospy.Service('ip_addr_query', IPAddrQuery, self.handle_ip_addr_query)
+        rospy.Service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
+        rospy.Service('wifi_query', WifiQuery, self.handle_wifi_query)
+
+        self.store_params_publisher = rospy.Publisher('store_params', String, queue_size=1)
+
+
+
+        ###########################
+
+        
+        nepi_ros.timer(nepi_ros.ros_duration(self.BANDWIDTH_MONITOR_PERIOD_S), self.monitor_bandwidth_usage)
+
+        # Long duration internet check -- do oneshot and reschedule from within the callback
+        nepi_ros.timer(nepi_ros.ros_duration(self.INTERNET_CHECK_INTERVAL_S), self.internet_check, oneshot = True)
+
+
 
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         #########################################################
 
         self.run()
@@ -229,14 +256,14 @@ class NetworkMgr:
         try:
             new_ip_bits = socket.inet_aton(new_ip)
         except:
-            nepi_msg.publishMsgErr(self,"Rejecting invalid IP address " + str(new_ip))
+            self.msg_if.pub_warn("Rejecting invalid IP address " + str(new_ip))
             return False
         if (len(tokens) != 2):
-            nepi_msg.publishMsgErr(self,"Rejecting invalid address must be in CIDR notation (x.x.x.x/y). Got " + str(addr))
+            self.msg_if.pub_warn("Rejecting invalid address must be in CIDR notation (x.x.x.x/y). Got " + str(addr))
             return False
         cidr_netmask = (int)(tokens[1])
         if cidr_netmask < 1 or cidr_netmask > 32:
-            nepi_msg.publishMsgErr(self,"Rejecting invalid CIDR netmask (got " + str(addr))
+            self.msg_if.pub_warn("Rejecting invalid CIDR netmask (got " + str(addr))
             return False
 
         # Finally, verify that this isn't the "fixed" address on the device. Don't let anyone sneak past the same
@@ -246,10 +273,10 @@ class NetworkMgr:
         try:
             fixed_ip_bits = socket.inet_aton(fixed_ip_addr)
         except:
-            nepi_msg.publishMsgErr(self,"Cannot validate IP address becaused fixed IP appears invalid "  + str(fixed_ip_addr))
+            self.msg_if.pub_warn("Cannot validate IP address becaused fixed IP appears invalid "  + str(fixed_ip_addr))
             return False
         if (new_ip_bits == fixed_ip_bits):
-            nepi_msg.publishMsgErr(self,"IP address invalid because it matches fixed primary IP")
+            self.msg_if.pub_warn("IP address invalid because it matches fixed primary IP")
             return False
 
         return True
@@ -258,41 +285,41 @@ class NetworkMgr:
         try:
             subprocess.check_call(['ip','addr','add',new_addr,'dev',self.NET_IFACE])
         except:
-            nepi_msg.publishMsgErr(self,"Failed to set IP address to " + str(new_addr))
+            self.msg_if.pub_warn("Failed to set IP address to " + str(new_addr))
     def add_ip(self, new_addr_msg):
         if True == self.validate_cidr_ip(new_addr_msg.data):
             self.add_ip_impl(new_addr_msg.data)
         else:
-            nepi_msg.publishMsgErr(self,"Unable to add invalid/ineligible IP address")
+            self.msg_if.pub_warn("Unable to add invalid/ineligible IP address")
 
     def remove_ip_impl(self, old_addr):
         try:
             subprocess.check_call(['ip','addr','del',old_addr,'dev',self.NET_IFACE])
         except:
-            nepi_msg.publishMsgErr(self,"Failed to remove IP address " + str(old_addr))
+            self.msg_if.pub_warn("Failed to remove IP address " + str(old_addr))
 
     def remove_ip(self, old_addr_msg):
         if True == self.validate_cidr_ip(old_addr_msg.data):
             self.remove_ip_impl(old_addr_msg.data)
         else:
-            nepi_msg.publishMsgErr(self,"Unable to remove invalid/ineligible IP address")
+            self.msg_if.pub_warn("Unable to remove invalid/ineligible IP address")
 
  
     def enable_dhcp_impl(self, enabled):
         if self.in_container == False:
             if enabled is True:
                 if self.dhcp_enabled is False:
-                    nepi_msg.publishMsgInfo(self,"Enabling DHCP Client")
+                    self.msg_if.pub_info("Enabling DHCP Client")
                     try:
                         subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
                         self.dhcp_enabled = True
                     except Exception as e:
-                        nepi_msg.publishMsgErr(self,"Unable to enable DHCP: " + str(e))
+                        self.msg_if.pub_warn("Unable to enable DHCP: " + str(e))
                 else:
-                    nepi_msg.publishMsgInfo(self,"DHCP already enabled")
+                    self.msg_if.pub_info("DHCP already enabled")
             else:
                 if self.dhcp_enabled is True:
-                    nepi_msg.publishMsgInfo(self,"Disabling DHCP Client")
+                    self.msg_if.pub_info("Disabling DHCP Client")
                     try:
                         # The dhclient -r call below causes all IP addresses on the interface to be dropped, so
                         # we reinitialize them here... this will not work for IP addresses that were
@@ -307,11 +334,11 @@ class NetworkMgr:
                         subprocess.call(['ifup', self.NET_IFACE])
 
                     except Exception as e:
-                        nepi_msg.publishMsgErr(self,"Unable to disable DHCP: " + str(e))
+                        self.msg_if.pub_warn("Unable to disable DHCP: " + str(e))
                 else:
-                    nepi_msg.publishMsgInfo(self,"DHCP already disabled")
+                    self.msg_if.pub_info("DHCP already disabled")
         else:
-            nepi_msg.publishMsgInfo(self,"Ignoring DHCP change request from container. Update in host system")
+            self.msg_if.pub_info("Ignoring DHCP change request from container. Update in host system")
 
     def enable_dhcp(self, enabled_msg):
         self.enable_dhcp_impl(enabled_msg.data)
@@ -324,19 +351,19 @@ class NetworkMgr:
 
     def reset(self, msg):
         if Reset.USER_RESET == msg.reset_type:
-            user_reset_proxy = rospy.ServiceProxy('user_reset', FileReset)
+            user_reset_proxy = nepi_ros.create_service('user_reset', FileReset)
             try:
                 resp = user_reset_proxy(self.self.node_name)
             except rospy.ServiceException as exc:
-                nepi_msg.publishMsgErr(self,"Unable to execute user reset")
+                self.msg_if.pub_warn("Unable to execute user reset")
                 return
             self.set_dhcp_from_params()
         elif Reset.FACTORY_RESET == msg.reset_type:
-            factory_reset_proxy = rospy.ServiceProxy('factory_reset', FileReset)
+            factory_reset_proxy = nepi_ros.create_service('factory_reset', FileReset)
             try:
                 resp = factory_reset_proxy(self.self.node_name)
             except rospy.ServiceException as exc:
-                nepi_msg.publishMsgErr(self,"Unable to execute factory reset")
+                self.msg_if.pub_warn("Unable to execute factory reset")
                 return
 
             # Overwrite the user static IP file with the blank version
@@ -347,7 +374,7 @@ class NetworkMgr:
             self.set_rosmaster_impl("localhost")
 
             self.set_dhcp_from_params()
-            nepi_msg.publishMsgWarn(self,"Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
+            self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
 
         elif Reset.SOFTWARE_RESET:
             nepi_ros.signal_shutdown("{}: shutdown by request".format(self.self.node_name))
@@ -388,7 +415,7 @@ class NetworkMgr:
 
     def set_upload_bwlimit(self, msg):
         if msg.data >= 0 and msg.data < 1:
-            nepi_msg.publishMsgErr(self,'Cannot set bandwidth limit below 1Mbps')
+            self.msg_if.pub_warn('Cannot set bandwidth limit below 1Mbps')
             return
 
         # First, update param server
@@ -422,7 +449,7 @@ class NetworkMgr:
             # Now ensure we can contact the new rosmaster -- if not, bail out
             ret_code = subprocess.call(['nc', '-zvw5', master_ip,  str(self.ROS_MASTER_PORT)])
             if (ret_code != 0):
-                nepi_msg.publishMsgErr(self,"Failed to detect a remote rosmaster at " + master_ip + ":" + str(self.ROS_MASTER_PORT) + "... refusing to update ROS_MASTER_URI")
+                self.msg_if.pub_warn("Failed to detect a remote rosmaster at " + master_ip + ":" + str(self.ROS_MASTER_PORT) + "... refusing to update ROS_MASTER_URI")
                 return
 
         # Edit the sys_env file appropriately
@@ -459,7 +486,7 @@ class NetworkMgr:
             env_loader_lines = []
             ret_code = subprocess.call(['scp', remote_env_loader_file, tmp_env_loader_file])
             if (ret_code != 0):
-                nepi_msg.publishMsgWarn(self,"Failed to get copy of remote file " + remote_env_loader_file + "... not updating ROS_MASTER_URI for that remote host")
+                self.msg_if.pub_warn("Failed to get copy of remote file " + remote_env_loader_file + "... not updating ROS_MASTER_URI for that remote host")
                 continue
             with open(tmp_env_loader_file, "r") as f_in:
                 for line in f_in:
@@ -470,41 +497,41 @@ class NetworkMgr:
                 f_out.writelines(env_loader_lines)
             ret_code = subprocess.call(['scp', tmp_env_loader_file, remote_env_loader_file])
             if (ret_code != 0):
-                nepi_msg.publishMsgWarn(self,"Failed to update remote file " + remote_env_loader_file)
+                self.msg_if.pub_warn("Failed to update remote file " + remote_env_loader_file)
             os.remove(tmp_env_loader_file)
 
-        nepi_msg.publishMsgWarn(self,"Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
+        self.msg_if.pub_warn("Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
 
     def set_upload_bw_limit_from_params(self):
         bw_limit_mbps = -1
         if (nepi_ros.has_param(self,'~tx_bw_limit_mbps')):
             bw_limit_mbps = nepi_ros.get_param(self,'~tx_bw_limit_mbps')
         else:
-            nepi_msg.publishMsgWarn(self,"No tx_bw_limit_mbps param set... will clear all bandwidth limits")
+            self.msg_if.pub_warn("No tx_bw_limit_mbps param set... will clear all bandwidth limits")
 
         # Always clear the current settings
         try:
             subprocess.call([self.WONDERSHAPER_CALL, '-a', self.NET_IFACE, '-c'])
         except Exception as e:
-            nepi_msg.publishMsgErr(self,"Unable to clear current bandwidth limits: " + str(e))
+            self.msg_if.pub_warn("Unable to clear current bandwidth limits: " + str(e))
             return
 
         if bw_limit_mbps < 0: #Sentinel values to clear limits
-            nepi_msg.publishMsgInfo(self,"Cleared bandwidth limits")
+            self.msg_if.pub_info("Cleared bandwidth limits")
             return
 
         # Now acquire the param from param server and update
         bw_limit_kbps = bw_limit_mbps * 1000
         try:
             subprocess.call([self.WONDERSHAPER_CALL, '-a', self.NET_IFACE, '-u', str(bw_limit_kbps)])
-            nepi_msg.publishMsgInfo(self,"Updated TX bandwidth limit to " + str(bw_limit_mbps) + " Mbps")
+            self.msg_if.pub_info("Updated TX bandwidth limit to " + str(bw_limit_mbps) + " Mbps")
             #self.tx_byte_cnt_deque.clear()
         except Exception as e:
-            nepi_msg.publishMsgErr(self,"Unable to set upload bandwidth limit: " + str(e))
+            self.msg_if.pub_warn("Unable to set upload bandwidth limit: " + str(e))
 
     def enable_wifi_ap_handler(self, enabled_msg):
         if self.wifi_iface is None:
-            nepi_msg.publishMsgWarn(self,"Cannot enable WiFi access point - system has no WiFi adapter")
+            self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
             return
         
         # Just set the param and let the ...from_params() function handle the rest
@@ -525,7 +552,7 @@ class NetworkMgr:
         
         if self.wifi_ap_enabled is True:
             if self.wifi_iface is None:
-                nepi_msg.publishMsgWarn(self,"Cannot enable WiFi access point - system has no WiFi adapter")
+                self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
                 return
             try:
                 # Kill any current access point -- no problem if one isn't already running; just returns immediately
@@ -535,31 +562,31 @@ class NetworkMgr:
                 # Use the create_ap command line
                 subprocess.check_call([self.CREATE_AP_CALL, '-n', '--redirect-to-localhost', '--isolate-clients', '--daemon',
                                        self.wifi_iface, self.wifi_ap_ssid, self.wifi_ap_passphrase])
-                nepi_msg.publishMsgInfo(self,"Started WiFi access point: " + str(self.wifi_ap_ssid))
+                self.msg_if.pub_info("Started WiFi access point: " + str(self.wifi_ap_ssid))
             except Exception as e:
-                nepi_msg.publishMsgErr(self,"Unable to start wifi access point with " + str(e))
+                self.msg_if.pub_warn("Unable to start wifi access point with " + str(e))
         else:
             try:
                 subprocess.check_call([self.CREATE_AP_CALL, '--stop', self.wifi_iface])
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,"Unable to terminate wifi access point: " + str(e))
+                self.msg_if.pub_warn("Unable to terminate wifi access point: " + str(e))
 
     def enable_wifi_client_handler(self, enabled_msg):
         if self.wifi_iface is None:
-            nepi_msg.publishMsgWarn(self,"Cannot enable WiFi client - system has no WiFi adapter")
+            self.msg_if.pub_warn("Cannot enable WiFi client - system has no WiFi adapter")
             return
         
         if (enabled_msg.data):
-            nepi_msg.publishMsgInfo(self,"Enabling WiFi client")
+            self.msg_if.pub_info("Enabling WiFi client")
         else:
-            nepi_msg.publishMsgInfo(self,"Disabling WiFi client")
+            self.msg_if.pub_info("Disabling WiFi client")
 
         # Just set the param and let the ...from_params() function handle the rest
         nepi_ros.set_param(self,"~wifi/enable_client", enabled_msg.data)
         self.set_wifi_client_from_params()
 
     def set_wifi_client_credentials_handler(self, msg):
-        nepi_msg.publishMsgInfo(self,"Updating WiFi client credentials (SSID: " + msg.ssid + ", Passphrase: " + msg.passphrase + ")")
+        self.msg_if.pub_info("Updating WiFi client credentials (SSID: " + msg.ssid + ", Passphrase: " + msg.passphrase + ")")
         # Just set the param and let the ...from_params() function handle the rest
         nepi_ros.set_param(self,"~wifi/client_ssid", msg.ssid)
         nepi_ros.set_param(self,"~wifi/client_passphrase", msg.passphrase)
@@ -567,7 +594,7 @@ class NetworkMgr:
         self.set_wifi_client_from_params()
 
     def auto_retry_wifi_client_connect(self, event):
-        nepi_msg.publishMsgInfo(self,"Automatically retrying wifi client setup")
+        self.msg_if.pub_info("Automatically retrying wifi client setup")
         self.set_wifi_client_from_params()
 
     def set_wifi_client_from_params(self):
@@ -577,7 +604,7 @@ class NetworkMgr:
 
         if self.wifi_client_enabled is True:
             if self.wifi_iface is None:
-                nepi_msg.publishMsgWarn(self,"Cannot enable WiFi client - system has no WiFi adapter")
+                self.msg_if.pub_warn("Cannot enable WiFi client - system has no WiFi adapter")
                 return
             try:
                 # First, enable the hardware (might be unnecessary, but no harm)
@@ -597,7 +624,7 @@ class NetworkMgr:
                                 f.write("network={\n\tssid=\"" + self.wifi_client_ssid + "\"\n\tkey_mgmt=NONE\n}")
 
                         start_supplicant_cmd = self.WPA_START_SUPPLICANT_CMD_PRE + [self.wifi_iface] + self.WPA_START_SUPPLICANT_CMD_POST
-                        #nepi_msg.publishMsgErr(self,"DEBUG: Using command " + str(start_supplicant_cmd))
+                        #self.msg_if.pub_warn("DEBUG: Using command " + str(start_supplicant_cmd))
                     
                         subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
                         self.wifi_client_connected = False
@@ -610,23 +637,23 @@ class NetworkMgr:
                             raise Exception("Wifi client failed to connect")
                             
                         subprocess.check_call(['dhclient', '-nw', self.wifi_iface])
-                        nepi_msg.publishMsgInfo(self,"Connected to WiFi network " + connected_ssid)
+                        self.msg_if.pub_info("Connected to WiFi network " + connected_ssid)
                     except Exception as e:
-                        nepi_msg.publishMsgWarn(self,"Failed to start WiFi client (SSID=" + self.wifi_client_ssid + " Passphrase=" + \
+                        self.msg_if.pub_warn("Failed to start WiFi client (SSID=" + self.wifi_client_ssid + " Passphrase=" + \
                                         self.wifi_client_passphrase + "): " + str(e))
                         # Auto retry in 3 seconds
-                        nepi_msg.publishMsgInfo(self,"Automatically retrying Wifi connect in 3 seconds")
+                        self.msg_if.pub_info("Automatically retrying Wifi connect in 3 seconds")
                         if not rospy.is_shutdown():
                             self.retry_wifi_timer = nepi_ros.timer(nepi_ros.ros_duration(3), self.auto_retry_wifi_client_connect, oneshot=True)
                 else:
-                    nepi_msg.publishMsgInfo(self,"Wifi client ready -- need SSID and passphrase to connect")
+                    self.msg_if.pub_info("Wifi client ready -- need SSID and passphrase to connect")
                     self.retry_wifi_timer = None
                 
                 # Run a refresh
                 self.refresh_available_networks_handler(None)
                          
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,"Failed to start WiFi client as configured: " + str(e))
+                self.msg_if.pub_warn("Failed to start WiFi client as configured: " + str(e))
 
         else:
             # Stop the supplicant
@@ -642,10 +669,10 @@ class NetworkMgr:
             try:
                 wifi_client = self.get_wifi_client_connected_ssid()
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,"Failed to get info for WiFi network: " + str(e))
+                self.msg_if.pub_warn("Failed to get info for WiFi network: " + str(e))
                 wifi_client = None
             if ( wifi_client is not None):
-                nepi_msg.publishMsgWarn(self,"Failed to disconnect from WiFi network")
+                self.msg_if.pub_warn("Failed to disconnect from WiFi network")
             else:
                 with self.available_wifi_networks_lock:
                     self.available_wifi_networks = []
@@ -684,11 +711,11 @@ class NetworkMgr:
             #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             response = requests.get("https://www.github.com", timeout=5)
             if prev_connected is False:
-                nepi_msg.publishMsgInfo(self,"Detected new internet connection")
+                self.msg_if.pub_info("Detected new internet connection")
             connected = True
         except Exception as e:
             if prev_connected is True:
-                nepi_msg.publishMsgInfo(self,"Detected internet connection dropped")
+                self.msg_if.pub_info("Detected internet connection dropped")
             connected = False
 
         if prev_connected != connected:
@@ -745,7 +772,7 @@ class NetworkMgr:
 
     def refresh_available_networks_handler(self, msg):
         #if self.wifi_scan_thread is not None:
-        #    nepi_msg.publishMsgInfo(self,"Not refreshing available wifi networks because a refresh is already in progress")
+        #    self.msg_if.pub_info("Not refreshing available wifi networks because a refresh is already in progress")
         #    return
 
         # Clear the list, let the scan thread update it later
@@ -757,14 +784,14 @@ class NetworkMgr:
         self.wifi_scan_thread.start()
     
     def update_available_wifi_networks(self):
-        #nepi_msg.publishMsgWarn(self,"Debugging: Scanning for available WiFi networks")
+        #self.msg_if.pub_warn("Debugging: Scanning for available WiFi networks")
         available_networks = []
         network_scan_cmd = ['iw', self.wifi_iface, 'scan']
         scan_result = ""
         try:
             scan_result = subprocess.check_output(network_scan_cmd, text=True)
         except Exception as e:
-            nepi_msg.publishMsgInfo(self,"Failed to scan for available WiFi networks: " + str(e))
+            self.msg_if.pub_info("Failed to scan for available WiFi networks: " + str(e))
         for scan_line in scan_result.splitlines():
             if "SSID:" in scan_line:
                 network = scan_line.split(':')[1].strip()
@@ -782,7 +809,7 @@ class NetworkMgr:
             # For now, just check for the existence of a single interface
             if line.strip().startswith('Interface'):
                if 'p2p' in line: # Peer-to-peer/WiFi Direct: NEPI does not support
-                   nepi_msg.publishMsgWarn(self,"Ignoring P2P WiFi Direct interface " + line.strip().split()[1])
+                   self.msg_if.pub_warn("Ignoring P2P WiFi Direct interface " + line.strip().split()[1])
                    continue
                self.wifi_iface = line.strip().split()[1]
                return 

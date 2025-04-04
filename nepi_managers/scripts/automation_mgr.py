@@ -20,7 +20,7 @@ import psutil
 import rospy
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+ 
 
 from std_msgs.msg import Empty
 from nepi_ros_interfaces.msg import SystemStatus
@@ -38,14 +38,27 @@ from nepi_ros_interfaces.srv import (
     SystemStorageFolderQuery
 )
 
-from nepi_sdk.save_cfg_if import SaveCfgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+from nepi_api.sys_if_save_cfg import SaveCfgIF
 from nepi_ros_interfaces.msg import AutoStartEnabled
 
 
+SCRIPTS_FOLDER = "/mnt/nepi_storage/automation_scripts"
+SCRIPTS_LOG_FOLDER = "/mnt/nepi_storage/logs/automation_script_logs"
+
 class AutomationManager:
-    AUTOMATION_DIR = "/mnt/nepi_storage/automation_scripts"
+
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
-    SCRIPT_LOG_PATH = "/mnt/nepi_storage/logs/automation_script_logs"
+
+    scripts_folder = SCRIPTS_FOLDER
+    scripts_log_folder = SCRIPTS_LOG_FOLDER
+
+    processes = {}
+    script_counters = {}
+    script_configs = {} # Dictionary of dictionaries  
 
     #######################
     ### Node Initialization
@@ -53,100 +66,89 @@ class AutomationManager:
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
         ##############################
-        # Wait for NEPI core managers to start
-        system_status_topic = os.path.join(self.base_namespace,'system_status')
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
-        nepi_ros.wait_for_topic(system_status_topic)
-        self.sys_status = None
-        sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
-        while(self.sys_status is None):
-            nepi_ros.sleep(1)
-        sys_status_sub.unregister()
-        
-        config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
-        nepi_ros.wait_for_topic(config_status_topic)
-        self.cfg_status = None
-        cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
-        while(self.cfg_status is None):
-            nepi_ros.sleep(1)
-        cfg_status_sub.unregister()
+        # Initialize Params
+        self.initCb(do_updates = False)
+
         ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+        self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
+        self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
+
+        self.scripts_log_folder = mgr_sys_if.get_sys_folder_path('logs/automation_script_logs',SCRIPTS_LOG_FOLDER)
+        self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
-        get_folder_name_service = self.base_namespace + 'system_storage_folder_query'
-        nepi_msg.publishMsgInfo(self,"Waiting for system automation scripts folder query service " + get_folder_name_service)
-        rospy.wait_for_service(get_folder_name_service)
-        nepi_msg.publishMsgInfo(self,"Calling system automation scripts folder query service " + get_folder_name_service)
-        try:
-            nepi_msg.publishMsgInfo(self,"Getting automation scripts folder query service " + get_folder_name_service)
-            folder_query_service = rospy.ServiceProxy(get_folder_name_service, SystemStorageFolderQuery)
+        
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+        
 
-            response = folder_query_service('automation_scripts')
-            nepi_msg.publishMsgInfo(self,"Got automation scripts folder path" + response.folder_path)
-            self.AUTOMATION_DIR = response.folder_path
-            
-            response = folder_query_service('logs/automation_script_logs')
-            nepi_msg.publishMsgInfo(self,"Got automation scripts log folder path" + response.folder_path)
-            self.SCRIPT_LOG_PATH = response.folder_path
-        except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Failed to obtain automation scripts folder, falling back to: " + self.AUTOMATION_DIR + " " + str(e))
+        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb)
+        ready = self.save_cfg_if.wait_for_ready()
 
-
+        ###########################
+        # Initialize Params
         self.script_stop_timeout_s = nepi_ros.get_param(self,'~script_stop_timeout_s', self.DEFAULT_SCRIPT_STOP_TIMEOUT_S)
-
-        self.save_cfg_if = SaveCfgIF(updateParamsCallback=self.setCurrentSettingsAsDefault, paramsModifiedCallback=self.updateFromParamServer)
-
         self.scripts = self.get_scripts()
         self.file_sizes = self.get_file_sizes()
-
-        self.processes = {}
-
-        self.script_counters = {}
         for script in self.scripts:
             #TODO: These should be gathered from a stats file on disk to remain cumulative for all time (clearable on ROS command)
             self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
 
-        self.script_configs = {} # Dictionary of dictionaries  
         self.setupScriptConfigs()
-        self.updateFromParamServer() # Call this to grab the parameters initially
-                
         self.running_scripts = set()
-
-        self.get_scripts_service = rospy.Service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
-        self.get_running_scripts_service = rospy.Service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
-        self.launch_script_service = rospy.Service("launch_script", LaunchScript, self.handle_launch_script)
-        self.stop_script_service = rospy.Service("stop_script", StopScript, self.handle_stop_script)
-        self.get_system_stats_service = rospy.Service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
 
         self.monitor_thread = threading.Thread(target=self.monitor_scripts)
         self.monitor_thread.daemon = True
         self.monitor_thread.start()
 
-        self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.AUTOMATION_DIR, self.on_file_change))
+        self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.scripts_folder, self.on_file_change))
         self.watch_thread.daemon = True
         self.watch_thread.start()
-
-        # Subscribe to topics
-        rospy.Subscriber('enable_script_autostart', AutoStartEnabled, self.AutoStartEnabled_cb)
 
         # Autolaunch any scripts that are so-configured
         for script_name in self.script_configs:
             script_config = self.script_configs[script_name]
             if script_config['auto_start'] is True:
-                nepi_msg.publishMsgInfo(self,"Auto-starting " + script_name)
+                self.msg_if.pub_info("Auto-starting " + script_name)
                 req = LaunchScriptRequest(script_name)
                 self.handle_launch_script(req)
 
-        #########################################################
+        self.initCb(do_updates = True)
+
+        ######################\
+        ## Node Services
+        self.get_scripts_service = rospy.Service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
+        self.get_running_scripts_service = rospy.Service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
+        self.launch_script_service = rospy.Service("launch_script", LaunchScript, self.handle_launch_script)
+        self.stop_script_service = rospy.Service("stop_script", StopScript, self.handle_stop_script)
+        self.get_system_stats_service = rospy.Service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
+        rospy.Subscriber('enable_script_autostart', AutoStartEnabled, self.AutoStartEnabled_cb)
+
+
+
+
+        ###########################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_ros.spin()
         #########################################################
@@ -175,40 +177,40 @@ class AutomationManager:
         # Ensure all known scripts have a script_config
         for script_name in script_list:
             if script_name not in self.script_configs:
-                #nepi_msg.publishMsgWarn(self,"Initializing config for " + script_name)
+                #self.msg_if.pub_warn("Initializing config for " + script_name)
                 self.script_configs[script_name] = {'auto_start': False, 'cmd_line_args': ''}
 
                 # Good place to dos2unix it
-                subprocess.call(['dos2unix', os.path.join(self.AUTOMATION_DIR, script_name)])
+                subprocess.call(['dos2unix', os.path.join(self.scripts_folder, script_name)])
 
         # And make sure any unknown scripts don't
         configs_to_delete = [] # Can't delete configs while iterating over them -- runtime error, so just capture them here and then delete in a fresh loop
         for script_name in self.script_configs:
             if script_name not in self.scripts:
-                nepi_msg.publishMsgInfo(self,"Purging unknown script " + script_name + "from script_configs")
+                self.msg_if.pub_info("Purging unknown script " + script_name + "from script_configs")
                 configs_to_delete.append(script_name)
         for script_name in configs_to_delete:
             del self.script_configs[script_name]
 
     def update_script_configs(self):
-        #nepi_msg.publishMsgWarn(self,"Ready to run update_script_configs!!!")
+        #self.msg_if.pub_warn("Ready to run update_script_configs!!!")
         script_configs = {} # Dictionary of dictionaries
         try:
             script_configs = nepi_ros.get_param(self,'~script_configs')
         except KeyError:
-            #nepi_msg.publishMsgWarn(self,"Parameter ~script_configs does not exist")
+            #self.msg_if.pub_warn("Parameter ~script_configs does not exist")
             script_configs = {}
 
         for script_name in script_configs:
             if script_name not in self.scripts:
-                nepi_msg.publishMsgWarn(self,"Config file includes configuration for unknown script " + script_name  + "... skipping this config")
+                self.msg_if.pub_warn("Config file includes configuration for unknown script " + script_name  + "... skipping this config")
                 continue
 
             script_config = script_configs[script_name]
-            nepi_msg.publishMsgInfo(self,script_name + " configuration from param server: " + str(script_config))
+            self.msg_if.pub_info(script_name + " configuration from param server: " + str(script_config))
 
             if 'auto_start' not in script_config or 'cmd_line_args' not in script_config:
-                nepi_msg.publishMsgWarn(self,"Invalid config. file settings for script " + script_name + "... skipping this config")
+                self.msg_if.pub_warn("Invalid config. file settings for script " + script_name + "... skipping this config")
                 continue
 
             self.script_configs[script_name]['auto_start'] = script_config['auto_start']
@@ -216,24 +218,25 @@ class AutomationManager:
         
     def AutoStartEnabled_cb(self, msg):
         if msg.script not in self.script_configs:
-            nepi_msg.publishMsgWarn(self,"Cannot configure autostart for unknown script " + msg.script)
+            self.msg_if.pub_warn("Cannot configure autostart for unknown script " + msg.script)
             return
         
-        nepi_msg.publishMsgInfo(self,"Script AUTOSTART : " + msg.script + " - " + str(msg.enabled))
+        self.msg_if.pub_info("Script AUTOSTART : " + msg.script + " - " + str(msg.enabled))
         
         self.script_configs[msg.script]['auto_start'] = msg.enabled
 
         # This is an unusual parameter in that it triggers an automatic save of the config file
         # so update the param server, then tell it to save the file via store_params
-        # saveConfig() will trigger the setCurrentSettingsAsDefault callback, so param server will
+        # saveConfig() will trigger the initCb callback, so param server will
         # be up-to-date before the file gets saved
-        self.save_cfg_if.saveConfig(Empty)
+        self.save_cfg_if.save()
 
-    def updateFromParamServer(self):
-        # Read the script_configs parameter from the ROS parameter server
-        self.update_script_configs()
+    def initCb(self, do_updates = False):
+        if do_updates == True:
+            # Read the script_configs parameter from the ROS parameter server
+            self.update_script_configs()
 
-    def setCurrentSettingsAsDefault(self):
+    def resetCb(self):
         nepi_ros.set_param(self,'~script_configs', self.script_configs)
         nepi_ros.set_param(self,'~script_stop_timeout_s', self.script_stop_timeout_s)
         
@@ -243,8 +246,8 @@ class AutomationManager:
         """
         #self.scripts = self.get_scripts()
         scripts = []
-        for filename in os.listdir(self.AUTOMATION_DIR):
-            filepath = os.path.join(self.AUTOMATION_DIR, filename)
+        for filename in os.listdir(self.scripts_folder):
+            filepath = os.path.join(self.scripts_folder, filename)
             if not os.path.isdir(filepath):
                 scripts.append(filename)
         return scripts
@@ -272,7 +275,7 @@ class AutomationManager:
 
     def on_file_change(self, file_path, file_deleted):
         script_name = os.path.basename(file_path)
-        #nepi_msg.publishMsgInfo(self,"File change detected: %s", os.path.basename(script_name))
+        #self.msg_if.pub_info("File change detected: %s", os.path.basename(script_name))
         
         #Update the scripts list
         self.scripts = self.get_scripts()
@@ -304,7 +307,7 @@ class AutomationManager:
         """
         file_sizes = {}
         for filename in self.scripts:
-            filepath = os.path.join(self.AUTOMATION_DIR, filename)
+            filepath = os.path.join(self.scripts_folder, filename)
             file_size = os.path.getsize(filepath)
             file_sizes[filename] = file_size
         return file_sizes
@@ -317,7 +320,7 @@ class AutomationManager:
         Handle a request to get a list of currently running scripts.
         """
         running_scripts = sorted(list(self.running_scripts))
-        #nepi_msg.publishMsgInfo(self,"Running scripts: %s" % running_scripts)
+        #self.msg_if.pub_info("Running scripts: %s" % running_scripts)
 
         return GetRunningScriptsQueryResponse(running_scripts)
 
@@ -329,7 +332,7 @@ class AutomationManager:
             if req.script not in self.running_scripts:
                 try:
                     # Ensure the script is executable (and readable/writable -- why not)
-                    script_full_path = os.path.join(self.AUTOMATION_DIR, req.script)
+                    script_full_path = os.path.join(self.scripts_folder, req.script)
                     os.chmod(script_full_path, 0o774)
 
                     # Set up logfile. Because we pipe stdout from the script into the file, we must pay attention to buffering at
@@ -337,7 +340,7 @@ class AutomationManager:
                     # to ensure that the script print() calls don't get buffered... without that last one, everything is buffered at 8KB no matter
                     # what open() and Popen() are set to.
                     process_cmdline = [script_full_path] + self.script_configs[req.script]['cmd_line_args'].split()
-                    script_logfilename = os.path.join(self.SCRIPT_LOG_PATH, req.script + '.log')
+                    script_logfilename = os.path.join(self.scripts_log_folder, req.script + '.log')
                     script_logfile = open(script_logfilename, 'wt', buffering=1) # buffering=1 ==> Line buffering
                     curr_env = os.environ.copy()
                     curr_env['PYTHONUNBUFFERED'] = 'on'
@@ -345,16 +348,16 @@ class AutomationManager:
                     process = subprocess.Popen(process_cmdline, stdout=script_logfile, stderr=subprocess.STDOUT, bufsize=1, env=curr_env) # bufsize=1 ==> Line buffering
                     self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
                     self.running_scripts.add(req.script)  # Update the running_scripts set
-                    nepi_msg.publishMsgInfo(self,"%s: running" % req.script)
+                    self.msg_if.pub_info("%s: running" % req.script)
                     self.script_counters[req.script]['started'] += 1  # update the counter
                     return LaunchScriptResponse(True)
                 except Exception as e:
                     return LaunchScriptResponse(False)
             else:
-                nepi_msg.publishMsgWarn(self,"is already running... will not start another instance " +  str(req.script))
+                self.msg_if.pub_warn("is already running... will not start another instance " +  str(req.script))
                 return LaunchScriptResponse(False)
         else:
-            nepi_msg.publishMsgInfo(self,"%s: not found" % req.script)
+            self.msg_if.pub_info("%s: not found" % req.script)
             return LaunchScriptResponse(False)
 
     def handle_stop_script(self, req):
@@ -371,7 +374,7 @@ class AutomationManager:
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
-                nepi_msg.publishMsgInfo(self,"%s: stopped" % req.script)
+                self.msg_if.pub_info("%s: stopped" % req.script)
                 self.script_counters[req.script]['stopped_manually'] += 1  # update the counter
                 retval = True
             except Exception as e:
@@ -380,12 +383,12 @@ class AutomationManager:
                     process.wait(timeout=self.script_stop_timeout_s)
                     retval = True
                 except Exception as e2:
-                    nepi_msg.publishMsgWarn(self,"Failed to kill process" + str(e2))
+                    self.msg_if.pub_warn("Failed to kill process" + str(e2))
                     retval = False
             
             return retval
         else:
-            nepi_msg.publishMsgWarn(self,"Script not running " + str(req.script))
+            self.msg_if.pub_warn("Script not running " + str(req.script))
             return False
     
     def monitor_scripts(self):
@@ -403,7 +406,7 @@ class AutomationManager:
                         process['logfile'].close()
                         if process['process'].returncode == 0:
                             self.script_counters[script]['completed'] += 1
-                            nepi_msg.publishMsgInfo(self,"%s: completed" % script)
+                            self.msg_if.pub_info("%s: completed" % script)
                         else:
                             self.script_counters[script]['errored_out'] += 1
                                                
@@ -439,14 +442,14 @@ class AutomationManager:
         # Check if the script_name is in the running list
         if (script_name not in self.running_scripts):
             try:
-                response.log_size_bytes = os.path.getsize(os.path.join(self.SCRIPT_LOG_PATH, script_name + ".log"))
+                response.log_size_bytes = os.path.getsize(os.path.join(self.scripts_log_folder, script_name + ".log"))
             except:
                 pass
             return response  # Only includes the 'static' info
         
         pid = self.processes[script_name]['pid']
         response.log_size_bytes = os.fstat(self.processes[script_name]['logfile'].fileno()).st_size
-        #nepi_msg.publishMsgInfo(self,"PID for script %s: %d" % (script_name, pid))
+        #self.msg_if.pub_info("PID for script %s: %d" % (script_name, pid))
 
         try:
             # Get resource usage for the specific PID
@@ -466,10 +469,10 @@ class AutomationManager:
             # The script_counters cumulative run time only gets updated on script termination, so to keep this value moving in the response,
             # increment it here.
             response.cumulative_run_time_s += response.run_time_s
-            #nepi_msg.publishMsgInfo(self,"CPU Percent: %.5f%%, Memory Usage: %.5f%%, Run Time: %.2f" % (response.cpu_percent, response.memory_percent, response.run_time_s))
+            #self.msg_if.pub_info("CPU Percent: %.5f%%, Memory Usage: %.5f%%, Run Time: %.2f" % (response.cpu_percent, response.memory_percent, response.run_time_s))
 
         except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Error gathering running stats: " + str(e))
+            self.msg_if.pub_warn("Error gathering running stats: " + str(e))
             return response  # Add new None values for the counters
         
         # Return the system stats as a GetSystemStatsQuery response object

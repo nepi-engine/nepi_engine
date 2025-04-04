@@ -34,10 +34,8 @@ class AisMgr extends Component {
 
       frameworks_list: [],
       last_frameworks_list: [],
-      active_framework: 'None',
-      //frameworks_active_list: [],
-      framework_name: 'None',
-      framework_active_state: false,
+      active_frameworks: [],
+      active_frameworks_folders: [],
       selected_framework: 'None',
     
       viewable_models: false, 
@@ -45,7 +43,7 @@ class AisMgr extends Component {
       models_list: [],
       models_types: [],
       models_aifs: [],
-      models_info: [],
+      models_states: [],
       
       active_models_list: [],
       active_models_types: [],
@@ -56,7 +54,6 @@ class AisMgr extends Component {
 
       model_active_state: false,
       selected_model: 'None',
-      selected_model_type: 'Unknown',
 
       connected: false,
 
@@ -80,7 +77,7 @@ class AisMgr extends Component {
     this.onToggleModelSelection = this.onToggleModelSelection.bind(this)
     this.getDisabledModelStr = this.getDisabledModelStr.bind(this)
     this.getActiveModelStr = this.getActiveModelStr.bind(this)
-
+    this.getModelInfo = this.getModelInfo.bind(this)
 
 
     this.updateAiMgrStatusListener = this.updateAiMgrStatusListener.bind(this)
@@ -108,9 +105,10 @@ class AisMgr extends Component {
       models_list: message.ai_models,
       models_aifs: message.ai_models_frameworks,
       models_types: message.ai_models_types,
-      models_info: message.ai_models_info,
+      models_states: message.ai_models_states,
 
-      active_framework: message.active_ai_framework,
+      active_frameworks: message.active_ai_frameworks,
+      active_frameworks_folders: message.active_ai_frameworks_folders,
 
       active_models_list: message.active_ai_models,
       active_models_types: message.active_ai_models_types,
@@ -119,7 +117,10 @@ class AisMgr extends Component {
 
       connected: true
     })    
+
   }
+
+
 
   // Function for configuring and subscribing to Status
   updateAiMgrStatusListener() {
@@ -190,21 +191,23 @@ class AisMgr extends Component {
   }
 
   getActiveFrameworkStr(){
-    const active_aif = this.state.active_framework
-    var active_str = ""
-    if (active_aif !== 'None') {
-      active_str = active_aif
+    const active_aifs =  this.state.active_frameworks
+    var active_str_list = []
+    for (var i = 0; i < active_aifs.length; i++) {
+        active_str_list.push(active_aifs[i])
+        active_str_list.push("\n")
     }
-    return active_str
+    const inactive_str =active_str_list.join("")
+    return inactive_str
   }
 
   
   getInactiveFrameworkStr(){
     const aif_list = this.state.frameworks_list
-    const active_aif =  this.state.active_framework
+    const active_aifs =  this.state.active_frameworks
     var inactive_str_list = []
     for (var i = 0; i < aif_list.length; i++) {
-      if (aif_list[i] !== active_aif){
+      if (active_aifs.indexOf(aif_list[i]) === -1){
         inactive_str_list.push(aif_list[i])
         inactive_str_list.push("\n")
       }
@@ -220,10 +223,8 @@ class AisMgr extends Component {
     const viewable_frameworks = this.state.viewable_frameworks
     const framework_options = this.getFrameworkOptions()
     const selected_framework = this.state.selected_framework
-    const active_framework = this.state.active_framework
-    const framework_state = (active_framework === selected_framework || selected_framework === "None")
-    const framework_state_change = (framework_state) ? "None" : selected_framework
-
+    const active_frameworks = this.state.active_frameworks
+    const framework_state = (active_frameworks.indexOf(selected_framework) !== -1)
     return (
 
       <Columns equalWidth={true}>
@@ -245,7 +246,7 @@ class AisMgr extends Component {
               color: Styles.vars.colors.black,
               backgroundColor: (framework.props.value === selected_framework) ?
                 Styles.vars.colors.green :
-                (active_framework === framework.props.value) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                (active_frameworks.indexOf(framework.props.value) !== -1) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
               cursor: "pointer",
               }}>
               <body framework-topic ={framework} style={{color: Styles.vars.colors.black}}>{framework}</body>
@@ -259,12 +260,12 @@ class AisMgr extends Component {
 
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {this.state.framework_name}
+          {this.state.selected_framework}
           </label>
 
           <div hidden={(this.state.selected_framework === "None")}>
 
-        <Label title="Set As Active AI Framework"> </Label>
+        <Label title="Enable AI Framework"> </Label>
           <Toggle
             checked={framework_state }
             onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
@@ -283,7 +284,7 @@ class AisMgr extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Active AI Frameworks List "}
+          {"Active AI Frameworks"}
           </label>
 
         <pre style={{ height: "20px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
@@ -292,7 +293,7 @@ class AisMgr extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Disabled AI Frameworks List "}
+          {"Disabled AI Frameworks"}
           </label>
 
         <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
@@ -339,34 +340,38 @@ class AisMgr extends Component {
 
   onToggleModelSelection(event){
     const model_name = event.target.value
+    this.setState({selected_model: model_name})
+  }
+
+  getModelInfo(model_name){
     const model_names = this.state.models_list
     const model_types = this.state.models_types
+    const model_states = this.state.models_states
     var model_type = 'Unknown'
+    var model_state = false
     const ind = model_names.indexOf(model_name)
     if (ind !== -1){
       model_type = model_types[ind]
+      model_state = model_states[ind]
     }
-    this.setState({selected_model: model_name,
-                  selected_model_type: model_type  
-    })
-  }
-
+    return [model_type,model_state]
+}
 
   getActiveModelStr(){
     const models_list = this.state.models_list  
     const models_aifs = this.state.models_aifs
+    const models_states= this.state.models_states
     const sel_aif = this.state.selected_framework
-    const active_model_list =  this.state.active_models_list
     var active_str_list = []
-    var active_model = ""
+    var model_name = ""
     var model_aif = ""
-    var ind = 0
-    for (var i = 0; i < active_model_list.length; i++) {
-      active_model = active_model_list[i]
-      ind = models_list.indexOf(active_model)
-      model_aif = models_aifs[ind]
-      if (model_aif === sel_aif){
-        active_str_list.push(active_model)
+    var model_state = false
+    for (var i = 0; i < models_list.length; i++) {
+      model_name = models_list[i]
+      model_aif = models_aifs[i]
+      model_state = models_states[i]
+      if (model_aif === sel_aif && model_state === true){
+        active_str_list.push(model_name)
         active_str_list.push("\n")
       }
     }
@@ -376,131 +381,187 @@ class AisMgr extends Component {
 
   
   getDisabledModelStr(){
-    const models_list = this.state.models_list
+    const models_list = this.state.models_list  
     const models_aifs = this.state.models_aifs
+    const models_states= this.state.models_states
     const sel_aif = this.state.selected_framework
-    const active_model_list =  this.state.active_models_list
-    var inactive_str_list = []
+    var active_str_list = []
+    var model_name = ""
     var model_aif = ""
+    var model_state = false
     for (var i = 0; i < models_list.length; i++) {
+      model_name = models_list[i]
       model_aif = models_aifs[i]
-      if (active_model_list.indexOf(models_list[i]) === -1 && model_aif === sel_aif){
-        inactive_str_list.push(models_list[i])
-        inactive_str_list.push("\n")
+      model_state = models_states[i]
+      if (model_aif === sel_aif && model_state === false){
+        active_str_list.push(model_name)
+        active_str_list.push("\n")
       }
     }
-    const inactive_str =inactive_str_list.join("")
-    return inactive_str
+    const active_str =active_str_list.join("")
+    return active_str
   }
 
  
 
 
   renderModelConfig() {
+    const active_frameworks = this.state.active_frameworks
+    const active_frameworks_folders = this.state.active_frameworks_folders
+    const sel_framework = this.state.selected_framework
+    const active_ind = active_frameworks.indexOf(sel_framework)
+    const aif_active = (active_ind !== -1)
+    const sel_framework_folder = (aif_active === true) ? active_frameworks_folders[active_ind] : "None"
     const selected_model = this.state.selected_model
-    const selected_type = this.state.selected_model_type
+    const [selected_type, selected_state] = this.getModelInfo(selected_model)
     const viewable_models = this.state.viewable_models
     const model_options = this.getModelOptions()
+    const has_models = (model_options.length > 1)
     const active_model_list = this.state.active_models_list
-    const model_state = this.state.active_models_list.indexOf(this.state.selected_model) !== -1 
 
 
-    return (
 
-      <Columns equalWidth={true}>
+    if (sel_framework === "None"){
+      return(
+        <Columns>
+        <Column>
+
+        </Column>
+          </Columns> 
+      )
+    }
+
+    else if (has_models === false){
+
+      <Columns>
       <Column>
 
-      <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Select AI Model"}
-         </label>
+      <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+      {"No models found for selected framework: " + sel_framework + '.' +
+       "\nAdd models to the ai_modols/" + sel_framework_folder + " folder on the NEPI user storage drive"
+      }
+      </pre>
 
-          <div onClick={this.toggleViewableModels} style={{backgroundColor: Styles.vars.colors.grey0}}>
-            <Select style={{width: "10px"}}/>
-          </div>
-          <div hidden={!viewable_models}>
-          {model_options.map((model) =>
-          <div onClick={this.onToggleModelSelection}
-            style={{
-              textAlign: "center",
-              padding: `${Styles.vars.spacing.xs}`,
-              color: Styles.vars.colors.black,
-              backgroundColor: (model.props.value === selected_model) ?
-                Styles.vars.colors.green :
-                (active_model_list.includes(model.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
-              cursor: "pointer",
-              }}>
-              <body model-topic ={model} style={{color: Styles.vars.colors.black}}>{model}</body>
-          </div>
-          )}
-          </div>
-
-
-
-
-
-        </Column>
-        <Column>
-
-
-        <div hidden={(this.state.selected_model === "None")}>
-
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {selected_model + ' : ' + selected_type}
-          </label>
-
-
-        <Label title="Enable"> </Label>
-          <Toggle
-            checked={model_state===true}
-            onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !model_state)}>
-        </Toggle>
-
-        </div>
-
-        <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_models")}>{"Enable All"}</Button>
-        </ButtonMenu>
-
-        <ButtonMenu>
-        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_models")}>{"Disable All"}</Button>
-        </ButtonMenu>
-
-
-        </Column>
-        <Column>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Active Models List "}
-          </label>
-
-        <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getActiveModelStr()}
-        </pre>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Disabled Models List "}
-          </label>
-
-        <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
-        {this.getDisabledModelStr()}
-        </pre>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-        </Column>
+      </Column>
         </Columns> 
 
-    )
+
+    }
+
+    else {
+      return (
+
+        <Columns equalWidth={true}>
+        <Column>
+
+        <div hidden={(aif_active === true)}>
+
+
+                  <pre style={{fontWeight: 'bold', height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+                   {"FRAMEWORK NOT ENABLED"}
+                   </pre>
+
+         </div>
+
+
+        <div hidden={(aif_active === false)}>
+
+
+
+                <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+                    {"Select AI Model"}
+                  </label>
+
+                    <div onClick={this.toggleViewableModels} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                      <Select style={{width: "10px"}}/>
+                    </div>
+                    <div hidden={!viewable_models}>
+                    {model_options.map((model) =>
+                    <div onClick={this.onToggleModelSelection}
+                      style={{
+                        textAlign: "center",
+                        padding: `${Styles.vars.spacing.xs}`,
+                        color: Styles.vars.colors.black,
+                        backgroundColor: (model.props.value === selected_model) ?
+                          Styles.vars.colors.green :
+                          (active_model_list.includes(model.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                        cursor: "pointer",
+                        }}>
+                        <body model-topic ={model} style={{color: Styles.vars.colors.black}}>{model}</body>
+                    </div>
+                    )}
+                    </div>
+
+
+          </div>
+
+
+          </Column>
+          <Column>
+
+
+            <div hidden={(aif_active === false)}>
+
+                <div hidden={(this.state.selected_model === "None")}>
+
+                    <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+                      {selected_model + ' : ' + selected_type}
+                      </label>
+
+
+                    <Label title="Enable"> </Label>
+                      <Toggle
+                        checked={selected_state===true}
+                        onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !selected_state)}>
+                    </Toggle>
+
+                   </div>
+
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/enable_all_models", sel_framework, true)}>{"Enable All"}</Button>
+                    </ButtonMenu>
+
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/disable_all_models", sel_framework, false)}>{"Disable All"}</Button>
+                    </ButtonMenu>
+
+            </div>
+          </Column>
+          <Column>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {"Active Models "}
+            </label>
+
+          <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+          {this.getActiveModelStr()}
+          </pre>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {"Disabled Models "}
+            </label>
+
+          <pre style={{ height: "200px", overflowY: "auto" }} align={"center"} textAlign={"center"}>
+          {this.getDisabledModelStr()}
+          </pre>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          </Column>
+          </Columns> 
+
+      )
+    }
   }
 
 
 
 render() {
   const selected_framework = this.state.selected_framework
-  const active_framework = this.state.active_framework
-  const framework_state = (active_framework === selected_framework && selected_framework !== "None")
+  const active_frameworks = this.state.active_frameworks
+  const framework_state = (active_frameworks.indexOf(selected_framework) !== -1 && selected_framework !== "None")
     return (
 
     <Section title={"AI Framework and Model Settings"}>

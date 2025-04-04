@@ -12,6 +12,10 @@ int32 proc_img_width
 string[] classes
 bool has_img_tiling
 
+string[] image_detector_namespaces
+bool[] image_detector_states
+string[] image_source_topics
+
 
 
 

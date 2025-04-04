@@ -21,7 +21,7 @@ import sys
 
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+ 
 
 from std_msgs.msg import String, Empty, Time
 from nepi_ros_interfaces.msg import SystemStatus
@@ -32,7 +32,11 @@ from nepi_ros_interfaces.msg import TimeStatus
 
 from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryResponse
 
-from nepi_sdk.mgr_if_system import MgrSystemIF
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 FACTORY_CFG_SUFFIX = '.factory'
@@ -54,39 +58,39 @@ class time_sync_mgr(object):
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name = self.DEFAULT_NODE_NAME, disable_signals=True)
-        self.node_name = nepi_ros.get_node_name()
+        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
-        ##############################
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
-        mgr_sys_if = MgrSystemIF()
+        mgr_sys_if = ConnectMgrSystemIF()
         success = mgr_sys_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         sys_stats_dict = mgr_sys_if.get_system_stats_dict()
         in_container = False
         if sys_stats_dict is not None: 
-            #nepi_msg.publishMsgInfo(self,"Got System Stats Dict: " + str(sys_stats_dict))
+            #self.msg_if.pub_info("Got System Stats Dict: " + str(sys_stats_dict))
             in_container = sys_stats_dict['in_container']
         self.in_container = in_container
         
-        config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
-        nepi_ros.wait_for_topic(config_status_topic)
-        self.cfg_status = None
-        cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
-        nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
-        while(self.cfg_status is None):
-            nepi_ros.sleep(1)
-        cfg_status_sub.unregister()
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
         
-        ###############
+        ###########################
         
 
         if self.in_container == False:
@@ -117,10 +121,10 @@ class time_sync_mgr(object):
             g_ntp_status_check_timer = rospy.Timer(rospy.Duration(5.0), self.gather_ntp_status_timer_cb)
             g_ntp_status_check_timer.run()
         else:
-            nepi_msg.publishMsgInfo(self,"NEPI running in Container Mode. Time and NTP managed by host system")
+            self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_ros.spin()
         #########################################################
@@ -388,7 +392,7 @@ class time_sync_mgr(object):
         # For onvif_mgr, must use a service rather than the system_time_updated topic due to limitation with onvif_mgr message subscriptions
         try:
             rospy.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
-            resync_srv = rospy.ServiceProxy('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
+            resync_srv = nepi_ros.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
             resync_srv()
         except Exception as e:
             pass

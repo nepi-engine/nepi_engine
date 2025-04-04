@@ -12,10 +12,13 @@ import rospy
 from std_msgs.msg import UInt8
 from nepi_ros_interfaces.msg import RUISettings
 
-from nepi_sdk.save_cfg_if import SaveCfgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg 
+ 
 
 class RUICfgMgrNode:
 
@@ -27,11 +30,28 @@ class RUICfgMgrNode:
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+
         ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+        
+        ###########################
+
+
 
         self.settings_pub = rospy.Publisher('~settings', RUISettings, queue_size=1, latch=True)
         self.settings_msg = RUISettings()
@@ -43,7 +63,7 @@ class RUICfgMgrNode:
 
         #########################################################
         ## Initiation Complete
-        nepi_msg.publishMsgInfo(self,"Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_ros.spin()
         #########################################################
@@ -58,10 +78,10 @@ class RUICfgMgrNode:
 
     def set_streaming_image_quality_cb(self, msg):
         if (msg.data < 1 or msg.data > 100):
-            nepi_msg.publishMsgWarn(self,"Invalid image qualtiy: " + str(msg.data))
+            self.msg_if.pub_warn("Invalid image qualtiy: " + str(msg.data))
             return
 
-        nepi_msg.publishMsgInfo(self,"Setting streaming image quality to: " + str(msg.data))
+        self.msg_if.pub_info("Setting streaming image quality to: " + str(msg.data))
         nepi_ros.set_param(self,"~streaming_image_quality", msg.data)
         self.publish_settings() # Make sure to always publish settings updates
 

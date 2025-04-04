@@ -107,7 +107,7 @@ add_message_files(FILES
     WifiCredentials.msg
     PanTiltPosition.msg
     PanTiltLimits.msg
-    PanTiltStatus.msg
+    PTXStatus.msg
     SingleAxisTimedMove.msg
     AbsolutePanTiltWaypoint.msg
     AxisControls.msg
@@ -143,7 +143,13 @@ add_message_files(FILES
     MgrStatus.msg
     Message.msg
     AiDetectorInfo.msg
-    
+    ImageStatus.msg
+    PointcloudStatus.msg
+    SystemState.msg
+    SystemStatesStatus.msg
+    SystemTrigger.msg
+    SystemTriggersStatus.msg
+    NPXStatus.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -190,6 +196,8 @@ add_service_files(
     SetBoolState.srv
     AiMgrActiveModelsInfoQuery.srv
     AiDetectorInfoQuery.srv
+    SystemStatesQuery.srv
+    SystemTriggersQuery.srv
     
 )
 

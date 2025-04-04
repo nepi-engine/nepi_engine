@@ -18,6 +18,12 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
 
+function round(value, decimals = 0) {
+  return Number(value).toFixed(decimals)
+  //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
+}
+
+
 const styles = Styles.Create({
   canvas: {
     width: "100%",
@@ -47,77 +53,120 @@ class CameraViewer extends Component {
       //clockTime: moment(),
       streamWidth: null,
       streamHeight: null,
+      streamSize: 0,
       currentStreamingImageQuality: COMPRESSION_HIGH_QUALITY,
-      hideQualitySelector: this.props.hideQualitySelector
+      status_listenter: null,
+      status_msg: null,
+      connected: false
     }
     this.updateFrame = this.updateFrame.bind(this)
     this.onCanvasRef = this.onCanvasRef.bind(this)
     this.updateImageSource = this.updateImageSource.bind(this)
     this.onChangeImageQuality = this.onChangeImageQuality.bind(this)
+    this.renderImgStats = this.renderImgStats.bind(this)
+    this.getImgStatsText = this.getImgStatsText.bind(this)
+
+    this.statusListener = this.statusListener.bind(this)
+    this.updateStatusListener = this.updateStatusListener.bind(this)
+
   }
 
   updateFrame() {
-    const {
-      shouldUpdate,
-      hasInitialized,
-      streamWidth,
-      streamHeight
-    } = this.state
+    const square_canvas = this.props.squareCanvas ? this.props.squareCanvas : false
+    const shouldUpdate = this.state.shouldUpdate
+    const hasInitialized = this.state.hasInitialized
+    const connected = this.state.connected
 
-    const width_changed = this.canvas.width !== streamWidth
-    const height_changed = this.canvas.height !== streamHeight
-    const size_changed = (width_changed === true || height_changed === true)
-    const updateCheck = ( shouldUpdate || size_changed)
-    //const { imageRecognitions } = this.props.ros
-    if (shouldUpdate && hasInitialized && this.canvas) {
-      if (width_changed === true) {
-        this.canvas.width = streamWidth
+    if (shouldUpdate === true && hasInitialized === true && this.canvas) {
+
+      // Firset check for image size change
+      const { width, height } = this.image
+      const streamWidth = this.state.streamWidth
+      const streamHeight = this.state.streamHeight
+
+      const width_changed = width !== streamWidth
+      const height_changed = height  !== streamHeight
+      const size_changed = (width_changed === true || height_changed === true)
+      if (size_changed === true || connected === false) {
+        this.setState({
+            hasInitialized: true,
+            streamWidth: width,
+            streamHeight: height,
+            streamSize: width * height,
+            connected: true
+            })
+
+        if (square_canvas === true){
+          var size = 0
+          if (width > height){
+            size = width
+          }
+          else {
+            size = height
+          }
+          this.canvas.width = size
+          this.canvas.height = size
+
+        }
+        else {
+          this.canvas.width = width
+          this.canvas.height = height
+        }
       }
 
-      if (height_changed === true) {
-        this.canvas.height = streamHeight
-      }
-
+      // Then update
       const context = this.canvas.getContext("2d")
       context.fillStyle = "red"
       context.textAlign = "center"
       context.font = "50px Arial"
       context.clearRect(0, 0, streamWidth, streamHeight)
       context.drawImage(this.image, 0, 0, streamWidth, streamHeight)
-
-      /* -- TODO: Restore imageRecognitions when we have a need and are ready to use BoundingBoxes data type
-      imageRecognitions.forEach(
-        ({ label, roi: { x_offset, y_offset, width, height } }) => {
-          context.beginPath()
-          context.lineWidth = "10"
-          context.strokeStyle = "red"
-          context.rect(x_offset, y_offset, width, height)
-          context.stroke()
-          context.fillText(
-            label,
-            x_offset + width / 2,
-            y_offset + 70,
-            width - 30
-          )
-        }
-      )
-      */
-
       //this.setState({ clockTime: moment() })
       requestAnimationFrame(this.updateFrame)
+      
+
     }
   }
+  
 
   onCanvasRef(ref) {
     this.canvas = ref
     //this.updateImageSource()
   }
 
+  // Callback for handling ROS Status messages
+  statusListener(message) {
+
+    this.setState({
+      status_msg: message
+    })    
+
+  }
+
+  // Function for configuring and subscribing to Status
+  updateStatusListener() {
+    const statusNamespace = this.props.imageTopic + '/status'
+    if (this.state.statusListener) {
+      this.state.statusListener.unsubscribe()
+      this.setState({status_msg: null})
+
+    }
+    var status_listenter = this.props.ros.setupStatusListener(
+          statusNamespace,
+          "nepi_ros_interfaces/ImageStatus",
+          this.statusListener
+        )
+    this.setState({ status_listenter: status_listenter})
+  }
+
+
+
   updateImageSource() {
     if (this.props.imageTopic) {
       if (!this.image) {
         this.image = new Image() // EXPERIMENT -- Only create a new Image when strictly required
       }
+      this.setState({ shouldUpdate: true })
       this.image.crossOrigin = "Anonymous"
       this.image.onload = () => {
         const { width, height } = this.image
@@ -125,7 +174,8 @@ class CameraViewer extends Component {
           {
             hasInitialized: true,
             streamWidth: width,
-            streamHeight: height
+            streamHeight: height,
+            streamSize: width * height
           },
           () => {
             requestAnimationFrame(this.updateFrame)
@@ -143,8 +193,16 @@ class CameraViewer extends Component {
   // Used to track changes in the image topic value
   componentDidUpdate(prevProps, prevState, snapshot) {
     const { imageTopic } = this.props
-    if (prevProps.imageTopic !== imageTopic || prevState.currentStreamingImageQuality !== this.state.currentStreamingImageQuality){
+    const size = this.state.streamSize
+    const width = (this.image) ? this.image.width : 0
+    const height = (this.image) ? this.image.height : 0
+    const got_size = width * height
+    const size_changed = (size !== got_size)
+    if (prevProps.imageTopic !== imageTopic || size_changed === true || prevState.currentStreamingImageQuality !== this.state.currentStreamingImageQuality){
       this.updateImageSource()
+      //if (prevProps.imageTopic !== imageTopic) {
+      //  this.updateStatusListener()
+      //}
     }
   }
 
@@ -163,12 +221,67 @@ class CameraViewer extends Component {
     this.props.ros.onChangeStreamingImageQuality(quality)
     this.setState({currentStreamingImageQuality: quality})
     this.updateImageSource()
+
   }
+
+
+  getImgStatsText(){
+    const status_msg = this.state.status_msg
+    var msg = ""
+    if (status_msg){
+      const get_lat = round(status_msg.get_latency_time, 3)
+      const pup_lat = round(status_msg.pub_latency_time, 3)
+      const proc_time = round(status_msg.process_time, 3)
+      msg = ("\n Get Latency: " + get_lat + "  Publish Latency: " + pup_lat + 
+      "\n Process Times (Image): " + proc_time)
+    }
+    else {
+      msg = "No Stats Available"
+
+    }
+    return msg
+  }
+
+  renderImgStats() {
+    const show_img_stats = this.props.showImgStats ? this.props.showImgStats: false
+   
+    if (show_img_stats === true){
+      const img_stats_text = this.getImgStatsText()
+      return (
+        <Columns>
+        <Column>
+    
+        <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+                  {img_stats_text}
+                  </pre>
+    
+        </Column>
+        </Columns>
+
+      )
+    }
+    else {
+      return (
+        <Columns>
+        <Column>
+
+        </Column>
+        </Columns>
+      )
+
+    }
+
+  }
+
+
+
 
   render() {
     const {
       streamingImageQuality
     } = this.props.ros
+    const hideQualitySelector = this.props.hideQualitySelector ? this.props.hideQualitySelector: false
+
 
     if (streamingImageQuality !== this.state.currentStreamingImageQuality)
     {
@@ -177,11 +290,12 @@ class CameraViewer extends Component {
 
     return (
       <Section title={this.props.title}>
+       {/* {this.renderImgStats()} */}
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
         <Columns>
           <Column>
           <div align={"left"} textAlign={"left"}>
-            { this.state.hideQualitySelector ?
+            { hideQualitySelector ?
               null :
               <Label title={"Compression Level"} />
             }
@@ -189,7 +303,7 @@ class CameraViewer extends Component {
           </Column>
           <Column>
           <div align={"left"} textAlign={"left"}>
-            { this.state.hideQualitySelector ?
+            { hideQualitySelector ?
               null :
               <div>
                 <Label title={"Low"} />
@@ -203,7 +317,7 @@ class CameraViewer extends Component {
           </Column>
           <Column>
           <div align={"left"} textAlign={"left"}>
-            { this.state.hideQualitySelector ?
+            { hideQualitySelector ?
               null :
               <div>
                 <Label title={"Medium"} />
@@ -217,7 +331,7 @@ class CameraViewer extends Component {
           </Column>
           <Column>
           <div align={"left"} textAlign={"left"}>
-            { this.state.hideQualitySelector ?
+            { hideQualitySelector ?
               null :
               <div>
                 <Label title={"High"} />

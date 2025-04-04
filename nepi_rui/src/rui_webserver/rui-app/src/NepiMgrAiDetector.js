@@ -420,12 +420,12 @@ class AiDetectorMgr extends Component {
     const {imageTopics, sendStringMsg, sendStringArrayMsg} = this.props.ros
     const detector_namespace = this.state.detector_namespace
     const add_img_namespace = detector_namespace + "/add_img_topic"
-    const add_imgs_namespace = detector_namespace + "/add_img_topics"
+    const add_imgs_namespace = detector_namespace + "/add_det_img_topics"
     const remove_img_namespace = detector_namespace + "/remove_img_topic"
-    const remove_imgs_namespace = detector_namespace + "/remove_img_topics"
+    const remove_imgs_namespace = detector_namespace + "/remove_det_img_topics"
     const filter_str_list = this.state.img_filter_str_list
     const img_options = filterStrList(imageTopics,filter_str_list)
-    const img_topics = this.state.detector_status_msg.image_source_topics
+    const det_img_topics = this.state.detector_status_msg.image_source_topics
     const img_topic = event.target.value
     //this.setState({selected_img_topic: img_topic})
 
@@ -435,7 +435,7 @@ class AiDetectorMgr extends Component {
     else if (img_topic === "All"){
         sendStringArrayMsg(add_imgs_namespace,img_options)
     }
-    else if (img_topics.indexOf(img_topic) === -1){
+    else if (det_img_topics.indexOf(img_topic) === -1){
       sendStringMsg(add_img_namespace,img_topic)
     }
     else {
@@ -470,7 +470,10 @@ renderDetectorSettings() {
       const max_rate = message.max_rate_hz 
 
 
-      const img_topics = message.image_source_topics
+      const det_img_namespaces = message.image_detector_namespaces
+      const det_img_states = message.image_detector_states
+      const det_img_topics = message.image_source_topics
+
       const img_selected = message.image_selected
       const img_connected = message.image_connected
 
@@ -565,7 +568,11 @@ renderDetectorSettings() {
                 color: Styles.vars.colors.black,
                 backgroundColor: (image.props.value === sel_img) ?
                   Styles.vars.colors.green :
-                  (img_topics.includes(image.props.value)) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                  (det_img_topics.indexOf(image.props.value) !== -1 ) ? 
+                  
+                    (det_img_states[det_img_topics.indexOf(image.props.value)] === true) ? Styles.vars.colors.blue : Styles.vars.colors.grey0 : 
+                      
+                      Styles.vars.colors.grey0,
                 cursor: "pointer",
                 }}>
                 <body image-topic ={image} style={{color: Styles.vars.colors.black}}>{image}</body>
@@ -711,44 +718,55 @@ renderDetectorSettings() {
 
     // Function for creating image topic for a selected detector.
     getDisplayImgOptions() {
-      const img_topics = this.props.ros.imageDetectionTopics
-      const all_ns = this.state.all_namespace
-      const detector_name = this.state.detector_name
-      const detector_ns = this.state.detector_namespace
-      const img_nss = this.state.detector_img_detect_namespaces
-      var img_ns = ""
-      var img_text = ""
-      var img_topic = ""
-      var items = []
-      if (detector_ns){
-        const detector_img = detector_ns + "/detection_image"
-        for (var i = 0; i < img_topics.length; i++) {
-          img_topic = img_topics[i]
-          if (img_topic.indexOf(detector_ns) !== -1){
-            if (img_topic === detector_img ){
-              img_text = "All"
-              items.push(<Option value={detector_img}>{img_text}</Option>)
-            }
-            else if (img_topic.indexOf('detection_image') !== -1) {
-              img_text = img_topic.replace(detector_ns + '/','')
-              items.push(<Option value={img_topic}>{img_text}</Option>)
-            }
-          }
-        }
-        const sel_img = this.state.selected_img_topic
-        if (sel_img === ""){
-          this.setState({selected_img_topic: detector_img,
-                        selected_img_text: img_text
-          })
-        }
-      }
 
-      if (items.length === 0) {
-        img_text = "None"
-        items.push(<Option value={img_text}>{img_text}</Option>)
+      var items = []
+      const message = this.state.detector_status_msg
+      const selected_detector = this.state.selected_detector
+      const sel_img = this.state.selected_img_topic
+
+
+      var img_topic = "None"
+      var img_text = "None"
+      var img_ns = "None"
+
+        if (message != null){
+
+              const detector_ns = this.state.detector_namespace
+              const detector_enabled = message.enabled
+              const det_img_nns = message.image_detector_namespaces
+              const det_img_states = message.image_detector_states
+              if (detector_enabled === false) {
+                  img_topic === "Detector Not Enabled"
+                  img_text = "Detector Not Enabled"
+                  items.push(<Option value={img_topic}>{img_text}</Option>)
+              }
+              else if (detector_ns){
+                const det_img_topic = detector_ns + "/detection_image"
+                img_text = "All"
+                items.push(<Option value={det_img_topic}>{img_text}</Option>)
+
+                for (var i = 0; i < det_img_nns.length; i++) {
+                  if (det_img_states[i] === true){
+                    img_topic = det_img_nns[i] + '/detection_image'
+                    img_text = img_topic.replace(detector_ns + '/','')
+                    items.push(<Option value={img_topic}>{img_text}</Option>)
+                  }
+                }
+              }
+              else  {
+                items.push(<Option value={"None"}>{"None"}</Option>)
+              }
+      }
+      else  {
+        items.push(<Option value={"None"}>{"None"}</Option>)
       }
       return items
     }
+
+
+
+
+
 
     // Function for creating image topic options.
     getSaveNamespace() {

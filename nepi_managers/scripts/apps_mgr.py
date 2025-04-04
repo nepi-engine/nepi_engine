@@ -20,7 +20,7 @@ import time
 import warnings
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
+
 from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
@@ -29,7 +29,11 @@ from nepi_ros_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOr
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 from nepi_ros_interfaces.srv import AppStatusQuery, AppStatusQueryResponse
 
-from nepi_sdk.save_cfg_if import SaveCfgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+from nepi_api.sys_if_save_cfg import SaveCfgIF
 
 APPS_SHARE_FOLDER = '/opt/nepi/ros/share/nepi_apps'
 APPS_CONFIG_FOLDER = '/opt/nepi/ros/etc'
@@ -60,100 +64,86 @@ class NepiAppsMgr(object):
 
   failed_app_list = []
 
+  apps_status_pub = None
+  app_status_pub = None
+
+  selected_app = "None"
+
+  init_apps_dict = dict()
+  init_backup_enabled =  True
+  init_restart_enabled = False
+
+
+
   #######################
   ### Node Initialization
   DEFAULT_NODE_NAME = "apps_mgr" # Can be overwitten by luanch command
   def __init__(self):
     #### APP NODE INIT SETUP ####
     nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-    self.node_name = nepi_ros.get_node_name()
+    self.class_name = type(self).__name__
     self.base_namespace = nepi_ros.get_base_namespace()
-    nepi_msg.createMsgPublishers(self)
-    nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
+    self.node_name = nepi_ros.get_node_name()
+    self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
+    ##############################  
+    # Create Msg Class
+    self.msg_if = MsgIF(log_name = None)
+    self.msg_if.pub_info("Starting IF Initialization Processes")
+
+
     ##############################
-    # Wait for NEPI core managers to start
-    system_status_topic = os.path.join(self.base_namespace,'system_status')
-    nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status")
-    nepi_ros.wait_for_topic(system_status_topic)
-    self.sys_status = None
-    sys_status_sub = rospy.Subscriber(system_status_topic, SystemStatus, self.systemStatusCb, queue_size = 1)
-    nepi_msg.publishMsgInfo(self,"Waiting for System Mgr Status to publish")
-    while(self.sys_status is None):
-      nepi_ros.sleep(1)
-    sys_status_sub.unregister()
-    
-    config_status_topic = os.path.join(self.base_namespace,'config_mgr/status')
-    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status")
-    nepi_ros.wait_for_topic(config_status_topic)
-    self.cfg_status = None
-    cfg_status_sub = rospy.Subscriber(config_status_topic, Empty, self.configStatusCb, queue_size = 1)
-    nepi_msg.publishMsgInfo(self,"Waiting for Config Mgr Status to publish")
-    while(self.cfg_status is None):
-      nepi_ros.sleep(1)
-    cfg_status_sub.unregister()
+    # Initialize Params
+    self.initCb(do_updates = False)
+
     ##############################
-    '''
-    # Get driver folder paths
-    get_folder_name_service = self.base_namespace + 'system_storage_folder_query'
-    nepi_msg.publishMsgInfo(self,"Waiting for system folder query service " + get_folder_name_service)
-    rospy.wait_for_service(get_folder_name_service)
-    nepi_msg.publishMsgInfo(self,"Calling system drivers folder query service " + get_folder_name_service)
-    try:
-        nepi_msg.publishMsgInfo(self,"Getting drivers folder query service " + get_folder_name_service)
-        folder_query_service = rospy.ServiceProxy(get_folder_name_service, SystemStorageFolderQuery)
-        response = folder_query_service('nepi_apps')
-        nepi_msg.publishMsgInfo(self,"Got storage folder path" + response.folder_path)
-        time.sleep(1)
-        self.apps_param_folder = response.folder_path
-    except Exception as e:
-        self.apps_param_folder = DRIVERS_FOLDER
-        nepi_msg.publishMsgWarn(self,"Failed to obtain system drivers folder, falling back to: " + DRIVERS_FOLDER + " " + str(e))
-    if os.path.exists(self.apps_param_folder) == False:
-        self.apps_param_folder = ""
-    self.apps_param_folder = self.apps_param_folder
-    self.apps_install_folder = self.apps_param_folder
-    '''
-  
+    ## Wait for NEPI core managers to start
+    # Wait for System Manager
+    mgr_sys_if = ConnectMgrSystemIF()
+    success = mgr_sys_if.wait_for_status()
+    if success == False:
+        nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+
+    # NEED TO CHANGE TO SYSTEM SERVICE CALLS
     self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
     self.apps_config_folder = APPS_CONFIG_FOLDER
     self.apps_install_folder = APPS_INSTALL_FOLDER
-
-    #nepi_msg.publishMsgInfo(self,"App folder set to " + self.apps_param_folder)
+  
+    #self.msg_if.pub_info("App folder set to " + self.apps_param_folder)
     self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-    #nepi_msg.publishMsgInfo(self,"App folder files " + str(self.apps_files))
-    # Initialize apps_mgr param server
-    self.save_cfg_if = SaveCfgIF(updateParamsCallback=self.initParamServerValues, 
-                                 paramsModifiedCallback=self.updateFromParamServer)
-    self.save_cfg_if.userReset()
-    time.sleep(3)
+    #self.msg_if.pub_info("App folder files " + str(self.apps_files))
+
     apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
     apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
     
     app_dict = dict()
-    #nepi_msg.publishMsgWarn(self,"Got init apps dict: " + str(apps_dict))
+    #self.msg_if.pub_warn("Got init apps dict: " + str(apps_dict))
     for app_name in apps_dict:
       app_dict[app_name] = apps_dict[app_name]['active']
-    nepi_msg.publishMsgInfo(self,"Got init app dict active list: " + str(app_dict))
-    self.initParamServerValues(do_updates = True)
+    self.msg_if.pub_info("Got init app dict active list: " + str(app_dict))
 
-    nepi_msg.publishMsgInfo(self,"App folder set to " + self.apps_install_folder)
+    self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-    nepi_msg.publishMsgInfo(self,"App install packages folder files " + str(self.apps_install_files))
+    self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
 
+   # Wait for Config Manager
+    mgr_cfg_if = ConnectMgrConfigIF()
+    success = mgr_cfg_if.wait_for_status()
+    if success == False:
+        nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+
+
+
+    ###########################
     # Setup Node Status Publisher
     self.apps_status_pub = rospy.Publisher("~status", AppsStatus, queue_size=1, latch=True)
     self.app_status_pub = rospy.Publisher("~status_app", AppStatus, queue_size=1, latch=True)
 
     time.sleep(1)
-    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
 
     # Setup message publisher and init param server
-    nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
-
-
- 
+    self.msg_if.pub_info("Starting Initialization Processes")
     ## Mgr ROS Setup 
-    mgr_reset_sub = rospy.Subscriber('~factory_reset', Empty, self.resetMgrCb, queue_size = 10)
     mgr_reset_sub = rospy.Subscriber('~refresh_apps', Empty, self.refreshCb, queue_size = 10)
 
 
@@ -172,6 +162,18 @@ class NepiAppsMgr(object):
     # Start capabilities services
     rospy.Service('~app_status_query', AppStatusQuery, self.appStatusService)
 
+    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
+    ready = self.save_cfg_if.wait_for_ready()
+
+    ##############################
+    self.initCb(do_updates = True)
+
+
+
+
+
+    ###########################
+    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
 
     # Setup a app folder timed check
     nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
@@ -182,12 +184,13 @@ class NepiAppsMgr(object):
 
     #########################################################
     ## Initiation Complete
-    nepi_msg.publishMsgInfo(self,"Initialization Complete")
+    self.msg_if.pub_info("Initialization Complete")
     #Set up node shutdown
     nepi_ros.on_shutdown(self.cleanup_actions)
     # Spin forever (until object is detected)
     nepi_ros.spin()
     #########################################################
+
 
 
   ####################
@@ -198,15 +201,10 @@ class NepiAppsMgr(object):
   def configStatusCb(self,msg):
       self.cfg_status = True
     
-
-
   #######################
   ### Mgr Config Functions
 
-  def resetMgrCb(self,msg):
-    self.resetMgr()
-
-  def resetMgr(self):
+  def factoryResetCb(self):
     # reset apps dict
     nepi_ros.set_param(self,"~backup_enabled",True)
     self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
@@ -215,7 +213,6 @@ class NepiAppsMgr(object):
     apps_dict = nepi_apps.setFactoryAppOrder(apps_dict)
     apps_dict = activateAllApps(apps_dict)
     nepi_ros.set_param(self,"~apps_dict",apps_dict)
-    self.resetParamServer()
     self.publish_status()
 
 
@@ -232,40 +229,25 @@ class NepiAppsMgr(object):
     nepi_ros.set_param(self,"~restart_enabled",False)
     self.publish_status()
 
-  def saveConfigCb(self, msg):  # Just update Class init values. Saving done by Config IF system
-    pass # Left empty for sim, Should update from param server
-
-  def setCurrentAsDefault(self):
-    nepi_ros.set_param(self,"~backup_enabled", True)
-    nepi_ros.set_param(self,"~restart_enabled",False)
-    self.initParamServerValues(do_updates = False)
-    self.publish_status()
-
-  def updateFromParamServer(self):
-    #Run any functions that need updating on value change
-    # Don't need to run any additional functionsinstallAppPkgCb
-    pass
     
-  def initParamServerValues(self,do_updates = True):
-      self.selected_app = 'NONE'
-      nepi_msg.publishMsgInfo(self,"Setting init values to param values")
+  def initCb(self,do_updates = False):
+      self.msg_if.pub_info("Setting init values to param values")
       self.init_backup_enabled = nepi_ros.get_param(self,"~backup_enabled", True)
-      self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-      self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-      apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
-      apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-      self.init_apps_dict = apps_dict
+      self.init_apps_dict = nepi_ros.get_param(self,"~apps_dict",dict())
       self.init_restart_enabled = nepi_ros.get_param(self,"~restart_enabled",False)
-      self.resetParamServer(do_updates)
-      #self.printND()
+      if do_updates == True:
+        self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
+        self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
+        self.init_apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,self.init_apps_dict)
+        self.resetCb(do_updates)
+        #self.printND()
 
-  def resetParamServer(self,do_updates = True):
+  def resetCb(self,do_updates = True):
       nepi_ros.set_param(self,"~apps_dict",self.init_apps_dict)
       nepi_ros.set_param(self,"~backup_enabled",self.init_backup_enabled)
       nepi_ros.set_param(self,"~apps_dict",self.init_apps_dict)
       nepi_ros.set_param(self,"~restart_enabled",self.init_restart_enabled)
-      if do_updates:
-          self.updateFromParamServer()
+
 
   def publishStatusCb(self,timer):
     self.publish_status()
@@ -279,8 +261,8 @@ class NepiAppsMgr(object):
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
     need_update = self.apps_files != apps_files
     if need_update:
-      nepi_msg.publishMsgInfo(self,"Need to Update App Database")
-      self.initParamServerValues()
+      self.msg_if.pub_info("Need to Update App Database")
+      self.initCb(do_updates = True)
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
     apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
@@ -294,7 +276,6 @@ class NepiAppsMgr(object):
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
-    #nepi_msg.publishMsgInfo(self,str(node_list),level = "WARN")
     ################################    
     ## Check and purge disabled app proccess that might be running
     # First check on running nodes
@@ -323,7 +304,7 @@ class NepiAppsMgr(object):
     for app_name in self.apps_ordered_list:
       if app_name in apps_active_list and app_name in apps_dict.keys():
         app_dict = apps_dict[app_name]
-        #nepi_msg.publishMsgWarn(self,app_dict)
+        #self.msg_if.pub_warn(app_dict)
         app_pkg_name = app_dict['APP_DICT']['pkg_name']
         app_group_name = app_dict['APP_DICT']['group_name']
         app_file_name = app_dict['APP_DICT']['app_file']
@@ -345,12 +326,12 @@ class NepiAppsMgr(object):
             try:
               nepi_ros.load_params_from_file(config_file_path, params_namespace)
             except Exception as e:
-              nepi_msg.publishMsgWarn(self,"Could not get params from config file: " + config_file_path + " " + str(e))
+              self.msg_if.pub_warn("Could not get params from config file: " + config_file_path + " " + str(e))
           else:
-            nepi_msg.publishMsgWarn(self,"Could not find config file at: " + config_file_path + " starting with factory settings")
+            self.msg_if.pub_warn("Could not find config file at: " + config_file_path + " starting with factory settings")
           #Try and launch node
-          nepi_msg.publishMsgInfo(self,"")
-          nepi_msg.publishMsgInfo(self,"Launching application node: " + app_node_name)
+          self.msg_if.pub_info("")
+          self.msg_if.pub_info("Launching application node: " + app_node_name)
           [success, msg, sub_process] = nepi_ros.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success:
             apps_dict[app_name]['msg'] = "Discovery process lanched"
@@ -359,10 +340,10 @@ class NepiAppsMgr(object):
             self.apps_active_dict[app_name]['subprocess'] = sub_process
           else:
             if restart == False:
-              nepi_msg.publishMsgWarn(self,"Node not started: " + node_name  + " - Will not restart")
+              self.msg_if.pub_warn("Node not started: " + node_name  + " - Will not restart")
               self.failed_app_list.append(app_name)
             else:
-              nepi_msg.publishMsgWarn(self,"Node not running: " + node_name  + " - Will attempt restart")
+              self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
 
               
 
@@ -388,7 +369,7 @@ class NepiAppsMgr(object):
     if app_name in apps_dict.keys() and app_name != 'NONE':
       app = apps_dict[app_name]
       try:
-        #nepi_msg.publishMsgWarn(self,app)
+        #self.msg_if.pub_warn(app)
         status_app_msg.pkg_name = app['APP_DICT']['pkg_name']
         status_app_msg.group_name = app['APP_DICT']['group_name']
         status_app_msg.description = app['APP_DICT']['description']
@@ -405,21 +386,21 @@ class NepiAppsMgr(object):
         status_app_msg.license_type = app['APP_DICT']['license_type']
         status_app_msg.license_link = app['APP_DICT']['license_link']
       except Exception as e:
-        nepi_msg.publishMsgInfo(self,"Failed to create app status message: " + str(e))
+        self.msg_if.pub_info("Failed to create app status message: " + str(e))
     return status_app_msg
 
         
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
-    nepi_msg.publishMsgInfo(self,'')
-    nepi_msg.publishMsgInfo(self,'*******************')
-    nepi_msg.publishMsgInfo(self,'Printing Apps Dictionary')
+    self.msg_if.pub_info('')
+    self.msg_if.pub_info('*******************')
+    self.msg_if.pub_info('Printing Apps Dictionary')
     for app_name in apps_dict.keys():
       app_dict = apps_dict[app_name]
-      nepi_msg.publishMsgInfo(self,'')
-      nepi_msg.publishMsgInfo(self,app_name)
-      nepi_msg.publishMsgInfo(self,str(app_dict))
+      self.msg_if.pub_info('')
+      self.msg_if.pub_info(app_name)
+      self.msg_if.pub_info(str(app_dict))
 
 
 
@@ -434,10 +415,10 @@ class NepiAppsMgr(object):
   def publish_apps_status(self):
     self.last_status_apps_msg = self.status_apps_msg
     self.status_apps_msg = self.getAppsStatusMsg()
-    if not nepi_ros.is_shutdown():
+    if self.apps_status_pub is not None and not nepi_ros.is_shutdown():
       self.apps_status_pub.publish(self.status_apps_msg)
       if self.last_status_apps_msg != self.status_apps_msg:
-        self.save_cfg_if.saveConfig(do_param_updates = False) # Save config
+        self.save_cfg_if.save() # Save config
 
   def getAppsStatusMsg(self):
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
@@ -465,10 +446,10 @@ class NepiAppsMgr(object):
   def publish_app_status(self):
     self.last_status_app_msg = self.status_app_msg
     self.status_app_msg = self.getAppStatusMsg()
-    if not nepi_ros.is_shutdown():
+    if self.app_status_pub is not None and not nepi_ros.is_shutdown():
       self.app_status_pub.publish(self.status_app_msg)
       if self.last_status_app_msg != self.status_app_msg:
-        self.save_cfg_if.saveConfig(do_param_updates = False) # Save config
+        self.save_cfg_if.save() # Save config
 
 
   def getAppStatusMsg(self):
@@ -479,7 +460,7 @@ class NepiAppsMgr(object):
     if app_name in apps_dict.keys() and app_name != 'NONE':
       app = apps_dict[app_name]
       try:
-        #nepi_msg.publishMsgWarn(self,app)
+        #self.msg_if.pub_warn(app)
         status_app_msg.pkg_name = app['APP_DICT']['pkg_name']
         status_app_msg.group_name = app['APP_DICT']['group_name']
         status_app_msg.description = app['APP_DICT']['description']
@@ -496,7 +477,7 @@ class NepiAppsMgr(object):
         status_app_msg.license_type = app['APP_DICT']['license_type']
         status_app_msg.license_link = app['APP_DICT']['license_link']
       except Exception as e:
-        nepi_msg.publishMsgInfo(self,"Failed to create app status message: " + str(e))
+        self.msg_if.pub_info("Failed to create app status message: " + str(e))
 
     return status_app_msg
 
@@ -519,7 +500,7 @@ class NepiAppsMgr(object):
 
 
   def selectAppCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     app_name = msg.data
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
     if app_name in apps_dict.keys() or app_name == "NONE":
@@ -527,7 +508,7 @@ class NepiAppsMgr(object):
     self.publish_status()
 
   def updateStateCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     app_name = msg.name
     new_active_state = msg.active_state
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
@@ -544,7 +525,7 @@ class NepiAppsMgr(object):
 
 
   def updateOrderCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     app_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
@@ -555,7 +536,7 @@ class NepiAppsMgr(object):
     self.publish_status()
 
   def enableRestartCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     restart_enabled = msg.data
     nepi_ros.set_param(self,"~restart_enabled",restart_enabled)
     self.publish_status()
@@ -580,7 +561,7 @@ class NepiAppsMgr(object):
 
 
   def installAppPkgCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
     if pkg_name in self.apps_install_files:
@@ -589,7 +570,7 @@ class NepiAppsMgr(object):
     self.publish_status()
 
   def removeAppCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     app_name = msg.data
     apps_dict = nepi_ros.get_param(self,"~apps_dict",self.init_apps_dict)
     backup_folder = None
@@ -603,7 +584,7 @@ class NepiAppsMgr(object):
 
 
   def enableBackupCb(self,msg):
-    nepi_msg.publishMsgInfo(self,str(msg))
+    self.msg_if.pub_info(str(msg))
     backup_enabled = msg.data
     nepi_ros.set_param(self,"~backup_enabled",backup_enabled)
     self.publish_status()
@@ -623,7 +604,7 @@ class NepiAppsMgr(object):
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    nepi_msg.publishMsgInfo(self,"Shutting down: Executing script cleanup actions")
+    self.msg_if.pub_info("Shutting down: Executing script cleanup actions")
 
 
 #########################################

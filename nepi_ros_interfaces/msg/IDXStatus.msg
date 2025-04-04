@@ -22,12 +22,10 @@ string user_name
 # In standby or not
 bool standby
 
-# The resolution_mode field indicates the generic resolution setting for the device
-uint8 resolution_mode
+float32 resolution_ratio
 string resolution_current
 
-# The frame_rate_mode field indicates the generic frame rate setting for the device
-uint8 framerate_mode
+float32 framerate_ratio
 float32 framerate_current
 
 

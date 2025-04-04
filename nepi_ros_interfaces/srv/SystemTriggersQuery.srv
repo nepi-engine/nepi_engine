@@ -1,0 +1,17 @@
+# System Triggers Info Query Service
+
+---
+string node_name
+SystemTrigger[] triggers_list
+
+
+
+
+
+
+
+
+
+
+
+

@@ -240,57 +240,77 @@ class NepiSensorsImaging extends Component {
     const ImageName = this.state.imageText_0
     
     return (
-      <Columns>
-        <Column>
-
-          <div hidden={(!SensorSelected)}>
-            <NepiDeviceInfo
-                  deviceNamespace={this.state.currentIDXNamespace}
-                  status_topic={"/idx/status"}
-                  status_msg_type={"nepi_ros_interfaces/IDXStatus"}
-                  name_update_topic={"/idx/update_device_name"}
-                  name_reset_topic={"/idx/reset_device_name"}
-                  title={"NepiSensorsImagingInfo"}
-              />
-
-          </div>
-
-          {this.renderImageViewer()}
-
-          <div hidden={(!SensorSelected)}>
-
-            <NepiIFSaveData
-                saveNamespace={this.state.currentIDXNamespace}
-                title={"Nepi_IF_SaveData"}
-            />
-          </div>
 
 
-        </Column>
-        <Column>
-          {this.renderSensorSelection()}
+    
+      <div style={{ display: 'flex' }}>
+
+          <div style={{ width: "65%" }}>
+
+                    <div hidden={(!SensorSelected)}>
+                      <NepiDeviceInfo
+                            deviceNamespace={this.state.currentIDXNamespace}
+                            status_topic={"/idx/status"}
+                            status_msg_type={"nepi_ros_interfaces/IDXStatus"}
+                            name_update_topic={"/idx/update_device_name"}
+                            name_reset_topic={"/idx/reset_device_name"}
+                            title={"NepiSensorsImagingInfo"}
+                        />
+
+                    </div>
+
+                    {this.renderImageViewer()}
+
+                    <div hidden={(!SensorSelected)}>
+
+                      <NepiIFSaveData
+                          saveNamespace={this.state.currentIDXNamespace}
+                          title={"Nepi_IF_SaveData"}
+                      />
+                    </div>
 
 
-          <div hidden={(!SensorSelected && this.state.show_controls)}>
-            <NepiSensorsImagingControls
-                idxSensorNamespace={this.state.currentIDXNamespace}
-                idxImageName = {ImageName}
-                title={"NepiSensorsImagingControls"}
-            />
-          </div>
-
-
-          <div hidden={(!SensorSelected && this.state.show_settings)}>
-            <NepiIFSettings
-              settingsNamespace={this.state.currentIDXNamespace}
-              title={"Nepi_IF_Settings"}
-            />
           </div>
 
 
 
-         </Column>
-      </Columns>
+
+          <div style={{ width: '5%' }}>
+                {}
+          </div>
+
+
+
+          <div style={{ width: "30%"}}>
+
+
+                    {this.renderSensorSelection()}
+
+
+                    <div hidden={(!SensorSelected && this.state.show_controls)}>
+                      <NepiSensorsImagingControls
+                          idxSensorNamespace={this.state.currentIDXNamespace}
+                          idxImageName = {ImageName}
+                          title={"NepiSensorsImagingControls"}
+                      />
+                    </div>
+
+
+                    <div hidden={(!SensorSelected && this.state.show_settings)}>
+                      <NepiIFSettings
+                        settingsNamespace={this.state.currentIDXNamespace}
+                        title={"Nepi_IF_Settings"}
+                      />
+                    </div>
+
+          </div>
+
+
+
+    </div>
+
+
+
     )
   }
 }

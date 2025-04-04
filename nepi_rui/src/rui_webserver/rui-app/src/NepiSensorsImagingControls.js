@@ -91,9 +91,9 @@ class NepiSensorsImagingControls extends Component {
       rtsp_password: message.rtsp_password,
       controlsEnable: message.controls_enable,
       autoAdjust: message.auto_adjust,
-      resolutionAdjustment: message.resolution_mode,
+      resolutionAdjustment: message.resolution_ratio,
       resolutionString : message.resolution_current,
-      framerateAdjustment: message.framerate_mode,
+      framerateAdjustment: message.framerate_ratio,
       framerateCurrent: message.framerate_current,
       contrastAdjustment: message.contrast,
       brightnessAdjustment: message.brightness,
@@ -260,226 +260,205 @@ class NepiSensorsImagingControls extends Component {
 
       <Section title={"Post Processing Controls"}>
 
-              <RadioButtonAdjustment
-                  title={"Framerate"}
-                  topic={this.props.idxSensorNamespace + '/idx/set_framerate_mode'}
-                  msgType={"std_msgs/UInt8"}
-                  adjustment={(capabilities && capabilities.adjustable_framerate)? this.state.framerateAdjustment : null}
-                  disabled={(capabilities && capabilities.adjustable_framerate && !this.state.disabled)? false : true}
-                  entries={["25%", "50%", "75%", "Max"]}
-              />
 
 
-          <Columns>
-            <Column>
-
-              <Label title={"Current Framerate"}>
-              <Input
-                value={framerate_str}
-                id="framerate"
-                style={{ width: "100%" }}
-                disabled={true}
-              />
-            </Label>
-   
-                </Column>
-                <Column>
-
-   
-                </Column>
-              </Columns>
-        
+      <div hidden={!this.state.controlsEnable }>
 
 
+              <div hidden={(imageName !== 'bw_2d_image' && imageName !== 'color_2d_image')}>
 
 
-{/*
+              <SliderAdjustment
+                              title={"Resolution"}
+                              msgType={"std_msgs/Float32"}
+                              adjustment={this.state.resolutionAdjustment}
+                              topic={this.props.idxSensorNamespace + '/idx/set_resolution_ratio'}
+                              scaled={0.01}
+                              min={0}
+                              max={100}
+                              disabled={(capabilities && !this.state.disabled)? false : true}
+                              tooltip={"Adjustable Resolution"}
+                              unit={"%"}
+                          />
 
-              <Columns>
-            <Column>
-
-  
-              <div align={"left"} textAlign={"left"}>
-                <Label title={"Enable Controls"}>
-                  <Toggle
-                  checked={this.state.controlsEnable}
-                  onClick={() => setIdxControlsEnable(this.props.idxSensorNamespace,!this.state.controlsEnable)}
-                  />
-                </Label>
-              </div>
-
-                </Column>
-                <Column>
-
-   
-                </Column>
-              </Columns>       
-
-    */}
-
-          <div hidden={!this.state.controlsEnable }>
-
-
-            <div hidden={(imageName !== 'bw_2d_image' && imageName !== 'color_2d_image')}>
-
-
-
-
-            <RadioButtonAdjustment
-                  title={"Resolution"}
-                  topic={this.props.idxSensorNamespace + '/idx/set_resolution_mode'}
-                  msgType={"std_msgs/UInt8"}
-                  adjustment={(capabilities && capabilities.adjustable_resolution)? this.state.resolutionAdjustment : null}
-                  disabled={(capabilities && capabilities.adjustable_resolution && !this.state.disabled)? false : true}
-                  entries={["25%", "50%", "75%", "Full"]}
-              />
-
-
-
-            <Columns>
-            <Column>
-
-              <Label title={"Current Resolution"}>
-              <Input
-                value={this.state.resolutionString}
-                id="framerate"
-                style={{ width: "100%" }}
-                disabled={true}
-              />
-            </Label>
-
-                </Column>
-                <Column>
-
-                </Column>
-              </Columns>             
-
-
-
-
-
-              <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
-                <Columns>
+                  <Columns>
                   <Column>
 
-                        <Label title={"Auto Adjust"}>
-                            <Toggle
-                              checked={this.state.autoAdjust}
-                              onClick={() => setIdxAutoAdjust(this.props.idxSensorNamespace,!this.state.autoAdjust)}
-                            /> 
-                          </Label>
-                
+
 
                       </Column>
                       <Column>
 
+                      <Label title={"Current Resolution"}>
+                    <Input
+                      value={this.state.resolutionString}
+                      id="framerate"
+                      style={{ width: "100%" }}
+                      disabled={true}
+                    />
+                  </Label>
+
+                      </Column>
+                    </Columns>             
+
+
+                    <SliderAdjustment
+                              title={"Framerate"}
+                              msgType={"std_msgs/Float32"}
+                              adjustment={this.state.framerateAdjustment}
+                              topic={this.props.idxSensorNamespace + '/idx/set_framerate_ratio'}
+                              scaled={0.01}
+                              min={0}
+                              max={100}
+                              disabled={(capabilities && !this.state.disabled)? false : true}
+                              tooltip={"Adjustable Framerate"}
+                              unit={"%"}
+                          />
+
+                  <Columns>
+                    <Column>
+
+
+        
+                      </Column>
+                      <Column>
+                      <Label title={"Current Framerate"}>
+                    <Input
+                      value={framerate_str}
+                      id="framerate"
+                      style={{ width: "100%" }}
+                      disabled={true}
+                    />
+                  </Label>
+        
                       </Column>
                     </Columns>
+        
 
-              </div>
 
 
-              <div hidden={this.state.autoAdjust}>
-                <SliderAdjustment
-                    title={"Brightness"}
-                    msgType={"std_msgs/Float32"}
-                    adjustment={this.state.brightnessAdjustment}
-                    topic={this.props.idxSensorNamespace + "/idx/set_brightness"}
-                    scaled={0.01}
-                    min={0}
-                    max={100}
-                    disabled={(capabilities && capabilities.adjustable_brightness && !this.state.disabled)? false : true}
-                    tooltip={"Adjustable brightness"}
-                    unit={"%"}
-                />
-                <SliderAdjustment
-                  title={"Contrast"}
-                  msgType={"std_msgs/Float32"}
-                  adjustment={this.state.contrastAdjustment}
-                  topic={this.props.idxSensorNamespace + "/idx/set_contrast"}
-                  scaled={0.01}
-                  min={0}
-                  max={100}
-                  disabled={(capabilities && capabilities.adjustable_contrast && !this.state.disabled)? false : true}
-                  tooltip={"Adjustable contrast"}
-                  unit={"%"}
-                />
-                <SliderAdjustment
-                    title={"Thresholding"}
-                    msgType={"std_msgs/Float32"}
-                    adjustment={this.state.thresholdingAdjustment}
-                    topic={this.props.idxSensorNamespace + "/idx/set_thresholding"}
-                    scaled={0.01}
-                    min={0}
-                    max={100}
-                    disabled={(capabilities && capabilities.adjustable_thresholding && !this.state.disabled)? false : true}
-                    tooltip={"Adjustable thresholding"}
-                    unit={"%"}
-                />
-              </div>
+                      <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
+                        <Columns>
+                          <Column>
+
+                                <Label title={"Auto Adjust"}>
+                                    <Toggle
+                                      checked={this.state.autoAdjust}
+                                      onClick={() => setIdxAutoAdjust(this.props.idxSensorNamespace,!this.state.autoAdjust)}
+                                    /> 
+                                  </Label>
+                        
+
+                              </Column>
+                              <Column>
+
+                              </Column>
+                            </Columns>
+
+                      </div>
+
+
+                        <div hidden={this.state.autoAdjust}>
+                          <SliderAdjustment
+                              title={"Brightness"}
+                              msgType={"std_msgs/Float32"}
+                              adjustment={this.state.brightnessAdjustment}
+                              topic={this.props.idxSensorNamespace + "/idx/set_brightness"}
+                              scaled={0.01}
+                              min={0}
+                              max={100}
+                              disabled={(capabilities && capabilities.adjustable_brightness && !this.state.disabled)? false : true}
+                              tooltip={"Adjustable brightness"}
+                              unit={"%"}
+                          />
+                          <SliderAdjustment
+                            title={"Contrast"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.contrastAdjustment}
+                            topic={this.props.idxSensorNamespace + "/idx/set_contrast"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={(capabilities && capabilities.adjustable_contrast && !this.state.disabled)? false : true}
+                            tooltip={"Adjustable contrast"}
+                            unit={"%"}
+                          />
+                          <SliderAdjustment
+                              title={"Thresholding"}
+                              msgType={"std_msgs/Float32"}
+                              adjustment={this.state.thresholdingAdjustment}
+                              topic={this.props.idxSensorNamespace + "/idx/set_thresholding"}
+                              scaled={0.01}
+                              min={0}
+                              max={100}
+                              disabled={(capabilities && capabilities.adjustable_thresholding && !this.state.disabled)? false : true}
+                              tooltip={"Adjustable thresholding"}
+                              unit={"%"}
+                          />
+                        </div>
            
 
 
-            </div>
+              </div>
 
-            <div hidden={!has_range_adjust || (imageName !== 'depth_image' && imageName !== 'depth_map' && imageName !== 'pointcloud_image')}>
-              <RangeAdjustment
-                title="Range Clip"
-                min={this.state.rangeMin}
-                max={this.state.rangeMax}
-                min_limit_m={this.state.rangeLimitMinM}
-                max_limit_m={this.state.rangeLimitMaxM}
-                topic={this.props.idxSensorNamespace + "/idx/set_range_window"}
-                disabled={(capabilities && capabilities.adjustable_range && !this.state.disabled)? false : true}
-                tooltip={"Adjustable range"}
-                unit={"m"}
-              />
-            </div>
-
-
-            <div hidden={ imageName !== 'pointcloud_image'}>
-
-                <SliderAdjustment
-                      title={"Zoom"}
-                      msgType={"std_msgs/Float32"}
-                      adjustment={this.state.zoomAdjustment}
-                      topic={this.props.idxSensorNamespace + "/idx/set_zoom_ratio"}
-                      scaled={0.01}
-                      min={0}
-                      max={100}
-                      disabled={false}
-                      tooltip={"Zoom controls for pointcloud image rendering"}
-                      unit={"%"}
-                  />
+              <div hidden={!has_range_adjust || (imageName !== 'depth_image' && imageName !== 'depth_map' && imageName !== 'pointcloud_image')}>
+                <RangeAdjustment
+                  title="Range Clip"
+                  min={this.state.rangeMin}
+                  max={this.state.rangeMax}
+                  min_limit_m={this.state.rangeLimitMinM}
+                  max_limit_m={this.state.rangeLimitMaxM}
+                  topic={this.props.idxSensorNamespace + "/idx/set_range_window"}
+                  disabled={(capabilities && capabilities.adjustable_range && !this.state.disabled)? false : true}
+                  tooltip={"Adjustable range"}
+                  unit={"m"}
+                />
+              </div>
 
 
-                <SliderAdjustment
-                      title={"Rotate"}
-                      msgType={"std_msgs/Float32"}
-                      adjustment={this.state.rotateAdjustment}
-                      topic={this.props.idxSensorNamespace + "/idx/set_rotate_ratio"}
-                      scaled={0.01}
-                      min={0}
-                      max={100}
-                      disabled={false}
-                      tooltip={"Rotate controls for pointcloud image rendering"}
-                      unit={"%"}
-                  />
+              <div hidden={ imageName !== 'pointcloud_image'}>
 
                   <SliderAdjustment
-                      title={"Tilt"}
-                      msgType={"std_msgs/Float32"}
-                      adjustment={this.state.tiltAdjustment}
-                      topic={this.props.idxSensorNamespace + "/idx/set_tilt_ratio"}
-                      scaled={0.01}
-                      min={0}
-                      max={100}
-                      disabled={false}
-                      tooltip={"Tilt controls for pointcloud image rendering"}
-                      unit={"%"}
-                  />
-                          </div>
-                          </div>
+                        title={"Zoom"}
+                        msgType={"std_msgs/Float32"}
+                        adjustment={this.state.zoomAdjustment}
+                        topic={this.props.idxSensorNamespace + "/idx/set_zoom_ratio"}
+                        scaled={0.01}
+                        min={0}
+                        max={100}
+                        disabled={false}
+                        tooltip={"Zoom controls for pointcloud image rendering"}
+                        unit={"%"}
+                    />
+
+
+                  <SliderAdjustment
+                        title={"Rotate"}
+                        msgType={"std_msgs/Float32"}
+                        adjustment={this.state.rotateAdjustment}
+                        topic={this.props.idxSensorNamespace + "/idx/set_rotate_ratio"}
+                        scaled={0.01}
+                        min={0}
+                        max={100}
+                        disabled={false}
+                        tooltip={"Rotate controls for pointcloud image rendering"}
+                        unit={"%"}
+                    />
+
+                    <SliderAdjustment
+                        title={"Tilt"}
+                        msgType={"std_msgs/Float32"}
+                        adjustment={this.state.tiltAdjustment}
+                        topic={this.props.idxSensorNamespace + "/idx/set_tilt_ratio"}
+                        scaled={0.01}
+                        min={0}
+                        max={100}
+                        disabled={false}
+                        tooltip={"Tilt controls for pointcloud image rendering"}
+                        unit={"%"}
+                    />
+              </div>
+      </div>
 
   <Columns>
     <Column>

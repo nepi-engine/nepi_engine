@@ -991,7 +991,7 @@ class ROSConnectionStore {
     if (ptxNamespace) {
       return this.addListener({
         name: ptxNamespace + "/ptx/status",
-        messageType: "nepi_ros_interfaces/PanTiltStatus",
+        messageType: "nepi_ros_interfaces/PTXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1557,6 +1557,7 @@ class ROSConnectionStore {
 
   @action.bound
   async callSettingsCapabilitiesQueryService(namespace) {
+    this.settingCaps[namespace] = []
     const capabilities = await this.callService({
       name: namespace + "/settings_capabilities_query",
       messageType: "nepi_ros_interfaces/SettingsCapabilitiesQuery",  

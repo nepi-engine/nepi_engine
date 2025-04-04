@@ -39,6 +39,8 @@ import numpy as np
 import math
 import time
 
+import nepi_utils
+
 from std_srvs.srv import Empty, EmptyRequest, Trigger
 from nepi_ros_interfaces.srv import GetScriptsQuery,GetRunningScriptsQuery ,LaunchScript, StopScript
 
@@ -156,9 +158,9 @@ def launch_scripts(script_list):
   running_scripts = get_running_scripts()
   if installed_scripts is not None and running_scripts is not None:
     for script2launch in script_list:
-      script_installed = val_in_list(script2launch,installed_scripts)
+      script_installed = nepi_utils.val_in_list(script2launch,installed_scripts)
       if script_installed:
-        script_running = val_in_list(script2launch,running_scripts)
+        script_running = nepi_utils.val_in_list(script2launch,running_scripts)
         if script_running is False:
             print("")
             print(["Launching script: " + script2launch])
@@ -168,7 +170,7 @@ def launch_scripts(script_list):
               script_running = False
               while script_running is False and not rospy.is_shutdown():
                 running_scripts = get_running_scripts()
-                script_running = val_in_list(script2launch,running_scripts)
+                script_running = nepi_utils.val_in_list(script2launch,running_scripts)
                 print("Waiting for script to launch")
                 time.sleep(.5) # Sleep before checking again
               print("Script started successfully")
@@ -190,10 +192,10 @@ def stop_scripts(script_list,optional_ignore_script_list=[]):
   running_scripts = get_running_scripts()
   if installed_scripts is not None and running_scripts is not None:
     for script2stop in script_list:
-      script_running = val_in_list(script2stop,running_scripts)
-      script_ignore = val_in_list(script2stop,optional_ignore_script_list)
+      script_running = nepi_utils.val_in_list(script2stop,running_scripts)
+      script_ignore = nepi_utils.val_in_list(script2stop,optional_ignore_script_list)
       if script_running is True and script_ignore is False:
-        script_running = val_in_list(script2stop,running_scripts)
+        script_running = nepi_utils.val_in_list(script2stop,running_scripts)
         if script_running is True:
             print("")
             print(["Stopping script: " + script2stop])
@@ -213,7 +215,7 @@ def stop_scripts(script_list,optional_ignore_script_list=[]):
     
 
 ### Function for checking if val in list
-def val_in_list(val2check,list2check):
+def nepi_utils.val_in_list(val2check,list2check):
   in_list = False
   if len(list2check) > 0:
     for list_val in list2check:
