@@ -462,7 +462,7 @@ class IDXDeviceIF:
             dp_dict['data_product'] = data_product
             dp_dict['topic'] = topic
             if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(data_name = data_product, pub_namespace = pub_namespace)
+                dp_dict['data_if'] = ImageIF(data_name = data_product, pub_namespace = pub_namespace, do_wait = False)
             else:
                 dp_dict['data_if'] = PointcloudIF(data_product, topic)
 
@@ -470,6 +470,8 @@ class IDXDeviceIF:
 
             self.data_products_list.append(data_product)
             self.data_product_dict[data_product] = dp_dict
+        # do wait here for all
+        time.sleep(1)
         success = True
         return success
 
@@ -903,38 +905,38 @@ class IDXDeviceIF:
                     if (status is False):
                         #rospy.logerr_throttle(1, msg)
                         continue   
-                    
+                    if cv2_img is not None:
 
-                    # Get Image Info and Pub Status if Changed
-                    cur_width = self.img_width
-                    cur_height = self.img_height
-                    cv2_shape = cv2_img.shape
-                    self.img_width = cv2_shape[1] 
-                    self.img_height = cv2_shape[0] 
-                    #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
-                    if cur_width != self.img_width or cur_height != self.img_height:
-                        self.publishStatus()
+                        # Get Image Info and Pub Status if Changed
+                        cur_width = self.img_width
+                        cur_height = self.img_height
+                        cv2_shape = cv2_img.shape
+                        self.img_width = cv2_shape[1] 
+                        self.img_height = cv2_shape[0] 
+                        #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        if cur_width != self.img_width or cur_height != self.img_height:
+                            self.publishStatus()
 
-                    #############################
-                    # Process Raw Data Requirements
-                    if dp_raw_if is not None:
-                        if (dp_raw_has_subs == True):
-                            #Publish Ros Image
-                            frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
-                            dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = 'sensor_frame')
-                        if (dp_raw_should_save == True):
-                            nepi_save.save_img2file(self,data_product_raw,cv2_img,ros_timestamp,save_check=False)
+                        #############################
+                        # Process Raw Data Requirements
+                        if dp_raw_if is not None:
+                            if (dp_raw_has_subs == True):
+                                #Publish Ros Image
+                                frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                                dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = 'sensor_frame')
+                            if (dp_raw_should_save == True):
+                                nepi_save.save_img2file(self,data_product_raw,cv2_img,ros_timestamp,save_check=False)
 
-                    #############################
-                    # Apply IDX Post Processing
-                    if dp_has_subs == True or dp_should_save == True: # Don't process idx image if not required
-                        cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
-                        if (dp_has_subs == True):
-                            #Publish Ros Image
-                            frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
-                            dp_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = frame_id)
-                        if (dp_should_save == True):
-                            nepi_save.save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=False)
+                        #############################
+                        # Apply IDX Post Processing
+                        if dp_has_subs == True or dp_should_save == True: # Don't process idx image if not required
+                            cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
+                            if (dp_has_subs == True):
+                                #Publish Ros Image
+                                frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                                dp_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = frame_id)
+                            if (dp_should_save == True):
+                                nepi_save.save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=False)
 
                 elif acquiring is True:
                     if dp_stop_data is not None:

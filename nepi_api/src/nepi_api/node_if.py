@@ -376,7 +376,8 @@ class NodePublishersIF(object):
     def __init__(self, 
                 pubs_config_dict = None,
                 log_name = None,
-                log_class_name = True
+                log_class_name = True,
+                do_wait = True
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -392,6 +393,7 @@ class NodePublishersIF(object):
         self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
         ##############################   
 
+        self.do_wait = do_wait
         ##############################  
         # Initialize Publishers System
         if pubs_config_dict is not None:
@@ -497,7 +499,8 @@ class NodePublishersIF(object):
                 pub = None
                 try:
                     pub = rospy.Publisher(pub_namespace, pub_dict['msg'], queue_size = sub_dict['qsize'],  latch = sub_dict['latch'])
-                    time.sleep(1)
+                    if self.do_wait == True:
+                        time.sleep(1)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
                 self.pubs_dict[pub_name]['pub'] = pub
@@ -542,7 +545,8 @@ class NodeSubscribersIF(object):
     def __init__(self, 
                 subs_config_dict = None,
                 log_name = None,
-                log_class_name = True
+                log_class_name = True,
+                do_wait = True
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -557,7 +561,7 @@ class NodeSubscribersIF(object):
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         ##############################   
-
+        self.do_wait = do_wait
         ##############################  
         # Initialize Params System
         if subs_config_dict is not None:
@@ -700,7 +704,8 @@ class NodeClassIF(object):
                 subs_config_dict = None,
                 log_name = None,
                 log_class_name = False,
-                node_name = None
+                node_name = None,
+                do_wait = True
                 ):
         ####  IF INIT SETUP ####
         if node_name is not None:
@@ -719,7 +724,7 @@ class NodeClassIF(object):
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
         ##############################   
-
+        self.do_wait = do_wait
         ##############################  
         # Create Params Class
 
@@ -736,10 +741,10 @@ class NodeClassIF(object):
             ready = self.srvs_if.wait_for_ready()
 
         ##############################  
-        # Create Subscribers Class
+        # Create Publisers Class
         if pubs_config_dict is not None:
             self.msg_if.pub_info("Starting Node Publishers IF Initialization Processes")
-            self.pubs_if = NodePublishersIF(pubs_config_dict = pubs_config_dict, log_name = log_name)
+            self.pubs_if = NodePublishersIF(pubs_config_dict = pubs_config_dict, log_name = log_name, do_wait = self.do_wait)
             ready = self.pubs_if.wait_for_ready()
 
         ##############################  

@@ -63,7 +63,7 @@ class ImageIF:
 
     last_pub_time = None
 
-    def __init__(self, data_name = 'image', encoding = 'bgr8', pub_namespace = None ):
+    def __init__(self, data_name = 'image', encoding = 'bgr8', pub_namespace = None, do_wait = True ):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -103,7 +103,8 @@ class ImageIF:
         status_msg.process_time
         self.status_msg = status_msg
 
-        time.sleep(1)
+        if do_wait == True:
+            time.sleep(1)
 
         # Start subscribers check callback
         rospy.Timer(rospy.Duration(.1), self._subscribersCheckCb, oneshot = True)

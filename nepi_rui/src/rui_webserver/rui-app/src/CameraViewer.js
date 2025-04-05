@@ -166,13 +166,13 @@ class CameraViewer extends Component {
       if (!this.image) {
         this.image = new Image() // EXPERIMENT -- Only create a new Image when strictly required
       }
-      this.setState({ shouldUpdate: true })
       this.image.crossOrigin = "Anonymous"
       this.image.onload = () => {
         const { width, height } = this.image
         this.setState(
           {
             hasInitialized: true,
+            connected: false,
             streamWidth: width,
             streamHeight: height,
             streamSize: width * height
