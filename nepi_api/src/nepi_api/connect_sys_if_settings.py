@@ -120,6 +120,7 @@ class ConnectSettingsIF(object):
                         subs_config_dict = self.SUBS_CONFIG_DICT
                         )
 
+        #############################
         ### Get Settings Capabilities
         self.cap_settings_dict = self._getCapSettings()
         if self.cap_settings_dict is not None:

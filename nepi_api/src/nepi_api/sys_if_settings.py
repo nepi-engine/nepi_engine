@@ -80,6 +80,7 @@ class SettingsIF(object):
             self.capabilities_report.setting_caps_list = cap_setting_msgs_list
             self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
+            self.msg_if.pub_info("Got Node settings capabilitis dict : " + str(capSettings))
             self.cap_settings = capSettings   
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_report.settings_count = len(cap_setting_msgs_list)
@@ -157,28 +158,21 @@ class SettingsIF(object):
                 'topic': 'update_setting',
                 'qsize': 1,
                 'callback': self._updateSettingCb,
-                'callback_args': ()
-            },
-            'publish_setting': {
-                'msg': Empty,
-                'topic': 'publish_setting',
-                'qsize': 1,
-                'callback': self._publishSettingsCb,
-                'callback_args': ()
+                'callback_args': None
             },
             'reset_setting': {
                 'msg': Empty,
                 'topic': 'reset_settings',
                 'qsize': 1,
-                'callback': self._resetSettings,
-                'callback_args': ()
+                'callback': self._resetSettingsCb,
+                'callback_args': None
             },
             'factory_reset_setting': {
                 'msg': Empty,
                 'topic': 'factory_reset_settings',
                 'qsize': 1,
-                'callback': self._resetFactorySettings,
-                'callback_args': ()
+                'callback': self._resetFactorySettingsCb,
+                'callback_args': None
             },
         }
 
@@ -200,6 +194,9 @@ class SettingsIF(object):
 
         self.initialize_settings(do_updates = False)     
         #self.msg_if.pub_info("Cap Settings Message: " + str(self.capabilities_report)   )      
+
+        nepi_ros.sleep(1)
+        nepi_ros.start_timer_process(nepi_ros.ros_duration(1), self._publishSettingsCb)
   
         ##############################   
         self.msg_if.pub_info("IF Initialization Complete")
@@ -213,7 +210,9 @@ class SettingsIF(object):
         current_settings = self.getSettingsFunction()
         self.class_if.set_param('settings', current_settings)
         settings_msg = nepi_settings.create_msg_data_from_settings(current_settings)
-        self.class_if.set_param('status_pub', settings_msg)
+        if not nepi_ros.is_shutdown():
+            #self.msg_if.pub_warn("Publishing settings status msg: " + str(settings_msg))
+            self.class_if.publish_pub('status_pub', settings_msg)
 
 
     def update_setting(self,new_setting,update_status = True, update_param = True):
@@ -272,7 +271,7 @@ class SettingsIF(object):
     def _provideCapabilitiesHandler(self, req):
         return self.capabilities_report
 
-    def _publishSettingsCb(self, msg):
+    def _publishSettingsCb(self, timer):
         self.publish_status()
 
 
@@ -282,10 +281,10 @@ class SettingsIF(object):
         setting = nepi_settings.parse_setting_update_msg_data(msg)
         self.update_setting(setting, update_status = True, update_param = True)
 
-    def _resetSettings(self,msg):
+    def _resetSettingsCb(self,msg):
         self.reset_settings()
 
-    def _resetFactorySettings(self,msg):
+    def _resetFactorySettingsCb(self,msg):
         self.factory_reset_settings()
 
 

@@ -598,7 +598,7 @@ class IDXDeviceIF:
     def ApplyConfigUpdates(self):
         if self.settings_if is not None:
             self.settings_if.reset_settings()
-        param_dict = rospy.get_param('~idx', {})
+        param_dict = rospy.get_param('~', {})
         if (self.setControlsEnable is not None and 'controls_enable' in param_dict):
             self.setControlsEnable(param_dict['controls_enable'])
         if (self.setAutoAdjust is not None and 'auto_adjust' in param_dict):

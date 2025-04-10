@@ -19,8 +19,149 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
 
+from nepi_ros_interfaces.msg import Reset
+from nepi_ros_interfaces.srv import *
+
 from nepi_api.sys_if_msg import MsgIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
+
+
+##################################################
+### Node Config Class
+
+
+EXAMPLE_CONFIGS_CONFIG_DICT = {
+        'init_callback': None,
+        'reset_callback': None,
+        'factory_reset_callback': None,
+        'init_configs': True,
+        'namespace': '~'
+}
+
+
+
+class NodeConfigsIF(object):
+
+    ready = False
+    namespace = None
+
+    ### IF Initialization
+    def __init__(self, 
+                configs_dict,
+                log_name = None,
+                log_class_name = True):
+        #################################
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        # Create Msg Class
+        if log_name is None:
+            log_name = ''
+        if log_class_name == True:
+          log_name = log_name + ": " + self.class_name
+        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+        ##############################    
+        self.initCb = configs_dict['init_callback']
+        self.resetCb = configs_dict['reset_callback']
+        self.factoryResetCb = configs_dict['factory_callback']
+        
+        namespace = configs_dict['namespace']
+        if namespace is None:
+            self.namespace = self.node_namespace
+        else:
+            self.namespace = namespace
+
+        self.save_params_pub = rospy.Publisher('store_params', String, queue_size=1)
+
+        self.msg_if.pub_info("Loading saved config data")
+        self._resetCb('user_reset')
+
+        # Subscribe to provided save config namespace
+        save_topic = os.path.join(self.namespace,'save_config')
+        reset_topic = os.path.join(self.namespace,'reset_config')
+        factory_reset_topic = os.path.join(self.namespace,'factory_reset_config')
+        rospy.Subscriber(save_topic, Empty, self._saveConfigCb)
+        rospy.Subscriber(reset_topic, Reset, self.sendResetMsgCb)
+        rospy.Subscriber(reset_topic, Reset, self.sendResetMsgCb)
+        rospy.Subscriber(factory_reset_topic, Reset, self.sendResetMsgCb)
+
+        # Global Topic Subscribers
+        rospy.Subscriber('save_config', Empty, self._saveConfigCb)
+        rospy.Subscriber('reset_config', Reset, self.sendResetMsgCb)
+        rospy.Subscriber('factory_reset_config', Reset, self.sendResetMsgCb)
+
+        nepi_ros.sleep(1)
+
+        init_configs = configs_dict['init_configs']
+        if init_configs == True:
+            nepi_ros.sleep(1)
+            self.init()
+
+        ###############################
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        self.msg_if.pub_info("Waiting for connection")
+        timer = 0
+        time_start = nepi_ros.get_time()
+        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+            nepi_ros.sleep(.1)
+            timer = nepi_ros.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_info("Failed to Connect")
+        else:
+            self.msg_if.pub_info("Connected")
+        return self.ready
+
+    def init(self):
+        if (self.initCb):
+            self.initCb() # Callback provided by the container class to set values to param server, etc.
+
+    def save(self):
+        self.init()
+        # Save the current nodes params
+        self.save_params_pub.publish(self.node_namespace)
+
+    def saveConfig(self): 
+        self.save()
+
+    def reset(self):
+        self._resetCb('user_reset')
+        nepi_ros.sleep(1)
+        if (self.resetCb and ret_val == True):
+            self.resetCb() # Callback provided by container class to update based on param server, etc.
+        return ret_val
+
+
+    def factory_reset(self):
+        self._resetCb('factory_reset')
+        nepi_ros.sleep(1)
+        if (self.factoryResetCb):
+            self.factoryResetCb() # Callback provided by container class to update based on param server, etc.
+        return ret_val
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+
 
 
 ##################################################
@@ -30,15 +171,12 @@ EXAMPLE_PARAMS_DICT = {
     'param1_name': {
         'factory_val': 100
     },
-        'param1_name': {
+    'param2_name': {
         'factory_val': "Something"
     }
 }
 
 EXAMPLE_PARAMS_CONFIG_DICT = {
-        'init_callback': None,
-        'reset_callback': None,
-        'factory_reset_callback': None,
         'namespace': '~',
         'params_dict': EXAMPLE_PARAMS_DICT
 }
@@ -50,7 +188,6 @@ class NodeParamsIF(object):
     ready = False
 
     msg_if = None
-    cfg_if = None
     
     params_dict = dict()
     params_namespace = '~'
@@ -93,12 +230,6 @@ class NodeParamsIF(object):
         self.resetCb = params_config_dict['reset_callback']
         self.factoryResetCb = params_config_dict['factory_reset_callback']
 
-        
-        self.cfg_if = SaveCfgIF(initCb = self._initCb,
-                                resetCb = self._resetCb,
-                                factoryResetCb = self._factoryResetCb,
-                                namespace = self.params_namespace
-        )
         # Initialize Params
         self.params_dict = params_config_dict['params_dict']
         if self.params_dict is None:
@@ -150,14 +281,7 @@ class NodeParamsIF(object):
     def load_params(self, file_path):
         self.nepi_ros.load_params_from_file(file_path,self.namespace)
 
-    def save_params(self):
-        self.cfg_if.save()
-
-    def reset_params(self):
-        self.cfg_if.reset()
-
-    def factory_reset_params(self):
-        self.cfg_if.factory_reset()
+ 
 
     def has_param(self, param_name):
         namespace = self.get_param_namespace(param_name)
@@ -495,10 +619,10 @@ class NodePublishersIF(object):
             pub_dict = self.pubs_dict[pub_name]
             if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys():
                 pub_namespace = nepi_ros.create_namespace(self.pubs_namespace ,pub_dict['topic'])
-                self.msg_if.pub_info("Creating pub for: " + pub_name + " with namespace: " + self.pubs_namespace )
+                self.msg_if.pub_warn("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                 pub = None
                 try:
-                    pub = rospy.Publisher(pub_namespace, pub_dict['msg'], queue_size = sub_dict['qsize'],  latch = sub_dict['latch'])
+                    pub = rospy.Publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                     if self.do_wait == True:
                         time.sleep(1)
                 except Exception as e:
@@ -665,10 +789,15 @@ class NodeSubscribersIF(object):
             else:
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
+                if sub_dict['callback_args'] is None:
+                    sub_dict['callback_args'] = ()
                 try:
                     sub_namespace = nepi_ros.create_namespace(self.subs_namespace,sub_dict['topic'])
                     self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
-                    sub = rospy.Subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
+                    if len(sub_dict['callback_args']) == 0:
+                        sub = rospy.Subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
+                    else:
+                        sub = rospy.Subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
                 except Exception as e:
@@ -690,6 +819,7 @@ class NodeClassIF(object):
     msg_if = None
     log_name = None
 
+    configs_if = None
     params_if = None
     srvs_if = None
     pubs_if = None
@@ -698,6 +828,7 @@ class NodeClassIF(object):
     #######################
     ### IF Initialization
     def __init__(self, 
+                configs_config_dict = None,
                 params_config_dict = None,
                 srvs_config_dict = None,
                 pubs_config_dict = None,
@@ -727,6 +858,11 @@ class NodeClassIF(object):
         self.do_wait = do_wait
         ##############################  
         # Create Params Class
+
+        if configs_config_dict is not None:
+            self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
+            self.configs_if = NodeConfigsIF(configs_config_dict = configs_config_dict, log_name = log_name)
+            ready = self.params_if.wait_for_ready()
 
         if params_config_dict is not None:
             self.msg_if.pub_info("Starting Node Params IF Initialization Processes")
@@ -793,6 +929,20 @@ class NodeClassIF(object):
         else:
             self.msg_if.pub_info("Connected")
         return self.ready
+
+
+   def save_config(self):
+        if self.configs_if is not None:
+            self.configs_if.save()
+
+    def reset_config(self):
+        if self.configs_if is not None:
+            self.configs_if.reset()
+
+    def factory_reset_config(self):
+        if self.configs_if is not None:
+            self.configs_if.factory_reset()
+
 
 
     def get_params(self):

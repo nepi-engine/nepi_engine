@@ -117,6 +117,10 @@ class config_mgr(object):
         if not os.path.exists(link_dirname):
             self.msg_if.pub_info("Skipping symlink for " + link_name + " because path does not exist... missing factory config?")
             return False
+        if os.path.exists(link_name) == False:
+            return False
+        if os.path.islink(link_name) == False:
+            return False
         try:
             os.symlink(target, link_name)
             self.msg_if.pub_info("Updated link " +  link_name  + " with target: " + target )
@@ -153,13 +157,13 @@ class config_mgr(object):
     def get_cfg_pathname(self,qualified_node_name):
         node_name = self.separate_node_name_in_msg(qualified_node_name)
         self.msg_if.pub_warn("Got node_name: " + qualified_node_name + " " + node_name)
-        cfg_pathname = os.path.join(USER_CFG_PATH,'ros',node_name + CFG_SUFFIX + FACTORY_SUFFIX)
+        cfg_pathname = os.path.join(USER_CFG_PATH,'ros',node_name + CFG_SUFFIX + USER_SUFFIX)
         mgr_file_path = os.path.join(NEPI_CFG_PATH,"nepi_managers",node_name + CFG_SUFFIX)
         if os.path.islink(mgr_file_path): # Check if a manager config
             #self.msg_if.pub_info("Found manager config: " + qualified_node_name)
             cfg_pathname = mgr_file_path  
         else:
-            pathname = os.path.join(NEPI_CFG_PATH, node_name + CFG_SUFFIX)    
+            pathname = os.path.join(NEPI_CFG_PATH, node_name, node_name + CFG_SUFFIX)    
             if os.path.islink(pathname) == True:
                 cfg_pathname = pathname
                     
@@ -201,11 +205,14 @@ class config_mgr(object):
         user_cfg_pathname = self.get_user_cfg_pathname(qualified_node_name)
         self.msg_if.pub_info("Storing Params for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # First, write to the user file
-        rosparam.dump_params(user_cfg_pathname, qualified_node_name)
-
+        nepi_ros.save_config_file(user_cfg_pathname, qualified_node_name)
+        self.msg_if.pub_info("Params saved for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # Now, ensure the link points to the correct file
         cfg_pathname = self.get_cfg_pathname(qualified_node_name)
-        self.symlink_force(user_cfg_pathname, cfg_pathname) # Error logged upstream
+        self.msg_if.pub_info("Updating system file link : " + qualified_node_name  + " in file " + cfg_pathname )
+        if os.path.exists(cfg_pathname):
+            if os.path.islink(cfg_pathname):
+                self.symlink_force(user_cfg_pathname, cfg_pathname) # Error logged upstream
 
     def save_non_ros_cfgs(self,msg):
         target_dir = os.path.join(USER_CFG_PATH, 'sys')

@@ -15,7 +15,7 @@ import cv2
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
 
-from nepi_ros_interfaces.msg import ImageStatus
+from nepi_ros_interfaces.msg import StringArray, ImageStatus
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -49,21 +49,21 @@ class ImageIF:
     ready = False
     status_msg = ImageStatus()
     status_dict = None
-    pub_namespace = "~"
+    namespace = "~"
+
+
     img_pub = None
     status_pub_topic = "None"
     status_pub = None
     has_subscribers = False
 
-    log_name = 'ImageIF'
-
     blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
 
-    pub_namespace = '~'
+    namespace = '~'
 
     last_pub_time = None
 
-    def __init__(self, data_name = 'image', encoding = 'bgr8', pub_namespace = None, do_wait = True ):
+    def __init__(self, data_name = 'image', encoding = 'bgr8', namespace = None, do_wait = True ,init_overlay_list = []):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -75,21 +75,14 @@ class ImageIF:
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
-        if pub_namespace is not None:
-            self.pub_namespace = pub_namespace
+        if namespace is not None:
+            self.namespace = namespace
+        else:
+            self.namespace = self.node_namespace
 
+        self.init_overlay_list = init_overlay_list
 
-
-        # Create Data Pub
-        topic = os.path.join(self.pub_namespace,data_name)
-        self.msg_if.pub_info("Creating Image Publisher on topic: " + topic)
-        self.img_pub = rospy.Publisher(topic, Image, queue_size = 1, tcp_nodelay = True)
-
-        # Create Status Pub
-        topic = os.path.join(topic,'status')
-        self.msg_if.pub_info("Creating Status Publisher on topic: " + topic)
-        self.img_status_pub = rospy.Publisher(topic, ImageStatus, queue_size = 1, latch = False)
-
+        ##############################   
         # Initialize Status Msg.  Updated on each publish
         status_msg = ImageStatus()
         status_msg.data_name = data_name
@@ -103,6 +96,30 @@ class ImageIF:
         status_msg.process_time
         self.status_msg = status_msg
 
+
+        ##############################   
+        ## Node Setup
+        # Create Data Pub
+        topic = os.path.join(self.namespace,data_name)
+        self.msg_if.pub_info("Creating Image Publisher on topic: " + topic)
+        self.img_pub = rospy.Publisher(topic, Image, queue_size = 1, tcp_nodelay = True)
+
+        # Create Status Pub
+        topic = os.path.join(topic,'status')
+        self.msg_if.pub_info("Creating Status Publisher on topic: " + topic)
+        self.img_status_pub = rospy.Publisher(topic, ImageStatus, queue_size = 1, latch = False)
+
+
+        rospy.Subscriber('~set_overlay_img_name', Bool, self.setOverlayImgNameCb, queue_size=10) 
+        rospy.Subscriber('~set_overlay_date_time', Bool, self.setOverlayDateTimeCb, queue_size=10) 
+        rospy.Subscriber('~set_overlay_nav', Bool, self.setOverlayNavCb, queue_size=10) 
+        rospy.Subscriber('~set_overlay_pose', Bool, self.setOverlayPoseCb, queue_size=10) 
+        rospy.Subscriber('~set_overlay_list', StringArray, self.setOverlayListCb, queue_size=10) 
+
+
+
+        ##############################   
+        ## Node Processes
         if do_wait == True:
             time.sleep(1)
 
@@ -188,6 +205,14 @@ class ImageIF:
             if self.status_msg.publishing == False:
                 self.msg_if.pub_warn("Image has subscribers, will publish")
             self.status_msg.publishing = True
+
+
+            # Apply Overlays
+            
+
+
+
+
             
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
@@ -223,13 +248,13 @@ class ImageIF:
     def unsubsribe(self):
         self.ready = False
         if self.img_pub is not None:
-            self.msg_if.pub_info("Unsubsribing Image Publisher on topic: " + self.pub_namespace)
+            self.msg_if.pub_info("Unsubsribing Image Publisher on topic: " + self.namespace)
             self.img_pub.unsubscribe()
         if self.status_pub is not None:
             self.msg_if.pub_info("Unsubsribing Status Publisher on topic: " + self.status_pub_topic)
             self.status_pub.unsubsribe()
         time.sleep(1)
-        self.pub_namespace = '~'
+        self.namespace = '~'
         self.img_pub = None
         self.status_pub = None
         self.status_msg = None
@@ -246,5 +271,33 @@ class ImageIF:
         rospy.Timer(rospy.Duration(1), self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
-        if self.status_pub is not None and not nepi_ros.is_shutdown():
+        
+        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name', msg.data)
+        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time', msg.data)
+        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav', msg.data)
+        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose', msg.data)  
+        self.status_msg.base_overlay_list = self.init_overlay_list
+        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
+
+        self.node_if.publish_pub('status_pub',self.status_msg)
             self.img_status_msg.publish(self.status_msg)
+
+    def setOverlayImgNameCb(self,msg):
+        self.node_if.set_param('overlay_img_name', msg.data)
+        self.publishStatus()
+
+    def setOverlayDateTimeCb(self,msg):
+        self.node_if.set_param('overlay_date_time', msg.data)
+        self.publishStatus()
+
+    def setOverlayNavCb(self,msg):
+        self.node_if.set_param('overlay_nav', msg.data)
+        self.publishStatus()
+
+    def setOverlayPoseCb(self,msg):
+        self.node_if.set_param('overlay_pose', msg.data)
+        self.publishStatus()
+
+    def setAddOverlayListCb(self,msg):
+        self.node_if.set_param('add_overlay_list', msg.data)
+        self.publishStatus()

@@ -26,7 +26,7 @@ from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_save
 
-from std_msgs.msg import UInt8, Int32 Float32, Bool, Empty, String, Header
+from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 
 from nepi_ros_interfaces.msg import ImageStatus
@@ -36,7 +36,7 @@ from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, Bound
 from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse
 
-from nepi_api.node_if_cfg import NodeClassIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.sys_if_msg import MsgIF
 from nepi_api.save_data_if import SaveDataIF
 from nepi_api.connect_ai_if_detector import ConnectAiDetectorIF
@@ -155,14 +155,39 @@ class AiDetectorImgPub:
         ##############################
         # Get detector base namespace from param server
         success = True
-        self.det_base_namespace = self.node_namespace
+        # Get detector namespace from param server
+        det_namespace = nepi_ros.get_param(self,self.node_namespace + "/det_namespace","")
+        if det_namespace == "":
+            self.msg_if.pub_warn("Failed to read detector all namespace from param server")
+            success == False
+        self.msg_if.pub_warn("Got all detectors namespace: " + str(det_namespace))
+        if len(det_namespace) > 0:
+            self.det_namespace = nepi_utils.clear_end_slash(det_namespace)
+        else:
+            self.det_namespace = det_namespace
+
+
+        # Get detector pub sub namespace from param server
+        det_base_namespace = nepi_ros.get_param(self,self.node_namespace + "/base_namespace","")
+        if det_base_namespace == "":
+            self.msg_if.pub_warn("Failed to read detector all namespace from param server")
+            success == False
+        self.msg_if.pub_warn("Got all detectors namespace: " + str(det_base_namespace))
+        if len(det_base_namespace) > 0:
+            self.det_base_namespace = nepi_utils.clear_end_slash(det_base_namespace)
+        else:
+            self.det_base_namespace = det_base_namespace
 
         # Get detector pub sub namespace from param server
         det_all_namespace = nepi_ros.get_param(self,self.node_namespace + "/all_namespace","")
         if det_all_namespace == "":
             self.msg_if.pub_warn("Failed to read detector all namespace from param server")
             success == False
-        self.det_all_namespace = nepi_utils.clear_end_slash(det_all_namespace)
+        self.msg_if.pub_warn("Got all detectors namespace: " + str(det_all_namespace))
+        if len(det_all_namespace) > 0:
+            self.det_all_namespace = nepi_utils.clear_end_slash(det_all_namespace)
+        else:
+            self.det_all_namespace = det_all_namespace
 
         if success == False:
             self.msg_if.pub_warn("Failed to read required params from param server")
@@ -172,7 +197,7 @@ class AiDetectorImgPub:
 
         ##############################
         # Connect to AI Detector
-        self.sub_det_if = ConnectAiDetectorIF()
+        self.sub_det_if = ConnectAiDetectorIF(det_namespace = self.det_namespace)
 
         success = self.sub_det_if.register_detector(det_img_namespace, det_base_namespace, timeout = 180)
         if success == False:

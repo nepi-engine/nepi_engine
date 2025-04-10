@@ -26,7 +26,6 @@ bool img_tiling
 
 bool overlay_labels
 bool overlay_clf_name
-bool overlay_img_name
 
 
 float32 threshold

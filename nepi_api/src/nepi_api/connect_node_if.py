@@ -10,15 +10,160 @@
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_msg
 
+
+from std_msgs.msg import String, Empty
+
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
+
+from nepi_ros_interfaces.msg import Reset
 
 from nepi_api.sys_if_msg import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
 
 
+
 ##################################################
-### Node Services Class
+### Node Connect Configs Class
+
+class ConnectConfigsIF(object):
+
+    ready = False
+
+    namespace = None
+
+    config_save_pub = None
+    config_reset_pub = None
+
+    #######################
+    ### IF Initialization
+    log_name = "ConnectSaveConfigIF"
+    def __init__(self, namespace , timeout = float('inf')):
+        ####  IF INIT SETUP ####
+        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_ros.get_base_namespace()
+        nepi_msg.createMsgPublishers(self)
+        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting IF Initialization Processes")
+        ##############################   
+
+        # Find topic for namespace
+        find_topic = os.path.join(namespace,'save_config')
+        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for topic: " + str(find_topic))
+        found_topic = nepi_ros.wait_for_topic(find_topic, timeout = timeout)
+        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Found topic: " + found_topic)
+        if found_topic == "":
+            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to find topic: " + find_topic)
+                
+        else:
+            config_save_topic = os.path.join(namespace, 'save_config')
+            self.config_save_pub = rospy.Publisher(config_save_topic, Empty, queue_size=1) 
+
+            config_reset_topic = os.path.join(namespace, 'reset_config')
+            self.config_reset_pub = rospy.Publisher(config_reset_topic, Reset, queue_size=1) 
+
+            time.sleep(1)
+
+            self.namespace = namespace
+            self.ready = True
+
+        ##############################   
+        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": IF Initialization Complete")
+
+
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        self.msg_if.pub_info("Waiting for connection")
+        timer = 0
+        time_start = nepi_ros.get_time()
+        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+            nepi_ros.sleep(.1)
+            timer = nepi_ros.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_info("Failed to Connect")
+        else:
+            self.msg_if.pub_info("ready")
+        return self.ready
+
+
+    def get_namespace(self):
+        return self.namespace
+
+    def save(self):
+        success = False
+        if self.config_save_pub is not None:
+            try:
+                msg = Empty()
+                self.config_save_pub.publish(msg)
+                success = True
+            except Exception as e:
+                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send update config: " + str(e))
+        return success
+
+
+    def reset(self):
+        success = False
+        if self.config_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.USER_RESET
+                self.config_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send config reset: "  + str(e))
+        return success
+
+    def factory_reset(self):
+        success = False
+        if self.config_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.FACTORY_RESET
+                self.config_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send config reset: "  + str(e))
+        return success
+
+    def unregister_save_config_if(self): 
+        success = False
+        if self.ready is False or self.namespace is None:
+            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Save Config IF not running")
+            success = True
+        else:
+            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Killing Save Confg IF for trigger: " + self.namespace)
+            try:
+                self.config_save_pub.unregister()
+                self.config_reset_pub.unregister()
+
+                success = True
+            except:
+                pass
+            time.sleep(1)
+            self.ready = False
+            self.config_save_pub = None
+            self.config_reset_pub = None
+            self.namespace = None
+        return success       
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+
+
+
+
+##################################################
+### Node Connect Services Class
 
 EXAMPLE_SRVS_DICT = {
     'service_name': {
@@ -35,6 +180,8 @@ EXAMPLE_SRVS_CONFIG_DICT = {
 
 class ConnectNodeServicesIF(object):
 
+
+    ready = False
     msg_if = None
     
     srvs_dict = dict()
@@ -44,7 +191,8 @@ class ConnectNodeServicesIF(object):
     ### IF Initialization
     def __init__(self, 
                 srvs_config_dict = None,
-                log_class_name = True
+                log_class_name = True,
+                do_wait = True
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -69,11 +217,37 @@ class ConnectNodeServicesIF(object):
         if self.srvs_dict is None:
             self.srvs_dict = dict()
         self._initialize_srvs()
+
+        if do_wait == True:
+            time.sleep(1)
+
+        self.ready = True
+
         ##############################   
 
     ###############################
     # Class Public Methods
     ###############################
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        self.msg_if.pub_info("Waiting for connection")
+        timer = 0
+        time_start = nepi_ros.get_time()
+        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+            nepi_ros.sleep(.1)
+            timer = nepi_ros.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_info("Failed to Connect")
+        else:
+            self.msg_if.pub_info("ready")
+        return self.ready
+
+
+
+
     def get_srvs(self):
         return list(self.srvs_dict.keys())
 
@@ -112,7 +286,7 @@ class ConnectNodeServicesIF(object):
 
 
 ##################################################
-### Node Publishers Class
+### Node Connect Publishers Class
 
 
 EXAMPLE_PUBS_DICT = {
@@ -157,7 +331,7 @@ class ConnectNodePublishersIF(NodePublisherIF):
 
 
 ##################################################
-### Node Subscribers Class
+### Node Connect Subscribers Class
 
 def EXAMPLE_SUB_CALLBACK(msg):
     return msg
@@ -211,7 +385,7 @@ class ConnectNodeSubscribersIF(object):
 
 
 ##################################################
-### Node Class Class
+### Node Connect Class Class
 
 class ConnectNodeClassIF(object):
 
@@ -227,6 +401,7 @@ class ConnectNodeClassIF(object):
     #######################
     ### IF Initialization
     def __init__(self, 
+                configs_namespace = None,
                 params_config_dict = None,
                 srvs_config_dict = None,
                 pubs_config_dict = None,
@@ -248,21 +423,27 @@ class ConnectNodeClassIF(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
+        # Create Configs Class
+        if configs_namespace is not None:
+            self.msg_if.pub_info("Starting Connect Node Configs IF Initialization Processes")
+            self.configs_if = ConnectNodeConifgsIF(namespace = configs_namespace)
+
+        ##############################    
         # Create Services Class
         if srvs_config_dict is not None:
-            self.msg_if.pub_info("Starting Node Services IF Initialization Processes")
+            self.msg_if.pub_info("Starting Connect Node Services IF Initialization Processes")
             self.srvs_if = ConnectNodeServicesIF(srvs_config_dict = srvs_config_dict)
 
         ##############################  
         # Create Subscribers Class
         if pubs_config_dict is not None:
-            self.msg_if.pub_info("Starting Node Publishers IF Initialization Processes")
+            self.msg_if.pub_info("Starting Connect Node Publishers IF Initialization Processes")
             self.pubs_if = ConnectNodePublishersIF(pubs_config_dict = pubs_config_dict)
 
         ##############################  
         # Create Subscribers Class
         if subs_config_dict is not None:
-            self.msg_if.pub_info("Starting Node Subscribers IF Initialization Processes")
+            self.msg_if.pub_info("Starting Connect Node Subscribers IF Initialization Processes")
             self.subs_if = ConnectNodeSubscribersIF(subs_config_dict = subs_config_dict)
 
         ############################## 
@@ -299,10 +480,56 @@ class ConnectNodeClassIF(object):
         if self.ready == False:
             self.msg_if.pub_info("Failed to Connect")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("ready")
         return self.ready
 
         
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        self.msg_if.pub_info("Waiting for connection")
+        timer = 0
+        time_start = nepi_ros.get_time()
+        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+            nepi_ros.sleep(.1)
+            timer = nepi_ros.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_info("Failed to Connect")
+        else:
+            self.msg_if.pub_info("ready")
+        return self.ready
+
+
+    def get_config_namespace(self):
+        namespace = None
+        if self.configs_if is not None:
+            namespace = self.configs_if.get_namespace()
+        return namespace
+
+    def save(self, config_dict):
+        success = False
+        if self.configs_if is not None:
+            success = self.configs_if.save()
+        return success
+
+
+    def reset(self, config_dict):
+        success = False
+        if self.configs_if is not None:
+            success = self.configs_if.reset()
+        return success
+
+    def factory_reset(self, config_dict):
+        success = False
+        if self.configs_if is not None:
+            success = self.configs_if.factory_reset()
+        return success
+
+
+
 
 
     def get_srvs(self):

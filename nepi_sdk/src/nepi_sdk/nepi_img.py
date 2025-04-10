@@ -320,29 +320,80 @@ def get_contours(cv2_img):
 ### Image overlay functions
 
 def overlay_contours(cv2_img,contours3, color_rgb = (0, 255, 0)):
-  cv2_img_out = copy.deepcopy(cv2_img)
-  cv2.drawContours(cv2_img_out, contours3, -1, color_rgb, 2, cv2.LINE_AA)
-  return cv2_img_out
+    cv2_img_out = copy.deepcopy(cv2_img)
+    cv2.drawContours(cv2_img_out, contours3, -1, color_rgb, 2, cv2.LINE_AA)
+    return cv2_img_out
   
-def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = 0.5,thickness = 1):
-  # Add text overlay
-  bottomLeftCornerOfText = (x_px,y_px)
-  font                   = cv2.FONT_HERSHEY_SIMPLEX
-  lineType               = 1
-  cv2.putText(cv2_img,text, 
-    bottomLeftCornerOfText, 
-    font, 
-    scale,
-    color_rgb,
-    thickness,
-    lineType)
-  return cv2_img
+def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None, thickness = None, background_rgb = None, apply_shadow = False):
+    # Add text overlay
+    if scale is None or thickness is None:
+        scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    bottomLeftCornerOfText = (x_px,y_px)
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    lineType               = 1
+    # Add Background Box box if requested
+    if background_rgb is not None:
+      text_size = cv2.getTextSize(text, 
+          font, 
+          scale,
+          thickness)    
+      line_height = text_size[0][1]
+      line_width = text_size[0][0]
+      x_padding = int(line_height*0.4)
+      y_padding = int(line_height*0.4)
+      # Create Text Background Box
+
+      bot_left_box =  (x_px - x_padding , y_px + y_padding)
+      top_right_box = (x_px + line_width + x_padding, y_px - line_height - y_padding )
+
+      try:
+          cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, background_rgb , -1)
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to add text background box: " + str(e))
+
+    # Add Text Shadow if requested
+    if apply_shadow == True:
+      try:
+            cv2.putText(cv2_img,text, 
+                bottomLeftCornerOfText, 
+                font, 
+                fontScale,
+                fontColorBk,
+                font_thickness*2,
+                lineType)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to apply text shadow: " + str(e))
+
   
-def overlay_text_list(cv2_img, text, x_px = 10 , y_px = 10, line_space_px = 20, color_rgb = (0, 255, 0), scale = 0.5,thickness = 1):
-  # Add text overlay
-  for text in text_list:
-    cv2_overlay_text(cv2_img, text, x_px , y_px, color_rgb, scale, thickness)
-    y_px = y_px + line_space_px
+    # Overlay Text
+    try:
+        cv2.putText(cv2_img,text, 
+            bottomLeftCornerOfText, 
+            font, 
+            fontScale,
+            fontColor,
+            font_thickness,
+            lineType)
+    except Exception as e:
+        self.msg_if.pub_warn("Failed to apply overlay text: " + str(e))
+    return cv2_img
+ 
+def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
+    # Add text overlay
+    for text in text_list:
+      if scale is None or thickness is None:
+        scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+      cv2_img = overlay_text(cv2_img, text, x_px , y_px, color_rgb, scale, thickness,background_rgb = background_rgb, apply_shadow = apply_shadow)
+      text_size = cv2.getTextSize(text, 
+          font, 
+          scale,
+          thickness)
+      #self.msg_if.pub_warn("Text Size: " + str(text_size))
+      line_height = text_size[0][1]
+      line_width = text_size[0][0]
+      y_px = y_px + line_height * 1.5
+    return cv2_img
+
     
 def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
     shape = cv2_img.shape
@@ -352,25 +403,32 @@ def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
     thickness = math.ceil(min(w, h) * thickness_scale)
     return font_scale, thickness
     
-def overlay_text_autoscale(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0)):
-  # Add text overlay
-  bottomLeftCornerOfText = (x_px,y_px)
-  font                   = cv2.FONT_HERSHEY_SIMPLEX
-  lineType               = 1
-  fontScale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
-  cv2.putText(cv2_img,text, 
-    bottomLeftCornerOfText, 
-    font, 
-    scale,
-    color_rgb,
-    thickness,
-    lineType)
-  return cv2_img
+
     
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):
-      # Add status box overlay
-      cv2_img_out = copy.deepcopy(cv2_img)
-      cv2.rectangle(cv2_img_out, (x_px, y_px), (w_px, h_px), color_rgb, -1)
+    # Add status box overlay
+    cv2_img_out = copy.deepcopy(cv2_img)
+    cv2.rectangle(cv2_img_out, (x_px, y_px), (w_px, h_px), color_rgb, -1)
+
+def overlay_bounding_box(cv2_img,bot_left_px, top_right_px, line_color=(255,0,0), line_thickness=2):
+    try:
+        cv2.rectangle(cv2_img, bot_left_px, top_right_px, line_color, thickness=line_thickness)
+        success = True
+    except Exception as e:
+        self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
+    return cv2_img
+
+def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False)):
+    text_size = cv2.getTextSize(text, 
+      font, 
+      scale,
+      thickness)
+    line_height = text_size[0][1]
+    line_width = text_size[0][0]
+    x_padding = int(line_height*0.4)
+    y_padding = int(line_height*0.4)
+    bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+    overlay_text_list(cv2_img, text_list, x_px = bot_left_text[0] , y_px = bot_left_text[1], color_rgb = color_rgb, scale = scale, thickness = thickness, background_rgb = background_rgb, apply_shadow = apply_shadow)
       
 def create_blank_image(image_size = (350, 700, 3) ):
     # Create a blank img for when not running

@@ -316,7 +316,11 @@ class PTXActuatorIF:
         rospy.Service('~ptx/capabilities_query', PTXCapabilitiesQuery, self.provideCapabilities)
 
         self.msg_if.pub_info("Initializing Settings IF")
-        self.settings_if = SettingsIF(capSettings, factorySettings, settingUpdateFunction, getSettingsFunction)
+        self.capSettings = capSettings
+        self.factorySettings = factorySettings
+        self.settingUpdateFunction = settingUpdateFunction
+        self.getSettingsFunction = getSettingsFunction
+        self.settings_if = SettingsIF(self.capSettings, self.factorySettings, self.settingUpdateFunction, self.getSettingsFunction)
 
 
         self.save_cfg_if = SaveCfgIF(initCb=self.initCb ,resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
