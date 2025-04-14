@@ -148,16 +148,37 @@ class logger:
     def _createMsgString(self,msg):
          return self.ln_str + str(msg)
 
+
+
+
 #######################
 ### Namespace Utility Functions
+
+def get_full_namespace(namespace):
+  base_namespace = get_base_namespace()
+  node_namespace = get_node_namespace()
+  if namespace is None:
+    namespace = node_namespace
+  elif namespace is 'None':
+    namespace = node_namespace
+  elif namespace == '':
+    namespace = base_namespace
+  elif namespace[0] == '~':
+    ext_namespace = namespace.replace('~','')
+    namespace = os.path.join(node_namespace,ext_namespace)
+  if namespace.find(base_namespace) == -1:
+    if namespace[0] == '/':
+      namespace = namespace[1:]
+    namespace = os.path.join(base_namespace,namespace)
+  return namespace
+
 def create_namespace(base_namespace,topic):
-  namespace = ""
-  if base_namespace[0] == '~':
-    namespace = base_namespace + topic
-  else:
-    if topic[0] == '/':
-      topic = topic[1:]
-    namespace = os.path.join(base_namespace,topic)
+  base_namespace = get_full_namespace(base_namespace)
+
+  if topic[0] == '/':
+    topic = topic[1:]
+
+  namespace = os.path.join(base_namespace,topic)
   return namespace
 
 
@@ -215,13 +236,13 @@ def check_for_node(node_name):
 def wait_for_node(node_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.logwarn("nepi_rui: Waiting for node with name: " + node_name)
+  rospy.logwarn("nepi_ros: Waiting for node with name: " + node_name)
   node = ""
   while node == "" and timer < timeout and not rospy.is_shutdown():
     node=find_node(node_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_rui: Found node: " + node)
+  rospy.loginfo("nepi_ros: Found node: " + node)
   return node
 
 
@@ -296,7 +317,7 @@ def kill_node_namespace(node_namespace):
   try:
     subprocess.call(["rosnode","kill", node_namespace])
   except Exception as e:
-    rospy.logwarn("nepi_rui: Failed to kill node_namespace: " + node_namespace + " " + str(e))
+    rospy.logwarn("nepi_ros: Failed to kill node_namespace: " + node_namespace + " " + str(e))
 
 def spin():
   rospy.spin()
@@ -304,6 +325,29 @@ def spin():
 
 #######################
 ### Topic Utility Functions
+
+
+def create_subscriber(sub_namespace, msg, callback, queue_size = None, callback_args=[]):
+  sub = None
+  sub_namespace = get_full_namespace(sub_namespace)
+  try:
+    if len(sub_dict['callback_args']) == 0:
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
+    else:
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args=callback_args)
+  except Exception as e:
+    rospy.logwarn("nepi_ros: Failed to create subscriber: " + str(e))
+  return sub
+
+def create_publisher(pub_namespace, msg, queue_size = None,  latch = False):
+  pub = None
+  pub_namespace = get_full_namespace(pub_namespace)
+  try:
+    pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size,  latch = latch)
+  except Exception as e:
+    rospy.logwarn("nepi_ros: Failed to create publisher: " + str(e))
+  return pub
+
 
 # Function to get list of active topics
 def get_topic_list():
@@ -376,13 +420,13 @@ def check_for_topic(topic_name):
 def wait_for_topic(topic_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.loginfo("nepi_rui: Waiting for topic with name: " + topic_name)
+  rospy.loginfo("nepi_ros: Waiting for topic with name: " + topic_name)
   topic = ""
   while topic == "" and timer < timeout and not rospy.is_shutdown():
     topic=find_topic(topic_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_rui: Found topic: " + topic)
+  rospy.loginfo("nepi_ros: Found topic: " + topic)
   return topic
 
 #######################
@@ -453,21 +497,31 @@ def check_for_service(service_name):
 def wait_for_service(service_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.loginfo("nepi_rui: Waiting for service name: " + service_name)
+  rospy.loginfo("nepi_ros: Waiting for service name: " + service_name)
   found_service = ""
   while found_service == "" and timer < timeout and not rospy.is_shutdown():
     found_service=find_service(service_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_rui: Found service: " + found_service)
+  rospy.loginfo("nepi_ros: Found service: " + found_service)
   return found_service
 
-def create_service(service_namespace, service_msg):
+def create_service(service_namespace, srv_msg, srv_callback):
   service = None
+  service_namespace = get_full_namespace(service_namespace)
+  try:
+    service = rospy.Service(service_namespace, srv_msg, srv_callback)
+  except Exception as e:
+    rospy.loginfo("nepi_ros: Failed to create service: " + str(e) )
+  return service
+
+def connect_service(service_namespace, service_msg):
+  service = None
+  service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.ServiceProxy(service_namespace, service_msg)
   except Exception as e:
-      rospy.loginfo("nepi_rui: Failed to get service call response: " + str(e) )
+      rospy.loginfo("nepi_ros: Failed to connect to service: " + str(e) )
   return service
 
 def call_service(service, request):
@@ -476,9 +530,9 @@ def call_service(service, request):
       try:
           response = service(request)
       except Exception as e:
-          rospy.loginfo("nepi_rui: Failed to get service call response: " + str(e) )
+          rospy.loginfo("nepi_ros: Failed to get service call response: " + str(e) )
     else:
-      rospy.loginfo("nepi_rui: Cant call None service")
+      rospy.loginfo("nepi_ros: Cant call None service")
     return response
 
 #########################
@@ -505,12 +559,12 @@ def load_params_from_file(file_path, params_namespace = None):
     try:
         params_input = rosparam.load_file(file_path)
         if params_input != []:
-          #rospy.logwarn("nepi_rui: loaded params" + str(params_input) + " for " + params_namespace)
+          #rospy.logwarn("nepi_ros: loaded params" + str(params_input) + " for " + params_namespace)
           params = params_input[0][0]
           for key in params.keys():
               value = params[key]
               param_namesapce = params_namespace + key
-              #rospy.logwarn("nepi_rui: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
+              #rospy.logwarn("nepi_ros: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
               rospy.set_param(param_namesapce, value)
           rospy.loginfo("Parameters loaded successfully for " + params_namespace)
     except rosparam.RosParamException as e:
@@ -533,21 +587,34 @@ def save_config_file(file_path, namespace):
 #########################
 ### Param Utility Functions
 
-def has_param(self,param_namespace):
+def has_param(param_namespace):
+  param_namespace = get_full_namespace(param_namespace)
   return rospy.has_param(param_namespace)
 
-def get_param(self,param_namespace,fallback_param = None):
-  if fallback_param is None:
-    param = rospy.get_param(param_namespace)
-  else:
-    param = rospy.get_param(param_namespace,fallback_param)
+def get_param(param_namespace,fallback_param = None):
+  param = None
+  param_namespace = get_full_namespace(param_namespace)
+  try:
+    if fallback_param is None:
+      param = rospy.get_param(param_namespace)
+    else:
+      param = rospy.get_param(param_namespace,fallback_param)
+  except Exception as e:
+    rospy.logerr("Failed to get param for: " + param_namespace + " " + str(e))
   return param
 
-def set_param(self,param_namespace,param):
-  rospy.set_param(param_namespace,param)
+def set_param(param_namespace,param_val):
+  success = False
+  param_namespace = get_full_namespace(param_namespace)
+  try:
+    rospy.set_param(param_namespace,param_val)
+    success = True
+  except Exception as e:
+    rospy.logerr("Failed to set param for: " + param_namespace + " "  + param_val + " " + str(e))
+  return success
 
 
-def print_node_params(self):
+def print_node_params():
   node_name = rospy.get_name()
   all_params = rospy.get_param_names()
   node_params = [param for param in all_params if node_name in param]
@@ -587,18 +654,16 @@ def load_params_from_file(file_path, params_namespace = None):
 ### Publisher, Subscriber, and Service Utility Functions
 
 def start_timer_process(duration, callback_function, oneshot = False):
-  rospy.Timer(duration, callback_function, oneshot)
-
-def timer(duration, callback_function, oneshot = False):
-  rospy.Timer(duration, callback_function, oneshot)
-
-'''
-def getPublisher(namespace, msg_type, queue_size=1):
-  return rospy.Publisher(namespace, msg_type, queue_size)
-
-def startSubscriber(namespace, msg_type, callback_function, queue_size=1):
-  return rospy.Subscriber(namespace, msg_type, callback_function, queue_size)
-'''
+  success = False
+  if isinstance(duration,int) or isinstance(duration,float):
+    duration = ros_duration(duration)
+  try:
+    rospy.Timer(duration, callback_function, oneshot)
+    success = True
+  except Exception as e:
+    rospy.logerr("Failed to start timer process: " + str(e))
+  return success
+  
 
 #########################
 ### Time Helper Functions
@@ -606,6 +671,9 @@ def startSubscriber(namespace, msg_type, callback_function, queue_size=1):
 
 def get_time():
   return time.time_ns() / 1000000000
+
+def get_rostime_to_sec():
+  return get_rostime().to_sec()
 
 def ros_time_now():
   return rospy.Time.now()
@@ -726,7 +794,9 @@ def get_time():
 ### Msg Helper Functions
 
 def convert_msg2dict(msg):
-  msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
+  msg_dict = None
+  if msg is not None:
+    msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
   return msg_dict
 
 

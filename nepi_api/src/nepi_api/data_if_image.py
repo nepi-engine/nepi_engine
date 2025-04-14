@@ -8,7 +8,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-import rospy
 import time
 import cv2
 
@@ -23,21 +22,7 @@ from nepi_sdk import nepi_img
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.sys_if_msg import MsgIF
-
-EXAMPLE_STATUS_DICT = {
-    'pub_topic': 'None',
-    'data_name': 'None',
-
-    'publishing': False,
-    'encoding': 'None',
-    'width': 0,
-    'height': 0,
-    'frame_id': 'None',
-
-    'get_latency_time':0,
-    'pub_latency_time':0,
-    'process_time':0
-}
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
 
@@ -47,23 +32,23 @@ DEFUALT_IMG_HEIGHT = 400
 class ImageIF:
 
     ready = False
+    namespace = '~image'
+
+    node_if = None
+
     status_msg = ImageStatus()
-    status_dict = None
-    namespace = "~"
-
-
-    img_pub = None
-    status_pub_topic = "None"
-    status_pub = None
-    has_subscribers = False
 
     blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
 
-    namespace = '~'
-
     last_pub_time = None
 
-    def __init__(self, data_name = 'image', encoding = 'bgr8', namespace = None, do_wait = True ,init_overlay_list = []):
+    nav_mgr_if = None
+    nav_mgr_ready = False
+
+    has_subscibers = False
+
+
+    def __init__(self, namespace = None, encoding = 'bgr8', do_wait = True ,init_overlay_list = []):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -71,94 +56,171 @@ class ImageIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + data_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
+        # Initialize Class Variables
         if namespace is not None:
             self.namespace = namespace
-        else:
-            self.namespace = self.node_namespace
+        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+
 
         self.init_overlay_list = init_overlay_list
 
-        ##############################   
         # Initialize Status Msg.  Updated on each publish
         status_msg = ImageStatus()
-        status_msg.data_name = data_name
-        status_msg.encoding = encoding
         status_msg.publishing = False
+        status_msg.encoding = encoding
         status_msg.width = 0
         status_msg.height = 0
-        status_msg.frame_id = "None"
-        status_msg.get_latency_time
-        status_msg.pub_latency_time
-        status_msg.process_time
+        status_msg.frame_id = "sensor_frame"
+        status_msg.depth_map_topic = nepi_img.get_img_depth_map_topic(namespace)
+        status_msg.pointcloud_topic = nepi_img.get_img_pointcloud_topic(namespace)
+        status_msg.get_latency_time = 0
+        status_msg.pub_latency_time = 0
+        status_msg.process_time = 0
         self.status_msg = status_msg
 
+        ##############################
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        self.nav_mgr_ready = self.nav_mgr_if.wait_for_ready()
 
         ##############################   
         ## Node Setup
-        # Create Data Pub
-        topic = os.path.join(self.namespace,data_name)
-        self.msg_if.pub_info("Creating Image Publisher on topic: " + topic)
-        self.img_pub = rospy.Publisher(topic, Image, queue_size = 1, tcp_nodelay = True)
 
-        # Create Status Pub
-        topic = os.path.join(topic,'status')
-        self.msg_if.pub_info("Creating Status Publisher on topic: " + topic)
-        self.img_status_pub = rospy.Publisher(topic, ImageStatus, queue_size = 1, latch = False)
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'overlay_img_name': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_date_time': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_nav': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_pose': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_list': {
+                'namespace': self.namespace,
+                'factory_val': []
+            },
+        }
 
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            'image_pub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'status_pub': {
+                'msg': ImageStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            }
+        }
 
-        rospy.Subscriber('~set_overlay_img_name', Bool, self.setOverlayImgNameCb, queue_size=10) 
-        rospy.Subscriber('~set_overlay_date_time', Bool, self.setOverlayDateTimeCb, queue_size=10) 
-        rospy.Subscriber('~set_overlay_nav', Bool, self.setOverlayNavCb, queue_size=10) 
-        rospy.Subscriber('~set_overlay_pose', Bool, self.setOverlayPoseCb, queue_size=10) 
-        rospy.Subscriber('~set_overlay_list', StringArray, self.setOverlayListCb, queue_size=10) 
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'overlay_img_name': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_img_name',
+                'qsize': 1,
+                'callback': self._setOverlayImgNameCb
+            },
+            'overlay_date_time': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_date_time',
+                'qsize': 1,
+                'callback': self._setOverlayDateTimeCb
+            },
+            'overlay_nav': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_nav',
+                'qsize': 1,
+                'callback': self._setOverlayNavCb
+            },
+            'overlay_pose': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_pose',
+                'qsize': 1,
+                'callback': self._setOverlayPoseCb
+            },
+            'overlay_list': {
+                'msg': StringArray,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_list',
+                'qsize': 1,
+                'callback': self._setOverlayListCb
+            }
+        }
 
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(self,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
 
+        self.node_if.wait_for_ready()
 
-        ##############################   
-        ## Node Processes
-        if do_wait == True:
-            time.sleep(1)
+        ##############################
+        # Start Node Processes
+        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
-        # Start subscribers check callback
-        rospy.Timer(rospy.Duration(.1), self._subscribersCheckCb, oneshot = True)
-        rospy.Timer(rospy.Duration(1), self._publishStatusCb, oneshot = False)
-
-
-        #################################
+        ##############################
+        # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete")
-
-
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
 
     ###############################
     # Class Public Methods
     ###############################
+
+
     def get_ready_state(self):
         return self.ready
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
-        else:
-            self.msg_if.pub_info("Connected")
-        return self.ready
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
+
 
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_ros.convert_msg2dict(self.status_msg)
-        return self.status_dict
+        return status_dict
 
 
     def has_subscribers_check(self):
@@ -206,14 +268,35 @@ class ImageIF:
                 self.msg_if.pub_warn("Image has subscribers, will publish")
             self.status_msg.publishing = True
 
-
             # Apply Overlays
+            overlay_list = []
+            if self.node_if.get_param('overlay_img_name') == True:
+                overlay = nepi_img.getImgShortName(self.img_namespace)
+                overlay_list.append(overlay)
             
+            if self.node_if.get_param('overlay_date_time') == True:
+                date_time = nepi_ros.get_datetime_str_from_stamp(ros_timestamp)
+                overlay_list.append(overlay)
+
+            nav_pose_dict = None
+            if self.node_if.get_param('overlay_nav') == True or self.node_if.get_param('overlay_pose') == True:
+                if self.nav_mgr_ready == True:
+                    nav_pose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                    if nav_pose_dict is not None:
+
+            if self.node_if.get_param('overlay_nav') == True and nav_pose_dict is not None:
+                overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
+                overlay_list.append(overlay)
+
+            if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
+                overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
+                overlay_list.append(overlay)
+
+            overlay_list = overlay_list + self.init_overlay_list + self.node_if.get_param('add_overlay_list')
+
+            cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
 
 
-
-
-            
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = ros_timestamp
@@ -225,7 +308,7 @@ class ImageIF:
             self.status_msg.pub_latency_time = latency
             
             if not nepi_ros.is_shutdown():
-                self.img_pub.publish(ros_img)
+                self.node_if.publish_pub('data_pub', ros_img)
             if self.last_pub_time is None:
                 self.last_pub_time = nepi_utils.get_time()
             else:
@@ -245,18 +328,11 @@ class ImageIF:
         self.publish_cv2_img(cv2_img)
 
 
-    def unsubsribe(self):
+    def unregister(self):
         self.ready = False
-        if self.img_pub is not None:
-            self.msg_if.pub_info("Unsubsribing Image Publisher on topic: " + self.namespace)
-            self.img_pub.unsubscribe()
-        if self.status_pub is not None:
-            self.msg_if.pub_info("Unsubsribing Status Publisher on topic: " + self.status_pub_topic)
-            self.status_pub.unsubsribe()
-        time.sleep(1)
+        self.node_if.unregister_class()
+        nepi_ros.sleep(1)
         self.namespace = '~'
-        self.img_pub = None
-        self.status_pub = None
         self.status_msg = None
 
     ###############################
@@ -264,40 +340,39 @@ class ImageIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = (self.img_pub.get_num_connections() > 0)
+        self.has_subscribers = self.node_if.pub_has_subscribers('data_pub')
         #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
         if self.has_subscribers == False:
             self.status_msg.publishing = False
-        rospy.Timer(rospy.Duration(1), self._subscribersCheckCb, oneshot = True)
+        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
-        
-        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name', msg.data)
-        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time', msg.data)
-        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav', msg.data)
-        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose', msg.data)  
+        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
         self.status_msg.base_overlay_list = self.init_overlay_list
         self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
 
         self.node_if.publish_pub('status_pub',self.status_msg)
             self.img_status_msg.publish(self.status_msg)
 
-    def setOverlayImgNameCb(self,msg):
+    def _setOverlayImgNameCb(self,msg):
         self.node_if.set_param('overlay_img_name', msg.data)
         self.publishStatus()
 
-    def setOverlayDateTimeCb(self,msg):
+    def _setOverlayDateTimeCb(self,msg):
         self.node_if.set_param('overlay_date_time', msg.data)
         self.publishStatus()
 
-    def setOverlayNavCb(self,msg):
+    def _setOverlayNavCb(self,msg):
         self.node_if.set_param('overlay_nav', msg.data)
         self.publishStatus()
 
-    def setOverlayPoseCb(self,msg):
+    def _setOverlayPoseCb(self,msg):
         self.node_if.set_param('overlay_pose', msg.data)
         self.publishStatus()
 
-    def setAddOverlayListCb(self,msg):
+    def _setAddOverlayListCb(self,msg):
         self.node_if.set_param('add_overlay_list', msg.data)
         self.publishStatus()

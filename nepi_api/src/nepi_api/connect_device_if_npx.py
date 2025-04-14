@@ -26,29 +26,32 @@ from nepi_sdk import nepi_nav
 from nepi_api.node_if import NodeClassIF
 from nepi_api.sys_if_msg import MsgIF
 
-NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
+NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
                           'time': nepi_utils.get_time(),
-                          'frame_id': 'nepi_base',
-                          'frame_pos': 'ENU',
+                          'frame_3d': 'ENU',
                           'frame_alt': 'WGS84',
 
                           'geoid_height_meters': 0,
 
+                          'has_heading': True,
                           'heading_deg': 120.50,
 
+                          'has_oreientation': True,
                           # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
                           'roll_deg': 30.51,
                           'pitch_deg': 30.51,
                           'yaw_deg': 30.51,
 
+                          'has_position': True,
                           # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
                           'x_m': 1.234,
                           'y_m': 1.234,
                           'z_m': 1.234,
 
+                          'has_location': True,
                           # Global Location in set altitude frame (lat,long,alt) with alt in meters
                           'lat': 47.080909,
                           'long': -120.8787889,
@@ -61,11 +64,11 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 class NavPoseIF:
 
     ready = False
-    namespace = '~navpose'
+    namespace = '~pointcloud'
 
     node_if = None
 
-    status_msg = NavPoseStatus()
+    status_msg = PointcloudStatus()
 
     last_pub_time = None
 
@@ -74,10 +77,7 @@ class NavPoseIF:
     has_subscribers = False
 
 
-    def __init__(self, namespace = None, 
-        has_location = False, enable_gps_pub = False, 
-        has_orientation = False, has_position = False, enable_pose_pub = False, 
-        has_heading = False, enable_heading_pub = False):
+    def __init__(self, namespace = None, enable_gps_pub = False, enable_pose_pub = False, enable_heading_pub = False):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -99,13 +99,13 @@ class NavPoseIF:
         # Initialize Status Msg.  Updated on each publish
         status_msg = PointcloudStatus()
         status_msg.publishing = False
-
-        status_msg.has_location = has_location
-        status_msg.has_position = has_position
-        status_msg.has_pose = has_pose
-        status_msg.has_heading = has_heading
-
-        status_msg.frame_id = "nepi_base"
+        status_msg.has_rgb = False
+        status_msg.has_intensity = False
+        status_msg.width = 0
+        status_msg.height = 0
+        status_msg.depth = 0
+        status_msg.point_count = 0,
+        status_msg.frame_id = "None"
         status_msg.get_latency_time
         status_msg.pub_latency_time
         status_msg.process_time
@@ -232,14 +232,6 @@ class NavPoseIF:
                 if ros_timestamp == None:
                     ros_timestamp = nepi_ros.ros_time_now()
 
-                current_time = nepi_ros.ros_time_now()
-                latency = (current_time.to_sec() - ros_timestamp.to_sec())
-                self.status_msg.get_latency_time = latency
-                #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
-
-                # Start Img Pub Process
-                start_time = nepi_ros.get_time()   
-
                 try:
                     msg = nepi_nav.convert_navposedata_dict2msg(navpose_dict)
                     self.node_if.publish_pub('navpose_pub', msg)
@@ -249,84 +241,79 @@ class NavPoseIF:
                         cur_time = nepi_utils.get_time()
                         pub_time_sec = cur_time - self.last_pub_time
                         self.last_pub_time = cur_time
-                        self.status_msg.frame_id = navpose_dict['frame_id']
-                        self.status_msg.frame_pos = navpose_dict['frame_pos']
-                        self.status_msg.frame_alt = navpose_dict['frame_alt']
                         self.status_msg.last_pub_sec = pub_time_sec
                         self.status_msg.fps = float(1) / pub_time_sec
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
                     success = False
 
-                process_time = round( (nepi_ros.get_time() - start_time) , 3)
-                self.status_msg.process_time = process_time
-                latency = (current_time.to_sec() - ros_timestamp.to_sec())
-                self.status_msg.pub_latency_time = latency
+            if self.enable_gps_pub == True:
 
-                if self.enable_gps_pub == True:
-                    msg = self.PUBS_DICT['gps_pub']['msg']()
-                    # gps_fix pub
-                    try:
-                        if self.status_msg.has_location == True:
-                            if navpose_dict['frame_alt'] == 'AMSL':
-                                navpose_dict = nepi_nav.convert_navposedata_amsl2wgs84(navpose_dict)
-                                
-                            msg.latitude = navpose_dict['latitude']
-                            msg.latitude = navpose_dict['longitude']
-                            msg.latitude = navpose_dict['altitude']
-                        self.node_if.publish_pub('gps_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
-                        success = False
+                # gps_fix pub
+                try:
+                    loc_msg = None
+                    if navpose_dict['frame_alt'] == 'AMSL':
+                        navpose_dict = nepi_nav.convert_navposedata_amsl2wgs84(navpose_dict)
+                    msg = self.pubs_dict['loc']['msg']()
+                    msg.latitude = navpose_dict['latitude']
+                    msg.latitude = navpose_dict['longitude']
+                    msg.latitude = navpose_dict['altitude']
+                    self.node_if.publish_pub('gps_pub',msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
+                    success = False
 
 
-                if self.enable_pose_pub == True:
-                    #Create odom pub
-                    msg = self.PUBS_DICT['pose_pub']['msg']()
-                    try:
-                        pose_msg = None
-                        if navpose_dict['frame_pos'] == 'NED':
-                            navpose_dict = nepi_nav.convert_navposedata_ned2edu(navpose_dict)
-                                    
-                        if self.status_msg.has_position == True:
-                            point_msg = Point()
-                            point_msg.x = navpose_dict['x_m']
-                            point_msg.y = navpose_dict['y_m']
-                            point_msg.z = navpose_dict['z_m']
-                            msg.pose.pose.position = point_msg
-                        if self.status_msg.has_orientation == True:
-                            rpy = [navpose_dict['roll_deg'],navpose_dict['pitch_deg'],navpose_dict['yaw_deg']]
-                            quad = nepi_nav.convert_rpy2quat(rpy)
-                            quad_msg = Quaternion()
-                            quad_msg.x = quad[0]
-                            quad_msg.y = quad[1]
-                            quad_msg.z = quad[2]
-                            quad_msg.w = quad[3]
-                            msg.pose.pose.orientation = quad_msg
-                        self.node_if.publish_pub('pose_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish pose data msg: " + str(e))
-                        success = False
+            if self.enable_pose_pub == True:
+                #Create odom pub
+                try:
+                    pose_msg = None
+                    if navpose_dict['frame_3d'] == 'NED':
+                        navpose_dict = nepi_nav.convert_navposedata_ned2edu(navpose_dict)
+                    
+                    point_msg = Point()
+                    point_msg.x = navpose_dict['x_m']
+                    point_msg.y = navpose_dict['y_m']
+                    point_msg.z = navpose_dict['z_m']
 
-                if self.enable_heading_pub == True:
-                    #Create heading pub
-                    msg = self.PUBS_DICT['pose_pub']['msg']()
-                    try:
-                        if self.status_msg.has_heading == True:
-                            msg.heading = navpose_dict['heading']
-                        self.node_if.publish_pub('heading_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish heading data msg: " + str(e))
-                        success = False
+                    rpy = [navpose_dict['roll_deg'],navpose_dict['pitch_deg'],navpose_dict['yaw_deg']]
+                    quad = nepi_nav.convert_rpy2quat(rpy)
+                    quad_msg = Quaternion()
+                    quad_msg.x = quad[0]
+                    quad_msg.y = quad[1]
+                    quad_msg.z = quad[2]
+                    quad_msg.w = quad[3]
+                    msg = self.pubs_dict['pose']['msg']()
+                    msg.pose.pose.position = point_msg
+                    msg.pose.pose.orientation = quad_msg
+                    self.node_if.publish_pub('pose_pub',msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
+                    success = False
+
+            if self.enable_heading_pub == True:
+                #Create heading pub
+                try:
+                    msg = navpose_dict['heading']
+                    self.node_if.publish_pub('heading_pub',msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
+                    success = False
         return success
 
 
     def unsubsribe(self):
         self.ready = False
-        if self.node_if is not None:
-            self.node_if.unregister_class()
+        if self.pc_pub is not None:
+            self.msg_if.pub_info("Unsubsribing Image Publisher on topic: " + self.pc_pub_topic)
+            self.pc_pub.unsubscribe()
+        if self.status_pub is not None:
+            self.msg_if.pub_info("Unsubsribing Status Publisher on topic: " + self.status_pub_topic)
+            self.status_pub.unsubsribe()
         time.sleep(1)
-        self.namespace = None
+        self.namespace = '~'
+        self.pc_pub = None
+        self.status_pub = None
         self.status_msg = None
 
     ###############################
@@ -342,7 +329,7 @@ class NavPoseIF:
 
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None and not nepi_ros.is_shutdown():
-            self.node_if.publish_pub('status_pub', self.status_msg)
+        if self.status_pub is not None and not nepi_ros.is_shutdown():
+            self.img_status_msg.publish(self.status_msg)
 
 

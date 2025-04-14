@@ -7,7 +7,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import time
 
 
@@ -80,8 +79,8 @@ class MsgIF(object):
   
     def _createMsgPublishers(self):
         self._logSelfMsg("Creating Msg Publishers")
-        self.msg_pub = rospy.Publisher("~messages", Message, queue_size=1)
-        self.msg_pub_sys = rospy.Publisher("messages", Message, queue_size=1)
+        self.msg_pub = nepi_ros.create_publisher(self, "~messages", Message, queue_size=1)
+        self.msg_pub_sys = nepi_ros.create_publisher(self, "messages", Message, queue_size=1)
         time.sleep(1)
         
         return 

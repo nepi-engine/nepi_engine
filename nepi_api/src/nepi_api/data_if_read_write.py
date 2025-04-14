@@ -19,8 +19,6 @@ import open3d as o3d
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_msg
-from nepi_sdk import nepi_save
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 
@@ -34,8 +32,10 @@ SUPPORTED_VID_FILE_TYPES = ['avi','AVI']
 SUPPORTED_DATA_TYPES = ['dict','cv2_image','o3d_pointcloud']
 
 
-class SaveIF:
+class ReadWriteIF:
 
+    ready = False
+    
     # Save data variables
     filename_dict = {
     'prefix': "", 
@@ -46,19 +46,37 @@ class SaveIF:
     }
 
 
-
-
     #######################
     ### IF Initialization
     log_name = "ConnectImageIF"
-    def __init__(self):
+    def __init__(self,
+                prefix = '', 
+                suffix = '', 
+                add_time = True, 
+                add_ms = True, 
+                add_ns = False):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+
         ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
         
+
+        #############################
+        # Initialize Class Variables
+        self.filename_dict = {
+        'prefix': prefix, 
+        'add_timestamp': add_timestamp, 
+        'add_ms': add_ms,
+        'add_ns': add_ns,
+        'suffix': suffix
+        }
+
         self.data_dict = {
             'dict': {
                 'data_type': dict,
@@ -80,14 +98,35 @@ class SaveIF:
             },
         }
 
-        #################################
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Initialization Complete")
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
 
-    
 
-    #######################
+    ###############################
     # Class Public Methods
-    #######################
+    ###############################
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready   
+        
 
     def get_supported_data_dict(self):
         return self.data_dict
@@ -98,9 +137,9 @@ class SaveIF:
     def set_data_folder(self, data_path):
         success = True
         if os.path.exists(data_path) == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File path does not exist: " + data_path)
+            self.msg_if.pub_warn("File path does not exist: " + data_path)
         elif os.path.isdir(data_path) == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File path not a folder: " + data_path)
+            self.msg_if.pub_warn("File path not a folder: " + data_path)
         else:
             self.save_folder = data_path
             success = True
@@ -126,119 +165,120 @@ class SaveIF:
         file_list = nepi_utils.get_file_list(self.data_folder,ext_str=ext_str)
         return file_list
 
-
+    '''
     def get_file_times(self,file_list):
         file_times = []
         for file in file_list:
-            file_times.append(nepi_save.get_time_from_filename(file))
+            file_times.append(nepi_utils.get_time_from_filename(file))
         return file_times
+    '''
 
-    def read_yaml_file(filename):
+    def read_yaml_file(self, filename):
         data_key = 'dict'
         data = None
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(self.data_folder,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
                 data = read_data
         return data
 
-    def save_dict_file(data, data_name, timestamp = None, ext_str = 'yaml'):
+    def write_dict_file(self, data, data_name, timestamp = None, ext_str = 'yaml'):
         data_key = 'dict'
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
                 file_path = os.path.join(self.data_folder,filename)
                 if os.path.exists(file_path) == True:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File already exists: " + file_path)
+                    self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
                     success = self.data_dict[data_key]['write_func'](data, file_path)
         return success
 
 
-    def read_image_file(filename):
+    def read_image_file(self, filename):
         data_key = 'image'
         data = None
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(self.data_folder,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
                 data = read_data
         return data
 
-    def save_image_file(data, data_name, timestamp = None, ext_str = 'png'):
+    def write_image_file(self, data, data_name, timestamp = None, ext_str = 'png'):
         data_key = 'image'
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
                 file_path = os.path.join(self.data_folder,filename)
                 if os.path.exists(file_path) == True:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File already exists: " + file_path)
+                    self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
                     success = self.data_dict[data_key]['write_func'](data, file_path)
         return success
 
 
-    def read_pointcloud_file(filename):
+    def read_pointcloud_file(self, filename):
         data_key = 'pointcloud'
         data = None
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(self.data_folder,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
                 data = read_data
         return data
 
-    def save_pointcloud_file(data, data_name, timestamp = None, ext_str = 'pcd'):
+    def write_pointcloud_file(self, data, data_name, timestamp = None, ext_str = 'pcd'):
         data_key = 'pointcloud'
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Data type not supported: " + str(data_type))
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File type not supported: " + ext_str + " : " + str(file_types))
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
                 file_path = os.path.join(self.data_folder,filename)
                 if os.path.exists(file_path) == True:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": File already exists: " + file_path)
+                    self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
                     success = self.data_dict[data_key]['write_func'](data, file_path)
         return success
@@ -252,8 +292,11 @@ class SaveIF:
     def _createFileName(self,data_name_str,ext_str,timestamp):
         prefix = self.filename_dict['prefix']
         add_time = self.filename_dict['add_timestamp']
-        add_ms = self.filename_dict['add_ms']
-        add_ns = self.filename_dict['add_ns']
+        if add_time == True:
+            time_ns = nepi_ros.sec_from_ros_stamp(timestamp)
+            add_ms = self.filename_dict['add_ms']
+            add_ns = self.filename_dict['add_ns']
+            data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns)
         suffix = self.filename_dict['suffix']
-        filename = nepi_save.create_filename(data_name_str, ext_str, prefix = prefix, suffix = suffix, add_time = add_time, timestamp = timestamp, add_ms = add_ms, add_ns = add_ns)
+        filename = prefix + '_' + data_time_str + '_' + data_name + '_' + suffix + '.' + ext_str
         return filename

@@ -307,7 +307,6 @@ class SystemMgrNode():
         rospy.Subscriber('archive_inactive_rootfs', Empty, self.handle_archive_inactive_rootfs, queue_size=1)
         rospy.Subscriber('save_data_prefix', String, self.save_data_prefix_callback)
 
-        '''
         # Create Triggers Status Pub
         self.triggers_status_interval = 1.0
         self.triggers_status_pub = rospy.Publisher('system_triggers_status', SystemTriggersStatus, queue_size=1)
@@ -321,7 +320,7 @@ class SystemMgrNode():
         time.sleep(1)
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_ros.start_timer_process(nepi_ros.ros_duration(self.states_status_interval), self.statesStatusPubCb, oneshot = True)
-        '''
+
 
 
         # Crate system status pub

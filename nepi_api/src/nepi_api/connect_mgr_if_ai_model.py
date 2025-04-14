@@ -8,7 +8,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import os
 import time
 
@@ -19,8 +18,12 @@ from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModel
 from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
+from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_img
+
+
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.sys_if_msg import MsgIF
 
 EXAMPLE_AI_MGR_STATUS_DICT = {
     'ai_frameworks': [],
@@ -70,11 +73,19 @@ class ConnectMgrAiModelIF:
     log_name = "AiMgrIf"
     def __init__(self, timeout = float('inf')):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting AI Manager IF Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
         ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+
+        ##############################    
+        # Initialize Class Variables
                 
         self.mgr_namespace = os.path.join(self.base_namespace,self.NODE_NAME)
         
@@ -83,7 +94,7 @@ class ConnectMgrAiModelIF:
 
         #######################
         # Wait for Status Message
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for status message")
+        self.msg_if.pub_info("Waiting for status message")
         timer = 0
         time_start = nepi_ros.get_time()
         status_msg = None
@@ -92,10 +103,10 @@ class ConnectMgrAiModelIF:
             status_msg = self.status_msg
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Status msg topic subscribe timed out " + str(status_topic))
+            self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
             success = False
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got status msg " + str(self.status_msg))
+            self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
 
         ##################################
         ### Set up Services
@@ -106,27 +117,27 @@ class ConnectMgrAiModelIF:
                 service_namespace = os.path.join(self.base_namespace, service_name)
             else:
                 service_namespace = os.path.join(self.base_namespace,service_dict['psn'], service_name)
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for " + service_name + " on namespace " + service_namespace)
+            self.msg_if.pub_info("Waiting for " + service_name + " on namespace " + service_namespace)
             ret = nepi_ros.wait_for_service(service_namespace, timeout = float('inf') )
             if ret == "":
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Wait for service: " + service_name + " timed out") 
+                self.msg_if.pub_warn("Wait for service: " + service_name + " timed out") 
             else:
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Creating service call for: " + service_name)
-                #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Creating service with namespace: " + service_namespace)
-                #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Creating service with msg: " + str(service_dict['msg']))
+                self.msg_if.pub_info("Creating service call for: " + service_name)
+                #self.msg_if.pub_warn("Creating service with namespace: " + service_namespace)
+                #self.msg_if.pub_warn("Creating service with msg: " + str(service_dict['msg']))
                 service = None
                 try:
                     service = nepi_ros.create_service(service_namespace, service_dict['msg'])
                     time.sleep(1)
                 except Exception as e:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get service connection: " + service_name + " " + str(e))  
+                    self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
                 if service is not None:
                     self.connected = True
                     self.services_dict[service_name]['service'] = service
                     self.services_dict[service_name]['connected'] = True
 
         #################################
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": AI Manager IF Initialization Complete")
+        self.msg_if.pub_info("AI Manager IF Initialization Complete")
         
 
     #######################
@@ -135,16 +146,16 @@ class ConnectMgrAiModelIF:
 
     def wait_for_connection(self, timout = float('inf') ):
         success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect")
         else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Connected")
+            self.msg_if.pub_info("Connected")
         return self.connected    
 
     def get_status_dict(self):
@@ -153,9 +164,9 @@ class ConnectMgrAiModelIF:
             if self.status_msg is not None:
                 status_dict = nepi_ros.convert_msg2dict(self.status_msg)
             else:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Status Listener Not connected")
+                self.msg_if.pub_warn("Status Listener Not connected")
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Manager Not connected")
+            self.msg_if.pub_warn("Manager Not connected")
         return status_dict
 
 
@@ -174,7 +185,7 @@ class ConnectMgrAiModelIF:
             try:
                     request = srv_dict['req']
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,"Failed to create service request: " + service_name + " " + str(e))
+                self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
                 
             # Call service
             response = None
@@ -183,11 +194,11 @@ class ConnectMgrAiModelIF:
 
             # Process Response
             if response is None:
-                nepi_msg.publishMsgWarn(self,"Failed to get response for service: " + service_name)
+                self.msg_if.pub_warn("Failed to get response for service: " + service_name)
             else:
                 models_info_dict = nepi_ros.convert_msg2dict(response)
-                #nepi_msg.publishMsgInfo(self,"Got software status response" + str(response) + " for service: " + service_name)
-                nepi_msg.publishMsgInfo(self,"Got models info response" + str(status_dict) + " for service: " + models_info_dict)
+                #self.msg_if.pub_info("Got software status response" + str(response) + " for service: " + service_name)
+                self.msg_if.pub_info("Got models info response" + str(status_dict) + " for service: " + models_info_dict)
 
         return models_info_dict
 
@@ -209,7 +220,7 @@ class ConnectMgrAiModelIF:
             try:
                 service = nepi_ros.create_service(service_namespace, service_dict['msg'])
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get service connection: " + service_name + " " + str(e)) 
+                self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e)) 
 
             # Call Service
             response = None
@@ -229,7 +240,7 @@ class ConnectMgrAiModelIF:
                             if state == True:
                                 active_namespaces.append(got_namespace[i])
                         namespaces += active_namespaces
-        nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got active detector namespaces: " + str(namespaces))
+        self.msg_if.pub_warn("Got active detector namespaces: " + str(namespaces))
         return namespaces
 
     #######################
@@ -249,7 +260,7 @@ class ConnectMgrAiModelIF:
                 response = self.ai_models_info_query_service(req)
                 self.ai_models_info_response = response
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to obtain active models info response " + str(e))
+                self.msg_if.pub_warn("Failed to obtain active models info response " + str(e))
             if response is not None:
                 if "detector_name_list" in response.keys(detector_name_list):
                     det_namespaces = response["detector_name_list"]

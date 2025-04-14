@@ -1,14 +1,11 @@
 # This is an optional status message for pointcloud publishers
 
-string data_name
-
 bool publishing
 float32 last_pub_sec
 float32 fps
 
-string encoding
-
 bool has_rgb
+bool has_intensity
 
 int32 point_count
 

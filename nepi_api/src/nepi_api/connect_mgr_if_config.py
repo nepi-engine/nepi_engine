@@ -16,7 +16,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_ros_interfaces.srv import FileReset, FileResetRequest
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
+from nepi_sdk import nepi_utils
 
 
 class ConnectMgrConfigIF:
@@ -62,7 +62,7 @@ class ConnectMgrConfigIF:
         self.node_name = nepi_ros.get_node_name()
         self.base_namespace = nepi_ros.get_base_namespace()
         nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting IF Initialization Processes")
         ##############################
 
         self.mgr_namespace = os.path.join(self.base_namespace,self.NODE_NAME)
@@ -90,20 +90,20 @@ class ConnectMgrConfigIF:
                 service_namespace = os.path.join(self.base_namespace, service_name)
             else:
                 service_namespace = os.path.join(self.base_namespace,service_dict['psn'], service_name)
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for " + service_name + " on namespace " + service_namespace)
+            self.msg_if.pub_info("Waiting for " + service_name + " on namespace " + service_namespace)
             ret = nepi_ros.wait_for_service(service_namespace, timeout = float('inf') )
             if ret == "":
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Wait for service: " + service_name + " timed out") 
+                self.msg_if.pub_warn("Wait for service: " + service_name + " timed out") 
             else:
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Creating service call for: " + service_name)
-                #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Creating service with namespace: " + service_namespace)
-                #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Creating service with msg: " + str(service_dict['msg']))
+                self.msg_if.pub_info("Creating service call for: " + service_name)
+                #self.msg_if.pub_warn("Creating service with namespace: " + service_namespace)
+                #self.msg_if.pub_warn("Creating service with msg: " + str(service_dict['msg']))
                 service = None
                 try:
                     service = nepi_ros.create_service(service_namespace, service_dict['msg'])
                     time.sleep(1)
                 except Exception as e:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get service connection: " + service_name + " " + str(e))  
+                    self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
                 if service is not None:
                     self.services_dict[service_name]['service'] = service
                     self.services_dict[service_name]['connected'] = True
@@ -111,7 +111,7 @@ class ConnectMgrConfigIF:
 
         #################################
         self.connected = True
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete")
         #################################
 
 
@@ -122,29 +122,29 @@ class ConnectMgrConfigIF:
 
     def wait_for_connection(self, timout = float('inf') ):
         success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection")
         timer = 0
         time_start = nepi_ros.ros_time_now()
         while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.ros_time_now() - time_start
         if self.connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect")
         else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Connected")
+            self.msg_if.pub_info("Connected")
         return self.connected
 
     def wait_for_status(self,timeout = float('inf')):
         success = self.wait_for_connection(timeout)
         if success == False:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Manager Not connected")
+            self.msg_if.pub_warn("Manager Not connected")
         else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for status msg")
+            self.msg_if.pub_info("Waiting for status msg")
             found_topic = nepi_ros.wait_for_topic(self.status_topic, timeout)
             if found_topic == "":
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get status msg")
+                self.msg_if.pub_warn("Failed to get status msg")
             else:
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Got status msg")
+                self.msg_if.pub_info("Got status msg")
                 success = True
         return success
 
@@ -166,7 +166,7 @@ class ConnectMgrConfigIF:
             config_service.publish(Empty())
             success = True
         except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Failed to publish config_service: " + str(config_service) + " " + str(e))
+            self.msg_if.pub_warn("Failed to publish config_service: " + str(config_service) + " " + str(e))
 
         success = True
         return success
@@ -178,7 +178,7 @@ class ConnectMgrConfigIF:
             self.save_config_pub.publish(Empty())
             success = True
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Manager Not connected")
+            self.msg_if.pub_warn("Manager Not connected")
         return success
 
 
@@ -199,7 +199,7 @@ class ConnectMgrConfigIF:
         try:
             request = srv_dict['req']()
         except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Failed to create service request: " + service_name + " " + str(e))
+            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
             
         # Call service
         response = None
@@ -208,10 +208,10 @@ class ConnectMgrConfigIF:
 
         # Process Response
         if response is None:
-            nepi_msg.publishMsgWarn(self,"Failed to get response for service: " + service_name)
+            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
             env_str = response.op_env
-            nepi_msg.publishMsgInfo(self,"Got status response" + str(response) + " for service: " + service_name)
+            self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
             success = True
 
         return success
@@ -229,7 +229,7 @@ class ConnectMgrConfigIF:
         try:
             request = srv_dict['req']()
         except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Failed to create service request: " + service_name + " " + str(e))
+            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
             
         # Call service
         response = None
@@ -238,10 +238,10 @@ class ConnectMgrConfigIF:
 
         # Process Response
         if response is None:
-            nepi_msg.publishMsgWarn(self,"Failed to get response for service: " + service_name)
+            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
             env_str = response.op_env
-            nepi_msg.publishMsgInfo(self,"Got status response" + str(response) + " for service: " + service_name)
+            self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
             success = True
 
         return success

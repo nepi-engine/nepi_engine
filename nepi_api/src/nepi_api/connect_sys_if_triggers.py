@@ -30,19 +30,22 @@ EXAMPLE_TRIGGER_DICT = {"name":"None",
                         "node":"None"
 }
 
-EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
+EXAMPLE_TRIGGERS_DICT = {"example_trigger":EXAMPLE_TRIGGER_DICT}
 
 
 
-class ConnectTriggerIF(object):
+class ConnectTriggersIF(object):
 
-    trigger_handler = None
-    trigger_check = None
-    last_trigger_time = None
+    msg_if = None
+    ready = False
+
+    trigger_handlers_dict = dict()
+
+    status_msg = None
 
     #######################
     ### IF Initialization
-    def __init__(self, trigger_handler_function, trigger_name = "All"):
+    def __init__(self):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -51,35 +54,32 @@ class ConnectTriggerIF(object):
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
 
         #############################
-        self.trigger_handler = trigger_handler_function
-
+        # Initialize Class Variables
+        if namespace is None:
+            namespace = '~'
+        self.namespace = nepi_ros.get_full_namespace(namespace)
 
 
         ##############################  
         # Create NodeClassIF Class  
 
-        # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'trigger_query': {
-                'topic': 'system_triggers_query',
-                'msg': SystemTriggersQuery,
-            }
-        }
-
-        self.SRVS_CONFIG_DICT = {
-                'namespace': '~',
-                'srvs_dict': self.SRVS_DICT
-        }
-
         # Subs Config Dict ####################
         self.SUBS_DICT = {
+            'status_sub': {
+                'namespace': self.base_namespace,
+                'msg': SystemTriggersStatus,
+                'topic': 'system_triggers_status',
+                'qsize': 1,
+                'callback': self._statusSubCb,
+                'callback_args': ()
+            },
             'trigger_sub': {
+                'namespace': self.base_namespace,
                 'msg': SystemTrigger,
                 'topic': 'system_trigger',
                 'qsize': 1,
@@ -88,53 +88,94 @@ class ConnectTriggerIF(object):
             }
         }
 
-        self.SUBS_CONFIG_DICT = {
-            'namespace': None,
-            'subs_dict': self.SUBS_DICT
-        }
+        # Create Node Class ####################
+        self.con_node_if = ConnectNodeClassIF(subs_dict = self.SUBS_DICT)
 
-
-        self.class_if = ConnectNodeClassIF(srvs_config_dict = self.SRVS_CONFIG_DICT,
-                        subs_config_dict = self.SUBS_CONFIG_DICT
-                        )
-
+        self.con_node_if.wait_for_ready()
 
         ##############################
+        # Complete Initialization
         self.msg_if.pub_info("IF Initialization Complete")
-
-
-
+        ###############################
 
     ###############################
     # Class Public Methods
     ###############################
 
-    def get_trigger_info(self):
-        req = SystemTriggersQueryRequest()
-        self.class_if.call_srv('trigger_query',req)
 
+    def get_ready_state(self):
+        return self.ready
 
-    def get_last_trigger_time(self):
-        return self.last_trigger_time
-
-    def unregister_trigger_if(self): 
+    def wait_for_ready(self, timout = float('inf') ):
         success = False
-        if self.connected is False or self.trigger_check is None:
-            self.msg_if.pub_warn("Trigger IF not running")
-            success = True
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
+
+
+    def get_triggers_names(self):
+        trigger_names = []
+        if self.status_sub is not None:
+            if self.status_msg is not None:
+                trigger_names = self.status_msg.triggers_names_list
         else:
-            self.msg_if.pub_info("Killing Trigger IF for trigger: " + self.trigger_check)
-            try:
-                self.trigger_sub.unregister()
-                success = True
-            except:
-                pass
-            time.sleep(1)
-            self.trigger_sub = None
-            self.trigger_handler = None
-            self.trigger_check = None
-            self.last_trigger_time = None
+            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
+        return trigger_names
+
+
+    def get_triggers_status_dict(self):
+        triggers_dict = None
+        if self.status_sub is not None:
+            if self.status_msg is not None:
+                triggers_dict = nepi_triggers.parse_triggers_status_msg(self.status_msg)
+        else:
+            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
+        return triggers_dict
+
+
+
+    def get_registered_triggers(self):
+        return self.trigger_handlers_dict.keys()
+
+    def register_trigger(self, trigger_handler_function, trigger_name = "All"):
+        success = False
+        th_dict = dict()
+        th_dict['handler'] = trigger_handler_function
+        th_dict['last_time'] = nepi_utils.get_time()
+        self.trigger_handlers_dict[trigger_name] = th_dict
+        success = True
         return success
+
+    def unregister_trigger(self, trigger_name):
+        success = False
+        try:
+            del self.trigger_handlers_dict[trigger_name]
+            success = True
+        except Exception as e:
+            self.msg_if.pub_info("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
+        return success
+
+
+    def get_last_trigger_time(self, trigger_name):
+        last_time = None
+        try:
+            last_time self.trigger_handlers_dict[trigger_name]['last_time']
+        except Exception as e:
+            self.msg_if.pub_info("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
+        return self.last_time
+
+ 
+
+
 
     ###############################
     # Class Private Methods
@@ -144,11 +185,20 @@ class ConnectTriggerIF(object):
     def _triggerCb(self,msg):
         trigger_dict = nepi_triggers.parse_trigger_msg(msg)
         trigger_name = trigger_dict['name']
-        if self.trigger_handler is not None and self.trigger_check is not None:
-            if self.trigger_check == "All" or self.trigger_check == trigger_name:
-                try:
-                    self.last_trigger_time = nepi_utils.get_time()
-                    self.trigger_handler(trigger_dict)
-                except:
-                    self.msg_if.pub_info("Failed to call trigger handler function: " + str(e))
+        if "All" in self.trigger_handlers_dict.keys():
+            self.trigger_handlers_dict["All"]['last_time'] = nepi_utils.get_time()
+            try:
+                self.trigger_handlers_dict["All"]['handler'](trigger_dict)
+            except:
+                self.msg_if.pub_info("Failed to call trigger handler function: " + str(e))
+        if trigger_name in self.trigger_handlers_dict.keys():
+            self.trigger_handlers_dict[trigger_name]['last_time'] = nepi_utils.get_time()
+            try:
+                self.trigger_handlers_dict[trigger_name]['handler'](trigger_dict)
+            except:
+                self.msg_if.pub_info("Failed to call trigger handler function: " + str(e))
 
+    # Update System Status
+    def _statusCb(self,msg):
+        self.status_msg = msg
+        self.ready = True

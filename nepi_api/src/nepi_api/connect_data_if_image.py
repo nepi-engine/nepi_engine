@@ -8,18 +8,17 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_msg
-from nepi_sdk import nepi_img
 
-import rospy
+
 import os
 import time
 import copy
 import cv2
 import threading
 
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_img
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -28,53 +27,45 @@ from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import ImageStatus
 
 
-#You must use the classes img_dict_lock.aquire() and img_dict_lock.release() thread save functions 
-#When accessing the classes img_dict
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.sys_if_msg import MsgIF
 
 
-EXAMPLE_IMG_INFO_DICT = {
-    'has_mmap': False,
-    'mmap_id': '',
-    'mmap_info_dict': dict(),
-    'depth_map_topic': None,
-    'pointcloud_topic': None,
-    'get_latency_time':0,
-    'pub_latency_time':0,
-    'process_time':0,
-}
+#You must use the classes data_dict_lock.aquire() and data_dict_lock.release() thread save functions 
+#When accessing the classes data_dict
 
-EXAMPLE_PC_DICT = {       
-    'cv2_img': None,
+
+EXAMPLE_DATA_DICT = {   
+    'namespace': '~'     
+    'data': None,
     'width': 0,
     'height': 0,
     'timestamp': nepi_ros.get_time(),
-    'ros_img_topic': 'None',
     'ros_img_header': Header(),
     'ros_img_stamp': Header().stamp,
+    'get_latency_time': 0,
+    'got_latency_time': 0,
+    'process_time': 0 
 }
-
-
 
 
 class ConnectImageIF:
 
+    msg_if = None
+    ready = False
+    namespace = '~'
+
+    con_node_if = None
+
     connected = False
+    status_msg = None
     status_connected = False
 
-    img_sub = None
-    img_subscribed = False
+    data_dict = None
+    data_dict_lock = threading.Lock()
 
-    img_topic = None
-
-    img_status_msg = None
-
-    img_info_dict = None
-
-    img_dict = None
-    img_dict_lock = threading.Lock()
-
-    get_img = False
-    got_img = False
+    get_data = False
+    got_data = False
 
 
 
@@ -82,103 +73,113 @@ class ConnectImageIF:
     ### IF Initialization
     log_name = "ConnectImageIF"
     def __init__(self, 
-                getImageCallbackFunction = None,
-                imagePreprocessFunction = None,
+                namespace,
+                preprocess_function = None,
+                callback_function = None
                 ):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting Initialization Processes")
-        ##############################  
-        self.getImageCallbackFunction = getImageCallbackFunction
-        self.imagePreprocessFunction = imagePreprocessFunction
-        #################################
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Initialization Complete")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
 
-    
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+
+        ##############################    
+        # Initialize Class Variables
+
+        if namespace is None:
+            namespace = self.node_namespace
+        else:
+            namespace = namespace
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+
+        self.preprocessFunction = preprocess_function
+        self.callbackFunction = callback_function
+
+
+
+        ##############################   
+        ## Node Setup
+
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'img_sub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'callback': self._dataCb
+            },
+            'status_sub': {
+                'msg': ImageStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'callback': self._statusCb
+            }
+        }
+
+        # Create Node Class ####################
+        self.con_node_if = ConnectNodeClassIF(self,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        self.con_node_if.wait_for_ready()
+
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
 
     #######################
     # Class Public Methods
     #######################
 
-    def connect_image_topic(self,img_topic, timeout = 5):
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
         success = False
-        if img_topic is None or img_topic == "None":
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Can't subscribe to None topic")
-        else:
-            # Try to find img topic
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for image on topic: " + str(img_topic))
-            found_topic = nepi_ros.wait_for_topic(img_topic, timeout = timeout)
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Found topic: " + found_topic)
-            if found_topic != "":
-                # Subscribe to topic
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Subscribing to image topic: " + img_topic)
-                img_subscribed = self._subscribeImgTopic(img_topic)
-                self.img_subscribed = img_subscribed
-                if img_subscribed == True:
-                    # Wait for image
-                    nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for image")
-                    connected = False
-                    timer = 0
-                    time_start = nepi_ros.get_time()
-                    while connected == False and timer < timeout and not rospy.is_shutdown():
-                        nepi_ros.sleep(.2)
-                        connected = self.connected
-                        timer = nepi_ros.get_time() - time_start
-                    
-                    if connected == True:
-                        success = True
-                        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Image Connected")
-                    else:
-                        self._unsubscribeImgTopic()
-                        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
-                else:
-                    #################################
-                    nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Subscribe")
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
             else:
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to find image topic: " + img_topic)
-        return success
+                self.msg_if.pub_info("Connected")
+        return self.ready  
 
-
-    def disconnect_image_topic(self):
-        success = False
-        if self.img_subscribed == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Already unsubsribed")
-        else:
-            #################################
-            ## Subscribe to image if requested
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Unsubscribing to image topic: " + str(self.img_topic))
-            img_unsubscribed = self._unsubscribeImgTopic()
-
-            if img_unsubscribed == True:
-                success = True
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Unsubsribe Succeeded")
-            else:
-                #################################
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Unsubscribe")
-
-    def get_img_topic(self):
-        return self.img_topic
-
-    def get_info_dict(self):
-        return self.img_info_dict
+    def get_namespace(self):
+        return self.namespace
 
     def check_connection(self):
         return self.connected
 
     def wait_for_connection(self, timout = float('inf') ):
-        success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
-        else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Connected")
+        if self.con_node_if is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.connected == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
         return self.connected
 
 
@@ -186,164 +187,125 @@ class ConnectImageIF:
         return self.status_connected
 
     def wait_for_status_connection(self, timout = float('inf') ):
-        success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for status connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.status_connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to connect to status msg")
-        else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Status Connected")
+        if self.con_node_if is not None:
+            self.msg_if.pub_info("Waiting for status connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.status_connected == False:
+                self.msg_if.pub_info("Failed to connect to status msg")
+            else:
+                self.msg_if.pub_info("Status Connected")
         return self.status_connected
 
     def get_status_dict(self):
         img_status_dict = None
         if self.status_msg is not None:
-            img_status_dict = nepi_ros.convert_msg2dict(self.img_status_msg)
+            img_status_dict = nepi_ros.convert_msg2dict(self.status_msg)
         return self.img_status_dict
 
-
-
-    
-
-    def read_get_got_img_states(self):
-        return self.get_img, self.got_img
-
     def set_get_img(self,state):
-        self.get_img = state
+        self.get_data = state
         return True
 
-    def get_img_dict(self):
-        self.img_dict_lock.acquire()
-        img_dict = copy.deepcopy(self.img_dict)
-        self.img_dict = None
-        self.img_dict_lock.release()
-        return img_dict
+    def read_get_got_states(self):
+        return [self.get_data, self.got_data]
 
+    def get_data_dict(self):
+        self.data_dict_lock.acquire()
+        data_dict = copy.deepcopy(self.data_dict)
+        self.data_dict = None
+        self.data_dict_lock.release()
+        return data_dict
+
+    def unregister(self):
+        self._unsubscribeTopic()
 
     ###############################
     # Class Private Methods
     ###############################
+   
 
-    def _subscribeImgTopic(self,img_topic):
-            if img_topic == "None" or img_topic == "":
-                return False
-            if self.img_sub is not None:
-                success = self._unsubscribeImgTopic(img_topic)
-
-            self.connected = False 
-            # Create img info dict
-            self.img_info_dict = dict()  
-            self.img_info_dict['has_mmap'] = False
-            self.img_info_dict['mmap_id'] = ""
-            self.img_info_dict['mmap_info_dict'] = dict()
-
-            self.img_info_dict['depth_map_topic'] = nepi_img.get_img_depth_map_topic(img_topic)
-            self.img_info_dict['pointcloud_topic'] = nepi_img.get_img_pointcloud_topic(img_topic)
-
-            self.img_info_dict['get_latency_time'] = 0
-            self.img_info_dict['pub_latency_time'] = 0
-            self.img_info_dict['process_time'] = 0 
-
-          
-            nepi_msg.publishMsgInfo(self,'Subsribing to image topic: ' + img_topic)
-            self.img_sub = rospy.Subscriber(img_topic, Image, self._imageCb, queue_size=1, callback_args=(img_topic))
-            self.img_topic = img_topic
-            # Setup Image Status Topic Subscriber in case there is one
-            self.status_connected = False
-            self.status_msg = None
-            status_topic = os.path.join(img_topic,'status')
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Subscribing to image status topic: " + status_topic)
-            img_subscribed = rospy.Subscriber(status_topic, ImageStatus, self._imageStatusCb, queue_size=1, callback_args=(img_topic))
-            time.sleep(1)
-  
-            return True
-        
-
-    def _unsubscribeImgTopic(self):
+    def _unsubscribeTopic(self):
         success = False
         self.connected = False
-        if self.img_sub is not None:
-            nepi_msg.publishMsgWarn(self,'Unregistering topic: ' + str(self.img_topic))
+        if self.con_node_if is not None:
+            self.msg_if.pub_info("Unregistering topic: " + str(self.namespace))
             try:
                 self.connected = False 
-                self.img_sub.unregister()
+                self.con_node_if.unregister_class()
                 time.sleep(1)
-                self.img_topic = None
-                self.img_subscribed = False
+                self.con_node_if = None
+                self.namespace = None
                 self.connected = False 
-                self.img_sub = None
-                self.img_dict = None
+                self.data_dict = None
                 success = True
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to unregister img_sub:  " + str(e))
+                self.msg_if.pub_warn("Failed to unregister image:  " + str(e))
         return success
 
 
-    def _imageCb(self,image_msg, args):      
-        self.connected = True
-        img_topic = args
-        #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got img for topic:  " + img_topic)
+    def _dataCb(self,data_msg):      
+        #self.msg_if.pub_warn("Got img for topic:  " + self.namespace)
 
         # Process ros image message
         current_time = nepi_ros.ros_time_now()
-        ros_timestamp = image_msg.header.stamp
+        ros_timestamp = data_msg.header.stamp
         latency = (current_time.to_sec() - ros_timestamp.to_sec())
-        self.img_info_dict['get_latency_time'] = latency
-        #nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Get Img Latency: {:.2f}".format(latency))
+        data_dict['get_latency_time'] = latency
+        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
         start_time = nepi_ros.get_time()   
 
 
-        get_image = (self.getImageCallbackFunction is not None or self.get_img == True)
-        #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got Img with get_img: " + str(self.get_img) + " got_img: " + str(self.got_img))
-        if get_image == True:
-            self.get_img = False
-           # nepi_msg.publishMsgWarn(self,":" + self.log_name + ":Got get_img flag. Processing img for topic:  " + img_topic)
+        get_data = (self.callbackFunction is not None or self.get_data == True)
+        #self.msg_if.pub_warn("Got Img with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
+        if get_data == True:
+            self.get_data = False
+           # self.msg_if.pub_warn("Got get_data flag. Processing img for topic:  " + self.namespace)
             ##############################
             ### Preprocess Image
             
-            cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+            data = nepi_img.rosimg_to_cv2img(data_msg)
 
-            if self.imagePreprocessFunction is not None:
+            if self.preprocessFunction is not None:
                 try:
-                    cv2_img = self.imagePreprocessFunction(cv2_img)
+                    data = self.preprocessFunction(data)
                 except Exception as e:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Provided Image Preprocess Function failed:  " + str(e))
+                    self.msg_if.pub_warn("Provided Image Preprocess Function failed:  " + str(e))
 
-            cv2_img = self.imagePreprocessFunction(cv2_img)
-            img_dict = dict()
-            img_dict['cv2_img'] = cv2_img
-            height, width = cv2_img.shape[:2]
-            img_dict['width'] = width 
-            img_dict['height'] = height 
-            ros_timestamp = image_msg.header.stamp
-            img_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
-            img_dict['ros_img_topic'] = img_topic
-            img_dict['ros_img_header'] = image_msg.header
-            img_dict['ros_img_stamp'] = ros_timestamp
+            data = self.preprocessFunction(data)
+            data_dict = dict()
+            data_dict['namespace'] = self.namespace
+            data_dict['data'] = data
+            height, width = data.shape[:2]
+            data_dict['width'] = width 
+            data_dict['height'] = height 
+            ros_timestamp = data_msg.header.stamp
+            data_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
+            data_dict['ros_img_header'] = data_msg.header
+            data_dict['ros_img_stamp'] = ros_timestamp
             ##############################
 
-            if self.getImageCallbackFunction is not None:
-                self.getImageCallbackFunction(img_dict)
-            else:
-                self.img_dict_lock.acquire()
-                self.img_dict = img_dict
-                self.img_dict_lock.release()
-                self.got_img = True
-
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
-            self.img_info_dict['process_time'] = process_time
+            data_dict['process_time'] = process_time
 
-        latency = (current_time.to_sec() - ros_timestamp.to_sec())
-        self.img_info_dict['pub_latency_time'] = latency
-        #nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Img Pub Latency: {:.2f}".format(latency))
+            latency = (current_time.to_sec() - ros_timestamp.to_sec())
+            data_dict['got_latency_time'] = latency
+            #self.msg_if.pub_info("Img Pub Latency: {:.2f}".format(latency))
+
+            if self.callbackFunction is not None:
+                self.callbackFunction(data_dict)
+            else:
+                self.data_dict_lock.acquire()
+                self.data_dict = data_dict
+                self.data_dict_lock.release()
+                self.got_data = True
+        self.connected = True
 
 
-    def _imageStatusCb(self,status_msg, args):      
+    def _statusCb(self,status_msg):      
         self.status_connected = True
-        img_topic = args
-        self.img_status_msg = status_msg
+        self.status_msg = status_msg

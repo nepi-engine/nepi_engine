@@ -24,7 +24,7 @@ from nepi_ros_interfaces.msg import ImageStatus
 from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
 from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse
+from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_msg
@@ -137,146 +137,154 @@ class AiDetectorIF:
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################  
+        # Init Class Variables 
+
+        all_pubs_config_dict = None
+        all_pubs_if = None
+
+
+        ##############################  
         # Create NodeClassIF Class  
+
+        # Configs Dict ########################
+        self.CONFIGS_DICT = {
+                'init_callback': None,
+                'reset_callback': None,
+                'factory_reset_callback': None,
+                'init_configs': True,
+                'namespace': '~',
+        }
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'img_topics': {
+                'namespace': self.namespace,
                 'factory_val': []
             },
             'wait_for_detect': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_WAIT_FOR_DETECT
             },
             'img_tiling': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_IMG_TILING
             },
             'overlay_labels': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_LABELS_OVERLAY
             },
             'overlay_clf_name': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_CLF_OVERLAY
             },
             'threshold': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_THRESHOLD
             },
             'max_rate': {
+                'namespace': self.namespace,
                 'factory_val': DEFAULT_MAX_RATE
             },
             'enabled': {
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'sleep_enabled': {
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'sleep_suspend_time': {
+                'namespace': self.namespace,
                 'factory_val': -1
             },
             'sleep_run_time': {
+                'namespace': self.namespace,
                 'factory_val': 1
             },
         }
 
-        self.PARAMS_CONFIG_DICT = {
-                'save_callback': None,
-                'reset_callback': None,
-                'factory_reset_callback': None,
-                'namespace': '~',
-                'params_dict': self.PARAMS_DICT
-        }
+
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'info_query': {
+                'namespace': self.namespace,
                 'topic': 'detector_info_query',
-                'msg': AiDetectorInfoQuery,
+                'srv': AiDetectorInfoQuery,
+                'req': AiDetectorInfoQueryRequest(),
+                'resp': AiDetectorInfoQueryResponse(),
                 'callback': self.handleInfoRequest
             }
-        }
-
-        self.SRVS_CONFIG_DICT = {
-                'namespace': '~',
-                'srvs_dict': self.SRVS_DICT
         }
 
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'found_object': {
-                'msg': BoundingBoxes,
+                'msg': ObjectCount,
+                'namespace': self.namespace,
                 'topic': 'found_object',
                 'qsize': 1,
                 'latch': False
             },
             'bounding_boxes': {
-                'msg': ObjectCount,
+                'msg': BoundingBoxes,
+                'namespace': self.namespace,
                 'topic': 'bounding_boxes',
-                'qsize': 1,
-                'latch': False
-            },
-            'detection_trigger': {
-                'msg': Bool,
-                'topic': 'found_object',
-                'qsize': 1,
-                'latch': False
-            },
-            'detection_state': {
-                'msg': ObjectCount,
-                'topic': 'detection_state',
                 'qsize': 1,
                 'latch': False
             },
             'status': {
                 'msg': AiDetectorStatus,
+                'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             }
+            
         }
 
-    self. PUBS_CONFIG_DICT = {
-            'namespace': '~',
-            'pub_dict': self.PUBS_DICT
-        }
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'update': {
                 'msg': Setting,
+                'namespace': self.namespace,
                 'topic': 'update_setting',
                 'qsize': 1,
                 'callback': self._updateSettingCb
             },
             'publish_settings': {
                 'msg': Empty,
+                'namespace': self.namespace,
                 'topic': 'publish_setting',
                 'qsize': 1,
                 'callback': self._publishSettingsCb
             },
             'reset': {
                 'msg': Empty,
+                'namespace': self.namespace,
                 'topic': 'reset_settings',
                 'qsize': 1,
                 'callback': self._resetInitSettingCb
             },
         }
 
-        self.SUBS_CONFIG_DICT = {
-            'namespace': '~',
-            'sub_dict': SUBS_DICT
-        }
-
-        all_pubs_config_dict = None
-        all_pubs_if = None
-
-        self.class_if = NodeClassIF(self,
-                        params_config_dict = self.PARAMS_CONFIG_DICT,
-                        srvs_config_dict = self.SRVS_CONFIG_DICT,
-                        pubs_config_dict = self.PUBS_CONFIG_DICT,
-                        subs_config_dict = self.SUBS_CONFIG_DICT,
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(self,
+                        configs_dict = self.CONFIGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.node_if.wait_for_ready()
+        
+        ##############################
+        ## Setup All Detector Pubs and Subs
 
         if all_namespace.find(self.node_name) == -1:
             self.self_managed = False

@@ -7,7 +7,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import os
 import time
 import copy
@@ -32,16 +31,18 @@ class SettingsIF(object):
 
     # Class Vars ####################
 
+    msg_if = None
+    ready = False
     namespace = '~'
 
-    class_if = None
-    msg_if = None
+    node_if = None
+
 
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
     factorySettings = nepi_settings.NONE_SETTINGS
     setSettingFunction = None
 
-    capabilities_report = SettingsCapabilitiesQueryResponse()
+    capabilities_response = SettingsCapabilitiesQueryResponse()
 
     init_settings = dict()
     #######################
@@ -66,25 +67,24 @@ class SettingsIF(object):
         
 
         #############################
-
-        if namespace is not None:
-            self.namespace = namespace
-        else:
-            self.namespace = self.node_namespace
+        # Initialize Class Variables
+        if namespace is None:
+            namespace = '~'
+        self.namespace = nepi_ros.get_full_namespace(namespace)
 
         #  Initialize capabilities info
         if capSettings is None:
             self.cap_settings = nepi_settings.NONE_CAP_SETTINGS
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
-            self.capabilities_report.settings_count = len(cap_setting_msgs_list)
-            self.capabilities_report.setting_caps_list = cap_setting_msgs_list
+            self.capabilities_response.settings_count = len(cap_setting_msgs_list)
+            self.capabilities_response.setting_caps_list = cap_setting_msgs_list
             self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
             self.msg_if.pub_info("Got Node settings capabilitis dict : " + str(capSettings))
             self.cap_settings = capSettings   
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
-            self.capabilities_report.settings_count = len(cap_setting_msgs_list)
-            self.capabilities_report.setting_caps_list = cap_setting_msgs_list
+            self.capabilities_response.settings_count = len(cap_setting_msgs_list)
+            self.capabilities_response.setting_caps_list = cap_setting_msgs_list
 
             if factorySettings is None:
                 self.factory_settings = nepi_settings.NONE_SETTINGS
@@ -107,33 +107,25 @@ class SettingsIF(object):
         ##############################  
         # Create NodeClassIF Class  
 
+
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'settings': {
+                'namespace': self.namespace,
                 'factory_val': dict()
             }
-        }
-
-        self.PARAMS_CONFIG_DICT = {
-                'init_callback': None,
-                'reset_callback': None,
-                'factory_reset_callback': None,
-                'namespace': self.namespace,
-                'params_dict': self.PARAMS_DICT
         }
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'cap_settings': {
+                'namespace': self.namespace,
                 'topic': 'settings_capabilities_query',
-                'msg': SettingsCapabilitiesQuery,
+                'svr': SettingsCapabilitiesQuery,
+                'req': SettingsCapabilitiesQueryRequest(),
+                'resp': SettingsCapabilitiesQueryResponse(),
                 'callback': self._provideCapabilitiesHandler
             }
-        }
-
-        self.SRVS_CONFIG_DICT = {
-            'namespace': self.namespace,
-            'srvs_dict': self.SRVS_DICT
         }
 
         # Pubs Config Dict ####################
@@ -146,15 +138,11 @@ class SettingsIF(object):
             }
         }
 
-        self.PUBS_CONFIG_DICT = {
-            'namespace': self.namespace,
-            'pubs_dict': self.PUBS_DICT
-        }
-
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'update_setting': {
                 'msg': Setting,
+                'namespace': self.namespace,
                 'topic': 'update_setting',
                 'qsize': 1,
                 'callback': self._updateSettingCb,
@@ -162,6 +150,7 @@ class SettingsIF(object):
             },
             'reset_setting': {
                 'msg': Empty,
+                'namespace': self.namespace,
                 'topic': 'reset_settings',
                 'qsize': 1,
                 'callback': self._resetSettingsCb,
@@ -169,6 +158,7 @@ class SettingsIF(object):
             },
             'factory_reset_setting': {
                 'msg': Empty,
+                'namespace': self.namespace,
                 'topic': 'factory_reset_settings',
                 'qsize': 1,
                 'callback': self._resetFactorySettingsCb,
@@ -176,43 +166,64 @@ class SettingsIF(object):
             },
         }
 
-        self.SUBS_CONFIG_DICT = {
-            'namespace': '~',
-            'subs_dict': self.SUBS_DICT
-        }
 
-
-
-        self.class_if = NodeClassIF(params_config_dict = self.PARAMS_CONFIG_DICT,
-                        srvs_config_dict = self.SRVS_CONFIG_DICT,
-                        pubs_config_dict = self.PUBS_CONFIG_DICT,
-                        subs_config_dict = self.SUBS_CONFIG_DICT,
-                        log_name = self.class_name,
-                        log_class_name = True
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(params_dict = self.PARAMS_DICT,
+                                    services_dict = self.SRVS_DICT,
+                                    pubs_dict = self.PUBS_DICT,
+                                    subs_dict = self.SUBS_DICT,
+                                    log_name = self.class_name,
+                                    log_class_name = True
         )
    
 
-        self.initialize_settings(do_updates = False)     
-        #self.msg_if.pub_info("Cap Settings Message: " + str(self.capabilities_report)   )      
+        self.node_if.wait_for_ready()
 
-        nepi_ros.sleep(1)
-        nepi_ros.start_timer_process(nepi_ros.ros_duration(1), self._publishSettingsCb)
+
+        ##############################
+        # Run Initialization Processes
+        self.initialize_settings(do_updates = False)     
+        #self.msg_if.pub_info("Cap Settings Message: " + str(self.capabilities_response))      
+        nepi_ros.start_timer_process(1.0, self._publishSettingsCb)
+
   
-        ##############################   
+        ##############################
+        # Complete Initialization
+        self.publish_status()
+        self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
-        ##############################  
+        ###############################
 
     ###############################
     # Class Public Methods
     ###############################
 
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
+
     def publish_status(self):
         current_settings = self.getSettingsFunction()
-        self.class_if.set_param('settings', current_settings)
+        self.node_if.set_param('settings', current_settings)
         settings_msg = nepi_settings.create_msg_data_from_settings(current_settings)
         if not nepi_ros.is_shutdown():
             #self.msg_if.pub_warn("Publishing settings status msg: " + str(settings_msg))
-            self.class_if.publish_pub('status_pub', settings_msg)
+            self.node_if.publish_pub('status_pub', settings_msg)
 
 
     def update_setting(self,new_setting,update_status = True, update_param = True):
@@ -230,7 +241,7 @@ class SettingsIF(object):
                 if success:
                     if update_param:
                         updated_settings[s_name] = new_setting
-                        self.class_if.set_param('settings', updated_settings)
+                        self.node_if.set_param('settings', updated_settings)
                     if update_status:
                         self.publish_status() 
         else:
@@ -241,7 +252,7 @@ class SettingsIF(object):
     def initialize_settings(self, do_updates = True):
         self.msg_if.pub_info("Setting init values to param server values")
         current_settings = self.getSettingsFunction()
-        self.init_settings = self.class_if.get_param('settings')
+        self.init_settings = self.node_if.get_param('settings')
         if do_updates:
             self.reset_settings()
 
@@ -269,7 +280,7 @@ class SettingsIF(object):
     ###############################
 
     def _provideCapabilitiesHandler(self, req):
-        return self.capabilities_report
+        return self.capabilities_response
 
     def _publishSettingsCb(self, timer):
         self.publish_status()

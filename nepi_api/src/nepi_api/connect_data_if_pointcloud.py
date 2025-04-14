@@ -10,8 +10,7 @@
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_msg
-from nepi_sdk import nepi_img
+from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_pc
 
 
@@ -26,37 +25,28 @@ import threading
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from sensor_msgs.msg import PointlCoud2
+from sensor_msgs.msg import PointCloud2
 
 from nepi_ros_interfaces.msg import PointcloudStatus
 
 
-#You must use the classes pc_dict_lock.aquire() and pc_dict_lock.release() thread save functions 
-#When accessing the classes pc_dict
+#You must use the classes data_dict_lock.aquire() and data_dict_lock.release() thread save functions 
+#When accessing the classes data_dict
 
-
-EXAMPLE_PC_INFO_DICT = {
-    'has_mmap': False,
-    'mmap_id': '',
-    'mmap_info_dict': dict(),
-    'depth_map_topic': None,
-    'pointcloud_img_topic': None,
-    'get_latency_time':0,
-    'pub_latency_time':0,
-    'process_time':0,
-}
-
-EXAMPLE_PC_DICT = {       
-    'o3d_pc': None,
+EXAMPLE_DATA_DICT = {      
+    'namespace': '~' 
+    'data': None,
     'width': 0,
     'height': 0,
     'depth': 0,
     'point_count': 0,
     'has_rgb': False,
     'timestamp': nepi_ros.get_time(),
-    'ros_pc_topic': 'None',
     'ros_pc_header': Header(),
     'ros_pc_stamp': Header().stamp,
+    'get_latency_time':0,
+    'pub_latency_time':0,
+    'process_time':0
 }
 
 
@@ -68,130 +58,137 @@ class ConnectPointcloudIF:
     :return: [description]
     :rtype: [type]
     """
+
+    msg_if = None
+    ready = False
+    namespace = '~'
+
+    con_node_if = None
+
+    connected = False
+    status_msg = None
+    status_connected = False
+
+
+    data_dict = None
+    data_dict_lock = threading.Lock()
+
+    get_data = False
+    got_data = False
+
+
  
     #######################
     ### IF Initialization
     log_name = "ConnectPointcloudIF"
     def __init__(self, 
-                getPointcloudCallbackFunction = False,
-                pointcloudPreprocessFunction = None
+                namespace,
+                preprocess_function = None,
+                callback_function = None
                 ):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting Initialization Processes")
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
         ##############################  
-        self.getPointcloudCallbackFunction = getPointcloudCallbackFunction 
-        self.pointcloudPreprocessFunction = pointcloudPreprocessFunction
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + pc_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
 
-        self.connected = False
-        self.status_connected = False
-        self.pc_sub = None
-        self.pc_subscribed = False
-        self.pc_topic = None
-        self.pc_status_msg = None
-        self.pc_info_dict = None
-        self.pc_dict = None
-        self.pc_dict_lock = threading.Lock()
-        self.get_pc = False
-        self.got_pc = False
 
-        #################################
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Initialization Complete")
+        ##############################    
+        # Initialize Class Variables
+
+        if namespace is None:
+            namespace = self.node_namespace
+        else:
+            namespace = namespace
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+
+        self.preprocessFunction = preprocess_function
+        self.callbackFunction = callback_function
+
+
+        ##############################   
+        ## Node Setup
+
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'pc_sub': {
+                'msg': PointCloud2,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'callback': self._dataCb
+            },
+            'status_sub': {
+                'msg': PointcloudStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'callback': self._statusCb
+            }
+        }
+
+        # Create Node Class ####################
+        self.con_node_if = ConnectNodeClassIF(self,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        self.con_node_if.wait_for_ready()
+
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
     
 
     #######################
     # Class Public Methods
     #######################
 
-    def connect_pointcloud_topic(self,pc_topic, timeout = 5):
-        """AI is creating summary for connect_pointcloud_topic
 
-        :param pc_topic: [description]
-        :type pc_topic: [type]
-        :param timeout: [description], defaults to 5
-        :type timeout: int, optional
-        :return: [description]
-        :rtype: [type]
-        """
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
         success = False
-        if pc_topic is None or pc_topic == "None":
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Can't subscribe to None topic")
-        else:
-            # Try to find img topic
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for pointcloud on topic: " + str(pc_topic))
-            found_topic = nepi_ros.wait_for_topic(pc_topic, timeout = timeout)
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Found topic: " + found_topic)
-            if found_topic != "":
-                # Subscribe to topic
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Subscribing to pointcloud topic: " + pc_topic)
-                pc_subscribed = self._subscribePcTopic(pc_topic)
-                self.pc_subscribed = pc_subscribed
-                if pc_subscribed == True:
-                    # Wait for pointcloud
-                    nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for pointcloud")
-                    connected = False
-                    timer = 0
-                    time_start = nepi_ros.get_time()
-                    while connected == False and timer < timeout and not rospy.is_shutdown():
-                        nepi_ros.sleep(.2)
-                        connected = self.connected
-                        timer = nepi_ros.get_time() - time_start
-                    
-                    if connected == True:
-                        success = True
-                        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Pointcloud Connected")
-                    else:
-                        self._unsubscribePcTopic()
-                        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
-                else:
-                    #################################
-                    nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Subscribe")
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
             else:
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to find pointcloud topic: " + pc_topic)
-        return success
+                self.msg_if.pub_info("Connected")
+        return self.ready  
 
-
-    def disconnect_pointcloud_topic(self):
-
-        success = False
-        if self.pc_subscribed == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Already unsubsribed")
-        else:
-            #################################
-            ## Subscribe to pointcloud if requested
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Unsubscribing to pointcloud topic: " + str(self.pc_topic))
-            pc_unsubscribed = self._unsubscribePcTopic()
-
-            if pc_unsubscribed == True:
-                success = True
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Unsubsribe Succeeded")
-            else:
-                #################################
-                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Unsubscribe")
-
-    def get_pc_topic(self):
-        return self.pc_topic
-
-    def get_info_dict(self):
-        return self.pc_info_dict
+    def get_namespace(self):
+        return self.namespace
 
     def check_connection(self):
         return self.connected
 
     def wait_for_connection(self, timout = float('inf') ):
-        success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to Connect")
-        else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Connected")
+        if self.con_node_if is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.connected == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
         return self.connected
 
 
@@ -199,168 +196,133 @@ class ConnectPointcloudIF:
         return self.status_connected
 
     def wait_for_status_connection(self, timout = float('inf') ):
-        success = False
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for status connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.status_connected == False:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to connect to status msg")
-        else:
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Status Connected")
+        if self.con_node_if is not None:
+            self.msg_if.pub_info("Waiting for status connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.status_connected == False:
+                self.msg_if.pub_info("Failed to connect to status msg")
+            else:
+                self.msg_if.pub_info("Status Connected")
         return self.status_connected
 
     def get_status_dict(self):
-        pc_status_dict = None
+        img_status_dict = None
         if self.status_msg is not None:
-            pc_status_dict = nepi_ros.convert_msg2dict(self.pc_status_msg)
-        return self.pc_status_dict
+            img_status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+        return self.img_status_dict
 
-
-
-    
-
-    def read_get_got_pc_states(self):
-        return self.get_pc, self.got_pc
-
-    def set_get_pc(self,state):
-        self.get_pc = state
+    def set_get_img(self,state):
+        self.get_data = state
         return True
 
-    def get_pc_dict(self):
-        self.pc_dict_lock.acquire()
-        pc_dict = copy.deepcopy(self.pc_dict)
-        self.pc_dict = None
-        self.pc_dict_lock.release()
-        return pc_dict
+    def read_get_got_states(self):
+        return [self.get_data, self.got_data]
 
+    def get_data_dict(self):
+        self.data_dict_lock.acquire()
+        data_dict = copy.deepcopy(self.data_dict)
+        self.data_dict = None
+        self.data_dict_lock.release()
+        return data_dict
+
+    def unregister(self):
+        self._unsubscribeTopic()
 
     ###############################
     # Class Private Methods
     ###############################
+   
 
-    def _subscribePcTopic(self,pc_topic):
-            if pc_topic == "None" or pc_topic == "":
-                return False
-            if self.pc_sub is not None:
-                success = self._unsubscribePcTopic(pc_topic)
-
-            self.connected = False 
-            # Create img info dict
-            self.pc_info_dict = dict()  
-            self.pc_info_dict['has_mmap'] = False
-            self.pc_info_dict['mmap_id'] = ""
-            self.pc_info_dict['mmap_info_dict'] = dict()
-
-            self.pc_info_dict['depth_map_topic'] = nepi_pc.get_pc_depth_map_topic(pc_topic)
-            self.pc_info_dict['pointcloud_img_topic'] = nepi_pc.get_pc_pointcloud_img_topic(pc_topic)
-
-            self.pc_info_dict['get_latency_time'] = 0
-            self.pc_info_dict['pub_latency_time'] = 0
-            self.pc_info_dict['process_time'] = 0 
-
-          
-            nepi_msg.publishMsgInfo(self,'Subsribing to pointcloud topic: ' + pc_topic)
-            self.pc_sub = rospy.Subscriber(pc_topic, PointlCoud2, self._pointcloudCb, queue_size=1, callback_args=(pc_topic))
-            self.pc_topic = pc_topic
-            # Setup Pointcloud Status Topic Subscriber in case there is one
-            self.status_connected = False
-            self.status_msg = None
-            status_topic = os.path.join(pc_topic,'status')
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Subscribing to pointcloud status topic: " + status_topic)
-            pc_subscribed = rospy.Subscriber(status_topic, PointcloudStatus, self._pointcloudStatusCb, queue_size=1, callback_args=(pc_topic))
-            time.sleep(1)
-  
-            return True
-        
-
-    def _unsubscribePcTopic(self):
+    def _unsubscribeTopic(self):
         success = False
         self.connected = False
-        if self.pc_sub is not None:
-            nepi_msg.publishMsgWarn(self,'Unregistering topic: ' + str(self.pc_topic))
+        if self.con_node_if is not None:
+            self.msg_if.pub_warn("Unregistering topic: " + str(self.namespace))
             try:
                 self.connected = False 
-                self.pc_sub.unregister()
+                self.con_node_if.unregister_class()
                 time.sleep(1)
-                self.pc_topic = None
-                self.pc_subscribed = False
+                self.con_node_if = None
+                self.namespace = None
                 self.connected = False 
-                self.pc_sub = None
-                self.pc_dict = None
+                self.data_dict = None
                 success = True
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to unregister pc_sub:  " + str(e))
+                self.msg_if.pub_warn("Failed to unregister image:  " + str(e))
         return success
 
 
-    def _pointcloudCb(self,pointcloud_msg, args):      
+
+    def _dataCb(self,data_msg):      
         self.connected = True
-        pc_topic = args
-        #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got img for topic:  " + pc_topic)
+        #self.msg_if.pub_warn("Got pc for topic:  " + self.namespace)
 
         # Process ros pointcloud message
         current_time = nepi_ros.ros_time_now()
-        ros_timestamp = pointcloud_msg.header.stamp
+        ros_timestamp = data_msg.header.stamp
         latency = (current_time.to_sec() - ros_timestamp.to_sec())
-        self.pc_info_dict['get_latency_time'] = latency
-        #nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Get Pc Latency: {:.2f}".format(latency))
+        self.data_dict['get_latency_time'] = latency
+        #self.msg_if.pub_info("Get Pc Latency: {:.2f}".format(latency))
 
         start_time = nepi_ros.get_time()   
 
-
-        get_pointcloud = (self.getPointcloudCallbackFunction is not None or self.get_pc == True)
-        #nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Got Pc with get_pc: " + str(self.get_pc) + " got_pc: " + str(self.got_pc))
-        if get_pointcloud == True:
-            self.get_pc = False
-           # nepi_msg.publishMsgWarn(self,":" + self.log_name + ":Got get_pc flag. Processing img for topic:  " + pc_topic)
+        get_data = (self.callbackFunction is not None or self.get_data == True)
+        #self.msg_if.pub_warn("Got Pc with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
+        if get_data == True:
+            self.get_data = False
+           # self.msg_if.pub_warn("Got get_data flag. Processing pc for topic:  " + self.namespace)
             ##############################
             ### Preprocess Pointcloud
             
-            o3d_pc = nepi_pc.rospc_to_o3dpc(pointcloud_msg, remove_nans=True)
+            data = nepi_pc.rospc_to_o3dpc(data_msg, remove_nans=True)
 
             if self.pointcloudPreprocessFunction is not None:
                 try:
-                    o3d_pc = self.pointcloudPreprocessFunction(o3d_pc)
+                    data = self.pointcloudPreprocessFunction(data)
                 except Exception as e:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Provided Pointcloud Preprocess Function failed:  " + str(e))
+                    self.msg_if.pub_warn("Provided Pointcloud Preprocess Function failed:  " + str(e))
 
-            o3d_pc = self.pointcloudPreprocessFunction(o3d_pc)
-            pc_dict = dict()
-            pc_dict['o3d_pc'] = o3d_pc
+            data = self.pointcloudPreprocessFunction(data)
+            data_dict = dict()
+            data_dict['namespace'] = self.namespace
+            data_dict['data'] = data
 
-            pc_dict['width'] = 0 
-            pc_dict['height'] = 0
-            pc_dict['depth'] = 0
-            pc_dict['point_count'] = o3d_pc.point["colors"].shape[0]
-            pc_dict['has_rgb'] = o3d_pc.has_colors() 
+            data_dict['has_rgb'] = data.has_colors() 
+            data_dict['has_intensity'] = False # Need to add
 
-            ros_timestamp = pointcloud_msg.header.stamp
-            pc_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
-            pc_dict['ros_pc_topic'] = pc_topic
-            pc_dict['ros_pc_header'] = pointcloud_msg.header
-            pc_dict['ros_pc_stamp'] = ros_timestamp
+            data_dict['point_count'] = data.point["colors"].shape[0]
+
+            data_dict['width'] = 0  # Need to add
+            data_dict['height'] = 0 # Need to add
+            data_dict['depth'] = 0 # Need to add
+
+            ros_timestamp = data_msg.header.stamp
+            data_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
+            data_dict['ros_pc_header'] = data_msg.header
+            data_dict['ros_pc_stamp'] = ros_timestamp
             ##############################
 
-            if self.getPointcloudCallbackFunction is not None:
-                self.getPointcloudCallbackFunction(pc_dict)
-            else:
-                self.pc_dict_lock.acquire()
-                self.pc_dict = pc_dict
-                self.pc_dict_lock.release()
-                self.got_pc = True
-
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
-            self.pc_info_dict['process_time'] = process_time
+            data_dict['process_time'] = process_time
 
-        latency = (current_time.to_sec() - ros_timestamp.to_sec())
-        self.pc_info_dict['pub_latency_time'] = latency
-        #nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Pc Pub Latency: {:.2f}".format(latency))
+            latency = (current_time.to_sec() - ros_timestamp.to_sec())
+            data_dict['got_latency_time'] = latency
+            #self.msg_if.pub_info("Img Pub Latency: {:.2f}".format(latency))
+
+            if self.callbackFunction is not None:
+                self.callbackFunction(data_dict)
+            else:
+                self.data_dict_lock.acquire()
+                self.data_dict = data_dict
+                self.data_dict_lock.release()
+                self.got_data = True
+        self.connected = True
 
 
-    def _pointcloudStatusCb(self,status_msg, args):      
+    def _statusCb(self,status_msg):      
         self.status_connected = True
-        pc_topic = args
         self.pc_status_msg = status_msg

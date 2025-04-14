@@ -7,7 +7,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import os
 import time
 import copy
@@ -33,10 +32,13 @@ EXAMPLE_STATE_DICT = {"name":"None",
                         "value":"False"
 }
 
-EXAMPLE_STATES_DICT = {"None":EXAMPLE_STATE_DICT}
-
 
 class StatesIF(object):
+
+
+    ready = False
+    msg_if = None
+    namespace = '~'
 
     get_states_dict_function = None
 
@@ -45,7 +47,7 @@ class StatesIF(object):
     #######################
     ### IF Initialization
     log_name = "StatesIF"
-    def __init__(self, get_states_dict_function):
+    def __init__(self, get_states_dict_function, namespace = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -54,11 +56,15 @@ class StatesIF(object):
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
-        ############################
+        #############################
+        # Initialize Class Variables
+        if namespace is None:
+            namespace = '~'
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+
         self.get_states_dict_function = get_states_dict_function
 
 
@@ -68,30 +74,48 @@ class StatesIF(object):
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'states_query': {
+                'namespace': self.namespace,
                 'topic': 'system_states_query',
-                'msg': SystemStatesQuery,
+                'srv': SystemStatesQuery,
+                'req': SystemStatesQueryRequest(),
+                'resp': SystemStatesQueryResponse(),                
                 'callback': self._statesQueryHandler
             }
         }
 
-        self.SRVS_CONFIG_DICT = {
-                'namespace': '~',
-                'srvs_dict': self.SRVS_DICT
-        }
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT)
 
-
-
-        self.class_if = NodeClassIF(srvs_config_dict = self.SRVS_CONFIG_DICT
-                        )
-
+        self.node_if.wait_for_ready()
 
         ##############################
+        # Complete Initialization
+        self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
-
+        ###############################
 
     ###############################
     # Class Public Methods
     ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
 
 
 

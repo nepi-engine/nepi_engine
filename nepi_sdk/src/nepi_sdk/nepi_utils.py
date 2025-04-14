@@ -74,7 +74,7 @@ def convert_time_to_datetime(time_ns):
         print(f"Error converting: {e}")
         return None
 
-def date_to_seconds(year, month, day):
+def convert_date_to_time(year, month, day):
   """Converts a date (year, month, day) to seconds since the epoch."""
   dt_object = datetime.datetime(year, month, day)
   timestamp = time.mktime(dt_object.timetuple())
@@ -228,6 +228,28 @@ def check_if_container():
   return in_cn
 
 
+def read_yaml2dict(file_path):
+    dict_from_file = dict()
+    if os.path.exists(file_path):
+        try:
+            with open(file_path) as f:
+                dict_from_file = yaml.load(f, Loader=yaml.FullLoader)
+        except:
+            logger.log_info("Failed to get dict from file: " + file_path + " " + str(e))
+    else:
+        logger.log_info("Failed to find dict file: " + file_path)
+    return dict_from_file
+
+
+def write_dict2yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
+    success = False
+    try:
+        with open(file_path, "w") as f:
+            yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
+        success = True
+    except:
+        logger.log_info("Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
+    return success
   
 #########################
 ### List Helper Functions

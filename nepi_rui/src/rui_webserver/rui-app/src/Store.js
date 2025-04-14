@@ -1431,18 +1431,6 @@ class ROSConnectionStore {
     })
   }
 
-  @action.bound
-  updateSaveDataEnable(saveDataNamespace,checked) {
-     this.publishMessage({
-      name: saveDataNamespace + "/save_data",
-      messageType: "nepi_ros_interfaces/SaveData",
-      data: {
-        save_continuous: checked,
-        save_raw: false
-      },
-      noPrefix: true
-    })     
-  }
 
   @action.bound
   onSnapshotEventTriggered(saveDataNamespace) {

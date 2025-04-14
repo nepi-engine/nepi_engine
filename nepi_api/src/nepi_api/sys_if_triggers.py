@@ -7,7 +7,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import os
 import time
 import copy
@@ -28,7 +27,7 @@ EXAMPLE_TRIGGER_DICT = {"name":"None",
                         "description": "None",
                         "data_str_list":["None"],
                         "time":nepi_utils.get_time(),
-                        "node":"None"
+                        "node_name":"~"
 }
 
 EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
@@ -37,10 +36,15 @@ EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
 
 class TriggersIF(object):
 
+    msg_if = None
+    ready = False
+    namespace = '~'
+
+    triggers_dict = dict()
 
     #######################
     ### IF Initialization
-    def __init__(self, triggers_dict = None):
+    def __init__(self, triggers_dict = None, namespace = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -49,11 +53,14 @@ class TriggersIF(object):
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
-
+        #############################
+        # Initialize Class Variables
+        if namespace is None:
+            namespace = '~'
+        self.namespace = nepi_ros.get_full_namespace(namespace)
 
         if triggers_dict is None:
             self.triggers_dict = dict()
@@ -63,53 +70,66 @@ class TriggersIF(object):
         # Create NodeClassIF Class  
 
 
-
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'trigger_query': {
+                'namespace': self.base_namespace,
                 'topic': 'system_triggers_query',
-                'msg': SystemTriggersQuery,
+                'srv': SystemTriggersQuery,
+                'req': SystemTriggersQueryRequest(),
+                'resp': SystemTriggersQueryResponse(),
                 'callback': self._triggersQueryHandler
             }
-        }
-
-        self.SRVS_CONFIG_DICT = {
-                'namespace': '~',
-                'srvs_dict': self.SRVS_DICT
         }
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'trigger_pub': {
                 'msg': SystemTrigger,
+                'namespace': self.base_namespace,
                 'topic': 'system_trigger',
                 'qsize': 1,
                 'latch': False
             }
         }
 
-        self.PUBS_CONFIG_DICT = {
-            'namespace': None,
-            'pubs_dict': self.PUBS_DICT
-        }
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
+                                    pubs_dict = self.PUBS_DICT
+                                )
 
-
-        self.class_if = NodeClassIF(srvs_config_dict = self.SRVS_CONFIG_DICT,
-                        pubs_config_dict = self.PUBS_CONFIG_DICT
-                        )
-
-
-
+        self.node_if.wait_for_ready()
 
         ##############################
+        # Complete Initialization
+        self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
-
+        ###############################
 
 
 
     ###############################
     # Class Public Methods
     ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
 
 
     def publish_trigger(self, trigger_dict):
@@ -119,7 +139,7 @@ class TriggersIF(object):
         trig_msg.description = trigger_dict['description']
         trig_msg.data_str_list = trigger_dict['data_str_list']
         trig_msg.node = trigger_dict['node_name']
-        self.class_if.publish_pub('trigger_pub',trig_msg)
+        self.node_if.publish_pub('trigger_pub',trig_msg)
  
 
     ###############################

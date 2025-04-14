@@ -85,7 +85,7 @@ else:
 '''
 def imageMmapThread(self,img_topic, mmap_id):    
     mmap_list = nepi_mmap.get_mmap_list()
-    while img_topic in self.imgs_pub_sub_dict.keys() and mmap_id in mmap_list and not rospy.is_shutdown():
+    while img_topic in self.imgs_pub_sub_dict.keys() and mmap_id in mmap_list and not nepi_ros.is_shutdown():
         current_time = nepi_ros.get_time_now()
         mmap_list = nepi_mmap.get_mmap_list()
 

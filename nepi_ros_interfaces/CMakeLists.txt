@@ -58,7 +58,6 @@ add_message_files(FILES
     AiModelMgrStatus.msg
     Annotation.msg
     Reset.msg
-    SaveData.msg
     SaveDataStatus.msg
     SaveDataRate.msg
     DatafileCtrl3DX.msg

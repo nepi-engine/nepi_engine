@@ -15,8 +15,9 @@ from std_msgs.msg import String, Empty
 
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
+from std_srvs.srv import EmptyRequest as EmptySrvRequest
+from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
-from nepi_ros_interfaces.msg import Reset
 
 from nepi_api.sys_if_msg import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
@@ -26,50 +27,66 @@ from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
 ##################################################
 ### Node Connect Configs Class
 
+
+EXAMPLE_CFGS_CONFIG_DICT = {
+        'namespace': '~'
+}
+
 class ConnectConfigsIF(object):
 
+
+    msg_if = None
     ready = False
+    configs_dict = None
+    namespace = '~'
 
-    namespace = None
-
-    config_save_pub = None
-    config_reset_pub = None
+    save_pub = None
+    reset_pub = None
+    factory_reset_pub = None
 
     #######################
     ### IF Initialization
     log_name = "ConnectSaveConfigIF"
-    def __init__(self, namespace , timeout = float('inf')):
+    def __init__(self, configs_dict , timeout = float('inf')):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
-        nepi_msg.createMsgPublishers(self)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Starting IF Initialization Processes")
-        ##############################   
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
 
-        # Find topic for namespace
-        find_topic = os.path.join(namespace,'save_config')
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Waiting for topic: " + str(find_topic))
-        found_topic = nepi_ros.wait_for_topic(find_topic, timeout = timeout)
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Found topic: " + found_topic)
-        if found_topic == "":
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Failed to find topic: " + find_topic)
-                
+        ##############################  
+        # Create Msg Class
+        if log_name is None:
+            log_name = ''
+        if log_class_name == True:
+          log_name = log_name + ": " + self.class_name
+        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+        ##############################  
+        # Initialize Class Variables
+        namespace = configs_dict['namespace']
+        if namespace is None:
+            namespace = self.node_namespace
         else:
-            config_save_topic = os.path.join(namespace, 'save_config')
-            self.config_save_pub = rospy.Publisher(config_save_topic, Empty, queue_size=1) 
+            namespace = namespace
+        self.namespace = nepi_ros.get_full_namespace(namespace)
 
-            config_reset_topic = os.path.join(namespace, 'reset_config')
-            self.config_reset_pub = rospy.Publisher(config_reset_topic, Reset, queue_size=1) 
 
-            time.sleep(1)
+        ##############################  
+        # Setup Class Publishers for Node Namespace
+        self.msg_if.pub_info("Creating config publishers on namespace: " + self.namespace)
+        self.save_pub = nepi_ros.create_publisher('~save_config', Empty, queue_size=1) 
+        self.reset_pub = nepi_ros.create_publisher('~reset_config', Empty, queue_size=1) 
+        self.factory_reset_pub = nepi_ros.create_publisher('~factory_reset_config', Empty, queue_size=1) 
+        time.sleep(1)
 
-            self.namespace = namespace
-            self.ready = True
 
+        ##############################  
+        # Complete Initialization Process
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
         ##############################   
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ": IF Initialization Complete")
-
-
 
 
     ###############################
@@ -99,10 +116,10 @@ class ConnectConfigsIF(object):
 
     def save(self):
         success = False
-        if self.config_save_pub is not None:
+        if self.save_pub is not None:
             try:
                 msg = Empty()
-                self.config_save_pub.publish(msg)
+                self.save_pub.publish(msg)
                 success = True
             except Exception as e:
                 nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send update config: " + str(e))
@@ -111,11 +128,11 @@ class ConnectConfigsIF(object):
 
     def reset(self):
         success = False
-        if self.config_reset_pub is not None:
+        if self.reset_pub is not None:
             try:
                 msg = Reset()
                 msg.reset_type = Reset.USER_RESET
-                self.config_reset_pub.publish(msg)
+                self.reset_pub.publish(msg)
                 success = True
             except Exception as e:
                 nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send config reset: "  + str(e))
@@ -123,17 +140,17 @@ class ConnectConfigsIF(object):
 
     def factory_reset(self):
         success = False
-        if self.config_reset_pub is not None:
+        if self.reset_pub is not None:
             try:
                 msg = Reset()
                 msg.reset_type = Reset.FACTORY_RESET
-                self.config_reset_pub.publish(msg)
+                self.reset_pub.publish(msg)
                 success = True
             except Exception as e:
                 nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed send config reset: "  + str(e))
         return success
 
-    def unregister_save_config_if(self): 
+    def unregister_save_if(self): 
         success = False
         if self.ready is False or self.namespace is None:
             nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Save Config IF not running")
@@ -141,16 +158,16 @@ class ConnectConfigsIF(object):
         else:
             nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Killing Save Confg IF for trigger: " + self.namespace)
             try:
-                self.config_save_pub.unregister()
-                self.config_reset_pub.unregister()
+                self.save_pub.unregister()
+                self.reset_pub.unregister()
 
                 success = True
             except:
                 pass
             time.sleep(1)
             self.ready = False
-            self.config_save_pub = None
-            self.config_reset_pub = None
+            self.save_pub = None
+            self.reset_pub = None
             self.namespace = None
         return success       
 
@@ -165,32 +182,29 @@ class ConnectConfigsIF(object):
 ##################################################
 ### Node Connect Services Class
 
+# Services Config Dict ####################
 EXAMPLE_SRVS_DICT = {
     'service_name': {
-        'topic': 'empty_query',
-        'msg': EmptySrv,
-        'callback': None
-    }
-}
-
-EXAMPLE_SRVS_CONFIG_DICT = {
         'namespace': '~',
-        'srvs_dict': EXAMPLE_SRVS_DICT
+        'topic': 'empty_query',
+        'svr': EmptySrv,
+        'req': EmptySrvRequest(),
+        'resp': EmptySrvResponse()
+    }
 }
 
 class ConnectNodeServicesIF(object):
 
 
-    ready = False
     msg_if = None
-    
+    ready = False
     srvs_dict = dict()
-    srvs_namespace = "~"
+
 
     #######################
     ### IF Initialization
     def __init__(self, 
-                srvs_config_dict = None,
+                services_dict = None,
                 log_class_name = True,
                 do_wait = True
                 ):
@@ -209,20 +223,18 @@ class ConnectNodeServicesIF(object):
 
         ##############################  
         # Initialize Services System
-        if srvs_config_dict['srvs_namespace'] is None:
-            self.srvs_namespace = self.base_namespace
-        else:
-            self.srvs_namespace = srvs_config_dict['srvs_namespace']
-        self.srvs_dict = srvs_config_dict['srvs_dict']
+        self.srvs_dict = services_dict
         if self.srvs_dict is None:
             self.srvs_dict = dict()
-        self._initialize_srvs()
+        self._initialize_services()
 
         if do_wait == True:
             time.sleep(1)
 
+        ##############################  
+        # Complete Initialization Process
         self.ready = True
-
+        self.msg_if.pub_info("IF Initialization Complete")
         ##############################   
 
     ###############################
@@ -246,40 +258,78 @@ class ConnectNodeServicesIF(object):
         return self.ready
 
 
-
-
-    def get_srvs(self):
+    def get_services(self):
         return list(self.srvs_dict.keys())
 
-    def call_srv(self, srv_name, request):
+    def create_request_msg(service_name):
+        req = None
+        if service_name in self.srvs_dict.keys():
+            srv_dict = self.srvs_dict[service_name]
+            if 'req' in srv_dict.keys():
+                req = srv_dict['req']
+        return req
+
+    def create_response_msg(service_name):
         resp = None
-        if srv_name in self.srvs_dict.keys():
-            srv_dict = self.srvs_dict[srv_name]
+        if service_name in self.srvs_dict.keys():
+            srv_dict = self.srvs_dict[service_name]
+            if 'resp' in srv_dict.keys():
+                resp = srv_dict['resp']
+        return resp
+
+
+    def call_service(self, service_name, request):
+        resp = None
+        if service_name in self.srvs_dict.keys():
+            srv_dict = self.srvs_dict[service_name]
             if 'service' in srv_dict.keys():
                 service = self.srv_dict['service']
                 if service is not None:
                     resp = nepi_ros.call_service(service, request)
         return resp
 
+
+    def register_service(self,service_name, service_dict):
+        self.srvs_dict[service_name] = service_dict
+        self._initialize_services()
+
+    def unregister_service(self,service_name):
+        self._unregister_service(service_name)
+
+    def unregister_services(self):
+        for service_name in self.srvs_dict.keys():
+            self._unregister_service(service_name)
+
     ###############################
     # Class Private Methods
     ###############################
 
-    def _initialize_srvs(self):
+    def _initialize_services(self):
         for service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
-            srv_namespace = os.path.join(self.srvs_namespace,srv_dict['topic'])
-            srv_msg = service_dict['msg']
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Creating service for: " + service_name)
-            service = None
-            try:
-                
-                service = nepi_ros.create_service(service_namespace, srv_msg,srv_callback)
-                time.sleep(1)
-            except Exception as e:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get service connection: " + service_name + " " + str(e))  
-            self.srv_dict[service_name]['service'] = service
+            if 'service' not in srv_dict.keys():
+                srv_namespace = os.path.join(srv_dict['namespace'],srv_dict['topic'])
+                srv_msg = service_dict['svr']
+                nepi_msg.publishMsgInfo(self,":" + self.log_name + ": Creating service for: " + service_name)
+                service = None
+                try:
+                    service = nepi_ros.create_service(service_namespace, srv_msg,srv_callback)
+                    time.sleep(1)
+                except Exception as e:
+                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ": Failed to get service connection: " + service_name + " " + str(e))  
+                self.srv_dict[service_name]['service'] = service
 
+    def _unregister_service(self, service_name):
+        purge = False
+        if service_name in self.srvs_dict.keys():
+            purge = True
+            if 'service' in srv_dict.keys():
+                try:
+                    self.srvs_dict[service_name]['service'].shutdown()
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e))
+        if purge == True:
+            del self.srvs_dict[service_name]
 
 
 
@@ -289,18 +339,15 @@ class ConnectNodeServicesIF(object):
 ### Node Connect Publishers Class
 
 
+# Publishers Config Dict ####################
 EXAMPLE_PUBS_DICT = {
     'pub_name': {
-        'msg': EmptyMsg,
+        'namespace': '~',
         'topic': 'set_empty',
+        'msg': EmptyMsg,
         'qsize': 1,
         'latch': False
     }
-}
-
-EXAMPLE_PUBS_CONFIG_DICT = {
-    'namespace': '~',
-    'pubs_dict': EXAMPLE_PUBS_DICT
 }
 
 
@@ -309,11 +356,11 @@ class ConnectNodePublishersIF(NodePublisherIF):
     #######################
     ### IF Initialization
     def __init__(self, 
-                pubs_config_dict = None,
+                pubs_dict = None,
                 log_class_name = True
                 ):
         ####  IF INIT SETUP ####
-        super().__init__(pubs_config_dict = None,
+        super().__init__(pubs_dict = None,
                 log_class_name = True)
 
     ###############################
@@ -338,34 +385,29 @@ def EXAMPLE_SUB_CALLBACK(msg):
 
 EXAMPLE_SUBS_DICT = {
     'sub_name': {
-        'msg': nepi_ros.Empty,
+        'namespace': '~',
         'topic': 'set_empty',
+        'msg': EmptyMsg,
         'qsize': 1,
-        'callback': EXAMPLE_SUB_CALLBACK,  # Use None to skip
+        'callback': EXAMPLE_SUB_CALLBACK, 
         'callback_args': ()
     }
-}
-
-EXAMPLE_SUBS_CONFIG_DICT = {
-    'namespace': '~',
-    'subs_dict': EXAMPLE_SUBS_DICT
 }
 
 class ConnectNodeSubscribersIF(object):
 
     msg_if = None
-
     subs_dict = dict()
     subs_namespace = "~"
 
     #######################
     ### IF Initialization
     def __init__(self, 
-                subs_config_dict = None,
+                subs_dict = None,
                 log_class_name = True
                 ):
         ####  IF INIT SETUP ####
-        super().__init__(subs_config_dict = None,
+        super().__init__(subs_dict = None,
                 log_class_name = True)
 
 
@@ -373,10 +415,6 @@ class ConnectNodeSubscribersIF(object):
     # Class Public Methods
     ###############################
 
-    def wait_for_sub_pub(self,sub_name,timeout = float('inf')):
-        sub_dict = self.subs_dict[service_name]
-        sub_namespace = os.path.join(self.subs_namespace,sub_dict['topic'])
-        return nepi_ros.wait_for_service(sub_namespace, timeout = timeout )
 
     ###############################
     # Class Private Methods
@@ -386,6 +424,61 @@ class ConnectNodeSubscribersIF(object):
 
 ##################################################
 ### Node Connect Class Class
+
+# Configs Config Dict ####################
+EXAMPLE_CFGS_DICT = {
+        'namespace': '~'
+}
+
+
+# Services Config Dict ####################
+EXAMPLE_SRVS_DICT = {
+    'service_name': {
+        'namespace': '~',
+        'topic': 'empty_query',
+        'svr': EmptySrv,
+        'req': EmptySrvRequest(),
+        'resp': EmptySrvResponse(),
+        'callback': EXAMPLE_CALLBACK_FUNCTION
+    }
+}
+
+
+# Publishers Config Dict ####################
+EXAMPLE_PUBS_DICT = {
+    'pub_name': {
+        'namespace': '~',
+        'topic': 'set_empty',
+        'msg': EmptyMsg,
+        'qsize': 1,
+        'latch': False
+    }
+}
+
+
+# Subscribers Config Dict ####################
+EXAMPLE_SUBS_DICT = {
+    'sub_name': {
+        'namespace': '~',
+        'topic': 'set_empty',
+        'msg': EmptyMsg,
+        'qsize': 1,
+        'callback': EXAMPLE_SUB_CALLBACK,
+        'callback_args': ()
+    }
+}
+
+
+# Create Node Class ####################
+'''
+EXAMPLE_NODE_IF = NodeClassIF(self,
+                configs_dict = EXAMPLE_CFGS_DICT,
+                services_dict = EXAMPLE_SRVS_DICT,
+                pubs_dict = EXAMPLE_PUBS_DICT,
+                subs_dict = EXAMPLE_SUBS_DICT,
+                log_class_name = True
+)
+'''
 
 class ConnectNodeClassIF(object):
 
@@ -401,11 +494,10 @@ class ConnectNodeClassIF(object):
     #######################
     ### IF Initialization
     def __init__(self, 
-                configs_namespace = None,
-                params_config_dict = None,
-                srvs_config_dict = None,
-                pubs_config_dict = None,
-                subs_config_dict = None,
+                configs_dict = None,
+                services_dict = None,
+                pubs_dict = None,
+                subs_dict = None,
                 log_class_name = False,
                 node_name = None
                 ):
@@ -424,35 +516,35 @@ class ConnectNodeClassIF(object):
 
         ##############################    
         # Create Configs Class
-        if configs_namespace is not None:
+        if configs_dict is not None:
             self.msg_if.pub_info("Starting Connect Node Configs IF Initialization Processes")
-            self.configs_if = ConnectNodeConifgsIF(namespace = configs_namespace)
+            self.configs_if = ConnectNodeConifgsIF(configs_dict = configs_dict)
 
         ##############################    
         # Create Services Class
-        if srvs_config_dict is not None:
+        if services_dict is not None:
             self.msg_if.pub_info("Starting Connect Node Services IF Initialization Processes")
-            self.srvs_if = ConnectNodeServicesIF(srvs_config_dict = srvs_config_dict)
+            self.srvs_if = ConnectNodeServicesIF(services_dict = services_dict)
 
         ##############################  
         # Create Subscribers Class
-        if pubs_config_dict is not None:
+        if pubs_dict is not None:
             self.msg_if.pub_info("Starting Connect Node Publishers IF Initialization Processes")
-            self.pubs_if = ConnectNodePublishersIF(pubs_config_dict = pubs_config_dict)
+            self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict)
 
         ##############################  
         # Create Subscribers Class
-        if subs_config_dict is not None:
+        if subs_dict is not None:
             self.msg_if.pub_info("Starting Connect Node Subscribers IF Initialization Processes")
-            self.subs_if = ConnectNodeSubscribersIF(subs_config_dict = subs_config_dict)
+            self.subs_if = ConnectNodeSubscribersIF(subs_dict = subs_dict)
 
         ############################## 
         # Wait for ready
-        if srvs_config_dict is not None:
+        if services_dict is not None:
             ready = self.srvs_if.wait_for_ready()
-        if pubs_config_dict is not None:
+        if pubs_dict is not None:
             ready = self.pubs_if.wait_for_ready()
-        if subs_config_dict is not None:
+        if subs_dict is not None:
             ready = self.subs_if.wait_for_ready()
 
 
@@ -483,70 +575,74 @@ class ConnectNodeClassIF(object):
             self.msg_if.pub_info("ready")
         return self.ready
 
-        
 
-    def get_ready_state(self):
-        return self.ready
-
-    def wait_for_ready(self, timout = float('inf') ):
-        success = False
-        self.msg_if.pub_info("Waiting for connection")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
-        if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
-        else:
-            self.msg_if.pub_info("ready")
-        return self.ready
-
-
+    # Config Methods ####################
     def get_config_namespace(self):
         namespace = None
         if self.configs_if is not None:
             namespace = self.configs_if.get_namespace()
         return namespace
 
-    def save(self, config_dict):
+    def save_config(self, config_dict):
         success = False
         if self.configs_if is not None:
             success = self.configs_if.save()
         return success
 
-
-    def reset(self, config_dict):
+    def reset_config(self, config_dict):
         success = False
         if self.configs_if is not None:
             success = self.configs_if.reset()
         return success
 
-    def factory_reset(self, config_dict):
+    def factory_reset_config(self, config_dict):
         success = False
         if self.configs_if is not None:
             success = self.configs_if.factory_reset()
         return success
 
 
-
-
-
-    def get_srvs(self):
+    # Service Methods ####################
+    def get_services(self):
         srvs = None
         if self.srvs_if is not None:
-            srvs = self.srvs_if.get_srvs()
+            srvs = self.srvs_if.get_services()
         return srvs
 
 
+    def create_request_msg(service_name):
+        req = None
+        if self.srvs_if is not None:
+            req = self.srvs_if.create_request_msg(service_name)
+        return req
 
-    def call_srv(self,srv_name,request):
+    def create_response_msg(service_name):
         resp = None
         if self.srvs_if is not None:
-            resp = self.srvs_if.call_srv(srv_name,request)
+            resp = self.srvs_if.create_response_msg(service_name)
+        return resp
+
+    def call_service(self,service_name,request):
+        resp = None
+        if self.srvs_if is not None:
+            resp = self.srvs_if.call_service(service_name,request)
         return srvs
 
+    def register_service(self,service_name, service_dict):
+        if self.srvs_if is not None:
+            self.srvs_if.register_service(service_name, service_dict)
 
+
+    def unregister_service(self,service_name):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_service(service_name)
+
+    def unregister_services(self):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_services()
+
+
+    # Publisher Methods ####################
     def get_pubs(self):
         pubs = None
         if self.pubs_if is not None:
@@ -554,19 +650,6 @@ class ConnectNodeClassIF(object):
         return pubs
 
 
-    def unregister_pub(self, pub_name):
-        if self.pubs_if is not None:
-            try:
-                self.pubs_if.unregister(pub_name)
-            except:
-                pass 
-
-    def register_pub(self, pub_name):
-        if self.pubs_if is not None:
-            try:
-                self.pubs_if.register(pub_name)
-            except:
-                pass 
 
     def publish_pub(self, pub_name, pub_msg):
         if self.pubs_if is not None:
@@ -574,8 +657,21 @@ class ConnectNodeClassIF(object):
                 self.pubs_if.publish(pub_name, pub_msg)
             except:
                 pass 
-                    
 
+    def register_pub(self,pub_name, pub_dict):
+        if self.srvs_if is not None:
+            self.srvs_if.register_pub(pub_name, pub_dict)
+
+
+    def unregister_pub(self,pub_name):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_pub(pub_name)
+
+    def unregister_pubs(self):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_pubs()
+                    
+    # Subsciber Methods ####################
     def get_subs(self):
         subs = None
         if self.subs_if is not None:
@@ -583,28 +679,27 @@ class ConnectNodeClassIF(object):
         return subs
 
 
-    def unregister_sub(self, pub_name):
-        if self.subs_if is not None:
-            try:
-                self.subs_if.unregister(sub_name)
-            except:
-                pass 
+    def register_sub(self,sub_name, sub_dict):
+        if self.srvs_if is not None:
+            self.srvs_if.register_sub(sub_name, sub_dict)
 
-    def register_sub(self,pub_name, callback = None):
-        if self.subs_if is not None:
-            try:
-                self.subs_if.register(sub_name, callback = callback)
-            except:
-                pass 
 
+    def unregister_sub(self,sub_name):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_sub(sub_name)
+
+    def unregister_subs(self):
+        if self.srvs_if is not None:
+            self.srvs_if.unregister_subs()
+
+    # Class Methods ####################
     def unregister_class(self):
-        pubs = self.get_pubs()
-        for pub in pubs:
-            self.unregister_pub(pub)
-
-        subs = self.get_subs()
-        for sub in subs:
-            self.unregister_sub(pub)
+        if self.services_if is not None:
+            self.services_if.unregister_services()
+        if self.pubs_if is not None:
+            self.pubs_if.unregister_pubs()
+        if self.subs_if is not None:
+            self.subs_if.unregister_subs()
 
     ###############################
     # Class Private Methods
