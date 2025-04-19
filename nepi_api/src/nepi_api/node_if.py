@@ -64,7 +64,6 @@ class NodeConfigsIF(object):
 
         ##############################  
         # Create Msg Class
-        # Create Msg Class
         if log_name is None:
             log_name = ''
         if log_class_name == True:
@@ -141,15 +140,15 @@ class NodeConfigsIF(object):
             self.msg_if.pub_info("Connected")
         return self.ready
 
-    def init(self):
+    def init_config(self):
         if (self.initCb):
             self.initCb() # Callback provided by the container class to set init values to current values, etc.
 
-    def save(self):
+    def save_config(self):
         self.save_params_pub.publish(self.node_namespace)
         self.init()
 
-    def reset(self):
+    def reset_config(self):
         success = False
         success = nepi_ros.call_service(self.reset_service,self.request_msg)
         nepi_ros.sleep(1)
@@ -157,7 +156,7 @@ class NodeConfigsIF(object):
             self.resetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
-    def factory_reset(self):
+    def factory_reset_config(self):
         success = False
         success = nepi_ros.call_service(self.factory_reset_service,self.request_msg)
         nepi_ros.sleep(1)
@@ -168,6 +167,16 @@ class NodeConfigsIF(object):
     ###############################
     # Class Private Methods
     ###############################
+
+    def _saveCb(self,msg):
+        self.save_config()
+
+    def _resetCb(self,msg):
+        self.reset_config()
+
+    def _factoryResetCb(self,msg):
+        self.factory_reset_config()
+
 
 
 ##################################################
@@ -256,7 +265,8 @@ class NodeParamsIF(object):
             self.msg_if.pub_info("Connected")
         return self.ready
 
-        
+    def load_params(self, file_path):
+        self.nepi_ros.load_params_from_file(file_path,self.namespace)        
 
     def initialize_params(self):
         for param_name in self.params_dict.keys():
@@ -269,10 +279,18 @@ class NodeParamsIF(object):
                 self.params_dict[param_name]['init_val'] = init_val
                 self.set_param(param_name, init_val)
 
-    def load_params(self, file_path):
-        self.nepi_ros.load_params_from_file(file_path,self.namespace)
+    def reset_params(self):
+        for param_name in self.params_dict.keys():
+            init_val = self.params_dict[param_name]['init_val']
+            self.set_param(param_name, init_val)
 
- 
+    def factory_reset_params(self):
+        for param_name in self.params_dict.keys():
+            factory_val = self.params_dict[param_name]['factory_val']
+            self.set_param(param_name, factory_val)
+
+    def save_params(self, file_path):
+        self.nepi_ros.save_params_to_file(file_path,self.namespace)       
 
     def has_param(self, param_name):
         namespace = self.get_param_namespace(param_name)
@@ -317,23 +335,7 @@ class NodeParamsIF(object):
     # Class Private Methods
     ###############################
 
-    def _initCb(self):
-        if self.initCb is not None:
-            self.initCb()
 
-    def _resetCb(self):
-        for param_name in self.params_dict.keys():
-            init_val = self.params_dict[param_name]['init_val']
-            self.set_param(param_name, init_val)
-        if self.resetCb is not None:
-            self.resetCb()
-
-    def _factoryResetCb(self):
-        for param_name in self.params_dict.keys():
-            factory_val = self.params_dict[param_name]['factory_val']
-            self.set_param(param_name, factory_val)
-        if self.factoryResetCb is not None:
-            self.factoryResetCb()
 
 
 
@@ -859,6 +861,7 @@ class NodeClassIF(object):
     msg_if = None
     log_name = None
 
+    configs_dict = None
     configs_if = None
     params_if = None
     srvs_if = None
@@ -896,17 +899,29 @@ class NodeClassIF(object):
         self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
         ##############################   
         self.do_wait = do_wait
+
+
         ##############################  
         # Create Params Class
-
-        if configs_dict is not None:
-            self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
-            self.configs_if = NodeConfigsIF(configs_dict = configs_dict, log_name = log_name)
-            ready = self.params_if.wait_for_ready()
-
         if params_dict is not None:
             self.msg_if.pub_info("Starting Node Params IF Initialization Processes")
             self.params_if = NodeParamsIF(params_dict = params_dict, log_name = log_name)
+            ready = self.params_if.wait_for_ready()
+
+        ##############################  
+        # Create Config Class After Params
+        if configs_dict is not None:
+            self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
+            # Need to inject our own config callback functions that call the params_if functions first
+            self.configs_dict = configs_dict
+            configs_dict = = {
+                    'init_callback': self._initConfigCb,
+                    'reset_callback': self._resetConfigCb,
+                    'factory_reset_callback': self._factoryResetConfigCb,
+                    'init_configs': True,
+                    'namespace': self.node_namespace
+            }
+            self.configs_if = NodeConfigsIF(configs_dict = configs_dict, log_name = log_name)
             ready = self.params_if.wait_for_ready()
 
         ##############################  
@@ -974,15 +989,15 @@ class NodeClassIF(object):
     # Config Methods ####################
     def save_config(self):
         if self.configs_if is not None:
-            self.configs_if.save()
+            self.configs_if.save_config()
 
     def reset_config(self):
         if self.configs_if is not None:
-            self.configs_if.reset()
+            self.configs_if.reset_config()
 
     def factory_reset_config(self):
         if self.configs_if is not None:
-            self.configs_if.factory_reset()
+            self.configs_if.factory_reset_config()
 
 
     # Param Methods ####################
@@ -992,13 +1007,21 @@ class NodeClassIF(object):
             params = self.params_if.get_params()
         return params
 
+    def load_params(self, file_path):
+        if self.params_if is not None:
+            self.params_if.load_params(file_path)
+
     def initialize_params(self):
         if self.params_if is not None:
             self.params_if.initialize_params()
 
-    def load_params(self, file_path):
+    def reset_params(self):
         if self.params_if is not None:
-            self.params_if.load_params(file_path)
+            self.params_if.reset_params()
+
+    def factory_reset_params(self):
+        if self.params_if is not None:
+            self.params_if.factory_reset_params()
 
     def save_params(self):
         if self.params_if is not None:
@@ -1118,3 +1141,21 @@ class NodeClassIF(object):
     # Class Private Methods
     ###############################
 
+    def _initConfigCb(self):
+        self.initialize_params()
+        if self.configs_dict is not None:
+            if self.configs_dict['init_callback'] is not None:
+                self.configs_dict['init_callback']()
+            
+
+    def _resetConfigCb(self,msg):
+        self.reset_params()
+        if self.configs_dict is not None:
+            if self.configs_dict['reset_callback'] is not None:
+                self.configs_dict['reset_callback']()
+
+    def _factoryConfigResetCb(self,msg):
+        self.factory_reset_params()
+        if self.configs_dict is not None:
+            if self.configs_dict['factory_reset_callback'] is not None:
+                self.configs_dict['factory_reset_callback']()

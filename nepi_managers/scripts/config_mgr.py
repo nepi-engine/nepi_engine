@@ -96,7 +96,7 @@ class config_mgr(object):
 
         self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
         time.sleep(1)
-        self.status_pub.publish()
+        self.status_pub.publish(Empty())
         # Restore user configurations
         self.restore_user_cfgs()
 

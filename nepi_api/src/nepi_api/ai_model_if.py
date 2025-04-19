@@ -27,11 +27,10 @@ from nepi_ros_interfaces.srv import SystemStorageFolderQuery
 from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
+from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
-from nepi_sdk import nepi_mmap
 from nepi_sdk import nepi_save
 
 
@@ -127,13 +126,14 @@ class AiDetectorIF:
                 processDetectionFunction,
                 has_img_tiling = False):
         ####  IF INIT SETUP ####
-        self.node_name = nepi_ros.get_node_name()
+        self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################  
@@ -308,14 +308,14 @@ class AiDetectorIF:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
         self.sdk_lib_folder = SDK_LIB_FOLDER
-        nepi_msg.publishMsgInfo(self,"Using SDK Share Folder: " + str(self.sdk_lib_folder))
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.sdk_lib_folder))
 
  
         #self.aifs_param_folder = mgr_sys_if.get_sys_folder_path("aifs",AIFS_SHARE_PATH)
-        #nepi_msg.publishMsgInfo(self,"Using AIF Share Folder: " + str(self.aifs_param_folder))
+        #self.msg_if.pub_info("Using AIF Share Folder: " + str(self.aifs_param_folder))
 
         self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg/ros',USER_CFG_FOLDER)
-        nepi_msg.publishMsgInfo(self,"Using User Config Folder: " + str(self.user_cfg_folder))
+        self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
         
         # Wait for Config Manager
         mgr_cfg_if = MgrConfigIF()
@@ -359,7 +359,7 @@ class AiDetectorIF:
         self.classes_list = classes_list
 
         # Create a blank image to initialize detector
-        nepi_msg.publishMsgWarn(self,"Initializing detector with blank image")
+        self.msg_if.pub_warn("Initializing detector with blank image")
         options_dict = dict()
         cv2_test_imge = nepi_img.create_cv2_test_img(1000,600)
         img_dict = self.preprocessImage(cv2_test_imge, options_dict)
@@ -367,15 +367,15 @@ class AiDetectorIF:
         img_dict['ros_img_header'] = ""
         img_dict['ros_img_stamp'] = nepi_ros.ros_time_now()
         detect_dict_list = self.processDetection(img_dict, 0.5)
-        nepi_msg.publishMsgWarn(self,"Detector initializing complete")
+        self.msg_if.pub_warn("Detector initializing complete")
                  
-        nepi_msg.publishMsgInfo(self,"Starting IF setup")
+        self.msg_if.pub_info("Starting IF setup")
 
         # Load/Create model config params
         self.node_namespace = os.path.join(self.base_namespace,"ai",self.node_name)
         self.config_file_path = os.path.join(self.user_cfg_folder,self.node_name)
         nepi_ros.load_config_file(self.config_file_path, defualt_config_dict, self.node_namespace)
-        nepi_msg.publishMsgWarn(self,"Loaded AI Detector params")
+        self.msg_if.pub_warn("Loaded AI Detector params")
         node_params = self.node_if.get_node_params()
         
         # Create Publishers
@@ -423,29 +423,29 @@ class AiDetectorIF:
 
         self.state = 'Loaded'
 
-        nepi_msg.publishMsgInfo(self,"IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete")
         
     def saveConfigCb(self, msg):
-        nepi_msg.publishMsgInfo(self,"Recived Save Config")
-        nepi_ros.save_config_file(self.config_file_path,self.node_namespace) 
+        self.msg_if.pub_info("Recived Save Config")
+        nepi_ros.save_params_to_file(self.config_file_path,self.node_namespace) 
 
     def resetConfigCb(self, msg):
-        nepi_msg.publishMsgInfo(self,"Recived Reset Config")
+        self.msg_if.pub_info("Recived Reset Config")
         self.resetParamServer()
 
 
     def resetFactoryCb(self, msg):
-        nepi_msg.publishMsgInfo(self,"Recived Factory Reset")
+        self.msg_if.pub_info("Recived Factory Reset")
         self.resetFactory()
 
     def addImageTopicCb(self,msg):
-        nepi_msg.publishMsgInfo(self,"Received Add Image Topics: " + msg.data)
+        self.msg_if.pub_info("Received Add Image Topics: " + msg.data)
         img_topic = msg.data
         self.addImageTopic(img_topic)
 
 
     def addImageTopicsCb(self,msg):
-        nepi_msg.publishMsgInfo(self,"Received Add Image Topics: " + str(msg))
+        self.msg_if.pub_info("Received Add Image Topics: " + str(msg))
         img_topic_list = msg.entries
         for img_topic in img_topic_list:
             self.addImageTopic(img_topic)
@@ -459,13 +459,13 @@ class AiDetectorIF:
         self.publishStatus()
 
     def removeImageTopicCb(self,msg):
-        nepi_msg.publishMsgInfo(self,"Received Remove Image Topics: " + str(msg))
+        self.msg_if.pub_info("Received Remove Image Topics: " + str(msg))
         img_topic = msg.data
         self.removeImageTopic(img_topic)
 
 
     def removeImageTopicsCb(self,msg):
-        nepi_msg.publishMsgInfo(self,"Received Remove Image Topic: " + str(msg))
+        self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
         img_topic_list = msg.entries
         for img_topic in img_topic_list:
             self.removeImageTopic(img_topic)
@@ -494,7 +494,7 @@ class AiDetectorIF:
 
     def setThresholdCb(self,msg):
         threshold = msg.data
-        nepi_msg.publishMsgInfo(self,"Received Threshold Update: " + str(threshold))
+        self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
         if threshold <  MIN_THRESHOLD:
             threshold = MIN_THRESHOLD
         elif threshold > MAX_THRESHOLD:
@@ -543,7 +543,7 @@ class AiDetectorIF:
 
     def updaterCb(self,timer):
         enabled = self.node_if.get_param('enabled')
-        #nepi_msg.publishMsgWarn(self,"Updating with image topic: " +  self.img_topic)
+        #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
         img_topics = self.node_if.get_param('img_topics')
         self.imgs_pub_sub_lock.acquire()
         imgs_pub_sub_keys = self.imgs_pub_sub_dict.keys()
@@ -683,7 +683,7 @@ class AiDetectorIF:
             
                 pub_process = None
                 if os.path.exists(img_pub_file_path) == False:
-                    nepi_msg.publishMsgWarn(self,"Could not find det img pub node file at: " + img_pub_file_path)
+                    self.msg_if.pub_warn("Could not find det img pub node file at: " + img_pub_file_path)
                 elif img_topic not in self.imgs_img_proc_dict.keys():
                     node_name = self.node_name + "_img_pub"
                     self.imgs_info_dict[img_topic]['node_name'] = node_name
@@ -715,10 +715,10 @@ class AiDetectorIF:
 
 
                     #Try and launch node
-                    nepi_msg.publishMsgWarn(self,"Launching Detector Img Pub node: " + node_name)
+                    self.msg_if.pub_warn("Launching Detector Img Pub node: " + node_name)
                     [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, node_name)
                     self.imgs_img_proc_dict[img_topic] = pub_process
-                    nepi_msg.publishMsgWarn(self,"Img Pub Launch return msg: " + msg)
+                    self.msg_if.pub_warn("Img Pub Launch return msg: " + msg)
                                     # Create image pub for img detector
                     pub_img_if = ImageIF(pub_sub_namespace, create_status_pub = False)
                     ready = self.pub_img_if.wait_for_ready()
@@ -773,18 +773,18 @@ class AiDetectorIF:
                 ros_timestamp = image_msg.header.stamp
                 latency = (current_time.to_sec() - ros_timestamp.to_sec())
                 imgs_info_dict[img_topic]['image_latency_time'] = latency
-                #nepi_msg.publishMsgInfo(self,"Detect Pub Latency: {:.2f}".format(latency))
+                #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
 
 
                 imgs_info_dict[img_topic]['connected'] = True
                 enabled = self.node_if.get_param('enabled')
                 if enabled == True:
                     get_image = (img_topic == self.get_img_topic)
-                    #nepi_msg.publishMsgWarn(self,"Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
+                    #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
                     if get_image == True:
                         self.get_img_topic = "None"
 
-                        #nepi_msg.publishMsgWarn(self,"Processing img for topic:  " + img_topic)
+                        #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
                         ##############################
                         ### Preprocess Image
                         
@@ -839,7 +839,7 @@ class AiDetectorIF:
                 delay_time = float(1) / max_rate 
                 current_time = nepi_ros.get_time()
                 timer = round((current_time - self.last_detect_time), 3)
-                #nepi_msg.publishMsgWarn(self,"Delay and Timer: " + str(delay_time) + " " + str(timer))
+                #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
 
                 # Get image topic info
                 img_topic = self.cur_img_topic
@@ -857,7 +857,7 @@ class AiDetectorIF:
                         next_img_topic = connected_list[0]
                 else:
                     next_img_topic = "None"
-                #nepi_msg.publishMsgWarn(self,"Next Image Topic set to: " + next_img_topic)
+                #self.msg_if.pub_warn("Next Image Topic set to: " + next_img_topic)
 
                 # Check if current image topic is None
                 if img_topic == "None" and next_img_topic != "None":
@@ -868,7 +868,7 @@ class AiDetectorIF:
                 ##############################
                 # Check for non responding image streams                   
                 if timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
-                    #nepi_msg.publishMsgWarn(self,"Topic " + img_topic + " timed out. Setting next topic to: " +  next_img_topic)
+                    #self.msg_if.pub_warn("Topic " + img_topic + " timed out. Setting next topic to: " +  next_img_topic)
                     if img_topic is not None and img_topic in imgs_info_dict.keys():
                         imgs_info_dict[img_topic]['connected'] = False
                     self.get_img_topic = next_img_topic
@@ -880,32 +880,32 @@ class AiDetectorIF:
 
                     if len(connected_list) > 0 and self.get_img_topic == "None" :
                         #Request new image before publishing current
-                        #nepi_msg.publishMsgWarn(self,"Setting next topic to: " +  next_img_topic)
+                        #self.msg_if.pub_warn("Setting next topic to: " +  next_img_topic)
                         self.cur_img_topic = next_img_topic
                         self.get_img_topic = next_img_topic
                         self.last_detect_time = nepi_ros.get_time()
 
-                    #nepi_msg.publishMsgWarn(self,"Timer over delay check, looking for image topic: " +  img_topic)
+                    #self.msg_if.pub_warn("Timer over delay check, looking for image topic: " +  img_topic)
                     if img_topic != "None" and img_topic in connected_list and img_topic == self.got_img_topic :
 
-                        #nepi_msg.publishMsgWarn(self,"Got image topic: " +  img_topic)
+                        #self.msg_if.pub_warn("Got image topic: " +  img_topic)
                         self.got_img_topic = "None"
                         
                         # Process got image
-                        #nepi_msg.publishMsgWarn(self,"Copying img_dict from topic callback:  " + img_topic)
+                        #self.msg_if.pub_warn("Copying img_dict from topic callback:  " + img_topic)
                         self.img_dict_lock.acquire()
                         img_dict = copy.deepcopy(self.img_dict)
                         self.img_dict_lock.release()
-                        #nepi_msg.publishMsgWarn(self,"Copying img_dict from topic callback:  " + img_topic)
+                        #self.msg_if.pub_warn("Copying img_dict from topic callback:  " + img_topic)
 
                         if img_dict is None:
-                            nepi_msg.publishMsgWarn(self,"Callback provided None img_dict, :  " + img_topic)
+                            self.msg_if.pub_warn("Callback provided None img_dict, :  " + img_topic)
                         else:
                             if img_dict['cv2_img'] is None:
-                                nepi_msg.publishMsgWarn(self,"Callback provided None cv2_img, :  " + img_topic)
+                                self.msg_if.pub_warn("Callback provided None cv2_img, :  " + img_topic)
                                 pass
                             else:
-                                #nepi_msg.publishMsgWarn(self,"Detector got img_dict from topic callback:  " + img_topic + " with img size: " + str(img_dict['cv2_img'].shape[:2]))
+                                #self.msg_if.pub_warn("Detector got img_dict from topic callback:  " + img_topic + " with img size: " + str(img_dict['cv2_img'].shape[:2]))
 
                                 ##############################
                                 # Process Detections
@@ -913,24 +913,24 @@ class AiDetectorIF:
                                 try:
                                     threshold = self.node_if.get_param('threshold')
                                     detect_dict_list = self.processDetection(img_dict,threshold) 
-                                    #nepi_msg.publishMsgWarn(self,"AIF got back detect_dict: " + str(detect_dict_list))
+                                    #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
                                     self.first_detect_complete = True
                                 except Exception as e:
-                                    nepi_msg.publishMsgWarn(self,"Failed to process detection img with exception: " + str(e))
+                                    self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
                                 ros_img_header = img_dict['ros_img_header']
 
                                 self.publishDetectionData(img_dict,detect_dict_list,ros_img_header)
                                 
                             detect_time = round( (nepi_ros.get_time() - start_time) , 3)
                             imgs_info_dict[img_topic]['detect_time'] = detect_time
-                            #nepi_msg.publishMsgInfo(self,"Detect Time: {:.2f}".format(detect_time))
+                            #self.msg_if.pub_info("Detect Time: {:.2f}".format(detect_time))
 
                         current_time = nepi_ros.ros_time_now()
                         ros_timestamp = img_dict['ros_img_stamp']
                         latency = (current_time.to_sec() - ros_timestamp.to_sec())
                         imgs_info_dict[img_topic]['detect_latency_time'] = latency
-                        #nepi_msg.publishMsgInfo(self,"Detect Pub Latency: {:.2f}".format(latency))
+                        #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
 
                         if img_topic in self.imgs_info_dict.keys():
                             try:
@@ -967,7 +967,7 @@ class AiDetectorIF:
                     bb_msg.area_pixels = detect_dict['area_pixels']
                     bb_msg.area_ratio = detect_dict['area_ratio']
                 except Exception as e:
-                    nepi_msg.publishMsgWarn(self,"Failed to get all data from detect dict: " + str(e)) 
+                    self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
                 bb_msg_list.append(bb_msg)
             bbs_msg = BoundingBoxes()
             bbs_msg.header.stamp = ros_img_header.stamp
@@ -1142,7 +1142,7 @@ class AiDetectorIF:
         status_msg.detect_time = detect_time
 
 
-        #nepi_msg.publishMsgWarn(self,"Sending Status Msg: " + str(status_msg))
+        #self.msg_if.pub_warn("Sending Status Msg: " + str(status_msg))
         if not rospy.is_shutdown():
             self.node_if.publish('status_pub',status_msg)
 
