@@ -540,6 +540,12 @@ def call_service(service, request):
 
 EXAMPLE_PARAMS_DICT = {'threshold': 0.3,'max_rate': 5}
 
+def upload_params(namespace, params, verbose=False):
+    try:
+        rospy.upload_params(namespace, params, verbose=verbose)
+    except rosparam.RosParamException as e:
+        rospy.logerr("Error uploading parameters from param " + str(e))
+
 def load_params_from_dict(params_dict, params_namespace):
     for key in params_dict:
       val = params_dict[key]
@@ -818,5 +824,8 @@ def signal_shutdown(msg):
 def on_shutdown(shutdown_fuction):
   rospy.on_shutdown(shutdown_fuction)
 
+def Time(float):
+  rospy.Time(float)
 
-
+def wait_for_service(wait_topic, timeout_s)
+  rospy.wait_for_service(wait_topic, timeout_s)

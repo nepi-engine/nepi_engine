@@ -10,11 +10,8 @@
 
 
 import os
-#NEPI_BASE_NAMESPACE = '/nepi/s2x/'
-#os.environ["ROS_NAMESPACE"] = NEPI_BASE_NAMESPACE[0:-1]
-import rospy
+
 import glob
-import rosnode
 import sys
 import subprocess
 import time
@@ -138,32 +135,99 @@ class NepiDriversMgr(object):
     
 
 
-  
-    ###########################
-    # Setup Node Status Publisher
-    self.drivers_status_pub = rospy.Publisher("~status", DriversStatus, queue_size=1, latch=True)
-    self.driver_status_pub = rospy.Publisher("~status_driver", DriverStatus, queue_size=1, latch=True)
+     ##############################
+    ### Setup Node
 
-    time.sleep(1)
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
 
-    ## Mgr ROS Setup 
-    mgr_reset_sub = rospy.Subscriber('~refresh_drivers', Empty, self.refreshCb, queue_size = 10)
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'status_pub': {
+            'namespace': self.node_namespace,
+            'topic': 'status'
+            'msg': DriversStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'status_driver': {
+            'namespace': self.node_namespace,
+            'topic': 'status_driver', 
+            'msg': DriverStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'settings_status': {
+            'namespace': self.node_namespace,
+            'topic': '/settings_status', #self.all_namespace + '/all_detectors/settings_status
+            'msg': Settings,
+            'qsize': 1,
+            'latch': True
+        },
+    }  
 
-    rospy.Subscriber('~enable_all_drivers', Empty, self.enableAllCb, queue_size = 10)
-    rospy.Subscriber('~disable_all_drivers', Empty, self.disableAllCb, queue_size = 10)
-    rospy.Subscriber('~select_driver', String, self.selectDriverCb)
-    rospy.Subscriber('~update_state', UpdateState, self.updateStateCb)
-    rospy.Subscriber('~update_order', UpdateOrder, self.updateOrderCb)
-    rospy.Subscriber('~enable_retry', Bool, self.enableRetryCb)
-    rospy.Subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
-    rospy.Subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
-    rospy.Subscriber('~remove_driver', String, self.removeDriverCb)
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'refresh_drivers': {
+            'namespace': self.node_namespace,
+            'topic': 'refresh_drivers',
+            'msg': empty,
+            'qsize': 10,
+            'callback': self.refreshCb, 
+            'callback_args': ()
+        },
+        'enable_all_drivers': {
+            'namespace': self.node_namespace,
+            'topic': 'enable_all_drivers',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.enableAllCb, 
+            'callback_args': ()
+        },
+        'enable_all_drivers': {
+            'namespace': self.node_namespace,
+            'topic': '/update_setting', #options_namespace + '/update_setting'
+            'msg': Setting,
+            'qsize': 1,
+            'callback': self.updateSettingCb, 
+            'callback_args': (options_namespace)
+        },
+    }
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        }
+
+    }
+
+
+
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+
+
+
 
     # Start capabilities services
-    rospy.Service('~driver_status_query', DriverStatusQuery, self.driverStatusService)
-
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-    ready = self.save_cfg_if.wait_for_ready()
+    nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverStatusService)
 
     ###########################
     # Initialize Params
@@ -172,9 +236,6 @@ class NepiDriversMgr(object):
     adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
     self.msg_if.pub_warn("Got start active drvs: " + str(adrvs))
     #self.msg_if.pub_warn("Got start drvs dict: " + str(drvs_dict))
-
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
-    ready = self.save_cfg_if.wait_for_ready()
 
     drvs_dict = nepi_ros.get_param(self,"~drvs_dict",dict())
     self.msg_if.pub_warn("Got cfg_if drvs keys: " + str(drvs_dict.keys()))
@@ -195,7 +256,7 @@ class NepiDriversMgr(object):
     self.initCb(do_updates = True)
 
     ###########################
-    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
+    nepi_ros.start_timer_process(0.5, self.statusPublishCb)
 
     # Setup a driver folder timed check
     nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
@@ -452,13 +513,11 @@ class NepiDriversMgr(object):
 
     self.msg_if.pub_info("Starting discovery options processes for namespace: " + options_namespace)
 
-    options_status_pub = rospy.Publisher(options_namespace + '/settings_status', Settings, queue_size=1, latch=True)
     self.discovery_options_dict[driver_name]['status_pub'] = options_status_pub
 
-    options_update_sub = rospy.Subscriber(options_namespace + '/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(options_namespace))
     self.discovery_options_dict[driver_name]['update_sub'] = options_update_sub
 
-    options_cap_service = rospy.Service(options_namespace + '/settings_capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
+    options_cap_service = nepi_ros.create_service(options_namespace + '/settings_capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
     self.discovery_options_dict[driver_name]['caps_service'] = options_cap_service
 
     time.sleep(1)
@@ -556,7 +615,7 @@ class NepiDriversMgr(object):
         settings_msg.settings_count = len(settings_list)
         settings_msg.settings_list = settings_list
         status_pub = self.discovery_options_dict[driver_name]['status_pub']
-        status_pub.publish(settings_msg)
+        self.node_if.publish_pub('status_pub', settings_msg)
 
 
   ###############################################
@@ -618,7 +677,7 @@ class NepiDriversMgr(object):
     self.status_drivers_msg = self.getDriversStatusMsg()
     if self.drivers_status_pub is not None and not nepi_ros.is_shutdown():
       #self.msg_if.pub_warn("DriversStatus: " + str(self.status_drivers_msg))
-      self.drivers_status_pub.publish(self.status_drivers_msg)
+      self.node_if.publish_pub('drivers_status_pub', self.status_drivers_msg)
       if self.save_cfg_if is not None:
         if self.last_status_drivers_msg != self.status_drivers_msg:
           self.save_cfg_if.save() # Save config after initialization for drvt time
@@ -670,7 +729,7 @@ class NepiDriversMgr(object):
     self.status_driver_msg = self.getDriverStatusMsg()
     if self.driver_status_pub is not None and not nepi_ros.is_shutdown():
       #self.msg_if.pub_warn("DriverStatus: " + str(self.status_driver_msg))
-      self.driver_status_pub.publish(self.status_driver_msg)
+      self.node_if.publish_pub('driver_status_pub', self.status_driver_msg)
       if self.last_status_driver_msg != self.status_driver_msg:
         self.save_cfg_if.save() # Save config after initialization for drvt time
 

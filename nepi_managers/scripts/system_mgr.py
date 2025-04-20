@@ -16,10 +16,6 @@ from datetime import datetime
 
 import subprocess
 
-import rospy
-
-
-
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import String, Empty, Float32
@@ -180,23 +176,9 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Creating System Publishers")
         self.status_msg.in_container = self.in_container
-        status_period = nepi_ros.ros_duration(1)  # TODO: Configurable rate?
+        status_period = 1  # TODO: Configurable rate?
 
-        # Announce published topics
-        self.status_pub = rospy.Publisher(
-            'system_status', SystemStatus, queue_size=1)
-        self.store_params_pub = rospy.Publisher(
-            'store_params', String, queue_size=10)
-        self.throttle_ratio_pub = rospy.Publisher(
-            'apply_throttle', Float32, queue_size=3)
-        self.set_op_env_pub = rospy.Publisher(
-            'set_op_environment', String, queue_size=3)
-        # For auto-stop of save data; disk full protection
-        self.save_data_pub = rospy.Publisher(
-            'save_data', SaveData, queue_size=1)
-        self.triggers_pub = rospy.Publisher(
-            'system_trigger', SystemTrigger, queue_size=1)
-        time.sleep(1)
+
 
         # Set up system states and triggers status pubs
         self.sys_if_states = StatesIF(self.getStatesDictCb)
@@ -210,17 +192,16 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Creating System Services")
         self.current_throttle_ratio = 1.0
         # Advertise services
-        rospy.Service('system_defs_query', SystemDefsQuery,
+        nepi_ros.create_service('system_defs_query', SystemDefsQuery,
                       self.provide_system_defs)
-        rospy.Service('op_environment_query', OpEnvironmentQuery,
+        nepi_ros.create_service('op_environment_query', OpEnvironmentQuery,
                       self.provide_op_environment)
-        rospy.Service('sw_update_status_query', SystemSoftwareStatusQuery,
+        nepi_ros.create_service('sw_update_status_query', SystemSoftwareStatusQuery,
                        self.provide_sw_update_status)
 
         self.msg_if.pub_warn("System Mgr services ready")
 
         self.msg_if.pub_warn("Creating System Config IF")
-        self.save_cfg_if = SaveCfgIF(initCb=self.initConfig, init_params = False)
 
         self.msg_if.pub_warn("Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
@@ -259,7 +240,7 @@ class SystemMgrNode():
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
             # Now can advertise the system folder query
-            rospy.Service('system_storage_folder_query', SystemStorageFolderQuery,
+            nepi_ros.create_service('system_storage_folder_query', SystemStorageFolderQuery,
                 self.provide_system_data_folder)
 
 
@@ -287,50 +268,215 @@ class SystemMgrNode():
 
 
         
+    ##############################
+    ### Setup Node
+
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
+
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'system_triggers_status': {
+            'namespace': self.node_namespace,
+            'topic': 'system_triggers_status'
+            'msg': SystemTriggersStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'system_states_status': {
+            'namespace': self.node_namespace,
+            'topic': 'system_states_status'
+            'msg': SystemStatesStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'system_status': {
+            'namespace': self.node_namespace,
+            'topic': 'system_status'
+            'msg': SystemStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'store_params': {
+            'namespace': self.node_namespace,
+            'topic': 'store_params'
+            'msg': String,
+            'qsize': 10,
+            'latch': True
+        },
+        'apply_throttle': {
+            'namespace': self.node_namespace,
+            'topic': 'apply_throttle'
+            'msg': Float32,
+            'qsize': 3,
+            'latch': True
+        },
+        'set_op_environment': {
+            'namespace': self.node_namespace,
+            'topic': 'settings'
+            'msg': String,
+            'qsize': 3,
+            'latch': True
+        },
+        'save_data': {
+            'namespace': self.node_namespace,
+            'topic': 'save_data'
+            'msg': SaveData,
+            'qsize': 1,
+            'latch': True
+        },
+        'system_trigger': {
+            'namespace': self.node_namespace,
+            'topic': 'system_trigger'
+            'msg': SystemTrigger,
+            'qsize': 1,
+            'latch': True
+        }
+    }  
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'set_streaming_image_quality': {
+            'namespace': self.node_namespace,
+            'topic': 'set_streaming_image_quality',
+            'msg': UInt8,
+            'qsize': None,
+            'callback': self.set_streaming_image_quality_cb, 
+            'callback_args': ()
+        },
+        'save_data': {
+            'namespace': self.node_namespace,
+            'topic': 'save_data',
+            'msg': SaveData,
+            'qsize': None,
+            'callback': self.set_save_status, 
+            'callback_args': ()
+        },
+        'clear_data_folder': {
+            'namespace': self.node_namespace,
+            'topic': 'clear_data_folder',
+            'msg': Empty,
+            'qsize': None,
+            'callback': self.clear_data_folder, 
+            'callback_args': ()
+        },
+        'set_op_environment': {
+            'namespace': self.node_namespace,
+            'topic': 'set_op_environment',
+            'msg': String,
+            'qsize': None,
+            'callback': self.set_op_environment, 
+            'callback_args': ()
+        },
+        'set_device_id': {
+            'namespace': self.node_namespace,
+            'topic': 'set_device_id',
+            'msg': String,
+            'qsize': None,
+            'callback': self.set_device_id, 
+            'callback_args': ()
+        },        
+        'submit_system_error_msg': {
+            'namespace': self.node_namespace,
+            'topic': 'set_streaming_image_quality',
+            'msg': String,
+            'qsize': None,
+            'callback': self.handle_system_error_msg, 
+            'callback_args': ()
+        },
+        'install_new_image': {
+            'namespace': self.node_namespace,
+            'topic': 'install_new_image',
+            'msg': String,
+            'qsize': 1,
+            'callback': self.handle_install_new_img, 
+            'callback_args': ()
+        },
+        'switch_active_inactive_rootfs': {
+            'namespace': self.node_namespace,
+            'topic': 'switch_active_inactive_rootfs',
+            'msg': Empty,
+            'qsize': None,
+            'callback': self.handle_switch_active_inactive_rootfs, 
+            'callback_args': ()
+        },
+        'archive_inactive_rootfs': {
+            'namespace': self.node_namespace,
+            'topic': 'archive_inactive_rootfs',
+            'msg': Empty,
+            'qsize': 1,
+            'callback': self.handle_archive_inactive_rootfs, 
+            'callback_args': ()
+        },
+        'save_data_prefix': {
+            'namespace': self.node_namespace,
+            'topic': 'save_data_prefix',
+            'msg': String,
+            'qsize': None,
+            'callback': self.save_data_prefix_callback, 
+            'callback_args': ()
+        }
+    }
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        }
+
+    }
+
+
+
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+
+
         # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
         # established
         self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
         
         self.msg_if.pub_warn("Creating Subscribers")
-        # Subscribe to topics
-        rospy.Subscriber('save_data', SaveData, self.set_save_status)
-        rospy.Subscriber('clear_data_folder', Empty, self.clear_data_folder)
-        rospy.Subscriber('set_op_environment', String, self.set_op_environment)
-        rospy.Subscriber('set_device_id', String,
-                         self.set_device_id)  # Public ns
-        rospy.Subscriber('submit_system_error_msg', String,
-                         self.handle_system_error_msg)
-        rospy.Subscriber('install_new_image', String,
-                         self.handle_install_new_img, queue_size=1)
-        rospy.Subscriber('switch_active_inactive_rootfs', Empty,
-                         self.handle_switch_active_inactive_rootfs)
-        rospy.Subscriber('archive_inactive_rootfs', Empty, self.handle_archive_inactive_rootfs, queue_size=1)
-        rospy.Subscriber('save_data_prefix', String, self.save_data_prefix_callback)
+       
 
         # Create Triggers Status Pub
         self.triggers_status_interval = 1.0
-        self.triggers_status_pub = rospy.Publisher('system_triggers_status', SystemTriggersStatus, queue_size=1)
-        time.sleep(1)
+
         self.msg_if.pub_info(":" + self.class_name + ": Starting triggers status pub service: ")
-        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.triggers_status_interval), self.triggersStatusPubCb, oneshot = True)
+        nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
         # Create States Status Pub
         self.states_status_interval = 1.0
-        self.states_status_pub = rospy.Publisher('system_states_status', SystemStatesStatus, queue_size=1)
-        time.sleep(1)
+
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
-        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.states_status_interval), self.statesStatusPubCb, oneshot = True)
+        nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
 
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
-        rospy.Timer(nepi_ros.ros_duration(self.STATUS_PERIOD), self.publish_periodic_status)
+        nepi_ros.start_timer_process(self.STATUS_PERIOD, self.publish_periodic_status)
         self.msg_if.pub_warn("System status ready")
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_warn("Initialization Complete")
-        rospy.spin()
+        nepi_ros.spin()
 
 
     def getStatesDictCb(self):
@@ -360,8 +506,8 @@ class SystemMgrNode():
             msg = nepi_triggers.create_triggers_status_msg_from_triggers_dict(self.node_name,triggers_dict)
         except:
             self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-        self.triggers_status_pub.publish(msg)
-        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.triggers_status_interval), self.triggersStatusPubCb, oneshot = True)
+        self.node_if.publish_pub('triggers_status_pub', msg)
+        nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
 
 
@@ -389,8 +535,8 @@ class SystemMgrNode():
             msg = nepi_states.create_states_status_msg_from_states_dict(self.node_name,states_dict)
         except:
             self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-        self.states_status_pub.publish(msg)
-        nepi_ros.start_timer_process(nepi_ros.ros_duration(self.states_status_interval), self.statesStatusPubCb, oneshot = True)
+        self.node_if.publish_pub('states_status_pub', msg)
+        nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
     def add_info_string(self, string, level):
@@ -452,7 +598,7 @@ class SystemMgrNode():
                     self.status_msg.warnings.flags[WarningFlags.HIGH_TEMPERATURE] = False
             # If a new thermal throttle ratio was computed, publish it globally
             if (throttle_ratio_min != self.current_throttle_ratio):
-                self.throttle_ratio_pub.publish(Float32(throttle_ratio_min))
+                self.node_if.publish_pub('throttle_ratio_pub', Float32(throttle_ratio_min))
                 self.current_throttle_ratio = throttle_ratio_min
                 #self.msg_if.pub_warn("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
 
@@ -482,7 +628,7 @@ class SystemMgrNode():
             self.add_info_string("Max disk usage exceeded",
                                  StampedString.PRI_HIGH)
             # Force all nodes to stop data saving
-            self.save_data_pub.publish(save_continuous=False, save_raw=False)
+            self.node_if.publish_pub('save_data_pub', save_continuous=False, save_raw=False)
         else:
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
@@ -546,7 +692,7 @@ class SystemMgrNode():
         self.update_storage()
 
         # Now publish it
-        self.status_pub.publish(self.status_msg)
+        self.node_if.publish_pub('status_pub', self.status_msg)
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
@@ -901,11 +1047,22 @@ class SystemMgrNode():
         else:
             self.nepi_storage_device = self.storage_mountpoint
     
+
+    def initCB(self):
+        pass
+
+    def resetCb(self):
+        pass
+
+    def factoryResetCb(self):
+        pass
+        
+
     def initConfig(self):
         op_env = nepi_ros.get_param(self,
             "~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
         # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
-        self.set_op_env_pub.publish(String(op_env))
+        self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
         # Now gather all the params and set members appropriately
         self.storage_mountpoint = nepi_ros.get_param(self,

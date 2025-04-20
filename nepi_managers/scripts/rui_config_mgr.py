@@ -7,7 +7,6 @@
 #
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
-import rospy
 
 from std_msgs.msg import UInt8
 from nepi_ros_interfaces.msg import RUISettings
@@ -49,15 +48,72 @@ class RUICfgMgrNode:
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         
-        ###########################
+
+    ##############################
+    ### Setup Node
+
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
+
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'settings': {
+            'namespace': self.node_namespace,
+            'topic': 'settings'
+            'msg': RUISettings,
+            'qsize': 1,
+            'latch': True
+        }
+    }  
 
 
 
-        self.settings_pub = rospy.Publisher('~settings', RUISettings, queue_size=1, latch=True)
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'image_quality': {
+            'namespace': self.node_namespace,
+            'topic': 'set_streaming_image_quality',
+            'msg': UInt8,
+            'qsize': None,
+            'callback': self.set_streaming_image_quality_cb, 
+            'callback_args': ()
+        },
+
+    }
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        }
+
+    }
+
+
+
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+
+
+
         self.settings_msg = RUISettings()
         self.publish_settings() # Do it once so that latch works on next connection
-
-        rospy.Subscriber('~set_streaming_image_quality', UInt8, self.set_streaming_image_quality_cb)
 
         self.save_cfg_if = SaveCfgIF(updateParamsCallback=None, paramsModifiedCallback=None)
 
@@ -74,13 +130,23 @@ class RUICfgMgrNode:
         self.settings_msg.nepi_hb_auto_offload_visible = nepi_ros.get_param(self,"~nepi_hb_auto_offload_visible", False)
 
         # Publish it
-        self.settings_pub.publish(self.settings_msg)
+        self.node_if.publish_pub('settings_pub', self.settings_msg)
 
     def set_streaming_image_quality_cb(self, msg):
         if (msg.data < 1 or msg.data > 100):
             self.msg_if.pub_warn("Invalid image qualtiy: " + str(msg.data))
             return
 
+
+    def initCB(self):
+        pass
+
+    def resetCb(self):
+        pass
+
+    def factoryResetCb(self):
+        pass
+        
         self.msg_if.pub_info("Setting streaming image quality to: " + str(msg.data))
         nepi_ros.set_param(self,"~streaming_image_quality", msg.data)
         self.publish_settings() # Make sure to always publish settings updates
