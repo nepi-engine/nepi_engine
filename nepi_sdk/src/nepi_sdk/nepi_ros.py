@@ -577,12 +577,12 @@ def load_params_from_file(file_path, params_namespace = None):
         rospy.logwarn("Error loading parameters from file: " + file_path + " " + str(e))
 
 
-def save_config_file(file_path, namespace):
+def save_params_to_file(file_path, namespace):
     #Try and initialize app param values
     try:
       rosparam.dump_params(file_path, namespace)
     except Exception as e:
-      print("Could not create config file: " + str(e))
+      print("Could not create params file: " + str(e))
   
 
 #################################
