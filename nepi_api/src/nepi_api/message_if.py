@@ -7,121 +7,30 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
+
+
 import os
-import time
-import copy
 import datetime
+import time
 import numpy as np
 import cv2
 import open3d as o3d
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_settings
+from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_save
-from nepi_sdk import nepi_states
-from nepi_sdk import nepi_triggers
-
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-
-from nepi_ros_interfaces.msg import Message
-
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
-
-
 from nepi_ros_interfaces.msg import SaveData, SaveDataRate, SaveDataStatus
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
 
-from nepi_ros_interfaces.msg import SystemState
-from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
-
-from nepi_ros_interfaces.msg import SystemTrigger
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
-
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodeClassIF
-from nepi_api.data_if import ReadWriteIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
-
-
-class MsgIF(object):
-
-    ns_str = ""
-    ln_str = ""
-
-    #######################
-    ### IF Initialization
-    def __init__(self, log_name = None):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.node_name = nepi_ros.get_node_name()
-        self.base_namespace = nepi_ros.get_base_namespace()
-
-        ############################## 
-
-        self.ns_str = self.node_name + ": "
-        if log_name is not None:
-            self.ln_str = log_name + ": "
-        self._logSelfMsg("Starting IF Initialization Processes")
-        ##############################   
-
-
-        self._createMsgPublishers()
-        ##############################
-        self._logSelfMsg("IF Initialization Complete")
-
-
-    ###############################
-    # Class Public Methods
-    
-    def pub_msg(self, msg, level = "None", throttle_s = None):
-        if msg is None:
-            msg = "MSGIF got None msg"
-        msg_str = self._createMsgString(msg)
-        nepi_ros.log_msg(msg_str, level = level, throttle_s = throttle_s)
-        self.msg_pub.publish(msg_str)
-        self.msg_pub_sys.publish(msg_str)
-    
-    def pub_info(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'info', throttle_s = throttle_s)
-    
-    def pub_warn(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'warn', throttle_s = throttle_s)
-    
-    def pub_debug(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'debug', throttle_s = throttle_s)
-    
-    def pub_error(self, msg, throttle_s = None):
-        self.pub_msg(msg,level = 'error', throttle_s = throttle_s)
-    
-    def pub_fatal(self, msg, throttle_s = None):
-        self.pub_msg(msg,level = 'fatal', throttle_s = throttle_s)
-
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-  
-    def _createMsgPublishers(self):
-        self._logSelfMsg("Creating Msg Publishers")
-        self.msg_pub = nepi_ros.create_publisher(self, "~messages", Message, queue_size=1)
-        self.msg_pub_sys = nepi_ros.create_publisher(self, "messages", Message, queue_size=1)
-        time.sleep(1)
-        
-        return 
-    def _logSelfMsg(self,msg):
-        msg_str = self.node_name + " :" + self.ln_str + self.class_name + ": " + str(msg)
-        nepi_ros.log_msg_info(msg_str)
-
-    def _createMsgString(self,msg):
-         return self.ns_str + self.ln_str + str(msg)
-
-
+from nepi_api.data_if import ReadWriteIF
+from nepi_api.node_if import NodeClassIF
 
 
 
@@ -689,32 +598,26 @@ class SaveDataIF(object):
 
 
 
+
+
+import os
+import time
+import copy
+
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_settings
+
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.messages_if import MsgIF
+
+
 SETTING_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
-EXAMPLE_CAP_SETTINGS = {"setting_name":{"name":"setting_name","type":"Int","optons":[]}}
-EXAMPLE_SETTING  = {"name":"setting_name","type":"Int","value":"0"}
-EXAMPLE_FACTORY_SETTINGS = {"setting_name":EXAMPLE_SETTING}
-EXAMPLE_SETTINGS = {"setting_name":EXAMPLE_SETTING}
-
-def EXAMPLE_SET_SETTING_FUNCTION(setting):
-    success = False
-    msg = 'Failed'
-    if setting_name in EXAMPLE_SETTINGS.keys():
-        EXAMPLE_SETTINGS[setting_name]= setting
-        success = True
-        msg = 'Success'
-    return success, msg
-
-def EXAMPLE_GET_SETTINGS_FUNCTION():
-    return EXAMPLE_SETTINGS
-
-EXAMPLE_SETTINGS_DICT = {
-                    'capSettings': EXAMPLE_CAP_SETTINGS, 
-                    'factorySettings': EXAMPLE_FACTORY_SETTINGS,
-                    'setSettingFunction': EXAMPLE_SET_SETTING_FUNCTION, 
-                    'getSettingsFunction': EXAMPLE_GET_SETTINGS_FUNCTION, 
-                    namespace='~'
-}
-
+EXAMPLE_CAP_SETTINGS = {"None":{"name":"None","type":"None","optons":[]}}
+EXAMPLE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
 
 class SettingsIF(object):
 
@@ -738,7 +641,11 @@ class SettingsIF(object):
     #######################
     ### IF Initialization
     def __init__(self, 
-                settings_dict
+                    capSettings, 
+                    factorySettings,
+                    setSettingFunction, 
+                    getSettingsFunction, 
+                    namespace='~'
                     ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -757,12 +664,6 @@ class SettingsIF(object):
         if namespace is None:
             namespace = '~'
         self.namespace = nepi_ros.get_full_namespace(namespace)
-
-        capSettings = settings_dict['capSettings']
-        factorySettings = settings_dict['capSettings']
-        setSettingFunction = settings_dict['setSettingFunction']
-        getSettingsFunction = settings_dict['getSettingsFunction']
-
 
         #  Initialize capabilities info
         if capSettings is None:
@@ -993,7 +894,21 @@ class SettingsIF(object):
 
 
 
+import os
+import time
+import copy
 
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_states
+
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_ros_interfaces.msg import SystemState
+from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.messages_if import MsgIF
 
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
 
@@ -1107,6 +1022,20 @@ class StatesIF(object):
 
 
 
+import os
+import time
+import copy
+
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_triggers
+
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+from nepi_ros_interfaces.msg import SystemTrigger
+from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.messages_if import MsgIF
 
 
 EXAMPLE_TRIGGER_DICT = {"name":"None",

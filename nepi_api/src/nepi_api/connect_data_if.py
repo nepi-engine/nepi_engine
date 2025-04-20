@@ -25,9 +25,9 @@ from sensor_msgs.msg import Image
 
 from nepi_ros_interfaces.msg import ImageStatus
 
-
-from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.sys_if_msg import MsgIF
+from nepi_api.connect_node_if import ConnectNodeClassIF
+
 
 
 #You must use the classes data_dict_lock.aquire() and data_dict_lock.release() thread save functions 
@@ -367,7 +367,6 @@ class ConnectNavPoseIF:
 
     #######################
     ### IF Initialization
-    log_name = "ConnectImageIF"
     def __init__(self, 
                 namespace,
                 preprocess_function = None,

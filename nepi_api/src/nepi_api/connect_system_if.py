@@ -7,7 +7,14 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
+import os
+import time
+import copy
+
 from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_triggers
+from nepi_sdk import nepi_states
 
 from std_msgs.msg import String, Empty
 from nepi_ros_interfaces.msg import Reset
@@ -15,8 +22,20 @@ from nepi_ros_interfaces.msg import Reset
 from nepi_ros_interfaces.msg import SaveData, SaveDataRate, SaveDataStatus
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 
-from nepi_api.connect_con_node_if import ConnectNodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+from std_msgs.msg import String, Empty
+from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+
+from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+
+
+from nepi_api.messages_if import MsgIF
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_system_if import *
+
+
+
 
 class ConnectSettingsIF(object):
 
@@ -462,29 +481,6 @@ class ConnectSettingsIF(object):
 
 
 
-
-
-
-
-
-
-
-
-import os
-import time
-import copy
-
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_states
-
-from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
-from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
-
-from nepi_api.connect_con_node_if import ConnectNodeClassIF
-from nepi_api.sys_if_msg import MsgIF
-
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
 
 EXAMPLE_STATE_DICT = {"name":"None",
@@ -618,23 +614,6 @@ class ConnectStatesIF(object):
 
 
 
-
-
-
-import os
-import time
-import copy
-
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_triggers
-
-from std_msgs.msg import String, Empty
-from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
-
-from nepi_api.connect_node_if import ConnectNodeClassIF
-from nepi_api.sys_if_msg import MsgIF
 
 EXAMPLE_TRIGGER_DICT = {"name":"None",
                         "description": "None",

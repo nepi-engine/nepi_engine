@@ -22,6 +22,8 @@ from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, OpE
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemStorageFolderQuery, SystemStorageFolderQueryRequest
 
 
+
+
 class ConnectMgrSystemIF:
  
     MGR_NODE_NAME = 'config_mgr'

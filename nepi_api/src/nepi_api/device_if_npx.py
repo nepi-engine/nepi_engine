@@ -35,12 +35,11 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_save
 from nepi_sdk import nepi_nav
 
+from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
-from nepi_api.data_if_navpose import NavPoseIF
-from nepi_api.sys_if_settings import SettingsIF
-from nepi_api.sys_if_save_data import SaveDataIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
+from nepi_api.system_if import SaveDataIF, Settings_IF
+from nepi_api.data_if import NavPoseIF
+
 
 #########################################
 # Node Class
@@ -58,22 +57,25 @@ class NPXDeviceIF:
 
   data_products = ['navpose']
 
-  init_pub_rate = 0
-  init_frame_3d = FACTORY_3D_FRAME
-  init_frame_alt = FACTORY_ALT_FRAME
 
-  has_loc = False
-  has_pose = False
-  has_head = False
+  has_location = False
+  has_position = False
+  has_orientation = False
+  has_heading = False
 
   last_nav_dict = None
 
   navpose_if = None  
+
+  settings_if = None
   #######################
   ### IF Initialization
   def __init__(self, 
                 device_info,
-                get_navpose_function,
+                capSettings=None, factorySettings=None, 
+                settingUpdateFunction=None, getSettingsFunction=None,
+                has_location = False, has_position = False, has_orientation = False, has_heading = False,
+                getNavPoseDictFunction = None,
                 pub_rate = 10):
     ####  IF INIT SETUP ####
     self.class_name = type(self).__name__
@@ -84,10 +86,17 @@ class NPXDeviceIF:
     ##############################  
     # Create Msg Class
     log_name = self.class_name
-    self.msg_if = MsgIF(log_name = log_name)
+    self.msg_if = MsgIF(log_name = self.class_name)
     self.msg_if.pub_info("Starting IF Initialization Processes")  
 
     ##############################
+    # Initialize Class Variables
+    self.has_location = has_location
+    self.has_position = has_position
+    self.has_orientation = has_orientation
+    self.has_heading = has_heading
+
+
     self.initCb(do_updates = False)
 
     if pub_rate < .1:
@@ -98,10 +107,11 @@ class NPXDeviceIF:
 
 
     # Test get dict funciton
+    test_dict = None
     test_msg = None
-    if get_navpose_function is not None:
+    if getNavPoseDictFunction is not None:
       try:
-          test_dict = get_navpose_function()
+          test_dict = getNavPoseDictFunction()
           test_msg = nepi_nav.convert_navposedata_dict2msg(test_dict)
       except Exception as e:
           self.msg_if.pub_warn("Failed to call get data function: " + str(e))
@@ -109,49 +119,171 @@ class NPXDeviceIF:
       return
 
     # All Good
-    self.namespace = os.path.join(self.base_namespace,self,node_name)
-    self.get_navpose_function = get_navpose_function
 
-    self.navpose_if = NavPoseIF(data_product = 'navpose', pub_namespace = '~npx')
+    npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx','navpose')
+    self.navpose_if = NavPoseIF(namespace = npx_namespace,
+                                has_location = has_location,  
+                                has_orientation = has_orientation,
+                                has_position = has_position, 
+                                has_heading = has_heading )
 
     # Create a navpose capabilities service
     self.navpose_capabilities_report = NavPoseCapabilitiesQueryResponse()
-    self.navpose_capabilities_report.has_gps = self.has_location
-    self.navpose_capabilities_report.has_orientation = self.has_pose
-    self.navpose_capabilities_report.has_heading = self.has_heading
+    self.navpose_capabilities_report.has_location = has_location
+    self.navpose_capabilities_report.has_position = has_position
+    self.navpose_capabilities_report.has_orientation = has_orientation
+    self.navpose_capabilities_report.has_heading = has_heading
 
-    rospy.Service('~npx/navpose_capabilities_query', self._navposeCapabilitiesHandler)
 
-    # Set Up Publishers
     self.status_msg = NPXStatus()
-    self.status_pub = rospy.Publisher('~npx/status', NPXStatus, queue_size=1, latch=True)
-    time.sleep(1)
 
-    ## Start Class Subscribers
+    ##################################################
+    ### Node Class Setup
+
+    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
+
+
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+            'init_callback': None,
+            'reset_callback': None,
+            'factory_reset_callback': None,
+            'init_configs': True,
+            'namespace': self.node_namespace
+    }
+
+
+
+    # Params Config Dict ####################
+    self.init_pub_rate = rospy.get_param("~pub_rate",self.factory_pub_rate_hz)
+    self.init_frame_3d = rospy.get_param("~frame_3d",self.FACTORY_3D_FRAME)
+    self.init_frame_alt = rospy.get_param("~frame_alt",self.FACTORY_ALT_FRAME)
+
+    self.PARAMS_DICT = {
+        'param1_name': {
+            'namespace': self.node_namespace,
+            'factory_val': 100
+        },
+        'param2_name': {
+            'namespace': self.node_namespace,
+            'factory_val': "Something"
+        }
+    }
+
+    # Services Config Dict ####################
+    rospy.Service('~npx/navpose_capabilities_query', self.navposeCapabilitiesHandler)
+
+    self.SRVS_DICT = {
+        'service_name': {
+            'namespace': self.node_namespace,
+            'topic': 'empty_query',
+            'svr': EmptySrv,
+            'req': EmptySrvRequest(),
+            'resp': EmptySrvResponse(),
+            'callback': self.CALLBACK_FUNCTION
+        }
+    }
+
+
+    # Publishers Config Dict ####################
+    self.status_pub = rospy.Publisher('~npx/status', NPXStatus, queue_size=1, latch=True)
+
+    self.PUBS_DICT = {
+        'pub_name': {
+            'namespace': self.node_namespace,
+            'topic': 'set_empty',
+            'msg': EmptyMsg,
+            'qsize': 1,
+            'latch': False
+        }
+    }
+
+
     rospy.Subscriber('~npx/set_pub_rate', Float32, self.setPublishRateCb, queue_size=1) # start local callback
     rospy.Subscriber('~npx/publish_once', Empty, self.publishOnceCb, queue_size=1) # start local callback
     rospy.Subscriber('~npx/set_3d_frame', String, self.set3dFrameCb, queue_size=1) # start local callback
     rospy.Subscriber('~npx/set_alt_frame', String, self.setAltFrameCb, queue_size=1) # start local callback
-    ## Set up save and config interfaces
 
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'sub_name': {
+            'namespace': self.node_namespace,
+            'topic': 'set_empty',
+            'msg': EmptyMsg,
+            'qsize': 1,
+            'callback': self.SUB_CALLBACK, 
+            'callback_args': ()
+        }
+    }
+
+
+    # Create Node Class ####################
+    self.NODE_IF = NodeClassIF(
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    services_dict = self.SRVS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.NODE_IF.wait_for_ready()
+
+
+    # Setup Settings IF Class ####################
+    if capSettings is not None:
+      self.SETTINGS_DICT = {
+                  'capSettings': capSettings, 
+                  'factorySettings': factorySettings,
+                  'setSettingFunction': settingUpdateFunction, 
+                  'getSettingsFunction': getSettingsFunction, 
+                  namespace='~'
+      }
+    else:
+      self.SETTINGS_DICT = {
+                  'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
+                  'factorySettings': nepi_settings.NONE_SETTINGS,
+                  'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
+                  'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
+                  namespace='~'
+      }
+    self.settings_if = SettingsIF(self.SETTINGS_DICT)
+
+
+    # Setup Save Data IF Class ####################
     factory_data_rates = {}
     for d in self.data_products:
         factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
     self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
-    # Temp Fix until added as NEPI ROS Node
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb ,resetCb=self.resetCb, factoryResetCb=self.factoryresetCb)
+
+    factory_filename_dict = {
+        'prefix': "", 
+        'add_timestamp': True, 
+        'add_ms': True,
+        'add_ns': False,
+        'suffix': "",
+        'add_node_name': True
+        }
+
+    self.save_data_if = SaveDataIF(data_product_names = self.data_products_list,
+                                  factory_data_rate_dict = factory_data_rates,
+                                  factory_filename_dict = factory_filename_dict)
 
 
-    ## Initialize From Param Server
+    time.sleep(1)
+
+    ###############################
+    # Finish Initialization
+
     self.initCb(do_updates = True)
-    ## Initiation Complete
 
     self.publish_once()
 
     self.ready = True
 
-    self.msg_if.pub_info("Initialization Complete")
-    nepi_ros.spin()
+    self.msg_if.pub_info("IF Initialization Complete")
+
 
 
   ###############################
@@ -162,11 +294,11 @@ class NPXDeviceIF:
       return self.ready  
 
   def publish_once(self):
-    nepi_ros.timer(nepi_ros.ros_duration(0.1), self._publishCb, oneshot = True)
+    nepi_ros.timer(nepi_ros.ros_duration(0.1), self.publishNavPoseCb, oneshot = True)
     return True
 
 
-  def publishStatus(self):
+  def publish_status(self):
       self.status_msg.pub_rate = rospy.get_param("~pub_rate",self.init_pub_rate)
       self.status_msg.frame_3d = rospy.get_param("~frame_3d",self.init_frame_3d)
       self.status_msg.frame_alt = rospy.get_param("~frame_alt",self.init_frame_alt)
@@ -176,18 +308,17 @@ class NPXDeviceIF:
     # Class Private Methods
     ###############################
 
-  def _navposeCapabilitiesHandler(self, _):
+  def navposeCapabilitiesHandler(self, _):
     return self.navpose_capabilities_report    
 
 
-
-  def _publishOnceCb(self,msg):
+  def publishOnceCb(self,msg):
     self.publish_once()
 
-  def _publishCb(self,timer):
+  def publishNavPoseCb(self,timer):
     nav_dict = None
     try:
-        nav_dict = self.get_navpose_function()
+        nav_dict = self.getNavPoseDictFunction()
     except Exception as e:
         self.msg_if.pub_warn("Failed to call get navpose dict function: " + str(e))
     
@@ -236,7 +367,7 @@ class NPXDeviceIF:
 
     if self.pub_rate != 0:
         delay = float(1) / self.pub_rate
-        rospy.timer(nepi_ros.ros_duration(delay), self._publishCb, oneshot = True)
+        rospy.timer(nepi_ros.ros_duration(delay), self.publishNavPoseCb, oneshot = True)
             
 
   def setPublishRateCb(self,msg):
@@ -264,9 +395,7 @@ class NPXDeviceIF:
 
   def initCb(self,do_updates = False):
       self.msg_if.pub_info("Setting init values to param values")
-      self.init_pub_rate = rospy.get_param("~pub_rate",self.factory_pub_rate_hz)
-      self.init_frame_3d = rospy.get_param("~frame_3d",self.FACTORY_3D_FRAME)
-      self.init_frame_alt = rospy.get_param("~frame_alt",self.FACTORY_ALT_FRAME)
+
       if do_updates == True:
         self.resetCb(do_updates)
 

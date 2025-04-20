@@ -10,15 +10,11 @@
 
 
 
-
 import os
 import time
 import copy
 
-from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
-
-
-from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
 from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
@@ -31,6 +27,10 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_ais
 
+
+from nepi_api.messages_if import MsgIF
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_system_if import *
 
 
 EXAMPLE_BOXES_INFO_DICT_ENTRY = {

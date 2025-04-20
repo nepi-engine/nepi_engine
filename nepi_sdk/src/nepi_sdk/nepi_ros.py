@@ -579,14 +579,6 @@ def save_params_to_file(file_path, namespace):
       print("Could not create params file: " + str(e))
   
 
-#################################
-## DEPRICIATED
-## Now contained in node_if api 
-
-
-#########################
-### Param Utility Functions
-
 def has_param(param_namespace):
   param_namespace = get_full_namespace(param_namespace)
   return rospy.has_param(param_namespace)
@@ -669,8 +661,8 @@ def start_timer_process(duration, callback_function, oneshot = False):
 ### Time Helper Functions
 
 
-def get_time():
-  return time.time_ns() / 1000000000
+def get_rostime_type():
+  return rospy.rostime.Time
 
 def get_rostime_to_sec():
   return get_rostime().to_sec()

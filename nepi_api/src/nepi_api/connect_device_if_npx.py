@@ -23,8 +23,9 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
 
-from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.messages_if import MsgIF
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_system_if import *
 
 NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']

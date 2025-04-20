@@ -33,14 +33,14 @@ from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_save
 
-
+from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeParamsIF, NodePublishersIF, NodeSubscribersIF, NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
+
 from nepi_api.mgr_if_system import MgrSystemIF
 from nepi_api.mgr_if_config import MgrConfigIF
-from nepi_api.sys_if_save_data import SaveDataIF
-from nepi_api.sys_if_states import StatesIF
-from nepi_api.sys_if_triggers import TriggersIF
+
+
 
 
 EXAMPLE_DETECTION_DICT_ENTRY = {

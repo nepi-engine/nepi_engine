@@ -44,11 +44,9 @@ from nepi_ros_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBo
 from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, \
      NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
 
+from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
-from nepi_api.sys_if_settings import SettingsIF
-from nepi_api.sys_if_save_data import SaveDataIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
+from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
 
 NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()

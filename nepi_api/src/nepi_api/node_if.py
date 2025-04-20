@@ -23,7 +23,7 @@ from std_srvs.srv import EmptyResponse as EmptySrvResponse
 # from nepi_ros_interfaces.msg import
 from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.messages_if import MsgIF
 
 
 ##################################################
@@ -320,6 +320,15 @@ class NodeParamsIF(object):
         namespace = self.get_param_namespace(param_name)
         nepi_ros.set_param(namespace,value)
 
+    def reset_param(self, param_name):
+        if param_name in self.params_dict.keys():
+            init_val = self.params_dict[param_name]['init_val']
+            self.set_param(param_name, init_val)
+
+    def factory_reset_param(self, param_name):
+        if param_name in self.params_dict.keys():
+            factory_val = self.params_dict[param_name]['factory_val']
+            self.set_param(param_name, factory_val)
 
     def get_params(self):
         return list(self.params_dict.keys())
@@ -459,7 +468,7 @@ class NodeServicesIF(object):
     def _initialize_services(self):
         for service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
-            if 'service' not in srv_dict.keys():
+            if 'service' not in srv_dict.keys() and srv_dict['callback'] is not None:
                 try:
                     srv_namespace = nepi_ros.create_namespace(srv_dict['namespace'],srv_dict['topic'])
                     srv_msg = srv_dict['svr']
@@ -750,7 +759,7 @@ class NodeSubscribersIF(object):
     def _initialize_subs(self):
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
-            if 'sub' not in sub_dict.keys():
+            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None:
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
@@ -780,7 +789,7 @@ class NodeSubscribersIF(object):
 
 
 ##################################################
-### Node Class Class
+### Node Class
 
 # Configs Config Dict ####################
 EXAMPLE_CFGS_DICT = {
@@ -844,7 +853,7 @@ EXAMPLE_SUBS_DICT = {
 
 # Create Node Class ####################
 '''
-EXAMPLE_NODE_IF = NodeClassIF(self,
+EXAMPLE_NODE_IF = NodeClassIF(
                 configs_dict = EXAMPLE_CFGS_DICT,
                 params_dict = EXAMPLE_PARAMS_DICT,
                 services_dict = EXAMPLE_SRVS_DICT,
@@ -1015,6 +1024,7 @@ class NodeClassIF(object):
         if self.params_if is not None:
             self.params_if.initialize_params()
 
+
     def reset_params(self):
         if self.params_if is not None:
             self.params_if.reset_params()
@@ -1022,18 +1032,13 @@ class NodeClassIF(object):
     def factory_reset_params(self):
         if self.params_if is not None:
             self.params_if.factory_reset_params()
+
 
     def save_params(self):
         if self.params_if is not None:
             self.params_if.save_params()
 
-    def reset_params(self):
-        if self.params_if is not None:
-            self.params_if.reset_params()
 
-    def factory_reset_params(self):
-        if self.params_if is not None:
-            self.params_if.factory_reset_params()
 
     def has_param(self, param_name):
         exists = False
@@ -1055,6 +1060,26 @@ class NodeClassIF(object):
         if self.params_if is not None:
             try:
                 self.params_if.set_param(param_name,value)
+                success = True
+            except:
+                pass
+        return success
+
+    def reset_param(self, param_name):
+        success = False
+        if self.params_if is not None:
+            try:
+                self.params_if.reset_param(param_name)
+                success = True
+            except:
+                pass
+        return success
+
+    def factory_reset_param(self, param_name):
+        success = False
+        if self.params_if is not None:
+            try:
+                self.params_if.reset_param(param_name)
                 success = True
             except:
                 pass

@@ -19,7 +19,7 @@ from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
 
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
 
 
@@ -471,7 +471,7 @@ EXAMPLE_SUBS_DICT = {
 
 # Create Node Class ####################
 '''
-EXAMPLE_NODE_IF = NodeClassIF(self,
+EXAMPLE_NODE_IF = NodeClassIF(
                 configs_dict = EXAMPLE_CFGS_DICT,
                 services_dict = EXAMPLE_SRVS_DICT,
                 pubs_dict = EXAMPLE_PUBS_DICT,

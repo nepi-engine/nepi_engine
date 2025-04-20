@@ -7,7 +7,7 @@
 #
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
-import rospy
+
 import os
 import time
 import numpy as np
@@ -16,8 +16,31 @@ import open3d as o3d
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_img
+from nepi_sdk import nepi_pc
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
+
+from nav_msgs.msg import Odometry
+from geographic_msgs.msg import GeoPoint
+from sensor_msgs.msg import NavSatFix
+from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
+
+from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading
+from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
+
+from sensor_msgs.msg import Image
+from nepi_ros_interfaces.msg import StringArray, ImageStatus
+
+from sensor_msgs.msg import PointCloud2
+from nepi_ros_interfaces.msg import PointcloudStatus
+
+
+from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
+
+
 
 SYSTEM_DATA_FOLDER = 'mnt/nepi_storage/data'
 
@@ -27,6 +50,17 @@ SUPPORTED_PC_FILE_TYPES = ['pcd']
 SUPPORTED_VID_FILE_TYPES = ['avi','AVI']
 
 SUPPORTED_DATA_TYPES = ['dict','cv2_image','o3d_pointcloud']
+
+
+EXAMPLE_FILENAME_DICT = {
+    'prefix': "", 
+    'add_timestamp': True, 
+    'add_ms': True,
+    'add_ns': False,
+    'suffix': "",
+    'add_node_name': False
+    }
+
 
 
 class ReadWriteIF:
@@ -39,19 +73,17 @@ class ReadWriteIF:
     'add_timestamp': True, 
     'add_ms': True,
     'add_ns': False,
-    'suffix': ""
+    'suffix': "",
+    'add_node_name': False
     }
 
+    node_if = None
 
     #######################
     ### IF Initialization
-    log_name = "ConnectImageIF"
     def __init__(self,
-                prefix = '', 
-                suffix = '', 
-                add_time = True, 
-                add_ms = True, 
-                add_ns = False):
+                filename_dict = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -66,13 +98,8 @@ class ReadWriteIF:
 
         #############################
         # Initialize Class Variables
-        self.filename_dict = {
-        'prefix': prefix, 
-        'add_timestamp': add_timestamp, 
-        'add_ms': add_ms,
-        'add_ns': add_ns,
-        'suffix': suffix
-        }
+        if filename_dict is not None:
+            self.filename_dict = filename_dict
 
         self.data_dict = {
             'dict': {
@@ -145,6 +172,37 @@ class ReadWriteIF:
     def reset_data_folder(self):
         self.save_folder = SYSTEM_DATA_FOLDER
 
+
+    def get_filename_prefix(self):
+        return self.filename_dict['prefix']
+
+    def set_filename_prefix(self, prefix = ''):
+        self.filename_dict['prefix'] = prefix
+
+    def get_add_timestamp(self):
+        return self.filename_dict['add_timestamp']
+
+    def set_add_timestamp(self, add_timestamp):
+        self.filename_dict['add_timestamp'] = add_timestamp
+
+    def get_add_ms(self):
+        return self.filename_dict['add_ms']
+
+    def set_add_ms(self, add_ms):
+        self.filename_dict['add_ms'] = add_ms
+
+    def get_add_ns(self):
+        return self.filename_dict['add_ns']
+
+    def set_add_ns(self, add_ns):
+        self.filename_dict['add_ns'] = add_ns
+
+    def get_filename_suffix(self):
+        rturn self.filename_dict['suffix']
+
+    def set_filename_suffix(self, suffix = ''):
+        self.filename_dict['suffix'] = suffix
+
     def set_filename_config(self, prefix = '', suffix = '', add_time = True, add_ms = True, add_ns = False):
         self.filename_dict = {
         'prefix': prefix, 
@@ -158,8 +216,8 @@ class ReadWriteIF:
         return self.filename_dict
 
 
-    def get_folder_files(self, ext_str = ""):
-        file_list = nepi_utils.get_file_list(self.data_folder,ext_str=ext_str)
+    def get_folder_files(self, path, ext_str = ""):
+        file_list = nepi_utils.get_file_list(path,ext_str=ext_str)
         return file_list
 
     '''
@@ -170,7 +228,7 @@ class ReadWriteIF:
         return file_times
     '''
 
-    def read_yaml_file(self, filename):
+    def read_dict_file(self, filepath, filename):
         data_key = 'dict'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -178,7 +236,7 @@ class ReadWriteIF:
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
-            file_path = os.path.join(self.data_folder,filename)
+            file_path = os.path.join(filepath,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
@@ -187,7 +245,7 @@ class ReadWriteIF:
                 data = read_data
         return data
 
-    def write_dict_file(self, data, data_name, timestamp = None, ext_str = 'yaml'):
+    def write_dict_file(self, filepath, data, data_name, timestamp = None, ext_str = 'yaml'):
         data_key = 'dict'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -199,7 +257,7 @@ class ReadWriteIF:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
-                file_path = os.path.join(self.data_folder,filename)
+                file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
@@ -207,7 +265,7 @@ class ReadWriteIF:
         return success
 
 
-    def read_image_file(self, filename):
+    def read_image_file(self, filepath, filename):
         data_key = 'image'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -215,7 +273,7 @@ class ReadWriteIF:
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
-            file_path = os.path.join(self.data_folder,filename)
+            file_path = os.path.join(filepath,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
@@ -224,7 +282,7 @@ class ReadWriteIF:
                 data = read_data
         return data
 
-    def write_image_file(self, data, data_name, timestamp = None, ext_str = 'png'):
+    def write_image_file(self, filepath, data, data_name, timestamp = None, ext_str = 'png'):
         data_key = 'image'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -236,7 +294,7 @@ class ReadWriteIF:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
-                file_path = os.path.join(self.data_folder,filename)
+                file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
@@ -244,7 +302,7 @@ class ReadWriteIF:
         return success
 
 
-    def read_pointcloud_file(self, filename):
+    def read_pointcloud_file(self, filepath, filename):
         data_key = 'pointcloud'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -252,7 +310,7 @@ class ReadWriteIF:
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
-            file_path = os.path.join(self.data_folder,filename)
+            file_path = os.path.join(filepath,filename)
             read_data = self.data_dict[data_key]['read_func'](file_path)
             data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
@@ -261,7 +319,7 @@ class ReadWriteIF:
                 data = read_data
         return data
 
-    def write_pointcloud_file(self, data, data_name, timestamp = None, ext_str = 'pcd'):
+    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, ext_str = 'pcd'):
         data_key = 'pointcloud'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -273,7 +331,7 @@ class ReadWriteIF:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
                 filename = self._createFileName(data_name,ext_str,timestamp)
-                file_path = os.path.join(self.data_folder,filename)
+                file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
@@ -286,39 +344,40 @@ class ReadWriteIF:
     # Class Private Methods
     ###############################
 
-    def _createFileName(self,data_name_str,ext_str,timestamp):
+    def _createFileName(self,data_name_str,ext_str,timestamp=None):
         prefix = self.filename_dict['prefix']
+        if len(prefix) > 0:
+            prefix = prefix + '_'
         add_time = self.filename_dict['add_timestamp']
+        data_time_str = ''
         if add_time == True:
-            time_ns = nepi_ros.sec_from_ros_stamp(timestamp)
+            if timestamp is None:
+                time_ns = nepi_utils.get_time()
+            else:
+                if isinstance(timestamp,nepi_ros.get_rostime_type) == True:
+                    time_ns = nepi_ros.sec_from_ros_stamp(timestamp)
+                elif isinstance(timestamp,int) == True:
+                    time_ns = float(timestamp) / 1000000000
+                elif isinstance(timestamp,'float') == True:
+                    time_ns = timestamp
+                else:
+                    time_ns = nepi_utils.get_time()
             add_ms = self.filename_dict['add_ms']
             add_ns = self.filename_dict['add_ns']
-            data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns)
+            data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
+        node_name_str = ""
+        if self.filename_dict['add_node_name'] == True:
+            node_name_str = self.node_name + '_'
+        if len(data_name_str) > 0:
+            data_name_str = data_name_str + '_'
         suffix = self.filename_dict['suffix']
-        filename = prefix + '_' + data_time_str + '_' + data_name + '_' + suffix + '.' + ext_str
+        if len(suffix) > 0:
+            suffix = suffix + '_'
+        filename = prefix + data_time_str + node_name_str + data_name_str + suffix + '.' + ext_str
         return filename
 
 
 
-
-import os
-import rospy
-import time
-from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nav_msgs.msg import Odometry
-from geographic_msgs.msg import GeoPoint
-from sensor_msgs.msg import NavSatFix
-from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
-
-from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading
-from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
-
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_nav
-
-from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
 
 NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
@@ -363,15 +422,14 @@ class NavPoseIF:
 
     last_pub_time = None
 
-    pub_components = False
-
     has_subscribers = False
 
 
     def __init__(self, namespace = None, 
-        has_location = False, enable_gps_pub = False, 
-        has_orientation = False, has_position = False, enable_pose_pub = False, 
-        has_heading = False, enable_heading_pub = False):
+        has_location = False, enable_gps_pub = True, 
+        has_position = False, has_orientation = False, enable_pose_pub = True, 
+        has_heading = False, enable_heading_pub = True):
+        ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -388,15 +446,11 @@ class NavPoseIF:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
 
-        self.pub_components = pub_components
-
         # Initialize Status Msg.  Updated on each publish
-        status_msg = PointcloudStatus()
-        status_msg.publishing = False
-
+        status_msg = NavPoseStatus()
         status_msg.has_location = has_location
         status_msg.has_position = has_position
-        status_msg.has_pose = has_pose
+        status_msg.has_orientation = has_orientation
         status_msg.has_heading = has_heading
 
         status_msg.frame_id = "nepi_base"
@@ -628,7 +682,7 @@ class NavPoseIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = self.node_if.pub_has_subscribers('data_pub')
+        self.has_subscribers = self.node_if.pub_has_subscribers('navpose_pub')
         #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
         if self.has_subscribers == False:
             self.status_msg.publishing = False
@@ -640,24 +694,373 @@ class NavPoseIF:
             self.node_if.publish_pub('status_pub', self.status_msg)
 
 
-import os
-import rospy
-import time
-import cv2
-import open3d as o3d
 
-from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from sensor_msgs.msg import PointCloud2
 
-from nepi_ros_interfaces.msg import PointcloudStatus
 
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_img
-from nepi_sdk import nepi_pc
 
-from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
+
+DEFUALT_IMG_WIDTH = 700
+DEFUALT_IMG_HEIGHT = 400
+
+class ImageIF:
+
+    ready = False
+    namespace = '~image'
+
+    node_if = None
+
+    status_msg = ImageStatus()
+
+    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
+
+    last_pub_time = None
+
+    nav_mgr_if = None
+    nav_mgr_ready = False
+
+    has_subscibers = False
+
+
+    def __init__(self, namespace = None , init_overlay_list = []):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
+
+        ##############################    
+        # Initialize Class Variables
+        if namespace is not None:
+            self.namespace = namespace
+        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+
+
+        self.init_overlay_list = init_overlay_list
+
+        # Initialize Status Msg.  Updated on each publish
+        status_msg = ImageStatus()
+        status_msg.publishing = False
+        status_msg.encoding = 'bgr8'
+        status_msg.width = 0
+        status_msg.height = 0
+        status_msg.frame_id = "sensor_frame"
+        status_msg.depth_map_topic = nepi_img.get_img_depth_map_topic(namespace)
+        status_msg.pointcloud_topic = nepi_img.get_img_pointcloud_topic(namespace)
+        status_msg.get_latency_time = 0
+        status_msg.pub_latency_time = 0
+        status_msg.process_time = 0
+        self.status_msg = status_msg
+
+        ##############################
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        self.nav_mgr_ready = self.nav_mgr_if.wait_for_ready()
+
+        ##############################   
+        ## Node Setup
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'overlay_img_name': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_date_time': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_nav': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_pose': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'overlay_list': {
+                'namespace': self.namespace,
+                'factory_val': []
+            },
+        }
+
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            'image_pub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'status_pub': {
+                'msg': ImageStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'overlay_img_name': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_img_name',
+                'qsize': 1,
+                'callback': self._setOverlayImgNameCb
+            },
+            'overlay_date_time': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_date_time',
+                'qsize': 1,
+                'callback': self._setOverlayDateTimeCb
+            },
+            'overlay_nav': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_nav',
+                'qsize': 1,
+                'callback': self._setOverlayNavCb
+            },
+            'overlay_pose': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_pose',
+                'qsize': 1,
+                'callback': self._setOverlayPoseCb
+            },
+            'overlay_list': {
+                'msg': StringArray,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_list',
+                'qsize': 1,
+                'callback': self._setOverlayListCb
+            }
+        }
+
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(self,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        self.node_if.wait_for_ready()
+
+        ##############################
+        # Start Node Processes
+        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
+        ###############################
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready  
+
+
+    def get_status_dict(self):
+        status_dict = None
+        if self.status_msg is not None:
+            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+        return status_dict
+
+
+    def has_subscribers_check(self):
+        return self.has_subscribers
+
+
+    def publish_cv2_img(self,cv2_img, encoding = "bgr8", ros_timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
+        #self.msg_if.pub_warn("Got Image to Publish")
+        success = False
+        if cv2_img is None:
+            self.msg_if.pub_info("Can't publish None image")
+            return False
+
+        self.status_msg.encoding = encoding
+
+        if ros_timestamp == None:
+            ros_timestamp = nepi_ros.ros_time_now()
+
+
+        current_time = nepi_ros.ros_time_now()
+        latency = (current_time.to_sec() - ros_timestamp.to_sec())
+        self.status_msg.get_latency_time = latency
+        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+
+        # Start Img Pub Process
+        start_time = nepi_ros.get_time()   
+
+        # Publish and Save Raw Image Data if Required  
+        [height,width] = cv2_img.shape[0:2]
+        last_width = self.status_msg.width
+        last_height = self.status_msg.height
+        self.status_msg.width = width
+        self.status_msg.height = height
+
+        #self.msg_if.pub_warn("Got Image size: " + str([height,width]))
+
+        if self.has_subscribers == False:
+            if self.status_msg.publishing == True:
+                self.msg_if.pub_warn("Image has no subscribers")
+            self.status_msg.publishing = False
+
+        else:
+            if self.status_msg.publishing == False:
+                self.msg_if.pub_warn("Image has subscribers, will publish")
+            self.status_msg.publishing = True
+
+            # Apply Overlays
+            overlay_list = []
+            if self.node_if.get_param('overlay_img_name') == True:
+                overlay = nepi_img.getImgShortName(self.img_namespace)
+                overlay_list.append(overlay)
+            
+            if self.node_if.get_param('overlay_date_time') == True:
+                date_time = nepi_ros.get_datetime_str_from_stamp(ros_timestamp)
+                overlay_list.append(overlay)
+
+            nav_pose_dict = None
+            if self.node_if.get_param('overlay_nav') == True or self.node_if.get_param('overlay_pose') == True:
+                if self.nav_mgr_ready == True:
+                    nav_pose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                    if nav_pose_dict is not None:
+
+            if self.node_if.get_param('overlay_nav') == True and nav_pose_dict is not None:
+                overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
+                overlay_list.append(overlay)
+
+            if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
+                overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
+                overlay_list.append(overlay)
+
+            overlay_list = overlay_list + self.init_overlay_list + add_overlay_list
+
+            cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
+
+
+            #Convert to ros Image message
+            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+            ros_img.header.stamp = ros_timestamp
+            ros_img.header.frame_id = frame_id
+
+            process_time = round( (nepi_ros.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time.to_sec() - ros_timestamp.to_sec())
+            self.status_msg.pub_latency_time = latency
+            
+            if not nepi_ros.is_shutdown():
+                self.node_if.publish_pub('image_pub', ros_img)
+            if self.last_pub_time is None:
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+                self.status_msg.last_pub_sec = pub_time_sec
+                self.status_msg.fps = float(1) / pub_time_sec
+
+        # Update blank image if needed
+        if last_width != self.status_msg.width or last_height != self.status_msg.height:
+            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+        return True
+
+    def publish_cv2_msg_img(self,text):
+        cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
+        self.publish_cv2_img(cv2_img)
+
+
+    def unregister(self):
+        self.ready = False
+        self.node_if.unregister_class()
+        nepi_ros.sleep(1)
+        self.namespace = '~'
+        self.status_msg = None
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+    def _subscribersCheckCb(self,timer):
+        self.has_subscribers = self.node_if.pub_has_subscribers('image_pub')
+        #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
+        if self.has_subscribers == False:
+            self.status_msg.publishing = False
+        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+    def _publishStatusCb(self,timer):
+        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+        self.status_msg.base_overlay_list = self.init_overlay_list
+        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
+
+        self.node_if.publish_pub('status_pub',self.status_msg)
+            self.img_status_msg.publish(self.status_msg)
+
+    def _setOverlayImgNameCb(self,msg):
+        self.node_if.set_param('overlay_img_name', msg.data)
+        self.publishStatus()
+
+    def _setOverlayDateTimeCb(self,msg):
+        self.node_if.set_param('overlay_date_time', msg.data)
+        self.publishStatus()
+
+    def _setOverlayNavCb(self,msg):
+        self.node_if.set_param('overlay_nav', msg.data)
+        self.publishStatus()
+
+    def _setOverlayPoseCb(self,msg):
+        self.node_if.set_param('overlay_pose', msg.data)
+        self.publishStatus()
+
+    def _setAddOverlayListCb(self,msg):
+        self.node_if.set_param('add_overlay_list', msg.data)
+        self.publishStatus()
+
+
+
+
+
+
+
+
+
+
+
 
 
 class PointcloudIF:
@@ -673,7 +1076,7 @@ class PointcloudIF:
 
     has_subscribers = False
 
-    def __init__(self, namespace = None):
+    def __init__(self, namespace = None, topic = None):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -846,7 +1249,7 @@ class PointcloudIF:
 
 
             if not nepi_ros.is_shutdown():
-                self.node_if.publish_pub('data_pub', ros_pc)
+                self.node_if.publish_pub('pointcloud_pub', ros_pc)
 
             if self.last_pub_time is None:
                 self.last_pub_time = nepi_utils.get_time()
@@ -874,7 +1277,7 @@ class PointcloudIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = self.node_if.pub_has_subscribers('data_pub')
+        self.has_subscribers = self.node_if.pub_has_subscribers('pointcloud_pub')
         #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
         if self.has_subscribers == False:
             self.status_msg.publishing = False

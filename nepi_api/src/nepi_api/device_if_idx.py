@@ -24,28 +24,21 @@ from nepi_sdk import nepi_pc
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
-from nav_msgs.msg import Odometry
-from sensor_msgs.msg import NavSatFix
 
 from nepi_ros_interfaces.msg import IDXStatus, RangeWindow, SaveData, SaveDataRate, SaveDataStatus
 from nepi_ros_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryResponse
 from nepi_ros_interfaces.msg import ImageStatus, PointcloudStatus
-from nepi_ros_interfaces.msg import NavPose, Frame3DTransform
+from nepi_ros_interfaces.msg import Frame3DTransform
 
 from geometry_msgs.msg import Vector3
 
+from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
-from nepi_api.data_if_image import ImageIF
-from nepi_api.data_if_pointcloud import PointcloudIF
+from nepi_api.system_if import SettingsIF, SaveDataIF
+
+from nepi_api.data_if import ImageIF
+from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
-from nepi_api.sys_if_settings import SettingsIF
-from nepi_api.sys_if_save_data import SaveDataIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
-
-
-
-
 
 #***************************
 # IDX utility functions
@@ -81,6 +74,8 @@ class IDXDeviceIF:
 
 
     # Define class variables
+    ready = False
+
     factory_device_name = None
     init_device_name = None
     factory_controls_dict = None
@@ -130,8 +125,9 @@ class IDXDeviceIF:
     
     #######################
     ### IF Initialization
-    def __init__(self, device_info, capSettings=None, 
-                 factorySettings=None, settingUpdateFunction=None, getSettingsFunction=None,
+    def __init__(self, device_info, 
+                 capSettings=None, factorySettings=None, 
+                 settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
                  get_rtsp_url = None,
                  setContrast=None, setBrightness=None, setThresholding=None,
@@ -140,10 +136,11 @@ class IDXDeviceIF:
                  getColor2DImg=None, stopColor2DImgAcquisition=None, 
                  getBW2DImg=None, stopBW2DImgAcquisition=None,
                  getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getDepthImg=None, stopDepthImgAcquisition=None, 
+                 getDepthImg=None,getNavPoseDictFunction stopDepthImgAcquisition=None, 
                  getPointcloud=None, stopPointcloudAcquisition=None, 
                  getPointcloudImg=None, stopPointcloudImgAcquisition=None, 
-                 getNavPoseDictFunction=None):
+                 getNavPoseDictFunction=None,
+                 has_location = False, has_position = False, has_orientation = False, has_heading = False):
 
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -153,13 +150,11 @@ class IDXDeviceIF:
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
-
-
         ############################# 
+        # Initialize Class Variables
         self.sensor_name = device_info["sensor_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
@@ -181,11 +176,6 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-
-        ############################# 
-        # Init Param Server
-        self.initCb(do_updates = False)
-
         # Set up standard IDX parameters with ROS param and subscriptions
         # Defer actually setting these on the camera via the parent callbacks... the parent may need to do some 
         # additional setup/calculation first. Parent can then get these all applied by calling ApplyConfigUpdates()
@@ -193,55 +183,212 @@ class IDXDeviceIF:
         self.get_rtsp_url = get_rtsp_url
 
 
+
         self.setControlsEnable = setControlsEnable
-        rospy.Subscriber('~idx/set_controls_enable', Bool, self.setControlsEnableCb, queue_size=1) # start local callback
-     
+
         self.setAutoAdjust = setAutoAdjust
-        rospy.Subscriber('~idx/set_auto_adjust', Bool, self.setAutoAdjustCb, queue_size=1) # start local callback
         self.capabilities_report.auto_adjustment = True
 
-    
         self.setBrightness = setBrightness
-        rospy.Subscriber('~idx/set_brightness', Float32, self.setBrightnessCb, queue_size=1) # start local callback
         self.capabilities_report.adjustable_brightness = True
 
-
         self.setContrast = setContrast
-        rospy.Subscriber('~idx/set_contrast', Float32, self.setContrastCb, queue_size=1) # start local callback
         self.capabilities_report.adjustable_contrast = True
 
-
         self.setThresholding = setThresholding       
-        rospy.Subscriber('~idx/set_thresholding', Float32, self.setThresholdingCb, queue_size=1) # start local callback
         self.capabilities_report.adjustable_thresholding = True
 
         self.setResolutionRatio = setResolutionRatio
-        rospy.Subscriber('~idx/set_resolution_ratio', Float32, self.setResolutionRatioCb, queue_size=1) # start local callback
         self.capabilities_report.adjustable_resolution = True
 
-               
         self.setFramerateRatio = setFramerateRatio
         self.getFramerate = getFramerate
-        rospy.Subscriber('~idx/set_framerate_ratio', Float32, self.setFramerateRatioCb, queue_size=1) # start local callback
         self.capabilities_report.adjustable_framerate = True
 
-
         self.setRange = setRange
-        rospy.Subscriber('~idx/set_range_window', RangeWindow, self.setRangeCb, queue_size=1)
         self.capabilities_report.adjustable_range = True
+
+
+        self.status_msg = IDXStatus()
+
+        ##################################################
+        ### Node Class Setup
+
+        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
+        ready = self.save_cfg_if.wait_for_ready()
+
+
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+                'init_callback': None,
+                'reset_callback': None,
+                'factory_reset_callback': None,
+                'init_configs': True,
+                'namespace': '~'
+        }
+
+
+        self.init_device_name = rospy.get_param('~device_name', self.factory_device_name)
+        self.init_controls_enable = rospy.get_param('~controls_enable',  self.factory_controls_dict["controls_enable"])
+        self.init_auto_adjust = rospy.get_param('~auto_adjust',  self.factory_controls_dict["auto_adjust"])
+        self.init_brightness_ratio = rospy.get_param('~brightness',  self.factory_controls_dict["brightness_ratio"])
+        self.init_contrast_ratio = rospy.get_param('~contrast',  self.factory_controls_dict["contrast_ratio"])
+        self.init_threshold_ratio = rospy.get_param('~thresholding',  self.factory_controls_dict["threshold_ratio"])
+        self.init_resolution_ratio = rospy.get_param('~resolution_ratio',  self.factory_controls_dict["resolution_ratio"])
+        self.init_framerate_ratio = rospy.get_param('~framerate_ratio',  self.factory_controls_dict["framerate_ratio"])
+
+        self.init_start_range_ratio = rospy.get_param('~range_window/start_range_ratio',  self.factory_controls_dict["start_range_ratio"])
+        self.init_stop_range_ratio = rospy.get_param('~range_window/stop_range_ratio', self.factory_controls_dict["stop_range_ratio"])
+        self.init_min_range_m = rospy.get_param('~range_limits/min_range_m',  self.factory_controls_dict["min_range_m"])
+        self.init_max_range_m = rospy.get_param('~range_limits/max_range_m',  self.factory_controls_dict["max_range_m"])
+
+        self.init_frame_3d_transform = rospy.get_param('~frame_3d_transform', self.ZERO_TRANSFORM)
+        self.init_frame_3d = rospy.get_param('~frame_3d',  'sensor_frame' )
+
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'param1_name': {
+                'namespace': self.node_namespace,
+                'factory_val': 100
+            },
+            'param2_name': {
+                'namespace': self.node_namespace,
+                'factory_val': "Something"
+            }
+        }
+
+
+
+
+        # Services Config Dict ####################
+        rospy.Service('~idx/capabilities_query', IDXCapabilitiesQuery, self.provide_capabilities)
+
+        self.SRVS_DICT = {
+            'service_name': {
+                'namespace': self.node_namespace,
+                'topic': 'empty_query',
+                'svr': EmptySrv,
+                'req': EmptySrvRequest(),
+                'resp': EmptySrvResponse(),
+                'callback': self.CALLBACK_FUNCTION
+            }
+        }
+
+
+        # Publishers Config Dict ####################
+        self.status_pub = rospy.Publisher('~idx/status', IDXStatus, queue_size=1, latch=True)
+
+
+        self.PUBS_DICT = {
+            'pub_name': {
+                'namespace': self.node_namespace,
+                'topic': 'set_empty',
+                'msg': EmptyMsg,
+                'qsize': 1,
+                'latch': False
+            }
+        }
+
+
+        rospy.Subscriber('~idx/set_controls_enable', Bool, self.setControlsEnableCb, queue_size=1) # start local callback
+     
+        rospy.Subscriber('~idx/set_auto_adjust', Bool, self.setAutoAdjustCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_brightness', Float32, self.setBrightnessCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_contrast', Float32, self.setContrastCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_thresholding', Float32, self.setThresholdingCb, queue_size=1) # start local callback        
+        rospy.Subscriber('~idx/set_resolution_ratio', Float32, self.setResolutionRatioCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_framerate_ratio', Float32, self.setFramerateRatioCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_range_window', RangeWindow, self.setRangeCb, queue_size=1)
 
         rospy.Subscriber('~idx/clear_frame_3d_transform', Bool, self.clearFrame3dTransformCb, queue_size=1)
         rospy.Subscriber('~idx/set_frame_3d_transform', Frame3DTransform, self.setFrame3dTransformCb, queue_size=1)
         rospy.Subscriber('~idx/set_frame_3d', String, self.setFrame3dCb, queue_size=1)
 
         rospy.Subscriber('~idx/reset_controls', Empty, self.resetControlsCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/reset_factory', Empty, self.factoryResetCbCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/reset_factory', Empty, self.factoryResetControslCb, queue_size=1) # start local callback
 
         rospy.Subscriber('~idx/update_device_name', String, self.updateDeviceNameCb, queue_size=1) # start local callbac
         rospy.Subscriber('~idx/reset_device_name', Empty, self.resetDeviceNameCb, queue_size=1) # start local callback
 
-        # Start the data producers  
-        
+
+        rospy.Subscriber('~idx/set_zoom_ratio', Float32, self.setZoomCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_rotate_ratio', Float32, self.setRotateCb, queue_size=1) # start local callback
+        rospy.Subscriber('~idx/set_tilt_ratio', Float32, self.setTiltCb, queue_size=1) # start local callback
+
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'sub_name': {
+                'namespace': self.node_namespace,
+                'topic': 'set_empty',
+                'msg': EmptyMsg,
+                'qsize': 1,
+                'callback': self.SUB_CALLBACK, 
+                'callback_args': ()
+            }
+        }
+
+
+        # Create Node Class ####################
+        self.NODE_IF = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        ready = self.NODE_IF.wait_for_ready()
+
+
+        # Setup Settings IF Class ####################
+        if capSettings is not None:
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction, 
+                    namespace='~'
+        }
+        else:
+        self.SETTINGS_DICT = {
+                    'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
+                    'factorySettings': nepi_settings.NONE_SETTINGS,
+                    'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
+                    'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
+                    namespace='~'
+        }
+        self.settings_if = SettingsIF(self.SETTINGS_DICT)
+
+
+        # Setup Save Data IF Class ####################
+        factory_data_rates= {}
+        for d in self.data_products_list:
+            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+        if 'color_2d_image' in self.data_products_list:
+            factory_data_rates['color_2d_image'] = [1.0, 0.0, 100.0] 
+
+        factory_filename_dict = {
+            'prefix': "", 
+            'add_timestamp': True, 
+            'add_ms': True,
+            'add_ns': False,
+            'suffix': "",
+            'add_node_name': True
+            }
+
+        self.save_data_if = SaveDataIF(data_product_names = self.data_products_list,
+                                     factory_data_rate_dict = factory_data_rates,
+                                     factory_filename_dict = factory_filename_dict)
+
+
+
+        #############################
+        # Finish Initialization
+
+        # Start the data producers
         if (getColor2DImg is not None):
             self.getColor2DImg = getColor2DImg
             self.stopColor2DImgAcquisition = stopColor2DImgAcquisition
@@ -353,57 +500,25 @@ class IDXDeviceIF:
 
             self.capabilities_report.has_pointcloud_image = True
 
-            rospy.Subscriber('~idx/set_zoom_ratio', Float32, self.setZoomCb, queue_size=1) # start local callback
-            rospy.Subscriber('~idx/set_rotate_ratio', Float32, self.setRotateCb, queue_size=1) # start local callback
-            rospy.Subscriber('~idx/set_tilt_ratio', Float32, self.setTiltCb, queue_size=1) # start local callback
         else:
             self.capabilities_report.has_pointcloud_image = False
-        
-        ######
-        # Create a navpose publisher if supported
-        self.getNavPoseDictFunction = getNavPoseDictFunction
-        if getNavPoseDictFunction is not None:
-            navpose_namespace = os.path.join(self.base_namespace,self.node_name,'idx')
-            navpose_if = NPXDeviceIF(navpose_namespace, self.getNavPoseDictFunction, pub_rate = 10)
 
-
-        time.sleep(1)
-        # Set up the save data and save cfg i/f and launch saving threads-- Do this before launching aquisition threads so that they can check data_product_should_save() immediately
         self.capabilities_report.data_products = str(self.data_products_list)
 
 
-        # Start NEPI IF interfaces
-        self.capSettings = capSettings
-        self.factorySettings = factorySettings
-        self.settingUpdateFunction = settingUpdateFunction
-        self.getSettingsFunction = getSettingsFunction
-        self.settings_if = SettingsIF(self.capSettings, self.factorySettings, self.settingUpdateFunction, self.getSettingsFunction)
+        # Create a navpose device if
+        self.getNavPoseDictFunction = getNavPoseDictFunction
+        if getNavPoseDictFunction is not None:
+            navpose_if = NPXDeviceIF(device_info, 
+                                    has_location = has_location,
+                                    has_position = has_position,
+                                    has_orientation = has_orientation,
+                                    has_heading = has_heading,
+                                    getNavPoseDictFunction = self.getNavPoseDictFunction
+                                    pub_rate = 10)
 
 
-        factory_data_rates= {}
-        for d in self.data_products_list:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'color_2d_image' in self.data_products_list:
-            factory_data_rates['color_2d_image'] = [1.0, 0.0, 100.0] 
-        self.save_data_if = SaveDataIF(data_product_names = self.data_products_list, factory_data_rate_dict = factory_data_rates)
-
-
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-        ready = self.save_cfg_if.wait_for_ready()
-
-
-
-
-        # Set up additional publishers
-        self.status_msg = IDXStatus()
-        self.status_pub = rospy.Publisher('~idx/status', IDXStatus, queue_size=1, latch=True)
-
-
-
-
-        self.msg_if.pub_warn("Creating IDX Capabilites Service with caps: " + str(self.capabilities_report))
-        # Start capabilities services
-        rospy.Service('~idx/capabilities_query', IDXCapabilitiesQuery, self.provide_capabilities)
+        time.sleep(1)
 
         # Launch the acquisition and saving threads
         if (getColor2DImg is not None):
@@ -426,13 +541,89 @@ class IDXDeviceIF:
 
         ####################################
         self.initCb(do_updates = True)
-
-        # Update and Publish Status Message
         self.publishStatus()
-        ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
 
-    ###############################################################################################
+
+    ###############################
+    # Class Methods
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_ros.get_time()
+            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+                nepi_ros.sleep(.1)
+                timer = nepi_ros.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready   
+
+
+
+
+    def initCb(self,do_updates = False):
+        if self.settings_if is not None:
+            self.settings_if.initialize_settings(do_updates)
+        self.init_zoom_ratio = self.zoom_ratio
+        self.init_rotate_ratio = self.rotate_ratio
+        self.init_tilt_ratio = self.rotate_ratio
+        if do_updates == True:
+            self.resetCb(do_updates)
+
+
+    def resetCb(self,do_updates = True):
+        self.zoom_ratio = self.init_zoom_ratio
+        self.rotate_ratio = self.init_rotate_ratio
+        self.tilt_ratio = self.init_rotate_ratio
+        self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
+        if do_updates:
+            self.ApplyConfigUpdates()
+        self.publishStatus()
+
+
+
+    def factoryResetCb(self, do_updates = True):
+        self.zoom_ratio = self.init_zoom_ratio
+        self.rotate_ratio = self.init_rotate_ratio
+        self.tilt_ratio = self.init_rotate_ratio
+        self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
+        if self.settings_if is not None:
+            self.settings_if.factory_reset_settings(update_status = False, update_params = True)
+        if do_updates:
+            self.ApplyConfigUpdates()
+        self.publishStatus()
+
+    def ApplyConfigUpdates(self):
+        if self.settings_if is not None:
+            self.settings_if.reset_settings()
+        param_dict = self.node_if.get_params()
+        if (self.setControlsEnable is not None and 'controls_enable' in param_dict):
+            self.setControlsEnable(param_dict['controls_enable'])
+        if (self.setAutoAdjust is not None and 'auto_adjust' in param_dict):
+            self.setAutoAdjust(param_dict['auto_adjust'])
+        if (self.setBrightness is not None and 'brightness' in param_dict):
+            self.setBrightness(param_dict['brightness'])
+        if (self.setContrast is not None and 'contrast' in param_dict):
+            self.setContrast(param_dict['contrast'])
+        if (self.setThresholding is not None and 'thresholding' in param_dict):
+            self.setThresholding(param_dict['thresholding'])
+        if (self.setResolutionRatio is not None and 'resolution_ratio' in param_dict):
+            self.setResolutionRatio(param_dict['resolution_ratio'])
+        if (self.setFramerateRatio is not None and 'framerate_ratio' in param_dict):
+            self.setFramerateRatio(param_dict['framerate_ratio'])
+        if (self.setRange is not None and 'start_range' in param_dict and 'stop_range' in param_dict):
+            self.setRange(param_dict['range_window']['start_range'], param_dict['range_window']['stop_range'])
+
+
 
 
     def addDataProduct2Dict(self,data_product,start_data_function,stop_data_function,data_msg,data_status_msg):
@@ -447,39 +638,33 @@ class IDXDeviceIF:
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
         if data_product != 'pointcloud':
-            dp_dict['data_if'] = ImageIF(data_name = data_product, pub_namespace = pub_namespace)
+            dp_dict['data_if'] = ImageIF(namespace = topic)
         else:
-            dp_dict['data_if'] = PointcloudIF(data_name = data_product, pub_namespace = pub_namespace )
+            dp_dict['data_if'] = PointcloudIF(namespace = topic )
         self.data_products_list.append(data_product)
         self.data_product_dict[data_product] = dp_dict
 
 
         # Do same for raw data without start stop functions for images
         if data_product != 'pointcloud':
-            data_product = data_product + '_raw'
-            topic = os.path.join(pub_namespace, data_product)
+            data_product_raw = data_product + '_raw'
+            topic_raw = os.path.join(pub_namespace, data_product_raw)
             dp_dict = dict()
-            dp_dict['data_product'] = data_product
-            dp_dict['topic'] = topic
+            dp_dict['data_product'] = data_product_raw
+            dp_dict['topic'] = topic_raw
             if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(data_name = data_product, pub_namespace = pub_namespace, do_wait = False)
+                dp_dict['data_if'] = ImageIF(namespace = topic_raw)
             else:
-                dp_dict['data_if'] = PointcloudIF(data_product, topic)
-
-            time.sleep(1)
+                dp_dict['data_if'] = PointcloudIF(namespace = topic_raw)
 
             self.data_products_list.append(data_product)
             self.data_product_dict[data_product] = dp_dict
         # do wait here for all
-        time.sleep(1)
         success = True
         return success
 
 
-    def factoryResetCbCb(self, msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        self.msg_if.pub_info("Factory Resetting IDX Sensor Controls")
-        self.factoryResetCb()
+
 
 
 
@@ -513,109 +698,6 @@ class IDXDeviceIF:
         self.status_msg.device_name = self.factory_device_name
         self.publishStatus(do_updates=False) # Updated inline here 
         self.device_save_config_pub.publish(Empty())
-
-
-    def resetControlsCb(self, msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        self.resetCb(do_updates = True)
-
-    def resetCb(self,do_updates = True):
-        rospy.set_param('~device_name', self.init_device_name)
-        rospy.set_param('~controls_enable',self.init_controls_enable)
-        rospy.set_param('~auto_adjust', self.init_auto_adjust)       
-        rospy.set_param('~brightness', self.init_brightness_ratio)
-        rospy.set_param('~contrast', self.init_contrast_ratio)        
-        rospy.set_param('~thresholding', self.init_threshold_ratio)
-        rospy.set_param('~resolution_ratio', self.init_resolution_ratio)   
-        rospy.set_param('~framerate_ratio', self.init_framerate_ratio)
-        rospy.set_param('~range_window/start_range_ratio', self.init_start_range_ratio)
-        rospy.set_param('~range_window/stop_range_ratio', self.init_stop_range_ratio)
-        rospy.set_param('~frame_3d_transform', self.init_frame_3d_transform)
-        rospy.set_param('~frame_3d', self.init_frame_3d)
-        self.zoom_ratio = self.init_zoom_ratio
-        self.rotate_ratio = self.init_rotate_ratio
-        self.tilt_ratio = self.init_rotate_ratio
-        self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
-        if do_updates:
-            self.ApplyConfigUpdates()
-        self.publishStatus()
-
-    def initConfig(self):
-        self.initCb(do_updates = True)
-
-    def initCb(self,do_updates = False):
-        if self.settings_if is not None:
-            self.settings_if.initialize_settings(do_updates)
-        self.init_device_name = rospy.get_param('~device_name', self.factory_device_name)
-        self.init_controls_enable = rospy.get_param('~controls_enable',  self.factory_controls_dict["controls_enable"])
-        self.init_auto_adjust = rospy.get_param('~auto_adjust',  self.factory_controls_dict["auto_adjust"])
-        self.init_brightness_ratio = rospy.get_param('~brightness',  self.factory_controls_dict["brightness_ratio"])
-        self.init_contrast_ratio = rospy.get_param('~contrast',  self.factory_controls_dict["contrast_ratio"])
-        self.init_threshold_ratio = rospy.get_param('~thresholding',  self.factory_controls_dict["threshold_ratio"])
-        self.init_resolution_ratio = rospy.get_param('~resolution_ratio',  self.factory_controls_dict["resolution_ratio"])
-        self.init_framerate_ratio = rospy.get_param('~framerate_ratio',  self.factory_controls_dict["framerate_ratio"])
-
-        self.init_start_range_ratio = rospy.get_param('~range_window/start_range_ratio',  self.factory_controls_dict["start_range_ratio"])
-        self.init_stop_range_ratio = rospy.get_param('~range_window/stop_range_ratio', self.factory_controls_dict["stop_range_ratio"])
-        self.init_min_range_m = rospy.get_param('~range_limits/min_range_m',  self.factory_controls_dict["min_range_m"])
-        self.init_max_range_m = rospy.get_param('~range_limits/max_range_m',  self.factory_controls_dict["max_range_m"])
-
-        self.init_frame_3d_transform = rospy.get_param('~frame_3d_transform', self.ZERO_TRANSFORM)
-
-        if self.factory_controls_dict["frame_3d"] is None:
-            self.init_frame_3d = rospy.get_param('~frame_3d',  'nepi_center_frame')
-        else:
-            self.init_frame_3d = rospy.get_param('~frame_3d',  self.factory_controls_dict["frame_3d"] )
-
-        self.init_zoom_ratio = self.zoom_ratio
-        self.init_rotate_ratio = self.rotate_ratio
-        self.init_tilt_ratio = self.rotate_ratio
-        if do_updates == True:
-            self.resetCb(do_updates)
-
-
-    def factoryResetCb(self):
-        if self.settings_if is not None:
-            self.settings_if.factory_reset_settings(update_status = False, update_params = True)
-        rospy.set_param('~device_name', self.factory_device_name)
-        rospy.set_param('~controls_enable',self.factory_controls_dict.get('controls_enable'))
-        rospy.set_param('~auto_adjust', self.factory_controls_dict.get('auto_adjust'))  
-        rospy.set_param('~brightness', self.factory_controls_dict.get('brightness_ratio'))      
-        rospy.set_param('~contrast', self.factory_controls_dict.get('contrast_ratio'))
-        rospy.set_param('~thresholding', self.factory_controls_dict.get('threshold_ratio'))
-        rospy.set_param('~resolution_ratio', self.factory_controls_dict.get('resolution_ratio'))
-        rospy.set_param('~framerate_ratio', self.factory_controls_dict.get('framerate_ratio'))
-        rospy.set_param('~range_window/start_range_ratio', self.factory_controls_dict.get('start_range_ratio'))
-        rospy.set_param('~range_window/stop_range_ratio', self.factory_controls_dict.get('stop_range_ratio'))
-        rospy.set_param('~frame_3d_transform', self.ZERO_TRANSFORM)
-        rospy.set_param('~frame_3d', self.factory_controls_dict.get('frame_3d'))
-        self.zoom_ratio = self.init_zoom_ratio
-        self.rotate_ratio = self.init_rotate_ratio
-        self.tilt_ratio = self.init_rotate_ratio
-        self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
-        self.publishStatus()
-
-    def ApplyConfigUpdates(self):
-        if self.settings_if is not None:
-            self.settings_if.reset_settings()
-        param_dict = rospy.get_param('~', {})
-        if (self.setControlsEnable is not None and 'controls_enable' in param_dict):
-            self.setControlsEnable(param_dict['controls_enable'])
-        if (self.setAutoAdjust is not None and 'auto_adjust' in param_dict):
-            self.setAutoAdjust(param_dict['auto_adjust'])
-        if (self.setBrightness is not None and 'brightness' in param_dict):
-            self.setBrightness(param_dict['brightness'])
-        if (self.setContrast is not None and 'contrast' in param_dict):
-            self.setContrast(param_dict['contrast'])
-        if (self.setThresholding is not None and 'thresholding' in param_dict):
-            self.setThresholding(param_dict['thresholding'])
-        if (self.setResolutionRatio is not None and 'resolution_ratio' in param_dict):
-            self.setResolutionRatio(param_dict['resolution_ratio'])
-        if (self.setFramerateRatio is not None and 'framerate_ratio' in param_dict):
-            self.setFramerateRatio(param_dict['framerate_ratio'])
-        if (self.setRange is not None and 'start_range' in param_dict and 'stop_range' in param_dict):
-            self.setRange(param_dict['range_window']['start_range'], param_dict['range_window']['stop_range'])
-
 
 
     # Define local IDX Control callbacks
@@ -853,6 +935,45 @@ class IDXDeviceIF:
         self.status_msg.frame_3d = new_frame_3d
         self.publishStatus(do_updates=False) # Updated inline here 
    
+    def initConfig(self):
+      self.initCb(do_updates = True)
+
+    def resetControlsCb(self, msg):
+        self.msg_if.pub_info("Recived reset controls message: " + str(msg))
+        self.node_if.reset_param('device_name')
+        self.node_if.reset_param('controls_enable')
+        self.node_if.reset_param('auto_adjust')       
+        self.node_if.reset_param('brightness')
+        self.node_if.reset_param('contrast')        
+        self.node_if.reset_param('thresholding')
+        self.node_if.reset_param('resolution_ratio')   
+        self.node_if.reset_param('framerate_ratio')
+        self.node_if.reset_param('range_window/start_range_ratio')
+        self.node_if.reset_param('range_window/stop_range_ratio')
+        self.node_if.reset_param('frame_3d_transform')
+        self.node_if.reset_param('frame_3d')
+        self.resetCb(do_updates = True)
+
+
+    def factoryResetControlsCb(self, msg):
+        self.msg_if.pub_info("Recived factory reset controls message: " + str(msg))
+        self.node_if.factory_reset_param('device_name')
+        self.node_if.factory_reset_param('controls_enable')
+        self.node_if.factory_reset_param('auto_adjust')       
+        self.node_if.factory_reset_param('brightness')
+        self.node_if.factory_reset_param('contrast')        
+        self.node_if.factory_reset_param('thresholding')
+        self.node_if.factory_reset_param('resolution_ratio')   
+        self.node_if.factory_reset_param('framerate_ratio')
+        self.node_if.factory_reset_param('range_window/start_range_ratio')
+        self.node_if.factory_reset_param('range_window/stop_range_ratio')
+        self.node_if.factory_reset_param('frame_3d_transform')
+        self.node_if.factory_reset_param('frame_3d')
+        self.factoryResetCb(do_updates = True)
+
+
+
+
     def provide_capabilities(self, _):
         return self.capabilities_report
     
@@ -925,7 +1046,7 @@ class IDXDeviceIF:
                                 frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
                                 dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = 'sensor_frame')
                             if (dp_raw_should_save == True):
-                                nepi_save.save_img2file(self,data_product_raw,cv2_img,ros_timestamp,save_check=False)
+                                self.save_data_if.write_image_file(data_product_raw,cv2_img,timestamp = ros_timestamp,save_check=False)
 
                         #############################
                         # Apply IDX Post Processing
@@ -936,7 +1057,7 @@ class IDXDeviceIF:
                                 frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
                                 dp_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = frame_id)
                             if (dp_should_save == True):
-                                nepi_save.save_img2file(self,data_product,cv2_img,ros_timestamp,save_check=False)
+                                self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
@@ -998,7 +1119,7 @@ class IDXDeviceIF:
                                 frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
                                 dp_raw_if.publish_o3d_pc.publish(o3d_pc, ros_timestamp = ros_timestamp, frame_id = ros_frame)
                             if (dp_raw_should_save == True):
-                                nepi_save.save_pc2file(self,data_product_raw,cv2_img,ros_timestamp,save_check=False)
+                                self.save_data_if.write_pointcloud_file(data_product_raw,o3d_pc,timestamp = ros_timestamp, save_check=False)
 
 
                         #********************
@@ -1021,7 +1142,7 @@ class IDXDeviceIF:
                         if (dp_has_subs == True):
                             dp_if.publish_o3d_pc.publish(o3d_pc, ros_timestamp = ros_timestamp, frame_id = ros_frame )
                         if (dp_should_save == True ):
-                            nepi_save.save_pc2file(self,data_product,o3d_pc,ros_timestamp, save_check=False)
+                            self.save_data_if.write_pointcloud_file(data_product,o3d_pc,timestamp = ros_timestamp, save_check=False)
                 elif acquiring is True:
                     if dp_stop_data is not None:
                         self.msg_if.pub_info("Stopping " + data_product + " acquisition")
