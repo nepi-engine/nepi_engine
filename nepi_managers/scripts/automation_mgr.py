@@ -17,8 +17,6 @@ import yaml
 import time
 import psutil
 
-import rospy
-
 from nepi_sdk import nepi_ros
  
 
@@ -99,14 +97,11 @@ class AutomationManager:
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
-        
-
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb)
-        ready = self.save_cfg_if.wait_for_ready()
+    
 
         ###########################
         # Initialize Params
-        self.script_stop_timeout_s = nepi_ros.get_param(self,'~script_stop_timeout_s', self.DEFAULT_SCRIPT_STOP_TIMEOUT_S)
+        self.script_stop_timeout_s = self.node_if.get_param('script_stop_timeout_s')
         self.scripts = self.get_scripts()
         self.file_sizes = self.get_file_sizes()
         for script in self.scripts:
@@ -134,17 +129,77 @@ class AutomationManager:
 
         self.initCb(do_updates = True)
 
+
+
+    ##############################
+    ### Setup Node
+
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
+
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+    }  
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'script_autostart': {
+            'namespace': self.node_namespace,
+            'topic': 'enable_script_autostart',
+            'msg': AutoStartEnabled,
+            'qsize': None,
+            'callback': self.AutoStartEnabled_cb, 
+            'callback_args': ()
+        },
+    }
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': None
+        },
+        'aifs_dict': {
+            'namespscript_stop_timeout_sace': self.node_namespace,
+            'factory_val': self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
+        },
+        'script_configs': {
+            'namespace': self.node_namespace,
+            'factory_val': self.script_configs
+        },
+        'aifs_dict': {
+            'script_stop_timeout_s': self.node_namespace,
+            'factory_val': self.script_stop_timeout_s
+        }       
+    }
+
+
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+    
+
         ######################\
         ## Node Services
-        self.get_scripts_service = rospy.Service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
-        self.get_running_scripts_service = rospy.Service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
-        self.launch_script_service = rospy.Service("launch_script", LaunchScript, self.handle_launch_script)
-        self.stop_script_service = rospy.Service("stop_script", StopScript, self.handle_stop_script)
-        self.get_system_stats_service = rospy.Service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
-        rospy.Subscriber('enable_script_autostart', AutoStartEnabled, self.AutoStartEnabled_cb)
-
-
-
+        self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
+        self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
+        self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
+        self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
+        self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
 
         ###########################
         ## Initiation Complete
@@ -196,7 +251,7 @@ class AutomationManager:
         #self.msg_if.pub_warn("Ready to run update_script_configs!!!")
         script_configs = {} # Dictionary of dictionaries
         try:
-            script_configs = nepi_ros.get_param(self,'~script_configs')
+            script_configs = self.node_if.get_param('script_configs')
         except KeyError:
             #self.msg_if.pub_warn("Parameter ~script_configs does not exist")
             script_configs = {}
@@ -237,8 +292,11 @@ class AutomationManager:
             self.update_script_configs()
 
     def resetCb(self):
-        nepi_ros.set_param(self,'~script_configs', self.script_configs)
-        nepi_ros.set_param(self,'~script_stop_timeout_s', self.script_stop_timeout_s)
+        self.node_if.set_param('script_configs', self.script_configs)
+        self.node_if.set_param('script_stop_timeout_s', self.script_stop_timeout_s)
+        
+    def factoryResetCb(self):
+        pass
         
     def get_scripts(self):
         """

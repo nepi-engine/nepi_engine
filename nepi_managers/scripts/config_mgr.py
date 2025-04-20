@@ -13,9 +13,6 @@
 # files with rudimentary coordination to reduce overloading file system during times of
 # heavy updates.
 
-import rospy
-import rosparam
-
 import os
 import time
 import errno
@@ -85,6 +82,98 @@ class config_mgr(object):
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         ###########################
 
+<<<<<<< HEAD
+   ##############################
+    ### Setup Node
+
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
+
+    # Publishers Config Dict ####################
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'status_pub': {
+            'namespace': self.node_namespace,
+            'topic': 'status'
+            'msg': Empty,
+            'qsize': 1,
+            'latch': True
+        },
+        'status_app': {
+            'namespace': self.node_namespace,
+            'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
+            'msg': AppStatus,
+            'qsize': 1,
+            'latch': True
+        },
+    }  
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'save_config': {
+            'namespace': self.node_namespace,
+            'topic': 'save_config',
+            'msg': empty,
+            'qsize': None,
+            'callback': self.save_non_ros_cfgs, 
+            'callback_args': ()
+        },
+        'store_params': {
+            'namespace': self.node_namespace,
+            'topic': 'store_params',
+            'msg': String,
+            'qsize': None,
+            'callback': self.store_params, 
+            'callback_args': ()
+        },
+        'user_restore': {
+            'namespace': self.node_namespace,
+            'topic': 'full_user_restore',
+            'msg': empty,
+            'qsize': None,
+            'callback': self.restore_user_cfgs_mgr, 
+            'callback_args': ()
+        },
+    }
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        }
+
+    }
+
+
+
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+
+
+
+
+        nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
+        nepi_ros.create_service('user_reset', FileReset, self.user_reset)
+
+
+        self.node_if.publish_pub('status_pub')
+=======
 
 
         rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
@@ -97,6 +186,7 @@ class config_mgr(object):
         self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
         time.sleep(1)
         self.status_pub.publish(Empty())
+>>>>>>> 29cbd153084a0dc0c7a6689bad18859cbab0bf37
         # Restore user configurations
         self.restore_user_cfgs()
 
@@ -131,7 +221,7 @@ class config_mgr(object):
                 os.remove(link_name)
                 os.symlink(target, link_name)
             else:
-                rospy.logerr("Unable to create symlink " + str(e))
+                nepi_ros.log_msg_error("Unable to create symlink " + str(e))
                 return False
         link = nepi_utils.get_symlink_target(link_name)
         self.msg_if.pub_info("File " + target + " updated with link: " + str(link))
@@ -143,11 +233,11 @@ class config_mgr(object):
     def update_from_file(self,file_pathname, namespace):
         self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
         try:
-            paramlist = rosparam.load_file(file_pathname, namespace, verbose=False)
+            paramlist = nepi_ros.load_params_from_file(file_pathname, namespace, verbose=False)
             #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
 
             for params, ns in paramlist:
-                rosparam.upload_params(ns, params, verbose=False)
+                nepi_ros.upload_params(ns, params, verbose=False)
         except Exception as e:
             self.msg_if.pub_warn("Unable to load factory parameters from file " + file_pathname + " " + str(e))
             return [False]
@@ -226,6 +316,15 @@ class config_mgr(object):
 
     def restore_user_cfgs_mgr(self,msg):
         self.restore_user_cfgs()
+
+    def initCB(self):
+        pass
+
+    def refreshCb(self,msg):
+        pass
+
+    def factoryResetCb(self):
+        pass
 
     def restore_user_cfgs(self):
         # First handle the NEPI-ROS user configs.

@@ -1131,7 +1131,10 @@ class NodeClassIF(object):
     def unregister_pubs(self):
         if self.pubs_if is not None:
             self.pubs_if.unregister_pubs()
-                    
+
+    def publish_pub(self,pub_name, pub_msg):
+        if self.pubs_if is not None:
+            self.pubs_if.publish(pub_name, pub_msg)   
     # Subscriber Methods ####################
     def get_subs(self):
         subs = []

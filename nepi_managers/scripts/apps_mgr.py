@@ -8,12 +8,8 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-#self.base_namespace = '/nepi/s2x/'
-#os.environ["ROS_NAMESPACE"] = self.base_namespace[0:-1]
-import rospy
+
 import glob
-import rosnode
-import rosparam
 import sys
 import subprocess
 import time
@@ -134,36 +130,111 @@ class NepiAppsMgr(object):
 
 
 
-    ###########################
-    # Setup Node Status Publisher
-    self.apps_status_pub = rospy.Publisher("~status", AppsStatus, queue_size=1, latch=True)
-    self.app_status_pub = rospy.Publisher("~status_app", AppStatus, queue_size=1, latch=True)
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+        'init_callback': self.initCb,
+        'reset_callback': self.resetCb,
+        'factory_reset_callback': self.factoryResetCb,
+        'init_configs': True,
+        'namespace': self.node_namespace
+    }
 
-    time.sleep(1)
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'status_pub': {
+            'namespace': self.node_namespace,
+            'topic': '/all_detectors/detection_image', #self.all_namespace + '/all_detectors/detection_image
+            'msg': AppsStatus,
+            'qsize': 1,
+            'latch': True
+        },
+        'status_app': {
+            'namespace': self.node_namespace,
+            'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
+            'msg': AppStatus,
+            'qsize': 1,
+            'latch': True
+        },
+    }  
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'enable_all_apps': {
+            'namespace': self.node_namespace,
+            'topic': 'enable_all_apps',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.enableAllCb, 
+            'callback_args': ()
+        },
+        'disable_all_apps': {
+            'namespace': self.node_namespace,
+            'topic': 'disable_all_apps',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.disableAllCb, 
+            'callback_args': ()
+        },
+        'select_app': {
+            'namespace': self.node_namespace,
+            'topic': 'select_app',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.selectAppCb, 
+            'callback_args': ()
+        },
+        'update_state': {
+            'namespace': self.node_namespace,
+            'topic': 'update_state',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.updateStateCb, 
+            'callback_args': ()
+        },
+        'update_order': {
+            'namespace': self.node_namespace,
+            'topic': 'update_order',
+            'msg': UpdateOrder,
+            'qsize': 10,
+            'callback': self.updateOrderCb, 
+            'callback_args': ()
+        }
+
+
+
+    }
+    
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'app_enabled': {
+            'namespace': self.node_namespace,
+            'factory_val': False
+        },   
+    }
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
+
+    ready = self.node_if.wait_for_ready()
+
+  
+
+
+
+
 
     # Setup message publisher and init param server
     self.msg_if.pub_info("Starting Initialization Processes")
     ## Mgr ROS Setup 
-    mgr_reset_sub = rospy.Subscriber('~refresh_apps', Empty, self.refreshCb, queue_size = 10)
 
-
-    # Apps Management Scubscirbers
-    rospy.Subscriber('~enable_all_apps', Empty, self.enableAllCb, queue_size = 10)
-    rospy.Subscriber('~disable_all_apps', Empty, self.disableAllCb, queue_size = 10)
-    rospy.Subscriber('~select_app', String, self.selectAppCb)
-    rospy.Subscriber('~update_state', UpdateState, self.updateStateCb)
-    rospy.Subscriber('~update_order', UpdateOrder, self.updateOrderCb)
-
-    rospy.Subscriber('~enable_restart', Bool, self.enableRestartCb)
-    #rospy.Subscriber('~install_app_pkg', String, self.installAppPkgCb)
-    #rospy.Subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
-    #rospy.Subscriber('~remove_app', String, self.removeAppCb)
 
     # Start capabilities services
-    rospy.Service('~app_status_query', AppStatusQuery, self.appStatusService)
-
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-    ready = self.save_cfg_if.wait_for_ready()
+    nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusService)
 
     ##############################
     self.initCb(do_updates = True)
@@ -173,7 +244,7 @@ class NepiAppsMgr(object):
 
 
     ###########################
-    rospy.Timer(rospy.Duration(0.5), self.statusPublishCb)
+    nepi_ros.start_timer_process(0.5, self.statusPublishCb)
 
     # Setup a app folder timed check
     nepi_ros.timer(nepi_ros.ros_duration(1), self.checkAndUpdateCb, oneshot=True)
@@ -416,7 +487,7 @@ class NepiAppsMgr(object):
     self.last_status_apps_msg = self.status_apps_msg
     self.status_apps_msg = self.getAppsStatusMsg()
     if self.apps_status_pub is not None and not nepi_ros.is_shutdown():
-      self.apps_status_pub.publish(self.status_apps_msg)
+      self.node_if.publish_pub('apps_status_pub', self.status_apps_msg)
       if self.last_status_apps_msg != self.status_apps_msg:
         self.save_cfg_if.save() # Save config
 
@@ -447,7 +518,7 @@ class NepiAppsMgr(object):
     self.last_status_app_msg = self.status_app_msg
     self.status_app_msg = self.getAppStatusMsg()
     if self.app_status_pub is not None and not nepi_ros.is_shutdown():
-      self.app_status_pub.publish(self.status_app_msg)
+      self.node_if.publish_pub('app_status_pub', self.status_app_msg)
       if self.last_status_app_msg != self.status_app_msg:
         self.save_cfg_if.save() # Save config
 
