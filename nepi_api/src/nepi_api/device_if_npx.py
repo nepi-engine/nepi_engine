@@ -37,7 +37,7 @@ from nepi_sdk import nepi_nav
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, Settings_IF
+from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import NavPoseIF
 
 
@@ -55,7 +55,7 @@ class NPXDeviceIF:
   FACTORY_3D_FRAME = 'ENU'
   FACTORY_ALT_FRAME = 'WGS84'
 
-  data_products = ['navpose']
+  data_products_list = ['navpose']
 
 
   has_location = False
@@ -253,9 +253,8 @@ class NPXDeviceIF:
 
     # Setup Save Data IF Class ####################
     factory_data_rates = {}
-    for d in self.data_products:
+    for d in self.data_products_list:
         factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-    self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
 
     factory_filename_dict = {
         'prefix': "", 
@@ -275,23 +274,34 @@ class NPXDeviceIF:
 
     ###############################
     # Finish Initialization
-
     self.initCb(do_updates = True)
-
     self.publish_once()
-
     self.ready = True
-
     self.msg_if.pub_info("IF Initialization Complete")
 
 
 
   ###############################
-  # Class Public Methods
-  ###############################
+  # Class Methods
 
   def check_ready(self):
       return self.ready  
+
+  def wait_for_ready(self, timout = float('inf') ):
+      success = False
+      if self.ready is not None:
+          self.msg_if.pub_info("Waiting for connection")
+          timer = 0
+          time_start = nepi_ros.get_time()
+          while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
+              nepi_ros.sleep(.1)
+              timer = nepi_ros.get_time() - time_start
+          if self.ready == False:
+              self.msg_if.pub_info("Failed to Connect")
+          else:
+              self.msg_if.pub_info("Connected")
+      return self.ready   
+
 
   def publish_once(self):
     nepi_ros.timer(nepi_ros.ros_duration(0.1), self.publishNavPoseCb, oneshot = True)
