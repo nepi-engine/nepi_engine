@@ -423,7 +423,7 @@ class ConnectNodeSubscribersIF(object):
 
 
 ##################################################
-### Node Connect Class Class
+### Node Connect Class
 
 # Configs Config Dict ####################
 EXAMPLE_CFGS_DICT = {

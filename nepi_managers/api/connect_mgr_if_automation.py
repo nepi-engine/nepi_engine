@@ -7,8 +7,12 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_auto
+
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.messages_if import MsgIF
 
 def startup_script_initialize(self,NEPI_BASE_NAMESPACE):
   ## Initialize Class Variables

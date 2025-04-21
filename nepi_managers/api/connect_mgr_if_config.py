@@ -9,7 +9,6 @@
 #
 
 import os
-import rospy
 import time
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -17,6 +16,10 @@ from nepi_ros_interfaces.srv import FileReset, FileResetRequest
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
+
+
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.messages_if import MsgIF
 
 
 class ConnectMgrConfigIF:
@@ -138,7 +141,7 @@ class ConnectMgrConfigIF:
         self.msg_if.pub_info("Waiting for status message")
         timer = 0
         time_start = nepi_ros.get_time()
-        while self.status_msg is None and timer < timeout and not rospy.is_shutdown():
+        while self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.2)
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:

@@ -25,7 +25,7 @@ from nepi_ros_interfaces.msg import Reset, WifiCredentials
 from nepi_ros_interfaces.srv import IPAddrQuery, FileReset, BandwidthUsageQuery, WifiQuery
 
 from nepi_api.node_if import NodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.messages_if import MsgIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
@@ -314,7 +314,7 @@ class NetworkMgr:
 
 
     # Create Node Class ####################
-    self.node_if = NodeClassIF(self,
+    self.node_if = NodeClassIF(
                     configs_dict = self.CFGS_DICT,
                     params_dict = self.PARAMS_DICT,
                     pubs_dict = self.PUBS_DICT,

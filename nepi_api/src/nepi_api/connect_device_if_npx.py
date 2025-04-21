@@ -166,7 +166,7 @@ class NavPoseIF:
         }
 
         # Create Node Class ####################
-        self.node_if = NodeClassIF(self,
+        self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,

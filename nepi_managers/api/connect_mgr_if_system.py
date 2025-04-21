@@ -8,7 +8,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 import os
 import time
 
@@ -23,6 +22,8 @@ from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, OpE
 
 
 
+from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.messages_if import MsgIF
 
 class ConnectMgrSystemIF:
  
@@ -99,7 +100,7 @@ class ConnectMgrSystemIF:
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = None
-       '''
+       '''  #  Need to add publishers
         self.save_data_pub = rospy.Publisher(self._get_ns('save_data'), SaveData, queue_size=10)
         self.clear_data_folder_pub = rospy.Publisher(self._get_ns('clear_data_folder'), Empty, queue_size=10)
         self.set_op_environment_pub = rospy.Publisher(self._get_ns('set_op_environment'), String, queue_size=10)

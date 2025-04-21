@@ -272,7 +272,7 @@ class AiDetectorIF:
         }
 
         # Create Node Class ####################
-        self.node_if = NodeClassIF(self,
+        self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,

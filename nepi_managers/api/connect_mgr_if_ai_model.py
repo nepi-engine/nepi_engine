@@ -23,7 +23,7 @@ from nepi_sdk import nepi_img
 
 
 from nepi_api.connect_node_if import ConnectNodeClassIF
-from nepi_api.sys_if_msg import MsgIF
+from nepi_api.messages_if import MsgIF
 
 MODEL_TYPE_LIST = ['detection','segmentation','pose']
 
@@ -146,7 +146,7 @@ class ConnectMgrAiModelIF:
         self.msg_if.pub_info("Waiting for status message")
         timer = 0
         time_start = nepi_ros.get_time()
-        while self.status_msg is None and timer < timeout and not rospy.is_shutdown():
+        while self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.2)
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
