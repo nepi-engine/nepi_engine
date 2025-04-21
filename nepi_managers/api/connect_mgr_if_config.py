@@ -125,7 +125,7 @@ class ConnectMgrConfigIF:
 
         # Create Node Class ####################
 
-        self.NODE_IF = ConnectNodeClassIF(self,
+        self.NODE_IF = ConnectNodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,

@@ -294,7 +294,7 @@ class AiDetectorIF:
             del self.all_pubs_config_dict.['pubs_dict']['status']
             self.all_pubs_config_dict['namespace'] = self.all_namespace
     
-            self.all_pubs_if = NodePublishersIF(self,
+            self.all_pubs_if = NodePublishersIF(
                             pubs_config_dict = all_pubs_config_dict,
                             log_class_name = False
             )
@@ -558,9 +558,9 @@ class AiDetectorIF:
         for img_topic in imgs_pub_sub_keys:
             if img_topic not in img_topics:
                 purge_list.append(img_topic)
-        #nepi_msg.publishMsgWarn(self,'Purging image topics: ' + str(purge_list))
+        #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         for topic in purge_list:
-            nepi_msg.publishMsgWarn(self,'Will unsubscribe topics: ' + topic)
+            self.msg_if.pub_warn('Will unsubscribe topics: ' + topic)
             success = self.unsubscribeImgTopic(topic)
 
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
@@ -594,12 +594,12 @@ class AiDetectorIF:
             imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
             if img_topic in imgs_info_dict.keys():
                 if self.imgs_pub_sub_dict[img_topic]
-                    nepi_msg.publishMsgInfo(self,'Subsribing to image topic: ' + img_topic)  
+                    self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)  
                     # Reregister img_sub
                     self.imgs_pub_sub_lock.acquire()
                     self.imgs_pub_sub_dict[img_topic]['subs_if'].register('img_sub')
                     self.imgs_pub_sub_lock.release()
-                    nepi_msg.publishMsgWarn(self,'Registered : ' + img_topic +  ' ' + str(self.imgs_pub_sub_dict[img_topic]))
+                    self.msg_if.pub_warn('Registered : ' + img_topic +  ' ' + str(self.imgs_pub_sub_dict[img_topic]))
                     # Set back to active
                     self.imgs_info_dict[img_topic]['active'] = True
             else:
@@ -624,14 +624,15 @@ class AiDetectorIF:
                 self.imgs_info_dict[img_topic]['img_publishing'] = False
 
                 # Create img sub pubs dict
-                nepi_msg.publishMsgInfo(self,'Subsribing to image topic: ' + img_topic)
+                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
 
-                self.img_pubs_config_dict = self.PUBS_CONFIG_DICT
-                del self.img_pubs_config_dict.['pubs_dict']['status']
-                self.img_pubs_config_dict['namespace'] = pub_sub_namespace
+                self.img_pubs_dict = self.PUBS_DICT
+                del self.img_pubs_dict.['status']
+                for pub_name in self.PUBS_DICT.keys():
+                    self.PUBS_DICT[pub_name]['namespace'] = pub_sub_namespace
         
-                self.img_pubs_if = NodePublishersIF(self,
-                                pubs_config_dict = img_pubs_config_dict,
+                self.img_pubs_if = NodePublishersIF(
+                                pubs_dict = img_pubs_dict,
                                 log_class_name = False
                 )
 
@@ -639,6 +640,7 @@ class AiDetectorIF:
 
                 self.IMG_SUBS_DICT = {
                     'sub_name': {
+                        'namespace': self.base_namespace,
                         'msg': Image,
                         'topic': image_name,
                         'qsize': 1,
@@ -647,14 +649,9 @@ class AiDetectorIF:
                     }
                 }
 
-                self.IMG_SUBS_CONFIG_DICT = {
-                    'namespace': self.base_namespace,
-                    'sub_dict': IMG_SUBS_DICT
-                }
 
-
-                self.img_subs_if = NodeSubscribersIF(self,
-                                subs_config_dict = self.IMG_SUBS_CONFIG_DICT,
+                self.img_subs_if = NodeSubscribersIF(
+                                subs_dict = self.IMG_SUBS_DICT,
                                 log_class_name = False
                 )
                 self.imgs_pub_sub_lock.acquire()
@@ -663,7 +660,7 @@ class AiDetectorIF:
                                                 }   
 
                 self.imgs_pub_sub_lock.release()
-                nepi_msg.publishMsgWarn(self,'Registered : ' + img_topic +  ' ' + str(self.imgs_pub_sub_dict[img_topic]))
+                self.msg_if.pub_warn('Registered : ' + img_topic +  ' ' + str(self.imgs_pub_sub_dict[img_topic]))
 
 
                 time.sleep(1)
@@ -685,42 +682,38 @@ class AiDetectorIF:
                 if os.path.exists(img_pub_file_path) == False:
                     self.msg_if.pub_warn("Could not find det img pub node file at: " + img_pub_file_path)
                 elif img_topic not in self.imgs_img_proc_dict.keys():
-                    node_name = self.node_name + "_img_pub"
-                    self.imgs_info_dict[img_topic]['node_name'] = node_name
+                    img_node_name = self.node_name + "_img_pub"
+                    self.imgs_info_dict[img_topic]['node_name'] = img_node_name
+
 
 
                     # Store det img sub pub namespace for node in param server
+                    IMG_NODE_NAMESPACE = os.path.join(self.base_namespace,img_node_name)
                     IMG_PARAMS_DICT = {
                         'det_namespace': {
+                            'namespace': IMG_NODE_NAMESPACE,
                             'factory_val': pub_sub_namespace
                         },
                         'base_namespace': {
+                            'namespace': IMG_NODE_NAMESPACE,
                             'factory_val': self.node_namespace
                         },
                         'all_namespace': {
+                            'namespace': IMG_NODE_NAMESPACE,
                             'factory_val': self.all_namespace
                         }
-                    }
+                    }   
 
-                    IMG_NODE_NAMESPACE = os.path.join(self.base_namespace,node_name)
-                    IMG_PARAMS_CONFIG_DICT = {
-                            'save_callback': None,
-                            'reset_callback': None,
-                            'factory_reset_callback': None,
-                            'namespace': IMG_NODE_NAMESPACE,
-                            'params_dict': IMG_PARAMS_DICT
-                    }
-
-                    params_if = NodeParamsIF(params_config_dict = IMG_PARAMS_CONFIG_DICT)
+                    params_if = NodeParamsIF(params_dict = IMG_PARAMS_DICT)
 
 
                     #Try and launch node
-                    self.msg_if.pub_warn("Launching Detector Img Pub node: " + node_name)
-                    [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, node_name)
+                    self.msg_if.pub_warn("Launching Detector Img Pub node: " + img_node_name)
+                    [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, img_node_name)
                     self.imgs_img_proc_dict[img_topic] = pub_process
                     self.msg_if.pub_warn("Img Pub Launch return msg: " + msg)
                                     # Create image pub for img detector
-                    pub_img_if = ImageIF(pub_sub_namespace, create_status_pub = False)
+                    pub_img_if = ImageIF(pub_sub_namespace)
                     ready = self.pub_img_if.wait_for_ready()
                     if ready == True:
                         success = pub_img_if.publish_cv2_msg_img(self.img_pub_loading_msg)
@@ -734,14 +727,14 @@ class AiDetectorIF:
     def unsubscribeImgTopic(self,img_topic):
         self.imgs_pub_sub_lock.acquire()
         if img_topic in self.imgs_pub_sub_dict.keys():
-            nepi_msg.publishMsgWarn(self,'Unregistering image topic: ' + img_topic)
+            self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
             if 'subs_if' in img_pub_sub_dict.keys():
                 self.imgs_pub_sub_dict[img_topic]['subs_if'].unregister('img_sub')
         self.imgs_pub_sub_lock.release()
 
         #Leave img pub running in case it is switched back on
         '''
-        nepi_msg.publishMsgWarn(self,'killing node: ' + pub_sub_name)
+        self.msg_if.pub_warn('killing node: ' + pub_sub_name)
         node_name = self.imgs_info_dict[img_topic]['node_name'] 
         sub_process = img_pub_sub_dict[pub_sub_name]
         if sub_process is not None:
