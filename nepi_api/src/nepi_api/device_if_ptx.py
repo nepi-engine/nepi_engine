@@ -126,7 +126,9 @@ class PTXActuatorIF:
         self.movePitchCb = movePitchCb
 
         # Speed setup if available
-        if self.capabilities_report.adjustable_speed is True:
+        if self.capabilities_report.adjustable_speed is False:
+            self.getSpeedCb = self.getZeroCb
+        else:
             self.setSpeedCb = setSpeedCb
             self.getSpeedCb = getSpeedCb
             if self.setSpeedCb is not None and self.getSpeedCb is not None:
@@ -155,8 +157,20 @@ class PTXActuatorIF:
         else:
             self.has_position_feedback = False
                 
-        self.defaultSettings = defaultSettings
 
+        self.defaultSettings = defaultSettings                
+        if self.has_position_feedback is False:
+            # Hard limits
+            self.defaultSettings['max_yaw_hardstop_deg'] = 0
+            self.defaultSettings['min_yaw_hardstop_deg'] = 0
+            self.defaultSettings['max_pitch_hardstop_deg'] = 0
+            self.defaultSettings['min_pitch_hardstop_deg'] = 0
+  
+            # Soft limits
+            self.defaultSettings['max_yaw_softstop_deg'] = 0
+            self.defaultSettings['min_yaw_softstop_deg'] = 0
+            self.defaultSettings['max_pitch_softstop_deg'] = 0
+            self.defaultSettings['min_pitch_softstop_deg'] = 0
 
 
         # Set up status message static values
@@ -164,9 +178,6 @@ class PTXActuatorIF:
         self.status_msg.serial_num = self.serial_num
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
-
-
-
 
 
         ##################################################
@@ -187,9 +198,41 @@ class PTXActuatorIF:
 
 
         # Params Config Dict ####################
-        #*** Handled within class ****
-        self.PARAMS_DICT = None
-        #########################
+
+        self.status_update_rate = rospy.get_param('~status_update_rate_hz', self.factory_controls_dict['status_update_rate_hz'])
+
+        self.frame_id = rospy.get_param('~ptx/frame_id', self.frame_id)
+        self.yaw_joint_name = rospy.get_param("~ptx/yaw_joint_name", self.factory_controls_dict['frame_id'])
+        self.pitch_joint_name = rospy.get_param("~ptx/pitch_joint_name", self.factory_controls_dict['pitch_joint_name'])
+        self.reverse_yaw_control = rospy.get_param("~ptx/reverse_yaw_control", self.factory_controls_dict['reverse_yaw_control'])
+        self.reverse_pitch_control = rospy.get_param("~ptx/reverse_pitch_control", self.factory_controls_dict['reverse_pitch_control'])
+
+       
+
+        self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
+        self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
+        self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
+        self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
+        self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
+        self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
+        self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
+        self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
+
+        self.home_yaw_deg = rospy.get_param('~ptx/home_position/yaw_deg', 0.0)
+        self.home_pitch_deg = rospy.get_param('~ptx/home_position/pitch_deg', 0.0)
+
+
+        self.PARAMS_DICT = {
+            'param1_name': {
+                'namespace': self.node_namespace,
+                'factory_val': 100
+            },
+            'param2_name': {
+                'namespace': self.node_namespace,
+                'factory_val': "Something"
+            }
+        }
+        
 
         # Services Config Dict ####################
 
@@ -208,9 +251,9 @@ class PTXActuatorIF:
 
 
         # Publishers Config Dict ####################
- self.joint_pub = rospy.Publisher('ptx/joint_states', JointState, queue_size=10)
-self.status_pub = rospy.Publisher('~ptx/status', PanTiltStatus, queue_size=10, latch=True)
-self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
+        self.joint_pub = rospy.Publisher('ptx/joint_states', JointState, queue_size=10)
+        self.status_pub = rospy.Publisher('~ptx/status', PanTiltStatus, queue_size=10, latch=True)
+        self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
 
 
         self.PUBS_DICT = {
@@ -225,16 +268,17 @@ self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
 
 
         rospy.Subscriber('~ptx/stop_moving', Empty, self.stopMovingHandler, queue_size=1)
+        rospy.Subscriber('~ptx/jog_to_position', PanTiltPosition, self.jogToPositionHandler, queue_size=1)
+        rospy.Subscriber('~ptx/jog_to_yaw_ratio', Float32, self.jogToYawRatioHandler, queue_size=1)
+        rospy.Subscriber('~ptx/jog_to_pitch_ratio', Float32, self.jogToPitchRatioHandler, queue_size=1)
         rospy.Subscriber('~ptx/jog_timed_yaw', SingleAxisTimedMove, self.jogTimedYawHandler, queue_size=1)
         rospy.Subscriber('~ptx/jog_timed_pitch', SingleAxisTimedMove, self.jogTimedPitchHandler, queue_size=1)
+        
         rospy.Subscriber('~ptx/reverse_yaw_control', Bool, self.setReverseYawControl, queue_size=1)
         rospy.Subscriber('~ptx/reverse_pitch_control', Bool, self.setReversePitchControl, queue_size=1)
 
-            rospy.Subscriber('~ptx/set_hard_limits', PanTiltLimits, self.setHardstopHandler, queue_size=1)
-            rospy.Subscriber('~ptx/set_soft_limits', PanTiltLimits, self.setSoftstopHandler, queue_size=1)
-           rospy.Subscriber('~ptx/jog_to_position', PanTiltPosition, self.jogToPositionHandler, queue_size=1)
-            rospy.Subscriber('~ptx/jog_to_yaw_ratio', Float32, self.jogToYawRatioHandler, queue_size=1)
-            rospy.Subscriber('~ptx/jog_to_pitch_ratio', Float32, self.jogToPitchRatioHandler, queue_size=1)
+        rospy.Subscriber('~ptx/set_hard_limits', PanTiltLimits, self.setHardstopHandler, queue_size=1)
+        rospy.Subscriber('~ptx/set_soft_limits', PanTiltLimits, self.setSoftstopHandler, queue_size=1)
 
         rospy.Subscriber('~ptx/go_home', Empty, self.goHomeHandler, queue_size=1)
         rospy.Subscriber('~ptx/set_home_position', PanTiltPosition, self.setHomePositionHandler,  queue_size=1)
@@ -315,32 +359,16 @@ self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
         ###############################
         # Finish Initialization
 
-        if self.has_position_feedback is True:
-            # Hard limits
-            self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-            self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-            self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-            self.min_pitch_hardstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-  
-            # Soft limits
-            self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_softstop_deg'])
-            self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_softstop_deg'])
-            self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_softstop_deg'])
-            self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_softstop_deg'])
+        self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
+        self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
+        self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
+        self.min_pitch_hardstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
 
-
-        
-        else:
-            self.max_yaw_hardstop_deg = 0.0
-            self.min_yaw_hardstop_deg = 0.0
-            self.max_pitch_hardstop_deg = 0.0
-            self.min_pitch_hardstop_deg = 0.0
-                        
-            # Soft limits
-            self.max_yaw_softstop_deg = 0.0
-            self.min_yaw_softstop_deg = 0.0
-            self.max_pitch_softstop_deg = 0.0
-            self.min_pitch_softstop_deg = 0.0
+        # Soft limits
+        self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_softstop_deg'])
+        self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_softstop_deg'])
+        self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_softstop_deg'])
+        self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_softstop_deg'])
 
 
         self.frame_id = rospy.get_param('~ptx/frame_id', self.factory_controls_dict['frame_id'])
@@ -663,13 +691,14 @@ self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
 
    
     def setSpeedRatioHandler(self, msg):
-        speed_cur = self.getSpeedCb()
-        speed_ratio = msg.data
-        if (speed_ratio < 0.0) or (speed_ratio > 1.0):
-            self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
-        elif speed_cur != speed_ratio and self.setSpeedCb is not None:
-            self.setSpeedCb(speed_ratio)
-            self.msg_if.pub_info("Updated speed ratio to " + str(speed_ratio))
+        if self.capabilities_report.adjustable_speed is True:
+            speed_cur = self.getSpeedCb()
+            speed_ratio = msg.data
+            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
+                self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
+            elif speed_cur != speed_ratio and self.setSpeedCb is not None:
+                self.setSpeedCb(speed_ratio)
+                self.msg_if.pub_info("Updated speed ratio to " + str(speed_ratio))
         
 
     def setHomePositionHandler(self, msg):
@@ -820,100 +849,26 @@ self.odom_pub = rospy.Publisher('~ptx/odometry', Odometry, queue_size=10)
         self.initCb(do_updates = True)
 
     def initCb(self, do_updates = False):
-        
-        self.status_update_rate = rospy.get_param('~status_update_rate_hz', self.factory_controls_dict['status_update_rate_hz'])
-
-        self.frame_id = rospy.get_param('~ptx/frame_id', self.frame_id)
-        self.yaw_joint_name = rospy.get_param("~ptx/yaw_joint_name", self.factory_controls_dict['frame_id'])
-        self.pitch_joint_name = rospy.get_param("~ptx/pitch_joint_name", self.factory_controls_dict['pitch_joint_name'])
-        self.reverse_yaw_control = rospy.get_param("~ptx/reverse_yaw_control", self.factory_controls_dict['reverse_yaw_control'])
-        self.reverse_pitch_control = rospy.get_param("~ptx/reverse_pitch_control", self.factory_controls_dict['reverse_pitch_control'])
-
-       
-        if (self.capabilities_report.absolute_positioning is True):
-            self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-            self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-            self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-            self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-            self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-            self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-            self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-            self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-
-        if (self.capabilities_report.homing is True):
-            self.home_yaw_deg = rospy.get_param('~ptx/home_position/yaw_deg', 0.0)
-            self.home_pitch_deg = rospy.get_param('~ptx/home_position/pitch_deg', 0.0)
-
         if do_updates == True:
             self.resetCb()
 
 
 
     def resetCb(self, do_updates = True):
-        rospy.set_param('~status_update_rate_hz', self.status_update_rate)
-
-        rospy.set_param('~ptx/frame_id', self.frame_id)
-        rospy.set_param("~ptx/yaw_joint_name", self.yaw_joint_name)
-        rospy.set_param("~ptx/pitch_joint_name", self.pitch_joint_name)
-        rospy.set_param("~ptx/reverse_yaw_control", self.reverse_yaw_control)
-        rospy.set_param("~ptx/reverse_pitch_control", self.reverse_pitch_control)
-
-        rospy.set_param('~ptx/capabilities/has_speed_control', self.capabilities_report.adjustable_speed)
-        rospy.set_param('~ptx/capabilities/has_absolute_positioning', self.capabilities_report.absolute_positioning)
-        rospy.set_param('~ptx/capabilities/has_homing', self.capabilities_report.homing)
-        rospy.set_param('~ptx/capabilities/has_waypoints', self.capabilities_report.waypoints)
-
-
-        if (self.capabilities_report.adjustable_speed is True):
-            rospy.set_param("~ptx/speed_ratio", self.getSpeedCb()) # This one comes from the parent
+        #**********************
+        # This one comes from the parent
+        rospy.set_param("~ptx/speed_ratio", self.getSpeedCb()) 
+        #**********************
         
-        if (self.capabilities_report.absolute_positioning is True):
-            rospy.set_param('~ptx/limits/max_yaw_hardstop_deg', self.max_yaw_hardstop_deg)
-            rospy.set_param('~ptx/limits/min_yaw_hardstop_deg', self.min_yaw_hardstop_deg)
-            rospy.set_param('~ptx/limits/max_pitch_hardstop_deg', self.max_pitch_hardstop_deg)
-            rospy.set_param('~ptx/limits/min_pitch_hardstop_deg', self.min_pitch_hardstop_deg)
-            rospy.set_param('~ptx/limits/max_yaw_softstop_deg', self.max_yaw_softstop_deg)
-            rospy.set_param('~ptx/limits/min_yaw_softstop_deg', self.min_yaw_softstop_deg)
-            rospy.set_param('~ptx/limits/max_pitch_softstop_deg', self.max_pitch_softstop_deg)
-            rospy.set_param('~ptx/limits/min_pitch_softstop_deg', self.min_pitch_softstop_deg)
 
-
-        if (self.capabilities_report.homing is True):
-            rospy.set_param('~ptx/home_position/yaw_deg', self.home_yaw_deg)
-            rospy.set_param('~ptx/home_position/pitch_deg', self.home_pitch_deg)
 
 
     def factoryResetCb(self, do_updates = True):
-        rospy.set_param('~status_update_rate_hz', self.factory_controls_dict['status_update_rate_hz'])
+        #**********************
+        # This one comes from the parent
+        rospy.set_param("~ptx/speed_ratio", self.getSpeedCb()) 
+        #**********************
 
-        rospy.set_param('~ptx/frame_id', self.frame_id)
-        rospy.set_param("~ptx/yaw_joint_name", self.factory_controls_dict['frame_id'])
-        rospy.set_param("~ptx/pitch_joint_name", self.factory_controls_dict['pitch_joint_name'])
-        rospy.set_param("~ptx/reverse_yaw_control", self.factory_controls_dict['reverse_yaw_control'])
-        rospy.set_param("~ptx/reverse_pitch_control", self.factory_controls_dict['reverse_pitch_control'])
-
-        rospy.set_param('~ptx/capabilities/has_speed_control', self.capabilities_report.adjustable_speed)
-        rospy.set_param('~ptx/capabilities/has_absolute_positioning', self.capabilities_report.absolute_positioning)
-        rospy.set_param('~ptx/capabilities/has_homing', self.capabilities_report.homing)
-        rospy.set_param('~ptx/capabilities/has_waypoints', self.capabilities_report.waypoints)
-
-        if (self.capabilities_report.adjustable_speed is True):
-            rospy.set_param("~ptx/speed_ratio", self.getSpeedCb()) # This one comes from the parent
-        
-        if (self.capabilities_report.absolute_positioning is True):
-            rospy.set_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-            rospy.set_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-            rospy.set_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-            rospy.set_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-            rospy.set_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-            rospy.set_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-            rospy.set_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-            rospy.set_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-
-        if (self.capabilities_report.homing is True):
-            rospy.set_param('~ptx/home_position/yaw_deg', 0.0)
-            rospy.set_param('~ptx/home_position/pitch_deg', 0.0)
-
-
-
+    def passFunction(self):
+        return 0
 

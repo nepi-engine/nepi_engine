@@ -46,7 +46,9 @@ from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, RBXCapabi
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
+from nepi_api.system_if import SaveDataIF, SettingsIF
+
+from nepi_api.device_if_npx import NPXDeviceIF
 
 
 NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
@@ -70,6 +72,8 @@ class RBXRobotIF:
 
 
     # Define class variables
+    ready = False
+
     factory_device_name = None
     init_device_name = None
     factory_controls = None
@@ -79,7 +83,7 @@ class RBXRobotIF:
     modes = []
     setup_actions = []
     go_actions = []
-    data_products = ['image']
+    data_products_list = ['image']
 
     settings_if = None
     save_data_if = None
@@ -139,20 +143,20 @@ class RBXRobotIF:
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
-
-
         ############################## 
+        # Initialize Class Variables
         
         self.robot_name = device_info["robot_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+
+        self.factory_device_name = device_info["robot_name"] + "_" + device_info["identifier"]
 
         self.states = states
         self.getStateIndFunction = getStateIndFunction
@@ -164,14 +168,45 @@ class RBXRobotIF:
         
         self.checkStopFunction = checkStopFunction
 
-        ##############################
-        # Initialize Params
-        self.initCb(do_updates = False)
-
+        self.setup_actions = setup_actions
+        self.setSetupActionIndFunction = setSetupActionIndFunction
 
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
         self.cv_bridge = CvBridge()
+
+        # Create and start initializing Status values
+        self.rbx_status=RBXStatus()
+        self.rbx_status.process_current = "None"
+        self.rbx_status.process_last = "None"
+        self.rbx_status.ready = False
+        self.rbx_status.battery = 0
+        errors_msg = RBXGotoErrors()
+        errors_msg.x_m = 0
+        errors_msg.y_m = 0
+        errors_msg.z_m = 0
+        errors_msg.heading_deg = 0
+        errors_msg.roll_deg = 0
+        errors_msg.pitch_deg = 0
+        errors_msg.yaw_deg = 0
+        self.rbx_status.errors_current = errors_msg
+        self.rbx_status.errors_prev = errors_msg
+        self.rbx_status.last_error_message = ""
+
+        self.rbx_info=RBXInfo()
+        self.rbx_info.connected = False
+        self.rbx_info.serial_num = self.serial_num
+        self.rbx_info.hw_version = self.hw_version
+        self.rbx_info.sw_version = self.sw_version
+        self.rbx_info.standby = False
+        self.rbx_info.state = -999
+        self.rbx_info.mode = -999
+        self.rbx_info.home_lat = -999
+        self.rbx_info.home_long = -999
+        self.rbx_info.home_alt = -999
+        self.rbx_info.state = self.getStateIndFunction()
+        self.rbx_info.mode = self.getModeIndFunction()
+
 
 
         # Create and start initializing Capabilities values
@@ -195,18 +230,12 @@ class RBXRobotIF:
         self.capabilities_report.mode_options = modes
         self.capabilities_report.setup_action_options = setup_actions
         self.capabilities_report.go_action_options = go_actions
-        self.capabilities_report.data_products = self.data_products
-        
-        # Initialize Home location value
-        self.init_home_location = rospy.get_param('~rbx/home_location', self.FACTORY_HOME_LOCATION)
-        rospy.set_param('~rbx/home_location', self.init_home_location)
+        self.capabilities_report.data_products = self.data_products_list
 
-        self.init_fake_gps_enabled = rospy.get_param('~rbx/fake_gps_enabled', False)
-        rospy.set_param('~rbx/fake_gps_enabled', self.init_fake_gps_enabled)
         self.setFakeGPSFunction = setFakeGPSFunction
         if setFakeGPSFunction is not None:
           self.capabilities_report.has_fake_gps = True        
-          rospy.Subscriber("~rbx/enable_fake_gps", Bool, self.fakeGPSEnableCb)
+
         else:
           self.capabilities_report.has_fake_gps = False
 
@@ -215,92 +244,8 @@ class RBXRobotIF:
           self.capabilities_report.has_battery_feedback = True
         else:
           self.capabilities_report.has_battery_feedback = False
-       
-        # Create and start initializing Status values
-        self.factory_device_name = device_info["robot_name"] + "_" + device_info["identifier"]
-        self.init_device_name = rospy.get_param('~rbx/device_name', self.factory_device_name)
-        rospy.set_param('~rbx/device_name', self.init_device_name)
-        rospy.Subscriber('~rbx/update_device_name', String, self.updateDeviceNameCb, queue_size=1) # start local callbac
-        rospy.Subscriber('~rbx/reset_device_name', Empty, self.resetDeviceNameCb, queue_size=1) # start local callback
 
-
-        self.rbx_info=RBXInfo()
-        self.rbx_info.connected = False
-        self.rbx_info.serial_num = self.serial_num
-        self.rbx_info.hw_version = self.hw_version
-        self.rbx_info.sw_version = self.sw_version
-        self.rbx_info.standby = False
-        self.rbx_info.state = -999
-        self.rbx_info.mode = -999
-        self.rbx_info.home_lat = -999
-        self.rbx_info.home_long = -999
-        self.rbx_info.home_alt = -999
-        error_bounds = RBXErrorBounds()
-        error_bounds.max_distance_error_m = rospy.get_param('~rbx/max_error_m', self.FACTORY_GOTO_MAX_ERROR_M)
-        error_bounds.max_rotation_error_deg = rospy.get_param('~rbx/max_error_deg', self.FACTORY_GOTO_MAX_ERROR_DEG)
-        error_bounds.min_stabilize_time_s = rospy.get_param('~rbx/stabilized_sec', self.FACTORY_GOTO_STABILIZED_SEC)
-        self.rbx_info.error_bounds = error_bounds
-        self.rbx_info.cmd_timeout = rospy.get_param('~rbx/cmd_timeout', self.FACTORY_CMD_TIMEOUT_SEC)
-        self.rbx_info.image_source = rospy.get_param('~rbx/image_source', self.FACTORY_IMAGE_INPUT_TOPIC_NAME)
-        self.rbx_info.image_status_overlay = rospy.get_param('~rbx/image_status_overlay', False) 
-
-        self.rbx_info.state = self.getStateIndFunction()
-        self.rbx_info.mode = self.getModeIndFunction()
-        ## Update Control Info
-        self.getMotorControlRatios = getMotorControlRatios
-        if self.getMotorControlRatios is not None:
-            motor_controls_info_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
-        else:
-            motor_controls_info_msg = self.get_motor_controls_status_msg([])
-
-        self.rbx_status=RBXStatus()
-        self.rbx_status.process_current = "None"
-        self.rbx_status.process_last = "None"
-        self.rbx_status.ready = False
-        self.rbx_status.battery = 0
-
-        # Setup Error Tracking
-        self.init_max_error_m = rospy.get_param('~rbx/max_error_m', self.FACTORY_GOTO_MAX_ERROR_M)
-        rospy.set_param('~rbx/max_error_m', self.init_max_error_m)
-        self.init_max_error_deg = rospy.get_param('~rbx/max_error_deg', self.FACTORY_GOTO_MAX_ERROR_DEG)
-        rospy.set_param('~rbx/max_error_deg', self.init_max_error_deg)
-        self.init_stabilized_sec = rospy.get_param('~rbx/stabilized_sec', self.FACTORY_GOTO_STABILIZED_SEC)
-        rospy.set_param('~rbx/stabilized_sec', self.init_stabilized_sec)
-        rospy.Subscriber("~rbx/set_goto_error_bounds", RBXErrorBounds, self.setErrorBoundsCb)
-        errors_msg = RBXGotoErrors()
-        errors_msg.x_m = 0
-        errors_msg.y_m = 0
-        errors_msg.z_m = 0
-        errors_msg.heading_deg = 0
-        errors_msg.roll_deg = 0
-        errors_msg.pitch_deg = 0
-        errors_msg.yaw_deg = 0
-
-        self.rbx_status.errors_current = errors_msg
-
-        errors_msg = RBXGotoErrors()
-        errors_msg.x_m = 0
-        errors_msg.y_m = 0
-        errors_msg.z_m = 0
-        errors_msg.heading_deg = 0
-        errors_msg.roll_deg = 0
-        errors_msg.pitch_deg = 0
-        errors_msg.yaw_deg = 0
-
-        self.rbx_status.errors_prev = errors_msg
-
-        self.rbx_status.last_error_message = "" 
-
-
-        ### Start RBX Config Subscribe Topics
-        rospy.Subscriber("~rbx/set_state", Int32, self.setStateCb)
-        rospy.Subscriber("~rbx/set_mode", Int32, self.setModeCb)
-
-        self.setup_actions = setup_actions
-        self.setSetupActionIndFunction = setSetupActionIndFunction
-        rospy.Subscriber("~rbx/setup_action", Int32, self.setupActionCb) 
-
-        # Set Up Manual Motor Controls
+        ## Setup Manual Controls
         self.manualControlsReadyFunction = manualControlsReadyFunction
         if self.manualControlsReadyFunction is not None:
           self.rbx_status.manual_control_mode_ready = self.manualControlsReadyFunction()
@@ -326,11 +271,13 @@ class RBXRobotIF:
             self.capabilities_report.has_manual_controls = False
         else:
             self.capabilities_report.has_manual_controls = True
-            rospy.Subscriber("~rbx/set_motor_control", RBXMotorControl, self.setMotorControlCb)
+        self.getMotorControlRatios = getMotorControlRatios
+        if self.getMotorControlRatios is not None:
+            motor_controls_info_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
+        else:
+            motor_controls_info_msg = self.get_motor_controls_status_msg([])
 
-
-        # Set Up Autonomous Contros
-
+        # Setup Autonomous Contros
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
         if self.autonomousControlsReadyFunction is not None:
           self.rbx_status.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
@@ -339,13 +286,10 @@ class RBXRobotIF:
           self.rbx_status.autonomous_control_mode_ready = False
           self.capabilities_report.has_autonomous_controls = False
 
-        self.init_cmd_timeout = rospy.get_param('~rbx/cmd_timeout', self.FACTORY_CMD_TIMEOUT_SEC)
-        rospy.set_param('~rbx/cmd_timeout', self.init_cmd_timeout)
-        rospy.Subscriber("~rbx/set_goto_timeout", UInt32, self.setCmdTimeoutCb)
 
         self.go_actions = go_actions
         self.setGoActionIndFunction = setGoActionIndFunction
-        rospy.Subscriber("~rbx/go_action", Int32, self.goActionCb) 
+
   
         self.getHomeFunction = getHomeFunction
         self.setHomeFunction  = setHomeFunction
@@ -353,51 +297,236 @@ class RBXRobotIF:
             self.capabilities_report.has_set_home = False
         else:
             self.capabilities_report.has_set_home = True
-            rospy.Subscriber("~rbx/set_home", GeoPoint, self.setHomeCb)       
-            rospy.Subscriber("~rbx/set_home_current", Empty, self.setHomeCurrentCb)          
+     
 
         self.goHomeFunction = goHomeFunction
         if self.goHomeFunction is None:
             self.capabilities_report.has_go_home = False
         else:
             self.capabilities_report.has_go_home = True
-            rospy.Subscriber("~rbx/go_home", Empty, self.goHomeCb)
+
 
         self.goStopFunction = goStopFunction
         if self.goStopFunction is None:
             self.capabilities_report.has_go_stop = False
         else:
             self.capabilities_report.has_go_stop = True
-            rospy.Subscriber("~rbx/go_stop", Empty, self.goStopCb)
+
 
         self.gotoPoseFunction = gotoPoseFunction
         if self.gotoPoseFunction is None:
             self.capabilities_report.has_goto_pose = False
         else:
             self.capabilities_report.has_goto_pose = True            
-            rospy.Subscriber("~rbx/goto_pose", RBXGotoPose, self.gotoPoseCb)
 
         self.gotoPositionFunction = gotoPositionFunction
         if self.gotoPositionFunction is None:
             self.capabilities_report.has_goto_position = False
         else:
             self.capabilities_report.has_goto_position = True            
-            rospy.Subscriber("~rbx/goto_position", RBXGotoPosition, self.gotoPositionCb)
 
         self.gotoLocationFunction = gotoLocationFunction
         if self.gotoLocationFunction is None:
             self.capabilities_report.has_goto_location = False
         else:
             self.capabilities_report.has_goto_location = True
-            rospy.Subscriber("~rbx/goto_location", RBXGotoLocation, self.gotoLocationCb)
 
         self.rbx_status.cmd_success = False
 
-        ## Start NavPose Processes
-        # Define NavPose Namespaces
 
-        # Define NavPose Services Calls
 
+
+
+        ##################################################
+        ### Node Class Setup
+
+        self.save_cfg_if = SaveCfgIF(initCb=self.initCb ,resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
+
+
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+                'init_callback': None,
+                'reset_callback': None,
+                'factory_reset_callback': None,
+                'init_configs': True,
+                'namespace': self.node_namespace
+        }
+
+
+
+        # Params Config Dict ####################
+        self.init_device_name = rospy.get_param('~rbx/device_name', self.factory_device_name)
+        self.init_cmd_timeout = rospy.get_param('~rbx/cmd_timeout', self.FACTORY_CMD_TIMEOUT_SEC)
+
+        self.init_home_location = rospy.get_param('~rbx/home_location', self.FACTORY_HOME_LOCATION)
+        self.init_fake_gps_enabled = rospy.get_param('~rbx/fake_gps_enabled', False)
+
+        self.init_max_error_m = rospy.get_param('~rbx/max_error_m', self.FACTORY_GOTO_MAX_ERROR_M)
+        self.init_max_error_deg = rospy.get_param('~rbx/max_error_deg', self.FACTORY_GOTO_MAX_ERROR_DEG)
+        self.init_stabilized_sec = rospy.get_param('~rbx/stabilized_sec', self.FACTORY_GOTO_STABILIZED_SEC)
+
+        self.init_image_source = rospy.get_param('~rbx/image_source', self.FACTORY_IMAGE_INPUT_TOPIC_NAME)
+        self.init_image_status_overlay = rospy.get_param('~rbx/image_status_overlay', False)
+
+
+        self.PARAMS_DICT = {
+            'param1_name': {
+                'namespace': self.node_namespace,
+                'factory_val': 100
+            },
+            'param2_name': {
+                'namespace': self.node_namespace,
+                'factory_val': "Something"
+            }
+        }
+        
+
+        # Services Config Dict ####################
+
+        rospy.Service("~rbx/capabilities_query", RBXCapabilitiesQuery, self.capabilities_query_callback)
+
+        self.SRVS_DICT = {
+            'service_name': {
+                'namespace': self.node_namespace,
+                'topic': 'empty_query',
+                'svr': EmptySrv,
+                'req': EmptySrvRequest(),
+                'resp': EmptySrvResponse(),
+                'callback': self.CALLBACK_FUNCTION
+            }
+        }
+
+
+        # Publishers Config Dict ####################
+
+        self.rbx_info_pub = rospy.Publisher("~rbx/info", RBXInfo, queue_size=1, latch = True)
+
+        self.rbx_status_pub = rospy.Publisher("~rbx/status", RBXStatus, queue_size=1, latch = True)
+
+        self.rbx_status_str_pub = rospy.Publisher("~rbx/status_str", String, queue_size=1, latch = True)
+        self.rbx_image_pub = rospy.Publisher("~rbx/image", Image, queue_size=1)
+
+        self.PUBS_DICT = {
+            'pub_name': {
+                'namespace': self.node_namespace,
+                'topic': 'set_empty',
+                'msg': EmptyMsg,
+                'qsize': 1,
+                'latch': False
+            }
+        }
+
+
+
+
+
+        # Subscribers Config Dict ####################
+
+        rospy.Subscriber("~rbx/set_goto_error_bounds", RBXErrorBounds, self.setErrorBoundsCb)
+
+        rospy.Subscriber('~rbx/update_device_name', String, self.updateDeviceNameCb, queue_size=1) # start local callbac
+        rospy.Subscriber('~rbx/reset_device_name', Empty, self.resetDeviceNameCb, queue_size=1) # start local callback
+        rospy.Subscriber("~rbx/enable_fake_gps", Bool, self.fakeGPSEnableCb)
+
+        rospy.Subscriber("~rbx/set_state", Int32, self.setStateCb)
+        rospy.Subscriber("~rbx/set_mode", Int32, self.setModeCb)
+        rospy.Subscriber("~rbx/setup_action", Int32, self.setupActionCb) 
+
+        rospy.Subscriber("~rbx/set_motor_control", RBXMotorControl, self.setMotorControlCb)
+
+        rospy.Subscriber("~rbx/go_action", Int32, self.goActionCb) 
+       
+        rospy.Subscriber("~rbx/set_goto_timeout", UInt32, self.setCmdTimeoutCb)
+        rospy.Subscriber("~rbx/go_home", Empty, self.goHomeCb)
+
+        rospy.Subscriber("~rbx/set_home", GeoPoint, self.setHomeCb)       
+        rospy.Subscriber("~rbx/set_home_current", Empty, self.setHomeCurrentCb)     
+
+        rospy.Subscriber("~rbx/goto_location", RBXGotoLocation, self.gotoLocationCb)
+        rospy.Subscriber("~rbx/goto_position", RBXGotoPosition, self.gotoPositionCb)
+        rospy.Subscriber("~rbx/goto_pose", RBXGotoPose, self.gotoPoseCb)
+        rospy.Subscriber("~rbx/go_stop", Empty, self.goStopCb)
+
+        rospy.Subscriber("~rbx/set_image_topic", String, self.setImageTopicCb)   
+        rospy.Subscriber("~rbx/enable_image_overlay", Bool, self.enableImageOverlayCb)
+        rospy.Subscriber("~rbx/publish_status", Empty, self.publishStatusCb)
+
+        rospy.Subscriber("~rbx/publish_info", Empty, self.publishInfoCb)
+        rospy.Subscriber("~rbx/set_process_name" , String, self.setProcessNameCb)        
+
+        self.SUBS_DICT = {
+            'sub_name': {
+                'namespace': self.node_namespace,
+                'topic': 'set_empty',
+                'msg': EmptyMsg,
+                'qsize': 1,
+                'callback': self.SUB_CALLBACK, 
+                'callback_args': ()
+            }
+        }
+
+
+        # Create Node Class ####################
+        self.NODE_IF = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        ready = self.NODE_IF.wait_for_ready()
+
+
+        # Setup Settings IF Class ####################
+        if capSettings is not None:
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction, 
+                    namespace='~'
+        }
+        else:
+        self.SETTINGS_DICT = {
+                    'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
+                    'factorySettings': nepi_settings.NONE_SETTINGS,
+                    'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
+                    'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
+                    namespace='~'
+        }
+        self.settings_if = SettingsIF(self.SETTINGS_DICT)
+
+
+        # Setup Save Data IF Class ####################
+        factory_data_rates = {}
+        for d in self.data_products_list:
+            factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+
+        factory_filename_dict = {
+            'prefix': "", 
+            'add_timestamp': True, 
+            'add_ms': True,
+            'add_ns': False,
+            'suffix': "",
+            'add_node_name': True
+            }
+
+        self.save_data_if = SaveDataIF(data_product_names = self.data_products_list,
+                                    factory_data_rate_dict = factory_data_rates,
+                                    factory_filename_dict = factory_filename_dict)
+
+
+        time.sleep(1)
+
+   
+        ###############################
+        # Finish Initialization
+
+
+        #  Will need to convert to NPX IF interface in future
+        rospy.Service("~rbx/navpose_capabilities_query", NavPoseCapabilitiesQuery, self.navpose_capabilities_query_callback)
         NEPI_SET_NAVPOSE_GPS_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_gps_fix_topic"
         NEPI_SET_NAVPOSE_HEADING_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_heading_topic"
         NEPI_SET_NAVPOSE_ORIENTATION_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_orientation_topic"
@@ -408,6 +537,7 @@ class RBXRobotIF:
         set_heading_pub = rospy.Publisher(NEPI_SET_NAVPOSE_HEADING_TOPIC, String, queue_size=1)
         set_gps_timesync_pub = rospy.Publisher(NEPI_ENABLE_NAVPOSE_GPS_CLOCK_SYNC_TOPIC, Bool, queue_size=1)
         time.sleep(1)
+
         # Start NavPose Data Updater
         NAVPOSE_SERVICE_NAME = NEPI_BASE_NAMESPACE + "nav_pose_query"
         nepi_ros.wait_for_service(NAVPOSE_SERVICE_NAME)
@@ -432,72 +562,35 @@ class RBXRobotIF:
             set_heading_pub.publish(headingTopic)
             self.msg_if.pub_info("Heading Topic Set to: " + headingTopic)
 
- 
-        # Setup interface classes and update
-        self.settings_if = SettingsIF(capSettings, factorySettings, settingUpdateFunction, getSettingsFunction)
-        self.save_data_if = SaveDataIF(data_product_names = self.data_products)
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb ,resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
+
         ready = self.save_cfg_if.wait_for_ready()
 
-
-
-        # Start capabilities services
-        rospy.Service("~rbx/capabilities_query", RBXCapabilitiesQuery, self.capabilities_query_callback)
-        rospy.Service("~rbx/navpose_capabilities_query", NavPoseCapabilitiesQuery, self.navpose_capabilities_query_callback)
-
-        # Start Status Publisher
-        self.init_image_source = rospy.get_param('~rbx/image_source', self.FACTORY_IMAGE_INPUT_TOPIC_NAME)
-        rospy.set_param('~rbx/image_source', self.init_image_source)   
-        rospy.Subscriber("~rbx/set_image_topic", String, self.setImageTopicCb)
-
-        self.init_image_status_overlay = rospy.get_param('~rbx/image_status_overlay', False)
-        rospy.set_param('~rbx/image_status_overlay', self.init_image_status_overlay)       
-        rospy.Subscriber("~rbx/enable_image_overlay", Bool, self.enableImageOverlayCb)
-
-
-        self.rbx_info_pub = rospy.Publisher("~rbx/info", RBXInfo, queue_size=1, latch = True)
-        rospy.Subscriber("~rbx/publish_info", Empty, self.publishInfoCb)
-        self.rbx_status_pub = rospy.Publisher("~rbx/status", RBXStatus, queue_size=1, latch = True)
-        rospy.Subscriber("~rbx/publish_status", Empty, self.publishStatusCb)
-        self.rbx_status_str_pub = rospy.Publisher("~rbx/status_str", String, queue_size=1, latch = True)
-        self.rbx_image_pub = rospy.Publisher("~rbx/image", Image, queue_size=1)
-
-        rospy.Timer(rospy.Duration(self.rbx_status_pub_interval), self.statusPublishCb)
-
-        # Start additional subscribers
-        rospy.Subscriber('~reset_factory', Empty, self.resetFactoryCb, queue_size=1) # start local callback
-        rospy.Subscriber("~rbx/set_process_name" , String, self.setProcessNameCb)
-
-        # Start additional publishers
-
+        ####################################
         ## Initiation Complete
-        self.msg_if.pub_info("RBX IF Initialization Complete")
         self.rbx_info.connected = True
         self.rbx_status.ready = True 
-
-
-        ####################################
         self.initCb(do_updates = True)
-
-
+        rospy.Timer(rospy.Duration(self.rbx_status_pub_interval), self.statusPublishCb)
         self.publishInfo()
         self.publishStatus()
+        self.ready = True
+        self.msg_if.pub_info("RBX IF Initialization Complete")
          
 
+    def initConfig(self):
+        self.initCb(do_updates = True)
 
+    def initCb(self, do_updates = False):
+      if do_updates == True:
+        self.resetCb(do_updates)
 
+    def resetCb(self, do_updates = True):
+        if do_updates == True:  
+          self.ApplyConfigUpdates()
+        self.publishInfo()
 
     def factoryResetCb(self):
         self.settings_if.factory_reset_settings()
-        rospy.set_param('~rbx/device_name', self.factory_device_name)
-        rospy.set_param('~rbx/max_error_m', self.FACTORY_GOTO_MAX_ERROR_M)
-        rospy.set_param('~rbx/max_error_deg', self.FACTORY_GOTO_MAX_ERROR_DEG)
-        rospy.set_param('~rbx/stabilized_sec', self.FACTORY_GOTO_STABILIZED_SEC)
-        rospy.set_param('~rbx/cmd_timeout', self.FACTORY_CMD_TIMEOUT_SEC)
-        rospy.set_param('~rbx/image_source', self.FACTORY_IMAGE_INPUT_TOPIC_NAME)   
-        rospy.set_param('~rbx/image_status_overlay', False)  
-        rospy.set_param('~rbx/fake_gps_enabled', False)
-        rospy.set_param('~rbx/home_location', self.FACTORY_HOME_LOCATION)
         if self.setMotorControlRatio is not None:
           mc = RBXMotorControl()
           mc.speed_ratio = 0.0
@@ -536,26 +629,7 @@ class RBXRobotIF:
         self.device_save_config_pub.publish(Empty())
         self.publishInfo()
 
-    def initConfig(self):
-        self.initCb(do_updates = True)
 
-    def initCb(self, do_updates = False):
-      if do_updates == True:
-        self.resetCb(do_updates)
-
-    def resetCb(self do_updates = True):
-        rospy.set_param('~rbx/device_name', self.init_device_name)
-        rospy.set_param('~rbx/max_error_m', self.init_max_error_m)
-        rospy.set_param('~rbx/max_error_deg', self.init_max_error_deg)
-        rospy.set_param('~rbx/stabilized_sec', self.init_stabilized_sec)
-        rospy.set_param('~rbx/cmd_timeout', self.init_cmd_timeout)
-        rospy.set_param('~rbx/image_source', self.init_image_source)
-        rospy.set_param('~rbx/image_status_overlay', self.init_image_status_overlay)
-        rospy.set_param('~rbx/fake_gps_enabled', self.init_fake_gps_enabled)
-        rospy.set_param('~rbx/home_location', self.init_home_location)
-        if do_updates == True:  
-          self.ApplyConfigUpdates()
-        self.publishInfo()
     
 
     ##############################
@@ -706,12 +780,13 @@ class RBXRobotIF:
     def setMotorControlCb(self,motor_msg):
         self.msg_if.pub_info("Received set motor control ratio message")
         self.msg_if.pub_info(motor_msg)
-        new_motor_ctrl = mode_msg.data
-        self.setMotorControl(new_motor_ctrl)
+        if self.setMotorControl is not None:
+          new_motor_ctrl = mode_msg.data
+          self.setMotorControl(new_motor_ctrl)
 
     ### Function to set motor control
     def setMotorControl(self,new_motor_ctrl):
-        if self.manualControlsReadyFunction() is True:
+        if self.manualControlsReadyFunction() is True and self.setMotorControlRatio is not None:
             m_ind = new_motor_ctrl.motor_ind
             m_sr = new_motor_ctrl.speed_ratio
             m_len = len(self.getMotorControlRatios())
@@ -951,10 +1026,10 @@ class RBXRobotIF:
 
 
     def ApplyConfigUpdates(self):
-        if self.setFakeGPSFunction:
+        if self.setFakeGPSFunction is not None:
           fake_gps_enabled = rospy.get_param('~rbx/fake_gps_enabled', self.init_fake_gps_enabled)
           self.setFakeGPSFunction(fake_gps_enabled) 
-        if self.setHomeFunction:
+        if self.setHomeFunction is not None:
           home_location = rospy.get_param('~rbx/home_location', self.init_home_location)
           geo_home = GeoPoint()
           geo_home.latitude = home_location[0]
