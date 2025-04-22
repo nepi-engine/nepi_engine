@@ -899,7 +899,7 @@ class IDXDeviceIF:
             if self.setBrightness is not None:
 
                 if (new_brightness < 0.0 or new_brightness > 1.0):
-                    rospy.logerr("Brightness value out of bounds")
+                    self.msg_if.pub_error("Brightness value out of bounds")
                 else:
                     # Call the parent's method and update ROS param as necessary
                     # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
@@ -914,7 +914,7 @@ class IDXDeviceIF:
         new_contrast = msg.data
 
         if (new_contrast < 0.0 and new_contrast != -1.0) or (new_contrast > 1.0):
-            rospy.logerr("Contrast value out of bounds")
+            self.msg_if.pub_error("Contrast value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -936,7 +936,7 @@ class IDXDeviceIF:
         new_thresholding = msg.data
 
         if (new_thresholding < 0.0 or new_thresholding > 1.0):
-            rospy.logerr("Thresholding value out of bounds")
+            self.msg_if.pub_error("Thresholding value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -954,7 +954,7 @@ class IDXDeviceIF:
         new_resolution = msg.data
 
         if (new_resolution < 0.0 or new_resolution > 1.0):
-            rospy.logerr("Resolution value out of bounds")
+            self.msg_if.pub_error("Resolution value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -975,7 +975,7 @@ class IDXDeviceIF:
         new_framerate = msg.data
  
         if (new_framerate < 0.0 or new_framerate > 1.0):
-            rospy.logerr("Framerate value out of bounds")
+            self.msg_if.pub_error("Framerate value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -997,7 +997,7 @@ class IDXDeviceIF:
         new_start_range_ratio = msg.start_range
         new_stop_range_ratio = msg.stop_range
         if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
-            rospy.logerr("Range values out of bounds")
+            self.msg_if.pub_error("Range values out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1017,7 +1017,7 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Zoom update message: " + str(msg))
         new_zoom = msg.data
         if (new_zoom < 0.0 and new_zoom != -1.0) or (new_zoom > 1.0):
-            rospy.logerr("Zoom value out of bounds")
+            self.msg_if.pub_error("Zoom value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1030,7 +1030,7 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Rotate update message: " + str(msg))
         new_rotate = msg.data
         if (new_rotate < 0.0 and new_rotate != -1.0) or (new_rotate > 1.0):
-            rospy.logerr("rotate value out of bounds")
+            self.msg_if.pub_error("rotate value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1042,7 +1042,7 @@ class IDXDeviceIF:
     def setTiltCb(self, msg):
         new_tilt = msg.data
         if (new_tilt < 0.0 and new_tilt != -1.0) or (new_tilt > 1.0):
-            rospy.logerr("tilt value out of bounds")
+            self.msg_if.pub_error("tilt value out of bounds")
             self.publishStatus(do_updates=False) # No change
             return
         else:
