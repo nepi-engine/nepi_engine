@@ -203,28 +203,52 @@ class LSXDeviceIF:
 
 
         # Params Config Dict ####################
-        self.init_device_name = rospy.get_param('~lsx/device_name', self.factory_device_name)
-        self.init_standby_enabled = rospy.get_param('~lsx/standby_enabled', self.factory_controls_dict.get("standby_enabled"))
-        self.init_on_off_state = rospy.get_param('~lsx/on_off_state', self.factory_controls_dict.get("on_off_state"))
-        self.init_intensity_ratio = rospy.get_param('~lsx/intensity_ratio', self.factory_controls_dict.get("intensity_ratio"))
-        self.init_color_selection = rospy.get_param('~lsx/color_selection', self.factory_controls_dict.get("color_selection"))
-        self.init_kelvin_val = rospy.get_param('~lsx/kelvin_val', self.factory_controls_dict.get("kelvin_val"))
-        self.init_strobe_enbled = rospy.get_param('~lsx/strobe_enbled', self.factory_controls_dict.get("strobe_enbled"))
-        self.init_blink_interval_sec = rospy.get_param('~lsx/blink_interval_sec', self.factory_controls_dict.get("blink_interval_sec"))
+        self.init_device_name = self.nepi_if.get_param('lsx/device_name')
+        self.init_standby_enabled = self.nepi_if.get_param('lsx/standby_enabled')
+        self.init_on_off_state = self.nepi_if.get_param('lsx/on_off_state')
+        self.init_intensity_ratio = self.nepi_if.get_param('lsx/intensity_ratio')
+        self.init_color_selection = self.nepi_if.get_param('lsx/color_selection')
+        self.init_kelvin_val = self.nepi_if.get_param('lsx/kelvin_val')
+        self.init_strobe_enbled = self.nepi_if.get_param('lsx/strobe_enbled')
+        self.init_blink_interval_sec = self.nepi_if.get_param('lsx/blink_interval_sec')
 
         self.PARAMS_DICT = {
-            'param1_name': {
+            'lsx/device_name': {
                 'namespace': self.node_namespace,
-                'factory_val': 100
+                'factory_val': self.factory_device_name
             },
-            'param2_name': {
+            'lsx/standby_enabled': {
                 'namespace': self.node_namespace,
-                'factory_val': "Something"
+                'factory_val': self.factory_controls_dict.get("standby_enabled")
+            },
+            'lsx/on_off_state': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("on_off_state")
+            },
+            'lsx/intensity_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("intensity_ratio")
+            },
+            'lsx/color_selection': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("color_selection")
+            },
+            'lsx/kelvin_val': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("kelvin_val")
+            }, 
+            'lsx/strobe_enbled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("strobe_enbled")
+            },
+            'lsx/blink_interval_sec': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict.get("blink_interval_sec")
             }
         }
 
         # Services Config Dict ####################
-        rospy.Service("~lsx/capabilities_query", LSXCapabilitiesQuery, self.capabilities_query_callback)
+        nepi_ros.create_service("~lsx/capabilities_query", LSXCapabilitiesQuery, self.capabilities_query_callback)
 
         self.SRVS_DICT = {
             'service_name': {
@@ -238,48 +262,104 @@ class LSXDeviceIF:
         }
 
 
-        # Publishers Config Dict ####################
-        self.status_pub = rospy.Publisher("~lsx/status", LSXStatus, queue_size=1, latch=True)
 
         self.PUBS_DICT = {
-            'pub_name': {
+            'status_pub': {
                 'namespace': self.node_namespace,
-                'topic': 'set_empty',
-                'msg': EmptyMsg,
+                'topic': 'lsx/status',
+                'msg': LSXStatus,
                 'qsize': 1,
-                'latch': False
+                'latch': True
             }
         }
 
-
-
-        # Subscribers Config Dict ####################
-
-            set_standby_enable_sub = rospy.Subscriber("~lsx/set_standby", Bool, self.setStandbyCb, queue_size = 1)
-            turn_on_off_sub = rospy.Subscriber("~lsx/turn_on_off", Bool, self.turnOnOffCb, queue_size = 1)
-            set_intensity_ratio_sub = rospy.Subscriber("~lsx/set_intensity_ratio", Float32, self.setIntensityRatioCb, queue_size = 1)
-            set_color_sel_sub = rospy.Subscriber("~lsx/set_color", String, self.setColorCb, queue_size = 1)
-            set_kelvin_sub = rospy.Subscriber("~lsx/set_kelvin", Int32, self.setKelvinCb, queue_size = 1)
-            set_blink_int_sub = rospy.Subscriber("~lsx/set_blink_interval", Float32, self.setBlinkIntervalCb, queue_size = 1)
-            set_strobe_enable_sub = rospy.Subscriber("~lsx/set_strobe_enable", Bool, self.setStrobeEnableCb, queue_size = 1)
-
-            rospy.Subscriber('~lsx/update_device_name', String, self.updateDeviceNameCb, queue_size=1) # start local callbac
-            rospy.Subscriber('~lsx/reset_device_name', Empty, self.resetDeviceNameCb, queue_size=1) # start local callback
-
-            rospy.Subscriber('~reset_controls', Empty, self.resetControlsCb, queue_size=1) # start local callback
 
 
         self.SUBS_DICT = {
-            'sub_name': {
+            'set_standby': {
                 'namespace': self.node_namespace,
-                'topic': 'set_empty',
-                'msg': EmptyMsg,
+                'topic': 'lsx/set_empty',
+                'msg': Bool,
                 'qsize': 1,
-                'callback': self.SUB_CALLBACK, 
+                'callback': self.setStandbyCb, 
+                'callback_args': ()
+            },
+            'turn_on_off': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/turn_on_off',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.turnOnOffCb, 
+                'callback_args': ()
+            },
+            'set_intensity_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_intensity_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setIntensityRatioCb, 
+                'callback_args': ()
+            },
+            'set_color': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_color',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setColorCb, 
+                'callback_args': ()
+            },
+            'set_kelvin': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_kelvin',
+                'msg': Int32,
+                'qsize': 1,
+                'callback': self.setKelvinCb, 
+                'callback_args': ()
+            },
+            'set_blink_interval': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_blink_interval',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setBlinkIntervalCb, 
+                'callback_args': ()
+            },
+            'set_strobe_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_strobe_enable',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setStrobeEnableCb, 
+                'callback_args': ()
+            },
+            'update_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/update_device_name',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.updateDeviceNameCb, 
+                'callback_args': ()
+            },
+            'reset_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/reset_device_name',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetDeviceNameCb, 
+                'callback_args': ()
+            },
+            'reset_controls': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/reset_controls',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetControlsCb, 
                 'callback_args': ()
             }
-        }
 
+
+
+        }
 
         # Create Node Class ####################
         self.NODE_IF = NodeClassIF(
@@ -340,13 +420,13 @@ class LSXDeviceIF:
         # Finish Initialization
         self.initCb(do_updates = True)
         status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
-        rospy.Timer(rospy.Duration(status_update_time), self.statusTimerCb)      
+        nepi_ros.start_timer_process(status_update_time, self.statusTimerCb)      
         self.publish_status()
         self.ready = True
         self.msg_if.pub_info("Initialization Complete")
 
 
-
+nepi_ros.sleep
 
   ###############################
   # Class Methods
@@ -373,34 +453,34 @@ class LSXDeviceIF:
 
     def UpdateDevice(self):
         if self.standbyEnableFunction is not None:
-          val = rospy.get_param('~lsx/standby_enabled', self.init_standby_enabled)
+          val = self.nepi_if.get_param('lsx/standby_enabled')
           self.standbyEnableFunction(val)
         if self.turnOnOffFunction is not None:
-          val = rospy.get_param('~lsx/on_off_state', self.init_on_off_state)
+          val = self.nepi_if.get_param('lsx/on_off_state')
           self.turnOnOffFunction(val)
         if self.setIntensityRatioFunction is not None:
-          val = rospy.get_param('~lsx/intensity_ratio', self.init_intensity_ratio)
+          val = self.nepi_if.get_param('lsx/intensity_ratio')
           self.setIntensityRatioFunction(val)
         if self.setColorFunction is not None:
-          val = rospy.get_param('~lsx/color_selection', self.init_color_selection)
+          val = self.nepi_if.get_param('lsx/color_selection')
           self.setColorFunction(val)
         if self.setKelvinFunction is not None:
-          val = rospy.get_param('~lsx/kelvin_val', self.init_kelvin_val)
+          val = self.nepi_if.get_param('lsx/kelvin_val')
           self.setKelvinFunction(val)
         if self.enableStrobeFunction is not None:
-          val = rospy.get_param('~lsx/strobe_enbled', self.init_strobe_enbled)
+          val = self.nepi_if.get_param('lsx/strobe_enbled')
           self.enableStrobeFunction(val)
 
-
+nepi_ros.sleep
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Resetting LSX Device Controls")
-        rospy.set_param('~lsx/standby_enabled', self.init_standby_enabled)
-        rospy.set_param('~lsx/on_off_state', self.init_on_off_state)
-        rospy.set_param('~lsx/intensity_ratio', self.init_intensity_ratio)
-        rospy.set_param('~lsx/color_selection', self.init_color_selection)
-        rospy.set_param('~lsx/kelvin_val', self.init_kelvin_val)
-        rospy.set_param('~lsx/strobe_enbled', self.init_strobe_enbled)
-        rospy.set_param('~lsx/blink_interval_sec', self.init_blink_interval_sec)
+        self.nepi_if.set_param('lsx/standby_enabled', self.init_standby_enabled)
+        self.nepi_if.set_param('lsx/on_off_state', self.init_on_off_state)
+        self.nepi_if.set_param('lsx/intensity_ratio', self.init_intensity_ratio)
+        self.nepi_if.set_param('lsx/color_selection', self.init_color_selection)
+        self.nepi_if.set_param('lsx/kelvin_val', self.init_kelvin_val)
+        self.nepi_if.set_param('lsx/strobe_enbled', self.init_strobe_enbled)
+        self.nepi_if.set_param('lsx/blink_interval_sec', self.init_blink_interval_sec)
         self.UpdateDevice()
         self.publish_status()
 
@@ -447,12 +527,12 @@ class LSXDeviceIF:
     ### Status callback
     def publish_status(self):
       # update status values from device
-      blink_interval = rospy.get_param('~lsx/blink_interval_sec', self.init_blink_interval_sec)
+      blink_interval = self.nepi_if.get_param('lsx/blink_interval_sec')
       if self.getStatusFunction is not None:
         status_msg=self.getStatusFunction()
-        status_msg.user_name = rospy.get_param('~lsx/device_name', self.init_device_name)
-        status_msg.on_off_state = rospy.get_param('~lsx/on_off_state', self.init_on_off_state)
-        if not rospy.is_shutdown():
+        status_msg.user_name = self.nepi_if.get_param('lsx/device_name')
+        status_msg.on_off_state = self.nepi_if.get_param('lsx/on_off_state')
+        if not nepi_ros.is_shutdown():
           try:
             self.status_pub.publish(status_msg)
           except Exception as e:
@@ -478,7 +558,7 @@ class LSXDeviceIF:
         if valid_name is False:
             self.update_error_msg("Received invalid device name update: " + new_device_name)
         else:
-            rospy.set_param('~lsx/device_name', new_device_name)
+            self.nepi_if.set_param('lsx/device_name', new_device_name)
         self.device_save_config_pub.publish(Empty())
         self.publish_status()
 
@@ -489,7 +569,7 @@ class LSXDeviceIF:
         self.resetDeviceName()
 
     def resetDeviceName(self):
-        rospy.set_param('~lsx/device_name', self.factory_device_name)
+        self.nepi_if.set_param('lsx/device_name', self.factory_device_name)
         self.device_save_config_pub.publish(Empty())
         self.publish_status()
 
@@ -499,7 +579,7 @@ class LSXDeviceIF:
       standby=standby_msg.data
       if self.standbyEnableFunction is not None:
         self.standbyEnableFunction(standby)
-      rospy.set_param('~lsx/standby_enabled', standby)
+      self.nepi_if.set_param('lsx/standby_enabled', standby)
       self.publish_status()
 
 
@@ -508,7 +588,7 @@ class LSXDeviceIF:
       on_off=on_off_msg.data
       if self.turnOnOffFunction is not None:
         self.turnOnOffFunction(on_off)
-      rospy.set_param('~lsx/on_off_state', on_off)
+      self.nepi_if.set_param('lsx/on_off_state', on_off)
       self.publish_status()
 
     ### Set intensity callback
@@ -517,7 +597,7 @@ class LSXDeviceIF:
       intensity=intensity_msg.data
       if self.setIntensityRatioFunction is not None:
         self.setIntensityRatioFunction(intensity)
-      rospy.set_param('~lsx/intensity_ratio', intensity)
+      self.nepi_if.set_param('lsx/intensity_ratio', intensity)
       self.publish_status()
 
     ### Set color selection callback
@@ -527,7 +607,7 @@ class LSXDeviceIF:
       if color in self.color_options_list:
         if self.setColorFunction is not None:
           self.setColorFunction(color)
-        rospy.set_param('~lsx/color_selection', color)
+        self.nepi_if.set_param('lsx/color_selection', color)
       self.publish_status()
 
     ### Set kelvin value callback
@@ -537,7 +617,7 @@ class LSXDeviceIF:
       if kelvin >= self.kelvin_limits_list[0] and kelvin <= self.kelvin_limits_list[1]:
         if self.setKelvinFunction is not None:
           self.setKelvinFunction(kelvin)
-        rospy.set_param('~lsx/kelvin_val', kelvin)
+        self.nepi_if.set_param('lsx/kelvin_val', kelvin)
       self.publish_status()
 
     def setStrobeEnableCb(self, strobe_enable_msg):
@@ -545,7 +625,7 @@ class LSXDeviceIF:
       strobe_enable=strobe_enable_msg.data
       if self.enableStrobeFunction is not None:
         self.enableStrobeFunction(strobe_enable)
-      rospy.set_param('~lsx/strobe_enbled', strobe_enable)
+      self.nepi_if.set_param('lsx/strobe_enbled', strobe_enable)
       self.publish_status()
 
 
@@ -555,7 +635,7 @@ class LSXDeviceIF:
       blink_interval = blink_int_msg.data
       if self.blinkOnOffFunction is not None:
         self.blinkOnOffFunction(blink_interval)
-      rospy.set_param('~lsx/blink_interval_sec', blink_int)
+      self.nepi_if.set_param('lsx/blink_interval_sec', blink_int)
       self.publish_status()
 
         

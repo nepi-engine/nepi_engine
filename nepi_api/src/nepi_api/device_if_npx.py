@@ -155,23 +155,27 @@ class NPXDeviceIF:
 
 
     # Params Config Dict ####################
-    self.init_pub_rate = rospy.get_param("~pub_rate",self.factory_pub_rate_hz)
-    self.init_frame_3d = rospy.get_param("~frame_3d",self.FACTORY_3D_FRAME)
-    self.init_frame_alt = rospy.get_param("~frame_alt",self.FACTORY_ALT_FRAME)
+    self.init_pub_rate = self.nepi_ros.get_param('pub_rate')
+    self.init_frame_3d = self.nepi_ros.get_param('frame_3d')
+    self.init_frame_alt = self.nepi_ros.get_param('frame_alt')
 
     self.PARAMS_DICT = {
-        'param1_name': {
+        'pub_rate': {
             'namespace': self.node_namespace,
-            'factory_val': 100
+            'factory_val': self.factory_pub_rate_hz
         },
-        'param2_name': {
+        'frame_3d': {
             'namespace': self.node_namespace,
-            'factory_val': "Something"
-        }
+            'factory_val': self.FACTORY_3D_FRAME
+        },
+        'frame_alt': {
+            'namespace': self.node_namespace,
+            'factory_val': self.FACTORY_ALT_FRAME
+        }        
     }
 
     # Services Config Dict ####################
-    rospy.Service('~npx/navpose_capabilities_query', self.navposeCapabilitiesHandler)
+    nepi_ros.create_service('~npx/navpose_capabilities_query', self.navposeCapabilitiesHandler)
 
     self.SRVS_DICT = {
         'service_name': {
@@ -184,37 +188,53 @@ class NPXDeviceIF:
         }
     }
 
-
-    # Publishers Config Dict ####################
-    self.status_pub = rospy.Publisher('~npx/status', NPXStatus, queue_size=1, latch=True)
-
     self.PUBS_DICT = {
-        'pub_name': {
+        'status_pub': {
             'namespace': self.node_namespace,
-            'topic': 'set_empty',
-            'msg': EmptyMsg,
+            'topic': 'npx/status',
+            'msg': NPXStatus,
             'qsize': 1,
-            'latch': False
+            'latch': True
         }
     }
 
 
-    rospy.Subscriber('~npx/set_pub_rate', Float32, self.setPublishRateCb, queue_size=1) # start local callback
-    rospy.Subscriber('~npx/publish_once', Empty, self.publishOnceCb, queue_size=1) # start local callback
-    rospy.Subscriber('~npx/set_3d_frame', String, self.set3dFrameCb, queue_size=1) # start local callback
-    rospy.Subscriber('~npx/set_alt_frame', String, self.setAltFrameCb, queue_size=1) # start local callback
-
-
     # Subscribers Config Dict ####################
     self.SUBS_DICT = {
-        'sub_name': {
+        'set_pub_rate': {
             'namespace': self.node_namespace,
-            'topic': 'set_empty',
-            'msg': EmptyMsg,
+            'topic': 'npx/set_pub_rate',
+            'msg': Float32,
             'qsize': 1,
-            'callback': self.SUB_CALLBACK, 
+            'callback': self.setPublishRateCb, 
+            'callback_args': ()
+        },
+        'publish_once': {
+            'namespace': self.node_namespace,
+            'topic': 'npx/publish_once',
+            'msg': Empty,
+            'qsize': 1,
+            'callback': self.publishOnceCb, 
+            'callback_args': ()
+        },
+        'set_3d_frame': {
+            'namespace': self.node_namespace,
+            'topic': 'npx/set_3d_frame',
+            'msg': String,
+            'qsize': 1,
+            'callback': self.set3dFrameCb, 
+            'callback_args': ()
+        },
+        'set_alt_frame': {
+            'namespace': self.node_namespace,
+            'topic': 'npx/set_alt_frame',
+            'msg': String,
+            'qsize': 1,
+            'callback': self.setAltFrameCb, 
             'callback_args': ()
         }
+
+
     }
 
 
@@ -309,9 +329,9 @@ class NPXDeviceIF:
 
 
   def publish_status(self):
-      self.status_msg.pub_rate = rospy.get_param("~pub_rate",self.init_pub_rate)
-      self.status_msg.frame_3d = rospy.get_param("~frame_3d",self.init_frame_3d)
-      self.status_msg.frame_alt = rospy.get_param("~frame_alt",self.init_frame_alt)
+      self.status_msg.pub_rate = self.nepi_ros.get_param('pub_rate')
+      self.status_msg.frame_3d = self.nepi_ros.get_param('frame_3d')
+      self.status_msg.frame_alt = self.nepi_ros.get_param('frame_alt')
       self.status_pub.publish(self.status_msg)
 
     ###############################
@@ -336,9 +356,9 @@ class NPXDeviceIF:
       if self.last_nav_dict != nav_dict:
         self.last_nav_dict = nav_dict
         ros_timestamp = nepi_ros.ros_time_now()
-        set_pub_rate = rospy.get_param("~pub_rate",self.init_pub_rate)
-        set_3d_frame = rospy.get_param("~frame_3d",self.init_frame_3d)
-        set_alt_frame = rospy.get_param("~frame_alt",self.init_frame_alt)
+        set_pub_rate = self.nepi_ros.get_param('pub_rate')
+        set_3d_frame = self.nepi_ros.get_param('frame_3d')
+        set_alt_frame = self.nepi_ros.get_param('frame_alt')
         # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
 
         # Adjust alt Frame if Needed
@@ -377,7 +397,7 @@ class NPXDeviceIF:
 
     if self.pub_rate != 0:
         delay = float(1) / self.pub_rate
-        rospy.timer(nepi_ros.ros_duration(delay), self.publishNavPoseCb, oneshot = True)
+        self.nepi_ros.start_timer_process(nepi_ros.ros_duration(delay), self.publishNavPoseCb, oneshot = True)
             
 
   def setPublishRateCb(self,msg):
@@ -388,17 +408,17 @@ class NPXDeviceIF:
       rate = min
     if rate > max:
       rate = max
-    rospy.set_param("~pub_rate",rate)
+    self.nepi_ros.set_param('pub_rate',rate)
 
   def set3dFrameCb(self,msg):
     frame = msg.data
     if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
-      rospy.set_param("~frame_3d",frame)
+      self.nepi_ros.set_param('frame_3d',frame)
 
   def setAltFrameCb(self,msg):
     frame = msg.data
     if frame in self.NAVPOSE_ALT_FRAME_OPTIONS:
-      rospy.set_param("~frame_alt",frame)
+      self.nepi_ros.set_param('frame_alt',frame)
 
   def initConfig(self):
       self.initCb(do_updates = True)
@@ -410,14 +430,14 @@ class NPXDeviceIF:
         self.resetCb(do_updates)
 
   def resetCb(self,do_updates = True):
-      rospy.set_param("~pub_rate",self.init_pub_rate)
-      rospy.set_param("~frame_3d",self.init_frame_3d)
-      rospy.set_param("~frame_alt",self.init_frame_alt)
+      self.nepi_ros.set_param('pub_rate',self.init_pub_rate)
+      self.nepi_ros.set_param('frame_3d',self.init_frame_3d)
+      self.nepi_ros.set_param('frame_alt',self.init_frame_alt)
 
   def factoryresetCb(self,do_updates = True):
-      rospy.set_param("~pub_rate",self.init_pub_rate)
-      rospy.set_param("~frame_3d",self.init_frame_3d)
-      rospy.set_param("~frame_alt",self.init_frame_alt)
+      self.nepi_ros.set_param('pub_rate',self.init_pub_rate)
+      self.nepi_ros.set_param('frame_3d',self.init_frame_3d)
+      self.nepi_ros.set_param('frame_alt',self.init_frame_alt)
 
 
   #######################

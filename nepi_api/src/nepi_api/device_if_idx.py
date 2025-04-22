@@ -228,41 +228,87 @@ class IDXDeviceIF:
         }
 
 
-        self.init_device_name = rospy.get_param('~device_name', self.factory_device_name)
-        self.init_controls_enable = rospy.get_param('~controls_enable',  self.factory_controls_dict["controls_enable"])
-        self.init_auto_adjust = rospy.get_param('~auto_adjust',  self.factory_controls_dict["auto_adjust"])
-        self.init_brightness_ratio = rospy.get_param('~brightness',  self.factory_controls_dict["brightness_ratio"])
-        self.init_contrast_ratio = rospy.get_param('~contrast',  self.factory_controls_dict["contrast_ratio"])
-        self.init_threshold_ratio = rospy.get_param('~thresholding',  self.factory_controls_dict["threshold_ratio"])
-        self.init_resolution_ratio = rospy.get_param('~resolution_ratio',  self.factory_controls_dict["resolution_ratio"])
-        self.init_framerate_ratio = rospy.get_param('~framerate_ratio',  self.factory_controls_dict["framerate_ratio"])
+        self.init_device_name = self.nepi_if.get_paramdevice_name')
+        self.init_controls_enable = self.nepi_if.get_paramcontrols_enable')
+        self.init_auto_adjust = self.nepi_if.get_paramauto_adjust')
+        self.init_brightness_ratio = self.nepi_if.get_parambrightness')
+        self.init_contrast_ratio = self.nepi_if.get_paramcontrast')
+        self.init_threshold_ratio = self.nepi_if.get_paramthresholding')
+        self.init_resolution_ratio = self.nepi_if.get_paramresolution_ratio')
+        self.init_framerate_ratio = self.nepi_if.get_paramframerate_ratio')
 
-        self.init_start_range_ratio = rospy.get_param('~range_window/start_range_ratio',  self.factory_controls_dict["start_range_ratio"])
-        self.init_stop_range_ratio = rospy.get_param('~range_window/stop_range_ratio', self.factory_controls_dict["stop_range_ratio"])
-        self.init_min_range_m = rospy.get_param('~range_limits/min_range_m',  self.factory_controls_dict["min_range_m"])
-        self.init_max_range_m = rospy.get_param('~range_limits/max_range_m',  self.factory_controls_dict["max_range_m"])
+        self.init_start_range_ratio = self.nepi_if.get_paramrange_window/start_range_ratio')
+        self.init_stop_range_ratio = self.nepi_if.get_paramrange_window/stop_range_ratio')
+        self.init_min_range_m = self.nepi_if.get_paramrange_limits/min_range_m')
+        self.init_max_range_m = self.nepi_if.get_paramrange_limits/max_range_m')
 
-        self.init_frame_3d_transform = rospy.get_param('~frame_3d_transform', self.ZERO_TRANSFORM)
-        self.init_frame_3d = rospy.get_param('~frame_3d',  'sensor_frame' )
+        self.init_frame_3d_transform = self.nepi_if.get_paramframe_3d_transform')
+        self.init_frame_3d = self.nepi_if.get_paramframe_3d')
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'param1_name': {
+            'controls_enable': {
                 'namespace': self.node_namespace,
-                'factory_val': 100
+                'factory_val': self.factory_controls_dict["controls_enable"]
             },
-            'param2_name': {
+            'auto_adjust': {
                 'namespace': self.node_namespace,
-                'factory_val': "Something"
+                'factory_val': self.factory_controls_dict["auto_adjust"]
+            },
+            'brightness': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["brightness_ratio"]
+            },
+            'contrast': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["contrast_ratio"]
+            },
+            'thresholding': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["threshold_ratio"]
+            },
+            'resolution_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["resolution_ratio"]
+            },
+            'framerate_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["framerate_ratio"]
+            },
+            'range_window/start_range_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["start_range_ratio"]
+            },
+            'range_window/stop_range_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["stop_range_ratio"]
+            },
+            'range_limits/min_range_m': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["min_range_m"]
+            },
+            'range_limits/max_range_m': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict["max_range_m"]
+            },
+            'frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ZERO_TRANSFORM
+            },
+            'frame_3d': {
+                'namespace': self.node_namespace,
+                'factory_val': "sensor_frame"
             }
+
+
         }
 
 
 
 
         # Services Config Dict ####################
-        rospy.Service('~idx/capabilities_query', IDXCapabilitiesQuery, self.provide_capabilities)
+        nepi_ros.create_service('~idx/capabilities_query', IDXCapabilitiesQuery, self.provide_capabilities)
 
         self.SRVS_DICT = {
             'service_name': {
@@ -276,55 +322,164 @@ class IDXDeviceIF:
         }
 
 
-        # Publishers Config Dict ####################
-        self.status_pub = rospy.Publisher('~idx/status', IDXStatus, queue_size=1, latch=True)
-
-
         self.PUBS_DICT = {
-            'pub_name': {
+            'status_pub': {
                 'namespace': self.node_namespace,
-                'topic': 'set_empty',
-                'msg': EmptyMsg,
+                'topic': 'idx/status',
+                'msg': IDXStatus,
                 'qsize': 1,
-                'latch': False
+                'latch': True
             }
         }
 
 
-        rospy.Subscriber('~idx/set_controls_enable', Bool, self.setControlsEnableCb, queue_size=1) # start local callback
-     
-        rospy.Subscriber('~idx/set_auto_adjust', Bool, self.setAutoAdjustCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_brightness', Float32, self.setBrightnessCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_contrast', Float32, self.setContrastCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_thresholding', Float32, self.setThresholdingCb, queue_size=1) # start local callback        
-        rospy.Subscriber('~idx/set_resolution_ratio', Float32, self.setResolutionRatioCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_framerate_ratio', Float32, self.setFramerateRatioCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_range_window', RangeWindow, self.setRangeCb, queue_size=1)
-
-        rospy.Subscriber('~idx/clear_frame_3d_transform', Bool, self.clearFrame3dTransformCb, queue_size=1)
-        rospy.Subscriber('~idx/set_frame_3d_transform', Frame3DTransform, self.setFrame3dTransformCb, queue_size=1)
-        rospy.Subscriber('~idx/set_frame_3d', String, self.setFrame3dCb, queue_size=1)
-
-        rospy.Subscriber('~idx/reset_controls', Empty, self.resetControlsCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/reset_factory', Empty, self.factoryResetControslCb, queue_size=1) # start local callback
-
-        rospy.Subscriber('~idx/update_device_name', String, self.updateDeviceNameCb, queue_size=1) # start local callbac
-        rospy.Subscriber('~idx/reset_device_name', Empty, self.resetDeviceNameCb, queue_size=1) # start local callback
-
-
-        rospy.Subscriber('~idx/set_zoom_ratio', Float32, self.setZoomCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_rotate_ratio', Float32, self.setRotateCb, queue_size=1) # start local callback
-        rospy.Subscriber('~idx/set_tilt_ratio', Float32, self.setTiltCb, queue_size=1) # start local callback
+        
 
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'sub_name': {
+            'set_controls_enable': {
                 'namespace': self.node_namespace,
-                'topic': 'set_empty',
-                'msg': EmptyMsg,
+                'topic': 'idx/set_controls_enable',
+                'msg': Bool,
                 'qsize': 1,
-                'callback': self.SUB_CALLBACK, 
+                'callback': self.setControlsEnableCb, 
+                'callback_args': ()
+            },
+            'set_auto_adjust': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_auto_adjust',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setAutoAdjustCb, 
+                'callback_args': ()
+            },
+            'set_brightness': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_brightness',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setBrightnessCb, 
+                'callback_args': ()
+            },
+            'set_contrast': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_contrast',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setContrastCb, 
+                'callback_args': ()
+            },
+            'set_thresholding': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_thresholding',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setThresholdingCb, 
+                'callback_args': ()
+            },
+            'set_resolution_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_resolution_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setResolutionRatioCb, 
+                'callback_args': ()
+            },
+            'set_framerate_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_framerate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setFramerateRatioCb, 
+                'callback_args': ()
+            },
+            'set_range_window': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_range_window',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self.setRangeCb, 
+                'callback_args': ()
+            },
+            'clear_frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/clear_frame_3d_transform',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.clearFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'set_frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_frame_3d_transform',
+                'msg': Frame3DTransform,
+                'qsize': 1,
+                'callback': self.setFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'set_frame_3d': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_frame_3d',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setFrame3dCb, 
+                'callback_args': ()
+            },
+            'reset_controls': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/reset_controls',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetControlsCb, 
+                'callback_args': ()
+            },
+            'reset_factory': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/reset_factory',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.factoryResetControslCb, 
+                'callback_args': ()
+            },
+            'update_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/update_device_name',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.updateDeviceNameCb, 
+                'callback_args': ()
+            },
+            'reset_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/reset_device_name',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetDeviceNameCb, 
+                'callback_args': ()
+            },
+            'set_zoom_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_zoom_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setZoomCb, 
+                'callback_args': ()
+            },
+            'set_rotate_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_rotate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setRotateCb, 
+                'callback_args': ()
+            },
+            'set_tilt_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_tilt_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.setTiltCb, 
                 'callback_args': ()
             }
         }
@@ -682,7 +837,7 @@ class IDXDeviceIF:
         if valid_name is False:
             self.msg_if.pub_info("Received invalid device name update: " + new_device_name)
         else:
-            rospy.set_param('~device_name', new_device_name)
+            self.nepi_if.set_param('device_name', new_device_name)
             self.status_msg.device_name = new_device_name
         self.publishStatus(do_updates=False) # Updated inline here 
         self.device_save_config_pub.publish(Empty())
@@ -694,7 +849,7 @@ class IDXDeviceIF:
         self.resetDeviceName()
 
     def resetDeviceName(self):
-        rospy.set_param('~device_name', self.factory_device_name)
+        self.nepi_if.set_param('device_name', self.factory_device_name)
         self.status_msg.device_name = self.factory_device_name
         self.publishStatus(do_updates=False) # Updated inline here 
         self.device_save_config_pub.publish(Empty())
@@ -710,7 +865,7 @@ class IDXDeviceIF:
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setControlsEnable(new_controls_enable)
 
-        rospy.set_param('~controls_enable', new_controls_enable)
+        self.nepi_if.set_param('controls_enable', new_controls_enable)
         self.status_msg.controls_enable = new_controls_enable
         self.publishStatus(do_updates=False) # Updated inline here
  
@@ -729,7 +884,7 @@ class IDXDeviceIF:
         else:
             self.msg_if.pub_info("Disabling IDX Auto Adjust")
 
-        rospy.set_param('~auto_adjust', new_auto_adjust)
+        self.nepi_if.set_param('auto_adjust', new_auto_adjust)
         self.status_msg.auto_adjust = new_auto_adjust
         self.publishStatus(do_updates=False) # Updated inline here
 
@@ -738,7 +893,7 @@ class IDXDeviceIF:
     def setBrightnessCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         new_brightness = msg.data
-        if rospy.get_param('~auto_adjust', self.init_auto_adjust):
+        if self.nepi_if.get_paramauto_adjust'):
             self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled")
         else:
             if self.setBrightness is not None:
@@ -750,7 +905,7 @@ class IDXDeviceIF:
                     # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
                     status, err_str = self.setBrightness(new_brightness)
 
-        rospy.set_param('~brightness', new_brightness)
+        self.nepi_if.set_param('brightness', new_brightness)
         self.status_msg.brightness = new_brightness
         self.publishStatus(do_updates=False) # Updated inline here
 
@@ -763,7 +918,7 @@ class IDXDeviceIF:
             self.publishStatus(do_updates=False) # No change
             return
 
-        if rospy.get_param('~auto_adjust', self.init_auto_adjust):
+        if self.nepi_if.get_paramauto_adjust'):
             self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled")
         else:
             if self.setContrast is not None:
@@ -771,7 +926,7 @@ class IDXDeviceIF:
                 # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
                 status, err_str = self.setContrast(new_contrast)
 
-        rospy.set_param('~contrast', new_contrast)
+        self.nepi_if.set_param('contrast', new_contrast)
         self.status_msg.contrast = new_contrast
         self.publishStatus(do_updates=False) # Updated inline here
 
@@ -790,7 +945,7 @@ class IDXDeviceIF:
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setThresholding(new_thresholding)
 
-        rospy.set_param('~thresholding', new_thresholding)
+        self.nepi_if.set_param('thresholding', new_thresholding)
         self.status_msg.thresholding = new_thresholding
         self.publishStatus(do_updates=False) # Updated inline here
 
@@ -809,7 +964,7 @@ class IDXDeviceIF:
             if self.setResolutionRatio is not None:
                 status, err_str = self.setResolutionRatio(new_resolution)
 
-        rospy.set_param('~resolution_ratio', new_resolution)
+        self.nepi_if.set_param('resolution_ratio', new_resolution)
         self.status_msg.resolution_ratio = new_resolution
         self.publishStatus(do_updates=False) # Updated inline here
 
@@ -830,7 +985,7 @@ class IDXDeviceIF:
             if self.setFramerateRatio is not None:
                 status, err_str = self.setFramerateRatio(new_framerate)
            
-        rospy.set_param('~framerate_ratio', new_framerate)
+        self.nepi_if.set_param('framerate_ratio', new_framerate)
         self.status_msg.framerate_ratio = new_framerate
         self.status_msg.framerate_current = self.getFramerate()
         self.publishStatus(do_updates=False) # Updated inline here
@@ -851,8 +1006,8 @@ class IDXDeviceIF:
             if self.setRange is not None:
                 status, err_str = self.setRange(new_start_range_ratio,new_stop_range_ratio)
 
-        rospy.set_param('~range_window/start_range_ratio', new_start_range_ratio)
-        rospy.set_param('~range_window/stop_range_ratio', new_stop_range_ratio)
+        self.nepi_if.set_param('range_window/start_range_ratio', new_start_range_ratio)
+        self.nepi_if.set_param('range_window/stop_range_ratio', new_stop_range_ratio)
         self.status_msg.range_window.start_range = new_start_range_ratio
         self.status_msg.range_window.stop_range = new_stop_range_ratio
 
@@ -910,7 +1065,7 @@ class IDXDeviceIF:
         yaw = transform_msg.rotate_vector.z
         heading = transform_msg.heading_offset
         transform = [x,y,z,roll,pitch,yaw,heading]
-        self.init_frame_3d_transform = rospy.set_param('~frame_3d_transform',  transform)
+        self.init_frame_3d_transform = self.nepi_if.set_param('frame_3d_transform',  transform)
         self.status_msg.frame_3d_transform = transform_msg
         self.publishStatus(do_updates=False) # Updated inline here 
 
@@ -921,7 +1076,7 @@ class IDXDeviceIF:
 
     def clearFrame3dTransform(self, transform_msg):
         transform = self.ZERO_TRANSFORM
-        self.init_frame_3d_transform = rospy.set_param('~frame_3d_transform',  transform)
+        self.init_frame_3d_transform = self.nepi_if.set_param('frame_3d_transform',  transform)
         self.status_msg.frame_3d_transform = transform_msg
         self.publishStatus(do_updates=False) # Updated inline here 
 
@@ -931,7 +1086,7 @@ class IDXDeviceIF:
         self.setFrame3d(new_frame_3d)
 
     def setFrame3d(self, new_frame_3d):
-        rospy.set_param('~frame_3d', new_frame_3d)
+        self.nepi_if.set_param('frame_3d', new_frame_3d)
         self.status_msg.frame_3d = new_frame_3d
         self.publishStatus(do_updates=False) # Updated inline here 
    
@@ -987,7 +1142,7 @@ class IDXDeviceIF:
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition")
             acquiring = False
-            while (not rospy.is_shutdown()):
+            while (not nepi_ros.is_shutdown()):
 
                 # Get Data Product Dict and Data_IF
                 dp_dict = self.data_product_dict[data_product]
@@ -1043,7 +1198,7 @@ class IDXDeviceIF:
                         if dp_raw_if is not None:
                             if (dp_raw_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                                frame_id = self.nepi_if.get_paramframe_3d')
                                 dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = 'sensor_frame')
                             if (dp_raw_should_save == True):
                                 self.save_data_if.write_image_file(data_product_raw,cv2_img,timestamp = ros_timestamp,save_check=False)
@@ -1054,7 +1209,7 @@ class IDXDeviceIF:
                             cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
                             if (dp_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                                frame_id = self.nepi_if.get_paramframe_3d')
                                 dp_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = frame_id)
                             if (dp_should_save == True):
                                 self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
@@ -1066,8 +1221,8 @@ class IDXDeviceIF:
                     acquiring = False
                 else: # No subscribers and already stopped
                     acquiring = False
-                    rospy.sleep(0.25)
-                rospy.sleep(0.01) # Yield
+                    nepi_ros.sleep(0.25)
+                nepi_ros.sleep(0.01) # Yield
 
    
     # Pointcloud from pointcloud_get_function can be open3D or ROS pointcloud.  Will be converted as needed in the thread
@@ -1079,7 +1234,7 @@ class IDXDeviceIF:
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition")
             acquiring = False
-            while (not rospy.is_shutdown()):
+            while (not nepi_ros.is_shutdown()):
  
                 # Get Data Product Dict and Data_IF
                 dp_dict = self.data_product_dict[data_product]
@@ -1116,20 +1271,20 @@ class IDXDeviceIF:
                         if dp_raw_if is not None:
                             if (dp_raw_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                                frame_id = self.nepi_if.get_paramframe_3d')
                                 dp_raw_if.publish_o3d_pc.publish(o3d_pc, ros_timestamp = ros_timestamp, frame_id = ros_frame)
                             if (dp_raw_should_save == True):
                                 self.save_data_if.write_pointcloud_file(data_product_raw,o3d_pc,timestamp = ros_timestamp, save_check=False)
 
 
                         #********************
-                        set_frame = rospy.get_param('~frame_3d',  self.init_frame_3d )
+                        set_frame = self.nepi_if.get_paramframe_3d')
                         if set_frame == 'sensor_frame':
                             ros_frame = set_frame # else pass through sensor frame
                         else:
                             ros_frame = set_frame
 
-                        transform = rospy.get_param('~frame_3d_transform', self.init_frame_3d_transform)
+                        transform = self.nepi_if.get_paramframe_3d_transform')
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
@@ -1150,8 +1305,8 @@ class IDXDeviceIF:
                     acquiring = False
                 else: # No subscribers and already stopped
                     acquiring = False
-                    rospy.sleep(0.25)
-                rospy.sleep(0.01) # Yield
+                    nepi_ros.sleep(0.25)
+                nepi_ros.sleep(0.01) # Yield
                 
 
 
@@ -1197,12 +1352,12 @@ class IDXDeviceIF:
     # Utility Functions
 
     def applyIDXControls2Image(self,cv2_img,data_product):
-        enabled = rospy.get_param('~controls_enable',self.init_controls_enable)
-        auto = rospy.get_param('~auto_adjust', self.init_auto_adjust)       
-        brightness = rospy.get_param('~brightness', self.init_brightness_ratio)
-        contrast = rospy.get_param('~contrast', self.init_contrast_ratio)        
-        threshold = rospy.get_param('~thresholding', self.init_threshold_ratio)
-        res_ratio = rospy.get_param('~resolution_ratio', self.init_resolution_ratio)   
+        enabled = self.nepi_if.get_paramcontrols_enable')
+        auto = self.nepi_if.get_paramauto_adjust')       
+        brightness = self.nepi_if.get_parambrightness')
+        contrast = self.nepi_if.get_paramcontrast')        
+        threshold = self.nepi_if.get_paramthresholding')
+        res_ratio = self.nepi_if.get_paramresolution_ratio')   
 
         if enabled == True: 
             if res_ratio < 0.99:
@@ -1222,7 +1377,7 @@ class IDXDeviceIF:
     def publishStatus(self, do_updates = True):
         if do_updates is True:
             # TODO: Probably these should be queried from the parent (and through the driver) via explicit callbacks rather than via the param server
-            idx_params = rospy.get_param('~')
+            idx_params = self.nepi_if.get_param')
 
             self.status_msg.device_name = idx_params['device_name'] if 'device_name' in idx_params else self.init_device_name
             self.status_msg.sensor_name = self.sensor_name
@@ -1258,12 +1413,12 @@ class IDXDeviceIF:
             self.status_msg.brightness = idx_params['brightness'] if 'brightness' in idx_params else 0
             self.status_msg.thresholding = idx_params['thresholding'] if 'thresholding' in idx_params else 0
             
-            self.status_msg.range_window.start_range = rospy.get_param('~range_window/start_range_ratio', 0.0)
-            self.status_msg.range_window.stop_range =  rospy.get_param('~range_window/stop_range_ratio', 1.0)
-            self.status_msg.min_range_m = rospy.get_param('~range_limits/min_range_m',0.0)
-            self.status_msg.max_range_m = rospy.get_param('~range_limits/max_range_m',1.0)
+            self.status_msg.range_window.start_range = self.nepi_if.get_paramrange_window/start_range_ratio')
+            self.status_msg.range_window.stop_range =  self.nepi_if.get_paramrange_window/stop_range_ratio')
+            self.status_msg.min_range_m = self.nepi_if.get_paramrange_limits/min_range_m')
+            self.status_msg.max_range_m = self.nepi_if.get_paramrange_limits/max_range_m')
             # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
-            transform = rospy.get_param('~frame_3d_transform',  self.ZERO_TRANSFORM)
+            transform = self.nepi_if.get_paramframe_3d_transform')
             transform_msg = Frame3DTransform()
             transform_msg.translate_vector.x = transform[0]
             transform_msg.translate_vector.y = transform[1]
