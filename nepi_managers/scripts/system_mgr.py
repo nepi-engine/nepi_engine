@@ -13,8 +13,12 @@ import shutil
 from collections import deque
 import re
 from datetime import datetime
-
 import subprocess
+
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_states
+from nepi_sdk import nepi_triggers
 
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
@@ -34,12 +38,6 @@ from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest,
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF, TriggersIF
-
-
-from nepi_sdk import nepi_ros
- 
-from nepi_sdk import nepi_states
-from nepi_sdk import nepi_triggers
 
 
 BYTES_PER_MEGABYTE = 2**20
@@ -678,8 +676,7 @@ class SystemMgrNode():
                 self.add_info_string(
                     WarningFlags.CRITICAL_TEMPERATURE_STRING, StampedString.PRI_HIGH)
                 # Set the throttle ratio to 0% globally
-                nepi_msg.printMsgInfoThrottle(
-                    10, "%s: temperature = %f", WarningFlags.CRITICAL_TEMPERATURE_STRING, t)
+                self.msg_if.log_msg_warn("temperature: " + str(WarningFlags.CRITICAL_TEMPERATURE_STRING) + " " + str(t))
                 throttle_ratio_min = 0.0
             else:
                 self.status_msg.warnings.flags[WarningFlags.CRITICAL_TEMPERATURE] = False
@@ -687,7 +684,6 @@ class SystemMgrNode():
                     self.status_msg.warnings.flags[WarningFlags.HIGH_TEMPERATURE] = True
                     throttle_ratio_i = 1.0 - ((t - self.system_defs_msg.warning_temps[i]) / (
                         self.system_defs_msg.critical_temps[i] - self.system_defs_msg.warning_temps[i]))
-                    #nepi_msg.printMsgInfoThrottle( 10, "%s: temperature = %f", WarningFlags.HIGH_TEMPERATURE_STRING, t)
                     throttle_ratio_min = min(
                         throttle_ratio_i, throttle_ratio_min)
                 else:
@@ -881,19 +877,18 @@ class SystemMgrNode():
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                self.msg_if.pub_warn('Failed to delete %s. Reason: %s' %
-                              (file_path, e))
+                self.msg_if.pub_warn('Failed to delete: ' + file_path + " " + str(e))
 
     def set_op_environment(self, msg):
         if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
             self.msg_if.pub_warn(
-                "Setting environment parameter to a non-standard value: %s", msg.data)
+                "Setting environment parameter to a non-standard value: "  str(msg.data))
         nepi_ros.set_param(self,"~op_environment", msg.data)
 
     def set_device_id(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
         if (msg.data) and (not self.valid_device_id_re.match(msg.data)):
-            self.msg_if.pub_warn("Invalid device ID: %s", msg.data)
+            self.msg_if.pub_warn("Invalid device ID: " str(msg.data))
             return
 
         # Otherwise, overwrite the DEVICE_ID in sys_env.bash

@@ -18,6 +18,7 @@ import time
 import psutil
 
 from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty
@@ -36,12 +37,15 @@ from nepi_ros_interfaces.srv import (
     SystemStorageFolderQuery
 )
 
-from nepi_api.node_if import NodeClassIF
+from nepi_ros_interfaces.msg import AutoStartEnabled
+
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.system_if import StatesIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
-from nepi_ros_interfaces.msg import AutoStartEnabled
+
+
 
 
 SCRIPTS_FOLDER = "/mnt/nepi_storage/automation_scripts"
@@ -333,7 +337,6 @@ class AutomationManager:
 
     def on_file_change(self, file_path, file_deleted):
         script_name = os.path.basename(file_path)
-        #self.msg_if.pub_info("File change detected: %s", os.path.basename(script_name))
         
         #Update the scripts list
         self.scripts = self.get_scripts()
@@ -378,7 +381,6 @@ class AutomationManager:
         Handle a request to get a list of currently running scripts.
         """
         running_scripts = sorted(list(self.running_scripts))
-        #self.msg_if.pub_info("Running scripts: %s" % running_scripts)
 
         return GetRunningScriptsQueryResponse(running_scripts)
 
@@ -406,7 +408,7 @@ class AutomationManager:
                     process = subprocess.Popen(process_cmdline, stdout=script_logfile, stderr=subprocess.STDOUT, bufsize=1, env=curr_env) # bufsize=1 ==> Line buffering
                     self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
                     self.running_scripts.add(req.script)  # Update the running_scripts set
-                    self.msg_if.pub_info("%s: running" % req.script)
+                    self.msg_if.pub_info("running: " + str(req.script))
                     self.script_counters[req.script]['started'] += 1  # update the counter
                     return LaunchScriptResponse(True)
                 except Exception as e:
@@ -415,7 +417,7 @@ class AutomationManager:
                 self.msg_if.pub_warn("is already running... will not start another instance " +  str(req.script))
                 return LaunchScriptResponse(False)
         else:
-            self.msg_if.pub_info("%s: not found" % req.script)
+            self.msg_if.pub_info("not found: " + str(req.script))
             return LaunchScriptResponse(False)
 
     def handle_stop_script(self, req):
@@ -432,7 +434,7 @@ class AutomationManager:
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
-                self.msg_if.pub_info("%s: stopped" % req.script)
+                self.msg_if.pub_info("stopped: " + str(req.script))
                 self.script_counters[req.script]['stopped_manually'] += 1  # update the counter
                 retval = True
             except Exception as e:
@@ -464,7 +466,7 @@ class AutomationManager:
                         process['logfile'].close()
                         if process['process'].returncode == 0:
                             self.script_counters[script]['completed'] += 1
-                            self.msg_if.pub_info("%s: completed" % script)
+                            self.msg_if.pub_info("completed: " + str(script))
                         else:
                             self.script_counters[script]['errored_out'] += 1
                                                
@@ -481,7 +483,7 @@ class AutomationManager:
                                                completed_runs=None, error_runs=None, stopped_manually=None, auto_start_enabled=None)
 
         if (script_name not in self.file_sizes) or (script_name not in self.script_counters) or (script_name not in self.script_configs):
-            nepi_msg.printMsgThrottle(10, "Requested script not found: %s" % script_name)
+            self.msg_if.log_msg_warn("Requested script not found: " + script_name, throttle_s = 10)
             return response # Blank response
 
         # Get file size for the script_name
@@ -507,7 +509,6 @@ class AutomationManager:
         
         pid = self.processes[script_name]['pid']
         response.log_size_bytes = os.fstat(self.processes[script_name]['logfile'].fileno()).st_size
-        #self.msg_if.pub_info("PID for script %s: %d" % (script_name, pid))
 
         try:
             # Get resource usage for the specific PID

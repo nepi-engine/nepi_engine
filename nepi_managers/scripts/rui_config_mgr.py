@@ -8,11 +8,12 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-from std_msgs.msg import UInt8
+
+rom std_msgs.msg import UInt8
 from nepi_ros_interfaces.msg import RUISettings
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 

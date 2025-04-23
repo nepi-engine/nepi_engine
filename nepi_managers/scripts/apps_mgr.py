@@ -16,8 +16,7 @@ import time
 import warnings
 
 from nepi_sdk import nepi_ros
-
-from nepi_sdk import nepi_apps
+from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
 from nepi_ros_interfaces.msg import SystemStatus
@@ -25,11 +24,12 @@ from nepi_ros_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOr
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 from nepi_ros_interfaces.srv import AppStatusQuery, AppStatusQueryResponse
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.system_if import StatesIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
+
 
 APPS_SHARE_FOLDER = '/opt/nepi/ros/share/nepi_apps'
 APPS_CONFIG_FOLDER = '/opt/nepi/ros/etc'

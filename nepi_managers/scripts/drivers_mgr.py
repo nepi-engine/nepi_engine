@@ -19,7 +19,7 @@ import warnings
 import copy
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
+from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
@@ -31,12 +31,12 @@ from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryResponse
 from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.system_if import SettingsIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
-from nepi_api.sys_if_settings import SettingsIF
-from nepi_api.sys_if_save_cfg import SaveCfgIF
+
 
 
 DRIVERS_SHARE_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
@@ -402,7 +402,6 @@ class NepiDriversMgr(object):
 
 
 
-          #self.msg_if.pub_warn("Processing discovery process for driver %s with method %s and process %s",driver_name,discovery_method,discovery_process)
           ############################
           # Check Auto-Node processes
           remove_from_dict = False

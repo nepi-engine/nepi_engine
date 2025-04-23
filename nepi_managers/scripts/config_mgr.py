@@ -24,8 +24,8 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import String, Empty
 from nepi_ros_interfaces.srv import FileReset
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 
 

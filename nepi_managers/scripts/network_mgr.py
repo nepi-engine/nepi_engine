@@ -17,6 +17,7 @@ import threading
 import requests
 
 from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Bool, Empty, Int32
@@ -24,8 +25,8 @@ from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.msg import Reset, WifiCredentials
 from nepi_ros_interfaces.srv import IPAddrQuery, FileReset, BandwidthUsageQuery, WifiQuery
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 

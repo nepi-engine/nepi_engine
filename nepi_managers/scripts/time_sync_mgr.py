@@ -18,6 +18,7 @@ import sys
 
 
 from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Empty, Time
@@ -30,8 +31,8 @@ from nepi_ros_interfaces.msg import TimeStatus
 from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryResponse
 
 
-from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
