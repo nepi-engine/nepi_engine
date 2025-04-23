@@ -80,11 +80,10 @@ add_message_files(FILES
     StampedString.msg
     SystemStatus.msg
     SystemDefs.msg
-    TriggerStatus.msg
     WarningFlags.msg
     NavPoseStatus.msg
+    NavPoseSystemStatus.msg
     TimeStatus.msg
-    TriggerIndexSettings.msg
     OotStatus.msg
     Heading.msg
     NEPILinkStatus.msg
@@ -157,8 +156,6 @@ add_service_files(
     ConvertRawTstamp.srv
     FileReset.srv
     SystemDefsQuery.srv
-    TriggerStatusQuery.srv
-    TriggerDefs.srv
     NavPoseQuery.srv
     NavPoseStatusQuery.srv
     TimeStatusQuery.srv
@@ -190,7 +187,6 @@ add_service_files(
     OnvifDeviceListQuery.srv
     AppStatusQuery.srv
     DriverStatusQuery.srv
-    NavPosePubQuery.srv
     MgrStatusQuery.srv
     SetBoolState.srv
     AiMgrActiveModelsInfoQuery.srv

@@ -5,3 +5,8 @@ bool has_location
 bool has_position
 bool has_orientation
 bool has_heading
+
+float32[] pub_rate_min_max
+string[] frame_3d_options
+string[] frame_alt_options
+
