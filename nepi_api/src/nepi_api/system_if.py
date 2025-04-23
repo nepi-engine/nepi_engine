@@ -545,12 +545,11 @@ class SaveDataIF(object):
             save_rate_msg.save_rate_hz = rate
             save_rates_msg.append(save_rate_msg)
             #self.msg_if.publish_warn("data_rates_msg " + str(save_rates_msg))
-        current_save_data = SaveData(save_data = self.save_data)  
         status_msg = SaveDataStatus()
         status_msg.current_data_dir = ""
         status_msg.current_filename_prefix = self.prefix
         status_msg.save_data_rates = save_rates_msg
-        status_msg.save_data = current_save_data
+        status_msg.save_data = self.save_data
 
         if self.save_data_root_directory is not None:
             status_msg.current_data_dir = self.save_data_root_directory
