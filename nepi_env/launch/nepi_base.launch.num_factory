@@ -21,13 +21,14 @@
         
   <!-- Everything lives in the device namespace -->
   <group ns="$(arg device_ns)">
-    <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="true" output="$(arg output_destination)" />
+
 
     <rosparam command="load" file="$(arg config_file_root)/nepi_managers/system_mgr.yaml" ns="system_mgr" />
     <!-- Partition layout depends on system type. Should be passed in from specialized launch file -->
     <rosparam command="load" file="$(arg config_file_root)/nepi_env/nepi_partitions/$(arg partition_layout_file)" ns="system_mgr" />
     <node name="system_mgr" pkg="nepi_managers" type="system_mgr.py" respawn="true" output="$(arg output_destination)" />
 
+    <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="true" output="$(arg output_destination)" />
 
     <node if="$(arg run_robot_state_publisher)" name="nepi_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" required="true" />
 
@@ -56,46 +57,46 @@
     <!-- MGR:  Time Sync -->
     <group if="$(arg run_mgr_time_sync)" >
     <rosparam command="load" file="$(arg config_file_root)/nepi_managers/time_sync_mgr.yaml" ns="time_sync_mgr" />
-    <node name="time_sync_mgr" pkg="nepi_managers" type="time_sync_mgr.py" respawn="true" output="$(arg output_destination)" />
+    <node name="time_sync_mgr" pkg="nepi_managers" type="time_sync_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group> 
 
     <!-- MGR:  Nav/Pose -->
     <group if="$(arg run_mgr_nav_pose)" >
       <!-- Nav/Pose Mgr -->
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_mgr.yaml" ns="nav_pose_mgr" />
-      <node name="nav_pose_mgr" pkg="nepi_managers" type="nav_pose_mgr" respawn="true" output="$(arg output_destination)" />
+      <node name="nav_pose_mgr" pkg="nepi_managers" type="nav_pose_mgr" respawn="false" output="$(arg output_destination)" />
     </group>      
     
  <!-- GPSD ROS Client -->
 <group if="$(arg run_gpsd_ros_client)" >
       <rosparam command="load" file="$(arg config_file_root)/gpsd_ros_client/gpsd_ros_client.yaml" ns="gpsd_ros_client" />
-      <node name="gpsd_ros_client" pkg="nepi_gpsd_ros_client" type="gpsd_ros_client_node" respawn="true" output="$(arg output_destination)" />
+      <node name="gpsd_ros_client" pkg="nepi_gpsd_ros_client" type="gpsd_ros_client_node" respawn="false" output="$(arg output_destination)" />
     </group>  
     
  <!-- MGR: AI Model Mgr -->
     <group if="$(arg run_mgr_ai_models)" >
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/ai_model_mgr.yaml" ns="ai_model_mgr" />
-      <node name="ai_model_mgr" pkg="nepi_managers" type="ai_model_mgr.py" respawn="true" output="$(arg output_destination)" />
+      <node name="ai_model_mgr" pkg="nepi_managers" type="ai_model_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
 
    <!-- MGR: Drivers -->
     <group if="$(arg run_mgr_drivers)" >
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/drivers_mgr.yaml" ns="drivers_mgr" />
-      <node name="drivers_mgr" pkg="nepi_managers" type="drivers_mgr.py" respawn="true" output="$(arg output_destination)" />
+      <node name="drivers_mgr" pkg="nepi_managers" type="drivers_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
     
    <!-- MGR: Apps -->
     <group if="$(arg run_mgr_apps)" >
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/apps_mgr.yaml" ns="apps_mgr" />
-      <node name="apps_mgr" pkg="nepi_managers" type="apps_mgr.py" respawn="true" output="$(arg output_destination)" />
+      <node name="apps_mgr" pkg="nepi_managers" type="apps_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
 
        <!-- MGR: Automation -->
     <group if="$(arg run_mgr_automation)" >
       <rosparam command="load" file="$(arg config_file_root)/nepi_managers/automation_mgr.yaml" ns="automation_mgr" />
-      <node name="automation_mgr" pkg="nepi_managers" type="automation_mgr.py" respawn="true" output="$(arg output_destination)" />
+      <node name="automation_mgr" pkg="nepi_managers" type="automation_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
 
