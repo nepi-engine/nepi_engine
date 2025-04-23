@@ -574,24 +574,23 @@ class ConnectStatesIF(object):
         return self.ready  
 
 
-    def get_states_status_dict(self):
-        states_dict = None
-        if self.status_sub is not None:
-            if self.status_msg is not None:
-                states_dict = nepi_states.parse_states_status_msg(self.status_msg)
-        else:
-            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
-        return states_dict
-
-
     def get_states_names(self):
         state_names = []
-        if self.status_sub is not None:
-            if self.status_msg is not None:
+        if self.status_msg is not None:
                 state_names = self.status_msg.states_names_list
         else:
             nepi_msg.publishMsgWarn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
         return state_names
+
+
+    def get_states_status_dict(self):
+        states_dict = None
+        if self.status_msg is not None:
+                states_dict = nepi_states.parse_trigger_status_msg(self.status_msg)
+        else:
+            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
+        return states_dict
+
 
     def get_state_value(self, state_name):
         state_value = None
@@ -712,9 +711,8 @@ class ConnectTriggersIF(object):
 
     def get_triggers_names(self):
         trigger_names = []
-        if self.status_sub is not None:
-            if self.status_msg is not None:
-                trigger_names = self.status_msg.triggers_names_list
+        if self.status_msg is not None:
+            trigger_names = self.status_msg.triggers_name_list
         else:
             nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
         return trigger_names
@@ -722,9 +720,10 @@ class ConnectTriggersIF(object):
 
     def get_triggers_status_dict(self):
         triggers_dict = None
-        if self.status_sub is not None:
-            if self.status_msg is not None:
-                triggers_dict = nepi_triggers.parse_triggers_status_msg(self.status_msg)
+        if self.status_msg is not None:
+            [name_list, triggered_list] = nepi_triggers.parse_trigger_status_msg(self.status_msg)
+            for i, name in enumerate(name_list):
+                triggers_dict[name] = triggered_list[i]
         else:
             nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
         return triggers_dict

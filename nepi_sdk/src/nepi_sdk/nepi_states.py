@@ -32,7 +32,7 @@ logger = Logger(log_name = log_name)
 
 
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
-NONE_STATES_DICT = {"None":{"name":"None","type":"None","optons":["None"],"value":"None"}}
+NONE_STATES_DICT = {"state_name":{"name":"state_name","type":"Int","optons":[],"value":"20"}}
 
 
 def get_states_publisher_namespaces():
@@ -43,10 +43,10 @@ def get_states_publisher_namespaces():
     return namespaces_list
 
 
-
-def create_state_msg_from_state_dict(node_name, state_dict):
+def create_state_msg(node_name, state_dict):
     state_msg = SystemState()
-    state_msg.name_str = state_dict['name']
+    state_msg.name = state_dict['name']
+    state_msg.node_name = state_dict['node_name']
     state_msg.description = state_dict['description']
     state_msg.type_str = state_dict['type']
     state_msg.value_str = state_dict['value']
@@ -56,6 +56,10 @@ def create_state_msg_from_state_dict(node_name, state_dict):
       state_msg.options_list = []
     state_msgs_list.append(state_msg)
     return state_msg
+
+def parse_state_msg(msg):
+    state_dict = nepi_ros.convert_msg2dict(msg)
+    return state_dict
 
 def get_data_from_state_dict(state_dict):
   s_str = str(state_dict)
@@ -83,86 +87,41 @@ def get_data_from_state_dict(state_dict):
       logger.log_info("Data conversion failed for state_dict " + s_str + "with exception" + str(e) )
   return s_name, s_type, data
 
-        
-def parse_states_query_resp(states_query_resp):
-  node_name = states_query_resp.node_name
-  states = states_query_resp.states_list
-  states_dict = dict()
-  names_list = []
-  for entry in states:
-    name = entry.name_str
-    num = 0
-    while name in  names_list:
-      num += 1
-      name = name + "_" + str(num)
-    names_list.append(name)
-    state_dict = dict()
-    state_dict['name'] = name
-    state_dict['node'] = node_name
-    state_dict['description'] = entry.description
-    state_dict['type'] = entry.type_str
-    state_dict['value'] = entry.value_str
-    state_dict['options'] = entry.options_list
-    states_dict[entry.name_str] = state_dict
-  return states_dict
-
-
-def create_status_msg_from_states_dict(node_name, states_dict):
-  states_status_msg = SystemStatesStatus()
-  names_list = []
-  nodes_list = []
-  states_list = []
-  for state_name in states_dict.keys():
-    state_dict = states_dict[state_name]
-    name = state_dict['name']
-    names_list.append(name)
-    node = state_dict['node']
-    nodes_list.append(node)
-
-    state_msg = create_state_msg_from_state_dict(state_dict)
-    states_list.append(state_msg)
-
-  states_status_msg.states_names_list = names_list
-  states_status_msg.states_nodes_list = nodes_list
-  states_status_msg.states_list = states_list
-  return states_status_msg
-
-
-def parse_states_status_msg(states_status_msg):
-  state_names = states_status_msg.states_names_list
-  state_nodes = states_status_msg.states_nodes_list
-  states = states_status_msg.states_list
-  states_dict = dict()
-  names_list = []
-  for i, name in enumerate(state_names):
-    num = 0
-    while name in  names_list:
-      num += 1
-      name = name + "_" + str(num)
-    names_list.append(name)
-    state_dict = dict()
-    state_dict['node'] = states_nodes[i]
-    entry = states[i]
-    state_dict['name'] = entry.name
-    state_dict['description'] = entry.description
-    state_dict['type'] = entry.type_str
-    state_dict['value'] = entry.value_str
-    state_dict['options'] = entry.options_list
-    states_dict[entry.name_str] = state_dict
-  return states_dict
-  
-
-def create_query_resp_from_states_dict(node_name, states_dict):
+def create_states_query_resp(states_dict):
   states_query_resp = SystemStatesQueryResponse()
   states_list = []
   for state_name in states_dict.keys():
     state_dict = states_dict[state_name]
-    state_msg = create_state_msg_from_state_dict(state_dict)
+    state_msg = create_state_msg(state_dict)
     states_list.append(state_msg)
-
-  states_query_resp.node_name = node_name
   states_query_resp.states_list = states_list
-  return states_query_resp
+  return states_query_resp       
+
+def parse_states_query_resp(states_query_resp):
+  states_dict = dict()
+  states = states_query_resp.states_list
+  for state in states:
+    states_dict = nepi_ros.convert_msg2dict(state)
+    states_dict[state.name] = state_dict
+  return states_dict
+
+
+def create_states_status_msg(states_list):
+  states_status_msg = SystemStatesStatus()
+  states_status_msg.states_list = states_list
+  return states_status_msg
+
+
+def parse_states_status_msg(msg):
+  states = msg.states_list
+  states_list = []
+  for state in states:
+    state_dict = nepi_ros.convert_msg2dict(state)
+    states_list.append(state_dict)
+  return states_list
+  
+
+
 
 
 

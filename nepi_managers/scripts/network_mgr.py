@@ -95,7 +95,8 @@ class NetworkMgr:
         success = mgr_sys_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
-
+        status_dict = mgr_sys_if.get_status_dict()
+        self.in_container = status_dict['in_container']
         
         
         # Wait for Config Manager

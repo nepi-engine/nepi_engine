@@ -1,7 +1,9 @@
 # This message type is used for sending a system state value
 
 
-string name_str
+string name
+
+string node_name
 
 string description
 

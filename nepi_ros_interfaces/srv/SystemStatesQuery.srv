@@ -1,7 +1,6 @@
 # System States Info Query Service
 
 ---
-string node_name
 SystemState[] states_list
 
 

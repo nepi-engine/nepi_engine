@@ -1,8 +1,7 @@
 # System Mgr Triggers Status Message
 
-string[] triggers_names_list
-string[] triggers_nodes_list
-SystemTrigger[] triggers_list
+string[] triggers_name_list
+bool[] has_triggered_list
 
 
 

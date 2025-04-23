@@ -1021,9 +1021,9 @@ class StatesIF(object):
 
     def _statesQueryHandler(self, req):
         resp = SystemStatesQueryResponse()
-        states_dict = self.get_states_dict_function()
         try:
-            resp = nepi_states.create_query_resp_from_states_dict(self.node_name,states_dict)
+            states_dict = self.get_states_dict_function()
+            resp = nepi_states.create_query_resp(states_dict)
         except:
             self.msg_if.pub_info("Failed to create resp msg: " + str(e))
         return resp
@@ -1143,12 +1143,7 @@ class TriggersIF(object):
 
 
     def publish_trigger(self, trigger_dict):
-        trig_msg = SystemTrigger()
-        trig_msg.header.stamp = nepi_ros.get_ros_stamp_from_sec(trigger_dict['time'])
-        trig_msg.name = trigger_dict['name']
-        trig_msg.description = trigger_dict['description']
-        trig_msg.data_str_list = trigger_dict['data_str_list']
-        trig_msg.node = trigger_dict['node_name']
+        trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
         self.node_if.publish_pub('trigger_pub',trig_msg)
  
 
@@ -1159,7 +1154,7 @@ class TriggersIF(object):
     def _triggersQueryHandler(self, req):
         resp = SystemTriggersQueryResponse()
         try:
-            resp = nepi_triggers.create_query_resp_from_triggers_dict(self.node_name,self.triggers_dict)
+            resp = nepi_triggers.create_query_resp(self.triggers_dict)
         except:
             self.msg_if.pub_info("Failed to create resp msg: " + str(e))
         return resp

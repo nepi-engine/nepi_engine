@@ -4,11 +4,13 @@ Header header
 
 string name
 
+string node_name
+
 string description
 
 string[] data_str_list
 
-string node_name
+
 
 
 
