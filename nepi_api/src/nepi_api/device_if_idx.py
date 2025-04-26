@@ -213,40 +213,24 @@ class IDXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-        ready = self.save_cfg_if.wait_for_ready()
-
 
         # Configs Config Dict ####################
         self.CFGS_DICT = {
-                'init_callback': None,
-                'reset_callback': None,
-                'factory_reset_callback': None,
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
                 'namespace':  self.node_namespace
         }
 
 
-        self.init_device_name = self.nepi_if.get_param('device_name')
-        self.init_controls_enable = self.nepi_if.get_param('controls_enable')
-        self.init_auto_adjust = self.nepi_if.get_param('auto_adjust')
-        self.init_brightness_ratio = self.nepi_if.get_param('brightness')
-        self.init_contrast_ratio = self.nepi_if.get_param('contrast')
-        self.init_threshold_ratio = self.nepi_if.get_param('thresholding')
-        self.init_resolution_ratio = self.nepi_if.get_param('resolution_ratio')
-        self.init_framerate_ratio = self.nepi_if.get_param('framerate_ratio')
-
-        self.init_start_range_ratio = self.nepi_if.get_param('range_window/start_range_ratio')
-        self.init_stop_range_ratio = self.nepi_if.get_param('range_window/stop_range_ratio')
-        self.init_min_range_m = self.nepi_if.get_param('range_limits/min_range_m')
-        self.init_max_range_m = self.nepi_if.get_param('range_limits/max_range_m')
-
-        self.init_frame_3d_transform = self.nepi_if.get_param('frame_3d_transform')
-        self.init_frame_3d = self.nepi_if.get_param('frame_3d')
-
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
+            'rbx/device_name': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_device_name
+            },
             'controls_enable': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict["controls_enable"]
@@ -307,16 +291,15 @@ class IDXDeviceIF:
 
 
         # Services Config Dict ####################
-        nepi_ros.create_service('~idx/capabilities_query', IDXCapabilitiesQuery, self.provide_capabilities)
 
         self.SRVS_DICT = {
-            'service_name': {
+            'capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'empty_query',
-                'svr': EmptySrv,
-                'req': EmptySrvRequest(),
-                'resp': EmptySrvResponse(),
-                'callback': self.CALLBACK_FUNCTION
+                'topic': 'idx/capabilities_query'',
+                'svr': IDXCapabilitiesQuery,
+                'req': IDXCapabilitiesQueryRequest(),
+                'resp': IDXCapabilitiesQueryResponse(),
+                'callback': self.provide_capabilities
             }
         }
 

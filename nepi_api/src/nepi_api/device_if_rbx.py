@@ -334,39 +334,18 @@ class RBXRobotIF:
 
 
 
-
-
         ##################################################
         ### Node Class Setup
-
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb ,resetCb=self.resetCb, factoryResetCb=self.factoryResetCb)
 
 
         # Configs Config Dict ####################
         self.CFGS_DICT = {
-                'init_callback': None,
-                'reset_callback': None,
-                'factory_reset_callback': None,
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace': self.node_namespace
+                'namespace':  self.node_namespace
         }
-
-
-
-        # Params Config Dict ####################
-        self.init_device_name = self.nepi_if.get_param('rbx/device_name', self.factory_device_name)
-        self.init_cmd_timeout = self.nepi_if.get_param('rbx/cmd_timeout', self.FACTORY_CMD_TIMEOUT_SEC)
-
-        self.init_home_location = self.nepi_if.get_param('rbx/home_location', self.FACTORY_HOME_LOCATION)
-        self.init_fake_gps_enabled = self.nepi_if.get_param('rbx/fake_gps_enabled', False)
-
-        self.init_max_error_m = self.nepi_if.get_param('rbx/max_error_m', self.FACTORY_GOTO_MAX_ERROR_M)
-        self.init_max_error_deg = self.nepi_if.get_param('rbx/max_error_deg', self.FACTORY_GOTO_MAX_ERROR_DEG)
-        self.init_stabilized_sec = self.nepi_if.get_param('rbx/stabilized_sec', self.FACTORY_GOTO_STABILIZED_SEC)
-
-        self.init_image_source = self.nepi_if.get_param('rbx/image_source', self.FACTORY_IMAGE_INPUT_TOPIC_NAME)
-        self.init_image_status_overlay = self.nepi_if.get_param('rbx/image_status_overlay', False)
-
 
         self.PARAMS_DICT = {
             'rbx/device_name': {
@@ -406,24 +385,19 @@ class RBXRobotIF:
                 'factory_val': False
             },
 
-
-
-
         }
         
 
         # Services Config Dict ####################
 
-        nepi_ros.create_service("~rbx/capabilities_query", RBXCapabilitiesQuery, self.capabilities_query_callback)
-
         self.SRVS_DICT = {
-            'service_name': {
+            'capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'empty_query',
-                'svr': EmptySrv,
-                'req': EmptySrvRequest(),
-                'resp': EmptySrvResponse(),
-                'callback': self.CALLBACK_FUNCTION
+                'topic': 'rbx/capabilities_query',
+                'svr': RBXCapabilitiesQuery,
+                'req': RBXCapabilitiesQueryRequest(),
+                'resp': RBXCapabilitiesQueryResponse(),
+                'callback': self.capabilities_query_callback
             }
         }
 

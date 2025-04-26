@@ -15,7 +15,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from nepi_ros_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, AbsolutePanTiltWaypoint
-from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
 
@@ -183,43 +183,40 @@ class PTXActuatorIF:
         ##################################################
         ### Node Class Setup
 
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-
-
         # Configs Config Dict ####################
         self.CFGS_DICT = {
-                'init_callback': initCb,
-                'reset_callback': resetCb,
-                'factory_reset_callback': factoryResetCb,
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace': self.node_namespace
+                'namespace':  self.node_namespace
         }
 
 
 
         # Params Config Dict ####################
 
-        self.status_update_rate = self.nepi_if.get_param('status_update_rate_hz')
-
-        self.frame_id = self.nepi_if.get_param('ptx/frame_id')
-        self.yaw_joint_name = self.nepi_if.get_param('ptx/yaw_joint_name"')
-        self.pitch_joint_name = self.nepi_if.get_param('ptx/pitch_joint_name')
-        self.reverse_yaw_control = self.nepi_if.get_param('ptx/reverse_yaw_control')
-        self.reverse_pitch_control = self.nepi_if.get_param('ptx/reverse_pitch_control')
-
-       
-
-        self.max_yaw_hardstop_deg = self.nepi_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        self.min_yaw_hardstop_deg = self.nepi_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        self.max_pitch_hardstop_deg = self.nepi_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        self.max_pitch_softstop_deg = self.nepi_if.get_param('ptx/limits/min_pitch_hardstop_deg')
-        self.max_yaw_softstop_deg = self.nepi_if.get_param('ptx/limits/max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg = self.nepi_if.get_param('ptx/limits/min_yaw_softstop_deg')
-        self.max_pitch_softstop_deg = self.nepi_if.get_param('ptx/limits/max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.nepi_if.get_param('ptx/limits/min_pitch_softstop_deg')
-
-        self.home_yaw_deg = self.nepi_if.get_param('ptx/home_position/yaw_deg')
-        self.home_pitch_deg = self.nepi_if.get_param('ptx/home_position/pitch_deg')
+        self.status_update_rate = rospy.get_param('~status_update_rate_hz', self.factory_controls_dict['status_update_rate_hz'])
+ 
+         self.frame_id = rospy.get_param('~ptx/frame_id', self.frame_id)
+         self.yaw_joint_name = rospy.get_param("~ptx/yaw_joint_name", self.factory_controls_dict['frame_id'])
+         self.pitch_joint_name = rospy.get_param("~ptx/pitch_joint_name", self.factory_controls_dict['pitch_joint_name'])
+         self.reverse_yaw_control = rospy.get_param("~ptx/reverse_yaw_control", self.factory_controls_dict['reverse_yaw_control'])
+         self.reverse_pitch_control = rospy.get_param("~ptx/reverse_pitch_control", self.factory_controls_dict['reverse_pitch_control'])
+ 
+        
+ 
+         self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
+         self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
+         self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
+         self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
+         self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
+         self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
+         self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
+         self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
+ 
+         self.home_yaw_deg = rospy.get_param('~ptx/home_position/yaw_deg',)
+         self.home_pitch_deg = rospy.get_param('~ptx/home_position/pitch_deg',)
 
 
         self.PARAMS_DICT = {
@@ -236,16 +233,14 @@ class PTXActuatorIF:
 
         # Services Config Dict ####################
 
-        nepi_ros.create_service('~ptx/capabilities_query', PTXCapabilitiesQuery, self.provideCapabilities)
-
         self.SRVS_DICT = {
-            'service_name': {
+            'capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'empty_query',
-                'svr': EmptySrv,
-                'req': EmptySrvRequest(),
-                'resp': EmptySrvResponse(),
-                'callback': self.CALLBACK_FUNCTION
+                'topic': 'ptx/capabilities_query',
+                'svr': PTXCapabilitiesQuery,
+                'req': PTXCapabilitiesQueryRequest(),
+                'resp': PTXCapabilitiesQueryResponse(),
+                'callback': self.provideCapabilities
             }
         }
 

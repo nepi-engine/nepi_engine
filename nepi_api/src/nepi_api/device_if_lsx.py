@@ -188,29 +188,18 @@ class LSXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-
-
         # Configs Config Dict ####################
         self.CFGS_DICT = {
-                'init_callback': None,
-                'reset_callback': None,
-                'factory_reset_callback': None,
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace': self.node_namespace
+                'namespace':  self.node_namespace
         }
 
 
 
         # Params Config Dict ####################
-        self.init_device_name = self.nepi_if.get_param('lsx/device_name')
-        self.init_standby_enabled = self.nepi_if.get_param('lsx/standby_enabled')
-        self.init_on_off_state = self.nepi_if.get_param('lsx/on_off_state')
-        self.init_intensity_ratio = self.nepi_if.get_param('lsx/intensity_ratio')
-        self.init_color_selection = self.nepi_if.get_param('lsx/color_selection')
-        self.init_kelvin_val = self.nepi_if.get_param('lsx/kelvin_val')
-        self.init_strobe_enbled = self.nepi_if.get_param('lsx/strobe_enbled')
-        self.init_blink_interval_sec = self.nepi_if.get_param('lsx/blink_interval_sec')
 
         self.PARAMS_DICT = {
             'lsx/device_name': {
@@ -248,16 +237,15 @@ class LSXDeviceIF:
         }
 
         # Services Config Dict ####################
-        nepi_ros.create_service("~lsx/capabilities_query", LSXCapabilitiesQuery, self.capabilities_query_callback)
 
         self.SRVS_DICT = {
-            'service_name': {
+            'lsx/capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'empty_query',
-                'svr': EmptySrv,
-                'req': EmptySrvRequest(),
-                'resp': EmptySrvResponse(),
-                'callback': self.CALLBACK_FUNCTION
+                'topic': 'lsx/capabilities_query',
+                'svr': LSXCapabilitiesQuery,
+                'req': LSXCapabilitiesQueryRequest(),
+                'resp': LSXCapabilitiesQueryResponse(),
+                'callback': self.capabilities_query_callback
             }
         }
 

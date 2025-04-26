@@ -27,7 +27,7 @@ import yaml
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nepi_ros_interfaces.msg import NPXStatus
 from nepi_ros_interfaces.msg import NavPose, NavPoseData
-from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 
 
 from nepi_sdk import nepi_ros
@@ -140,24 +140,18 @@ class NPXDeviceIF:
     ##################################################
     ### Node Class Setup
 
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-
-
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-            'init_callback': None,
-            'reset_callback': None,
-            'factory_reset_callback': None,
-            'init_configs': True,
-            'namespace': self.node_namespace
-    }
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.node_namespace
+        }
 
 
 
     # Params Config Dict ####################
-    self.init_pub_rate = self.nepi_ros.get_param('pub_rate')
-    self.init_frame_3d = self.nepi_ros.get_param('frame_3d')
-    self.init_frame_alt = self.nepi_ros.get_param('frame_alt')
 
     self.PARAMS_DICT = {
         'pub_rate': {
@@ -175,16 +169,15 @@ class NPXDeviceIF:
     }
 
     # Services Config Dict ####################
-    nepi_ros.create_service('~npx/navpose_capabilities_query', self.navposeCapabilitiesHandler)
 
     self.SRVS_DICT = {
-        'service_name': {
+        'navpose_capabilities_query': {
             'namespace': self.node_namespace,
-            'topic': 'empty_query',
-            'svr': EmptySrv,
-            'req': EmptySrvRequest(),
-            'resp': EmptySrvResponse(),
-            'callback': self.CALLBACK_FUNCTION
+            'topic': 'npx/navpose_capabilities_query',
+            'svr': NavPoseCapabilitiesQuery,
+            'req': NavPoseCapabilitiesQueryRequest(),
+            'resp': NavPoseCapabilitiesQueryResponse(),
+            'callback': self.navposeCapabilitiesHandler
         }
     }
 
