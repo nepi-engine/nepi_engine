@@ -15,6 +15,7 @@ string name
 
 string namespace
 bool enabled
+string[] selected_classes_list
 string state
 
 bool sleep_enabled

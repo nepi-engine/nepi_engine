@@ -36,8 +36,8 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeParamsIF, NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
-from nepi_api.mgr_if_system import SystemIF
-from nepi_api.mgr_if_config import ConfigIF
+from nepi_api.mgr_if_system import MgrSystemIF
+from nepi_api.mgr_if_config import MgrConfigIF
 
 
 
@@ -77,7 +77,8 @@ USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 
 class AiDetectorIF:
 
-
+    STATES_DICT = dict()
+    TRIGGERS_DICT = dict()
 
     det_img_pub_file = 'nepi_ai_detector_img_pub_node.py'
 
@@ -165,6 +166,10 @@ class AiDetectorIF:
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_WAIT_FOR_DETECT
             },
+            'selected_classes': {
+                'namespace': self.node_namespace,
+                'factory_val': classes_list
+            },
             'img_tiling': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_IMG_TILING
@@ -245,29 +250,75 @@ class AiDetectorIF:
         }
 
 
+        # Create Subscribers
+        rospy.Subscriber('~add_img_topic', String, self.addImageTopicCb, queue_size=10)
+        rospy.Subscriber('~add_img_topics', StringArray, self.addImageTopicsCb, queue_size=10)
+        rospy.Subscriber('~remove_img_topic', String, self.removeImageTopicCb, queue_size=10)
+        rospy.Subscriber('~remove_img_topics', StringArray, self.removeImageTopicsCb, queue_size=10)
+        self.has_img_tiling = has_img_tiling
+        if self.has_img_tiling == True:
+            rospy.Subscriber('~set_img_tiling', Bool, self.setTileImgCb, queue_size=10)
+
+        rospy.Subscriber('~set_overlay_labels', Bool, self.setOverlayLabelsCb, queue_size=10)
+        rospy.Subscriber('~set_overlay_clf_name', Bool, self.setOverlayClfNameCb, queue_size=10)
+
+        rospy.Subscriber('~set_threshold', Float32, self.setThresholdCb, queue_size=10)
+        rospy.Subscriber('~set_max_rate', Int32, self.setMaxRateCb, queue_size=10)
+
+        rospy.Subscriber('~set_sleep_enable', Bool, self.setSleepEnableCb, queue_size=10) 
+        rospy.Subscriber('~set_sleep_suspend_sec', Int32, self.setSleepSuspendTimeCb, queue_size=10)
+        rospy.Subscriber('~set_sleep_run_sec', Int32, self.setSleepSuspendTimeCb, queue_size=10)
+
+        rospy.Subscriber('~reset_factory', Empty, self.resetFactoryCb, queue_size=10) # start local callback
+        rospy.Subscriber('~save_config', Empty, self.saveConfigCb, queue_size=10) # start local callback
+        rospy.Subscriber('~reset_config', Empty, self.resetConfigCb, queue_size=10) # start local callback
+        rospy.Subscriber('~enable', Bool, self.enableCb, queue_size=10) # start local callback
+
+
+
+
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'update': {
-                'msg': Setting,
-                'namespace': self.node_namespace,
-                'topic': 'update_setting',
-                'qsize': 1,
-                'callback': self._updateSettingCb
-            },
-            'publish_settings': {
-                'msg': Empty,
-                'namespace': self.node_namespace,
-                'topic': 'publish_setting',
-                'qsize': 1,
-                'callback': self._publishSettingsCb
-            },
-            'reset': {
-                'msg': Empty,
-                'namespace': self.node_namespace,
-                'topic': 'reset_settings',
-                'qsize': 1,
-                'callback': self._resetInitSettingCb
-            },
+        'enable_app': {
+            'namespace': self.node_namespace,
+            'topic': 'enable_app',
+            'msg': Bool,
+            'qsize': 10,
+            'callback': self.appEnableCb, 
+            'callback_args': ()
+        },
+        'add_all_classes': {
+            'namespace': self.node_namespace,
+            'topic': 'add_all_classes',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.addAllClassesCb, 
+            'callback_args': ()
+        },
+        'remove_all_classes': {
+            'namespace': self.node_namespace,
+            'topic': 'remove_all_classes',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.removeAllClassesCb, 
+            'callback_args': ()
+        },
+        'add_class': {
+            'namespace': self.node_namespace,
+            'topic': 'add_class',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.addClassCb, 
+            'callback_args': ()
+        },
+        'remove_class': {
+            'namespace': self.node_namespace,
+            'topic': 'remove_class',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.removeClassCb, 
+            'callback_args': ()
+        },
         }
 
         # Create Node Class ####################
@@ -281,6 +332,36 @@ class AiDetectorIF:
         )
 
         self.node_if.wait_for_ready()
+
+
+        # Setup States IF
+        self.STATES_DICT = {
+                        "detection_active": {
+                            "name":"detection_active",
+                            "node_name": self.node_name,
+                            "description": "Current detection state",
+                            "type":"Bool",
+                            "options": [],
+                            "value":"False"
+                            }
+        }
+        self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function)
+
+
+        # Setup Triggers IF
+        self.TRIGGERS_DICT = {
+                        "detection_trigger": {
+                            "name":"detection_trigger",
+                            "namespace": self.namespace,
+                            "description": "Triggered on AI detection",
+                            "data_str_list":["None"],
+                            "time":nepi_utils.get_time()
+                            }
+
+        }
+
+        self.triggers_if = TriggersIF(triggers_dict = self.Triggers_Dict)
+
         
         ##############################
         ## Setup All Detector Pubs and Subs
@@ -383,29 +464,7 @@ class AiDetectorIF:
         time.sleep(1)
 
 
-        # Create Subscribers
-        rospy.Subscriber('~add_img_topic', String, self.addImageTopicCb, queue_size=10)
-        rospy.Subscriber('~add_img_topics', StringArray, self.addImageTopicsCb, queue_size=10)
-        rospy.Subscriber('~remove_img_topic', String, self.removeImageTopicCb, queue_size=10)
-        rospy.Subscriber('~remove_img_topics', StringArray, self.removeImageTopicsCb, queue_size=10)
-        self.has_img_tiling = has_img_tiling
-        if self.has_img_tiling == True:
-            rospy.Subscriber('~set_img_tiling', Bool, self.setTileImgCb, queue_size=10)
 
-        rospy.Subscriber('~set_overlay_labels', Bool, self.setOverlayLabelsCb, queue_size=10)
-        rospy.Subscriber('~set_overlay_clf_name', Bool, self.setOverlayClfNameCb, queue_size=10)
-
-        rospy.Subscriber('~set_threshold', Float32, self.setThresholdCb, queue_size=10)
-        rospy.Subscriber('~set_max_rate', Int32, self.setMaxRateCb, queue_size=10)
-
-        rospy.Subscriber('~set_sleep_enable', Bool, self.setSleepEnableCb, queue_size=10) 
-        rospy.Subscriber('~set_sleep_suspend_sec', Int32, self.setSleepSuspendTimeCb, queue_size=10)
-        rospy.Subscriber('~set_sleep_run_sec', Int32, self.setSleepSuspendTimeCb, queue_size=10)
-
-        rospy.Subscriber('~reset_factory', Empty, self.resetFactoryCb, queue_size=10) # start local callback
-        rospy.Subscriber('~save_config', Empty, self.saveConfigCb, queue_size=10) # start local callback
-        rospy.Subscriber('~reset_config', Empty, self.resetConfigCb, queue_size=10) # start local callback
-        rospy.Subscriber('~enable', Bool, self.enableCb, queue_size=10) # start local callback
 
 
         # Setup Data Saving
@@ -424,6 +483,60 @@ class AiDetectorIF:
 
         self.msg_if.pub_info("IF Initialization Complete")
         
+
+
+  def initCb(self,do_updates = False):
+      self.msg_if.pub_info(" Setting init values to param values")
+      sel_classes = self.node_if.get_param('selected_classes')
+      if 'All' in sel_classes:
+        self.addAllClasses()
+      if do_updates == True:
+        self.resetCb(do_updates)
+
+
+  def resetCb(self):
+      self.publish_status()
+
+  def factoryResetCb(self):
+    self.last_image_topic = ""
+    self.publish_status()
+
+
+  def addAllClassesCb(self,msg):
+    self.addAllClasses()
+    self.publish_status()
+
+  def addAllClasses(self):
+    ##self.msg_if.pub_info(msg)
+    self.node_if.set_param('selected_classes', self.classes_list)
+
+
+  def removeAllClassesCb(self,msg):
+    ##self.msg_if.pub_info(msg)
+    self.node_if.set_param('selected_classes',[])
+    self.publish_status()
+
+  def addClassCb(self,msg):
+    ##self.msg_if.pub_info(msg)
+    class_name = msg.data
+    if class_name in self.classes_list:
+      sel_classes = self.node_if.get_param('selected_classes')
+      if class_name not in sel_classes:
+        sel_classes.append(class_name)
+      self.node_if.set_param('selected_classes', sel_classes)
+    self.publish_status()
+
+  def removeClassCb(self,msg):
+    ##self.msg_if.pub_info(msg)
+    class_name = msg.data
+    sel_classes = self.node_if.get_param('selected_classes')
+    if class_name in sel_classes:
+      sel_classes.remove(class_name)
+      self.node_if.set_param('selected_classes', sel_classes)
+    self.publish_status()
+
+
+
     def saveConfigCb(self, msg):
         self.msg_if.pub_info("Recived Save Config")
         nepi_ros.save_params_to_file(self.config_file_path,self.node_namespace) 
@@ -904,7 +1017,15 @@ class AiDetectorIF:
                                 detect_dict_list = []
                                 try:
                                     threshold = self.node_if.get_param('threshold')
-                                    detect_dict_list = self.processDetection(img_dict,threshold) 
+                                    detect_dicts = self.processDetection(img_dict,threshold) 
+                                    sel_classes = self.node_if.get_param('selected_classes')
+                                    sel_detect_ind = []
+                                    for i, detect in enumerate(detect_dicts):
+                                        if detect['name'] in sel_classes:
+                                            sel_detect_ind.append(i)
+                                    for ind in sel_detect_ind:
+                                        detect_dict_list.append(detect_dicts[ind])
+
                                     #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
                                     self.first_detect_complete = True
@@ -973,6 +1094,13 @@ class AiDetectorIF:
             bbs_msg.bounding_boxes = bb_msg_list
             if not rospy.is_shutdown() and self.bounding_boxes_pub is not None:
                     self.bounding_boxes_pub.publish(bbs_msg)
+
+
+
+        trigger_dict = self.Triggers_Dict['detection_trigger']
+        trigger_dict['time']=trigger_time
+        self.triggers_if.publish_trigger(trigger_dict)
+
                     self.detection_trigger_pub.publish()
                     self.detection_trigger_all_pub.publish()    
                                     
@@ -988,6 +1116,18 @@ class AiDetectorIF:
                         detection_trigger_pub.publish()
                         detection_state_pub = imgs_pub_sub_dict['detection_state_pub']
                         detection_state_pub.publish(True)
+
+        if 'ai_alert_state' in self.STATES_DICT.keys():
+          self.STATES_DICT['ai_alert_state']['value'] = str(self.active_alert)
+
+
+        if 'ai_alert_trigger' in self.Triggers_Dict.keys():
+          trigger_dict = self.Triggers_Dict['ai_alert_trigger']
+          trigger_dict['time']=trigger_time
+          self.triggers_if.publish_trigger(trigger_dict)
+
+
+
                     self.imgs_pub_sub_lock.release()
                         
                             
@@ -1073,6 +1213,7 @@ class AiDetectorIF:
         status_msg.namespace = self.node_namespace
         status_msg.state = self.state
         status_msg.enabled = enabled
+        status_msg.selected_classes = self.node_if.get_param('selected_classes')
 
         status_msg.sleep_enabled = self.node_if.get_param('sleep_enabled')
         status_msg.sleep_suspend_sec = self.node_if.get_param('sleep_suspend_time')

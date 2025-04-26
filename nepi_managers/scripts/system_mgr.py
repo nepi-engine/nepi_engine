@@ -53,6 +53,8 @@ class SystemMgrNode():
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
     FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
 
+    STATES_DICT = dict()
+
     status_msg = SystemStatus()
     system_defs_msg = SystemDefs()
 
@@ -134,8 +136,6 @@ class SystemMgrNode():
 
     in_container = False
 
-    states_dict = dict
-
     triggers_list = dict()
     triggers_status_interval = 1.0
 
@@ -168,7 +168,6 @@ class SystemMgrNode():
         if self.first_stage_rootfs_device == "container":
             self.in_container = True
         self.system_defs_msg.in_container = self.in_container
-        self.states_dict['in_container'] = {"name":'in_container',"type":'Bool',"options":[],"value":'False'}
         self.status_msg.in_container = self.in_container
 
         if self.in_container == False:
@@ -481,6 +480,18 @@ param("~ssd_device", self.ssd_device)
         self.msg_if.pub_warn("Starting System IF Setup")   
         #######################
         # Setup System IF Classes
+        
+        # Setup States IF
+        self.STATES_DICT = {
+                        "in_container": {
+                            "name":"in_container",
+                            "node_name": self.node_name,
+                            "description": "NEPI running in container",
+                            "type":"Bool",
+                            "options": [],
+                            "value": str(self.in_container)
+                            }
+        }
         self.sys_if_states = StatesIF(self.getStatesDictCb)
         time.sleep(1)
 
@@ -488,6 +499,9 @@ param("~ssd_device", self.ssd_device)
         self.msg_if.pub_warn("Completing Initialization Processes") 
         ########################
         # Complete Initialization
+
+
+
 
         # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
         # established
@@ -564,7 +578,7 @@ param("~ssd_device", self.ssd_device)
 
 
     def getStatesDictCb(self):
-        return self.states_dict
+        return self.STATES_DICT
 
     def system_triggers_callback(self,msg):
         trigger_name = msg.name

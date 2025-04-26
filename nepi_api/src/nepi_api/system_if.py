@@ -921,11 +921,15 @@ class SettingsIF(object):
 
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
 
-EXAMPLE_STATE_DICT = {"name":"None",
+EXAMPLE_STATES_DICT = {
+                    "state_name": {
+                        "name": "None",
+                        "node_name": "Node",
                         "description": "None",
                         "type":"Bool",
                         "options": [],
                         "value":"False"
+                    }
 }
 
 
@@ -1032,15 +1036,25 @@ class StatesIF(object):
 
 
 
-
-EXAMPLE_TRIGGER_DICT = {"name":"None",
-                        "description": "None",
-                        "data_str_list":["None"],
-                        "time":nepi_utils.get_time(),
-                        "node_name":"~"
+EXAMPLE_TRIGGER_DICT = {
+                    "name":"None",
+                    "namespace": '~'
+                    "description": "None",
+                    "data_str_list":["None"],
+                    "time":nepi_utils.get_time() 
 }
 
-EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
+
+EXAMPLE_TRIGGERS_DICT = {
+                "trigger_name": {
+                    "name":"None",
+                    "namespace": '~'
+                    "description": "None",
+                    "data_str_list":["None"],
+                    "time":nepi_utils.get_time() 
+                    }
+
+}
 
 
 
@@ -1054,7 +1068,7 @@ class TriggersIF(object):
 
     #######################
     ### IF Initialization
-    def __init__(self, triggers_dict = None, namespace = None):
+    def __init__(self, triggers_dict = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -1068,9 +1082,6 @@ class TriggersIF(object):
         
         #############################
         # Initialize Class Variables
-        if namespace is None:
-            namespace = '~'
-        self.namespace = nepi_ros.get_full_namespace(namespace)
 
         if triggers_dict is None:
             self.triggers_dict = dict()
