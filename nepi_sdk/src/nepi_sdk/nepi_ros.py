@@ -159,7 +159,7 @@ def get_full_namespace(namespace):
   node_namespace = get_node_namespace()
   if namespace is None:
     namespace = node_namespace
-  elif namespace is 'None':
+  elif namespace == 'None':
     namespace = node_namespace
   elif namespace == '':
     namespace = base_namespace
@@ -819,5 +819,5 @@ def on_shutdown(shutdown_fuction):
 def Time(float):
   rospy.Time(float)
 
-def wait_for_service(wait_topic, timeout_s)
+def wait_for_service(wait_topic, timeout_s):
   rospy.wait_for_service(wait_topic, timeout_s)

@@ -37,8 +37,8 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeParamsIF, NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
-from nepi_api.mgr_if_system import MgrSystemIF
-from nepi_api.mgr_if_config import MgrConfigIF
+from nepi_api.mgr_if_system import SystemIF
+from nepi_api.mgr_if_config import ConfigIF
 
 
 
@@ -152,54 +152,54 @@ class AiDetectorIF:
                 'reset_callback': None,
                 'factory_reset_callback': None,
                 'init_configs': True,
-                'namespace': '~',
+                'namespace':  self.node_namespace,
         }
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'img_topics': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': []
             },
             'wait_for_detect': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_WAIT_FOR_DETECT
             },
             'img_tiling': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_IMG_TILING
             },
             'overlay_labels': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_LABELS_OVERLAY
             },
             'overlay_clf_name': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_CLF_OVERLAY
             },
             'threshold': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_THRESHOLD
             },
             'max_rate': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': DEFAULT_MAX_RATE
             },
             'enabled': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': False
             },
             'sleep_enabled': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': False
             },
             'sleep_suspend_time': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': -1
             },
             'sleep_run_time': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': 1
             },
         }
@@ -209,7 +209,7 @@ class AiDetectorIF:
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'info_query': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'detector_info_query',
                 'srv': AiDetectorInfoQuery,
                 'req': AiDetectorInfoQueryRequest(),
@@ -223,21 +223,21 @@ class AiDetectorIF:
         self.PUBS_DICT = {
             'found_object': {
                 'msg': ObjectCount,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'found_object',
                 'qsize': 1,
                 'latch': False
             },
             'bounding_boxes': {
                 'msg': BoundingBoxes,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 1,
                 'latch': False
             },
             'status': {
                 'msg': AiDetectorStatus,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
@@ -250,21 +250,21 @@ class AiDetectorIF:
         self.SUBS_DICT = {
             'update': {
                 'msg': Setting,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'update_setting',
                 'qsize': 1,
                 'callback': self._updateSettingCb
             },
             'publish_settings': {
                 'msg': Empty,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'publish_setting',
                 'qsize': 1,
                 'callback': self._publishSettingsCb
             },
             'reset': {
                 'msg': Empty,
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'topic': 'reset_settings',
                 'qsize': 1,
                 'callback': self._resetInitSettingCb
@@ -291,7 +291,7 @@ class AiDetectorIF:
             # starting all detector pubs
             self.all_namespace = all_namespace
             self.all_pubs_config_dict = self.PUBS_CONFIG_DICT
-            del self.all_pubs_config_dict.['pubs_dict']['status']
+            del self.all_pubs_config_dict['pubs_dict']['status']
             self.all_pubs_config_dict['namespace'] = self.all_namespace
     
             self.all_pubs_if = NodePublishersIF(
@@ -593,7 +593,7 @@ class AiDetectorIF:
         else:
             imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
             if img_topic in imgs_info_dict.keys():
-                if self.imgs_pub_sub_dict[img_topic]
+                if self.imgs_pub_sub_dict[img_topic]:
                     self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)  
                     # Reregister img_sub
                     self.imgs_pub_sub_lock.acquire()
@@ -627,7 +627,7 @@ class AiDetectorIF:
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
 
                 self.img_pubs_dict = self.PUBS_DICT
-                del self.img_pubs_dict.['status']
+                del self.img_pubs_dict['status']
                 for pub_name in self.PUBS_DICT.keys():
                     self.PUBS_DICT[pub_name]['namespace'] = pub_sub_namespace
         

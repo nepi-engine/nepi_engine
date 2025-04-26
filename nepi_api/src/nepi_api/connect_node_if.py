@@ -24,13 +24,15 @@ from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
 
 
 
+
+
 ##################################################
 ### Node Connect Configs Class
-
-
+'''
 EXAMPLE_CFGS_CONFIG_DICT = {
         'namespace': '~'
 }
+'''
 
 class ConnectConfigsIF(object):
 
@@ -340,6 +342,7 @@ class ConnectNodeServicesIF(object):
 
 
 # Publishers Config Dict ####################
+'''
 EXAMPLE_PUBS_DICT = {
     'pub_name': {
         'namespace': '~',
@@ -349,9 +352,9 @@ EXAMPLE_PUBS_DICT = {
         'latch': False
     }
 }
+'''
 
-
-class ConnectNodePublishersIF(NodePublisherIF):
+class ConnectNodePublishersIF(NodePublishersIF):
 
     #######################
     ### IF Initialization
@@ -430,6 +433,9 @@ EXAMPLE_CFGS_DICT = {
         'namespace': '~'
 }
 
+def EXAMPLE_CALLBACK_FUNCTION(request):
+    response = EmptySrvResponse()
+    return response
 
 # Services Config Dict ####################
 EXAMPLE_SRVS_DICT = {

@@ -25,7 +25,7 @@ from nepi_sdk import nepi_pc
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
 
-from nepi_ros_interfaces.msg import IDXStatus, RangeWindow, SaveData, SaveDataRate, SaveDataStatus
+from nepi_ros_interfaces.msg import IDXStatus, RangeWindow
 from nepi_ros_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryResponse
 from nepi_ros_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_ros_interfaces.msg import Frame3DTransform
@@ -136,10 +136,9 @@ class IDXDeviceIF:
                  getColor2DImg=None, stopColor2DImgAcquisition=None, 
                  getBW2DImg=None, stopBW2DImgAcquisition=None,
                  getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getDepthImg=None,getNavPoseDictFunction stopDepthImgAcquisition=None, 
+                 getDepthImg=None,getNavPoseDictFunction=None, 
                  getPointcloud=None, stopPointcloudAcquisition=None, 
                  getPointcloudImg=None, stopPointcloudImgAcquisition=None, 
-                 getNavPoseDictFunction=None,
                  has_location = False, has_position = False, has_orientation = False, has_heading = False):
 
         ####  IF INIT SETUP ####
@@ -224,26 +223,26 @@ class IDXDeviceIF:
                 'reset_callback': None,
                 'factory_reset_callback': None,
                 'init_configs': True,
-                'namespace': '~'
+                'namespace':  self.node_namespace
         }
 
 
-        self.init_device_name = self.nepi_if.get_paramdevice_name')
-        self.init_controls_enable = self.nepi_if.get_paramcontrols_enable')
-        self.init_auto_adjust = self.nepi_if.get_paramauto_adjust')
-        self.init_brightness_ratio = self.nepi_if.get_parambrightness')
-        self.init_contrast_ratio = self.nepi_if.get_paramcontrast')
-        self.init_threshold_ratio = self.nepi_if.get_paramthresholding')
-        self.init_resolution_ratio = self.nepi_if.get_paramresolution_ratio')
-        self.init_framerate_ratio = self.nepi_if.get_paramframerate_ratio')
+        self.init_device_name = self.nepi_if.get_param('device_name')
+        self.init_controls_enable = self.nepi_if.get_param('controls_enable')
+        self.init_auto_adjust = self.nepi_if.get_param('auto_adjust')
+        self.init_brightness_ratio = self.nepi_if.get_param('brightness')
+        self.init_contrast_ratio = self.nepi_if.get_param('contrast')
+        self.init_threshold_ratio = self.nepi_if.get_param('thresholding')
+        self.init_resolution_ratio = self.nepi_if.get_param('resolution_ratio')
+        self.init_framerate_ratio = self.nepi_if.get_param('framerate_ratio')
 
-        self.init_start_range_ratio = self.nepi_if.get_paramrange_window/start_range_ratio')
-        self.init_stop_range_ratio = self.nepi_if.get_paramrange_window/stop_range_ratio')
-        self.init_min_range_m = self.nepi_if.get_paramrange_limits/min_range_m')
-        self.init_max_range_m = self.nepi_if.get_paramrange_limits/max_range_m')
+        self.init_start_range_ratio = self.nepi_if.get_param('range_window/start_range_ratio')
+        self.init_stop_range_ratio = self.nepi_if.get_param('range_window/stop_range_ratio')
+        self.init_min_range_m = self.nepi_if.get_param('range_limits/min_range_m')
+        self.init_max_range_m = self.nepi_if.get_param('range_limits/max_range_m')
 
-        self.init_frame_3d_transform = self.nepi_if.get_paramframe_3d_transform')
-        self.init_frame_3d = self.nepi_if.get_paramframe_3d')
+        self.init_frame_3d_transform = self.nepi_if.get_param('frame_3d_transform')
+        self.init_frame_3d = self.nepi_if.get_param('frame_3d')
 
 
         # Params Config Dict ####################
@@ -500,20 +499,20 @@ class IDXDeviceIF:
 
         # Setup Settings IF Class ####################
         if capSettings is not None:
-        self.SETTINGS_DICT = {
+            self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
                     'getSettingsFunction': getSettingsFunction, 
-                    namespace='~'
+                    'namespace':  self.node_namespace
         }
         else:
-        self.SETTINGS_DICT = {
+            self.SETTINGS_DICT = {
                     'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
                     'factorySettings': nepi_settings.NONE_SETTINGS,
                     'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
                     'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                    namespace='~'
+                    'namespace':  self.node_namespace
         }
         self.settings_if = SettingsIF(self.SETTINGS_DICT)
 
@@ -669,7 +668,7 @@ class IDXDeviceIF:
                                     has_position = has_position,
                                     has_orientation = has_orientation,
                                     has_heading = has_heading,
-                                    getNavPoseDictFunction = self.getNavPoseDictFunction
+                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
                                     pub_rate = 10)
 
 
@@ -893,7 +892,7 @@ class IDXDeviceIF:
     def setBrightnessCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         new_brightness = msg.data
-        if self.nepi_if.get_paramauto_adjust'):
+        if self.nepi_if.get_param('auto_adjust'):
             self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled")
         else:
             if self.setBrightness is not None:
@@ -918,7 +917,7 @@ class IDXDeviceIF:
             self.publishStatus(do_updates=False) # No change
             return
 
-        if self.nepi_if.get_paramauto_adjust'):
+        if self.nepi_if.get_param('auto_adjust'):
             self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled")
         else:
             if self.setContrast is not None:
@@ -1198,7 +1197,7 @@ class IDXDeviceIF:
                         if dp_raw_if is not None:
                             if (dp_raw_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = self.nepi_if.get_paramframe_3d')
+                                frame_id = self.nepi_if.get_param('frame_3d')
                                 dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = 'sensor_frame')
                             if (dp_raw_should_save == True):
                                 self.save_data_if.write_image_file(data_product_raw,cv2_img,timestamp = ros_timestamp,save_check=False)
@@ -1209,7 +1208,7 @@ class IDXDeviceIF:
                             cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
                             if (dp_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = self.nepi_if.get_paramframe_3d')
+                                frame_id = self.nepi_if.get_param('frame_3d')
                                 dp_if.publish_cv2_img(cv2_img, encoding = encoding, ros_timestamp = ros_timestamp, frame_id = frame_id)
                             if (dp_should_save == True):
                                 self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
@@ -1271,20 +1270,20 @@ class IDXDeviceIF:
                         if dp_raw_if is not None:
                             if (dp_raw_has_subs == True):
                                 #Publish Ros Image
-                                frame_id = self.nepi_if.get_paramframe_3d')
+                                frame_id = self.nepi_if.get_param('frame_3d')
                                 dp_raw_if.publish_o3d_pc.publish(o3d_pc, ros_timestamp = ros_timestamp, frame_id = ros_frame)
                             if (dp_raw_should_save == True):
                                 self.save_data_if.write_pointcloud_file(data_product_raw,o3d_pc,timestamp = ros_timestamp, save_check=False)
 
 
                         #********************
-                        set_frame = self.nepi_if.get_paramframe_3d')
+                        set_frame = self.nepi_if.get_param('frame_3d')
                         if set_frame == 'sensor_frame':
                             ros_frame = set_frame # else pass through sensor frame
                         else:
                             ros_frame = set_frame
 
-                        transform = self.nepi_if.get_paramframe_3d_transform')
+                        transform = self.nepi_if.get_param('frame_3d_transform')
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
@@ -1352,12 +1351,12 @@ class IDXDeviceIF:
     # Utility Functions
 
     def applyIDXControls2Image(self,cv2_img,data_product):
-        enabled = self.nepi_if.get_paramcontrols_enable')
-        auto = self.nepi_if.get_paramauto_adjust')       
-        brightness = self.nepi_if.get_parambrightness')
-        contrast = self.nepi_if.get_paramcontrast')        
-        threshold = self.nepi_if.get_paramthresholding')
-        res_ratio = self.nepi_if.get_paramresolution_ratio')   
+        enabled = self.nepi_if.get_param('controls_enable')
+        auto = self.nepi_if.get_param('auto_adjust')       
+        brightness = self.nepi_if.get_param('brightness')
+        contrast = self.nepi_if.get_param('contrast')        
+        threshold = self.nepi_if.get_param('thresholding')
+        res_ratio = self.nepi_if.get_param('resolution_ratio')   
 
         if enabled == True: 
             if res_ratio < 0.99:
@@ -1377,7 +1376,7 @@ class IDXDeviceIF:
     def publishStatus(self, do_updates = True):
         if do_updates is True:
             # TODO: Probably these should be queried from the parent (and through the driver) via explicit callbacks rather than via the param server
-            idx_params = self.nepi_if.get_param')
+            idx_params = self.nepi_if.get_param('')
 
             self.status_msg.device_name = idx_params['device_name'] if 'device_name' in idx_params else self.init_device_name
             self.status_msg.sensor_name = self.sensor_name
@@ -1413,12 +1412,12 @@ class IDXDeviceIF:
             self.status_msg.brightness = idx_params['brightness'] if 'brightness' in idx_params else 0
             self.status_msg.thresholding = idx_params['thresholding'] if 'thresholding' in idx_params else 0
             
-            self.status_msg.range_window.start_range = self.nepi_if.get_paramrange_window/start_range_ratio')
-            self.status_msg.range_window.stop_range =  self.nepi_if.get_paramrange_window/stop_range_ratio')
-            self.status_msg.min_range_m = self.nepi_if.get_paramrange_limits/min_range_m')
-            self.status_msg.max_range_m = self.nepi_if.get_paramrange_limits/max_range_m')
+            self.status_msg.range_window.start_range = self.nepi_if.get_param('range_window/start_range_ratio')
+            self.status_msg.range_window.stop_range =  self.nepi_if.get_param('range_window/stop_range_ratio')
+            self.status_msg.min_range_m = self.nepi_if.get_param('range_limits/min_range_m')
+            self.status_msg.max_range_m = self.nepi_if.get_param('range_limits/max_range_m')
             # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
-            transform = self.nepi_if.get_paramframe_3d_transform')
+            transform = self.nepi_if.get_param('frame_3d_transform')
             transform_msg = Frame3DTransform()
             transform_msg.translate_vector.x = transform[0]
             transform_msg.translate_vector.y = transform[1]

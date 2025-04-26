@@ -16,7 +16,7 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveData
+from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
 from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, OpEnvironmentQuery, OpEnvironmentQueryRequest, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemStorageFolderQuery, SystemStorageFolderQueryRequest
 
@@ -93,14 +93,14 @@ class ConnectMgrSystemIF:
                 'svr': SystemDefsQuery,
                 'req': SystemDefsQueryRequest(),
                 'resp': SystemDefsQueryResponse(),
-            },
+            }
         }
 
 
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = None
-       '''  #  Need to add publishers
+        '''  #  Need to add publishers
         self.save_data_pub = rospy.Publisher(self._get_ns('save_data'), SaveData, queue_size=10)
         self.clear_data_folder_pub = rospy.Publisher(self._get_ns('clear_data_folder'), Empty, queue_size=10)
         self.set_op_environment_pub = rospy.Publisher(self._get_ns('set_op_environment'), String, queue_size=10)
@@ -261,8 +261,7 @@ class ConnectMgrSystemIF:
     def get_system_stats_dict(self):
         service_name = 'sys_defs'
         stats_dict = None
-
-         request = None
+        request = None
         try:
             request = self.NODE_IF.create_request_msg(service_name)
             request.folder_path = folder_path

@@ -267,47 +267,47 @@ class AIDetectorManager:
 
 
 
-        ###########################
-        # Set up save data and save config services ########################################################
-        factory_data_rates= {}
-        for d in self.data_products:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'detection_image' in self.data_products:
-            factory_data_rates['detection_image'] = [1.0, 0.0, 100.0] 
-        self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
+    ###########################
+    # Set up save data and save config services ########################################################
+    factory_data_rates= {}
+    for d in self.data_products:
+        factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+    if 'detection_image' in self.data_products:
+        factory_data_rates['detection_image'] = [1.0, 0.0, 100.0] 
+    self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
 
 
 
-        ###########################
-        self.refreshFrameworks()
-        # Update and save settings
-        self.saveSettings() # Save config
+    ###########################
+    self.refreshFrameworks()
+    # Update and save settings
+    self.saveSettings() # Save config
 
-        self.initCb(do_updates = True)
-
-
-        ###########################
-        nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, self.handleInfoRequest)
-
-        self.all_namespace = os.path.join(self.base_namespace,'ai')
-        self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
-        self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
-        self.node_if.publish_pub('detection_image_pub', self.ros_loading_img)
+    self.initCb(do_updates = True)
 
 
-        self.msg_if.pub_info("Staring AI Framework and Model update process")
-        nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
-        self.msg_if.pub_info("Staring AI Model Info update process")
-        nepi_ros.timer(nepi_ros.ros_duration(1), self.modelsInfoUpdaterCb, oneshot = True)
+    ###########################
+    nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, self.handleInfoRequest)
 
-        self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
-        self.node_if.publish_pub('detection_image_pub', self.ros_waiting_img)
-        #########################################################
-        ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
-        # Spin forever (until object is detected)
-        nepi_ros.spin()
-        #########################################################
+    self.all_namespace = os.path.join(self.base_namespace,'ai')
+    self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
+    self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
+    self.node_if.publish_pub('detection_image_pub', self.ros_loading_img)
+
+
+    self.msg_if.pub_info("Staring AI Framework and Model update process")
+    nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
+    self.msg_if.pub_info("Staring AI Model Info update process")
+    nepi_ros.timer(nepi_ros.ros_duration(1), self.modelsInfoUpdaterCb, oneshot = True)
+
+    self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
+    self.node_if.publish_pub('detection_image_pub', self.ros_waiting_img)
+    #########################################################
+    ## Initiation Complete
+    self.msg_if.pub_info("Initialization Complete")
+    # Spin forever (until object is detected)
+    nepi_ros.spin()
+    #########################################################
 
 
 

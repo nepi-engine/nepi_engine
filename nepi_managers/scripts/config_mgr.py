@@ -82,7 +82,6 @@ class config_mgr(object):
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         ###########################
 
-<<<<<<< HEAD
    ##############################
     ### Setup Node
 
@@ -100,7 +99,7 @@ class config_mgr(object):
     self.PUBS_DICT = {
         'status_pub': {
             'namespace': self.node_namespace,
-            'topic': 'status'
+            'topic': 'status',
             'msg': Empty,
             'qsize': 1,
             'latch': True
@@ -111,7 +110,7 @@ class config_mgr(object):
             'msg': AppStatus,
             'qsize': 1,
             'latch': True
-        },
+        }
     }  
 
     # Subscribers Config Dict ####################
@@ -139,7 +138,7 @@ class config_mgr(object):
             'qsize': None,
             'callback': self.restore_user_cfgs_mgr, 
             'callback_args': ()
-        },
+        }
     }
 
     # Params Config Dict ####################
@@ -168,34 +167,32 @@ class config_mgr(object):
 
 
 
-        nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
-        nepi_ros.create_service('user_reset', FileReset, self.user_reset)
+    nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
+    nepi_ros.create_service('user_reset', FileReset, self.user_reset)
 
 
-        self.node_if.publish_pub('status_pub')
-=======
+    self.node_if.publish_pub('status_pub')
 
 
-        rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
-        rospy.Subscriber('store_params', String, self.store_params)
-        rospy.Subscriber('full_user_restore', Empty, self.restore_user_cfgs_mgr)
+    rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
+    rospy.Subscriber('store_params', String, self.store_params)
+    rospy.Subscriber('full_user_restore', Empty, self.restore_user_cfgs_mgr)
 
-        rospy.Service('factory_reset', FileReset, self.factory_reset)
-        rospy.Service('user_reset', FileReset, self.user_reset)
+    rospy.Service('factory_reset', FileReset, self.factory_reset)
+    rospy.Service('user_reset', FileReset, self.user_reset)
 
-        self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
-        time.sleep(1)
-        self.status_pub.publish(Empty())
->>>>>>> 29cbd153084a0dc0c7a6689bad18859cbab0bf37
-        # Restore user configurations
-        self.restore_user_cfgs()
+    self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
+    time.sleep(1)
+    self.status_pub.publish(Empty())
+    # Restore user configurations
+    self.restore_user_cfgs()
 
-        #########################################################
-        ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
-        # Spin forever (until object is detected)
-        nepi_ros.spin()
-        #########################################################
+    #########################################################
+    ## Initiation Complete
+    self.msg_if.pub_info("Initialization Complete")
+    # Spin forever (until object is detected)
+    nepi_ros.spin()
+    #########################################################
 
 
     # Moving symlinks is typically faster and more robust than copying files, so to reduce the

@@ -354,15 +354,15 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
     # Add Text Shadow if requested
     if apply_shadow == True:
       try:
-            cv2.putText(cv2_img,text, 
-                bottomLeftCornerOfText, 
-                font, 
-                fontScale,
-                fontColorBk,
-                font_thickness*2,
-                lineType)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to apply text shadow: " + str(e))
+          cv2.putText(cv2_img,text, 
+              bottomLeftCornerOfText, 
+              font, 
+              fontScale,
+              fontColorBk,
+              font_thickness*2,
+              lineType)
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to apply text shadow: " + str(e))
 
   
     # Overlay Text
@@ -418,7 +418,7 @@ def overlay_bounding_box(cv2_img,bot_left_px, top_right_px, line_color=(255,0,0)
         self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
     return cv2_img
 
-def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False)):
+def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
     text_size = cv2.getTextSize(text, 
       font, 
       scale,

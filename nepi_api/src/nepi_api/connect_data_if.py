@@ -38,9 +38,9 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
 ############################################################
-
+'''
 EXAMPLE_DATA_DICT = {   
-    'namespace': '~'     
+    'namespace':  self.node_namespace,     
     'data': None,
     'width': 0,
     'height': 0,
@@ -51,7 +51,7 @@ EXAMPLE_DATA_DICT = {
     'got_latency_time': 0,
     'process_time': 0 
 }
-
+'''
 
 class ConnectImageIF:
 
@@ -319,9 +319,9 @@ class ConnectImageIF:
 ############################################################
 
 
-
+'''
 EXAMPLE_DATA_DICT = {      
-    'namespace': '~' 
+    'namespace':  self.node_namespace, 
     'data': None,
     'width': 0,
     'height': 0,
@@ -335,7 +335,7 @@ EXAMPLE_DATA_DICT = {
     'pub_latency_time':0,
     'process_time':0
 }
-
+'''
 
 class ConnectPointcloudIF:
     """AI is creating summary for 
@@ -632,8 +632,9 @@ class ConnectPointcloudIF:
 
 NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
+'''
 EXAMPLE_DATA_DICT = {   
-    'namespace': '~'     
+    'namespace': self.node_namespace,     
     'data': None,
     'timestamp': nepi_ros.get_time(),
     'ros_img_header': Header(),
@@ -642,7 +643,7 @@ EXAMPLE_DATA_DICT = {
     'pub_latency_time':0,
     'process_time':0
 }
-
+'''
 
 class ConnectNavPoseIF:
 

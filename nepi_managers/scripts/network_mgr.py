@@ -164,7 +164,7 @@ class NetworkMgr:
     self.PUBS_DICT = {
         'store_params': {
             'namespace': self.node_namespace,
-            'topic': 'store_params'
+            'topic': 'store_params',
             'msg': String,
             'qsize': 1,
             'latch': None
@@ -268,11 +268,7 @@ class NetworkMgr:
             'qsize': None,
             'callback': self.refresh_available_networks_handler, 
             'callback_args': ()
-        },
-
-
-
-
+        }
     }
 
     # Params Config Dict ####################
@@ -308,9 +304,7 @@ class NetworkMgr:
         'tx_bw_limit_mbps': {
             'namespace': self.node_namespace,
             'factory_val': msg.data
-        },
-
-
+        }
     }
 
 
@@ -328,42 +322,37 @@ class NetworkMgr:
 
 
 
+    if self.wifi_iface:
+        self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+        self.set_wifi_ap_from_params()
+        self.set_wifi_client_from_params()
+
+    else:
+        self.msg_if.pub_info("No WiFi detected")
 
 
 
+    nepi_ros.create_service('ip_addr_query', IPAddrQuery, self.handle_ip_addr_query)
+    nepi_ros.create_service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
+    nepi_ros.create_service('wifi_query', WifiQuery, self.handle_wifi_query)
 
 
-        if self.wifi_iface:
-            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
-            self.set_wifi_ap_from_params()
-            self.set_wifi_client_from_params()
+    ###########################
 
-        else:
-            self.msg_if.pub_info("No WiFi detected")
+    
+    nepi_ros.timer(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
 
-
-
-        nepi_ros.create_service('ip_addr_query', IPAddrQuery, self.handle_ip_addr_query)
-        nepi_ros.create_service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
-        nepi_ros.create_service('wifi_query', WifiQuery, self.handle_wifi_query)
-
-
-        ###########################
-
-        
-        nepi_ros.timer(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
-
-        # Long duration internet check -- do oneshot and reschedule from within the callback
-        nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
+    # Long duration internet check -- do oneshot and reschedule from within the callback
+    nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
 
 
 
-        #########################################################
-        ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
-        #########################################################
+    #########################################################
+    ## Initiation Complete
+    self.msg_if.pub_info("Initialization Complete")
+    #########################################################
 
-        self.run()
+    self.run()
 
 
     #######################

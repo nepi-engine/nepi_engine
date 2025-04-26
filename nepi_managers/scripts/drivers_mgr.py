@@ -151,7 +151,7 @@ class NepiDriversMgr(object):
     self.PUBS_DICT = {
         'status_pub': {
             'namespace': self.node_namespace,
-            'topic': 'status'
+            'topic': 'status',
             'msg': DriversStatus,
             'qsize': 1,
             'latch': True
@@ -169,7 +169,7 @@ class NepiDriversMgr(object):
             'msg': Settings,
             'qsize': 1,
             'latch': True
-        },
+        }
     }  
 
     # Subscribers Config Dict ####################
@@ -197,7 +197,7 @@ class NepiDriversMgr(object):
             'qsize': 1,
             'callback': self.updateSettingCb, 
             'callback_args': (options_namespace)
-        },
+        }
     }
 
     # Params Config Dict ####################

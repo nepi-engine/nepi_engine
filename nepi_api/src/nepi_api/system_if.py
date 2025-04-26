@@ -31,7 +31,7 @@ from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
 
 
-from nepi_ros_interfaces.msg import SaveData, SaveDataRate, SaveDataStatus
+from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
@@ -58,11 +58,12 @@ SUPPORTED_VID_FILE_TYPES = ['avi','AVI']
 
 SUPPORTED_DATA_TYPES = ['dict','cv2_image','o3d_pointcloud']
 
-
+'''
 EXAMPLE_RATE_DICT = {
-    'data_product_1' = [save_rate_hz, last_time, max_rate],
-    'data_product_2' = [save_rate_hz, last_time, max_rate]
+    'data_product_1' : [save_rate_hz, last_time, max_rate],
+    'data_product_2' : [save_rate_hz, last_time, max_rate]
 }
+'''
 
 EXAMPLE_FILENAME_DICT = {
     'prefix': "", 
@@ -166,11 +167,11 @@ class SaveDataIF(object):
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'save_rate_dict': {
-                'namespace': self.namespace
+                'namespace': self.namespace,
                 'factory_val': ave_rate_dict
             },
             'save_data': {
-                'namespace': self.namespace
+                'namespace': self.namespace,
                 'factory_val': False
             }
         }
@@ -212,7 +213,7 @@ class SaveDataIF(object):
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
                 'callback_args': ()
-            }.
+            },
             'rate': {
                 'namespace': self.namespace,
                 'msg': SaveDataRate,
@@ -262,7 +263,7 @@ class SaveDataIF(object):
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
                 'callback_args': ()
-            }.
+            },
             'rate_all': {
                 'namespace': self.base_namespace,
                 'msg': SaveDataRate,
@@ -356,7 +357,8 @@ class SaveDataIF(object):
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
             self.node_if.get_param('save_rate_dict',save_rate_dict)
-        self.publish_status()    def register_data_product(self, data_product):
+        self.publish_status()    
+    def register_data_product(self, data_product):
         save_rate_dict = self.node_if.get_param('save_rate_dict')
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
@@ -366,7 +368,7 @@ class SaveDataIF(object):
     def set_save_prefix(self,prefix = ""):
         if '\\' not in prefix:
             if prefix.find('/') == -1:
-                subfolder = ""set
+                subfolder = "set"
                 prefix = prefix
             else:
                 prefix_split = prefix.rsplit('/',1)
@@ -629,15 +631,15 @@ def EXAMPLE_SET_SETTING_FUNCTION(setting):
 
 def EXAMPLE_GET_SETTINGS_FUNCTION():
     return EXAMPLE_SETTINGS
-
+'''
 EXAMPLE_SETTINGS_DICT = {
                     'capSettings': EXAMPLE_CAP_SETTINGS, 
                     'factorySettings': EXAMPLE_FACTORY_SETTINGS,
                     'setSettingFunction': EXAMPLE_SET_SETTING_FUNCTION, 
                     'getSettingsFunction': EXAMPLE_GET_SETTINGS_FUNCTION, 
-                    namespace='~'
+                    'namespace':  self.node_namespace
 }
-
+'''
 
 class SettingsIF(object):
 

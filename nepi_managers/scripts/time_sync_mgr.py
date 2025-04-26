@@ -105,7 +105,7 @@ class time_sync_mgr(object):
         self.PUBS_DICT = {
             'sys_time_updated': {
                 'namespace': self.node_namespace,
-                'topic': 'sys_time_updated'
+                'topic': 'sys_time_updated',
                 'msg': Empty,
                 'qsize': 3,
                 'latch': True
@@ -382,7 +382,7 @@ class time_sync_mgr(object):
                 time_status.last_pps = nepi_ros.Time(float(pps_string.split('#')[0]))
             else:
                 time_status.last_pps = nepi_ros.Time(0)
-                self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert"):
+                self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
         else: # Failed to find the assert file - just return no PPS
             time_status.last_pps = nepi_ros.Time(0)
 

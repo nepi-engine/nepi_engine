@@ -330,6 +330,7 @@ class NepiIFSaveData extends Component {
   }
 
   onChangeBoolSaveDataValue(){
+    const {updateSaveDataEnable}  = this.props.ros
     const {sendBoolMsg}  = this.props.ros
     const enabled = (this.state.saveDataEnabled === false)
     const saveNavEnabled = (this.state.saveNavDataEnabled === true)

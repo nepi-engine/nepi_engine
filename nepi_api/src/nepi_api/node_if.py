@@ -29,14 +29,15 @@ from nepi_api.messages_if import MsgIF
 ##################################################
 ### Node Config Class
 
-
+'''
 EXAMPLE_CFGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
         'init_configs': True,
-        'namespace': '~'
+        'namespace':  self.node_namespace
 }
+'''
 
 class NodeConfigsIF(object):
 
@@ -181,18 +182,18 @@ class NodeConfigsIF(object):
 
 ##################################################
 ### Node Params Class
-
+'''
 EXAMPLE_PARAMS_DICT = {
     'param1_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'factory_val': 100
     },
     'param2_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'factory_val': "Something"
     }
 }
-
+'''
 
 
 class NodeParamsIF(object):
@@ -350,15 +351,13 @@ class NodeParamsIF(object):
 
 ##################################################
 ### Node Services Class
-
 def EXAMPLE_CALLBACK_FUNCTION(request):
     response = EmptySrvResponse()
     return response
-
-
+'''
 EXAMPLE_SRVS_DICT = {
     'service_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'empty_query',
         'svr': EmptySrv,
         'req': EmptySrvRequest(),
@@ -366,7 +365,7 @@ EXAMPLE_SRVS_DICT = {
         'callback': EXAMPLE_CALLBACK_FUNCTION
     }
 }
-
+'''
 class NodeServicesIF(object):
 
     msg_if = None
@@ -507,18 +506,18 @@ class NodeServicesIF(object):
 
 ##################################################
 ### Node Publishers Class
-
+'''
 
 EXAMPLE_PUBS_DICT = {
     'pub_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'set_empty',
         'msg': EmptyMsg,
         'qsize': 1,
         'latch': False
     }
 }
-
+'''
 
 class NodePublishersIF(object):
 
@@ -658,13 +657,13 @@ class NodePublishersIF(object):
 
 ##################################################
 ### Node Subscribers Class
-
+'''
 def EXAMPLE_SUB_CALLBACK(msg):
     return msg
 
 EXAMPLE_SUBS_DICT = {
     'sub_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'set_empty',
         'msg': EmptyMsg,
         'qsize': 1,
@@ -672,7 +671,7 @@ EXAMPLE_SUBS_DICT = {
         'callback_args': ()
     }
 }
-
+'''
 class NodeSubscribersIF(object):
 
     msg_if = None
@@ -792,22 +791,24 @@ class NodeSubscribersIF(object):
 ### Node Class
 
 # Configs Config Dict ####################
+'''
 EXAMPLE_CFGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
         'init_configs': True,
-        'namespace': '~'
+        'namespace':  self.node_namespace
 }
+
 
 # Params Config Dict ####################
 EXAMPLE_PARAMS_DICT = {
     'param1_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'factory_val': 100
     },
     'param2_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'factory_val': "Something"
     }
 }
@@ -816,7 +817,7 @@ EXAMPLE_PARAMS_DICT = {
 # Services Config Dict ####################
 EXAMPLE_SRVS_DICT = {
     'service_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'empty_query',
         'svr': EmptySrv,
         'req': EmptySrvRequest(),
@@ -829,7 +830,7 @@ EXAMPLE_SRVS_DICT = {
 # Publishers Config Dict ####################
 EXAMPLE_PUBS_DICT = {
     'pub_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'set_empty',
         'msg': EmptyMsg,
         'qsize': 1,
@@ -841,7 +842,7 @@ EXAMPLE_PUBS_DICT = {
 # Subscribers Config Dict ####################
 EXAMPLE_SUBS_DICT = {
     'sub_name': {
-        'namespace': '~',
+        'namespace':  self.node_namespace,
         'topic': 'set_empty',
         'msg': EmptyMsg,
         'qsize': 1,
@@ -852,7 +853,7 @@ EXAMPLE_SUBS_DICT = {
 
 
 # Create Node Class ####################
-'''
+
 EXAMPLE_NODE_IF = NodeClassIF(
                 configs_dict = EXAMPLE_CFGS_DICT,
                 params_dict = EXAMPLE_PARAMS_DICT,
@@ -923,7 +924,7 @@ class NodeClassIF(object):
             self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
-            configs_dict = = {
+            configs_dict = {
                     'init_callback': self._initConfigCb,
                     'reset_callback': self._resetConfigCb,
                     'factory_reset_callback': self._factoryResetConfigCb,

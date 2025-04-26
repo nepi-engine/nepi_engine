@@ -13,16 +13,21 @@ import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_settings
 from nepi_sdk import nepi_triggers
 from nepi_sdk import nepi_states
 
 from std_msgs.msg import String, Empty
 from nepi_ros_interfaces.msg import Reset
 
-from nepi_ros_interfaces.msg import SaveData, SaveDataRate, SaveDataStatus
+from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 
-from std_msgs.msg import String, Empty
+
+
+from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+
 from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
 from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
@@ -35,9 +40,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.connect_system_if import *
 
 
-
-
-class ConnectSettingsIF(object):
+class ConnectSaveDataIF(object):
 
     ready = False
 
@@ -91,20 +94,6 @@ class ConnectSettingsIF(object):
                 'qsize': 1,
                 'latch': False
             },
-            'rate': {
-                'msg': SaveDataRate,
-                'namespace': self.namespace,
-                'topic': 'save_data_rate',
-                'qsize': 1,
-                'latch': False
-            },
-            'save_data': {
-                'msg': SaveData,
-                'namespace': self.namespace,
-                'topic': 'save_data',
-                'qsize': 1,
-                'latch': False
-            },
             'snapshot': {
                 'msg': Empty,
                 'namespace': self.namespace,
@@ -125,8 +114,7 @@ class ConnectSettingsIF(object):
                 'topic': 'save_data_factory_reset',
                 'qsize': 1,
                 'latch': False
-            }            
-
+            },            
             'prefix_all': {
                 'msg': String,
                 'namespace': self.base_namespace,
@@ -142,7 +130,7 @@ class ConnectSettingsIF(object):
                 'latch': False
             },
             'save_all_data': {
-                'msg': SaveData,
+                'msg': Bool,
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
                 'qsize': 1,
@@ -155,8 +143,6 @@ class ConnectSettingsIF(object):
                 'qsize': 1,
                 'latch': False
             },
-
-
             'reset_all': {
                 'msg': Empty,
                 'namespace': self.base_namespace,
@@ -245,8 +231,7 @@ class ConnectSettingsIF(object):
 
     def save_data_pub(self,enable):
         pub_name = 'save_data'
-        msg = SaveData()
-        msg.save_continuous = enable
+        msg = enable
         self.con_node_if.publish_pub(pub_name,msg)
 
     def save_data_prefix_pub(self,prefix):
@@ -298,28 +283,12 @@ class ConnectSettingsIF(object):
 
 
 
-
-
-
-import rospy
-import os
-import time
-import copy
-
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_settings
-
-from std_msgs.msg import String, Empty
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
-
-from nepi_api.connect_node_if import ConnectNodeClassIF
-from nepi_api.sys_if_msg import MsgIF
-
 SETTING_TYPES = ["Menu","Discnamespacee","String","Bool","Int","Float"]
+
+'''
 EXAMPLE_CAP_SETTINGS_DICT = {"None":{"name":"None","type":"None","optons":[]}}
 EXAMPLE_SETTINGS_DICT = {"None":{"name":"None","type":"None","value":"None"}}
+'''
 
 class ConnectSettingsIF(object):
 
@@ -482,7 +451,7 @@ class ConnectSettingsIF(object):
 
 
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
-
+'''
 EXAMPLE_STATE_DICT = {"name":"None",
                         "description": "None",
                         "type":"Bool",
@@ -491,7 +460,7 @@ EXAMPLE_STATE_DICT = {"name":"None",
 }
 
 EXAMPLE_STATES_DICT = {"example_state":EXAMPLE_STATE_DICT}
-
+'''
 
 
 class ConnectStatesIF(object):
@@ -613,7 +582,7 @@ class ConnectStatesIF(object):
 
 
 
-
+'''
 EXAMPLE_TRIGGER_DICT = {"name":"None",
                         "description": "None",
                         "data_str_list":["None"],
@@ -622,7 +591,7 @@ EXAMPLE_TRIGGER_DICT = {"name":"None",
 }
 
 EXAMPLE_TRIGGERS_DICT = {"example_trigger":EXAMPLE_TRIGGER_DICT}
-
+'''
 
 
 class ConnectTriggersIF(object):
@@ -755,7 +724,7 @@ class ConnectTriggersIF(object):
     def get_last_trigger_time(self, trigger_name):
         last_time = None
         try:
-            last_time self.trigger_handlers_dict[trigger_name]['last_time']
+            last_time = self.trigger_handlers_dict[trigger_name]['last_time']
         except Exception as e:
             self.msg_if.pub_info("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
         return self.last_time

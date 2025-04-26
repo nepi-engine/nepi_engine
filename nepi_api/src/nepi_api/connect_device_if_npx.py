@@ -16,7 +16,7 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
-from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading
+from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading, PointcloudStatus
 from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
 
 from nepi_sdk import nepi_ros
@@ -26,6 +26,7 @@ from nepi_sdk import nepi_nav
 from nepi_api.messages_if import MsgIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.connect_system_if import *
+
 
 NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']

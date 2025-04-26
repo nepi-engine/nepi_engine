@@ -426,20 +426,20 @@ class PTXActuatorIF:
 
         # Setup Settings IF Class ####################
         if capSettings is not None:
-        self.SETTINGS_DICT = {
+            self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
                     'getSettingsFunction': getSettingsFunction, 
-                    namespace='~'
+                    'namespace': self.node_namespace
         }
         else:
-        self.SETTINGS_DICT = {
+            self.SETTINGS_DICT = {
                     'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
                     'factorySettings': nepi_settings.NONE_SETTINGS,
                     'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
                     'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                    namespace='~'
+                    'namespace': self.node_namespace
         }
         self.settings_if = SettingsIF(self.SETTINGS_DICT)
 
@@ -836,7 +836,7 @@ class PTXActuatorIF:
         
 
     def jogToPositionHandler(self, msg):
-        if self.positionWithinSoftLimits is not None
+        if self.positionWithinSoftLimits is not None:
             if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
                 self.msg_if.pub_warn("Requested jog position is invalid... ignoring")
                 return
@@ -851,7 +851,7 @@ class PTXActuatorIF:
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid yaw position ratio " + "%.2f" % ratio)
             return
-        if self.gotoPositionCb is not None
+        if self.gotoPositionCb is not None:
             self.yaw_goal_deg = self.yawRatioToDeg(ratio)
             pitch_now_deg = self.status_msg.pitch_now_deg
             self.msg_if.pub_info("Driving to  " + "%.2f" % self.yaw_goal_deg + " " + "%.2f" % pitch_now_deg)

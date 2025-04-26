@@ -198,7 +198,7 @@ class ReadWriteIF:
         self.filename_dict['add_ns'] = add_ns
 
     def get_filename_suffix(self):
-        rturn self.filename_dict['suffix']
+        return self.filename_dict['suffix']
 
     def set_filename_suffix(self, suffix = ''):
         self.filename_dict['suffix'] = suffix
@@ -958,13 +958,13 @@ class ImageIF:
                     nav_pose_dict = self.nav_mgr_if.get_navpose_data_dict()
                     if nav_pose_dict is not None:
 
-            if self.node_if.get_param('overlay_nav') == True and nav_pose_dict is not None:
-                overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
-                overlay_list.append(overlay)
+                        if self.node_if.get_param('overlay_nav') == True and nav_pose_dict is not None:
+                            overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
+                            overlay_list.append(overlay)
 
-            if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
-                overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
-                overlay_list.append(overlay)
+                        if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
+                            overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
+                            overlay_list.append(overlay)
 
             overlay_list = overlay_list + self.init_overlay_list + add_overlay_list
 
@@ -1029,7 +1029,7 @@ class ImageIF:
         self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
 
         self.node_if.publish_pub('status_pub',self.status_msg)
-            self.img_status_msg.publish(self.status_msg)
+        self.img_status_msg.publish(self.status_msg)
 
     def _setOverlayImgNameCb(self,msg):
         self.node_if.set_param('overlay_img_name', msg.data)

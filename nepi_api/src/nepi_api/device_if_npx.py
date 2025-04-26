@@ -258,7 +258,7 @@ class NPXDeviceIF:
                   'factorySettings': factorySettings,
                   'setSettingFunction': settingUpdateFunction, 
                   'getSettingsFunction': getSettingsFunction, 
-                  namespace='~'
+                  'namespace': self.node_namespace
       }
     else:
       self.SETTINGS_DICT = {
@@ -266,7 +266,7 @@ class NPXDeviceIF:
                   'factorySettings': nepi_settings.NONE_SETTINGS,
                   'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
                   'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                  namespace='~'
+                  'namespace': self.node_namespace
       }
     self.settings_if = SettingsIF(self.SETTINGS_DICT)
 

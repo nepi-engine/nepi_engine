@@ -89,7 +89,7 @@ class ConnectMgrConfigIF:
             'save_config': {
                 'namespace': self.mgr_namespace,
                 'topic': 'save_config',
-                'msg': Empty
+                'msg': Empty,
                 'qsize': 10,
                 'latch': False
             },

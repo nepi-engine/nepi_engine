@@ -23,7 +23,7 @@ from nepi_sdk import nepi_triggers
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import String, Empty, Float32
-from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveData
+from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
 from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryResponse, OpEnvironmentQuery, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryResponse, SystemStorageFolderQuery, SystemStorageFolderQueryResponse
 
@@ -166,7 +166,7 @@ class SystemMgrNode():
         if self.first_stage_rootfs_device == "container":
             self.in_container = True
         self.system_defs_msg.in_container = self.in_container
-        self.states_dict['in_container'] = {"name":'in_container',"type":'Bool',"optons":[],"value":'False'}
+        self.states_dict['in_container'] = {"name":'in_container',"type":'Bool',"options":[],"value":'False'}
         self.status_msg.in_container = self.in_container
 
         if self.in_container == False:
@@ -261,7 +261,6 @@ class SystemMgrNode():
                 'namespace': self.node_namespace,
                 'factory_val': dict()
             }
-
         }
 
     
@@ -289,7 +288,7 @@ class SystemMgrNode():
                 'svr': SystemSoftwareStatusQuery,
                 'req': SystemSoftwareStatusQueryRequest(),
                 'resp': SystemSoftwareStatusQueryResponse(),
-                self.provide_sw_update_status
+                'callback': self.provide_sw_update_status
             }
         }
 
@@ -299,63 +298,61 @@ class SystemMgrNode():
         self.PUBS_DICT = {
             'system_status': {
                 'namespace': self.base_namespace,
-                'topic': 'system_status'
+                'topic': 'system_status',
                 'msg': SystemStatus,
                 'qsize': 1,
                 'latch': True
             },
             'store_params': {
                 'namespace': self.base_namespace,
-                'topic': 'store_params'
+                'topic': 'store_params',
                 'msg': String,
                 'qsize': 10,
                 'latch': True
             },
             'apply_throttle': {
                 'namespace': self.base_namespace,
-                'topic': 'apply_throttle'
+                'topic': 'apply_throttle',
                 'msg': Float32,
                 'qsize': 3,
                 'latch': True
             },
             'set_op_environment': {
                 'namespace': self.base_namespace,
-                'topic': 'settings'
+                'topic': 'settings',
                 'msg': String,
                 'qsize': 3,
                 'latch': True
             },
             'save_data': {
                 'namespace': self.base_namespace,
-                'topic': 'save_data'
-                'msg': SaveData,
+                'topic': 'save_data',
+                'msg': SaveDataStatus,
                 'qsize': 1,
                 'latch': True
             },
             'system_triggers': {
                 'namespace': self.base_namespace,
-                'topic': 'system_triggers'
+                'topic': 'system_triggers',
                 'msg': SystemTrigger,
                 'qsize': 1,
                 'latch': True
             },
             'system_triggers_status': {
                 'namespace': self.base_namespace,
-                'topic': 'system_triggers_status'
+                'topic': 'system_triggers_status',
                 'msg': SystemTriggersStatus,
                 'qsize': 1,
                 'latch': True
             },
             'system_states_status': {
                 'namespace': self.base_namespace,
-                'topic': 'system_states_status'
+                'topic': 'system_states_status',
                 'msg': SystemStatesStatus,
                 'qsize': 1,
                 'latch': True
-            },
+            }
         }  
-
-
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -370,7 +367,7 @@ class SystemMgrNode():
             'save_data': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
-                'msg': SaveData,
+                'msg': SaveDataStatus,
                 'qsize': None,
                 'callback': self.set_save_status, 
                 'callback_args': ()
@@ -448,7 +445,6 @@ class SystemMgrNode():
                 'callback_args': ()
             }
         }
-
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -586,7 +582,6 @@ class SystemMgrNode():
                 req = SystemTriggersQueryRequest()
                 try:
                     resp = nepi_ros.call_service(service, req)
-                    trigger_name = 
                     triggers_list = resp.triggers_list
                     for trigger in triggers_list:
                         trigger_name = trigger.name
@@ -882,13 +877,13 @@ class SystemMgrNode():
     def set_op_environment(self, msg):
         if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
             self.msg_if.pub_warn(
-                "Setting environment parameter to a non-standard value: "  str(msg.data))
+                "Setting environment parameter to a non-standard value: " + str(msg.data))
         nepi_ros.set_param(self,"~op_environment", msg.data)
 
     def set_device_id(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
         if (msg.data) and (not self.valid_device_id_re.match(msg.data)):
-            self.msg_if.pub_warn("Invalid device ID: " str(msg.data))
+            self.msg_if.pub_warn("Invalid device ID: " +  str(msg.data))
             return
 
         # Otherwise, overwrite the DEVICE_ID in sys_env.bash

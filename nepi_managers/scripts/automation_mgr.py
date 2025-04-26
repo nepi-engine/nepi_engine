@@ -195,22 +195,22 @@ class AutomationManager:
 
     ready = self.node_if.wait_for_ready()
 
-    
 
-        ######################\
-        ## Node Services
-        self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
-        self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
-        self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
-        self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
-        self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
 
-        ###########################
-        ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
-        # Spin forever (until object is detected)
-        nepi_ros.spin()
-        #########################################################
+    ######################\
+    ## Node Services
+    self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
+    self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
+    self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
+    self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
+    self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
+
+    ###########################
+    ## Initiation Complete
+    self.msg_if.pub_info("Initialization Complete")
+    # Spin forever (until object is detected)
+    nepi_ros.spin()
+    #########################################################
 
     #######################
     # Wait for System and Config Statuses Callbacks

@@ -502,8 +502,8 @@ void SaveDataInterface::publishSaveStatus()
 	stat_msg.current_folder_prefix = prefixDirName;
 	stat_msg.current_filename_prefix = prefixFileName;
 	//stat_msg.save_data_rates = saveRates;
-	stat_msg.save_data.save_continuous = _save_continuous;
-	stat_msg.save_data.save_raw = _save_raw;
+	stat_msg.save_continuous = _save_continuous;
+	stat_msg.save_raw = _save_raw;
 
 	_save_status_pub.publish(stat_msg);
 
