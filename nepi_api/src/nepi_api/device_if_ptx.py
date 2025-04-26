@@ -227,38 +227,16 @@ class PTXActuatorIF:
         self.msg_if.pub_info("Starting Node IF Initialization")
         # Configs Config Dict ####################
         self.CFGS_DICT = {
-                'init_callback': self.initCb,
-                'reset_callback': self.resetCb,
-                'factory_reset_callback': self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.node_namespace
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace':  self.node_namespace
         }
 
 
 
         # Params Config Dict ####################
-
-        self.status_update_rate = rospy.get_param('~status_update_rate_hz', self.factory_controls_dict['status_update_rate_hz'])
- 
-         self.frame_id = rospy.get_param('~ptx/frame_id', self.frame_id)
-         self.yaw_joint_name = rospy.get_param("~ptx/yaw_joint_name", self.factory_controls_dict['frame_id'])
-         self.pitch_joint_name = rospy.get_param("~ptx/pitch_joint_name", self.factory_controls_dict['pitch_joint_name'])
-         self.reverse_yaw_control = rospy.get_param("~ptx/reverse_yaw_control", self.factory_controls_dict['reverse_yaw_control'])
-         self.reverse_pitch_control = rospy.get_param("~ptx/reverse_pitch_control", self.factory_controls_dict['reverse_pitch_control'])
- 
-        
- 
-         self.max_yaw_hardstop_deg = rospy.get_param('~ptx/limits/max_yaw_hardstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-         self.min_yaw_hardstop_deg = rospy.get_param('~ptx/limits/min_yaw_hardstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-         self.max_pitch_hardstop_deg = rospy.get_param('~ptx/limits/max_pitch_hardstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-         self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_hardstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
-         self.max_yaw_softstop_deg = rospy.get_param('~ptx/limits/max_yaw_softstop_deg', self.defaultSettings['max_yaw_hardstop_deg'])
-         self.min_yaw_softstop_deg = rospy.get_param('~ptx/limits/min_yaw_softstop_deg', self.defaultSettings['min_yaw_hardstop_deg'])
-         self.max_pitch_softstop_deg = rospy.get_param('~ptx/limits/max_pitch_softstop_deg', self.defaultSettings['max_pitch_hardstop_deg'])
-         self.min_pitch_softstop_deg = rospy.get_param('~ptx/limits/min_pitch_softstop_deg', self.defaultSettings['min_pitch_hardstop_deg'])
- 
-         self.home_yaw_deg = rospy.get_param('~ptx/home_position/yaw_deg',)
-         self.home_pitch_deg = rospy.get_param('~ptx/home_position/pitch_deg',)
 
 
         self.PARAMS_DICT = {
@@ -269,6 +247,62 @@ class PTXActuatorIF:
             'ptx/home_position/pitch_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
+            },
+            'ptx/yaw_joint_name': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict['status_update_rate_hz']
+            },     
+            'ptx/frame_id': {
+                'namespace': self.node_namespace,
+                'factory_val': self.frame_id
+            },            
+            'ptx/yaw_joint_name': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict['frame_id']
+            },            
+            'ptx/pitch_joint_name': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict['pitch_joint_name']
+            },            
+            'ptx/reverse_yaw_control': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict['reverse_yaw_control']
+            },            
+            'ptx/reverse_pitch_control': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factory_controls_dict['reverse_pitch_control']
+            },            
+            'ptx/limits/max_yaw_hardstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['max_yaw_hardstop_deg']
+            },            
+            'ptx/limits/min_yaw_hardstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['min_yaw_hardstop_deg']
+            },            
+            'ptx/limits/max_pitch_hardstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['max_pitch_hardstop_deg']
+            },            
+            'ptx/limits/min_pitch_hardstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['min_pitch_hardstop_deg']
+            },            
+            'ptx/limits/max_yaw_softstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['max_yaw_hardstop_deg']
+            },            
+            'ptx/limits/min_yaw_softstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['min_yaw_hardstop_deg']
+            },            
+            'ptx/limits/max_pitch_softstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['max_pitch_hardstop_deg']
+            },           
+            'ptx/limits/min_pitch_softstop_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.defaultSettings['min_pitch_hardstop_deg']
             }
         }
         
