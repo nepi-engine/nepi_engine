@@ -502,51 +502,45 @@ class SystemMgrNode():
     
 
     def initConfig(self):
-        op_env = nepi_ros.get_param(self,
-            "~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
+        op_env = nepi_ros.get_param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
         # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
         self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
         # Now gather all the params and set members appropriately
-        self.storage_mountpoint = nepi_ros.get_param(self,
-            "~storage_mountpoint", self.storage_mountpoint)
+        self.storage_mountpoint = nepi_ros.get_param("~storage_mountpoint", self.storage_mountpoint)
         
-        self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(self,
+        self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
             "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install
         )
 
-        self.first_stage_rootfs_device = nepi_ros.get_param(self,
+        self.first_stage_rootfs_device = nepi_ros.get_param(
             "~first_stage_rootfs_device", self.first_stage_rootfs_device
         )
 
         # nepi_storage_device has some additional logic
         self.getNEPIStorageDevice()
         
-        self.new_img_staging_device = nepi_ros.get_param(self,
+        self.new_img_staging_device = nepi_ros.get_param(
             "~new_img_staging_device", self.new_img_staging_device
         )
 
-        self.new_img_staging_device_removable = nepi_ros.get_param(self,
+        self.new_img_staging_device_removable = nepi_ros.get_param(
             "~new_img_staging_device_removable", self.new_img_staging_device_removable
         )
 
-        self.emmc_device = nepi_ros.get_param(self,
-            "~emmc_device", self.emmc_device
+        self.emmc_device = nepi_ros.get_param("~emmc_device", self.emmc_device
         )
 
-        self.usb_device = nepi_ros.get_param(self,
-            "~usb_device", self.usb_device
+        self.usb_device = nepi_ros.get_param("~usb_device", self.usb_device
         )
 
-        self.sd_card_device = nepi_ros.get_param(self,
-            "~sd_card_device", self.sd_card_device
+        self.sd_card_device = nepi_ros.get_param("~sd_card_device", self.sd_card_device
         )
 
-        self.ssd_device = nepi_ros.get_param(self,
-            "~ssd_device", self.ssd_device
+        self.ssd_device = nepi_ros.get_param("~ssd_device", self.ssd_device
         )
     
-    def initCB(self):
+    def initCB(self, do_updates = False):
         pass
 
     def resetCb(self):

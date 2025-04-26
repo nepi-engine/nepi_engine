@@ -16,7 +16,6 @@
 # - mailto:nepi@numurus.com
 
 import os
-import rospy
 import numpy as np
 import math
 import time
@@ -32,7 +31,6 @@ from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabiliti
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_save
 from nepi_sdk import nepi_nav
 
 from nepi_api.messages_if import MsgIF
@@ -40,6 +38,43 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import NavPoseIF
 
+
+
+EXAMPLE_NAVPOSE_DATA_DICT = {
+
+                          'frame_3d': 'ENU',
+                          'frame_alt': 'WGS84',
+
+                          'geoid_height_meters': 0,
+
+                          'has_heading': True,
+                          'time_heading': nepi_utils.get_time(),
+                          'heading_deg': 120.50,
+
+                          'has_oreientation': True,
+                          'time_oreientation': nepi_utils.get_time(),
+                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
+                          'roll_deg': 30.51,
+                          'pitch_deg': 30.51,
+                          'yaw_deg': 30.51,
+
+                          'has_position': True,
+                          'time_position': nepi_utils.get_time(),
+                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
+                          'x_m': 1.234,
+                          'y_m': 1.234,
+                          'z_m': 1.234,
+
+                          'has_location': True,
+                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
+                          'lat': 47.080909,
+                          'long': -120.8787889,
+
+                          'has_altitude': True,
+                          'alt_m': 12.321,
+                          'has_depth': False,
+                          'alt_m': 0
+}
 
 #########################################
 # Node Class
@@ -74,7 +109,8 @@ class NPXDeviceIF:
                 device_info,
                 capSettings=None, factorySettings=None, 
                 settingUpdateFunction=None, getSettingsFunction=None,
-                has_location = False, has_position = False, has_orientation = False, has_heading = False,
+                has_heading = False, has_position = False, has_orientation = False, 
+                has_location = False, has_altitude = False, has_depth = False,
                 getNavPoseDictFunction = None,
                 pub_rate = 10):
     ####  IF INIT SETUP ####
@@ -140,14 +176,15 @@ class NPXDeviceIF:
     ##################################################
     ### Node Class Setup
 
-        # Configs Config Dict ####################
-        self.CFGS_DICT = {
-                'init_callback': self.initCb,
-                'reset_callback': self.resetCb,
-                'factory_reset_callback': self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.node_namespace
-        }
+    self.msg_if.pub_info("Starting Node IF Initialization")
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace':  self.node_namespace
+    }
 
 
 
@@ -245,6 +282,7 @@ class NPXDeviceIF:
 
 
     # Setup Settings IF Class ####################
+    self.msg_if.pub_info("Starting Settings IF Initialization")
     if capSettings is not None:
       self.SETTINGS_DICT = {
                   'capSettings': capSettings, 
@@ -265,6 +303,7 @@ class NPXDeviceIF:
 
 
     # Setup Save Data IF Class ####################
+    self.msg_if.pub_info("Starting Save Data IF Initialization")
     factory_data_rates = {}
     for d in self.data_products_list:
         factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -386,7 +425,7 @@ class NPXDeviceIF:
         except Exception as e:
           self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
 
-        nepi_save.save_dict2file('navpose',nav_dict,ros_timestamp)
+        self.save_data_if.save_dict2file('navpose',nav_dict,ros_timestamp)
 
     if self.pub_rate != 0:
         delay = float(1) / self.pub_rate

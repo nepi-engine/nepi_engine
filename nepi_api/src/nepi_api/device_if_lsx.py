@@ -8,7 +8,6 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-import rospy
 import time
 
 
@@ -16,17 +15,14 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from std_msgs.msg import UInt8, Empty, String, Bool, Float32
 from nepi_ros_interfaces.msg import LSXStatus
-from nepi_ros_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
-
-NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
 
 class LSXDeviceIF:
     STATUS_UPDATE_RATE_HZ = 1
@@ -188,6 +184,7 @@ class LSXDeviceIF:
         ##################################################
         ### Node Class Setup
 
+        self.msg_if.pub_info("Starting Node IF Initialization")
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -363,6 +360,7 @@ class LSXDeviceIF:
 
 
         # Setup Settings IF Class ####################
+        self.msg_if.pub_info("Starting Settings IF Initialization")
         if capSettings is not None:
           self.SETTINGS_DICT = {
                       'capSettings': capSettings, 
@@ -382,6 +380,7 @@ class LSXDeviceIF:
         self.settings_if = SettingsIF(self.SETTINGS_DICT)
 
         '''
+        self.msg_if.pub_info("Starting Save Data IF Initialization")
         # Setup Save Data IF Class ####################
         factory_data_rates = {}
         for d in self.data_products:

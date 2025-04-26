@@ -8,8 +8,9 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
-import rospy
 
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
@@ -19,14 +20,13 @@ from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRe
 
 from tf.transformations import quaternion_from_euler
 
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 
 from nepi_api.device_if_npx import NPXDeviceIF
+
+
 
 class PTXActuatorIF:
     PTX_DIRECTION_POSITIVE = 1
@@ -43,6 +43,46 @@ class PTXActuatorIF:
                 'speed_ratio' : 0.5,
                 'status_update_rate_hz' : 10
     }
+
+    navpose_dict = {
+                          'frame_3d': 'ENU',
+                          'frame_alt': 'WGS84',
+
+                          'geoid_height_meters': 0,
+
+                          'has_heading': False,
+                          'time_heading': 0,
+                          'heading_deg': 0,
+
+                          'has_oreientation': True,
+                          'time_oreientation': nepi_utils.get_time(),
+                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
+                          'roll_deg': 0,
+                          'pitch_deg': 0,
+                          'yaw_deg': 0,
+
+                          'has_position': False,
+                          'time_position': 0,
+                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
+                          'x_m': 0,
+                          'y_m': 0,
+                          'z_m': 0,
+
+                          'has_location': False,
+                          'time_location': 0,
+                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
+                          'lat': 0,
+                          'long': 0,
+
+                          'has_altitude': False,
+                          'time_altitude': 0,
+                          'alt_m': 0,
+    
+                          'has_depth': False,
+                          'time_depth': 0,
+                          'alt_m': 0
+    }
+
 
     ready = False
 
@@ -155,6 +195,7 @@ class PTXActuatorIF:
             else:
                 self.has_position_feedback = True
         else:
+            self.getCurrentPositionCb = None
             self.has_position_feedback = False
                 
 
@@ -183,6 +224,7 @@ class PTXActuatorIF:
         ##################################################
         ### Node Class Setup
 
+        self.msg_if.pub_info("Starting Node IF Initialization")
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -420,6 +462,7 @@ class PTXActuatorIF:
 
 
         # Setup Settings IF Class ####################
+        self.msg_if.pub_info("Starting Settings IF Initialization")
         if capSettings is not None:
             self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -438,8 +481,9 @@ class PTXActuatorIF:
         }
         self.settings_if = SettingsIF(self.SETTINGS_DICT)
 
-
-        # Setup Save Data IF Class ####################
+        '''
+        # Setup System IF Classes ####################
+        self.msg_if.pub_info("Starting Save Data IF Initialization")
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -459,7 +503,20 @@ class PTXActuatorIF:
 
 
         time.sleep(1)
+        '''
 
+        # Create a NavPose Device IF
+        if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
+            self.msg_if.pub_info("Starting NPX Device IF Initialization")
+            navpose_if = NPXDeviceIF(device_info, 
+                                    has_location = False,
+                                    has_position = False,
+                                    has_orientation = True,
+                                    has_heading = False,
+                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
+                                    pub_rate = 10)
+
+        time.sleep(1)
    
         ###############################
         # Finish Initialization
@@ -579,6 +636,16 @@ class PTXActuatorIF:
             else:
                 self.msg_if.pub_info("Connected")
         return self.ready   
+
+
+    def getNavPoseDictFunction():
+        if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
+            yaw_now_deg, pitch_now_deg = self.getCurrentPositionCb()
+            self.navpose_dict['pitch_deg'] = pitch_now_deg
+            self.navpose_dict['yaw_deg'] = yaw_now_deg
+        self.navpose_dict['time_oreintation'] = nepi_utils.get_time()
+        return self.navpose_dict 
+
 
     def yawRatioToDeg(self, ratio):
         yaw_deg = 0

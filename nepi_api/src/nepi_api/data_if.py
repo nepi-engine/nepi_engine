@@ -351,17 +351,7 @@ class ReadWriteIF:
         add_time = self.filename_dict['add_timestamp']
         data_time_str = ''
         if add_time == True:
-            if timestamp is None:
-                time_ns = nepi_utils.get_time()
-            else:
-                if isinstance(timestamp,nepi_ros.get_rostime_type) == True:
-                    time_ns = nepi_ros.sec_from_ros_stamp(timestamp)
-                elif isinstance(timestamp,int) == True:
-                    time_ns = float(timestamp) / 1000000000
-                elif isinstance(timestamp,'float') == True:
-                    time_ns = timestamp
-                else:
-                    time_ns = nepi_utils.get_time()
+            time_ns = nepi_ros.time_ns_from_timestamp(timestamp)
             add_ms = self.filename_dict['add_ms']
             add_ns = self.filename_dict['add_ns']
             data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
@@ -569,7 +559,7 @@ class NavPoseIF:
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, ros_timestamp = None, frame_id = 'sensor_frame' ):      
+    def publish_navpose(self,navpose_dict, timestamp = None, frame_id = 'sensor_frame' ):      
         success = True
         if navpose_dict is None:
             success = False
@@ -577,11 +567,11 @@ class NavPoseIF:
             # Pub NavPoseData
             if self.node_if is not None:
 
-                if ros_timestamp == None:
-                    ros_timestamp = nepi_ros.ros_time_now()
+                if timestamp == None:
+                    timestamp = nepi_ros.ros_time_now()
 
                 current_time = nepi_ros.ros_time_now()
-                latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                latency = (current_time.to_sec() - timestamp.to_sec())
                 self.status_msg.get_latency_time = latency
                 #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
@@ -608,7 +598,7 @@ class NavPoseIF:
 
                 process_time = round( (nepi_ros.get_time() - start_time) , 3)
                 self.status_msg.process_time = process_time
-                latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                latency = (current_time.to_sec() - timestamp.to_sec())
                 self.status_msg.pub_latency_time = latency
 
                 if self.enable_gps_pub == True:
@@ -902,7 +892,7 @@ class ImageIF:
         return self.has_subscribers
 
 
-    def publish_cv2_img(self,cv2_img, encoding = "bgr8", ros_timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
+    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
         #self.msg_if.pub_warn("Got Image to Publish")
         success = False
         if cv2_img is None:
@@ -911,12 +901,12 @@ class ImageIF:
 
         self.status_msg.encoding = encoding
 
-        if ros_timestamp == None:
-            ros_timestamp = nepi_ros.ros_time_now()
+        if timestamp == None:
+            timestamp = nepi_ros.ros_time_now()
 
 
         current_time = nepi_ros.ros_time_now()
-        latency = (current_time.to_sec() - ros_timestamp.to_sec())
+        latency = (current_time.to_sec() - timestamp.to_sec())
         self.status_msg.get_latency_time = latency
         #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
@@ -949,7 +939,7 @@ class ImageIF:
                 overlay_list.append(overlay)
             
             if self.node_if.get_param('overlay_date_time') == True:
-                date_time = nepi_ros.get_datetime_str_from_stamp(ros_timestamp)
+                date_time = nepi_ros.get_datetime_str_from_stamp(timestamp)
                 overlay_list.append(overlay)
 
             nav_pose_dict = None
@@ -973,12 +963,12 @@ class ImageIF:
 
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = ros_timestamp
+            ros_img.header.stamp = timestamp
             ros_img.header.frame_id = frame_id
 
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
-            latency = (current_time.to_sec() - ros_timestamp.to_sec())
+            latency = (current_time.to_sec() - timestamp.to_sec())
             self.status_msg.pub_latency_time = latency
             
             if not nepi_ros.is_shutdown():
@@ -1194,7 +1184,7 @@ class PointcloudIF:
         return self.has_subscribers
 
 
-    def publish_o3d_pc(self,o3d_pc, ros_timestamp = None, frame_id = 'sensor_frame'):
+    def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_id = 'sensor_frame'):
         if self.node_if is None:
             self.msg_if.pub_info("Can't publish on None publisher")
             return False
@@ -1202,14 +1192,14 @@ class PointcloudIF:
             self.msg_if.pub_info("Can't publish None image")
             return False
 
-        if ros_timestamp == None:
-            ros_timestamp = nepi_ros.ros_time_now()
+        if timestamp == None:
+            timestamp = nepi_ros.ros_time_now()
 
         self.status_msg.has_rgb = o3d_pc.has_colors()
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
         current_time = nepi_ros.ros_time_now()
-        latency = (current_time.to_sec() - ros_timestamp.to_sec())
+        latency = (current_time.to_sec() - timestamp.to_sec())
         self.status_msg.get_latency_time = latency
         #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
@@ -1239,12 +1229,12 @@ class PointcloudIF:
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_id = frame_id)
-            ros_pc.header.stamp = ros_timestamp
+            ros_pc.header.stamp = timestamp
             ros_pc.header.frame_id = frame_id
 
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
-            latency = (current_time.to_sec() - ros_timestamp.to_sec())
+            latency = (current_time.to_sec() - timestamp.to_sec())
             self.status_msg.pub_latency_time = latency
 
 

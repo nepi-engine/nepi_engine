@@ -171,6 +171,27 @@ class ConnectAiDetectorIF:
         }
 
 
+        self.add_img_topic_pub = rospy.Publisher(DET_PUB_NS + '/add_img_topic', String, queue_size=10)
+        self.add_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/add_img_topics', StringArray, queue_size=10)
+        self.remove_img_topic_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topic', String, queue_size=10)
+        self.remove_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topics', StringArray, queue_size=10)
+        self.set_img_tiling_pub = rospy.Publisher(DET_PUB_NS + '/set_img_tiling', Bool, queue_size=10)
+        self.set_overlay_labels_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_labels', Bool, queue_size=10)
+        self.set_overlay_clf_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_clf_name', Bool, queue_size=10)
+        self.set_overlay_img_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_img_name', Bool, queue_size=10)          
+        self.set_threshold_pub = rospy.Publisher(DET_PUB_NS + '/set_threshold', Float32, queue_size=10)
+        self.set_max_rate_pub = rospy.Publisher(DET_PUB_NS + '/set_max_rate', Int32, queue_size=10)
+
+        self.set_sleep_enable_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_enable', Bool, queue_size=10) 
+        self.set_sleep_suspend_sec_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_suspend_sec', Int32, queue_size=10)
+        self.set_sleep_run_sec_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_run_sec', Int32, queue_size=10)
+
+        self.reset_factory_pub = rospy.Publisher(DET_PUB_NS + '/reset_factory', Empty, queue_size=10) # start local callback
+        self.save_config_pub = rospy.Publisher(DET_PUB_NS + '/save_config', Empty, queue_size=10) # start local callback
+        self.reset_config_pub = rospy.Publisher(DET_PUB_NS + '/reset_config', Empty, queue_size=10) # start local callback
+        self.enable_pub = rospy.Publisher(DET_PUB_NS + '/enable', Bool, queue_size=10) # start local callback
+
+
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'pub_name': {
@@ -210,25 +231,7 @@ class ConnectAiDetectorIF:
         
         DET_PUB_NS = det_namespace
 
-        self.add_img_topic_pub = rospy.Publisher(DET_PUB_NS + '/add_img_topic', String, queue_size=10)
-        self.add_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/add_img_topics', StringArray, queue_size=10)
-        self.remove_img_topic_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topic', String, queue_size=10)
-        self.remove_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topics', StringArray, queue_size=10)
-        self.set_img_tiling_pub = rospy.Publisher(DET_PUB_NS + '/set_img_tiling', Bool, queue_size=10)
-        self.set_overlay_labels_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_labels', Bool, queue_size=10)
-        self.set_overlay_clf_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_clf_name', Bool, queue_size=10)
-        self.set_overlay_img_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_img_name', Bool, queue_size=10)          
-        self.set_threshold_pub = rospy.Publisher(DET_PUB_NS + '/set_threshold', Float32, queue_size=10)
-        self.set_max_rate_pub = rospy.Publisher(DET_PUB_NS + '/set_max_rate', Int32, queue_size=10)
 
-        self.set_sleep_enable_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_enable', Bool, queue_size=10) 
-        self.set_sleep_suspend_sec_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_suspend_sec', Int32, queue_size=10)
-        self.set_sleep_run_sec_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_run_sec', Int32, queue_size=10)
-
-        self.reset_factory_pub = rospy.Publisher(DET_PUB_NS + '/reset_factory', Empty, queue_size=10) # start local callback
-        self.save_config_pub = rospy.Publisher(DET_PUB_NS + '/save_config', Empty, queue_size=10) # start local callback
-        self.reset_config_pub = rospy.Publisher(DET_PUB_NS + '/reset_config', Empty, queue_size=10) # start local callback
-        self.enable_pub = rospy.Publisher(DET_PUB_NS + '/enable', Bool, queue_size=10) # start local callback
 
 
         #######################

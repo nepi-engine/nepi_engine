@@ -31,7 +31,6 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
-from nepi_sdk import nepi_save
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeParamsIF, NodePublishersIF, NodeSubscribersIF, NodeClassIF
@@ -1030,7 +1029,7 @@ class AiDetectorIF:
                 bbs_dict = nepi_ais.get_boxes_info_from_msg(bbs_msg)
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
                 bbs_dict['bounding_boxes']=bb_dict_list
-                nepi_save.save_dict2file(self,data_product,bbs_dict,ros_timestamp,add_text = image_text)
+                nepi_utils.save_dict2file(self,data_product,bbs_dict,ros_timestamp,add_text = image_text)
 
 
     def handleInfoRequest(self,_):

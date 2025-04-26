@@ -717,11 +717,41 @@ def ros_stamp_from_sec(time_sec):
   ros_time = ros_time_from_sec(time_sec)
   ros_stamp = ros_stamp_from_ros_time(ros_time)
   return ros_stamp
+  
+def ros_stamp_from_timestamp(timestamp):
+    if timestamp is None:
+        timestamp = ros_time_now()
+    elif isinstance(timestamp,nepi_ros.get_rostime_type) == False:
+
+          if isinstance(timestamp,int) == True:
+              time_ns = float(timestamp) / 1000000000
+              timestamp = ros_stamp_from_sec(time_ns)
+          elif isinstance(timestamp,'float') == True:
+              timestamp = ros_stamp_from_sec(timestamp)
+          else:
+              timestamp = ros_time_now()
+    return timestamp
+
+def time_ns_from_timestamp(timestamp):
+    if timestamp is None:
+        time_ns = nepi_utils.get_time()
+    else:
+        if isinstance(timestamp,nepi_ros.get_rostime_type) == True:
+            time_ns = nepi_ros.sec_from_ros_stamp(timestamp)
+        elif isinstance(timestamp,int) == True:
+            time_ns = float(timestamp) / 1000000000
+        elif isinstance(timestamp,'float') == True:
+            time_ns = timestamp
+        else:
+            time_ns = nepi_utils.get_time()
+    return time_ns
+
 
 def sec_from_ros_stamp(stamp):
   sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
   sec = float(sec_str)
   return sec
+
   
 
 def ros_duration(time_s):

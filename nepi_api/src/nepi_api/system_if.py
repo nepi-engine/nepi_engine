@@ -18,7 +18,6 @@ import open3d as o3d
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_settings
-from nepi_sdk import nepi_save
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
@@ -522,7 +521,7 @@ class SaveDataIF(object):
 
                 
 
-    def save_pc2file(self,data_product,o3d_pc,ros_timestamp,save_check=True):
+    def save_pc2file(self,data_product,o3d_pc,timestamp,save_check=True):
         if node_name == None:
             node_name = nepi_ros.get_node_name()
         if self.save_data_if is not None:

@@ -18,7 +18,6 @@ import open3d as o3d
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_save
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
 
@@ -26,7 +25,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import Image, PointCloud2
 
 from nepi_ros_interfaces.msg import IDXStatus, RangeWindow
-from nepi_ros_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_ros_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_ros_interfaces.msg import Frame3DTransform
 
@@ -40,8 +39,6 @@ from nepi_api.data_if import ImageIF
 from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
-#***************************
-# IDX utility functions
 
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
@@ -61,17 +58,52 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     )
 
 
+EXAMPLE_NAVPOSE_DATA_DICT = {
+                          'frame_3d': 'ENU',
+                          'frame_alt': 'WGS84',
+
+                          'geoid_height_meters': 0,
+
+                          'has_heading': True,
+                          'time_heading': nepi_utils.get_time(), 
+                          'heading_deg': 120.50,
+
+                          'has_oreientation': True,
+                          'time_oreientation': nepi_utils.get_time(),
+                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
+                          'roll_deg': 30.51,
+                          'pitch_deg': 30.51,
+                          'yaw_deg': 30.51,
+
+                          'has_position': True,
+                          'time_position': nepi_utils.get_time(),
+                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
+                          'x_m': 1.234,
+                          'y_m': 1.234,
+                          'z_m': 1.234,
+
+                          'has_location': True,
+                          'time_location': nepi_utils.get_time(),
+                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
+                          'lat': 47.080909,
+                          'long': -120.8787889,
+
+                          'has_altitude': True,
+                          'time_altitude': nepi_utils.get_time(),
+                          'alt_m': 12.321,
+    
+                          'has_depth': False,
+                          'time_depth': nepi_utils.get_time(),
+                          'alt_m': 0
+}
+
+
 class IDXDeviceIF:
     # Default Global Values
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
     UPDATE_NAVPOSE_RATE_HZ = 10
 
     ZERO_TRANSFORM = [0,0,0,0,0,0,0]
-    
-
-    NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
-    NAVPOSE_SERVICE_NAME = NEPI_BASE_NAMESPACE + "nav_pose_query"
-
 
     # Define class variables
     ready = False
@@ -136,10 +168,12 @@ class IDXDeviceIF:
                  getColor2DImg=None, stopColor2DImgAcquisition=None, 
                  getBW2DImg=None, stopBW2DImgAcquisition=None,
                  getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getDepthImg=None,getNavPoseDictFunction=None, 
+                 getDepthImg=None,
                  getPointcloud=None, stopPointcloudAcquisition=None, 
                  getPointcloudImg=None, stopPointcloudImgAcquisition=None, 
-                 has_location = False, has_position = False, has_orientation = False, has_heading = False):
+                 getNavPoseDictFunction=None, 
+                 has_heading = False, has_position = False, has_orientation = False, 
+                 has_location = False, has_altitude = False, has_depth = False):
 
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -213,7 +247,7 @@ class IDXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-
+        self.msg_if.pub_info("Starting Node IF Initialization")
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -295,7 +329,7 @@ class IDXDeviceIF:
         self.SRVS_DICT = {
             'capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/capabilities_query'',
+                'topic': 'idx/capabilities_query',
                 'svr': IDXCapabilitiesQuery,
                 'req': IDXCapabilitiesQueryRequest(),
                 'resp': IDXCapabilitiesQueryResponse(),
@@ -481,6 +515,7 @@ class IDXDeviceIF:
 
 
         # Setup Settings IF Class ####################
+        self.msg_if.pub_info("Starting Settings IF Initialization")
         if capSettings is not None:
             self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -501,6 +536,7 @@ class IDXDeviceIF:
 
 
         # Setup Save Data IF Class ####################
+        self.msg_if.pub_info("Starting Save Data IF Initialization")
         factory_data_rates= {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -521,6 +557,23 @@ class IDXDeviceIF:
                                      factory_filename_dict = factory_filename_dict)
 
 
+
+        # Create a NavPose Device IF
+        self.getNavPoseDictFunction = getNavPoseDictFunction
+        if getNavPoseDictFunction is not None:
+            self.msg_if.pub_info("Starting NPX Device IF Initialization")
+            navpose_if = NPXDeviceIF(device_info, 
+                                    has_heading = has_heading,
+                                    has_position = has_position,
+                                    has_orientation = has_orientation,
+                                    has_location = has_location,
+                                    has_altitude = has_altitude,
+                                    has_depth = has_depth,
+                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
+                                    pub_rate = 10)
+
+
+        time.sleep(1)
 
         #############################
         # Finish Initialization
@@ -643,20 +696,6 @@ class IDXDeviceIF:
         self.capabilities_report.data_products = str(self.data_products_list)
 
 
-        # Create a navpose device if
-        self.getNavPoseDictFunction = getNavPoseDictFunction
-        if getNavPoseDictFunction is not None:
-            navpose_if = NPXDeviceIF(device_info, 
-                                    has_location = has_location,
-                                    has_position = has_position,
-                                    has_orientation = has_orientation,
-                                    has_heading = has_heading,
-                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
-                                    pub_rate = 10)
-
-
-        time.sleep(1)
-
         # Launch the acquisition and saving threads
         if (getColor2DImg is not None):
             self.color_img_thread.start()
@@ -767,17 +806,17 @@ class IDXDeviceIF:
         success = False
         data_product = data_product
         pub_namespace = os.path.join(self.base_namespace,self.node_name,'idx')
-        topic = os.path.join(pub_namespace, data_product)
+        namespace = os.path.join(pub_namespace, data_product)
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['topic'] = topic
+        dp_dict['namespace'] = namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
         if data_product != 'pointcloud':
-            dp_dict['data_if'] = ImageIF(namespace = topic)
+            dp_dict['data_if'] = ImageIF(namespace = namespace)
         else:
-            dp_dict['data_if'] = PointcloudIF(namespace = topic )
+            dp_dict['data_if'] = PointcloudIF(namespace = namespace )
         self.data_products_list.append(data_product)
         self.data_product_dict[data_product] = dp_dict
 
@@ -785,14 +824,14 @@ class IDXDeviceIF:
         # Do same for raw data without start stop functions for images
         if data_product != 'pointcloud':
             data_product_raw = data_product + '_raw'
-            topic_raw = os.path.join(pub_namespace, data_product_raw)
+            namespace_raw = os.path.join(pub_namespace, data_product_raw)
             dp_dict = dict()
             dp_dict['data_product'] = data_product_raw
-            dp_dict['topic'] = topic_raw
+            dp_dict['namespace'] = namespace_raw
             if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(namespace = topic_raw)
+                dp_dict['data_if'] = ImageIF(namespace = namespace_raw)
             else:
-                dp_dict['data_if'] = PointcloudIF(namespace = topic_raw)
+                dp_dict['data_if'] = PointcloudIF(namespace = namespace_raw)
 
             self.data_products_list.append(data_product)
             self.data_product_dict[data_product] = dp_dict

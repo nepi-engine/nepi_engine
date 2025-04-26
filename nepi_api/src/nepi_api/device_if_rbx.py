@@ -21,7 +21,6 @@ import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_save
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_nav
@@ -30,27 +29,67 @@ from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Image, NavSatFix, BatteryState
+from sensor_msgs.msg import NavSatFix, BatteryState
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
-from mavros_msgs.msg import State, AttitudeTarget
-from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest, CommandTOL, CommandHome, CommandHomeRequest
 from pygeodesy.ellipsoidalKarney import LatLon
-from cv_bridge import CvBridge
 
 from nepi_ros_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
      RBXGotoPose, RBXGotoPosition, RBXGotoLocation, RBXMotorControl
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, \
-     NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_ros_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
+
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 
+from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
 
-NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
+
+
+
+EXAMPLE_NAVPOSE_DATA_DICT = {
+                          'frame_3d': 'ENU',
+                          'frame_alt': 'WGS84',
+
+                          'geoid_height_meters': 0,
+
+                          'has_heading': True,
+                          'time_heading': nepi_utils.get_time(),
+                          'heading_deg': 120.50,
+
+                          'has_oreientation': True,
+                          'time_oreientation': nepi_utils.get_time(),
+                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
+                          'roll_deg': 30.51,
+                          'pitch_deg': 30.51,
+                          'yaw_deg': 30.51,
+
+                          'has_position': True,
+                          'time_position': nepi_utils.get_time(),
+                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
+                          'x_m': 1.234,
+                          'y_m': 1.234,
+                          'z_m': 1.234,
+
+                          'has_location': True,
+                          'time_location': nepi_utils.get_time(),
+                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
+                          'lat': 47.080909,
+                          'long': -120.8787889,
+
+                          'has_altitude': True,
+                          'time_altitude': nepi_utils.get_time(),
+                          'alt_m': 12.321,
+    
+                          'has_depth': False,
+                          'time_depth': nepi_utils.get_time(),
+                          'alt_m': 0
+}
+
 
 class RBXRobotIF:
     # Default Global Values
@@ -66,8 +105,6 @@ class RBXRobotIF:
     FACTORY_CMD_TIMEOUT_SEC = 25 # Any action that changes 
     FACTORY_IMAGE_INPUT_TOPIC_NAME = "color_2d_image" # Partial or full ROS namespace string, "" for black image 
     FACTORY_HOME_LOCATION = [47.6540828,-122.3187578,0.0]
-
-    NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
 
 
     # Define class variables
@@ -130,7 +167,9 @@ class RBXRobotIF:
                  autonomousControlsReadyFunction=None,
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
-                 gpsTopic=None,odomTopic=None,headingTopic=None,
+                 getNavPoseDictFunction=None, 
+                 has_heading = False, has_position = False, has_orientation = False, 
+                 has_location = False, has_altitude = False, has_depth = False,
                  setFakeGPSFunction = None
                  ):
 
@@ -169,10 +208,6 @@ class RBXRobotIF:
 
         self.setup_actions = setup_actions
         self.setSetupActionIndFunction = setSetupActionIndFunction
-
-        # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
-        # TODO: Need one per image output type for thread safety?
-        self.cv_bridge = CvBridge()
 
         # Create and start initializing Status values
         self.rbx_status=RBXStatus()
@@ -337,7 +372,7 @@ class RBXRobotIF:
         ##################################################
         ### Node Class Setup
 
-
+        self.msg_if.pub_info("Starting Node IF Initialization")
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -423,13 +458,6 @@ class RBXRobotIF:
                 'qsize': 1,
                 'latch': True
             },            
-            'rbx_image_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/image',
-                'msg': Image,
-                'qsize': 1,
-                'latch': None
-            },
             'set_gps_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'NEPI_SET_NAVPOSE_GPS_TOPIC',
@@ -666,7 +694,15 @@ class RBXRobotIF:
         ready = self.NODE_IF.wait_for_ready()
 
 
-        # Setup Settings IF Class ####################
+        # Setup Data IF Classes ####################
+        self.msg_if.pub_info("Starting Image IF Initialization")
+        image_namespace = nepi_ros.create_namespace(self.node_namespace,'rbx_image_pub')
+        image_if = ImageIF(namespace = image_namespace)
+
+
+
+        # Setup System IF Classes ####################
+        self.msg_if.pub_info("Starting Settings IF Initialization")
         if capSettings is not None:
           self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -687,6 +723,7 @@ class RBXRobotIF:
 
 
         # Setup Save Data IF Class ####################
+        self.msg_if.pub_info("Starting Save Data IF Initialization")
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -705,47 +742,36 @@ class RBXRobotIF:
                                     factory_filename_dict = factory_filename_dict)
 
 
+   
+        # Create a NavPose Device IF
+        self.getNavPoseDictFunction = getNavPoseDictFunction
+        if getNavPoseDictFunction is not None:
+            self.msg_if.pub_info("Starting NPX Device IF Initialization")
+            navpose_if = NPXDeviceIF(device_info, 
+                                    has_heading = has_heading,
+                                    has_position = has_position,
+                                    has_orientation = has_orientation,
+                                    has_location = has_location,
+                                    has_altitude = has_altitude,
+                                    has_depth = has_depth,
+                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
+                                    pub_rate = 10)
+
         time.sleep(1)
 
-   
+
+
         ###############################
         # Finish Initialization
-
-
-        #  Will need to convert to NPX IF interface in future
-        nepi_ros.create_service("~rbx/navpose_capabilities_query", NavPoseCapabilitiesQuery, self.navpose_capabilities_query_callback)
-        NEPI_SET_NAVPOSE_GPS_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_gps_fix_topic"
-        NEPI_SET_NAVPOSE_HEADING_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_heading_topic"
-        NEPI_SET_NAVPOSE_ORIENTATION_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/set_orientation_topic"
-        NEPI_ENABLE_NAVPOSE_GPS_CLOCK_SYNC_TOPIC = NEPI_BASE_NAMESPACE + "nav_pose_mgr/enable_gps_clock_sync"
-
-
         # Start NavPose Data Updater
-        NAVPOSE_SERVICE_NAME = NEPI_BASE_NAMESPACE + "nav_pose_query"
+        NAVPOSE_SERVICE_NAME = nepi_ros.create_namespace(self.base_namespace,"nav_pose_query")
+        self.msg_if.pub_info("Waiting for NEPI NavPose query service on: " + NAVPOSE_SERVICE_NAME)
         nepi_ros.wait_for_service(NAVPOSE_SERVICE_NAME)
-        self.msg_if.pub_info("Connecting to NEPI NavPose at: " + NAVPOSE_SERVICE_NAME)
-        time.sleep(1)
+        self.msg_if.pub_info("Connecting to NEPI NavPose query service at: " + NAVPOSE_SERVICE_NAME)
         self.get_navpose_service = nepi_ros.create_serviceProxy(NAVPOSE_SERVICE_NAME, NavPoseQuery)
+        time.sleep(1)
         self.nepi_ros.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
-        # Connect to NEPI NavPose Solution
-        # Set GPS Topic
-        if gpsTopic is not None:
-            set_gps_pub.publish(gpsTopic)
-            self.msg_if.pub_info("GPS Topic Set to: " + gpsTopic)
-            # Sync NEPI clock to GPS timestamp
-            set_gps_timesync_pub.publish(data=True)
-            self.msg_if.pub_info("Setup complete")
-        # Set Orientation Topic
-        if odomTopic is not None:
-            set_orientation_pub.publish(odomTopic)
-            self.msg_if.pub_info("Orientation Topic Set to: " + odomTopic)
-        # Set Heading Topic
-        if headingTopic is not None:
-            set_heading_pub.publish(headingTopic)
-            self.msg_if.pub_info("Heading Topic Set to: " + headingTopic)
 
-
-        ready = self.save_cfg_if.wait_for_ready()
 
         ####################################
         ## Initiation Complete
@@ -818,8 +844,7 @@ class RBXRobotIF:
     ### Update image source subscriber
     def imageSubscriberCb(self,img_msg):
         #Convert image from ros to cv2
-        bridge = CvBridge()
-        cv2_img = bridge.imgmsg_to_cv2(img_msg, "bgr8")
+        cv2_img = nepi_img.rosimg_to_cv2img(img_msg, "bgr8")
         self.cv2_img = cv2_img
 
     ##############################
@@ -1372,14 +1397,12 @@ class RBXRobotIF:
             for text in status_str_msg:
                 self.statusTextOverlay(cv2_img,text,x, y)
                 y = y + 20
-        bridge = CvBridge()
-        img_out_msg = bridge.cv2_to_imgmsg(cv2_img,"bgr8")#desired_encoding='passthrough')
         # Publish new image to ros
         if not self.nepi_ros.is_shutdown():
-            self.rbx_image_pub.publish(img_out_msg)
+            self.image_if.publish_cv2_img(cv2_img)
             # You can view the enhanced_2D_image topic at 
             # //192.168.179.103:9091/ in a connected web browser
-        nepi_save.save_img2file(self,'image',cv2_img,img_out_msg.header.stamp)
+        self.save_data_if.save_img2file('image',cv2_img,img_out_msg.header.stamp)
 
         ## Update image source topic and subscriber if changed from last time.
         image_source = self.nepi_if.get_param('rbx/image_source')
@@ -1424,11 +1447,6 @@ class RBXRobotIF:
             thickness,
             lineType)
 
-    #######################
-
-    def saveImgThread(self,timer):
-        data_product = 'image'
-        eval("nepi_save.save_img2file(self,data_product,self." + data_product + ",self." + data_product + "_timestamp)")
 
     #######################
     # RBX IF Methods

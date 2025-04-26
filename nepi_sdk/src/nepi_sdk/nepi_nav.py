@@ -97,7 +97,6 @@ NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
-                          'time': nepi_utils.get_time(),
                           'frame_3d': 'ENU',
                           'frame_alt': 'WGS84',
 
@@ -107,70 +106,89 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
                           'heading_deg': 120.50,
 
                           'has_oreientation': True,
+                          'time_oreientation': nepi_utils.get_time(),
                           # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
                           'roll_deg': 30.51,
                           'pitch_deg': 30.51,
                           'yaw_deg': 30.51,
 
                           'has_position': True,
+                          'time_position': nepi_utils.get_time(),
                           # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
                           'x_m': 1.234,
                           'y_m': 1.234,
                           'z_m': 1.234,
 
                           'has_location': True,
+                          'time_location': nepi_utils.get_time(),
                           # Global Location in set altitude frame (lat,long,alt) with alt in meters
                           'lat': 47.080909,
                           'long': -120.8787889,
+
+                          'has_altitude': True,
+                          'time_altitude': nepi_utils.get_time(),
                           'alt_m': 12.321,
+    
+                          'has_depth': False,
+                          'time_depth': nepi_utils.get_time(),
+                          'alt_m': 0
 }
 
 
 def convert_navposedata_dict2msg(npdata_dict):
   npdata_msg = None
   try:
-    ros_stamp = nepi_ros.ros_stamp_from_sec(npdata_dict['time'])
     npdata_msg = NavPoseData()
-    npdata_msg.header.stamp = ros_stamp
+    npdata_msg.header.stamp = nepi_ros.ros_stampros_time_now()
     npdata.msg.frame_3d = npdata_dict['3d_frame']
     npdata.msg.frame_alt = npdata_dict['alt_frame']
     npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
 
     npdata_msg.has_heading = npdata_dict['has_heading']
+    npdata_msg.time_heading = npdata_dict['time_heading']
     npdata_msg.heading_deg = npdata_dict['heading_deg']
 
     npdata_msg.has_orientation = npdata_dict['has_orientation']
+    npdata_msg.time_orientation = npdata_dict['time_orientation']
     npdata_msg.roll_deg = npdata_dict['roll_deg']
     npdata_msg.pitch_deg = npdata_dict['pitch_deg']
     npdata_msg.yaw_deg = npdata_dict['yaw_deg']
 
-    npdata_msg.has_orientation = npdata_dict['has_position']
+    npdata_msg.has_position = npdata_dict['has_position']
+    npdata_msg.time_position = npdata_dict['time_position']
     npdata_msg.x_m = npdata_dict['x_m']
     npdata_msg.y_m = npdata_dict['y_m']
     npdata_msg.z_m = npdata_dict['z_m']
 
     npdata_msg.has_location = npdata_dict['has_location']
+    npdata_msg.time_location = npdata_dict['time_location']
     npdata_msg.lat = npdata_dict['lat']
     npdata_msg.long = npdata_dict['long']
 
     npdata_msg.has_altitude = npdata_dict['has_altitude']
+    npdata_msg.time_altitude = npdata_dict['time_altitude']
     npdata_msg.alt_m = npdata_dict['alt_m']
+
+    npdata_msg.has_depth = npdata_dict['has_depth']
+    npdata_msg.time_depth = npdata_dict['time_depth']
+    npdata_msg.depth_m = npdata_dict['depth_m']
+
   except Exception as e:
     logger.log_info("Failed to convert NavPoseData dict: " + str(e))
     npdata_msg = None
   return npdata_msg
 
 def convert_navposedata_msg2dict(npdata_msg):
-  npdata_dict = nepi_ros.msg2dict(npdata_msg)
-  del npdata_dict['header']
+  npdata_dict = None
   try:
-    npdata_dict['time'] = nepi_ros.sec_from_ros_stamp(npdata_msg.header.stamp)
+    npdata_dict = nepi_ros.msg2dict(npdata_msg)
+    del npdata_dict['header']
   except Exception as e:
     logger.log_info("Failed to convert NavPoseData msg: " + str(e))
-    npdata_dict = None
   return npdata_dict
 
 def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WGS84'):
+  time_ns = nepi_ros.time_ns_from_timestamp(navpose_msg.header.stamp)
   npdata_msg = None
   navpose_msg = np_reponse.nav_pose
   try:
@@ -206,24 +224,34 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WG
       npdata_msg.geoid_height_meters = geoid_height
 
       npdata_msg.has_heading = heading_deg != 0
+      npdata_msg.time_heading = time_ns
       npdata_msg.heading_deg = heading_deg
 
       npdata_msg.has_orientation = any(ort_values)
+      npdata_msg.time_orientation = time_ns
       npdata_msg.roll_deg = ort_values[0]
       npdata_msg.pitch_deg = ort_values[1]
       npdata_msg.yaw_deg = ort_values[2]
 
       npdata_msg.has_position = any(pos_values)
+      npdata_msg.time_position = time_ns
       npdata_msg.x_m = pos_values[0]
       npdata_msg.y_m = pos_values[1]
       npdata_msg.z_m = pos_values[2]
 
       npdata_msg.has_location = any(geo_values[0:-1])
+      npdata_msg.time_location = time_ns
       npdata_msg.lat = geo_values[0]
       npdata_msg.long = geo_values[1]
 
       npdata_msg.has_altitude = geo_values[2] != 0
+      npdata_msg.time_altitude = time_ns
       npdata_msg.alt_m =geo_values[2]
+
+      npdata_msg.has_depth = geo_values[2] != 0
+      npdata_msg.time_depth = time_ns
+      npdata_msg.depth_m = -1 * geo_values[2]
+
   except Exception as e:
     logger.log_info("Failed to convert NavPose resp to Data msg: " + str(e))
     npdata_msg = None
