@@ -24,8 +24,10 @@ import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import String, Empty, Float32
 from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
-from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryResponse, OpEnvironmentQuery, OpEnvironmentQueryResponse, \
-                             SystemSoftwareStatusQuery, SystemSoftwareStatusQueryResponse, SystemStorageFolderQuery, SystemStorageFolderQueryResponse
+from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
+                             OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
+                             SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
+                                SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
 
 from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
@@ -160,7 +162,7 @@ class SystemMgrNode():
         ###############################
         # Initialize Class Variables
         self.msg_if.pub_warn("Getting System Info")
-        self.first_stage_rootfs_device = nepi_ros.get_param(self,
+        self.first_stage_rootfs_device = nepi_ros.get_param(
             "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
         if self.first_stage_rootfs_device == "container":
@@ -177,7 +179,7 @@ class SystemMgrNode():
      
         self.msg_if.pub_warn("Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
-        self.storage_mountpoint = nepi_ros.get_param(self,
+        self.storage_mountpoint = nepi_ros.get_param(
             "~storage_mountpoint", self.storage_mountpoint)
         
         self.msg_if.pub_warn("Updating Rootfs Scheme")
@@ -253,13 +255,31 @@ class SystemMgrNode():
         }
 
 
+param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
+param("~storage_mountpoint", self.storage_mountpoint)
 
+param("~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
+
+param("~first_stage_rootfs_device", self.first_stage_rootfs_device)
+
+
+param("~new_img_staging_device", self.new_img_staging_device)
+
+param("~new_img_staging_device_removable", self.new_img_staging_device_removable)
+
+param("~emmc_device", self.emmc_device)
+
+param("~usb_device", self.usb_device)
+
+param("~sd_card_device", self.sd_card_device)
+
+param("~ssd_device", self.ssd_device)
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'aifs_dict': {
+            '??': {
                 'namespace': self.node_namespace,
-                'factory_val': dict()
+                'factory_val': ??
             }
         }
 
@@ -510,35 +530,27 @@ class SystemMgrNode():
         self.storage_mountpoint = nepi_ros.get_param("~storage_mountpoint", self.storage_mountpoint)
         
         self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
-            "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install
-        )
+            "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
         self.first_stage_rootfs_device = nepi_ros.get_param(
-            "~first_stage_rootfs_device", self.first_stage_rootfs_device
-        )
+            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
         # nepi_storage_device has some additional logic
         self.getNEPIStorageDevice()
         
         self.new_img_staging_device = nepi_ros.get_param(
-            "~new_img_staging_device", self.new_img_staging_device
-        )
+            "~new_img_staging_device", self.new_img_staging_device)
 
         self.new_img_staging_device_removable = nepi_ros.get_param(
-            "~new_img_staging_device_removable", self.new_img_staging_device_removable
-        )
+            "~new_img_staging_device_removable", self.new_img_staging_device_removable)
 
-        self.emmc_device = nepi_ros.get_param("~emmc_device", self.emmc_device
-        )
+        self.emmc_device = nepi_ros.get_param("~emmc_device", self.emmc_device)
 
-        self.usb_device = nepi_ros.get_param("~usb_device", self.usb_device
-        )
+        self.usb_device = nepi_ros.get_param("~usb_device", self.usb_device)
 
-        self.sd_card_device = nepi_ros.get_param("~sd_card_device", self.sd_card_device
-        )
+        self.sd_card_device = nepi_ros.get_param("~sd_card_device", self.sd_card_device)
 
-        self.ssd_device = nepi_ros.get_param("~ssd_device", self.ssd_device
-        )
+        self.ssd_device = nepi_ros.get_param("~ssd_device", self.ssd_device)
     
     def initCB(self, do_updates = False):
         pass
@@ -872,7 +884,7 @@ class SystemMgrNode():
         if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
             self.msg_if.pub_warn(
                 "Setting environment parameter to a non-standard value: " + str(msg.data))
-        nepi_ros.set_param(self,"~op_environment", msg.data)
+        nepi_ros.set_param("~op_environment", msg.data)
 
     def set_device_id(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
@@ -1006,7 +1018,7 @@ class SystemMgrNode():
 
     def provide_op_environment(self, req):
         # Just proxy the param server
-        return OpEnvironmentQueryResponse(nepi_ros.get_param(self,"~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR))
+        return OpEnvironmentQueryResponse(nepi_ros.get_param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR))
     
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data
@@ -1118,10 +1130,10 @@ class SystemMgrNode():
             
           # If we get here, failed to get the storage device from /etc/fstab
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
-          if not nepi_ros.has_param(self,"~nepi_storage_device"):
+          if not nepi_ros.has_param("~nepi_storage_device"):
               self.msg_if.pub_warn("Parameter nepi_storage_device not available -- falling back to hard-coded " + self.nepi_storage_device)
           else:
-              self.nepi_storage_device = nepi_ros.get_param(self,
+              self.nepi_storage_device = nepi_ros.get_param(
                 "~nepi_storage_device", self.nepi_storage_device)
               self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage_device + ' from config file')
         else:

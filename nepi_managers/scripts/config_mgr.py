@@ -22,7 +22,7 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Empty
-from nepi_ros_interfaces.srv import FileReset
+from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -94,7 +94,26 @@ class config_mgr(object):
         'namespace': self.node_namespace
     }
 
-    # Publishers Config Dict ####################
+    # Params Config Dict ####################
+    self.PARAMS_DICT = None
+
+
+
+nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
+nepi_ros.create_service('user_reset', FileReset, self.user_reset)
+
+    # Services Config Dict ####################
+    self.SRVS_DICT = {
+        'none': {
+            'namespace': self.node_namespace,
+            'topic': '???',
+            'svr': SystemDefsQuery,
+            'req': SystemDefsQueryRequest(),
+            'resp': SystemDefsQueryResponse(),
+            'callback': self.?
+        }
+    }
+
     # Publishers Config Dict ####################
     self.PUBS_DICT = {
         'status_pub': {
@@ -141,14 +160,7 @@ class config_mgr(object):
         }
     }
 
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
-        }
 
-    }
 
 
 
@@ -165,27 +177,13 @@ class config_mgr(object):
 
 
 
+    #########################################################
+    ## Complete Initialization
 
-
-    nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
-    nepi_ros.create_service('user_reset', FileReset, self.user_reset)
-
-
-    self.node_if.publish_pub('status_pub')
-
-
-    rospy.Subscriber('save_config', Empty, self.save_non_ros_cfgs) # Global one only
-    rospy.Subscriber('store_params', String, self.store_params)
-    rospy.Subscriber('full_user_restore', Empty, self.restore_user_cfgs_mgr)
-
-    rospy.Service('factory_reset', FileReset, self.factory_reset)
-    rospy.Service('user_reset', FileReset, self.user_reset)
-
-    self.status_pub = rospy.Publisher("~status", Empty, queue_size=1, latch=True)
-    time.sleep(1)
-    self.status_pub.publish(Empty())
     # Restore user configurations
     self.restore_user_cfgs()
+
+    self.node_if.publish_pub('status_pub', Empty())
 
     #########################################################
     ## Initiation Complete

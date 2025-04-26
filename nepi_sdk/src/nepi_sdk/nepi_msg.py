@@ -22,7 +22,7 @@ from nepi_ros_interfaces.msg import Message
 
 #################################
 ## DEPRICIATED
-## Now split between nepi_ros sdk and sys_if_msg api 
+## Now split between nepi_ros sdk and message_if api 
 
 def printMsg(msg, level = "None"):
   msg_str = str(msg)

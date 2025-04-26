@@ -25,16 +25,21 @@ from std_msgs.msg import Empty
 from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.srv import (
     GetScriptsQuery,
+    GetScriptsQueryRequest,
     GetScriptsQueryResponse,
     GetRunningScriptsQuery,
+    GetRunningScriptsQueryRequest,
     GetRunningScriptsQueryResponse,
     LaunchScript,
     LaunchScriptRequest,
     LaunchScriptResponse,
     StopScript,
     GetSystemStatsQuery,
+    GetSystemStatsQueryRequest,
     GetSystemStatsQueryResponse,
-    SystemStorageFolderQuery
+    SystemStorageFolderQuery,
+    SystemStorageFolderQueryRequest,
+    SystemStorageFolderQueryResponse
 )
 
 from nepi_ros_interfaces.msg import AutoStartEnabled
@@ -103,34 +108,6 @@ class AutomationManager:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
     
 
-        ###########################
-        # Initialize Params
-        self.script_stop_timeout_s = self.node_if.get_param('script_stop_timeout_s')
-        self.scripts = self.get_scripts()
-        self.file_sizes = self.get_file_sizes()
-        for script in self.scripts:
-            #TODO: These should be gathered from a stats file on disk to remain cumulative for all time (clearable on ROS command)
-            self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
-
-        self.setupScriptConfigs()
-        self.running_scripts = set()
-
-        self.monitor_thread = threading.Thread(target=self.monitor_scripts)
-        self.monitor_thread.daemon = True
-        self.monitor_thread.start()
-
-        self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.scripts_folder, self.on_file_change))
-        self.watch_thread.daemon = True
-        self.watch_thread.start()
-
-        # Autolaunch any scripts that are so-configured
-        for script_name in self.script_configs:
-            script_config = self.script_configs[script_name]
-            if script_config['auto_start'] is True:
-                self.msg_if.pub_info("Auto-starting " + script_name)
-                req = LaunchScriptRequest(script_name)
-                self.handle_launch_script(req)
-
         self.initCb(do_updates = True)
 
 
@@ -147,9 +124,44 @@ class AutomationManager:
         'namespace': self.node_namespace
     }
 
+
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'script_configs': {
+            'namespace': self.node_namespace,
+            'factory_val': self.script_configs
+        },
+        'script_stop_timeout_s': {
+            'namespace': self.node_namespace,
+            'factory_val': self.script_stop_timeout_s
+        }       
+    }
+
+
+## Node Services
+self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
+self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
+self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
+self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
+self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
+
+
+    # Services Config Dict ####################
+    self.SRVS_DICT = {
+        '??': {
+            'namespace': self.node_namespace,
+            'topic': '???',
+            'svr': SystemDefsQuery,
+            'req': SystemDefsQueryRequest(),
+            'resp': SystemDefsQueryResponse(),
+            'callback': self.?
+        }
+    }
+
+
     # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-    }  
+    self.PUBS_DICT = None
 
     # Subscribers Config Dict ####################
     self.SUBS_DICT = {
@@ -161,26 +173,6 @@ class AutomationManager:
             'callback': self.AutoStartEnabled_cb, 
             'callback_args': ()
         },
-    }
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': None
-        },
-        'aifs_dict': {
-            'namespscript_stop_timeout_sace': self.node_namespace,
-            'factory_val': self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
-        },
-        'script_configs': {
-            'namespace': self.node_namespace,
-            'factory_val': self.script_configs
-        },
-        'aifs_dict': {
-            'script_stop_timeout_s': self.node_namespace,
-            'factory_val': self.script_stop_timeout_s
-        }       
     }
 
 
@@ -196,14 +188,35 @@ class AutomationManager:
     ready = self.node_if.wait_for_ready()
 
 
+    ###########################
+    # Complete Initialization
+    self.script_stop_timeout_s = self.node_if.get_param('script_stop_timeout_s')
+    self.scripts = self.get_scripts()
+    self.file_sizes = self.get_file_sizes()
+    for script in self.scripts:
+        #TODO: These should be gathered from a stats file on disk to remain cumulative for all time (clearable on ROS command)
+        self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
 
-    ######################\
-    ## Node Services
-    self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
-    self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
-    self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
-    self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
-    self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
+    self.setupScriptConfigs()
+    self.running_scripts = set()
+
+    self.monitor_thread = threading.Thread(target=self.monitor_scripts)
+    self.monitor_thread.daemon = True
+    self.monitor_thread.start()
+
+    self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.scripts_folder, self.on_file_change))
+    self.watch_thread.daemon = True
+    self.watch_thread.start()
+
+    # Autolaunch any scripts that are so-configured
+    for script_name in self.script_configs:
+        script_config = self.script_configs[script_name]
+        if script_config['auto_start'] is True:
+            self.msg_if.pub_info("Auto-starting " + script_name)
+            req = LaunchScriptRequest(script_name)
+            self.handle_launch_script(req)
+
+
 
     ###########################
     ## Initiation Complete
@@ -212,13 +225,6 @@ class AutomationManager:
     nepi_ros.spin()
     #########################################################
 
-    #######################
-    # Wait for System and Config Statuses Callbacks
-    def systemStatusCb(self,msg):
-        self.sys_status = msg
-
-    def configStatusCb(self,msg):
-        self.cfg_status = True
     
 
 

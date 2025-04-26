@@ -28,7 +28,7 @@ from std_srvs.srv import Empty as EmptySrv
 from nepi_ros_interfaces.msg import Reset
 from nepi_ros_interfaces.msg import TimeStatus
 
-from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryResponse
+from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -100,6 +100,35 @@ class time_sync_mgr(object):
             'init_configs': True,
             'namespace': self.node_namespace
         }
+
+param("~init_time_from_rtc", True)
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            '??': {
+                'namespace': self.node_namespace,
+                'factory_val': ??
+            }
+        }
+
+
+        # Services Config Dict ####################
+        
+
+        if self.in_container == True:
+            self.SRVS_DICT = None
+        else:
+            self.SRVS_DICT = {
+                'time_status_query': {
+                    'namespace': self.node_namespace,
+                    'topic': 'time_status_query',
+                    'svr': TimeStatusQuery,
+                    'req': TimeStatusQueryRequest(),
+                    'resp': TimeStatusQueryResponse(),
+                    'callback': self.handle_time_status_query
+                }
+            }
+
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
@@ -182,7 +211,7 @@ class time_sync_mgr(object):
 
             # Initialize the system clock from the RTC if so configured
             # RTC will be updated whenever a "good" clock source is detected; that will control drift
-            init_from_rtc = self.node_if.get_param("~init_time_from_rtc", True)
+            init_from_rtc = nepi_ros.get_param("~init_time_from_rtc", True)
             if init_from_rtc is True:
                 self.msg_if.pub_info("Initializing system clock from hardware clock")
                 subprocess.call(['hwclock', '-s'])
@@ -463,12 +492,14 @@ class time_sync_mgr(object):
        self.node_if.publish_pub('g_sys_time_updated_pub') # Make sure to inform the rest of the nodes that the system clock was updated
 
         # For onvif_mgr, must use a service rather than the system_time_updated topic due to limitation with onvif_mgr message subscriptions
-        try:
-            nepi_ros.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
-            resync_srv = nepi_ros.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
-            resync_srv()
-        except Exception as e:
-            pass
+        topic = nepi_ros.find_service('onvif_mgr/resync_onvif_device_clocks')
+        if topic is not "":
+            try:
+                nepi_ros.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
+                resync_srv = nepi_ros.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
+                resync_srv()
+            except Exception as e:
+                pass
 
 if __name__ == '__main__':
     time_sync_mgr()

@@ -34,8 +34,8 @@ from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_ros_interfaces.msg import BoundingBoxes, ObjectCount
 
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery
-from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryResponse
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest
+from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
 
 
 from nepi_api.messages_if import MsgIF
@@ -149,6 +149,38 @@ class AIDetectorManager:
         'namespace': self.node_namespace
     }
 
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'aifs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        },   
+        'active_aifs': {
+            'namespace': self.node_namespace,
+            'factory_val': []
+        },   
+        'models_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': models_dict
+        }
+
+    }
+
+nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, self.handleInfoRequest)
+
+    # Services Config Dict ####################
+    self.SRVS_DICT = {
+        'none': {
+            'namespace': self.node_namespace,
+            'topic': '???',
+            'svr': SystemDefsQuery,
+            'req': SystemDefsQueryRequest(),
+            'resp': SystemDefsQueryResponse(),
+            'callback': self.?
+        }
+    }
+
     # Publishers Config Dict ####################
     self.PUBS_DICT = {
         'status_pub': {
@@ -159,6 +191,7 @@ class AIDetectorManager:
             'latch': True
         },
     }  
+
 
     # Subscribers Config Dict ####################
     self.SUBS_DICT = {
@@ -229,28 +262,6 @@ class AIDetectorManager:
 
     }
 
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
-        },   
-        'active_aifs': {
-            'namespace': self.node_namespace,
-            'factory_val': []
-        },   
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
-        },   
-        'models_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': models_dict
-        }
-
-    }
-
-    mgr_reset_sub = self.nepi_ros.create_subscriber('~refresh_frameworks', Empty, self.refreshFrameworksCb, queue_size = 10)
 
 
     # Create Node Class ####################
@@ -287,7 +298,7 @@ class AIDetectorManager:
 
 
     ###########################
-    nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, self.handleInfoRequest)
+
 
     self.all_namespace = os.path.join(self.base_namespace,'ai')
     self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
@@ -448,7 +459,7 @@ class AIDetectorManager:
 
     def updaterCb(self,timer):
         active_aifs = self.node_if.get_param('active_aifs')
-        models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
 
         for model_name in self.running_models_list:
@@ -484,10 +495,10 @@ class AIDetectorManager:
                     self.msg_if.pub_warn("Model failed to load: " + model_name)
                     self.msg_if.pub_warn("Setting model to disabled: " + model_name)
                     models_dict[model_name]['active'] = False
-                    nepi_ros.set_param(self,"~models_dict",models_dict)
+                    nepi_ros.set_param("~models_dict",models_dict)
         # Get Updated Models Dict
-        models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
-        nepi_ros.set_param(self,"~models_dict",models_dict)
+        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+        nepi_ros.set_param("~models_dict",models_dict)
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_ros.ros_time_now()
             self.node_if.publish_pub('detection_image_pub', self.ros_no_models_img)
@@ -576,7 +587,7 @@ class AIDetectorManager:
         
     def killModel(self, model_name):
         if model_name != "None": 
-            models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
             if not (model_name in models_dict.keys()):
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
                 return
@@ -626,18 +637,18 @@ class AIDetectorManager:
 
     '''
     def enableAllFwsCb(self,msg):
-        aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
+        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
         aifs_dict = nepi_aifs.activateAllFws(aifs_dict)
-        nepi_ros.set_param(self,"~aifs_dict",aifs_dict)
+        nepi_ros.set_param("~aifs_dict",aifs_dict)
         self.refreshFrameworks()
         self.saveSettings() # Save config
         self.publish_status()
 
 
     def disableAllFwsCb(self,msg):
-        aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
+        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
         aifs_dict = nepi_aifs.disableAllFws(aifs_dict)
-        nepi_ros.set_param(self,"~aifs_dict",aifs_dict)
+        nepi_ros.set_param("~aifs_dict",aifs_dict)
         self.refreshFrameworks()
         self.saveSettings() # Save config
         self.publish_status()
@@ -645,7 +656,7 @@ class AIDetectorManager:
     def updateFwStateCb(self,msg):
         aif_name = msg.name
         new_active_state = msg.active_state
-        aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
+        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
         if aif_name in aifs_dict.keys():
             app = aifs_dict[aif_name]
             active_state = app['active']
@@ -654,7 +665,7 @@ class AIDetectorManager:
                     aifs_dict = nepi_aifs.activateFw(aif_name,aifs_dict)
                 else:
                     aifs_dict = nepi_aifs.disableFw(aif_name,aifs_dict)
-        nepi_ros.set_param(self,"~aifs_dict",aifs_dict)
+        nepi_ros.set_param("~aifs_dict",aifs_dict)
         self.refreshFrameworks()
         self.saveSettings() # Save config
         self.publish_status()
@@ -668,12 +679,12 @@ class AIDetectorManager:
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
                     models_dict[model_name]['active'] = True
-        nepi_ros.set_param(self,"~models_dict",models_dict)
+        nepi_ros.set_param("~models_dict",models_dict)
         self.saveSettings() # Save config
         self.publish_status()
 
@@ -685,12 +696,12 @@ class AIDetectorManager:
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
                     models_dict[model_name]['active'] = False
-        nepi_ros.set_param(self,"~models_dict",models_dict)
+        nepi_ros.set_param("~models_dict",models_dict)
         self.saveSettings() # Save config
         self.publish_status()
 
@@ -698,7 +709,7 @@ class AIDetectorManager:
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
         model_name = msg.name
         new_active_state = msg.active_state
-        models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
         if model_name in models_dict.keys():
             model_dict = models_dict[model_name]
             model_aif = model_dict['framework']
@@ -715,7 +726,7 @@ class AIDetectorManager:
                         self.msg_if.pub_warn("Changing Model State to: False")
                         models_dict[model_name]['active'] = False
 
-        nepi_ros.set_param(self,"~models_dict",models_dict)
+        nepi_ros.set_param("~models_dict",models_dict)
         self.saveSettings() # Save config
         self.publish_status()
 
@@ -744,8 +755,8 @@ class AIDetectorManager:
 
 
     def publish_status(self):
-        aifs_dict = nepi_ros.get_param(self,"~aifs_dict",self.init_aifs_dict)
-        models_dict = nepi_ros.get_param(self,"~models_dict",self.init_models_dict)
+        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
+        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
 
         status_msg = AiModelMgrStatus()
         status_msg.ai_frameworks = nepi_aifs.getAIFsSortedList(aifs_dict)

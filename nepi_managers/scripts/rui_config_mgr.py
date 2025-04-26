@@ -62,6 +62,22 @@ class RUICfgMgrNode:
         'namespace': self.node_namespace
     }
 
+
+param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
+param("~nepi_hb_auto_offload_visible", False)
+
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        '??': {
+            'namespace': self.node_namespace,
+            'factory_val': ??
+        }
+    }
+
+
+    # Services Config Dict ####################
+    self.SRVS_DICT = None
+
     # Publishers Config Dict ####################
     self.PUBS_DICT = {
         'settings': {
@@ -127,8 +143,8 @@ class RUICfgMgrNode:
 
     def publish_settings(self):
         # Gather all settings for the message
-        self.settings_msg.streaming_image_quality = nepi_ros.get_param(self,"~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
-        self.settings_msg.nepi_hb_auto_offload_visible = nepi_ros.get_param(self,"~nepi_hb_auto_offload_visible", False)
+        self.settings_msg.streaming_image_quality = nepi_ros.get_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
+        self.settings_msg.nepi_hb_auto_offload_visible = nepi_ros.get_param("~nepi_hb_auto_offload_visible", False)
 
         # Publish it
         self.node_if.publish_pub('settings_pub', self.settings_msg)
@@ -140,16 +156,16 @@ class RUICfgMgrNode:
 
 
     def initCB(self):
-        pass
+        self.publish_settings()
 
     def resetCb(self):
-        pass
+        self.msg_if.pub_info("Setting streaming image quality to: " + str(self.DEFAULT_IMAGE_QUALITY))
+        nepi_ros.set_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
+        self.publish_settings() # Make sure to always publish settings updates
 
     def factoryResetCb(self):
-        pass
-        
-        self.msg_if.pub_info("Setting streaming image quality to: " + str(msg.data))
-        nepi_ros.set_param(self,"~streaming_image_quality", msg.data)
+        self.msg_if.pub_info("Setting streaming image quality to: " + str(self.DEFAULT_IMAGE_QUALITY))
+        nepi_ros.set_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
         self.publish_settings() # Make sure to always publish settings updates
 
 
