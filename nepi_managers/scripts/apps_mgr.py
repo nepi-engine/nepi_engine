@@ -65,11 +65,6 @@ class NepiAppsMgr(object):
 
   selected_app = "None"
 
-  init_apps_dict = dict()
-  init_backup_enabled =  True
-  init_restart_enabled = False
-
-
 
   #######################
   ### Node Initialization
@@ -139,32 +134,33 @@ class NepiAppsMgr(object):
         'namespace': self.node_namespace
     }
 
-self.init_backup_enabled = nepi_ros.get_param("~backup_enabled", True)
-self.init_apps_dict = nepi_ros.get_param("~apps_dict",dict())
-self.init_restart_enabled = nepi_ros.get_param("~restart_enabled",False)
-
 
     # Params Config Dict ####################
     self.PARAMS_DICT = {
-        '??': {
+        'backup_enabled': {
             'namespace': self.node_namespace,
-            'factory_val': ??
-        }
+            'factory_val': True
+        },
+        'apps_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        },
+        'restart_enabled': {
+            'namespace': self.node_namespace,
+            'factory_val': False
+        },
     }
 
 
-
-nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusService)
-
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        '??': {
+        'app_status_query': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'app_status_query',
+            'svr': AppStatusQuery,
+            'req': AppStatusQueryRequest(),
+            'resp': AppStatusQueryResponse(),
+            'callback': self.appStatusService
         }
     }
 
@@ -301,7 +297,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
     # refresh apps dict
     self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
     nepi_ros.set_param("~apps_dict",apps_dict)
     nepi_ros.set_param("~restart_enabled",False)
@@ -313,7 +309,9 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
       if do_updates == True:
         self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
         self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-        self.init_apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,self.init_apps_dict)
+        apps_dict = self.node_if.get_param("apps_dict")
+        apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
+        self.node_if.set_param("apps_dict",apps_dict)
         self.resetCb(do_updates)
         #self.printND()
 
@@ -345,7 +343,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
     if need_update:
       self.msg_if.pub_info("Need to Update App Database")
       self.initCb(do_updates = True)
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
     ## process active app processes
@@ -382,7 +380,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
 
     ################################    
     ## Process Apps
-    restart = nepi_ros.get_param("~restart_enabled",self.init_restart_enabled)
+    restart = self.node_if.reset_param("restart_enabled")
     for app_name in self.apps_ordered_list:
       if app_name in apps_active_list and app_name in apps_dict.keys():
         app_dict = apps_dict[app_name]
@@ -445,7 +443,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
 
 
   def getAppStatusServiceMsg(self, app_name):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     status_app_msg = AppStatusQueryResponse()
     status_app_msg.app_name = app_name
     if app_name in apps_dict.keys() and app_name != 'NONE':
@@ -474,7 +472,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
         
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     self.msg_if.pub_info('')
     self.msg_if.pub_info('*******************')
     self.msg_if.pub_info('Printing Apps Dictionary')
@@ -503,7 +501,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
         self.save_cfg_if.save() # Save config
 
   def getAppsStatusMsg(self):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     self.apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     self.apps_group_list = nepi_apps.getAppsGroupList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
@@ -519,9 +517,9 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
     status_apps_msg.apps_install_list = self.apps_install_files
     status_apps_msg.apps_rui_list = nepi_apps.getAppsRuiActiveList(apps_dict)
     status_apps_msg.app_backup_path = self.apps_install_folder
-    status_apps_msg.backup_removed_apps = nepi_ros.get_param("~backup_enabled",self.init_backup_enabled)
+    status_apps_msg.backup_removed_apps = self.node_if.reset_param("backup_enabled")
     status_apps_msg.selected_app = self.selected_app
-    status_apps_msg.restart_enabled = nepi_ros.get_param("~restart_enabled",self.init_restart_enabled)
+    status_apps_msg.restart_enabled = self.node_if.reset_param("restart_enabled")
     return status_apps_msg
 
   
@@ -535,7 +533,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
 
 
   def getAppStatusMsg(self):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     app_name = self.selected_app
     status_app_msg = AppStatus()
     status_app_msg.name = app_name
@@ -569,13 +567,13 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
   ## Apps Mgr Callbacks
 
   def enableAllCb(self,msg):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     apps_dict = nepi_apps.activateAllApps(apps_dict)
     nepi_ros.set_param("~apps_dict",apps_dict)
     self.publish_status()
 
   def disableAllCb(self,msg):
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     apps_dict = nepi_apps.disableAllApps(apps_dict)
     nepi_ros.set_param("~apps_dict",apps_dict)
     self.publish_status()
@@ -584,7 +582,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
   def selectAppCb(self,msg):
     self.msg_if.pub_info(str(msg))
     app_name = msg.data
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     if app_name in apps_dict.keys() or app_name == "NONE":
       self.selected_app = app_name
     self.publish_status()
@@ -593,7 +591,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
     self.msg_if.pub_info(str(msg))
     app_name = msg.name
     new_active_state = msg.active_state
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     if app_name in apps_dict.keys():
       app = apps_dict[app_name]
       active_state = app['active']
@@ -611,7 +609,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
     app_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     if app_name in apps_dict.keys():
       apps_dict = moveFunction(app_name,apps_dict)
     nepi_ros.set_param("~apps_dict",apps_dict)
@@ -645,7 +643,7 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
   def installAppPkgCb(self,msg):
     self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     if pkg_name in self.apps_install_files:
      [success,apps_dict]  = nepi_apps.installAppPkg(pkg_name,apps_dict,self.apps_install_folder,self.apps_install_folder)
     nepi_ros.set_param("~apps_dict",apps_dict)
@@ -654,9 +652,9 @@ nepi_ros.create_service('~app_status_query', AppStatusQuery, self.appStatusServi
   def removeAppCb(self,msg):
     self.msg_if.pub_info(str(msg))
     app_name = msg.data
-    apps_dict = nepi_ros.get_param("~apps_dict",self.init_apps_dict)
+    apps_dict = self.node_if.reset_param("apps_dict")
     backup_folder = None
-    backup_enabled = nepi_ros.get_param("~backup_enabled",self.init_backup_enabled)
+    backup_enabled = self.node_if.reset_param("backup_enabled")
     if backup_enabled:
       backup_folder = self.apps_install_folder
     if app_name in apps_dict:

@@ -199,19 +199,32 @@ class NetworkMgr:
         }
     }
 
-    nepi_ros.create_service('ip_addr_query', IPAddrQuery, self.handle_ip_addr_query)
-    nepi_ros.create_service('bandwidth_usage_query', BandwidthUsageQuery, self.handle_bandwidth_usage_query)
-    nepi_ros.create_service('wifi_query', WifiQuery, self.handle_wifi_query)
 
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        'none': {
+        'ip_addr_query': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'ip_addr_query',
+            'svr': IPAddrQuery,
+            'req': IPAddrQueryRequest(),
+            'resp': IPAddrQueryResponse(),
+            'callback': self.handle_ip_addr_query
+        },
+        'bandwidth_usage_query': {
+            'namespace': self.node_namespace,
+            'topic': 'bandwidth_usage_query',
+            'svr': BandwidthUsageQuery,
+            'req': BandwidthUsageQueryRequest(),
+            'resp': BandwidthUsageQueryResponse(),
+            'callback': self.handle_bandwidth_usage_query
+        },
+        'wifi_query': {
+            'namespace': self.node_namespace,
+            'topic': 'wifi_query',
+            'svr': WifiQuery,
+            'req': WifiQueryRequest(),
+            'resp': WifiQueryResponse(),
+            'callback': self.handle_wifi_query
         }
     }
 
@@ -772,8 +785,8 @@ class NetworkMgr:
 
     def set_wifi_client_from_params(self):
         self.wifi_client_enabled = nepi_ros.get_param('~wifi/enable_client', False)
-        self.wifi_client_ssid = nepi_ros.get_param("~wifi/client_ssid", "None")
-        self.wifi_client_passphrase = nepi_ros.get_param("~wifi/client_passphrase", "None")
+        self.wifi_client_ssid = self.node_if.reset_param("wifi/client_ssid")
+        self.wifi_client_passphrase = self.node_if.reset_param("wifi/client_passphrase")
 
         if self.wifi_client_enabled is True:
             if self.wifi_iface is None:

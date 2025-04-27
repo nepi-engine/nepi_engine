@@ -254,31 +254,47 @@ class SystemMgrNode():
         }
 
 
-param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
-param("~storage_mountpoint", self.storage_mountpoint)
-
-param("~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
-
-param("~first_stage_rootfs_device", self.first_stage_rootfs_device)
-
-
-param("~new_img_staging_device", self.new_img_staging_device)
-
-param("~new_img_staging_device_removable", self.new_img_staging_device_removable)
-
-param("~emmc_device", self.emmc_device)
-
-param("~usb_device", self.usb_device)
-
-param("~sd_card_device", self.sd_card_device)
-
-param("~ssd_device", self.ssd_device)
-
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            '??': {
+            'op_environment': {
                 'namespace': self.node_namespace,
-                'factory_val': ??
+                'factory_val': OpEnvironmentQueryResponse.OP_ENV_AIR
+            },
+            'storage_mountpoint': {
+                'namespace': self.node_namespace,
+                'factory_val': self.storage_mountpoint
+            },
+            'auto_switch_rootfs_on_new_img_install': {
+                'namespace': self.node_namespace,
+                'factory_val': self.auto_switch_rootfs_on_new_img_install
+            },
+            'first_stage_rootfs_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.first_stage_rootfs_device
+            },
+            'new_img_staging_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.new_img_staging_device
+            },
+            'new_img_staging_device_removable': {
+                'namespace': self.node_namespace,
+                'factory_val': self.new_img_staging_device_removable
+            },
+            'emmc_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.emmc_device
+            },
+            'usb_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.usb_device
+            },
+            'sd_card_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.sd_card_device
+            },
+            'ssd_device': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ssd_device
             }
         }
 
@@ -536,12 +552,12 @@ param("~ssd_device", self.ssd_device)
     
 
     def initConfig(self):
-        op_env = nepi_ros.get_param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR)
+        op_env = self.node_if.reset_param("op_environment")
         # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
         self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
         # Now gather all the params and set members appropriately
-        self.storage_mountpoint = nepi_ros.get_param("~storage_mountpoint", self.storage_mountpoint)
+        self.storage_mountpoint = self.node_if.reset_param("storage_mountpoint")
         
         self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
             "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
@@ -558,13 +574,13 @@ param("~ssd_device", self.ssd_device)
         self.new_img_staging_device_removable = nepi_ros.get_param(
             "~new_img_staging_device_removable", self.new_img_staging_device_removable)
 
-        self.emmc_device = nepi_ros.get_param("~emmc_device", self.emmc_device)
+        self.emmc_device = self.node_if.reset_param("emmc_device")
 
-        self.usb_device = nepi_ros.get_param("~usb_device", self.usb_device)
+        self.usb_device = self.node_if.reset_param("usb_device")
 
-        self.sd_card_device = nepi_ros.get_param("~sd_card_device", self.sd_card_device)
+        self.sd_card_device = self.node_if.reset_param("sd_card_device")
 
-        self.ssd_device = nepi_ros.get_param("~ssd_device", self.ssd_device)
+        self.ssd_device = self.node_if.reset_param("ssd_device")
     
     def initCB(self, do_updates = False):
         pass
@@ -1032,7 +1048,7 @@ param("~ssd_device", self.ssd_device)
 
     def provide_op_environment(self, req):
         # Just proxy the param server
-        return OpEnvironmentQueryResponse(nepi_ros.get_param("~op_environment", OpEnvironmentQueryResponse.OP_ENV_AIR))
+        return OpEnvironmentQueryResponse(self.node_if.reset_param("op_environment"))
     
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data

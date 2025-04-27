@@ -76,7 +76,6 @@ class NepiDriversMgr(object):
 
   base_namespace = ""
 
-  init_backup_enabled = True
 
   status_drivers_msg = DriversStatus()
   last_status_drivers_msg = DriversStatus()
@@ -87,9 +86,6 @@ class NepiDriversMgr(object):
   drivers_status_pub = None
   driver_status_pub = None
 
-  init_drvs_dict = dict()      
-  init_retry_enabled =  False
-  init_backup_enabled = True
 
   #######################
   ### Node Initialization
@@ -148,31 +144,33 @@ class NepiDriversMgr(object):
     }
 
 
-self.init_retry_enabled = nepi_ros.get_param("~retry_enabled", False)
-self.init_backup_enabled = nepi_ros.get_param("~backup_enabled", True)
-self.init_drvs_dict = nepi_ros.get_param("~drvs_dict",dict())
-
 
     # Params Config Dict ####################
     self.PARAMS_DICT = {
-        '??': {
+        'retry_enabled': {
             'namespace': self.node_namespace,
-            'factory_val': ??
-        }
+            'factory_val':  False
+        },
+        'backup_enabled': {
+            'namespace': self.node_namespace,
+            'factory_val': True
+        },
+        'drvs_dict': {
+            'namespace': self.node_namespace,
+            'factory_val': dict()
+        },
     }
 
 
-nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverStatusService)
-
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        'none': {
+        'driver_status_query': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'driver_status_query',
+            'svr': DriverStatusQuery,
+            'req': DriverStatusQueryRequest(),
+            'resp': DriverStatusQueryResponse(),
+            'callback': self.driverStatusService
         }
     }
 
@@ -248,20 +246,20 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
 
     ###########################
     # Initialize Params
-    drvs_dict = nepi_ros.get_param("~drvs_dict",dict())
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     self.msg_if.pub_warn("Got start drvs keys: " + str(drvs_dict.keys()))
     adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
     self.msg_if.pub_warn("Got start active drvs: " + str(adrvs))
     #self.msg_if.pub_warn("Got start drvs dict: " + str(drvs_dict))
 
-    drvs_dict = nepi_ros.get_param("~drvs_dict",dict())
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     self.msg_if.pub_warn("Got cfg_if drvs keys: " + str(drvs_dict.keys()))
     adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
     self.msg_if.pub_warn("Got cfg_if active drvs: " + str(adrvs))
     #self.msg_if.pub_warn("Got cfg_if drvs dict: " + str(drvs_dict))
 
     time.sleep(1)
-    drvs_dict = nepi_ros.get_param("~drvs_dict",dict())
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
     self.msg_if.pub_warn("Got refreshed drvs keys: " + str(drvs_dict.keys()))
     adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
@@ -307,7 +305,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
       if do_updates == True:
         self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
         self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
-        drvs_dict = nepi_ros.get_param("~drvs_dict",dict())
+        drvs_dict = self.node_if.reset_param("drvs_dict")
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,self.rvs_dict)
         nepi_ros.set_param("drivers_dict",drvs_dict)
         self.resetCb(do_updates)
@@ -334,7 +332,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     # refresh drivers dict
     self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
     nepi_ros.set_param("~drvs_dict",drvs_dict)
     self.publish_status()
@@ -354,7 +352,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     if need_update:
       self.msg_if.pub_warn("Need to Update Drv Database")
       self.initCb(do_updates = True)
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
 
@@ -392,7 +390,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     ## Do Discovery
     #self.msg_if.pub_warn( "Checking on driver discovery for list: " + str(drvs_ordered_list))
     
-    retry = nepi_ros.get_param("~retry_enabled",self.init_retry_enabled)
+    retry = self.node_if.reset_param("retry_enabled")
     for driver_name in drvs_ordered_list:
       if driver_name in drvs_active_list:
         drv_dict = drvs_dict[driver_name]
@@ -529,7 +527,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
           
 
   def provide_capabilities(self, req):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     self.msg_if.pub_info("Got capabilities req: " + str(req))
     namespace = req.namespace
     capabilities_report = SettingsCapabilitiesQueryResponse()
@@ -574,7 +572,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
         self.updateSetting(found_driver_name,setting)
 
   def updateSetting(self,driver_name, setting):
-      drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+      drvs_dict = self.node_if.reset_param("drvs_dict")
       drv_dict = drvs_dict[driver_name]
       drv_options = drv_dict['DISCOVERY_DICT']['OPTIONS']
       # Create cap options dict
@@ -604,7 +602,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
 
 
   def publishOptionsStatus(self,driver_name):
-        drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+        drvs_dict = self.node_if.reset_param("drvs_dict")
         drv_dict = drvs_dict[driver_name]
         drv_options = drv_dict['DISCOVERY_DICT']['OPTIONS']
         settings_list = []
@@ -630,7 +628,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     return response
 
   def getDriverStatusServiceMsg(self,driver_name):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     driver_name = self.selected_driver
     service_driver_msg = DriverStatus()
     service_driver_msg.pkg_name = driver_name
@@ -658,7 +656,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
         
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     self.msg_if.pub_info('')
     self.msg_if.pub_info('*******************')
     self.msg_if.pub_info('Printing Drv Driver Dictionary')
@@ -687,7 +685,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
           self.save_cfg_if.save() # Save config after initialization for drvt time
 
   def getDriversStatusMsg(self):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     #self.msg_if.pub_warn("DriversStatus Drv List: " + str(drvs_ordered_list))
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
@@ -721,10 +719,10 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     status_drivers_msg.install_path = self.drivers_install_folder
     status_drivers_msg.install_list = self.drivers_install_files
     status_drivers_msg.backup_path = self.drivers_install_folder
-    status_drivers_msg.backup_on_remove = nepi_ros.get_param("~backup_enabled",self.init_backup_enabled)
+    status_drivers_msg.backup_on_remove = self.node_if.reset_param("backup_enabled")
     status_drivers_msg.selected_driver = self.selected_driver
 
-    status_drivers_msg.retry_enabled = nepi_ros.get_param("~retry_enabled",self.init_retry_enabled)
+    status_drivers_msg.retry_enabled = self.node_if.reset_param("retry_enabled")
     return status_drivers_msg
 
   
@@ -739,7 +737,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
 
 
   def getDriverStatusMsg(self):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     driver_name = self.selected_driver
     status_driver_msg = DriverStatus()
     status_driver_msg.pkg_name = driver_name
@@ -771,13 +769,13 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
   ###################
   ## Drivers Mgr Callbacks
   def enableAllCb(self,msg):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_dict = nepi_drvs.activateAllDrivers(drvs_dict)
     nepi_ros.set_param("~drvs_dict",drvs_dict)
     self.publish_status()
 
   def disableAllCb(self,msg):
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     drvs_dict = nepi_drvs.disableAllDrivers(drvs_dict)
     nepi_ros.set_param("~drvs_dict",drvs_dict)
     self.publish_status()
@@ -786,7 +784,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
   def selectDriverCb(self,msg):
     self.msg_if.pub_info(str(msg))
     driver_name = msg.data
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     if driver_name in drvs_dict.keys() or driver_name == "NONE":
       self.selected_driver = driver_name
     self.publish_status()
@@ -795,7 +793,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     self.msg_if.pub_info(str(msg))
     driver_name = msg.name
     new_active_state = msg.active_state
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     active_state = False
     if driver_name in drvs_dict.keys():
       driver = drvs_dict[driver_name]
@@ -814,7 +812,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     driver_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     if driver_name in drvs_dict.keys():
       drvs_dict = moveFunction(driver_name,drvs_dict)
     nepi_ros.set_param("~drvs_dict",drvs_dict)
@@ -841,7 +839,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
     self.msg_if.pub_info(str(msg))
     driver_name = msg.name
     msg_data = msg.data
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     if driver_name in drvs_dict.keys():
       drvs_dict[driver_name]['msg'] = msg_data
     nepi_ros.set_param("~drvs_dict",drvs_dict)
@@ -857,7 +855,7 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
   def installDriverPkgCb(self,msg):
     self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     if pkg_name in self.drivers_install_files:
      [success,drvs_dict]  = nepi_drvs.installDriverPkg(pkg_name,drvs_dict,self.drivers_install_folder,self.drivers_share_folder)
     nepi_ros.set_param("~drvs_dict",drvs_dict)
@@ -866,9 +864,9 @@ nepi_ros.create_service('~driver_status_query', DriverStatusQuery, self.driverSt
   def removeDriverCb(self,msg):
     self.msg_if.pub_info(str(msg))
     driver_name = msg.data
-    drvs_dict = nepi_ros.get_param("~drvs_dict",self.init_drvs_dict)
+    drvs_dict = self.node_if.reset_param("drvs_dict")
     backup_folder = None
-    backup_enabled = nepi_ros.get_param("~backup_enabled",self.init_backup_enabled)
+    backup_enabled = self.node_if.reset_param("backup_enabled")
     if backup_enabled:
       backup_folder = self.drivers_install_folder
     if driver_name in drvs_dict:

@@ -59,9 +59,6 @@ class AIDetectorManager:
 
     data_products = ['bounding_boxes','detection_image']
 
-    init_aifs_dict = dict()
-    init_active_aifs = []
-    init_models_dict = dict()
     aif_classes_dict = dict()
 
     save_cfg_if = None
@@ -167,17 +164,16 @@ class AIDetectorManager:
 
     }
 
-nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, self.handleInfoRequest)
 
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        'none': {
+        'active_models_info_query': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'active_models_info_query',
+            'svr': AiMgrActiveModelsInfoQuery,
+            'req': AiMgrActiveModelsInfoQueryRequest(),
+            'resp': AiMgrActiveModelsInfoQueryResponse(),
+            'callback': self.handleInfoRequest
         }
     }
 
@@ -346,35 +342,36 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
 
         # Update AI Frameworks Dict
         aifs_dict = self.node_if.get_param('aifs_dict')
-        last_aifs_keys = self.init_aifs_dict.keys()
+        last_aifs_keys = aifs_dict.keys()
         #self.msg_if.pub_warn("Got init aifs " + str(last_aifs_keys.keys()))
-        self.init_aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
-        self.node_if.set_param('aifs_dict', self.init_aifs_dict)
-        cur_aifs_keys = self.init_aifs_dict.keys()
+        aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
+        self.node_if.set_param('aifs_dict', aifs_dict)
+        cur_aifs_keys = aifs_dict.keys()
         #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys.keys()))
         if last_aifs_keys != cur_aifs_keys:
              self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys))
 
         # Update Active AI Frameworks List
-        last_active_aifs = copy.deepcopy(self.init_active_aifs)
+        active_aifs = self.node_if.get_param('active_aifs')
+        last_active_aifs = copy.deepcopy(active_aifs)
         #self.msg_if.pub_warn("Got last active aifs " + str(last_active_aifs))
         active_aifs = self.node_if.get_param('active_aifs')
         ### RESTRICT TO SINGLE FRAMEWORK FOR NOW #########
         if len(active_aifs) > 1:
-            self.init_active_aifs = [active_aifs[0]]
+            active_aifs = [active_aifs[0]]
         else:
-            self.init_active_aifs = active_aifs
+            active_aifs = active_aifs
         ###########################
-        self.node_if.set_param('active_aifs', self.init_active_aifs)
-        cur_active_aifs = copy.deepcopy(self.init_active_aifs)
+        self.node_if.set_param('active_aifs',active_aifs)
+        cur_active_aifs = copy.deepcopy(active_aifs)
         #self.msg_if.pub_warn("Got updated active aifs " + str(cur_active_aifs))
         if last_active_aifs != cur_active_aifs:
-            self.msg_if.pub_warn("Got updated active ai framework list: " + str(self.init_active_aifs))
+            self.msg_if.pub_warn("Got updated active ai framework list: " + str(active_aifs))
 
 
         models_dict = dict()
-        for aif_name in self.init_aifs_dict.keys():
-            aif_dict = self.init_aifs_dict[aif_name]
+        for aif_name in aifs_dict.keys():
+            aif_dict = aifs_dict[aif_name]
             self.msg_if.pub_info("Processing ais dict for ai name " + aif_name + " " + str(aif_dict))
 
             self.msg_if.pub_info("Updating ai dict for framework: " + str(aif_name))
@@ -424,8 +421,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
                 models_dict[model_name]['active'] =  active
 
         
-        self.init_models_dict = models_dict
-        self.node_if.set_param('models_dict', self.init_models_dict)
+        self.node_if.set_param('models_dict', models_dict)
         
 
     def printModelsDict(self,models_dict):
@@ -459,7 +455,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
 
     def updaterCb(self,timer):
         active_aifs = self.node_if.get_param('active_aifs')
-        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+        models_dict = self.node_if.reset_param("models_dict")
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
 
         for model_name in self.running_models_list:
@@ -497,7 +493,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
                     models_dict[model_name]['active'] = False
                     nepi_ros.set_param("~models_dict",models_dict)
         # Get Updated Models Dict
-        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+        models_dict = self.node_if.reset_param("models_dict")
         nepi_ros.set_param("~models_dict",models_dict)
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_ros.ros_time_now()
@@ -587,7 +583,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
         
     def killModel(self, model_name):
         if model_name != "None": 
-            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+            models_dict = self.node_if.reset_param("models_dict")
             if not (model_name in models_dict.keys()):
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
                 return
@@ -637,7 +633,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
 
     '''
     def enableAllFwsCb(self,msg):
-        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
+        aifs_dict = self.node_if.reset_param("aifs_dict")
         aifs_dict = nepi_aifs.activateAllFws(aifs_dict)
         nepi_ros.set_param("~aifs_dict",aifs_dict)
         self.refreshFrameworks()
@@ -646,7 +642,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
 
 
     def disableAllFwsCb(self,msg):
-        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
+        aifs_dict = self.node_if.reset_param("aifs_dict")
         aifs_dict = nepi_aifs.disableAllFws(aifs_dict)
         nepi_ros.set_param("~aifs_dict",aifs_dict)
         self.refreshFrameworks()
@@ -656,7 +652,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
     def updateFwStateCb(self,msg):
         aif_name = msg.name
         new_active_state = msg.active_state
-        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
+        aifs_dict = self.node_if.reset_param("aifs_dict")
         if aif_name in aifs_dict.keys():
             app = aifs_dict[aif_name]
             active_state = app['active']
@@ -679,7 +675,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+            models_dict = self.node_if.reset_param("models_dict")
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
@@ -696,7 +692,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+            models_dict = self.node_if.reset_param("models_dict")
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
@@ -709,7 +705,7 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
         model_name = msg.name
         new_active_state = msg.active_state
-        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+        models_dict = self.node_if.reset_param("models_dict")
         if model_name in models_dict.keys():
             model_dict = models_dict[model_name]
             model_aif = model_dict['framework']
@@ -755,8 +751,8 @@ nepi_ros.create_service('active_models_info_query', AiMgrActiveModelsInfoQuery, 
 
 
     def publish_status(self):
-        aifs_dict = nepi_ros.get_param("~aifs_dict",self.init_aifs_dict)
-        models_dict = nepi_ros.get_param("~models_dict",self.init_models_dict)
+        aifs_dict = self.node_if.reset_param("aifs_dict",)
+        models_dict = self.node_if.reset_param("models_dict")
 
         status_msg = AiModelMgrStatus()
         status_msg.ai_frameworks = nepi_aifs.getAIFsSortedList(aifs_dict)

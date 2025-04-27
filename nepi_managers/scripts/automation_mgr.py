@@ -139,23 +139,46 @@ class AutomationManager:
     }
 
 
-## Node Services
-self.get_scripts_service = nepi_ros.create_service("get_scripts", GetScriptsQuery, self.handle_get_scripts)
-self.get_running_scripts_service = nepi_ros.create_service("get_running_scripts", GetRunningScriptsQuery, self.handle_get_running_scripts)
-self.launch_script_service = nepi_ros.create_service("launch_script", LaunchScript, self.handle_launch_script)
-self.stop_script_service = nepi_ros.create_service("stop_script", StopScript, self.handle_stop_script)
-self.get_system_stats_service = nepi_ros.create_service("get_system_stats", GetSystemStatsQuery, self.handle_get_system_stats)
-
-
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        '??': {
+        'get_scripts': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'get_scripts',
+            'svr': GetScriptsQuery,
+            'req': GetScriptsQueryRequest(),
+            'resp': GetScriptsQueryResponse(),
+            'callback': self.handle_get_scripts
+        },
+        'get_running_scripts': {
+            'namespace': self.node_namespace,
+            'topic': 'get_running_scripts',
+            'svr': GetRunningScriptsQuery,
+            'req': GetRunningScriptsQueryRequest(),
+            'resp': GetRunningScriptsQueryResponse(),
+            'callback': self.handle_get_running_scripts
+        },
+        'launch_script': {
+            'namespace': self.node_namespace,
+            'topic': 'launch_script',
+            'svr': LaunchScript,
+            'req': LaunchScriptRequest(),
+            'resp': LaunchScriptResponse(),
+            'callback': self.handle_launch_script
+        },
+        'stop_script': {
+            'namespace': self.node_namespace,
+            'topic': 'stop_script',
+            'svr': StopScript,
+            'req': StopScriptRequest(),
+            'resp': StopScriptResponse(),
+            'callback': self.handle_stop_script
+        },'get_system_stats': {
+            'namespace': self.node_namespace,
+            'topic': 'get_system_stats',
+            'svr': GetSystemStatsQuery,
+            'req': GetSystemStatsQueryRequest(),
+            'resp': GetSystemStatsQueryResponse(),
+            'callback': self.handle_get_system_stats
         }
     }
 

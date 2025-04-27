@@ -101,13 +101,11 @@ class time_sync_mgr(object):
             'namespace': self.node_namespace
         }
 
-param("~init_time_from_rtc", True)
-
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            '??': {
+            'init_time_from_rtc': {
                 'namespace': self.node_namespace,
-                'factory_val': ??
+                'factory_val': True
             }
         }
 
@@ -177,18 +175,6 @@ param("~init_time_from_rtc", True)
             }
         }
 
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'aifs_dict': {
-                'namespace': self.node_namespace,
-                'factory_val': dict()
-            },
-            'init_time_from_rtc': {
-                'namespace': self.node_namespace,
-                'factory_val': True
-            }
-        }
-
 
 
         # Create Node Class ####################
@@ -211,7 +197,7 @@ param("~init_time_from_rtc", True)
 
             # Initialize the system clock from the RTC if so configured
             # RTC will be updated whenever a "good" clock source is detected; that will control drift
-            init_from_rtc = nepi_ros.get_param("~init_time_from_rtc", True)
+            init_from_rtc = self.node_if.reset_param("init_time_from_rtc")
             if init_from_rtc is True:
                 self.msg_if.pub_info("Initializing system clock from hardware clock")
                 subprocess.call(['hwclock', '-s'])

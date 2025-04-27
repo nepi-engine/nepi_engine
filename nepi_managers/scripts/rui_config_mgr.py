@@ -143,8 +143,8 @@ param("~nepi_hb_auto_offload_visible", False)
 
     def publish_settings(self):
         # Gather all settings for the message
-        self.settings_msg.streaming_image_quality = nepi_ros.get_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
-        self.settings_msg.nepi_hb_auto_offload_visible = nepi_ros.get_param("~nepi_hb_auto_offload_visible", False)
+        self.settings_msg.streaming_image_quality = self.node_if.reset_param("streaming_image_quality")
+        self.settings_msg.nepi_hb_auto_offload_visible = self.node_if.reset_param("nepi_hb_auto_offload_visible")
 
         # Publish it
         self.node_if.publish_pub('settings_pub', self.settings_msg)

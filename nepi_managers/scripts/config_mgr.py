@@ -98,19 +98,23 @@ class config_mgr(object):
     self.PARAMS_DICT = None
 
 
-
-nepi_ros.create_service('factory_reset', FileReset, self.factory_reset)
-nepi_ros.create_service('user_reset', FileReset, self.user_reset)
-
     # Services Config Dict ####################
     self.SRVS_DICT = {
-        'none': {
+        'factory_reset': {
             'namespace': self.node_namespace,
-            'topic': '???',
-            'svr': SystemDefsQuery,
-            'req': SystemDefsQueryRequest(),
-            'resp': SystemDefsQueryResponse(),
-            'callback': self.?
+            'topic': 'factory_reset',
+            'svr': FileReset,
+            'req': FileResetRequest(),
+            'resp': FileResetResponse(),
+            'callback': self.factory_reset
+        },
+        'user_reset': {
+            'namespace': self.node_namespace,
+            'topic': 'user_reset',
+            'svr': FileReset,
+            'req': FileResetRequest(),
+            'resp': FileResetResponse(),
+            'callback': self.user_reset
         }
     }
 
