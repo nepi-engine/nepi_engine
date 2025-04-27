@@ -806,17 +806,16 @@ class IDXDeviceIF:
         success = False
         data_product = data_product
         pub_namespace = os.path.join(self.base_namespace,self.node_name,'idx')
-        namespace = os.path.join(pub_namespace, data_product)
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['namespace'] = namespace
+        dp_dict['namespace'] = pub_namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
         if data_product != 'pointcloud':
-            dp_dict['data_if'] = ImageIF(namespace = namespace)
+            dp_dict['data_if'] = ImageIF(namespace = namespace, topic = data_product)
         else:
-            dp_dict['data_if'] = PointcloudIF(namespace = namespace )
+            dp_dict['data_if'] = PointcloudIF(namespace = namespace, topic = data_product)
         self.data_products_list.append(data_product)
         self.data_product_dict[data_product] = dp_dict
 
@@ -824,14 +823,13 @@ class IDXDeviceIF:
         # Do same for raw data without start stop functions for images
         if data_product != 'pointcloud':
             data_product_raw = data_product + '_raw'
-            namespace_raw = os.path.join(pub_namespace, data_product_raw)
             dp_dict = dict()
             dp_dict['data_product'] = data_product_raw
-            dp_dict['namespace'] = namespace_raw
+            dp_dict['namespace'] = pub_namespace
             if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(namespace = namespace_raw)
+                dp_dict['data_if'] = ImageIF(namespace = pub_namespace, topic = data_product_raw)
             else:
-                dp_dict['data_if'] = PointcloudIF(namespace = namespace_raw)
+                dp_dict['data_if'] = PointcloudIF(namespace = pub_namespace, topic = data_product_raw)
 
             self.data_products_list.append(data_product)
             self.data_product_dict[data_product] = dp_dict

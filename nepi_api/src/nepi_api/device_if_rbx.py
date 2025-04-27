@@ -696,8 +696,7 @@ class RBXRobotIF:
 
         # Setup Data IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization")
-        image_namespace = nepi_ros.create_namespace(self.node_namespace,'rbx_image_pub')
-        image_if = ImageIF(namespace = image_namespace)
+        image_if = ImageIF(namespace = self.node_namespace, topic = 'image')
 
 
 

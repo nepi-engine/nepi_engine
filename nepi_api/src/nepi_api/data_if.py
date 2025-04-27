@@ -404,7 +404,7 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 class NavPoseIF:
 
     ready = False
-    namespace = '~navpose'
+    namespace = '~'
 
     node_if = None
 
@@ -415,7 +415,7 @@ class NavPoseIF:
     has_subscribers = False
 
 
-    def __init__(self, namespace = None, 
+    def __init__(self, namespace = None, topic = 'navpose'
         has_location = False, enable_gps_pub = True, 
         has_position = False, has_orientation = False, enable_pose_pub = True, 
         has_heading = False, enable_heading_pub = True):
@@ -435,6 +435,7 @@ class NavPoseIF:
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
+        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
 
         # Initialize Status Msg.  Updated on each publish
         status_msg = NavPoseStatus()
@@ -696,7 +697,7 @@ DEFUALT_IMG_HEIGHT = 400
 class ImageIF:
 
     ready = False
-    namespace = '~image'
+    namespace = '~'
 
     node_if = None
 
@@ -712,7 +713,7 @@ class ImageIF:
     has_subscibers = False
 
 
-    def __init__(self, namespace = None , init_overlay_list = []):
+    def __init__(self, namespace = None , topic = 'image' init_overlay_list = []):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -729,6 +730,7 @@ class ImageIF:
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
+        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
 
 
         self.init_overlay_list = init_overlay_list
@@ -1056,7 +1058,7 @@ class ImageIF:
 class PointcloudIF:
 
     ready = False
-    namespace = '~pointcloud'
+    namespace = '~'
 
     node_if = None
 
@@ -1066,7 +1068,7 @@ class PointcloudIF:
 
     has_subscribers = False
 
-    def __init__(self, namespace = None, topic = None):
+    def __init__(self, namespace = None, topic = 'pointcloud'):
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -1082,6 +1084,7 @@ class PointcloudIF:
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
+        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
 
         # Initialize Status Msg.  Updated on each publish
         status_msg = PointcloudStatus()
@@ -1252,7 +1255,6 @@ class PointcloudIF:
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
         return True
-
 
     def unregister(self):
         self.ready = False
