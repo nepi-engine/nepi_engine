@@ -49,7 +49,8 @@ def create_cv2_blank_img(width,height, color = (255, 255, 255) ):
 
 
 def getImgShortName(det_namespace):
-    short_name = det_namespace.replace(self.base_namespace,"")
+    base_namespace = nepi_ros.get_base_namespace()
+    short_name = det_namespace.replace(base_namespace,"")
     if short_name.find("idx") != -1:
         short_name = short_name.replace("/idx","")
     return short_name
@@ -349,7 +350,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
       try:
           cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, background_rgb , -1)
       except Exception as e:
-          self.msg_if.pub_warn("Failed to add text background box: " + str(e))
+           logger.log_warn("Failed to add text background box: " + str(e))
 
     # Add Text Shadow if requested
     if apply_shadow == True:
@@ -362,7 +363,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
               font_thickness*2,
               lineType)
       except Exception as e:
-          self.msg_if.pub_warn("Failed to apply text shadow: " + str(e))
+           logger.log_warn("Failed to apply text shadow: " + str(e))
 
   
     # Overlay Text
@@ -375,7 +376,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
             font_thickness,
             lineType)
     except Exception as e:
-        self.msg_if.pub_warn("Failed to apply overlay text: " + str(e))
+         logger.log_warn("Failed to apply overlay text: " + str(e))
     return cv2_img
  
 def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
@@ -388,7 +389,7 @@ def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0,
           font, 
           scale,
           thickness)
-      #self.msg_if.pub_warn("Text Size: " + str(text_size))
+      # logger.log_warn("Text Size: " + str(text_size))
       line_height = text_size[0][1]
       line_width = text_size[0][0]
       y_px = y_px + line_height * 1.5
@@ -415,7 +416,7 @@ def overlay_bounding_box(cv2_img,bot_left_px, top_right_px, line_color=(255,0,0)
         cv2.rectangle(cv2_img, bot_left_px, top_right_px, line_color, thickness=line_thickness)
         success = True
     except Exception as e:
-        self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
+         logger.log_warn("Failed to create bounding box rectangle: " + str(e))
     return cv2_img
 
 def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):

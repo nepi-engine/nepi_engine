@@ -13,7 +13,7 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-
+from nepi_ros_interfaces.msg import Message
 
 class MsgIF(object):
 
@@ -76,13 +76,13 @@ class MsgIF(object):
   
     def _createMsgPublishers(self):
         self._logSelfMsg("Creating Msg Publishers")
-        self.msg_pub = nepi_ros.create_publisher(self, "~messages", Message, queue_size=1)
-        self.msg_pub_sys = nepi_ros.create_publisher(self, "messages", Message, queue_size=1)
+        self.msg_pub = nepi_ros.create_publisher("~messages", Message, queue_size=1)
+        self.msg_pub_sys = nepi_ros.create_publisher("messages", Message, queue_size=1)
         nepi_ros.sleep(1)
         
         return 
     def _logSelfMsg(self,msg):
-        msg_str = self.node_name + " :" + self.ln_str + self.class_name + ": " + str(msg)
+        msg_str = self.ns_str + self.ln_str + self.class_name + ": " + str(msg)
         nepi_ros.log_msg_info(msg_str)
 
     def _createMsgString(self,msg):

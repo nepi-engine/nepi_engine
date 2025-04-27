@@ -22,7 +22,7 @@ from nepi_sdk import nepi_triggers
 
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
-from std_msgs.msg import String, Empty, Float32
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
 from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
@@ -141,7 +141,7 @@ class SystemMgrNode():
 
     states_status_interval = 1.0
 
-
+    current_throttle_ratio = 1.0
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -222,11 +222,12 @@ class SystemMgrNode():
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
 
-        
+        '''
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
         self.msg_if.pub_warn("Updating From Param Server")
         self.initConfig()
+        '''
 
         if self.in_container == False:
             self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
@@ -304,7 +305,7 @@ class SystemMgrNode():
             'system_defs_query': {
                 'namespace': self.base_namespace,
                 'topic': 'system_defs_query',
-                'svr': SystemDefsQuery,
+                'srv': SystemDefsQuery,
                 'req': SystemDefsQueryRequest(),
                 'resp': SystemDefsQueryResponse(),
                 'callback': self.provide_system_defs
@@ -312,7 +313,7 @@ class SystemMgrNode():
             'op_environment_query': {
                 'namespace': self.base_namespace,
                 'topic': 'op_environment_query',
-                'svr': OpEnvironmentQuery,
+                'srv': OpEnvironmentQuery,
                 'req': OpEnvironmentQueryRequest(),
                 'resp': OpEnvironmentQueryResponse(),
                 'callback': self.provide_op_environment
@@ -320,7 +321,7 @@ class SystemMgrNode():
             'sw_update_status_query': {
                 'namespace': self.base_namespace,
                 'topic': 'sw_update_status_query',
-                'svr': SystemSoftwareStatusQuery,
+                'srv': SystemSoftwareStatusQuery,
                 'req': SystemSoftwareStatusQueryRequest(),
                 'resp': SystemSoftwareStatusQueryResponse(),
                 'callback': self.provide_sw_update_status
@@ -331,7 +332,7 @@ class SystemMgrNode():
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'system_status': {
+            'status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status',
                 'msg': SystemStatus,
@@ -391,14 +392,6 @@ class SystemMgrNode():
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_streaming_image_quality': {
-                'namespace': self.base_namespace,
-                'topic': 'set_streaming_image_quality',
-                'msg': UInt8,
-                'qsize': None,
-                'callback': self.set_streaming_image_quality_cb, 
-                'callback_args': ()
-            },
             'save_data': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
@@ -433,7 +426,7 @@ class SystemMgrNode():
             },        
             'submit_system_error_msg': {
                 'namespace': self.base_namespace,
-                'topic': 'set_streaming_image_quality',
+                'topic': 'submit_system_error_msg',
                 'msg': String,
                 'qsize': None,
                 'callback': self.handle_system_error_msg, 
@@ -516,9 +509,6 @@ class SystemMgrNode():
         ########################
         # Complete Initialization
 
-
-
-
         # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
         # established
         self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
@@ -540,7 +530,7 @@ class SystemMgrNode():
 
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
-        nepi_ros.start_timer_process(self.STATUS_PERIOD, self.publish_periodic_status)
+        nepi_ros.start_timer_process(self.STATUS_PERIOD, self.publish_status)
         self.msg_if.pub_warn("System status ready")
         #########################################################
         ## Initiation Complete
@@ -582,7 +572,7 @@ class SystemMgrNode():
 
         self.ssd_device = self.node_if.reset_param("ssd_device")
     
-    def initCB(self, do_updates = False):
+    def initCb(self, do_updates = False):
         pass
 
     def resetCb(self):
@@ -601,66 +591,68 @@ class SystemMgrNode():
         if trigger_name not in self.triggers_list:
             self.triggers_list.append(trigger_name)
 
-    def triggersStatusPubCb(self):
+    def triggersStatusPubCb(self,timer):
         triggers_name_list = []
         has_triggered_list = []
-        msg = TriggersStatus()
+        msg = SystemTriggersStatus()
         namespaces = nepi_triggers.get_triggers_publisher_namespaces()
-        for namespace in namespaces:
-            topic = os.path.join(namespace,'system_triggers_query')
-            if topic not in self.service_dict.keys():
-                service = nepi_ros.create_service(topic,SystemTrigger)
-                if service is not None:
-                    self.service_dict[topic] = service
-                    time.sleep(1)
-            if topic in self.service_dict.keys():
-                service = self.service_dict[topic]
-                req = SystemTriggersQueryRequest()
-                try:
-                    resp = nepi_ros.call_service(service, req)
-                    triggers_list = resp.triggers_list
-                    for trigger in triggers_list:
-                        trigger_name = trigger.name
-                        if trigger_name not in triggers_name_list:
-                           triggers_name_list.append(trigger_name) 
-                except:
-                    self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+        if namespaces is not None:
+            for namespace in namespaces:
+                topic = os.path.join(namespace,'system_triggers_query')
+                if topic not in self.service_dict.keys():
+                    service = nepi_ros.create_service(topic,SystemTrigger)
+                    if service is not None:
+                        self.service_dict[topic] = service
+                        time.sleep(1)
+                if topic in self.service_dict.keys():
+                    service = self.service_dict[topic]
+                    req = SystemTriggersQueryRequest()
+                    try:
+                        resp = nepi_ros.call_service(service, req)
+                        triggers_list = resp.triggers_list
+                        for trigger in triggers_list:
+                            trigger_name = trigger.name
+                            if trigger_name not in triggers_name_list:
+                                triggers_name_list.append(trigger_name) 
+                    except:
+                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
 
-        for trigger_name in triggers_name_list:
-            has_triggered = trigger_name in self.triggers_list
-            has_triggered_list.append(has_triggered)
-        self.triggers_list = [] # Clear List
-        msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
-        self.node_if.publish_pub('triggers_status_pub', msg)
+            for trigger_name in triggers_name_list:
+                has_triggered = trigger_name in self.triggers_list
+                has_triggered_list.append(has_triggered)
+            self.triggers_list = [] # Clear List
+            msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
+            self.node_if.publish_pub('triggers_status_pub', msg)
         nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
 
 
-    def statesStatusPubCb(self):
+    def statesStatusPubCb(self,timer):
         states_list = []
-        msg = StatesStatus()
+        msg = SystemStatesStatus()
         namespaces = nepi_states.get_states_publisher_namespaces()
-        for namespace in namespaces:
-            topic = os.path.join(namespace,'system_states_query')
-            if topic not in self.service_dict.keys():
-                service = nepi_ros.create_service(topic,SystemState)
-                if service is not None:
-                    self.service_dict[topic] = service
-                    time.sleep(1)
-            if topic in self.service_dict.keys():
-                service = self.service_dict[topic]
-                req = SystemStatesQueryRequest()
-                try:
-                    resp = nepi_ros.call_service(service, req)
-                    for state in resp.states_list:
-                        states_list.append(state)
-                except:
-                    self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
-        try:
-            msg = nepi_states.create_states_status_msg(states_list)
-        except:
-            self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-        self.node_if.publish_pub('states_status_pub', msg)
+        if namespaces is not None:
+            for namespace in namespaces:
+                topic = os.path.join(namespace,'system_states_query')
+                if topic not in self.service_dict.keys():
+                    service = nepi_ros.create_service(topic,SystemState)
+                    if service is not None:
+                        self.service_dict[topic] = service
+                        time.sleep(1)
+                if topic in self.service_dict.keys():
+                    service = self.service_dict[topic]
+                    req = SystemStatesQueryRequest()
+                    try:
+                        resp = nepi_ros.call_service(service, req)
+                        for state in resp.states_list:
+                            states_list.append(state)
+                    except:
+                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+            try:
+                msg = nepi_states.create_states_status_msg(states_list)
+            except:
+                self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
+            self.node_if.publish_pub('states_status_pub', msg)
         nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
@@ -805,7 +797,7 @@ class SystemMgrNode():
     def provide_driver_folder(self, req):
         return self.DRIVERS_SHARE_PATH
 
-    def publish_periodic_status(self, event):
+    def publish_status(self, event):
         self.status_msg.sys_time = event.current_real
         # Populate the rest of the message contents
         # Temperature(s)

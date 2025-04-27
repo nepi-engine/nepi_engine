@@ -91,7 +91,7 @@ class NepiAppsMgr(object):
     ## Wait for NEPI core managers to start
     # Wait for System Manager
     mgr_sys_if = ConnectMgrSystemIF()
-    success = mgr_sys_if.wait_for_status()
+    success = mgr_sys_if.wait_for_ready()
     if success == False:
         nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
@@ -117,11 +117,11 @@ class NepiAppsMgr(object):
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
     self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
 
-   # Wait for Config Manager
+    # Wait for Config Manager
     mgr_cfg_if = ConnectMgrConfigIF()
-    success = mgr_cfg_if.wait_for_status()
+    success = mgr_cfg_if.wait_for_ready()
     if success == False:
-        nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+        nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
 
 

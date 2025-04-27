@@ -313,7 +313,7 @@ class PTXActuatorIF:
             'capabilities_query': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/capabilities_query',
-                'svr': PTXCapabilitiesQuery,
+                'srv': PTXCapabilitiesQuery,
                 'req': PTXCapabilitiesQueryRequest(),
                 'resp': PTXCapabilitiesQueryResponse(),
                 'callback': self.provideCapabilities

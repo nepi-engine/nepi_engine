@@ -9,7 +9,7 @@
 #
 
 
-rom std_msgs.msg import UInt8
+from std_msgs.msg import UInt8
 from nepi_ros_interfaces.msg import RUISettings
 
 from nepi_api.messages_if import MsgIF
@@ -50,84 +50,77 @@ class RUICfgMgrNode:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         
 
-    ##############################
-    ### Setup Node
+        ##############################
+        ### Setup Node
 
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
-
-
-param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
-param("~nepi_hb_auto_offload_visible", False)
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        '??': {
-            'namespace': self.node_namespace,
-            'factory_val': ??
-        }
-    }
-
-
-    # Services Config Dict ####################
-    self.SRVS_DICT = None
-
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-        'settings': {
-            'namespace': self.node_namespace,
-            'topic': 'settings'
-            'msg': RUISettings,
-            'qsize': 1,
-            'latch': True
-        }
-    }  
-
-
-
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'image_quality': {
-            'namespace': self.node_namespace,
-            'topic': 'set_streaming_image_quality',
-            'msg': UInt8,
-            'qsize': None,
-            'callback': self.set_streaming_image_quality_cb, 
-            'callback_args': ()
-        },
-
-    }
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
         }
 
-    }
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'streaming_image_quality': {
+                'namespace': self.node_namespace,
+                'factory_val': self.DEFAULT_IMAGE_QUALITY
+            },
+            'nepi_hb_auto_offload_visible': {
+                'namespace': self.node_namespace,
+                'factory_val': False
+            }
+
+        }
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = None
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'settings': {
+                'namespace': self.node_namespace,
+                'topic': 'settings',
+                'msg': RUISettings,
+                'qsize': 1,
+                'latch': True
+            }
+        }  
 
 
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    log_class_name = True
-    )
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'image_quality': {
+                'namespace': self.node_namespace,
+                'topic': 'set_streaming_image_quality',
+                'msg': UInt8,
+                'qsize': None,
+                'callback': self.set_streaming_image_quality_cb, 
+                'callback_args': ()
+            },
 
-    ready = self.node_if.wait_for_ready()
+        }
 
 
 
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        ready = self.node_if.wait_for_ready()
+
+
+        #########################################################
+        ## Complete Initiation 
 
         self.settings_msg = RUISettings()
         self.publish_settings() # Do it once so that latch works on next connection
@@ -155,7 +148,7 @@ param("~nepi_hb_auto_offload_visible", False)
             return
 
 
-    def initCB(self):
+    def initCb(self):
         self.publish_settings()
 
     def resetCb(self):

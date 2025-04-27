@@ -67,15 +67,17 @@ class NodeConfigsIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        else:
+            log_name = log_name + ": "
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
         self.initCb = configs_dict['init_callback']
         self.resetCb = configs_dict['reset_callback']
-        self.factoryResetCb = configs_dict['factory_callback']
+        self.factoryResetCb = configs_dict['factory_reset_callback']
         
         namespace = configs_dict['namespace']
         if namespace is None:
@@ -84,17 +86,19 @@ class NodeConfigsIF(object):
             namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(namespace)
 
+
+        # Create reset serivces
+        self.request_msg.node_name = self.namespace
+        self.reset_service = nepi_ros.connect_service('user_reset', FileReset)
+        self.factory_reset_service = nepi_ros.connect_service('factory_reset', FileReset)
+
+
+
         self.save_params_pub = nepi_ros.create_publisher('store_params', String, queue_size=1)
 
         self.msg_if.pub_info("Loading saved config data")
         self._resetCb('user_reset')
 
-
-        # Connect reset serivces
-        self.request_msg.node_name = self.namespace
-        self.reset_service = nepi_ros.connect_service('user_reset', FileReset)
-        self.factory_reset_service = nepi_ros.connect_service('factory_reset', FileReset)
-       
 
         # Subscribe to save config for node namespace
         nepi_ros.create_subscriber('~save_config', Empty, self._saveCb)
@@ -109,9 +113,8 @@ class NodeConfigsIF(object):
         nepi_ros.sleep(1)
 
         init_configs = configs_dict['init_configs']
-        if init_configs == True:
-            nepi_ros.sleep(1)
-            self.init()
+        if init_configs == True and self.initCb is not None:
+            self.initCb()
 
         ##############################  
         # Complete Initialization Process
@@ -153,7 +156,7 @@ class NodeConfigsIF(object):
         success = False
         success = nepi_ros.call_service(self.reset_service,self.request_msg)
         nepi_ros.sleep(1)
-        if (self.resetCb and ret_val == True):
+        if (self.resetCb and success == True):
             self.resetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
@@ -359,7 +362,7 @@ EXAMPLE_SRVS_DICT = {
     'service_name': {
         'namespace':  self.node_namespace,
         'topic': 'empty_query',
-        'svr': EmptySrv,
+        'srv': EmptySrv,
         'req': EmptySrvRequest(),
         'resp': EmptySrvResponse(),
         'callback': EXAMPLE_CALLBACK_FUNCTION
@@ -468,9 +471,10 @@ class NodeServicesIF(object):
         for service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
             if 'service' not in srv_dict.keys() and srv_dict['callback'] is not None:
+                srv_callback = None
                 try:
                     srv_namespace = nepi_ros.create_namespace(srv_dict['namespace'],srv_dict['topic'])
-                    srv_msg = srv_dict['svr']
+                    srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
@@ -478,7 +482,7 @@ class NodeServicesIF(object):
                     self.msg_if.pub_info("Creating service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
                     try:
-                        service = nepi_ros.create_service(self,srv_namespace, srv_msg, srv_callback)   
+                        service = nepi_ros.create_service(srv_namespace, srv_msg, srv_callback)   
                         self.srvs_dict[service_name]['service'] = service
                         self.msg_if.pub_info("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
                     except Exception as e:
@@ -634,9 +638,7 @@ class NodePublishersIF(object):
                     self.msg_if.pub_warn("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
-                        pub = nepi_ros.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'], tcp_nodelay = True)
-                        if self.do_wait == True:
-                            time.sleep(1)
+                        pub = nepi_ros.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
                     self.pubs_dict[pub_name]['pub'] = pub
@@ -691,6 +693,7 @@ class NodeSubscribersIF(object):
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
         self.node_namespace = nepi_ros.get_node_namespace()
+        ############################## 
         # Create Msg Class
         if log_name is None:
             log_name = ''
@@ -698,10 +701,11 @@ class NodeSubscribersIF(object):
           log_name = log_name + ": " + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
+
         ##############################   
         self.do_wait = do_wait
-        ##############################  
-        # Initialize Params System
+
+
         self.subs_dict = subs_dict
         if self.subs_dict is None:
             self.subs_dict = dict()
@@ -758,17 +762,22 @@ class NodeSubscribersIF(object):
     def _initialize_subs(self):
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
+            self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None:
+                sub_namespace = nepi_ros.create_namespace(sub_dict['namespace'],sub_dict['topic'])
+                self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
                     sub_dict['callback_args'] = ()
                 try:
-                    sub_namespace = nepi_ros.create_namespace(self.subs_namespace,sub_dict['topic'])
-                    self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
-                    sub = nepi_ros.subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
+                    if len(sub_dict['callback_args']) == 0:
+                        sub = nepi_ros.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
+                    else:
+                        sub = nepi_ros.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
+                    self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e))  
                     self.subs_dict[sub_name]['sub'] = None
@@ -819,7 +828,7 @@ EXAMPLE_SRVS_DICT = {
     'service_name': {
         'namespace':  self.node_namespace,
         'topic': 'empty_query',
-        'svr': EmptySrv,
+        'srv': EmptySrv,
         'req': EmptySrvRequest(),
         'resp': EmptySrvResponse(),
         'callback': EXAMPLE_CALLBACK_FUNCTION
@@ -1183,7 +1192,7 @@ class NodeClassIF(object):
             if self.configs_dict['reset_callback'] is not None:
                 self.configs_dict['reset_callback']()
 
-    def _factoryConfigResetCb(self,msg):
+    def _factoryResetConfigCb(self,msg):
         self.factory_reset_params()
         if self.configs_dict is not None:
             if self.configs_dict['factory_reset_callback'] is not None:

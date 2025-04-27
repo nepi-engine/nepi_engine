@@ -839,7 +839,7 @@ class ROSConnectionStore {
     })
 
     // listeners
-    this.setupImageSystemStatusListener()
+    this.setupSystemStatusListener()
     this.setupRUISettingsListener()
 
     // services
@@ -942,7 +942,7 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  setupImageSystemStatusListener() {
+  setupSystemStatusListener() {
     this.addListener({
       name: "system_status",
       messageType: "nepi_ros_interfaces/SystemStatus",

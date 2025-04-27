@@ -331,7 +331,7 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = None, callback_
   sub = None
   sub_namespace = get_full_namespace(sub_namespace)
   try:
-    if len(sub_dict['callback_args']) == 0:
+    if len(callback_args) == 0:
         sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
     else:
         sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args=callback_args)

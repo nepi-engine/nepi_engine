@@ -21,7 +21,7 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
  
 
-from std_msgs.msg import String, Empty
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
 from nepi_api.messages_if import MsgIF
@@ -77,124 +77,124 @@ class config_mgr(object):
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         ###########################
 
-   ##############################
-    ### Setup Node
+        ##############################
+        ### Setup Node
 
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = None
-
-
-    # Services Config Dict ####################
-    self.SRVS_DICT = {
-        'factory_reset': {
-            'namespace': self.node_namespace,
-            'topic': 'factory_reset',
-            'svr': FileReset,
-            'req': FileResetRequest(),
-            'resp': FileResetResponse(),
-            'callback': self.factory_reset
-        },
-        'user_reset': {
-            'namespace': self.node_namespace,
-            'topic': 'user_reset',
-            'svr': FileReset,
-            'req': FileResetRequest(),
-            'resp': FileResetResponse(),
-            'callback': self.user_reset
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
         }
-    }
 
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-        'status_pub': {
-            'namespace': self.node_namespace,
-            'topic': 'status',
-            'msg': Empty,
-            'qsize': 1,
-            'latch': True
-        },
-        'status_app': {
-            'namespace': self.node_namespace,
-            'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
-            'msg': AppStatus,
-            'qsize': 1,
-            'latch': True
+        # Params Config Dict ####################
+        self.PARAMS_DICT = None
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'factory_reset': {
+                'namespace': self.node_namespace,
+                'topic': 'factory_reset',
+                'srv': FileReset,
+                'req': FileResetRequest(),
+                'resp': FileResetResponse(),
+                'callback': self.factory_reset
+            },
+            'user_reset': {
+                'namespace': self.node_namespace,
+                'topic': 'user_reset',
+                'srv': FileReset,
+                'req': FileResetRequest(),
+                'resp': FileResetResponse(),
+                'callback': self.user_reset
+            }
         }
-    }  
 
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'save_config': {
-            'namespace': self.node_namespace,
-            'topic': 'save_config',
-            'msg': empty,
-            'qsize': None,
-            'callback': self.save_non_ros_cfgs, 
-            'callback_args': ()
-        },
-        'store_params': {
-            'namespace': self.node_namespace,
-            'topic': 'store_params',
-            'msg': String,
-            'qsize': None,
-            'callback': self.store_params, 
-            'callback_args': ()
-        },
-        'user_restore': {
-            'namespace': self.node_namespace,
-            'topic': 'full_user_restore',
-            'msg': empty,
-            'qsize': None,
-            'callback': self.restore_user_cfgs_mgr, 
-            'callback_args': ()
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'status',
+                'msg': Empty,
+                'qsize': 1,
+                'latch': True
+            },
+            'status_app': {
+                'namespace': self.node_namespace,
+                'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
+                'msg': AppStatus,
+                'qsize': 1,
+                'latch': True
+            }
+        }  
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'save_config': {
+                'namespace': self.node_namespace,
+                'topic': 'save_config',
+                'msg': empty,
+                'qsize': None,
+                'callback': self.save_non_ros_cfgs, 
+                'callback_args': ()
+            },
+            'store_params': {
+                'namespace': self.node_namespace,
+                'topic': 'store_params',
+                'msg': String,
+                'qsize': None,
+                'callback': self.store_params, 
+                'callback_args': ()
+            },
+            'user_restore': {
+                'namespace': self.node_namespace,
+                'topic': 'full_user_restore',
+                'msg': empty,
+                'qsize': None,
+                'callback': self.restore_user_cfgs_mgr, 
+                'callback_args': ()
+            }
         }
-    }
 
 
 
 
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    log_class_name = True
-    )
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
 
-    ready = self.node_if.wait_for_ready()
+        ready = self.node_if.wait_for_ready()
 
 
 
-    #########################################################
-    ## Complete Initialization
+        #########################################################
+        ## Complete Initialization
 
-    # Restore user configurations
-    self.restore_user_cfgs()
+        # Restore user configurations
+        self.restore_user_cfgs()
 
-    self.node_if.publish_pub('status_pub', Empty())
+        self.node_if.publish_pub('status_pub', Empty())
 
-    #########################################################
-    ## Initiation Complete
-    self.msg_if.pub_info("Initialization Complete")
-    # Spin forever (until object is detected)
-    nepi_ros.spin()
-    #########################################################
+        #########################################################
+        ## Initiation Complete
+        self.msg_if.pub_info("Initialization Complete")
+        # Spin forever (until object is detected)
+        nepi_ros.spin()
+        #########################################################
 
 
     # Moving symlinks is typically faster and more robust than copying files, so to reduce the
@@ -316,7 +316,7 @@ class config_mgr(object):
     def restore_user_cfgs_mgr(self,msg):
         self.restore_user_cfgs()
 
-    def initCB(self):
+    def initCb(self):
         pass
 
     def refreshCb(self,msg):

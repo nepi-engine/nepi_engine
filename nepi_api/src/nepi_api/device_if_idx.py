@@ -330,7 +330,7 @@ class IDXDeviceIF:
             'capabilities_query': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/capabilities_query',
-                'svr': IDXCapabilitiesQuery,
+                'srv': IDXCapabilitiesQuery,
                 'req': IDXCapabilitiesQueryRequest(),
                 'resp': IDXCapabilitiesQueryResponse(),
                 'callback': self.provide_capabilities

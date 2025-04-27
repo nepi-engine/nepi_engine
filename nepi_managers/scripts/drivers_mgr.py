@@ -23,7 +23,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
-from std_msgs.msg import Empty, String, Int32, Bool, Header
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
 from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
@@ -112,8 +112,8 @@ class NepiDriversMgr(object):
     self.msg_if.pub_info("Starting ConnectSystemIF processes")
     mgr_sys_if = ConnectMgrSystemIF()
     self.msg_if.pub_info("Waiting for system if initialiation to complete")
-    success = mgr_sys_if.wait_for_connection()
-    self.msg_if.pub_info("Got system connection: " + str(success))
+    success = mgr_sys_if.wait_for_ready()
+    self.msg_if.pub_info("Got System Ready: " + str(success))
     if success == False:
       nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
     self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
@@ -125,9 +125,9 @@ class NepiDriversMgr(object):
     
     # Wait for Config Manager
     mgr_cfg_if = ConnectMgrConfigIF()
-    success = mgr_cfg_if.wait_for_status()
-    #if success == False:
-      #nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+    success = mgr_cfg_if.wait_for_ready()
+    if success == False:
+        nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
     
 
 
@@ -167,7 +167,7 @@ class NepiDriversMgr(object):
         'driver_status_query': {
             'namespace': self.node_namespace,
             'topic': 'driver_status_query',
-            'svr': DriverStatusQuery,
+            'srv': DriverStatusQuery,
             'req': DriverStatusQueryRequest(),
             'resp': DriverStatusQueryResponse(),
             'callback': self.driverStatusService

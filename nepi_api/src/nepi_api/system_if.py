@@ -182,7 +182,7 @@ class SaveDataIF(object):
             'query_data_products': {
                 'namespace': self.namespace,
                 'topic': 'query_data_products',
-                'svr': DataProductQuery,
+                'srv': DataProductQuery,
                 'req': DataProductQueryRequest(),
                 'resp': DataProductQueryResponse(),
                 'callback': self._dataProductQueryHandler
@@ -737,7 +737,7 @@ class SettingsIF(object):
             'cap_settings': {
                 'namespace': self.namespace,
                 'topic': 'settings_capabilities_query',
-                'svr': SettingsCapabilitiesQuery,
+                'srv': SettingsCapabilitiesQuery,
                 'req': SettingsCapabilitiesQueryRequest(),
                 'resp': SettingsCapabilitiesQueryResponse(),
                 'callback': self._provideCapabilitiesHandler

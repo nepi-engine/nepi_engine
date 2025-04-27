@@ -17,10 +17,10 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
-from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, OpEnvironmentQuery, OpEnvironmentQueryRequest, \
-                             SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemStorageFolderQuery, SystemStorageFolderQueryRequest
-
-
+from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse
+from nepi_ros_interfaces.srv import OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse                      
+from nepi_ros_interfaces.srv import SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse
+from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
 from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.messages_if import MsgIF
@@ -44,7 +44,7 @@ class ConnectMgrSystemIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
@@ -69,28 +69,28 @@ class ConnectMgrSystemIF:
             'sys_storage': {
                 'namespace': self.base_namespace,
                 'topic': 'system_storage_folder_query',
-                'svr': SystemStorageFolderQuery,
+                'srv': SystemStorageFolderQuery,
                 'req': SystemStorageFolderQueryRequest(),
                 'resp': SystemStorageFolderQueryResponse(),
             },
             'sys_env': {
                 'namespace': self.base_namespace,
                 'topic': 'op_environment_query',
-                'svr': OpEnvironmentQuery,
+                'srv': OpEnvironmentQuery,
                 'req': OpEnvironmentQueryRequest(),
                 'resp': OpEnvironmentQueryResponse(),
             },
             'sw_status': {
                 'namespace': self.base_namespace,
                 'topic': 'sw_update_status_query',
-                'svr': SystemSoftwareStatusQueryQuery,
+                'srv': SystemSoftwareStatusQuery,
                 'req': SystemSoftwareStatusQueryRequest(),
                 'resp': SystemSoftwareStatusQueryResponse(),
             },
             'sys_defs': {
                 'namespace': self.base_namespace,
                 'topic': 'system_defs_query',
-                'svr': SystemDefsQuery,
+                'srv': SystemDefsQuery,
                 'req': SystemDefsQueryRequest(),
                 'resp': SystemDefsQueryResponse(),
             }
@@ -114,7 +114,7 @@ class ConnectMgrSystemIF:
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'pub_name': {
-                'namespace': self.mgr_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'set_empty',
                 'msg': EmptyMsg,
                 'qsize': 1,
@@ -126,8 +126,8 @@ class ConnectMgrSystemIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'sub_name': {
-                'namespace': self.mgr_namespace,
+            'status_sub': {
+                'namespace': self.base_namespace,
                 'topic': 'system_status',
                 'msg': SystemStatus,
                 'qsize': 10,
@@ -148,6 +148,8 @@ class ConnectMgrSystemIF:
                         log_class_name = True
         )
 
+        ready = self.NODE_IF.wait_for_ready()
+
         ################################
         # Complete Initialization
 
@@ -156,7 +158,7 @@ class ConnectMgrSystemIF:
         self.msg_if.pub_info("Waiting for status message")
         timer = 0
         time_start = nepi_ros.get_time()
-        while self.status_msg is None and timer < timeout and not rospy.is_shutdown():
+        while self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.2)
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
@@ -178,7 +180,6 @@ class ConnectMgrSystemIF:
         return self.ready
 
     def wait_for_ready(self, timout = float('inf') ):
-        success = False
         self.msg_if.pub_info("Waiting for connection")
         timer = 0
         time_start = nepi_ros.get_time()
@@ -281,32 +282,13 @@ class ConnectMgrSystemIF:
 
 
 
-    def wait_for_status(self,timeout = float('inf')):
-        self.msg_if.pub_warn("Waiting for system to connect")
-        success = self.wait_for_connection(timeout)
-        if success == False:
-            self.msg_if.pub_info("Manager Not connected")
-        else:
-            self.msg_if.pub_warn("Waiting for status topic")
-            found_topic = nepi_ros.wait_for_topic(self.status_topic, timeout)
-            if found_topic == "":
-                self.msg_if.pub_info("Failed to get status topic")
-            else:
-                self.msg_if.pub_warn("Got status topic")
-                success = True
-        return success
-
-
-
     def get_status_dict(self):
         status_dict = None
-        if self.status_sub is not None:
-            if self.status_msg is not None:
-                status_dict = nepi_ros.convert_msg2dict(self.status_msg)
-            else:
-                self.msg_if.pub_info("Status Listener Not connected")
+
+        if self.status_msg is not None:
+            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
         else:
-            self.msg_if.pub_info("Manager Not connected")
+            self.msg_if.pub_info("Status Listener Not connected")
         return status_dict
 
 
@@ -319,6 +301,7 @@ class ConnectMgrSystemIF:
 
     # Update System Status
     def _statusCb(self,msg):
+        self.msg_if.pub_warn("Got System Status Msg")
         self.status_msg = msg
         self.status_connected = True
 

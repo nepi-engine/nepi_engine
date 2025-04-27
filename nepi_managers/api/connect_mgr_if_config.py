@@ -12,7 +12,7 @@ import os
 import time
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.srv import FileReset, FileResetRequest
+from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -41,7 +41,7 @@ class ConnectMgrConfigIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
@@ -66,14 +66,14 @@ class ConnectMgrConfigIF:
             'user_reset': {
                 'namespace': self.mgr_namespace,
                 'topic': 'user_reset',
-                'svr': FileReset,
+                'srv': FileReset,
                 'req': FileResetRequest(),
                 'resp': FileResetResponse(),
             },
             'factory_reset': {
                 'namespace': self.mgr_namespace,
                 'topic': 'factory_reset',
-                'svr': FileReset,
+                'srv': FileReset,
                 'req': FileResetRequest(),
                 'resp': FileResetResponse(),
             }
@@ -111,7 +111,7 @@ class ConnectMgrConfigIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'sub_name': {
+            'status_sub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
                 'msg': Empty,
@@ -132,6 +132,8 @@ class ConnectMgrConfigIF:
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
+
+        ready = self.NODE_IF.wait_for_ready()
 
         ################################
         # Complete Initialization

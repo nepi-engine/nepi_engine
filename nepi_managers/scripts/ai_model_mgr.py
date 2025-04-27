@@ -24,7 +24,7 @@ from nepi_sdk import nepi_utils
 
 
 
-from std_msgs.msg import Empty, Float32, String, Bool, Int32
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -88,15 +88,14 @@ class AIDetectorManager:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
         ##############################
-        # Initialize Params
-        self.initCb(do_updates = False)
+        # Initialize Class Variables
 
 
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
@@ -114,9 +113,9 @@ class AIDetectorManager:
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
+        success = mgr_cfg_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
         ###########################
 
@@ -134,187 +133,187 @@ class AIDetectorManager:
         self.ros_waiting_img = nepi_img.cv2img_to_rosimg(cv2_img) 
 
 
-    ##############################
-    ### Setup Node
+        ##############################
+        ### Setup Node
 
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
-
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'aifs_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
-        },   
-        'active_aifs': {
-            'namespace': self.node_namespace,
-            'factory_val': []
-        },   
-        'models_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': models_dict
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
         }
 
-    }
 
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'aifs_dict': {
+                'namespace': self.node_namespace,
+                'factory_val': dict()
+            },   
+            'active_aifs': {
+                'namespace': self.node_namespace,
+                'factory_val': []
+            },   
+            'models_dict': {
+                'namespace': self.node_namespace,
+                'factory_val': models_dict
+            }
 
-    # Services Config Dict ####################
-    self.SRVS_DICT = {
-        'active_models_info_query': {
-            'namespace': self.node_namespace,
-            'topic': 'active_models_info_query',
-            'svr': AiMgrActiveModelsInfoQuery,
-            'req': AiMgrActiveModelsInfoQueryRequest(),
-            'resp': AiMgrActiveModelsInfoQueryResponse(),
-            'callback': self.handleInfoRequest
-        }
-    }
-
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-        'status_pub': {
-            'namespace': self.node_namespace,
-            'topic': '/all_detectors/detection_image', #self.all_namespace + '/all_detectors/detection_image
-            'msg': Image,
-            'qsize': 1,
-            'latch': True
-        },
-    }  
-
-
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'refresh_frameworks': {
-            'namespace': self.node_namespace,
-            'topic': 'refresh_frameworks',
-            'msg': Empty,
-            'qsize': 10,
-            'callback': self.refreshFrameworksCb, 
-            'callback_args': ()
-        },
-        'update_framework_state': {
-            'namespace': self.node_namespace,
-            'topic': 'update_framework_state',
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.updateFrameworkStateCb, 
-            'callback_args': ()
-        },
-        'disable_all_frameworks': {
-            'namespace': self.node_namespace,
-            'topic': 'disable_all_frameworks',
-            'msg': Empty,
-            'qsize': 10,
-            'callback': self.disableAllFwsCb, 
-            'callback_args': ()
-        },
-        'enable_all_models': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_all_models',
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.enableAllModelsCb, 
-            'callback_args': ()
-        },
-        'disable_all_models': {
-            'namespace': self.node_namespace,
-            'topic': 'disable_all_models',
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.disableAllModelsCb, 
-            'callback_args': ()
-        },
-        'update_model_state': {
-            'namespace': self.node_namespace,
-            'topic': 'update_model_state',
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.updateModelStateCb, 
-            'callback_args': ()
-        },
-        'detection_img': {
-            'namespace': self.node_namespace,
-            'topic': '/all_detectors/detection_image', #self.all_namespace + "/all_detectors/detection_img"
-            'msg': Image,
-            'qsize': 10,
-            'callback': self.detectionImageCb, 
-            'callback_args': ()
-        },
-        'bounding_boxes': {
-            'namespace': self.node_namespace,
-            'topic': '/all_detectors/bounding_boxes', #self.all_namespace + "/all_detectors/bounding_boxes"
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.updateModelStateCb, 
-            'callback_args': ()
         }
 
-    }
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'active_models_info_query': {
+                'namespace': self.node_namespace,
+                'topic': 'active_models_info_query',
+                'srv': AiMgrActiveModelsInfoQuery,
+                'req': AiMgrActiveModelsInfoQueryRequest(),
+                'resp': AiMgrActiveModelsInfoQueryResponse(),
+                'callback': self.handleInfoRequest
+            }
+        }
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': '/all_detectors/detection_image', #self.all_namespace + '/all_detectors/detection_image
+                'msg': Image,
+                'qsize': 1,
+                'latch': True
+            },
+        }  
+
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'refresh_frameworks': {
+                'namespace': self.node_namespace,
+                'topic': 'refresh_frameworks',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.refreshFrameworksCb, 
+                'callback_args': ()
+            },
+            'update_framework_state': {
+                'namespace': self.node_namespace,
+                'topic': 'update_framework_state',
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.updateFrameworkStateCb, 
+                'callback_args': ()
+            },
+            'disable_all_frameworks': {
+                'namespace': self.node_namespace,
+                'topic': 'disable_all_frameworks',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.disableAllFwsCb, 
+                'callback_args': ()
+            },
+            'enable_all_models': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_all_models',
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.enableAllModelsCb, 
+                'callback_args': ()
+            },
+            'disable_all_models': {
+                'namespace': self.node_namespace,
+                'topic': 'disable_all_models',
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.disableAllModelsCb, 
+                'callback_args': ()
+            },
+            'update_model_state': {
+                'namespace': self.node_namespace,
+                'topic': 'update_model_state',
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.updateModelStateCb, 
+                'callback_args': ()
+            },
+            'detection_img': {
+                'namespace': self.node_namespace,
+                'topic': '/all_detectors/detection_image', #self.all_namespace + "/all_detectors/detection_img"
+                'msg': Image,
+                'qsize': 10,
+                'callback': self.detectionImageCb, 
+                'callback_args': ()
+            },
+            'bounding_boxes': {
+                'namespace': self.node_namespace,
+                'topic': '/all_detectors/bounding_boxes', #self.all_namespace + "/all_detectors/bounding_boxes"
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.updateModelStateCb, 
+                'callback_args': ()
+            }
+
+        }
 
 
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    log_class_name = True
-    )
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
 
-    ready = self.node_if.wait_for_ready()
-
-
-
-
-    ###########################
-    # Set up save data and save config services ########################################################
-    factory_data_rates= {}
-    for d in self.data_products:
-        factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-    if 'detection_image' in self.data_products:
-        factory_data_rates['detection_image'] = [1.0, 0.0, 100.0] 
-    self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
+        ready = self.node_if.wait_for_ready()
 
 
 
-    ###########################
-    self.refreshFrameworks()
-    # Update and save settings
-    self.saveSettings() # Save config
 
-    self.initCb(do_updates = True)
-
-
-    ###########################
-
-
-    self.all_namespace = os.path.join(self.base_namespace,'ai')
-    self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
-    self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
-    self.node_if.publish_pub('detection_image_pub', self.ros_loading_img)
+        ###########################
+        # Set up save data and save config services ########################################################
+        factory_data_rates= {}
+        for d in self.data_products:
+            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+        if 'detection_image' in self.data_products:
+            factory_data_rates['detection_image'] = [1.0, 0.0, 100.0] 
+        self.save_data_if = SaveDataIF(data_product_names = self.data_products, factory_data_rate_dict = factory_data_rates)
 
 
-    self.msg_if.pub_info("Staring AI Framework and Model update process")
-    nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
-    self.msg_if.pub_info("Staring AI Model Info update process")
-    nepi_ros.timer(nepi_ros.ros_duration(1), self.modelsInfoUpdaterCb, oneshot = True)
 
-    self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
-    self.node_if.publish_pub('detection_image_pub', self.ros_waiting_img)
-    #########################################################
-    ## Initiation Complete
-    self.msg_if.pub_info("Initialization Complete")
-    # Spin forever (until object is detected)
-    nepi_ros.spin()
-    #########################################################
+        ###########################
+        self.refreshFrameworks()
+        # Update and save settings
+        self.saveSettings() # Save config
+
+        self.initCb(do_updates = True)
+
+
+        ###########################
+
+
+        self.all_namespace = os.path.join(self.base_namespace,'ai')
+        self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
+        self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
+        self.node_if.publish_pub('detection_image_pub', self.ros_loading_img)
+
+
+        self.msg_if.pub_info("Staring AI Framework and Model update process")
+        nepi_ros.timer(nepi_ros.ros_duration(1), self.updaterCb, oneshot = True)
+        self.msg_if.pub_info("Staring AI Model Info update process")
+        nepi_ros.timer(nepi_ros.ros_duration(1), self.modelsInfoUpdaterCb, oneshot = True)
+
+        self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
+        self.node_if.publish_pub('detection_image_pub', self.ros_waiting_img)
+        #########################################################
+        ## Initiation Complete
+        self.msg_if.pub_info("Initialization Complete")
+        # Spin forever (until object is detected)
+        nepi_ros.spin()
+        #########################################################
 
 
 

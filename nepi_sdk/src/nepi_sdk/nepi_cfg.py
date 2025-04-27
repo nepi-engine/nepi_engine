@@ -23,7 +23,7 @@ logger = Logger(log_name = log_name)
 # NEPI Save Config utility functions
 
 
-def get_save_config_subscriber_namespaces(self):
+def get_save_config_subscriber_namespaces():
     topics_list = nepi_ros.find_topics_by_name('save_config')
     namespaces_list = []
     for topic in topics_list:

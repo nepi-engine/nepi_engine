@@ -72,9 +72,9 @@ class time_sync_mgr(object):
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         sys_stats_dict = mgr_sys_if.get_system_stats_dict()
         in_container = False
         if sys_stats_dict is not None: 
@@ -84,11 +84,11 @@ class time_sync_mgr(object):
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
+        success = mgr_cfg_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
-        ###########################
+
         ##############################
         ### Setup Node
 
@@ -475,11 +475,11 @@ class time_sync_mgr(object):
 
     def informClockUpdate(self):
         global g_sys_time_updated_pub
-       self.node_if.publish_pub('g_sys_time_updated_pub') # Make sure to inform the rest of the nodes that the system clock was updated
+        self.node_if.publish_pub('g_sys_time_updated_pub') # Make sure to inform the rest of the nodes that the system clock was updated
 
         # For onvif_mgr, must use a service rather than the system_time_updated topic due to limitation with onvif_mgr message subscriptions
         topic = nepi_ros.find_service('onvif_mgr/resync_onvif_device_clocks')
-        if topic is not "":
+        if topic != "":
             try:
                 nepi_ros.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
                 resync_srv = nepi_ros.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)

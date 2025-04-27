@@ -13,7 +13,6 @@ import subprocess
 import threading
 import traceback
 import yaml
-#import resource
 import time
 import psutil
 
@@ -21,7 +20,7 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
  
 
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.srv import (
     GetScriptsQuery,
@@ -56,7 +55,7 @@ from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 SCRIPTS_FOLDER = "/mnt/nepi_storage/automation_scripts"
 SCRIPTS_LOG_FOLDER = "/mnt/nepi_storage/logs/automation_script_logs"
 
-class AutomationManager:
+class AutomationManager(object):
 
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
 
@@ -84,14 +83,14 @@ class AutomationManager:
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
-        # Initialize Params
-        self.initCb(do_updates = False)
+        # Initialize Class Variables
+
 
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
         self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
@@ -103,150 +102,146 @@ class AutomationManager:
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
+        success = mgr_cfg_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
     
 
-        self.initCb(do_updates = True)
+        ##############################
+        ### Setup Node
 
-
-
-    ##############################
-    ### Setup Node
-
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
-
-
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'script_configs': {
-            'namespace': self.node_namespace,
-            'factory_val': self.script_configs
-        },
-        'script_stop_timeout_s': {
-            'namespace': self.node_namespace,
-            'factory_val': self.script_stop_timeout_s
-        }       
-    }
-
-
-    # Services Config Dict ####################
-    self.SRVS_DICT = {
-        'get_scripts': {
-            'namespace': self.node_namespace,
-            'topic': 'get_scripts',
-            'svr': GetScriptsQuery,
-            'req': GetScriptsQueryRequest(),
-            'resp': GetScriptsQueryResponse(),
-            'callback': self.handle_get_scripts
-        },
-        'get_running_scripts': {
-            'namespace': self.node_namespace,
-            'topic': 'get_running_scripts',
-            'svr': GetRunningScriptsQuery,
-            'req': GetRunningScriptsQueryRequest(),
-            'resp': GetRunningScriptsQueryResponse(),
-            'callback': self.handle_get_running_scripts
-        },
-        'launch_script': {
-            'namespace': self.node_namespace,
-            'topic': 'launch_script',
-            'svr': LaunchScript,
-            'req': LaunchScriptRequest(),
-            'resp': LaunchScriptResponse(),
-            'callback': self.handle_launch_script
-        },
-        'stop_script': {
-            'namespace': self.node_namespace,
-            'topic': 'stop_script',
-            'svr': StopScript,
-            'req': StopScriptRequest(),
-            'resp': StopScriptResponse(),
-            'callback': self.handle_stop_script
-        },'get_system_stats': {
-            'namespace': self.node_namespace,
-            'topic': 'get_system_stats',
-            'svr': GetSystemStatsQuery,
-            'req': GetSystemStatsQueryRequest(),
-            'resp': GetSystemStatsQueryResponse(),
-            'callback': self.handle_get_system_stats
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
         }
-    }
-
-
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = None
-
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'script_autostart': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_script_autostart',
-            'msg': AutoStartEnabled,
-            'qsize': None,
-            'callback': self.AutoStartEnabled_cb, 
-            'callback_args': ()
-        },
-    }
-
-
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    log_class_name = True
-    )
-
-    ready = self.node_if.wait_for_ready()
-
-
-    ###########################
-    # Complete Initialization
-    self.script_stop_timeout_s = self.node_if.get_param('script_stop_timeout_s')
-    self.scripts = self.get_scripts()
-    self.file_sizes = self.get_file_sizes()
-    for script in self.scripts:
-        #TODO: These should be gathered from a stats file on disk to remain cumulative for all time (clearable on ROS command)
-        self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
-
-    self.setupScriptConfigs()
-    self.running_scripts = set()
-
-    self.monitor_thread = threading.Thread(target=self.monitor_scripts)
-    self.monitor_thread.daemon = True
-    self.monitor_thread.start()
-
-    self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.scripts_folder, self.on_file_change))
-    self.watch_thread.daemon = True
-    self.watch_thread.start()
-
-    # Autolaunch any scripts that are so-configured
-    for script_name in self.script_configs:
-        script_config = self.script_configs[script_name]
-        if script_config['auto_start'] is True:
-            self.msg_if.pub_info("Auto-starting " + script_name)
-            req = LaunchScriptRequest(script_name)
-            self.handle_launch_script(req)
 
 
 
-    ###########################
-    ## Initiation Complete
-    self.msg_if.pub_info("Initialization Complete")
-    # Spin forever (until object is detected)
-    nepi_ros.spin()
-    #########################################################
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'script_configs': {
+                'namespace': self.node_namespace,
+                'factory_val': self.script_configs
+            },
+            'script_stop_timeout_s': {
+                'namespace': self.node_namespace,
+                'factory_val': self.script_stop_timeout_s
+            }       
+        }
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'get_scripts': {
+                'namespace': self.node_namespace,
+                'topic': 'get_scripts',
+                'srv': GetScriptsQuery,
+                'req': GetScriptsQueryRequest(),
+                'resp': GetScriptsQueryResponse(),
+                'callback': self.handle_get_scripts
+            },
+            'get_running_scripts': {
+                'namespace': self.node_namespace,
+                'topic': 'get_running_scripts',
+                'srv': GetRunningScriptsQuery,
+                'req': GetRunningScriptsQueryRequest(),
+                'resp': GetRunningScriptsQueryResponse(),
+                'callback': self.handle_get_running_scripts
+            },
+            'launch_script': {
+                'namespace': self.node_namespace,
+                'topic': 'launch_script',
+                'srv': LaunchScript,
+                'req': LaunchScriptRequest(),
+                'resp': LaunchScriptResponse(),
+                'callback': self.handle_launch_script
+            },
+            'stop_script': {
+                'namespace': self.node_namespace,
+                'topic': 'stop_script',
+                'srv': StopScript,
+                'req': StopScriptRequest(),
+                'resp': StopScriptResponse(),
+                'callback': self.handle_stop_script
+            },'get_system_stats': {
+                'namespace': self.node_namespace,
+                'topic': 'get_system_stats',
+                'srv': GetSystemStatsQuery,
+                'req': GetSystemStatsQueryRequest(),
+                'resp': GetSystemStatsQueryResponse(),
+                'callback': self.handle_get_system_stats
+            }
+        }
+
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = None
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'script_autostart': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_script_autostart',
+                'msg': AutoStartEnabled,
+                'qsize': None,
+                'callback': self.AutoStartEnabled_cb, 
+                'callback_args': ()
+            },
+        }
+
+
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
+
+        ready = self.node_if.wait_for_ready()
+
+
+        ###########################
+        # Complete Initialization
+        self.script_stop_timeout_s = self.node_if.get_param('script_stop_timeout_s')
+        self.scripts = self.get_scripts()
+        self.file_sizes = self.get_file_sizes()
+        for script in self.scripts:
+            #TODO: These should be gathered from a stats file on disk to remain cumulative for all time (clearable on ROS command)
+            self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
+
+        self.setupScriptConfigs()
+        self.running_scripts = set()
+
+        self.monitor_thread = threading.Thread(target=self.monitor_scripts)
+        self.monitor_thread.daemon = True
+        self.monitor_thread.start()
+
+        self.watch_thread = threading.Thread(target=self.watch_directory, args=(self.scripts_folder, self.on_file_change))
+        self.watch_thread.daemon = True
+        self.watch_thread.start()
+
+        # Autolaunch any scripts that are so-configured
+        for script_name in self.script_configs:
+            script_config = self.script_configs[script_name]
+            if script_config['auto_start'] is True:
+                self.msg_if.pub_info("Auto-starting " + script_name)
+                req = LaunchScriptRequest(script_name)
+                self.handle_launch_script(req)
+
+
+
+        ###########################
+        ## Initiation Complete
+        self.msg_if.pub_info("Initialization Complete")
+        # Spin forever (until object is detected)
+        nepi_ros.spin()
+        #########################################################
 
     
 

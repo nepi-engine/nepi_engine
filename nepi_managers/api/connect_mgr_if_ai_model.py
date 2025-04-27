@@ -14,8 +14,8 @@ import time
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import AiModelMgrStatus
-from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest
+from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -69,7 +69,7 @@ class ConnectMgrAiModelIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
@@ -94,7 +94,7 @@ class ConnectMgrAiModelIF:
             'active_models_query': {
                 'namespace': self.mgr_namespace,
                 'topic': 'active_models_info_query',
-                'svr': AiMgrActiveModelsInfoQuery,
+                'srv': AiMgrActiveModelsInfoQuery,
                 'req': AiMgrActiveModelsInfoQueryRequest(),
                 'resp': AiMgrActiveModelsInfoQueryResponse(),
             }

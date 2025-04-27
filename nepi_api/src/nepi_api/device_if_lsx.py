@@ -239,7 +239,7 @@ class LSXDeviceIF:
             'lsx/capabilities_query': {
                 'namespace': self.node_namespace,
                 'topic': 'lsx/capabilities_query',
-                'svr': LSXCapabilitiesQuery,
+                'srv': LSXCapabilitiesQuery,
                 'req': LSXCapabilitiesQueryRequest(),
                 'resp': LSXCapabilitiesQueryResponse(),
                 'callback': self.capabilities_query_callback

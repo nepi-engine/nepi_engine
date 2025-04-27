@@ -163,7 +163,7 @@ class ConnectAiDetectorIF:
             'service_name': {
                 'namespace': '~',
                 'topic': 'empty_query',
-                'svr': EmptySrv,
+                'srv': EmptySrv,
                 'req': EmptySrvRequest(),
                 'resp': EmptySrvResponse(),
                 'callback': self.CALLBACK_FUNCTION

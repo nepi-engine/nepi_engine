@@ -20,7 +20,7 @@ from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
  
 
-from std_msgs.msg import String, Bool, Empty, Int32
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import SystemStatus
 from nepi_ros_interfaces.msg import Reset, WifiCredentials
 from nepi_ros_interfaces.srv import IPAddrQuery, IPAddrQueryRequest, IPAddrQueryResponse
@@ -96,18 +96,18 @@ class NetworkMgr:
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         status_dict = mgr_sys_if.get_status_dict()
         self.in_container = status_dict['in_container']
         
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
+        success = mgr_cfg_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
 
@@ -151,238 +151,231 @@ class NetworkMgr:
             self.set_wifi_client_from_params()
         ###########################
 
-    ##############################
-    ### Setup Node
+        ##############################
+        ### Setup Node
 
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'wifi/enable_access_point': {
-            'namespace': self.node_namespace,
-            'factory_val': wifi_ap_enabled
-        },
-        'wifi/access_point_name': {
-            'namespace': self.node_namespace,
-            'factory_val': wifi_ap_ssid
-        },
-        'wifi/access_point_passphrase': {
-            'namespace': self.node_namespace,
-            'factory_val': self.wifi_ap_passphrase
-        },
-        'wifi/enable_client': {
-            'namespace': self.node_namespace,
-            'factory_val': self.wifi_client_enabled
-        },
-        'wifi/client_ssid': {
-            'namespace': self.node_namespace,
-            'factory_val': self.wifi_client_ssid
-        },
-        'wifi/client_passphrase': {
-            'namespace': self.node_namespace,
-            'factory_val': self.wifi_client_passphrase
-        },
-        'dhcp_enabled': {
-            'namespace': self.node_namespace,
-            'factory_val': self.dhcp_enabled
-        },
-        'tx_bw_limit_mbps': {
-            'namespace': self.node_namespace,
-            'factory_val': msg.data
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
         }
-    }
 
-
-    # Services Config Dict ####################
-    self.SRVS_DICT = {
-        'ip_addr_query': {
-            'namespace': self.node_namespace,
-            'topic': 'ip_addr_query',
-            'svr': IPAddrQuery,
-            'req': IPAddrQueryRequest(),
-            'resp': IPAddrQueryResponse(),
-            'callback': self.handle_ip_addr_query
-        },
-        'bandwidth_usage_query': {
-            'namespace': self.node_namespace,
-            'topic': 'bandwidth_usage_query',
-            'svr': BandwidthUsageQuery,
-            'req': BandwidthUsageQueryRequest(),
-            'resp': BandwidthUsageQueryResponse(),
-            'callback': self.handle_bandwidth_usage_query
-        },
-        'wifi_query': {
-            'namespace': self.node_namespace,
-            'topic': 'wifi_query',
-            'svr': WifiQuery,
-            'req': WifiQueryRequest(),
-            'resp': WifiQueryResponse(),
-            'callback': self.handle_wifi_query
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'wifi/enable_access_point': {
+                'namespace': self.node_namespace,
+                'factory_val': wifi_ap_enabled
+            },
+            'wifi/access_point_name': {
+                'namespace': self.node_namespace,
+                'factory_val': wifi_ap_ssid
+            },
+            'wifi/access_point_passphrase': {
+                'namespace': self.node_namespace,
+                'factory_val': self.wifi_ap_passphrase
+            },
+            'wifi/enable_client': {
+                'namespace': self.node_namespace,
+                'factory_val': self.wifi_client_enabled
+            },
+            'wifi/client_ssid': {
+                'namespace': self.node_namespace,
+                'factory_val': self.wifi_client_ssid
+            },
+            'wifi/client_passphrase': {
+                'namespace': self.node_namespace,
+                'factory_val': self.wifi_client_passphrase
+            },
+            'dhcp_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.dhcp_enabled
+            },
+            'tx_bw_limit_mbps': {
+                'namespace': self.node_namespace,
+                'factory_val': msg.data
+            }
         }
-    }
 
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-        'store_params': {
-            'namespace': self.node_namespace,
-            'topic': 'store_params',
-            'msg': String,
-            'qsize': 1,
-            'latch': None
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'ip_addr_query': {
+                'namespace': self.node_namespace,
+                'topic': 'ip_addr_query',
+                'srv': IPAddrQuery,
+                'req': IPAddrQueryRequest(),
+                'resp': IPAddrQueryResponse(),
+                'callback': self.handle_ip_addr_query
+            },
+            'bandwidth_usage_query': {
+                'namespace': self.node_namespace,
+                'topic': 'bandwidth_usage_query',
+                'srv': BandwidthUsageQuery,
+                'req': BandwidthUsageQueryRequest(),
+                'resp': BandwidthUsageQueryResponse(),
+                'callback': self.handle_bandwidth_usage_query
+            },
+            'wifi_query': {
+                'namespace': self.node_namespace,
+                'topic': 'wifi_query',
+                'srv': WifiQuery,
+                'req': WifiQueryRequest(),
+                'resp': WifiQueryResponse(),
+                'callback': self.handle_wifi_query
+            }
         }
-    }  
 
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'reset': {
-            'namespace': self.node_namespace,
-            'topic': 'reset',
-            'msg': Reset,
-            'qsize': None,
-            'callback': self.reset, 
-            'callback_args': ()
-        },
-        'save_config': {
-            'namespace': self.node_namespace,
-            'topic': 'save_config',
-            'msg': Empty,
-            'qsize': None,
-            'callback': self.save_config, 
-            'callback_args': ()
-        },
-        'add_ip_addr': {
-            'namespace': self.node_namespace,
-            'topic': 'add_ip_addr',
-            'msg': String,
-            'qsize': None,
-            'callback': self.add_ip, 
-            'callback_args': ()
-        },
-        'remove_ip_addr': {
-            'namespace': self.node_namespace,
-            'topic': 'remove_ip_addr',
-            'msg': String,
-            'qsize': None,
-            'callback': self.remove_ip, 
-            'callback_args': ()
-        },
-        'enable_dhcp': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_dhcp',
-            'msg': Bool,
-            'qsize': None,
-            'callback': self.enable_dhcp, 
-            'callback_args': ()
-        },
-        'limit_mbps': {
-            'namespace': self.node_namespace,
-            'topic': 'set_tx_bw_limit_mbps',
-            'msg': Int32,
-            'qsize': None,
-            'callback': self.set_upload_bwlimit, 
-            'callback_args': ()
-        },
-        'set_rosmaster': {
-            'namespace': self.node_namespace,
-            'topic': 'set_rosmaster',
-            'msg': String,
-            'qsize': None,
-            'callback': self.set_rosmaster, 
-            'callback_args': ()
-        },
-        'enable_wifi': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_wifi_access_point',
-            'msg': Bool,
-            'qsize': None,
-            'callback': self.enable_wifi_ap_handler, 
-            'callback_args': ()
-        },
-        'set_wifi_access_point_credentials': {
-            'namespace': self.node_namespace,
-            'topic': 'reset',
-            'msg': WifiCredentials,
-            'qsize': None,
-            'callback': self.set_wifi_ap_credentials_handler, 
-            'callback_args': ()
-        },
-        'wifi_client': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_wifi_client',
-            'msg': Bool,
-            'qsize': None,
-            'callback': self.enable_wifi_client_handler, 
-            'callback_args': ()
-        },
-        'set_wifi_client_credentials': {
-            'namespace': self.node_namespace,
-            'topic': 'set_wifi_client_credentials',
-            'msg': WifiCredentials,
-            'qsize': None,
-            'callback': self.set_wifi_client_credentials_handler, 
-            'callback_args': ()
-        },
-        'refresh_wifi_networks': {
-            'namespace': self.node_namespace,
-            'topic': 'refresh_available_wifi_networks',
-            'msg': Empty,
-            'qsize': None,
-            'callback': self.refresh_available_networks_handler, 
-            'callback_args': ()
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'store_params': {
+                'namespace': self.node_namespace,
+                'topic': 'store_params',
+                'msg': String,
+                'qsize': 1,
+                'latch': None
+            }
+        }  
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'reset': {
+                'namespace': self.node_namespace,
+                'topic': 'reset',
+                'msg': Reset,
+                'qsize': None,
+                'callback': self.reset, 
+                'callback_args': ()
+            },
+            'save_config': {
+                'namespace': self.node_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.save_config, 
+                'callback_args': ()
+            },
+            'add_ip_addr': {
+                'namespace': self.node_namespace,
+                'topic': 'add_ip_addr',
+                'msg': String,
+                'qsize': None,
+                'callback': self.add_ip, 
+                'callback_args': ()
+            },
+            'remove_ip_addr': {
+                'namespace': self.node_namespace,
+                'topic': 'remove_ip_addr',
+                'msg': String,
+                'qsize': None,
+                'callback': self.remove_ip, 
+                'callback_args': ()
+            },
+            'enable_dhcp': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_dhcp',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_dhcp, 
+                'callback_args': ()
+            },
+            'limit_mbps': {
+                'namespace': self.node_namespace,
+                'topic': 'set_tx_bw_limit_mbps',
+                'msg': Int32,
+                'qsize': None,
+                'callback': self.set_upload_bwlimit, 
+                'callback_args': ()
+            },
+            'set_rosmaster': {
+                'namespace': self.node_namespace,
+                'topic': 'set_rosmaster',
+                'msg': String,
+                'qsize': None,
+                'callback': self.set_rosmaster, 
+                'callback_args': ()
+            },
+            'enable_wifi': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_wifi_access_point',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_wifi_ap_handler, 
+                'callback_args': ()
+            },
+            'set_wifi_access_point_credentials': {
+                'namespace': self.node_namespace,
+                'topic': 'reset',
+                'msg': WifiCredentials,
+                'qsize': None,
+                'callback': self.set_wifi_ap_credentials_handler, 
+                'callback_args': ()
+            },
+            'wifi_client': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_wifi_client',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_wifi_client_handler, 
+                'callback_args': ()
+            },
+            'set_wifi_client_credentials': {
+                'namespace': self.node_namespace,
+                'topic': 'set_wifi_client_credentials',
+                'msg': WifiCredentials,
+                'qsize': None,
+                'callback': self.set_wifi_client_credentials_handler, 
+                'callback_args': ()
+            },
+            'refresh_wifi_networks': {
+                'namespace': self.node_namespace,
+                'topic': 'refresh_available_wifi_networks',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.refresh_available_networks_handler, 
+                'callback_args': ()
+            }
         }
-    }
 
 
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    log_class_name = True
-    )
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_class_name = True
+        )
 
-    ready = self.node_if.wait_for_ready()
-
-
-
-    if self.wifi_iface:
-        self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
-        self.set_wifi_ap_from_params()
-        self.set_wifi_client_from_params()
-
-    else:
-        self.msg_if.pub_info("No WiFi detected")
+        ready = self.node_if.wait_for_ready()
 
 
+        ###########################
+        # Complete Initialization
+
+        if self.wifi_iface:
+            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+            self.set_wifi_ap_from_params()
+            self.set_wifi_client_from_params()
+
+        else:
+            self.msg_if.pub_info("No WiFi detected")
+
+        nepi_ros.timer(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
+
+        # Long duration internet check -- do oneshot and reschedule from within the callback
+        nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
 
 
+        #########################################################
+        ## Initiation Complete
+        self.msg_if.pub_info("Initialization Complete")
+        #########################################################
 
-
-    ###########################
-
-    
-    nepi_ros.timer(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
-
-    # Long duration internet check -- do oneshot and reschedule from within the callback
-    nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
-
-
-
-    #########################################################
-    ## Initiation Complete
-    self.msg_if.pub_info("Initialization Complete")
-    #########################################################
-
-    self.run()
+        self.run()
 
 
     #######################
@@ -526,7 +519,7 @@ class NetworkMgr:
             if self.dhcp_enabled != enabled:
                 self.enable_dhcp_impl(enabled)
 
-    def initCB(self):
+    def initCb(self):
         pass
 
     def resetCb(self):

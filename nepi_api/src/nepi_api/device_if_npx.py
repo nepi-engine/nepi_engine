@@ -211,7 +211,7 @@ class NPXDeviceIF:
         'navpose_capabilities_query': {
             'namespace': self.node_namespace,
             'topic': 'npx/navpose_capabilities_query',
-            'svr': NavPoseCapabilitiesQuery,
+            'srv': NavPoseCapabilitiesQuery,
             'req': NavPoseCapabilitiesQueryRequest(),
             'resp': NavPoseCapabilitiesQueryResponse(),
             'callback': self.navposeCapabilitiesHandler

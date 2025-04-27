@@ -429,7 +429,7 @@ class RBXRobotIF:
             'capabilities_query': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/capabilities_query',
-                'svr': RBXCapabilitiesQuery,
+                'srv': RBXCapabilitiesQuery,
                 'req': RBXCapabilitiesQueryRequest(),
                 'resp': RBXCapabilitiesQueryResponse(),
                 'callback': self.capabilities_query_callback
