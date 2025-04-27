@@ -25,7 +25,6 @@ from serial.tools import list_ports
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_save
 
 from nepi_sdk.nepi_ros import logger as Logger
 log_name = "nepi_drvs"
@@ -53,7 +52,7 @@ def getDriversDict(search_path):
           if f.endswith(".yaml") and f.find("params") != -1: 
                   try:
                     file_path = os.path.join(search_path,f)
-                    read_dict = nepi_save.read_yaml_2_dict(file_path)
+                    read_dict = nepi_utils.read_yaml2dict(file_path)
                   except Exception as e:
                     logger.log_warn("Failed to import param file: " + f + " " + str(e))
                     continue

@@ -1038,7 +1038,7 @@ class StatesIF(object):
 
 EXAMPLE_TRIGGER_DICT = {
                     "name":"None",
-                    "namespace": '~'
+                    "namespace": '~',
                     "description": "None",
                     "data_str_list":["None"],
                     "time":nepi_utils.get_time() 
@@ -1048,7 +1048,7 @@ EXAMPLE_TRIGGER_DICT = {
 EXAMPLE_TRIGGERS_DICT = {
                 "trigger_name": {
                     "name":"None",
-                    "namespace": '~'
+                    "namespace": '~',
                     "description": "None",
                     "data_str_list":["None"],
                     "time":nepi_utils.get_time() 

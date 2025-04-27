@@ -20,7 +20,6 @@ import time
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_save
   
 from nepi_sdk.nepi_ros import logger as Logger
 log_name = "nepi_aifs"
@@ -43,7 +42,7 @@ def getAIFsDict(params_path, api_path):
             if f.endswith(".yaml") and f.find("params") != -1: 
               try:
                 file_path = os.path.join(params_path,f)
-                new_dict = nepi_save.read_yaml_2_dict(file_path)
+                new_dict = nepi_utils.read_yaml2dict(file_path)
                 framework_name = new_dict['framework_name']
                 #logger.log_warn("Got ais dict: " + str(new_dict))
                 new_dict['api_path'] = api_path

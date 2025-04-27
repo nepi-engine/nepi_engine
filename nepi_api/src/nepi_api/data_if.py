@@ -415,7 +415,7 @@ class NavPoseIF:
     has_subscribers = False
 
 
-    def __init__(self, namespace = None, topic = 'navpose'
+    def __init__(self, namespace = None, topic = 'navpose',
         has_location = False, enable_gps_pub = True, 
         has_position = False, has_orientation = False, enable_pose_pub = True, 
         has_heading = False, enable_heading_pub = True):
@@ -713,7 +713,7 @@ class ImageIF:
     has_subscibers = False
 
 
-    def __init__(self, namespace = None , topic = 'image' init_overlay_list = []):
+    def __init__(self, namespace = None , topic = 'image', init_overlay_list = []):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
