@@ -318,7 +318,7 @@ class NPXDeviceIF:
         }
 
     self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                  factory_data_rate_dict = factory_data_rates,
+                                  factory_rate_dict = factory_data_rates,
                                   factory_filename_dict = factory_filename_dict)
 
 
