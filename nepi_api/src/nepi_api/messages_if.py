@@ -78,7 +78,6 @@ class MsgIF(object):
         self._logSelfMsg("Creating Msg Publishers")
         self.msg_pub = nepi_ros.create_publisher("~messages", Message, queue_size=1)
         self.msg_pub_sys = nepi_ros.create_publisher("messages", Message, queue_size=1)
-        nepi_ros.sleep(1)
         
         return 
     def _logSelfMsg(self,msg):

@@ -150,7 +150,8 @@ class ConnectMgrConfigIF:
             self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
             success = False
         else:
-            self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
+            pass
+            #self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
 
 
         #################################

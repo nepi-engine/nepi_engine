@@ -168,7 +168,7 @@ class IDXDeviceIF:
                  getColor2DImg=None, stopColor2DImgAcquisition=None, 
                  getBW2DImg=None, stopBW2DImgAcquisition=None,
                  getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getDepthImg=None,
+                 getDepthImg=None, stopDepthImgAcquisition=None,
                  getPointcloud=None, stopPointcloudAcquisition=None, 
                  getPointcloudImg=None, stopPointcloudImgAcquisition=None, 
                  getNavPoseDictFunction=None, 

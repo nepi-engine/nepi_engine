@@ -101,7 +101,7 @@ class config_mgr(object):
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'factory_reset': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'factory_reset',
                 'srv': FileReset,
                 'req': FileResetRequest(),
@@ -109,7 +109,7 @@ class config_mgr(object):
                 'callback': self.factory_reset
             },
             'user_reset': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'user_reset',
                 'srv': FileReset,
                 'req': FileResetRequest(),
@@ -126,28 +126,21 @@ class config_mgr(object):
                 'msg': Empty,
                 'qsize': 1,
                 'latch': True
-            },
-            'status_app': {
-                'namespace': self.node_namespace,
-                'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
-                'msg': AppStatus,
-                'qsize': 1,
-                'latch': True
             }
         }  
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
             'save_config': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'save_config',
-                'msg': empty,
+                'msg': Empty,
                 'qsize': None,
                 'callback': self.save_non_ros_cfgs, 
                 'callback_args': ()
             },
             'store_params': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'store_params',
                 'msg': String,
                 'qsize': None,
@@ -155,9 +148,9 @@ class config_mgr(object):
                 'callback_args': ()
             },
             'user_restore': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'full_user_restore',
-                'msg': empty,
+                'msg': Empty,
                 'qsize': None,
                 'callback': self.restore_user_cfgs_mgr, 
                 'callback_args': ()
@@ -172,12 +165,15 @@ class config_mgr(object):
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
 
 
 
@@ -231,15 +227,19 @@ class config_mgr(object):
 
     def update_from_file(self,file_pathname, namespace):
         self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
+        paramlist = None
         try:
-            paramlist = nepi_ros.load_params_from_file(file_pathname, namespace, verbose=False)
+            paramlist = nepi_ros.load_params_from_file(file_pathname, namespace)
             #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
-
-            for params, ns in paramlist:
-                nepi_ros.upload_params(ns, params, verbose=False)
         except Exception as e:
-            self.msg_if.pub_warn("Unable to load factory parameters from file " + file_pathname + " " + str(e))
-            return [False]
+            self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
+        if paramlist is not None:
+            try:
+                for params, ns in paramlist:
+                    nepi_ros.upload_params(ns, params, verbose=False)
+            except Exception as e:
+                self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
+                return [False]
 
         return [True]
 
@@ -294,7 +294,7 @@ class config_mgr(object):
         user_cfg_pathname = self.get_user_cfg_pathname(qualified_node_name)
         self.msg_if.pub_info("Storing Params for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # First, write to the user file
-        nepi_ros.save_config_file(user_cfg_pathname, qualified_node_name)
+        nepi_ros.save_params_to_file(user_cfg_pathname, qualified_node_name)
         self.msg_if.pub_info("Params saved for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # Now, ensure the link points to the correct file
         cfg_pathname = self.get_cfg_pathname(qualified_node_name)
@@ -316,10 +316,11 @@ class config_mgr(object):
     def restore_user_cfgs_mgr(self,msg):
         self.restore_user_cfgs()
 
-    def initCb(self):
-        pass
+    def initCb(self, do_updates = False):
+        if do_updates == True:
+            self.resetCb()
 
-    def refreshCb(self,msg):
+    def resetCb(self):
         pass
 
     def factoryResetCb(self):

@@ -74,7 +74,6 @@ class NetworkMgr:
     INTERNET_CHECK_CMD = ['nc', '-zw1', 'google.com', '443']
     INTERNET_CHECK_INTERVAL_S = 3.0
 
-    store_params_publisher = None
 
     #######################
     ### Node Initialization
@@ -124,12 +123,6 @@ class NetworkMgr:
             self.wifi_ap_ssid = self.DEFAULT_WIFI_AP_SSID
             self.wifi_ap_passphrase = self.DEFAULT_WIFI_AP_PASSPHRASE
 
-        # Initialize from the config file (which should be loaded ahead of this call)
-        self.set_dhcp_from_params()
-
-        self.set_upload_bw_limit_from_params()
-
-
 
         # Wifi stuff -- only enabled if WiFi is present
         self.wifi_ap_enabled = False
@@ -145,10 +138,7 @@ class NetworkMgr:
         self.internet_connected = False
         self.internet_connected_lock = threading.Lock()
 
-        if self.wifi_iface:
-            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
-            self.set_wifi_ap_from_params()
-            self.set_wifi_client_from_params()
+
         ###########################
 
         ##############################
@@ -167,11 +157,11 @@ class NetworkMgr:
         self.PARAMS_DICT = {
             'wifi/enable_access_point': {
                 'namespace': self.node_namespace,
-                'factory_val': wifi_ap_enabled
+                'factory_val': self.wifi_ap_enabled
             },
             'wifi/access_point_name': {
                 'namespace': self.node_namespace,
-                'factory_val': wifi_ap_ssid
+                'factory_val': self.wifi_ap_ssid
             },
             'wifi/access_point_passphrase': {
                 'namespace': self.node_namespace,
@@ -195,7 +185,7 @@ class NetworkMgr:
             },
             'tx_bw_limit_mbps': {
                 'namespace': self.node_namespace,
-                'factory_val': msg.data
+                'factory_val': -1.0
             }
         }
 
@@ -203,7 +193,7 @@ class NetworkMgr:
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'ip_addr_query': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'ip_addr_query',
                 'srv': IPAddrQuery,
                 'req': IPAddrQueryRequest(),
@@ -211,7 +201,7 @@ class NetworkMgr:
                 'callback': self.handle_ip_addr_query
             },
             'bandwidth_usage_query': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'bandwidth_usage_query',
                 'srv': BandwidthUsageQuery,
                 'req': BandwidthUsageQueryRequest(),
@@ -219,7 +209,7 @@ class NetworkMgr:
                 'callback': self.handle_bandwidth_usage_query
             },
             'wifi_query': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'wifi_query',
                 'srv': WifiQuery,
                 'req': WifiQueryRequest(),
@@ -231,7 +221,7 @@ class NetworkMgr:
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'store_params': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'store_params',
                 'msg': String,
                 'qsize': 1,
@@ -257,8 +247,24 @@ class NetworkMgr:
                 'callback': self.save_config, 
                 'callback_args': ()
             },
+            'reset': {
+                'namespace': self.base_namespace,
+                'topic': 'reset',
+                'msg': Reset,
+                'qsize': None,
+                'callback': self.reset, 
+                'callback_args': ()
+            },
+            'save_config': {
+                'namespace': self.base_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.save_config, 
+                'callback_args': ()
+            },
             'add_ip_addr': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'add_ip_addr',
                 'msg': String,
                 'qsize': None,
@@ -266,7 +272,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'remove_ip_addr': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'remove_ip_addr',
                 'msg': String,
                 'qsize': None,
@@ -274,7 +280,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'enable_dhcp': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'enable_dhcp',
                 'msg': Bool,
                 'qsize': None,
@@ -282,7 +288,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'limit_mbps': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'set_tx_bw_limit_mbps',
                 'msg': Int32,
                 'qsize': None,
@@ -290,7 +296,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'set_rosmaster': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'set_rosmaster',
                 'msg': String,
                 'qsize': None,
@@ -298,7 +304,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'enable_wifi': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'enable_wifi_access_point',
                 'msg': Bool,
                 'qsize': None,
@@ -306,7 +312,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'set_wifi_access_point_credentials': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'reset',
                 'msg': WifiCredentials,
                 'qsize': None,
@@ -314,7 +320,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'wifi_client': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'enable_wifi_client',
                 'msg': Bool,
                 'qsize': None,
@@ -322,7 +328,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'set_wifi_client_credentials': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'set_wifi_client_credentials',
                 'msg': WifiCredentials,
                 'qsize': None,
@@ -330,7 +336,7 @@ class NetworkMgr:
                 'callback_args': ()
             },
             'refresh_wifi_networks': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'refresh_available_wifi_networks',
                 'msg': Empty,
                 'qsize': None,
@@ -345,12 +351,15 @@ class NetworkMgr:
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
 
 
         ###########################
@@ -361,13 +370,22 @@ class NetworkMgr:
             self.set_wifi_ap_from_params()
             self.set_wifi_client_from_params()
 
+        self.set_dhcp_from_params()
+
+        self.set_upload_bw_limit_from_params()
+
+        if self.wifi_iface:
+            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+            self.set_wifi_ap_from_params()
+            self.set_wifi_client_from_params()
+
         else:
             self.msg_if.pub_info("No WiFi detected")
 
-        nepi_ros.timer(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
+        nepi_ros.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
 
         # Long duration internet check -- do oneshot and reschedule from within the callback
-        nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
+        nepi_ros.start_timer_process(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
 
 
         #########################################################
@@ -515,11 +533,11 @@ class NetworkMgr:
 
     def set_dhcp_from_params(self):
         if (nepi_ros.has_param('~dhcp_enabled')):
-            enabled = nepi_ros.get_param('~dhcp_enabled')
+            enabled = self.node_if.get_param('~dhcp_enabled')
             if self.dhcp_enabled != enabled:
                 self.enable_dhcp_impl(enabled)
 
-    def initCb(self):
+    def initCb(self, do_updates = False):
         pass
 
     def resetCb(self):
@@ -590,7 +608,7 @@ class NetworkMgr:
         nepi_ros.set_param('~wifi/client_ssid', self.wifi_client_ssid)
         nepi_ros.set_param('~wifi/client_passphrase', self.wifi_client_passphrase)
 
-        self.node_if.publish_pub('store_params_publisher', nepi_ros.get_node_namespace())
+        self.node_if.publish_pub('store_params', nepi_ros.get_node_namespace())
 
     def set_upload_bwlimit(self, msg):
         if msg.data >= 0 and msg.data < 1:
@@ -684,7 +702,7 @@ class NetworkMgr:
     def set_upload_bw_limit_from_params(self):
         bw_limit_mbps = -1
         if (nepi_ros.has_param('~tx_bw_limit_mbps')):
-            bw_limit_mbps = nepi_ros.get_param('tx_bw_limit_mbps')
+            bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
         else:
             self.msg_if.pub_warn("No tx_bw_limit_mbps param set... will clear all bandwidth limits")
 
@@ -725,9 +743,9 @@ class NetworkMgr:
         self.set_wifi_ap_from_params()
 
     def set_wifi_ap_from_params(self):
-        self.wifi_ap_enabled = nepi_ros.get_param('~wifi/enable_access_point', False)
-        self.wifi_ap_ssid = nepi_ros.get_param('~wifi/access_point_ssid', self.DEFAULT_WIFI_AP_SSID)
-        self.wifi_ap_passphrase = nepi_ros.get_param('~wifi/access_point_passphrase', self.DEFAULT_WIFI_AP_PASSPHRASE)
+        self.wifi_ap_enabled = self.node_if.get_param('~wifi/enable_access_point')
+        self.wifi_ap_ssid = self.node_if.get_param('~wifi/access_point_ssid')
+        self.wifi_ap_passphrase = self.node_if.get_param('~wifi/access_point_passphrase')
         
         if self.wifi_ap_enabled is True:
             if self.wifi_iface is None:
@@ -777,9 +795,9 @@ class NetworkMgr:
         self.set_wifi_client_from_params()
 
     def set_wifi_client_from_params(self):
-        self.wifi_client_enabled = nepi_ros.get_param('~wifi/enable_client', False)
-        self.wifi_client_ssid = self.node_if.reset_param("wifi/client_ssid")
-        self.wifi_client_passphrase = self.node_if.reset_param("wifi/client_passphrase")
+        self.wifi_client_enabled = self.node_if.get_param('~wifi/enable_client')
+        self.wifi_client_ssid = self.node_if.get_param("wifi/client_ssid")
+        self.wifi_client_passphrase = self.node_if.get_param("wifi/client_passphrase")
 
         if self.wifi_client_enabled is True:
             if self.wifi_iface is None:
@@ -823,7 +841,7 @@ class NetworkMgr:
                         # Auto retry in 3 seconds
                         self.msg_if.pub_info("Automatically retrying Wifi connect in 3 seconds")
                         if not nepi_ros.is_shutdown():
-                            self.retry_wifi_timer = nepi_ros.timer(3, self.auto_retry_wifi_client_connect, oneshot=True)
+                            self.retry_wifi_timer = nepi_ros.start_timer_process(3, self.auto_retry_wifi_client_connect, oneshot=True)
                 else:
                     self.msg_if.pub_info("Wifi client ready -- need SSID and passphrase to connect")
                     self.retry_wifi_timer = None
@@ -901,7 +919,7 @@ class NetworkMgr:
             with self.internet_connected_lock:
                 self.internet_connected = connected
 
-        nepi_ros.timer(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
+        nepi_ros.start_timer_process(self.INTERNET_CHECK_INTERVAL_S, self.internet_check, oneshot = True)
 
 
     def internet_connection(self):

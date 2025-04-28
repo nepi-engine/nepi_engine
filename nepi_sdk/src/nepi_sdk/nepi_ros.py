@@ -530,7 +530,7 @@ def call_service(service, request):
       try:
           response = service(request)
       except Exception as e:
-          rospy.loginfo("nepi_ros: Failed to get service call response: " + str(e) )
+          rospy.loginfo("nepi_ros: Failed to call service: " + str(e) )
     else:
       rospy.loginfo("nepi_ros: Cant call None service")
     return response
@@ -562,8 +562,12 @@ def load_params_from_file(file_path, params_namespace = None):
         params_namespace += "/"
     else:
       params_namespace = "~/"
+    rospy.logwarn("Will try loading parameters from file: " + file_path)
     try:
         params_input = rosparam.load_file(file_path)
+    except rosparam.RosParamException as e:
+        rospy.logwarn("Error loading parameters from file: " + file_path + " " + str(e))
+    try:
         if params_input != []:
           #rospy.logwarn("nepi_ros: loaded params" + str(params_input) + " for " + params_namespace)
           params = params_input[0][0]
@@ -574,7 +578,7 @@ def load_params_from_file(file_path, params_namespace = None):
               rospy.set_param(param_namesapce, value)
           rospy.loginfo("Parameters loaded successfully for " + params_namespace)
     except rosparam.RosParamException as e:
-        rospy.logwarn("Error loading parameters from file: " + file_path + " " + str(e))
+        rospy.logwarn("Error updating parameters: " + file_path + " " + str(e))
 
 
 def save_params_to_file(file_path, namespace):
@@ -676,11 +680,12 @@ def get_rostime_to_sec():
 def ros_time_now():
   return rospy.Time.now()
 
-'''
-# Anothe way to get ros_time
+def ros_time(time_ns = 0.0):
+  return rospy.Time(time_ns)
+
 def get_rostime():
   return rospy.get_rostime()
-'''
+
 
 def ros_time_from_ros_stamp(stamp):
   return rospy.Time.from_sec(stamp)

@@ -258,43 +258,43 @@ class SystemMgrNode():
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'op_environment': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': OpEnvironmentQueryResponse.OP_ENV_AIR
             },
             'storage_mountpoint': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.storage_mountpoint
             },
             'auto_switch_rootfs_on_new_img_install': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.auto_switch_rootfs_on_new_img_install
             },
             'first_stage_rootfs_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.first_stage_rootfs_device
             },
             'new_img_staging_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.new_img_staging_device
             },
             'new_img_staging_device_removable': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.new_img_staging_device_removable
             },
             'emmc_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.emmc_device
             },
             'usb_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.usb_device
             },
             'sd_card_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.sd_card_device
             },
             'ssd_device': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             }
         }
@@ -478,12 +478,15 @@ class SystemMgrNode():
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -542,12 +545,12 @@ class SystemMgrNode():
     
 
     def initConfig(self):
-        op_env = self.node_if.reset_param("op_environment")
+        op_env = self.node_if.get_param("op_environment")
         # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
         self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
         # Now gather all the params and set members appropriately
-        self.storage_mountpoint = self.node_if.reset_param("storage_mountpoint")
+        self.storage_mountpoint = self.node_if.get_param("storage_mountpoint")
         
         self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
             "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
@@ -564,13 +567,13 @@ class SystemMgrNode():
         self.new_img_staging_device_removable = nepi_ros.get_param(
             "~new_img_staging_device_removable", self.new_img_staging_device_removable)
 
-        self.emmc_device = self.node_if.reset_param("emmc_device")
+        self.emmc_device = self.node_if.get_param("emmc_device")
 
-        self.usb_device = self.node_if.reset_param("usb_device")
+        self.usb_device = self.node_if.get_param("usb_device")
 
-        self.sd_card_device = self.node_if.reset_param("sd_card_device")
+        self.sd_card_device = self.node_if.get_param("sd_card_device")
 
-        self.ssd_device = self.node_if.reset_param("ssd_device")
+        self.ssd_device = self.node_if.get_param("ssd_device")
     
     def initCb(self, do_updates = False):
         pass
@@ -1040,7 +1043,7 @@ class SystemMgrNode():
 
     def provide_op_environment(self, req):
         # Just proxy the param server
-        return OpEnvironmentQueryResponse(self.node_if.reset_param("op_environment"))
+        return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
     
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data

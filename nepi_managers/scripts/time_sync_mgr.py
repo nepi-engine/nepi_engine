@@ -44,13 +44,15 @@ CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
 CHRONY_CFG_BASENAME = '/opt/nepi/config/etc/chrony/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
 
-g_last_set_time = nepi_ros.Time(0.0)
-g_sys_time_updated_pub = None
-g_ntp_first_sync_time = None
-g_ntp_status_check_timer = None
+
 
 class time_sync_mgr(object):
  
+
+    last_set_time = nepi_ros.ros_time(0.0)
+    ntp_first_sync_time = None
+    ntp_status_check_timer = None
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
@@ -118,9 +120,9 @@ class time_sync_mgr(object):
         else:
             self.SRVS_DICT = {
                 'time_status_query': {
-                    'namespace': self.node_namespace,
+                    'namespace': self.base_namespace,
                     'topic': 'time_status_query',
-                    'svr': TimeStatusQuery,
+                    'srv': TimeStatusQuery,
                     'req': TimeStatusQueryRequest(),
                     'resp': TimeStatusQueryResponse(),
                     'callback': self.handle_time_status_query
@@ -128,10 +130,11 @@ class time_sync_mgr(object):
             }
 
 
+
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'sys_time_updated': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'sys_time_updated',
                 'msg': Empty,
                 'qsize': 3,
@@ -139,41 +142,54 @@ class time_sync_mgr(object):
             }
         }  
 
-        # Subscribers Config Dict ####################
-        self.SUBS_DICT = {
-            'add_ntp_server': {
-                'namespace': self.node_namespace,
-                'topic': 'add_ntp_server',
-                'msg': String,
-                'qsize': None,
-                'callback': self.add_server, 
-                'callback_args': ()
-            },
-            'remove_ntp_server': {
-                'namespace': self.node_namespace,
-                'topic': 'remove_ntp_server',
-                'msg': String,
-                'qsize': None,
-                'callback': self.remove_server, 
-                'callback_args': ()
-            },
-            'reset': {
-                'namespace': self.node_namespace,
-                'topic': 'reset',
-                'msg': Reset,
-                'qsize': None,
-                'callback': self.reset, 
-                'callback_args': ()
-            },
-            'set_time': {
-                'namespace': self.node_namespace,
-                'topic': 'set_time',
-                'msg': Time,
-                'qsize': None,
-                'callback': self.set_time, 
-                'callback_args': ()
+        if self.in_container == True:
+            # Subscribers Config Dict ####################
+            self.SUBS_DICT = {
+                'reset': {
+                    'namespace': self.node_namespace,
+                    'topic': 'reset',
+                    'msg': Reset,
+                    'qsize': None,
+                    'callback': self.reset, 
+                    'callback_args': ()
+                },
+                'reset': {
+                    'namespace': self.base_namespace,
+                    'topic': 'reset',
+                    'msg': Reset,
+                    'qsize': None,
+                    'callback': self.reset, 
+                    'callback_args': ()
+                },
+                'add_ntp_server': {
+                    'namespace': self.base_namespace,
+                    'topic': 'add_ntp_server',
+                    'msg': String,
+                    'qsize': None,
+                    'callback': self.add_server, 
+                    'callback_args': ()
+                },
+                'remove_ntp_server': {
+                    'namespace': self.base_namespace,
+                    'topic': 'remove_ntp_server',
+                    'msg': String,
+                    'qsize': None,
+                    'callback': self.remove_server, 
+                    'callback_args': ()
+                },
+                'set_time': {
+                    'namespace': self.base_namespace,
+                    'topic': 'set_time',
+                    'msg': Time,
+                    'qsize': None,
+                    'callback': self.set_time, 
+                    'callback_args': ()
+                }
             }
-        }
+        else:
+            self.SUBS_DICT = None
+
+
 
 
 
@@ -181,32 +197,29 @@ class time_sync_mgr(object):
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
             
 
         if self.in_container == False:
 
-            nepi_ros.create_service('time_status_query', TimeStatusQuery, self.handle_time_status_query)
-
-            global g_sys_time_updated_pub
-
             # Initialize the system clock from the RTC if so configured
             # RTC will be updated whenever a "good" clock source is detected; that will control drift
-            init_from_rtc = self.node_if.reset_param("init_time_from_rtc")
+            init_from_rtc = self.node_if.get_param("init_time_from_rtc")
             if init_from_rtc is True:
                 self.msg_if.pub_info("Initializing system clock from hardware clock")
                 subprocess.call(['hwclock', '-s'])
                 self.informClockUpdate() 
 
             # Set up a periodic timer to check for NTP sync so we can inform the rest of the system when first sync detected
-            global g_ntp_status_check_timer
-            g_ntp_status_check_timer = nepi_ros.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
-            g_ntp_status_check_timer.run()
+            self.ntp_status_check_timer = nepi_ros.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
         else:
             self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
         #########################################################
@@ -353,8 +366,6 @@ class time_sync_mgr(object):
         self.gather_ntp_status()
 
     def gather_ntp_status(self):
-        global g_ntp_first_sync_time
-        global g_ntp_status_check_timer
 
 
         chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
@@ -367,25 +378,20 @@ class time_sync_mgr(object):
                 last_sync = tokens[5]
                 current_offset = tokens[6].split('[')[0] # The string has two parts
                 ntp_status.append((source, currently_syncd, last_sync, current_offset))
-                if (g_ntp_first_sync_time is None) and (currently_syncd is True):
+                if (self.ntp_first_sync_time is None) and (currently_syncd is True):
                     self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
-                    g_ntp_first_sync_time = nepi_ros.get_rostime_to_sec()
+                    self.ntp_first_sync_time = nepi_ros.get_rostime_to_sec()
                     self.informClockUpdate()
 
                     # Update the RTC with this "better" clock source
                     self.msg_if.pub_info("Updating hardware clock with NTP time")
                     subprocess.call(['hwclock', '-w'])
 
-                    # No longer need to run the timer
-                    # TODO: Should we continue to run timer to monitor for big changes, additional syncs, etc. to
-                    # inform the rest of the system about the time update?
-                    g_ntp_status_check_timer.shutdown()
-
         return ntp_status
 
     def handle_time_status_query(self,req):
         time_status = TimeStatus()
-        time_status.current_time = nepi_ros.get_rostime_to_sec()
+        time_status.current_time = nepi_ros.ros_time_now()
 
         # Get Last PPS time from the sysfs node
         #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
@@ -394,12 +400,12 @@ class time_sync_mgr(object):
             pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
             pps_tokens = pps_string.split('#')
             if (len(pps_tokens) >= 2):
-                time_status.last_pps = nepi_ros.Time(float(pps_string.split('#')[0]))
+                time_status.last_pps = nepi_ros.ros_time(float(pps_string.split('#')[0]))
             else:
-                time_status.last_pps = nepi_ros.Time(0)
+                time_status.last_pps = nepi_ros.ros_time(0.0)
                 self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
         else: # Failed to find the assert file - just return no PPS
-            time_status.last_pps = nepi_ros.Time(0)
+            time_status.last_pps = nepi_ros.ros_time(0.0)
 
         ntp_status = self.gather_ntp_status()
         for status_entry in ntp_status:
@@ -408,10 +414,10 @@ class time_sync_mgr(object):
             time_status.last_ntp_sync.append(status_entry[2])
             time_status.current_offset.append(status_entry[3])
 
-
         # Last set time (cheater clock sync method)
-        time_status.last_set_time = g_last_set_time
+        time_status.last_set_time = self.last_set_time
 
+        #self.msg_if.pub_warn("Returning Time Status response: " + str(time_status))
         return  { 'time_status': time_status }
 
     def set_time(self,msg):
@@ -420,8 +426,7 @@ class time_sync_mgr(object):
         self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.data.secs) + '.' + str(msg.data.nsecs))
         timestring = '@' + str(float(msg.data.secs) + (float(msg.data.nsecs) / float(1e9)))
         subprocess.call(["date", "-s", timestring])
-        global g_last_set_time
-        g_last_set_time = msg.data
+        self.last_set_time = msg.data
         new_date = subprocess.check_output(["date"], text=True)
         self.msg_if.pub_info("Updated date: " + str(new_date))
 
@@ -464,7 +469,7 @@ class time_sync_mgr(object):
 
 
 
-    def initCB(self):
+    def initCb(self, do_updates = False):
         pass
 
     def resetCb(self):
@@ -474,8 +479,7 @@ class time_sync_mgr(object):
         pass
 
     def informClockUpdate(self):
-        global g_sys_time_updated_pub
-        self.node_if.publish_pub('g_sys_time_updated_pub') # Make sure to inform the rest of the nodes that the system clock was updated
+        self.node_if.publish_pub('sys_time_updated', Empty()) # Make sure to inform the rest of the nodes that the system clock was updated
 
         # For onvif_mgr, must use a service rather than the system_time_updated topic due to limitation with onvif_mgr message subscriptions
         topic = nepi_ros.find_service('onvif_mgr/resync_onvif_device_clocks')

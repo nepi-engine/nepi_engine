@@ -33,6 +33,8 @@ from nepi_ros_interfaces.srv import (
     LaunchScriptRequest,
     LaunchScriptResponse,
     StopScript,
+    StopScriptRequest,
+    StopScriptResponse,
     GetSystemStatsQuery,
     GetSystemStatsQueryRequest,
     GetSystemStatsQueryResponse,
@@ -129,7 +131,7 @@ class AutomationManager(object):
             },
             'script_stop_timeout_s': {
                 'namespace': self.node_namespace,
-                'factory_val': self.script_stop_timeout_s
+                'factory_val': self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
             }       
         }
 
@@ -137,7 +139,7 @@ class AutomationManager(object):
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'get_scripts': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'get_scripts',
                 'srv': GetScriptsQuery,
                 'req': GetScriptsQueryRequest(),
@@ -145,7 +147,7 @@ class AutomationManager(object):
                 'callback': self.handle_get_scripts
             },
             'get_running_scripts': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'get_running_scripts',
                 'srv': GetRunningScriptsQuery,
                 'req': GetRunningScriptsQueryRequest(),
@@ -153,7 +155,7 @@ class AutomationManager(object):
                 'callback': self.handle_get_running_scripts
             },
             'launch_script': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'launch_script',
                 'srv': LaunchScript,
                 'req': LaunchScriptRequest(),
@@ -161,14 +163,14 @@ class AutomationManager(object):
                 'callback': self.handle_launch_script
             },
             'stop_script': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'stop_script',
                 'srv': StopScript,
                 'req': StopScriptRequest(),
                 'resp': StopScriptResponse(),
                 'callback': self.handle_stop_script
             },'get_system_stats': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'get_system_stats',
                 'srv': GetSystemStatsQuery,
                 'req': GetSystemStatsQueryRequest(),
@@ -184,7 +186,7 @@ class AutomationManager(object):
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
             'script_autostart': {
-                'namespace': self.node_namespace,
+                'namespace': self.base_namespace,
                 'topic': 'enable_script_autostart',
                 'msg': AutoStartEnabled,
                 'qsize': None,
@@ -198,12 +200,15 @@ class AutomationManager(object):
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
 
 
         ###########################
@@ -312,7 +317,7 @@ class AutomationManager(object):
         # so update the param server, then tell it to save the file via store_params
         # saveConfig() will trigger the initCb callback, so param server will
         # be up-to-date before the file gets saved
-        self.save_cfg_if.save()
+        self.node_if.save_config()
 
     def initCb(self, do_updates = False):
         if do_updates == True:

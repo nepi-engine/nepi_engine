@@ -18,6 +18,7 @@ import os
 import shutil
 import time
 import subprocess
+import yaml
 
 from datetime import datetime, timezone
 
@@ -234,7 +235,7 @@ def read_yaml2dict(file_path):
         try:
             with open(file_path) as f:
                 dict_from_file = yaml.load(f, Loader=yaml.FullLoader)
-        except:
+        except Exception as e:
             logger.log_info("Failed to get dict from file: " + file_path + " " + str(e))
     else:
         logger.log_info("Failed to find dict file: " + file_path)

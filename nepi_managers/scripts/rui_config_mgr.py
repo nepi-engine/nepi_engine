@@ -45,9 +45,9 @@ class RUICfgMgrNode:
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        success = mgr_sys_if.wait_for_ready()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         
 
         ##############################
@@ -81,7 +81,7 @@ class RUICfgMgrNode:
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'settings': {
+            'settings_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'settings',
                 'msg': RUISettings,
@@ -111,12 +111,15 @@ class RUICfgMgrNode:
         self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_class_name = True
         )
 
+        self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
+        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
 
 
         #########################################################
@@ -124,8 +127,6 @@ class RUICfgMgrNode:
 
         self.settings_msg = RUISettings()
         self.publish_settings() # Do it once so that latch works on next connection
-
-        self.save_cfg_if = SaveCfgIF(updateParamsCallback=None, paramsModifiedCallback=None)
 
         #########################################################
         ## Initiation Complete
@@ -136,8 +137,8 @@ class RUICfgMgrNode:
 
     def publish_settings(self):
         # Gather all settings for the message
-        self.settings_msg.streaming_image_quality = self.node_if.reset_param("streaming_image_quality")
-        self.settings_msg.nepi_hb_auto_offload_visible = self.node_if.reset_param("nepi_hb_auto_offload_visible")
+        self.settings_msg.streaming_image_quality = self.node_if.get_param("streaming_image_quality")
+        self.settings_msg.nepi_hb_auto_offload_visible = self.node_if.get_param("nepi_hb_auto_offload_visible")
 
         # Publish it
         self.node_if.publish_pub('settings_pub', self.settings_msg)
@@ -148,17 +149,14 @@ class RUICfgMgrNode:
             return
 
 
-    def initCb(self):
-        self.publish_settings()
+    def initCb(self, do_updates = False):
+        if do_updates == True:
+            self.resetCb()
 
     def resetCb(self):
-        self.msg_if.pub_info("Setting streaming image quality to: " + str(self.DEFAULT_IMAGE_QUALITY))
-        nepi_ros.set_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
         self.publish_settings() # Make sure to always publish settings updates
 
     def factoryResetCb(self):
-        self.msg_if.pub_info("Setting streaming image quality to: " + str(self.DEFAULT_IMAGE_QUALITY))
-        nepi_ros.set_param("~streaming_image_quality", self.DEFAULT_IMAGE_QUALITY)
         self.publish_settings() # Make sure to always publish settings updates
 
 

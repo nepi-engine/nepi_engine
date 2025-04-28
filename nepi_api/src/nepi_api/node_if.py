@@ -67,7 +67,7 @@ class NodeConfigsIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
-        else:
+        elif log_class_name == True:
             log_name = log_name + ": "
         if log_class_name == True:
           log_name = log_name + self.class_name
@@ -92,7 +92,7 @@ class NodeConfigsIF(object):
         self.reset_service = nepi_ros.connect_service('user_reset', FileReset)
         self.factory_reset_service = nepi_ros.connect_service('factory_reset', FileReset)
 
-
+        time.sleep(1)
 
         self.save_params_pub = nepi_ros.create_publisher('store_params', String, queue_size=1)
 
@@ -109,8 +109,6 @@ class NodeConfigsIF(object):
         nepi_ros.create_subscriber('save_config', Empty, self._saveCb)
         nepi_ros.create_subscriber('reset_config', Empty, self._resetCb)
         nepi_ros.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
-
-        nepi_ros.sleep(1)
 
         init_configs = configs_dict['init_configs']
         if init_configs == True and self.initCb is not None:
@@ -132,16 +130,16 @@ class NodeConfigsIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
     def init_config(self):
@@ -150,7 +148,8 @@ class NodeConfigsIF(object):
 
     def save_config(self):
         self.save_params_pub.publish(self.node_namespace)
-        self.init()
+        if (self.initCb is not None):
+            self.initCb() # Callback provided by container class to update based on param server, etc.
 
     def reset_config(self):
         success = False
@@ -226,8 +225,10 @@ class NodeParamsIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        elif log_class_name == True:
+            log_name = log_name + ": " 
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         ##############################   
@@ -257,16 +258,16 @@ class NodeParamsIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
     def load_params(self, file_path):
@@ -278,7 +279,7 @@ class NodeParamsIF(object):
             if 'factory_val' in param_dict:
                 factory_val = param_dict['factory_val']
                 init_val = self.get_param(param_name)
-                if init_val is not None:
+                if init_val is None:
                     init_val = factory_val
                 self.params_dict[param_name]['init_val'] = init_val
                 self.set_param(param_name, init_val)
@@ -390,8 +391,10 @@ class NodeServicesIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        elif log_class_name == True:
+            log_name = log_name + ": " 
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         ##############################   
@@ -419,23 +422,23 @@ class NodeServicesIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
        
     def get_services(self):
         return list(self.srvs_dict.keys())
 
-    def create_request_msg(service_name):
+    def create_request_msg(self,service_name):
         req = None
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
@@ -443,7 +446,7 @@ class NodeServicesIF(object):
                 req = srv_dict['req']
         return req
 
-    def create_response_msg(service_name):
+    def create_response_msg(self,service_name):
         resp = None
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
@@ -469,17 +472,19 @@ class NodeServicesIF(object):
 
     def _initialize_services(self):
         for service_name in self.srvs_dict.keys():
+            #self.msg_if.pub_warn("Will try to create service for: " + service_name )
             srv_dict = self.srvs_dict[service_name]
             if 'service' not in srv_dict.keys() and srv_dict['callback'] is not None:
                 srv_callback = None
                 try:
                     srv_namespace = nepi_ros.create_namespace(srv_dict['namespace'],srv_dict['topic'])
+                    self.msg_if.pub_info("Creating service for: " + service_name + " with namespace: " + srv_namespace )
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
                 if srv_callback is not None:
-                    self.msg_if.pub_info("Creating service for: " + service_name + " with namespace: " + str(srv_namespace))
+                    self.msg_if.pub_info("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
                     try:
                         service = nepi_ros.create_service(srv_namespace, srv_msg, srv_callback)   
@@ -545,8 +550,10 @@ class NodePublishersIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        elif log_class_name == True:
+            log_name = log_name + ": " 
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
         ##############################   
@@ -575,16 +582,16 @@ class NodePublishersIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
         
@@ -635,7 +642,7 @@ class NodePublishersIF(object):
             if 'pub' not in pub_dict.keys():
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys():
                     pub_namespace = nepi_ros.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_warn("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
+                    self.msg_if.pub_info("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
                         pub = nepi_ros.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
@@ -697,8 +704,10 @@ class NodeSubscribersIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        elif log_class_name == True:
+            log_name = log_name + ": " 
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
@@ -728,16 +737,16 @@ class NodeSubscribersIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
         
@@ -762,7 +771,7 @@ class NodeSubscribersIF(object):
     def _initialize_subs(self):
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
-            self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
+            #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None:
                 sub_namespace = nepi_ros.create_namespace(sub_dict['namespace'],sub_dict['topic'])
                 self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
@@ -777,7 +786,7 @@ class NodeSubscribersIF(object):
                         sub = nepi_ros.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
-                    self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
+                    #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e))  
                     self.subs_dict[sub_name]['sub'] = None
@@ -912,8 +921,10 @@ class NodeClassIF(object):
         # Create Msg Class
         if log_name is None:
             log_name = ''
+        elif log_class_name == True:
+            log_name = log_name + ": " 
         if log_class_name == True:
-          log_name = log_name + ": " + self.class_name
+          log_name = log_name + self.class_name
         self.msg_if = MsgIF(log_name = log_name)
         self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
         ##############################   
@@ -941,7 +952,7 @@ class NodeClassIF(object):
                     'namespace': self.node_namespace
             }
             self.configs_if = NodeConfigsIF(configs_dict = configs_dict, log_name = log_name)
-            ready = self.params_if.wait_for_ready()
+            ready = self.configs_if.wait_for_ready()
 
         ##############################  
         # Create Services Class
@@ -968,6 +979,8 @@ class NodeClassIF(object):
         # Wait for ready
         if params_dict is not None:
             ready = self.params_if.wait_for_ready()
+        if configs_dict is not None:
+            ready = self.configs_if.wait_for_ready()
         if services_dict is not None:
             ready = self.srvs_if.wait_for_ready()
         if pubs_dict is not None:
@@ -993,16 +1006,16 @@ class NodeClassIF(object):
 
     def wait_for_ready(self, timout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for Ready")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Wait for Ready Timed Out")
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Ready")
         return self.ready
 
     # Config Methods ####################

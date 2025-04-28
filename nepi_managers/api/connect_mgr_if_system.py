@@ -155,17 +155,18 @@ class ConnectMgrSystemIF:
 
         # Wait for Status Message
         nepi_ros.sleep(1)
-        self.msg_if.pub_info("Waiting for status message")
+        self.msg_if.pub_info("Waiting for status message on topic")
         timer = 0
         time_start = nepi_ros.get_time()
         while self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.2)
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
-            self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
+            self.msg_if.pub_warn("Status msg topic subscribe timed out")
             success = False
         else:
-            self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
+            #self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
+            pass
 
 
         #################################
@@ -193,16 +194,19 @@ class ConnectMgrSystemIF:
         return self.ready
 
 
-    def get_sys_folder_path(self,folder_path, fallback_path = ""):
+    def get_sys_folder_path(self, folder_name, fallback_path = ""):
         service_name = 'sys_storage'
         folder_path = ""
-        request = None
+        response = None
         try:
             request = self.NODE_IF.create_request_msg(service_name)
-            request.folder_path = folder_path
-            response = self.NODE_IF.call_service(service_name, request)
+            request.type = folder_name
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
+        try:
+            response = self.NODE_IF.call_service(service_name, request)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
 
         # Process Response
         if response is None or response == "":
@@ -218,21 +222,22 @@ class ConnectMgrSystemIF:
     def get_op_env_str(self):
         service_name = 'sys_env'
         env_str = None
-
-        request = None
+        response = None
         try:
             request = self.NODE_IF.create_request_msg(service_name)
-            request.folder_path = folder_path
-            response = self.NODE_IF.call_service(service_name, request)
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
+        try:
+            response = self.NODE_IF.call_service(service_name, request)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
 
         # Process Response
         if response is None:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
             env_str = response.op_env
-            self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system env response" + str(response) + " for service: " + service_name)
 
         return env_str
 
@@ -240,13 +245,15 @@ class ConnectMgrSystemIF:
         service_name = 'sw_status'
         status_dict = None
 
-        request = None
+        response = None
         try:
             request = self.NODE_IF.create_request_msg(service_name)
-            request.folder_path = folder_path
-            response = self.NODE_IF.call_service(service_name, request)
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
+        try:
+            response = self.NODE_IF.call_service(service_name, request)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
 
         # Process Response
         if response is None:
@@ -254,7 +261,7 @@ class ConnectMgrSystemIF:
         else:
             status_dict = nepi_ros.convert_msg2dict(response)
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got system status response" + str(status_dict) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system software response" + str(status_dict) + " for service: " + service_name)
 
         return status_dict
 
@@ -262,13 +269,15 @@ class ConnectMgrSystemIF:
     def get_system_stats_dict(self):
         service_name = 'sys_defs'
         stats_dict = None
-        request = None
+        response = None
         try:
             request = self.NODE_IF.create_request_msg(service_name)
-            request.folder_path = folder_path
-            response = self.NODE_IF.call_service(service_name, request)
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
+        try:
+            response = self.NODE_IF.call_service(service_name, request)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
 
         # Process Response
         if response is None:
@@ -276,7 +285,7 @@ class ConnectMgrSystemIF:
         else:
             stats_dict = nepi_ros.convert_msg2dict(response)['defs']
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got stats dict" + str(stats_dict) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system stats dict" + str(stats_dict) + " for service: " + service_name)
 
         return stats_dict
 
@@ -301,7 +310,7 @@ class ConnectMgrSystemIF:
 
     # Update System Status
     def _statusCb(self,msg):
-        self.msg_if.pub_warn("Got System Status Msg")
+        #self.msg_if.pub_warn("Got System Status Msg")
         self.status_msg = msg
         self.status_connected = True
 
