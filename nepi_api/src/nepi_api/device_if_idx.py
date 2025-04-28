@@ -450,14 +450,6 @@ class IDXDeviceIF:
                 'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
-            'reset_factory': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/reset_factory',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.factoryResetControslCb, 
-                'callback_args': ()
-            },
             'update_device_name': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/update_device_name',
@@ -552,7 +544,7 @@ class IDXDeviceIF:
             'add_node_name': True
             }
 
-        self.save_data_if = SaveDataIF(data_product_names = self.data_products_list,
+        self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                      factory_data_rate_dict = factory_data_rates,
                                      factory_filename_dict = factory_filename_dict)
 

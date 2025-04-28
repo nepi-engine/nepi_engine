@@ -226,20 +226,23 @@ class config_mgr(object):
         return qualified_node_name.split("/")[-1]
 
     def update_from_file(self,file_pathname, namespace):
-        self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
-        paramlist = None
-        try:
-            paramlist = nepi_ros.load_params_from_file(file_pathname, namespace)
-            #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
-        except Exception as e:
-            self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
-        if paramlist is not None:
+        if os.path.exists(file_pathname) == False:
+            return [False]
+        else:
+            self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
+            paramlist = None
             try:
-                for params, ns in paramlist:
-                    nepi_ros.upload_params(ns, params, verbose=False)
+                paramlist = nepi_ros.load_params_from_file(file_pathname, namespace)
+                #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
             except Exception as e:
-                self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
-                return [False]
+                self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
+            if paramlist is not None:
+                try:
+                    for params, ns in paramlist:
+                        nepi_ros.upload_params(ns, params, verbose=False)
+                except Exception as e:
+                    self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
+                    return [False]
 
         return [True]
 

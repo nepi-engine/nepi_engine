@@ -27,7 +27,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_ros_interfaces.msg import Message
 
 from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 
 from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
@@ -662,7 +662,7 @@ class SettingsIF(object):
     #######################
     ### IF Initialization
     def __init__(self, 
-                settings_dict
+                settings_dict,
                     ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -678,6 +678,10 @@ class SettingsIF(object):
 
         #############################
         # Initialize Class Variables
+        if 'namespace' not in settings_dict.keys():
+            namespace = None
+        else:
+            namespace = settings_dict['namespace']
         if namespace is None:
             namespace = '~'
         self.namespace = nepi_ros.get_full_namespace(namespace)
@@ -747,6 +751,7 @@ class SettingsIF(object):
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
+                'namespace': self.namespace,
                 'msg': Settings,
                 'topic': 'settings_status',
                 'qsize': 1,
