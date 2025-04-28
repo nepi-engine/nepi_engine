@@ -147,7 +147,7 @@ class ConnectMgrConfigIF:
             nepi_ros.sleep(.2)
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
-            self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
+            self.msg_if.pub_warn("Status msg topic subscribe timed out")
             success = False
         else:
             pass

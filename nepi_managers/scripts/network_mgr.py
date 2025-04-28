@@ -99,6 +99,7 @@ class NetworkMgr:
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         status_dict = mgr_sys_if.get_status_dict()
+        self.msg_if.pub_warn("Got System Status Dict: " + str(status_dict))
         self.in_container = status_dict['in_container']
         
         

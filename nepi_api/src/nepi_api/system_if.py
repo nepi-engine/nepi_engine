@@ -167,7 +167,7 @@ class SaveDataIF(object):
         self.PARAMS_DICT = {
             'save_rate_dict': {
                 'namespace': self.namespace,
-                'factory_val': ave_rate_dict
+                'factory_val': save_rate_dict
             },
             'save_data': {
                 'namespace': self.namespace,
@@ -355,13 +355,13 @@ class SaveDataIF(object):
         save_rate_dict = nepi_ros.get_param('save_rate_dict')
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
-            self.node_if.get_param('save_rate_dict',save_rate_dict)
+            self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()    
     def register_data_product(self, data_product):
         save_rate_dict = self.node_if.get_param('save_rate_dict')
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
-            self.node_if.get_param('save_rate_dict',save_rate_dict)
+            self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()
 
     def set_save_prefix(self,prefix = ""):
@@ -416,13 +416,13 @@ class SaveDataIF(object):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
             self.msg_if.publish_warn("Requested unknown data product: " + data_product)           
-        self.node_if.get_param('save_rate_dict',save_rate_dict)
+        self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()
         
 
     def set_save_enable(self, save_data = False):
         self.save_data = save_data
-        self.node_if.get_param('save_data', save_data)
+        self.node_if.set_param('save_data', save_data)
         self.publish_status()       
 
 
@@ -461,7 +461,7 @@ class SaveDataIF(object):
         elapsed = now - save_rate_dict[data_product][1]
         if (elapsed >= save_period):
             save_rate_dict[data_product][1] = now
-            self.node_if.get_param('save_rate_dict',save_rate_dict)
+            self.node_if.set_param('save_rate_dict',save_rate_dict)
             return True
         return False
 
@@ -548,9 +548,9 @@ class SaveDataIF(object):
             #self.msg_if.publish_warn("data_rates_msg " + str(save_rates_msg))
         status_msg = SaveDataStatus()
         status_msg.current_data_dir = ""
-        status_msg.current_filename_prefix = self.prefix
+        status_msg.current_filename_prefix = self.read_write_if.get_filename_prefix()
         status_msg.save_data_rates = save_rates_msg
-        status_msg.save_data = self.save_data
+        status_msg.save_data = self.node_if.get_param('save_data')
 
         if self.save_data_root_directory is not None:
             status_msg.current_data_dir = self.save_data_root_directory
@@ -601,7 +601,7 @@ class SaveDataIF(object):
         self.node_if.reset_params()
         self.publish_status()
 
-    def _factroyResetCb(self,reset_msg):
+    def _factoryResetCb(self,reset_msg):
         self.msg_if.pub_info("Recieved save data factory reset msg")
         self.node_if.factory_reset_params()
         self.publish_status()

@@ -105,20 +105,20 @@ class ReadWriteIF:
             'dict': {
                 'data_type': dict,
                 'file_types': ['yaml'],
-                'read_func': self.read_yaml_2_dict,
-                'write_func': self.write_dict_2_yaml
+                'read_func': self.read_dict_file,
+                'write_func': self.write_dict_file
             },
             'image': {
                 'data_type': np.ndarray,
                 'file_types': ['png','PNG','jpg','jpeg','JPG'],
-                'read_func': self.read_img_2_cv2img,
-                'write_func': self.write_cv2img_2_img 
+                'read_func': self.read_image_file,
+                'write_func': self.write_image_file 
             },
             'pointcloud': {
                 'data_type': o3d.geometry.PointCloud,
                 'file_types': ['pcd'],
-                'read_func': self.read_pcb_2_o3dp,
-                'write_func': self.write_o3dpc_2_pcd 
+                'read_func': self.read_pointcloud_file,
+                'write_func': self.write_pointcloud_file 
             },
         }
 
@@ -748,12 +748,12 @@ class ImageIF:
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
         self.status_msg = status_msg
-
+        '''
         ##############################
         ## Connect NEPI NavPose Manager
         self.nav_mgr_if = ConnectMgrNavPoseIF()
         self.nav_mgr_ready = self.nav_mgr_if.wait_for_ready()
-
+        '''
         ##############################   
         ## Node Setup
 
@@ -943,7 +943,7 @@ class ImageIF:
             if self.node_if.get_param('overlay_date_time') == True:
                 date_time = nepi_ros.get_datetime_str_from_stamp(timestamp)
                 overlay_list.append(overlay)
-
+            '''
             nav_pose_dict = None
             if self.node_if.get_param('overlay_nav') == True or self.node_if.get_param('overlay_pose') == True:
                 if self.nav_mgr_ready == True:
@@ -957,7 +957,7 @@ class ImageIF:
                         if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
                             overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
                             overlay_list.append(overlay)
-
+            '''
             overlay_list = overlay_list + self.init_overlay_list + add_overlay_list
 
             cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
@@ -1021,7 +1021,7 @@ class ImageIF:
         self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
 
         self.node_if.publish_pub('status_pub',self.status_msg)
-        self.img_status_msg.publish(self.status_msg)
+        
 
     def _setOverlayImgNameCb(self,msg):
         self.node_if.set_param('overlay_img_name', msg.data)
@@ -1039,7 +1039,7 @@ class ImageIF:
         self.node_if.set_param('overlay_pose', msg.data)
         self.publishStatus()
 
-    def _setAddOverlayListCb(self,msg):
+    def _setOverlayListCb(self,msg):
         self.node_if.set_param('add_overlay_list', msg.data)
         self.publishStatus()
 

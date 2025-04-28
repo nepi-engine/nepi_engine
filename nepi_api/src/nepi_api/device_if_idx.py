@@ -797,10 +797,10 @@ class IDXDeviceIF:
     def addDataProduct2Dict(self,data_product,start_data_function,stop_data_function,data_msg,data_status_msg):
         success = False
         data_product = data_product
-        pub_namespace = os.path.join(self.base_namespace,self.node_name,'idx')
+        namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['namespace'] = pub_namespace
+        dp_dict['namespace'] = namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
@@ -817,11 +817,15 @@ class IDXDeviceIF:
             data_product_raw = data_product + '_raw'
             dp_dict = dict()
             dp_dict['data_product'] = data_product_raw
-            dp_dict['namespace'] = pub_namespace
+            dp_dict['namespace'] = namespace
+
+            dp_dict['get_data'] = start_data_function
+            dp_dict['stop_data'] = stop_data_function
+
             if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(namespace = pub_namespace, topic = data_product_raw)
+                dp_dict['data_if'] = ImageIF(namespace = namespace, topic = data_product_raw)
             else:
-                dp_dict['data_if'] = PointcloudIF(namespace = pub_namespace, topic = data_product_raw)
+                dp_dict['data_if'] = PointcloudIF(namespace = namespace, topic = data_product_raw)
 
             self.data_products_list.append(data_product)
             self.data_product_dict[data_product] = dp_dict
@@ -943,7 +947,7 @@ class IDXDeviceIF:
 
 
     def setThresholdingCb(self, msg):
-        self.msg_if.pub_info("Recived Threshold update message: " + str(msg))
+        self.msg_if.pub_info("Received Threshold update message: " + str(msg))
         new_thresholding = msg.data
 
         if (new_thresholding < 0.0 or new_thresholding > 1.0):
@@ -1157,6 +1161,7 @@ class IDXDeviceIF:
 
                 # Get Data Product Dict and Data_IF
                 dp_dict = self.data_product_dict[data_product]
+                self.msg_if.pub_warn("Accessing data_product dict: " + data_product + " " + str(dp_dict))
                 dp_get_data = dp_dict['get_data']
                 dp_stop_data = dp_dict['stop_data']
                 dp_if = dp_dict['data_if']
@@ -1169,6 +1174,8 @@ class IDXDeviceIF:
                 data_product_raw = data_product + '_raw'
                 if data_product_raw not in self.data_product_dict.keys():
                     dp_raw_if = None
+                    dp_raw_has_subs = False
+                    dp_raw_should_save = False
                 else:
                     dp_raw_dict = self.data_product_dict[data_product_raw]
                     dp_raw_if = dp_raw_dict['data_if']
