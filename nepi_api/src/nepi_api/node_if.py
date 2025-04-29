@@ -599,12 +599,13 @@ class NodePublishersIF(object):
     def get_pubs(self):
         return list(self.pubs_dict.keys())
 
-    def has_subscribers(self,pub_name):
+    def has_subscribers_check(self,pub_name):
         has_subs = False
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
+                #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs))
         return has_subs
 
     def publish(self,pub_name,pub_msg):
@@ -936,7 +937,7 @@ class NodeClassIF(object):
         if params_dict is not None:
             self.msg_if.pub_info("Starting Node Params IF Initialization Processes")
             self.params_if = NodeParamsIF(params_dict = params_dict, log_name = log_name)
-            ready = self.params_if.wait_for_ready()
+
 
         ##############################  
         # Create Config Class After Params
@@ -952,28 +953,28 @@ class NodeClassIF(object):
                     'namespace': self.node_namespace
             }
             self.configs_if = NodeConfigsIF(configs_dict = configs_dict, log_name = log_name)
-            ready = self.configs_if.wait_for_ready()
+
 
         ##############################  
         # Create Services Class
         if services_dict is not None:
             self.msg_if.pub_info("Starting Node Services IF Initialization Processes")
             self.srvs_if = NodeServicesIF(services_dict = services_dict, log_name = log_name)
-            ready = self.srvs_if.wait_for_ready()
+
 
         ##############################  
         # Create Publisers Class
         if pubs_dict is not None:
             self.msg_if.pub_info("Starting Node Publishers IF Initialization Processes")
             self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, log_name = log_name, do_wait = self.do_wait)
-            ready = self.pubs_if.wait_for_ready()
+
 
         ##############################  
         # Create Subscribers Class
         if subs_dict is not None:
             self.msg_if.pub_info("Starting Node Subscribers IF Initialization Processes")
             self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, log_name = log_name)
-            ready = self.subs_if.wait_for_ready()
+
             
         ############################## 
         # Wait for ready
@@ -1139,7 +1140,7 @@ class NodeClassIF(object):
     def pub_has_subscribers(self,pub_name):
         has_subs = False
         if self.pubs_if is not None:
-            has_subs = self.pubs_if.has_subscribers(pub_name)
+            has_subs = self.pubs_if.has_subscribers_check(pub_name)
         return has_subs
 
     def register_pub(self,pub_name, pub_dict):
@@ -1158,6 +1159,7 @@ class NodeClassIF(object):
     def publish_pub(self,pub_name, pub_msg):
         if self.pubs_if is not None:
             self.pubs_if.publish(pub_name, pub_msg)   
+            
     # Subscriber Methods ####################
     def get_subs(self):
         subs = []

@@ -199,35 +199,35 @@ class LSXDeviceIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'lsx/device_name': {
+            'device_name': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_device_name
             },
-            'lsx/standby_enabled': {
+            'standby_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("standby_enabled")
             },
-            'lsx/on_off_state': {
+            'on_off_state': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("on_off_state")
             },
-            'lsx/intensity_ratio': {
+            'intensity_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("intensity_ratio")
             },
-            'lsx/color_selection': {
+            'color_selection': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("color_selection")
             },
-            'lsx/kelvin_val': {
+            'kelvin_val': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("kelvin_val")
             }, 
-            'lsx/strobe_enbled': {
+            'strobe_enbled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("strobe_enbled")
             },
-            'lsx/blink_interval_sec': {
+            'blink_interval_sec': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
             }
@@ -236,7 +236,7 @@ class LSXDeviceIF:
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
-            'lsx/capabilities_query': {
+            'capabilities_query': {
                 'namespace': self.node_namespace,
                 'topic': 'lsx/capabilities_query',
                 'srv': LSXCapabilitiesQuery,
@@ -347,7 +347,7 @@ class LSXDeviceIF:
         }
 
         # Create Node Class ####################
-        self.NODE_IF = NodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
@@ -356,7 +356,7 @@ class LSXDeviceIF:
                         log_class_name = True
         )
 
-        ready = self.NODE_IF.wait_for_ready()
+        ready = self.node_if.wait_for_ready()
 
 
         # Setup Settings IF Class ####################
@@ -440,34 +440,34 @@ class LSXDeviceIF:
 
         def UpdateDevice(self):
             if self.standbyEnableFunction is not None:
-              val = self.nepi_if.get_param('lsx/standby_enabled')
+              val = self.node_if.get_param('standby_enabled')
               self.standbyEnableFunction(val)
             if self.turnOnOffFunction is not None:
-              val = self.nepi_if.get_param('lsx/on_off_state')
+              val = self.node_if.get_param('on_off_state')
               self.turnOnOffFunction(val)
             if self.setIntensityRatioFunction is not None:
-              val = self.nepi_if.get_param('lsx/intensity_ratio')
+              val = self.node_if.get_param('intensity_ratio')
               self.setIntensityRatioFunction(val)
             if self.setColorFunction is not None:
-              val = self.nepi_if.get_param('lsx/color_selection')
+              val = self.node_if.get_param('color_selection')
               self.setColorFunction(val)
             if self.setKelvinFunction is not None:
-              val = self.nepi_if.get_param('lsx/kelvin_val')
+              val = self.node_if.get_param('kelvin_val')
               self.setKelvinFunction(val)
             if self.enableStrobeFunction is not None:
-              val = self.nepi_if.get_param('lsx/strobe_enbled')
+              val = self.node_if.get_param('strobe_enbled')
               self.enableStrobeFunction(val)
 
         nepi_ros.sleep
         def resetControlsCb(self, msg):
             self.msg_if.pub_info("Resetting LSX Device Controls")
-            self.nepi_if.set_param('lsx/standby_enabled', self.init_standby_enabled)
-            self.nepi_if.set_param('lsx/on_off_state', self.init_on_off_state)
-            self.nepi_if.set_param('lsx/intensity_ratio', self.init_intensity_ratio)
-            self.nepi_if.set_param('lsx/color_selection', self.init_color_selection)
-            self.nepi_if.set_param('lsx/kelvin_val', self.init_kelvin_val)
-            self.nepi_if.set_param('lsx/strobe_enbled', self.init_strobe_enbled)
-            self.nepi_if.set_param('lsx/blink_interval_sec', self.init_blink_interval_sec)
+            self.node_if.set_param('standby_enabled', self.init_standby_enabled)
+            self.node_if.set_param('on_off_state', self.init_on_off_state)
+            self.node_if.set_param('intensity_ratio', self.init_intensity_ratio)
+            self.node_if.set_param('color_selection', self.init_color_selection)
+            self.node_if.set_param('kelvin_val', self.init_kelvin_val)
+            self.node_if.set_param('strobe_enbled', self.init_strobe_enbled)
+            self.node_if.set_param('blink_interval_sec', self.init_blink_interval_sec)
             self.UpdateDevice()
             self.publish_status()
 
@@ -514,16 +514,15 @@ class LSXDeviceIF:
         ### Status callback
         def publish_status(self):
           # update status values from device
-          blink_interval = self.nepi_if.get_param('lsx/blink_interval_sec')
+          blink_interval = self.node_if.get_param('blink_interval_sec')
           if self.getStatusFunction is not None:
             status_msg=self.getStatusFunction()
-            status_msg.user_name = self.nepi_if.get_param('lsx/device_name')
-            status_msg.on_off_state = self.nepi_if.get_param('lsx/on_off_state')
-            if not nepi_ros.is_shutdown():
-              try:
-                self.status_pub.publish(status_msg)
-              except Exception as e:
-                self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
+            status_msg.user_name = self.node_if.get_param('device_name')
+            status_msg.on_off_state = self.node_if.get_param('on_off_state')
+            try:
+              self.node_if.publish_pub('status_pub',self.status_msg)
+            except Exception as e:
+              self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
 
         ### Capabilities callback
@@ -545,8 +544,7 @@ class LSXDeviceIF:
             if valid_name is False:
                 self.update_error_msg("Received invalid device name update: " + new_device_name)
             else:
-                self.nepi_if.set_param('lsx/device_name', new_device_name)
-            self.device_save_config_pub.publish(Empty())
+                self.node_if.set_param('device_name', new_device_name)
             self.publish_status()
 
 
@@ -556,8 +554,7 @@ class LSXDeviceIF:
             self.resetDeviceName()
 
         def resetDeviceName(self):
-            self.nepi_if.set_param('lsx/device_name', self.factory_device_name)
-            self.device_save_config_pub.publish(Empty())
+            self.node_if.set_param('device_name', self.factory_device_name)
             self.publish_status()
 
         ### LSX callbacks
@@ -566,7 +563,7 @@ class LSXDeviceIF:
           standby=standby_msg.data
           if self.standbyEnableFunction is not None:
             self.standbyEnableFunction(standby)
-          self.nepi_if.set_param('lsx/standby_enabled', standby)
+          self.node_if.set_param('standby_enabled', standby)
           self.publish_status()
 
 
@@ -575,7 +572,7 @@ class LSXDeviceIF:
           on_off=on_off_msg.data
           if self.turnOnOffFunction is not None:
             self.turnOnOffFunction(on_off)
-          self.nepi_if.set_param('lsx/on_off_state', on_off)
+          self.node_if.set_param('on_off_state', on_off)
           self.publish_status()
 
         ### Set intensity callback
@@ -584,7 +581,7 @@ class LSXDeviceIF:
           intensity=intensity_msg.data
           if self.setIntensityRatioFunction is not None:
             self.setIntensityRatioFunction(intensity)
-          self.nepi_if.set_param('lsx/intensity_ratio', intensity)
+          self.node_if.set_param('intensity_ratio', intensity)
           self.publish_status()
 
         ### Set color selection callback
@@ -594,7 +591,7 @@ class LSXDeviceIF:
           if color in self.color_options_list:
             if self.setColorFunction is not None:
               self.setColorFunction(color)
-            self.nepi_if.set_param('lsx/color_selection', color)
+            self.node_if.set_param('color_selection', color)
           self.publish_status()
 
         ### Set kelvin value callback
@@ -604,7 +601,7 @@ class LSXDeviceIF:
           if kelvin >= self.kelvin_limits_list[0] and kelvin <= self.kelvin_limits_list[1]:
             if self.setKelvinFunction is not None:
               self.setKelvinFunction(kelvin)
-            self.nepi_if.set_param('lsx/kelvin_val', kelvin)
+            self.node_if.set_param('kelvin_val', kelvin)
           self.publish_status()
 
         def setStrobeEnableCb(self, strobe_enable_msg):
@@ -612,7 +609,7 @@ class LSXDeviceIF:
           strobe_enable=strobe_enable_msg.data
           if self.enableStrobeFunction is not None:
             self.enableStrobeFunction(strobe_enable)
-          self.nepi_if.set_param('lsx/strobe_enbled', strobe_enable)
+          self.node_if.set_param('strobe_enbled', strobe_enable)
           self.publish_status()
 
 
@@ -622,14 +619,10 @@ class LSXDeviceIF:
           blink_interval = blink_int_msg.data
           if self.blinkOnOffFunction is not None:
             self.blinkOnOffFunction(blink_interval)
-          self.nepi_if.set_param('lsx/blink_interval_sec', blink_int)
+          self.node_if.set_param('blink_interval_sec', blink_int)
           self.publish_status()
 
-            
-        def publishMsg(self,msg):
-          msg_str = (self.node_name + ": " + str(msg))
-          self.msg_if.pub_info(msg_str)
-          self.msg_pub.publish(msg_str)
+
 
 
           

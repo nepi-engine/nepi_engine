@@ -11,6 +11,8 @@
 import os
 import time
 import numpy as np
+import copy
+import threading
 import cv2
 import open3d as o3d
 
@@ -412,7 +414,8 @@ class NavPoseIF:
 
     last_pub_time = None
 
-    has_subscribers = False
+    has_subs = False
+    has_subs_lock = threading.Lock()
 
 
     def __init__(self, namespace = None, topic = 'navpose',
@@ -556,7 +559,11 @@ class NavPoseIF:
 
 
     def has_subscribers_check(self):
-        return self.has_subscribers
+        self.has_subs_lock.acquire()
+        has_subs = copy.deepcopy(self.has_subs)
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
+        return has_subs
 
 
     # Update System Status
@@ -567,6 +574,10 @@ class NavPoseIF:
         else:
             # Pub NavPoseData
             if self.node_if is not None:
+
+                self.has_subs_lock.acquire()
+                has_subs = copy.deepcopy(self.has_subs)
+                self.has_subs_lock.release()
 
                 if timestamp == None:
                     timestamp = nepi_ros.ros_time_now()
@@ -673,10 +684,13 @@ class NavPoseIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = self.node_if.pub_has_subscribers('navpose_pub')
-        #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
-        if self.has_subscribers == False:
+        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
+        if has_subs == False:
             self.status_msg.publishing = False
+        self.has_subs_lock.acquire()
+        self.has_subs = has_subs
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 
@@ -710,7 +724,8 @@ class ImageIF:
     nav_mgr_if = None
     nav_mgr_ready = False
 
-    has_subscibers = False
+    has_subs = False
+    has_subs_lock = threading.Lock()
 
 
     def __init__(self, namespace = None , topic = 'image', init_overlay_list = []):
@@ -891,7 +906,11 @@ class ImageIF:
 
 
     def has_subscribers_check(self):
-        return self.has_subscribers
+        self.has_subs_lock.acquire()
+        has_subs = copy.deepcopy(self.has_subs)
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
+        return has_subs
 
 
     def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
@@ -924,16 +943,22 @@ class ImageIF:
 
         #self.msg_if.pub_warn("Got Image size: " + str([height,width]))
 
-        if self.has_subscribers == False:
+        self.has_subs_lock.acquire()
+        has_subs = copy.deepcopy(self.has_subs)
+        self.has_subs_lock.release()
+
+        if has_subs == False:
+            #self.msg_if.pub_warn("Image has no subscribers")
             if self.status_msg.publishing == True:
                 self.msg_if.pub_warn("Image has no subscribers")
             self.status_msg.publishing = False
 
         else:
+            #self.msg_if.pub_warn("Image has subscribers, will publish")
             if self.status_msg.publishing == False:
                 self.msg_if.pub_warn("Image has subscribers, will publish")
             self.status_msg.publishing = True
-
+            '''
             # Apply Overlays
             overlay_list = []
             if self.node_if.get_param('overlay_img_name') == True:
@@ -943,7 +968,7 @@ class ImageIF:
             if self.node_if.get_param('overlay_date_time') == True:
                 date_time = nepi_ros.get_datetime_str_from_stamp(timestamp)
                 overlay_list.append(overlay)
-            '''
+
             nav_pose_dict = None
             if self.node_if.get_param('overlay_nav') == True or self.node_if.get_param('overlay_pose') == True:
                 if self.nav_mgr_ready == True:
@@ -957,12 +982,12 @@ class ImageIF:
                         if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
                             overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
                             overlay_list.append(overlay)
-            '''
+ 
             overlay_list = overlay_list + self.init_overlay_list + add_overlay_list
 
             cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
 
-
+            '''
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = timestamp
@@ -1006,10 +1031,13 @@ class ImageIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = self.node_if.pub_has_subscribers('image_pub')
-        #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
-        if self.has_subscribers == False:
+        has_subs = self.node_if.pub_has_subscribers('image_pub')
+        if has_subs == False:
             self.status_msg.publishing = False
+        self.has_subs_lock.acquire()
+        self.has_subs = has_subs
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
@@ -1066,7 +1094,8 @@ class PointcloudIF:
 
     last_pub_time = None
 
-    has_subscribers = False
+    has_subs = False
+    has_subs_lock = threading.Lock()
 
     def __init__(self, namespace = None, topic = 'pointcloud'):
         self.class_name = type(self).__name__
@@ -1184,7 +1213,11 @@ class PointcloudIF:
 
 
     def has_subscribers_check(self):
-        return self.has_subscribers
+        self.has_subs_lock.acquire()
+        has_subs = copy.deepcopy(self.has_subs)
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
+        return has_subs
 
 
     def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_id = 'sensor_frame'):
@@ -1222,9 +1255,14 @@ class PointcloudIF:
 
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        if self.has_subscribers == False:
+        self.has_subs_lock.acquire()
+        has_subs = copy.deepcopy(self.has_subs)
+        self.has_subs_lock.release()
+
+
+        if self.has_subs == False:
             if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Image has no subscribers")
+                self.msg_if.pub_warn("Pointcloud has no subscribers")
             self.status_msg.publishing = False
         else:
             if self.status_msg.publishing == False:
@@ -1269,10 +1307,13 @@ class PointcloudIF:
     ###############################
 
     def _subscribersCheckCb(self,timer):
-        self.has_subscribers = self.node_if.pub_has_subscribers('pointcloud_pub')
-        #self.msg_if.pub_warn("Sub check gotsubscribers: " + str(self.has_subscribers))
-        if self.has_subscribers == False:
+        has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
+        if has_subs == False:
             self.status_msg.publishing = False
+        self.has_subs_lock.acquire()
+        self.has_subs = has_subs
+        self.has_subs_lock.release()
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 

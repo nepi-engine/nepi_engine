@@ -682,7 +682,7 @@ class RBXRobotIF:
 
 
         # Create Node Class ####################
-        self.NODE_IF = NodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
@@ -691,7 +691,7 @@ class RBXRobotIF:
                         log_class_name = True
         )
 
-        ready = self.NODE_IF.wait_for_ready()
+        ready = self.node_if.wait_for_ready()
 
 
         # Setup Data IF Classes ####################

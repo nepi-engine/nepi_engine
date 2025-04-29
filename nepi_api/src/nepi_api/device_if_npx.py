@@ -269,7 +269,7 @@ class NPXDeviceIF:
 
 
     # Create Node Class ####################
-    self.NODE_IF = NodeClassIF(
+    self.node_if = NodeClassIF(
                     configs_dict = self.CFGS_DICT,
                     params_dict = self.PARAMS_DICT,
                     services_dict = self.SRVS_DICT,
@@ -278,7 +278,7 @@ class NPXDeviceIF:
                     log_class_name = True
     )
 
-    ready = self.NODE_IF.wait_for_ready()
+    ready = self.node_if.wait_for_ready()
 
 
     # Setup Settings IF Class ####################
@@ -364,7 +364,7 @@ class NPXDeviceIF:
       self.status_msg.pub_rate = self.nepi_ros.get_param('pub_rate')
       self.status_msg.frame_3d = self.nepi_ros.get_param('frame_3d')
       self.status_msg.frame_alt = self.nepi_ros.get_param('frame_alt')
-      self.status_pub.publish(self.status_msg)
+      self.node_if.publish_pub('status_pub',self.status_msg)
 
     ###############################
     # Class Private Methods

@@ -772,20 +772,23 @@ def ros_rate(time_s):
 
 # Sleep process that breaks sleep into smaller times for better shutdown
 def sleep(sleep_sec,sleep_steps = None):
-  if sleep_steps is None:
-    if sleep_sec >= 1:
-      sleep_steps = int(sleep_sec * 10)
-    else:
-      sleep_steps = 1
-  if sleep_sec > 0 and sleep_steps >= 0:
-    if sleep_steps != 0:
-      delay_timer = 0
-      delay_sec = sleep_sec/sleep_steps
-      while delay_timer < sleep_sec and not rospy.is_shutdown():
-        rospy.sleep(delay_sec)
-        delay_timer = delay_timer + delay_sec
-    else:
-      rospy.sleep(sleep_sec)
+  if sleep_sec <= 1:
+    time.sleep(sleep_sec)
+  else:
+    if sleep_steps is None:
+      if sleep_sec > 1:
+        sleep_steps = int(sleep_sec * 10)
+      else:
+        sleep_steps = 1
+    if sleep_sec > 0 and sleep_steps >= 0:
+      if sleep_steps != 0:
+        delay_timer = 0
+        delay_sec = sleep_sec/sleep_steps
+        while delay_timer < sleep_sec and not rospy.is_shutdown():
+          time.sleep(delay_sec)
+          delay_timer = delay_timer + delay_sec
+      else:
+        time.sleep(sleep_sec)
   return True
 
 

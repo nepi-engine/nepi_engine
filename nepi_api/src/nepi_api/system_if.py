@@ -121,7 +121,7 @@ class SaveDataIF(object):
         self.save_data_root_directory = self.sys_mgr_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
-            self.msg_if.publish_warn("Reported data folder does not exist... data saving is disabled")
+            self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled")
             self.save_data_root_directory = None # Flag it as non-existent
             return # Don't enable any of the ROS interface stuff
         self.save_path = self.save_data_root_directory
@@ -383,7 +383,7 @@ class SaveDataIF(object):
             full_path = self.save_data_root_directory
         else:
             full_path = ""
-        #self.msg_if.publish_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
+        #self.msg_if.pub_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
         if not os.path.exists(full_path):
             self.msg_if.pub_info("Creating new data subdirectory " + full_path)
             try:
@@ -415,7 +415,7 @@ class SaveDataIF(object):
         elif (data_product in save_rate_dict):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
-            self.msg_if.publish_warn("Requested unknown data product: " + data_product)           
+            self.msg_if.pub_warn("Requested unknown data product: " + data_product)           
         self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()
         
@@ -434,7 +434,7 @@ class SaveDataIF(object):
                 return False
 
             if data_product not in save_rate_dict:
-                self.msg_if.publish_warn("Unknown data product " + data_product)
+                self.msg_if.pub_warn("Unknown data product " + data_product)
                 return False
 
             save_rate = save_rate_dict[data_product][0]
@@ -449,7 +449,7 @@ class SaveDataIF(object):
             return False
 
         if data_product not in save_rate_dict:
-            self.msg_if.publish_warn("Unknown data product " + data_product)
+            self.msg_if.pub_warn("Unknown data product " + data_product)
             return False
 
         save_rate = save_rate_dict[data_product][0]
@@ -538,14 +538,17 @@ class SaveDataIF(object):
     def publish_status(self):
         save_rates_msg = []
         save_rate_dict = self.node_if.get_param('save_rate_dict')
-        #self.msg_if.publish_warn("save_rate_dict " + str(save_rate_dict))
+        self.msg_if.pub_warn("save_rate_dict " + str(save_rate_dict))
         for name in save_rate_dict.keys():
             save_rate_msg = SaveDataRate()
-            rate = round(save_rate_dict[name][0])
+            try:
+                rate = round(save_rate_dict[name][0])
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to get rate for data_product: " + name + " " + str(e))
             save_rate_msg.data_product = name
             save_rate_msg.save_rate_hz = rate
             save_rates_msg.append(save_rate_msg)
-            #self.msg_if.publish_warn("data_rates_msg " + str(save_rates_msg))
+            #self.msg_if.pub_warn("data_rates_msg " + str(save_rates_msg))
         status_msg = SaveDataStatus()
         status_msg.current_data_dir = ""
         status_msg.current_filename_prefix = self.read_write_if.get_filename_prefix()

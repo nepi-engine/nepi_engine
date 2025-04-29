@@ -173,7 +173,7 @@ class PTXActuatorIF:
             self.getSpeedCb = getSpeedCb
             if self.setSpeedCb is not None and self.getSpeedCb is not None:
                 self.nepi_ros.create_subscriber('~ptx/set_speed_ratio', Float32, self.setSpeedRatioHandler, queue_size=1)
-                speed_ratio = self.nepi_if.get_param('ptx/speed_ratio')
+                speed_ratio = self.node_if.get_param('ptx/speed_ratio')
                 self.setSpeedCb(speed_ratio)
                 self.capabilities_report.adjustable_speed = True
                 self.has_adjustable_speed = True
@@ -483,7 +483,7 @@ class PTXActuatorIF:
 
 
         # Create Node Class ####################
-        self.NODE_IF = NodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
@@ -492,7 +492,7 @@ class PTXActuatorIF:
                         log_class_name = True
         )
 
-        ready = self.NODE_IF.wait_for_ready()
+        ready = self.node_if.wait_for_ready()
 
 
         # Setup Settings IF Class ####################
@@ -555,23 +555,23 @@ class PTXActuatorIF:
         ###############################
         # Finish Initialization
 
-        self.max_yaw_hardstop_deg = self.nepi_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        self.min_yaw_hardstop_deg = self.nepi_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        self.max_pitch_hardstop_deg = self.nepi_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        self.min_pitch_hardstop_deg = self.nepi_if.get_param('ptx/limits/min_pitch_hardstop_deg')
+        self.max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
+        self.min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
+        self.max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
+        self.min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
 
         # Soft limits
-        self.max_yaw_softstop_deg = self.nepi_if.get_param('ptx/limits/max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg = self.nepi_if.get_param('ptx/limits/min_yaw_softstop_deg')
-        self.max_pitch_softstop_deg = self.nepi_if.get_param('ptx/limits/max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.nepi_if.get_param('ptx/limits/min_pitch_softstop_deg')
+        self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
+        self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
+        self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
+        self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
 
 
-        self.frame_id = self.nepi_if.get_param('ptx/frame_id')
-        self.yaw_joint_name = self.nepi_if.get_param('ptx/yaw_joint_name')
-        self.pitch_joint_name = self.nepi_if.get_param('ptx/pitch_joint_name')
-        self.reverse_yaw_control = self.nepi_if.get_param('ptx/reverse_yaw_control')
-        self.reverse_pitch_control = self.nepi_if.get_param('ptx/reverse_pitch_control')
+        self.frame_id = self.node_if.get_param('ptx/frame_id')
+        self.yaw_joint_name = self.node_if.get_param('ptx/yaw_joint_name')
+        self.pitch_joint_name = self.node_if.get_param('ptx/pitch_joint_name')
+        self.reverse_yaw_control = self.node_if.get_param('ptx/reverse_yaw_control')
+        self.reverse_pitch_control = self.node_if.get_param('ptx/reverse_pitch_control')
         #self.msg_if.pub_warn("Factory Controls Dict: " + str(self.factory_controls_dict))
         #self.msg_if.pub_warn("reverse_yaw_control: " + str(self.reverse_yaw_control))
         # set class reverse int values
@@ -602,12 +602,12 @@ class PTXActuatorIF:
         
         # Gather capabilities - Config file takes precedence over parent-supplied defaults
         self.capabilities_report = PTXCapabilitiesQueryResponse()
-        self.has_absolute_positioning = self.nepi_if.get_param('ptx/capabilities/has_absolute_positioning')
+        self.has_absolute_positioning = self.node_if.get_param('ptx/capabilities/has_absolute_positioning')
         self.capabilities_report.absolute_positioning = self.has_absolute_positioning
         
-        self.capabilities_report.adjustable_speed = self.nepi_if.get_param('ptx/capabilities/has_speed_control')
-        self.capabilities_report.homing = self.nepi_if.get_param('ptx/capabilities/has_homing')
-        self.capabilities_report.waypoints = self.nepi_if.get_param('ptx/capabilities/has_waypoints')
+        self.capabilities_report.adjustable_speed = self.node_if.get_param('ptx/capabilities/has_speed_control')
+        self.capabilities_report.homing = self.node_if.get_param('ptx/capabilities/has_homing')
+        self.capabilities_report.waypoints = self.node_if.get_param('ptx/capabilities/has_waypoints')
         
 
         # Homing setup
@@ -620,8 +620,8 @@ class PTXActuatorIF:
                 self.msg_if.pub_warn("Inconsistent capabilities: homing reports true, but no goHome callback provided and no absolute positioning")
                 self.capabilities_report.homing = False
                 
-            self.home_yaw_deg = self.nepi_if.get_param('ptx/home_position/yaw_deg')
-            self.home_pitch_deg = self.nepi_if.get_param('ptx/home_position/pitch_deg')
+            self.home_yaw_deg = self.node_if.get_param('ptx/home_position/yaw_deg')
+            self.home_pitch_deg = self.node_if.get_param('ptx/home_position/pitch_deg')
                 
         # Waypoint setup
         if self.capabilities_report.waypoints is True:
@@ -637,7 +637,7 @@ class PTXActuatorIF:
         self.initCb(do_updates = True)
 
         # Periodic publishing
-        self.status_update_rate = self.nepi_if.get_param('status_update_rate_hz')   
+        self.status_update_rate = self.node_if.get_param('status_update_rate_hz')   
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_joint_state_pub_period = float(1.0) / self.status_update_rate
         self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_joint_state_pub_period))
@@ -733,10 +733,10 @@ class PTXActuatorIF:
                     self.pitch_goal_deg = pitch_now_deg
                 '''
                 self.status_msg.reverse_yaw_control = self.reverse_yaw_control
-                max_yaw_hs = self.nepi_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-                min_yaw_hs = self.nepi_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-                max_yaw_ss = self.nepi_if.get_param('ptx/limits/max_yaw_softstop_deg')
-                min_yaw_ss = self.nepi_if.get_param('ptx/limits/min_yaw_softstop_deg')
+                max_yaw_hs = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
+                min_yaw_hs = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
+                max_yaw_ss = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
+                min_yaw_ss = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
                 if self.reverse_yaw_control:
                     max_yaw_hardstop_deg = -1*min_yaw_hs
                     min_yaw_hardstop_deg = -1*max_yaw_hs
@@ -772,10 +772,10 @@ class PTXActuatorIF:
 
 
                 self.status_msg.reverse_pitch_control = self.reverse_pitch_control
-                max_pitch_hs = self.nepi_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-                min_pitch_hs = self.nepi_if.get_param('ptx/limits/min_pitch_hardstop_deg')
-                max_pitch_ss = self.nepi_if.get_param('ptx/limits/max_pitch_softstop_deg')
-                min_pitch_ss = self.nepi_if.get_param('ptx/limits/min_pitch_softstop_deg')
+                max_pitch_hs = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
+                min_pitch_hs = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
+                max_pitch_ss = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
+                min_pitch_ss = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
                 if self.reverse_pitch_control:
                     max_pitch_hardstop_deg = -1*min_pitch_hs
                     min_pitch_hardstop_deg = -1*max_pitch_hs
@@ -818,7 +818,7 @@ class PTXActuatorIF:
 
                 #self.msg_if.pub_warn("Publishing Status")
 
-                self.status_pub.publish(self.status_msg)
+                self.node_if.publish_pub('status_pub',self.status_msg)
 
 
                 yaw_rad = 0.01745329 * self.status_msg.yaw_now_deg
@@ -830,13 +830,13 @@ class PTXActuatorIF:
                     self.joint_state_msg.position[0] = yaw_rad
                     self.joint_state_msg.position[1] = pitch_rad
                     #self.msg_if.pub_warn("Publishing Joint")
-                    self.joint_pub.publish(self.joint_state_msg)
+                    self.node_if.publish_pub('joint_pub',self.joint_state_msg)
 
                 if self.odom_pub is not None:
                     self.odom_msg.header.stamp = self.status_msg.header.stamp
                     self.odom_msg.pose.pose.orientation = quaternion_from_euler(0.0, pitch_rad, yaw_rad)
                     #self.msg_if.pub_warn("Publishing Odom")
-                    self.odom_pub.publish(self.odom_msg)
+                    self.node_if.publish_pub('odom_pub',self.odom_msg)
 
 
     def positionWithinSoftLimits(self, yaw_deg, pitch_deg):
@@ -858,15 +858,15 @@ class PTXActuatorIF:
         if min_yaw < max_yaw and min_pitch < max_pitch:
             if min_yaw >= self.defaultSettings['min_yaw_hardstop_deg'] and max_yaw <= self.defaultSettings['max_yaw_hardstop_deg']:
                 if min_pitch >= self.defaultSettings['min_pitch_hardstop_deg'] and max_pitch <= self.defaultSettings['max_pitch_hardstop_deg']:
-                    self.nepi_if.set_param('ptx/limits/max_yaw_hardstop_deg', max_yaw)
-                    self.nepi_if.set_param('ptx/limits/min_yaw_hardstop_deg', min_yaw)
-                    self.nepi_if.set_param('ptx/limits/max_pitch_hardstop_deg', max_pitch)
-                    self.nepi_if.set_param('ptx/limits/min_pitch_hardstop_deg', min_pitch)
+                    self.node_if.set_param('ptx/limits/max_yaw_hardstop_deg', max_yaw)
+                    self.node_if.set_param('ptx/limits/min_yaw_hardstop_deg', min_yaw)
+                    self.node_if.set_param('ptx/limits/max_pitch_hardstop_deg', max_pitch)
+                    self.node_if.set_param('ptx/limits/min_pitch_hardstop_deg', min_pitch)
 
-                    self.nepi_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
-                    self.nepi_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
-                    self.nepi_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
-                    self.nepi_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
+                    self.node_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
+                    self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
+                    self.node_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
+                    self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
                     valid = True
         if valid == False:
             self.msg_if.pub_warn("Invalid hardstop requested " + str(msg))
@@ -878,18 +878,18 @@ class PTXActuatorIF:
         min_pitch = msg.min_pitch_deg
         max_pitch = msg.max_pitch_deg
 
-        max_yaw_hs = self.nepi_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        min_yaw_hs = self.nepi_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        max_pitch_hs = self.nepi_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        min_pitch_hs = self.nepi_if.get_param('ptx/limits/min_pitch_hardstop_deg')
+        max_yaw_hs = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
+        min_yaw_hs = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
+        max_pitch_hs = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
+        min_pitch_hs = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
 
         valid = False
         if min_yaw < max_yaw and max_yaw <= max_yaw_hs and min_yaw < max_yaw:  
             if min_pitch >= min_pitch_hs and max_pitch <= max_pitch_hs and min_pitch < max_pitch:
-                self.nepi_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
-                self.nepi_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
-                self.nepi_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
-                self.nepi_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
+                self.node_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
+                self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
+                self.node_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
+                self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
                 valid = True
         if valid == False:
             self.msg_if.pub_warn("Invalid softstop requested " + str(msg))
@@ -1063,7 +1063,7 @@ class PTXActuatorIF:
     def resetCb(self, do_updates = True):
         #**********************
         # This one comes from the parent
-        self.nepi_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
+        self.node_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
         #**********************
         
 
@@ -1072,7 +1072,7 @@ class PTXActuatorIF:
     def factoryResetCb(self, do_updates = True):
         #**********************
         # This one comes from the parent
-        self.nepi_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
+        self.node_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
         #**********************
 
     def passFunction(self):
