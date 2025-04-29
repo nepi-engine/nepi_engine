@@ -215,7 +215,7 @@ class PTXActuatorIF:
 
 
         # Set up status message static values
-        self.status_msg = PanTiltStatus()
+        self.status_msg = PTXStatus()
         self.status_msg.serial_num = self.serial_num
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
@@ -332,7 +332,7 @@ class PTXActuatorIF:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/status',
-                'msg': PanTiltStatus,
+                'msg': PTXStatus,
                 'qsize': 10,
                 'latch': False
             },
