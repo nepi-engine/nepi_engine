@@ -39,7 +39,7 @@ EXAMPLE_CFGS_DICT = {
 }
 '''
 
-class NodeConfigsIF(object):
+class NodeConfigsIF:
 
     msg_if = None
     ready = False
@@ -198,7 +198,7 @@ EXAMPLE_PARAMS_DICT = {
 '''
 
 
-class NodeParamsIF(object):
+class NodeParamsIF:
 
     msg_if = None
     ready = False
@@ -309,16 +309,10 @@ class NodeParamsIF(object):
             if 'init_val' in param_dict.keys():
                 fallback = param_dict['init_val']
             else:
-                try:
-                    fallback = param_dict['factory_val']
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get factory val: " + param_name + " " + str(e))  
-                    fallback = None
+                fallback = param_dict['factory_val']
+
             if fallback is not None:       
-                try:
-                    value = nepi_ros.get_param(namespace,fallback)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get param val: " + param_name + " " + str(e))  
+                 value = nepi_ros.get_param(namespace,fallback)
         return value
 
     def set_param(self, param_name, value):
@@ -370,7 +364,7 @@ EXAMPLE_SRVS_DICT = {
     }
 }
 '''
-class NodeServicesIF(object):
+class NodeServicesIF:
 
     msg_if = None
     ready = False
@@ -528,7 +522,7 @@ EXAMPLE_PUBS_DICT = {
 }
 '''
 
-class NodePublishersIF(object):
+class NodePublishersIF:
 
     msg_if = None
     ready = False
@@ -682,7 +676,7 @@ EXAMPLE_SUBS_DICT = {
     }
 }
 '''
-class NodeSubscribersIF(object):
+class NodeSubscribersIF:
 
     msg_if = None
     ready = False
@@ -883,7 +877,7 @@ EXAMPLE_NODE_IF = NodeClassIF(
 )
 '''
 
-class NodeClassIF(object):
+class NodeClassIF:
 
     ready = False
 
@@ -1073,40 +1067,28 @@ class NodeClassIF(object):
     def get_param(self, param_name):
         value = None
         if self.params_if is not None:
-            try:
-                value = self.params_if.get_param(param_name)
-            except:
-                pass
+            value = self.params_if.get_param(param_name)
+
         return value
 
     def set_param(self, param_name, value):
         success = False
         if self.params_if is not None:
-            try:
-                self.params_if.set_param(param_name,value)
-                success = True
-            except:
-                pass
+            self.params_if.set_param(param_name,value)
+
         return success
 
     def reset_param(self, param_name):
         success = False
         if self.params_if is not None:
-            try:
-                self.params_if.reset_param(param_name)
-                success = True
-            except:
-                pass
+            self.params_if.reset_param(param_name)
         return success
 
     def factory_reset_param(self, param_name):
         success = False
         if self.params_if is not None:
-            try:
-                self.params_if.reset_param(param_name)
-                success = True
-            except:
-                pass
+            self.params_if.reset_param(param_name)
+
         return success
 
     # Service Methods ####################

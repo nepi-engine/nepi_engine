@@ -559,9 +559,9 @@ class NavPoseIF:
 
 
     def has_subscribers_check(self):
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
         return has_subs
 
@@ -575,9 +575,9 @@ class NavPoseIF:
             # Pub NavPoseData
             if self.node_if is not None:
 
-                self.has_subs_lock.acquire()
+                #self.has_subs_lock.acquire()
                 has_subs = copy.deepcopy(self.has_subs)
-                self.has_subs_lock.release()
+                #self.has_subs_lock.release()
 
                 if timestamp == None:
                     timestamp = nepi_ros.ros_time_now()
@@ -687,9 +687,9 @@ class NavPoseIF:
         has_subs = self.node_if.pub_has_subscribers('navpose_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
@@ -906,9 +906,9 @@ class ImageIF:
 
 
     def has_subscribers_check(self):
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
         return has_subs
 
@@ -943,9 +943,9 @@ class ImageIF:
 
         #self.msg_if.pub_warn("Got Image size: " + str([height,width]))
 
-        self.has_subs_lock.acquire()
-        has_subs = copy.deepcopy(self.has_subs)
-        self.has_subs_lock.release()
+        #self.has_subs_lock.acquire()
+        has_subs = True #copy.deepcopy(self.has_subs)
+        #self.has_subs_lock.release()
 
         if has_subs == False:
             #self.msg_if.pub_warn("Image has no subscribers")
@@ -1034,9 +1034,9 @@ class ImageIF:
         has_subs = self.node_if.pub_has_subscribers('image_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
@@ -1213,9 +1213,9 @@ class PointcloudIF:
 
 
     def has_subscribers_check(self):
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
         return has_subs
 
@@ -1255,9 +1255,9 @@ class PointcloudIF:
 
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
 
 
         if self.has_subs == False:
@@ -1310,9 +1310,9 @@ class PointcloudIF:
         has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        self.has_subs_lock.acquire()
+        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        self.has_subs_lock.release()
+        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 

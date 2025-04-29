@@ -156,6 +156,10 @@ class NetworkMgr:
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
+            'wifi/access_point_ssid': {
+                'namespace': self.node_namespace,
+                'factory_val': 0
+            },
             'wifi/enable_access_point': {
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_enabled
@@ -534,7 +538,7 @@ class NetworkMgr:
 
     def set_dhcp_from_params(self):
         if (nepi_ros.has_param('~dhcp_enabled')):
-            enabled = self.node_if.get_param('~dhcp_enabled')
+            enabled = self.node_if.get_param('dhcp_enabled')
             if self.dhcp_enabled != enabled:
                 self.enable_dhcp_impl(enabled)
 
@@ -599,15 +603,15 @@ class NetworkMgr:
                     f.write("    address " + ip_cidr + "\n\n")
                     
         # DHCP Settings are stored in the ROS config file
-        nepi_ros.set_param('~dhcp_enabled', self.dhcp_enabled)
+        node_if.set_param('dhcp_enabled', self.dhcp_enabled)
 
         # Wifi settings are stored in the ROS config file
-        nepi_ros.set_param('~wifi/enable_access_point', self.wifi_ap_enabled)
-        nepi_ros.set_param('~wifi/access_point_name', self.wifi_ap_ssid)
-        nepi_ros.set_param('~wifi/access_point_passphrase', self.wifi_ap_passphrase)
-        nepi_ros.set_param('~wifi/enable_client', self.wifi_client_enabled)
-        nepi_ros.set_param('~wifi/client_ssid', self.wifi_client_ssid)
-        nepi_ros.set_param('~wifi/client_passphrase', self.wifi_client_passphrase)
+        node_if.set_param('wifi/enable_access_point', self.wifi_ap_enabled)
+        node_if.set_param('wifi/access_point_name', self.wifi_ap_ssid)
+        node_if.set_param('wifi/access_point_passphrase', self.wifi_ap_passphrase)
+        node_if.set_param('wifi/enable_client', self.wifi_client_enabled)
+        node_if.set_param('wifi/client_ssid', self.wifi_client_ssid)
+        node_if.set_param('wifi/client_passphrase', self.wifi_client_passphrase)
 
         self.node_if.publish_pub('store_params', nepi_ros.get_node_namespace())
 
@@ -617,7 +621,7 @@ class NetworkMgr:
             return
 
         # First, update param server
-        nepi_ros.set_param('~tx_bw_limit_mbps', msg.data)
+        node_if.set_param('tx_bw_limit_mbps', msg.data)
 
         # Now set from value from param server
         self.set_upload_bw_limit_from_params()
@@ -733,20 +737,20 @@ class NetworkMgr:
             return
         
         # Just set the param and let the ...from_params() function handle the rest
-        nepi_ros.set_param("~wifi/enable_access_point", enabled_msg.data)
+        node_if.set_param("wifi/enable_access_point", enabled_msg.data)
         self.set_wifi_ap_from_params()
 
     def set_wifi_ap_credentials_handler(self, msg):
         # Just set the param and let the ...from_params() function handle the rest
-        nepi_ros.set_param("~wifi/access_point_ssid", msg.ssid)
-        nepi_ros.set_param("~wifi/access_point_passphrase", msg.passphrase)
+        node_if.set_param("wifi/access_point_ssid", msg.ssid)
+        node_if.set_param("wifi/access_point_passphrase", msg.passphrase)
 
         self.set_wifi_ap_from_params()
 
     def set_wifi_ap_from_params(self):
-        self.wifi_ap_enabled = self.node_if.get_param('~wifi/enable_access_point')
-        self.wifi_ap_ssid = self.node_if.get_param('~wifi/access_point_ssid')
-        self.wifi_ap_passphrase = self.node_if.get_param('~wifi/access_point_passphrase')
+        self.wifi_ap_enabled = self.node_if.get_param('wifi/enable_access_point')
+        self.wifi_ap_ssid = self.node_if.get_param('wifi/access_point_ssid')
+        self.wifi_ap_passphrase = self.node_if.get_param('wifi/access_point_passphrase')
         
         if self.wifi_ap_enabled is True:
             if self.wifi_iface is None:
@@ -780,14 +784,14 @@ class NetworkMgr:
             self.msg_if.pub_info("Disabling WiFi client")
 
         # Just set the param and let the ...from_params() function handle the rest
-        nepi_ros.set_param("~wifi/enable_client", enabled_msg.data)
+        node_if.set_param("wifi/enable_client", enabled_msg.data)
         self.set_wifi_client_from_params()
 
     def set_wifi_client_credentials_handler(self, msg):
         self.msg_if.pub_info("Updating WiFi client credentials (SSID: " + msg.ssid + ", Passphrase: " + msg.passphrase + ")")
         # Just set the param and let the ...from_params() function handle the rest
-        nepi_ros.set_param("~wifi/client_ssid", msg.ssid)
-        nepi_ros.set_param("~wifi/client_passphrase", msg.passphrase)
+        node_if.set_param("wifi/client_ssid", msg.ssid)
+        node_if.set_param("wifi/client_passphrase", msg.passphrase)
 
         self.set_wifi_client_from_params()
 
@@ -796,7 +800,7 @@ class NetworkMgr:
         self.set_wifi_client_from_params()
 
     def set_wifi_client_from_params(self):
-        self.wifi_client_enabled = self.node_if.get_param('~wifi/enable_client')
+        self.wifi_client_enabled = self.node_if.get_param('wifi/enable_client')
         self.wifi_client_ssid = self.node_if.get_param("wifi/client_ssid")
         self.wifi_client_passphrase = self.node_if.get_param("wifi/client_passphrase")
 

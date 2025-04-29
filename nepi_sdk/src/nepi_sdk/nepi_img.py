@@ -164,7 +164,7 @@ def is_gray(cv2_img):
     else:
       return False
 
-def adjust_auto(cv2_img, sensitivity_ratio = 0.5):    
+def adjust_auto(cv2_img, sensitivity_ratio = 0.0):    
   # Apply Image Enhancment
   cv2_img.setflags(write=1)
   # Apply threshold filter
@@ -231,7 +231,7 @@ def adjust_auto(cv2_img, sensitivity_ratio = 0.5):
   return cv2_img
     
 def adjust_brightness(cv2_img, sensitivity_ratio = 0.5):
-  if sensitivity_ratio != 0.5:
+  if sensitivity_ratio < 0.49 or sensitivity_ratio > 0.51:
     max_value = 200
     brightness = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
     if abs(brightness) > max_value:
@@ -249,7 +249,7 @@ def adjust_brightness(cv2_img, sensitivity_ratio = 0.5):
   return cv2_img
 
 def adjust_contrast(cv2_img, sensitivity_ratio = 0.5):
-  if sensitivity_ratio != 0.5:
+  if sensitivity_ratio < 0.49 or sensitivity_ratio > 0.51:
     max_value = 90
     contrast = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
     if abs(contrast) > max_value:

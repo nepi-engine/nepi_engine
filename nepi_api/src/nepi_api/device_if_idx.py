@@ -108,18 +108,13 @@ class IDXDeviceIF:
     ready = False
 
     factory_device_name = None
-    init_device_name = None
-    factory_controls_dict = None
-    init_controls_enable = None 
-    init_auto_adjust = None
-    init_brightness_ratio = None
-    init_contrast_ratio = None
-    init_threshold_ratio = None
-    init_resolution_ratio = None
-    init_framerate_ratio = None
-    init_min_range = None
-    init_max_range = None
-    init_frame_3d = None
+
+    ctl_enabled = True
+    ctl_auto = False
+    ctl_brightness = 0.5
+    ctl_contrast = 0.5
+    ctl_threshold = 0.5
+    ctl_res_ratio = 1  
 
 
     init_zoom_ratio = 0.5
@@ -347,7 +342,14 @@ class IDXDeviceIF:
             }
         }
 
-
+        '''            'image_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/test_image',
+                'msg': Image,
+                'qsize': 1,
+                'latch': True
+            }
+        '''
         
 
 
@@ -372,7 +374,7 @@ class IDXDeviceIF:
             'set_brightness': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/set_brightness',
-                'msg': Bool,
+                'msg': Float32,
                 'qsize': 1,
                 'callback': self.setBrightnessCb, 
                 'callback_args': ()
@@ -549,6 +551,15 @@ class IDXDeviceIF:
         #############################
         # Finish Initialization
 
+        self.enabled = self.node_if.get_param('controls_enable')
+        self.auto = self.node_if.get_param('auto_adjust')       
+        self.brightness = self.node_if.get_param('brightness')
+        self.contrast = self.node_if.get_param('contrast')        
+        self.threshold = self.node_if.get_param('thresholding')
+        self.res_ratio = self.node_if.get_param('resolution_ratio')  
+
+
+
         # Start the data producers
         if (getColor2DImg is not None):
             self.getColor2DImg = getColor2DImg
@@ -693,8 +704,8 @@ class IDXDeviceIF:
         if (getColor2DImg is not None):
             self.color_img_thread.start()
 
-        if (getBW2DImg is not None):
-            self.bw_img_thread.start()
+        #if (getBW2DImg is not None):
+        #    self.bw_img_thread.start()
 
         if (getDepthMap is not None):
             self.depth_map_thread.start()
@@ -806,10 +817,7 @@ class IDXDeviceIF:
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
-        if data_product != 'pointcloud':
-            dp_dict['data_if'] = ImageIF(namespace = namespace, topic = data_product)
-        else:
-            dp_dict['data_if'] = PointcloudIF(namespace = namespace, topic = data_product)
+
         self.data_products_list.append(data_product)
         self.data_product_dict[data_product] = dp_dict
 
@@ -880,7 +888,8 @@ class IDXDeviceIF:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setControlsEnable(new_controls_enable)
-
+        self.ctl_enabled = new_controls_enable
+        
         self.node_if.set_param('controls_enable', new_controls_enable)
         self.status_msg.controls_enable = new_controls_enable
         self.publishStatus(do_updates=False) # Updated inline here
@@ -900,6 +909,8 @@ class IDXDeviceIF:
         else:
             self.msg_if.pub_info("Disabling IDX Auto Adjust")
 
+        self.ctl_auto = new_auto_adjust       
+ 
         self.node_if.set_param('auto_adjust', new_auto_adjust)
         self.status_msg.auto_adjust = new_auto_adjust
         self.publishStatus(do_updates=False) # Updated inline here
@@ -920,6 +931,8 @@ class IDXDeviceIF:
                     # Call the parent's method and update ROS param as necessary
                     # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
                     status, err_str = self.setBrightness(new_brightness)
+
+        self.ctl_brightness = new_brightness
 
         self.node_if.set_param('brightness', new_brightness)
         self.status_msg.brightness = new_brightness
@@ -942,6 +955,8 @@ class IDXDeviceIF:
                 # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
                 status, err_str = self.setContrast(new_contrast)
 
+        self.ctl_contrast = new_contrast        
+ 
         self.node_if.set_param('contrast', new_contrast)
         self.status_msg.contrast = new_contrast
         self.publishStatus(do_updates=False) # Updated inline here
@@ -961,6 +976,7 @@ class IDXDeviceIF:
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setThresholding(new_thresholding)
 
+        self.ctl_threshold = new_thresholding
         self.node_if.set_param('thresholding', new_thresholding)
         self.status_msg.thresholding = new_thresholding
         self.publishStatus(do_updates=False) # Updated inline here
@@ -979,7 +995,7 @@ class IDXDeviceIF:
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             if self.setResolutionRatio is not None:
                 status, err_str = self.setResolutionRatio(new_resolution)
-
+        self.ctl_res_ratio = new_resolution
         self.node_if.set_param('resolution_ratio', new_resolution)
         self.status_msg.resolution_ratio = new_resolution
         self.publishStatus(do_updates=False) # Updated inline here
@@ -1153,53 +1169,48 @@ class IDXDeviceIF:
     def image_thread_proccess(self,data_product):
         cv2_img = None
         ros_img = None
+
         if data_product not in self.data_product_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict")
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition")
             acquiring = False
 
-
-            # Get Data Product Dict and Data_IF
             dp_dict = self.data_product_dict[data_product]
-            #self.msg_if.pub_warn("Accessing data_product dict: " + data_product + " " + str(dp_dict))
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
-            dp_if = dp_dict['data_if']
 
+            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
+            img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
 
-            blank_image = nepi_img.create_cv2_blank_img(width=250,height=250)
-            ros_img = nepi_img.cv2img_to_rosimg(blank_image)
+            #dp_if = ImageIF(namespace = dp_dict['namespace'],topic = data_product)
+            
+            # Get Data Product Dict and Data_IF
+            
+            #self.msg_if.pub_warn("Accessing data_product dict: " + data_product + " " + str(dp_dict))
+
+            time.sleep(1)
+
             while (not nepi_ros.is_shutdown()):
-                dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = (self.save_data_if.data_product_saving_enabled(data_product) and \
-                    self.save_data_if.data_product_should_save(data_product) ) or \
-                    self.save_data_if.data_product_snapshot_enabled(data_product)
-                #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
-                # Get Data Product Raw Dict and Data_IF
+
+                dp_has_subs = True # dp_if.has_subscribers_check()
+                #dp_should_save = False #  
+                dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
+                
                 dp_raw_has_subs = False
                 dp_raw_should_save = False
-                '''
-                data_product_raw = data_product + '_raw'
-                if data_product_raw not in self.data_product_dict.keys():
-                    dp_raw_if = None
-                    dp_raw_has_subs = False
-                    dp_raw_should_save = False
-                else:
-                    dp_raw_dict = self.data_product_dict[data_product_raw]
-                    dp_raw_if = dp_raw_dict['data_if']
-                    dp_raw_has_subs = dp_raw_if.has_subscribers_check()
-                    dp_raw_should_save = (self.save_data_if.data_product_saving_enabled(data_product_raw) and \
-                        self.save_data_if.data_product_should_save(data_product_raw) ) or \
-                        self.save_data_if.data_product_snapshot_enabled(data_product_raw)
-                    #self.msg_if.pub_warn("Data product " + data_product_raw + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
-                '''
+                #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
+                # Get Data Product Raw Dict and Data_IF
+
 
                 # Get new data if any required
                 #self.msg_if.pub_warn("Image " + data_product + " has subscribers: " + str(dp_has_subs or dp_raw_has_subs))
                 has_subs = dp_has_subs or dp_raw_has_subs
                 should_save = dp_should_save or dp_raw_should_save
                 get_data = has_subs or should_save
+                
+                #get_data = True
                 if get_data == True:
                     acquiring = True
                     if data_product != "pointcloud_image":
@@ -1207,10 +1218,11 @@ class IDXDeviceIF:
                     else:
                         status, msg, cv2_img, ros_timestamp, encoding = dp_get_data(self.render_controls)
                     if (status is False):
-                        self.msg_if.pub_warn("Got False Data Status: " + data_product)
+                        #self.msg_if.pub_warn("Got False Data Status: " + data_product)
                         continue   
                     if cv2_img is None:
-                        self.msg_if.pub_warn("Got None Data: " + data_product)
+                        #self.msg_if.pub_warn("Got None Data: " + data_product)
+                        continue 
                     else:
                         #self.msg_if.pub_warn("Got Data: " + data_product)
                         
@@ -1223,30 +1235,42 @@ class IDXDeviceIF:
                         #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
                         if cur_width != self.img_width or cur_height != self.img_height:
                             self.publishStatus()
-                        '''
-                        #############################
-                        # Process Raw Data Requirements
-                        if dp_raw_if is not None:
-                            if (dp_raw_has_subs == True):
-                                #Publish Ros Image
-                                frame_id = self.node_if.get_param('frame_3d')
-                                dp_raw_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = 'sensor_frame')
-                            if (dp_raw_should_save == True):
-                                self.save_data_if.write_image_file(data_product_raw,cv2_img,timestamp = ros_timestamp,save_check=False)
-                        '''
 
                         
                         #############################
                         # Apply IDX Post Processing
                         if dp_has_subs == True or dp_should_save == True: # Don't process idx image if not required
                             #cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
+                            
+                            enabled = self.ctl_enabled
+                            auto = self.ctl_auto      
+                            brightness = self.ctl_brightness
+                            contrast = self.ctl_contrast
+                            threshold = self.ctl_threshold
+                            res_ratio = self.ctl_res_ratio   
+                            #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
+                            
+                            if enabled == True: 
+                                if res_ratio < 0.9:
+                                    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+                                if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
+                                    if auto is False:
+                                        cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+                                        cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+                                        #cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+                                    else:
+                                        cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+
+
                             if (dp_has_subs == True):
                                 #Publish Ros Image
                                 frame_id = self.node_if.get_param('frame_3d')
-                                dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = frame_id)
+                                #dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = frame_id)
                             if (dp_should_save == True):
                                 self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
-                    
+                       
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding = encoding)
+                            img_pub.publish(ros_img)
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
@@ -1256,49 +1280,46 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_ros.sleep(0.25)
+                nepi_ros.sleep(0.01) # Yield
 
-                
+              
 
    
     # Pointcloud from pointcloud_get_function can be open3D or ROS pointcloud.  Will be converted as needed in the thread
     def pointcloud_thread_proccess(self,data_product):
         o3d_pc = None
         ros_pc = None
+
         if data_product not in self.data_product_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict")
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition")
             acquiring = False
+
+            dp_dict = self.data_product_dict[data_product]
+            dp_get_data = dp_dict['get_data']
+            dp_stop_data = dp_dict['stop_data']
+
+            dp_if = PointcloudIF(namespace =  dp_dict['namespace'],topic = data_product)
+
+            time.sleep(1)
+
             while (not nepi_ros.is_shutdown()):
  
                 # Get Data Product Dict and Data_IF
-                dp_dict = self.data_product_dict[data_product]
-                dp_get_data = dp_dict['get_data']
-                dp_stop_data = dp_dict['stop_data']
-                dp_if = dp_dict['data_if']
+                
+
+
                 dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = (self.save_data_if.data_product_saving_enabled(data_product) and \
-                    self.save_data_if.data_product_should_save(data_product) ) or \
-                    self.save_data_if.data_product_snapshot_enabled(data_product)
+                dp_should_save = False #  
+                #dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                #dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
+
                 #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
                 # Get Data Product Raw Dict and Data_IF
                 dp_raw_has_subs = False
                 dp_raw_should_save = False
-                '''
-                data_product_raw = data_product + '_raw'
-                if data_product_raw not in self.data_product_dict.keys():
-                    dp_raw_if = None
-                    dp_raw_has_subs = False
-                    dp_raw_should_save = False
-                else:
-                    dp_raw_dict = self.data_product_dict[data_product_raw]
-                    dp_raw_if = dp_raw_dict['data_if']
-                    dp_raw_has_subs = dp_raw_if.has_subscribers_check()
-                    dp_raw_should_save = (self.save_data_if.data_product_saving_enabled(data_product_raw) and \
-                        self.save_data_if.data_product_should_save(data_product_raw) ) or \
-                        self.save_data_if.data_product_snapshot_enabled(data_product_raw)
-                    #self.msg_if.pub_warn("Data product " + data_product_raw + " has subscribers: " + str(dp_raw_has_subs), throttle_s = 1)
-               '''
+                
                 # Get data if requried
                 get_data = dp_has_subs or dp_should_save
                 if get_data == True:
@@ -1393,23 +1414,26 @@ class IDXDeviceIF:
     # Utility Functions
 
     def applyIDXControls2Image(self,cv2_img,data_product):
-        enabled = self.node_if.get_param('controls_enable')
-        auto = self.node_if.get_param('auto_adjust')       
-        brightness = self.node_if.get_param('brightness')
-        contrast = self.node_if.get_param('contrast')        
-        threshold = self.node_if.get_param('thresholding')
-        res_ratio = self.node_if.get_param('resolution_ratio')   
+
+        enabled = self.ctl_enabled
+        auto = self.ctl_auto      
+        brightness = self.ctl_brightness
+        contrast = self.ctl_contrast
+        threshold = self.ctl_threshold
+        res_ratio = self.ctl_res_ratio      
+        #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
 
         if enabled == True: 
-            if res_ratio < 0.99:
+            if res_ratio < 0.9:
                 [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
             if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
                 if auto is False:
                     cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
                     cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                    cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+                    #cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
                 else:
                     cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+
         return cv2_img
 
 

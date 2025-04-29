@@ -591,12 +591,12 @@ def save_params_to_file(file_path, namespace):
   
 
 def has_param(param_namespace):
-  param_namespace = get_full_namespace(param_namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   return rospy.has_param(param_namespace)
 
 def get_param(param_namespace,fallback_param = None):
   param = None
-  param_namespace = get_full_namespace(param_namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   try:
     if fallback_param is None:
       param = rospy.get_param(param_namespace)
@@ -608,7 +608,7 @@ def get_param(param_namespace,fallback_param = None):
 
 def set_param(param_namespace,param_val):
   success = False
-  param_namespace = get_full_namespace(param_namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   try:
     rospy.set_param(param_namespace,param_val)
     success = True
