@@ -40,7 +40,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.connect_system_if import *
 
 
-class ConnectSaveDataIF(object):
+class ConnectSaveDataIF:
 
     ready = False
 
@@ -290,7 +290,7 @@ EXAMPLE_CAP_SETTINGS_DICT = {"None":{"name":"None","type":"None","optons":[]}}
 EXAMPLE_SETTINGS_DICT = {"None":{"name":"None","type":"None","value":"None"}}
 '''
 
-class ConnectSettingsIF(object):
+class ConnectSettingsIF:
 
     msg_if = None
     ready = False
@@ -463,7 +463,7 @@ EXAMPLE_STATES_DICT = {"example_state":EXAMPLE_STATE_DICT}
 '''
 
 
-class ConnectStatesIF(object):
+class ConnectStatesIF:
 
     msg_if = None
     ready = False
@@ -594,7 +594,7 @@ EXAMPLE_TRIGGERS_DICT = {"example_trigger":EXAMPLE_TRIGGER_DICT}
 '''
 
 
-class ConnectTriggersIF(object):
+class ConnectTriggersIF:
 
     msg_if = None
     ready = False

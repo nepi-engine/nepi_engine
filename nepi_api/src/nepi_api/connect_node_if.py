@@ -37,7 +37,7 @@ EXAMPLE_CFGS_CONFIG_DICT = {
 }
 '''
 
-class ConnectNodeConfigsIF(object):
+class ConnectNodeConfigsIF:
 
 
     msg_if = None
@@ -191,7 +191,7 @@ EXAMPLE_SRVS_DICT = {
     }
 }
 
-class ConnectNodeServicesIF(object):
+class ConnectNodeServicesIF:
 
 
     msg_if = None
@@ -435,7 +435,7 @@ EXAMPLE_PUBS_DICT = {
 }
 
 
-class ConnectNodePublishersIF(object):
+class ConnectNodePublishersIF:
 
     msg_if = None
     ready = False
@@ -588,7 +588,7 @@ EXAMPLE_SUBS_DICT = {
     }
 }
 
-class ConnectNodeSubscribersIF(object):
+class ConnectNodeSubscribersIF:
 
     msg_if = None
     ready = False
@@ -774,7 +774,7 @@ EXAMPLE_NODE_IF = NodeClassIF(
 )
 '''
 
-class ConnectNodeClassIF(object):
+class ConnectNodeClassIF:
 
     ready = False
 

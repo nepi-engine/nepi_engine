@@ -73,7 +73,7 @@ EXAMPLE_FILENAME_DICT = {
     'add_node_name': False
     }
 
-class SaveDataIF(object):
+class SaveDataIF:
 
     ready = None
     namespace = "~"
@@ -93,6 +93,9 @@ class SaveDataIF(object):
         'suffix': "",
         'add_node_name': True
         }
+
+    save_rate_dict = dict()
+    save_data = False
 
     ### IF Initialization
     def __init__(self, data_products = [], factory_rate_dict = None, factory_filename_dict = None, namespace = None):
@@ -153,9 +156,9 @@ class SaveDataIF(object):
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
                     save_rate = factory_rate_dict[data_product]
-            save_rate_dict['data_product'] = save_rate
+            save_rate_dict[data_product] = save_rate
             self.snapshot_dict['data_product'] = False
-
+        
         
             
 
@@ -317,9 +320,13 @@ class SaveDataIF(object):
                         log_class_name = True
         )
 
+        nepi_ros.sleep(1)
+        #self.node_if.wait_for_ready()
 
-        self.node_if.wait_for_ready()
-
+        self.save_rate_dict = self.node_if.get_param('save_rate_dict')
+        self.save_data = self.node_if.get_param('save_data')
+        
+        
 
         ##############################
         # Complete Initialization
@@ -355,12 +362,14 @@ class SaveDataIF(object):
         save_rate_dict = nepi_ros.get_param('save_rate_dict')
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
+            self.save_rate_dict = save_rate_dict
             self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()    
     def register_data_product(self, data_product):
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
+            self.save_rate_dict = save_rate_dict
             self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()
 
@@ -406,7 +415,7 @@ class SaveDataIF(object):
 
     def set_save_rate(self,data_product,save_rate_hz=0):
         save_all = SaveDataRate().ALL_DATA_PRODUCTS
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
         if (data_product == save_all):
             for d in save_rate_dict:
                 # Respect the max save rate
@@ -415,22 +424,26 @@ class SaveDataIF(object):
         elif (data_product in save_rate_dict):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
-            self.msg_if.pub_warn("Requested unknown data product: " + data_product)           
+            self.msg_if.pub_warn("Requested unknown data product: " + data_product)    
+        self.save_rate_dict = save_rate_dict       
         self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()
         
 
-    def set_save_enable(self, save_data = False):
+    def set_saving_enable(self, save_data = False):
         self.save_data = save_data
         self.node_if.set_param('save_data', save_data)
         self.publish_status()       
 
 
+    def get_saving_enable(self):
+        return self.save_data
+
     def data_product_saving_enabled(self, data_product):
         # If saving is disabled for this node, then no data products are saving
         try:
-            save_rate_dict = self.node_if.get_param('save_rate_dict')
-            if not self.save_data:
+            save_rate_dict = self.save_rate_dict
+            if self.save_data == False:
                 return False
 
             if data_product not in save_rate_dict:
@@ -444,11 +457,13 @@ class SaveDataIF(object):
 
     def data_product_should_save(self, data_product):
         # If saving is disabled for this node, then it is not time to save this data product!
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
+        #self.msg_if.pub_warn("Checking should save for save rate dict: " + str(save_rate_dict))
+        
         if self.save_data == False:
             return False
 
-        if data_product not in save_rate_dict:
+        if data_product not in save_rate_dict.keys():
             self.msg_if.pub_warn("Unknown data product " + data_product)
             return False
 
@@ -457,10 +472,11 @@ class SaveDataIF(object):
             return False
 
         save_period = 1.0 / save_rate
-        now = nepi_ros.get_rostime_to_sec()
+        now = nepi_utils.get_time()
         elapsed = now - save_rate_dict[data_product][1]
         if (elapsed >= save_period):
             save_rate_dict[data_product][1] = now
+            self.save_rate_dict = save_rate_dict
             self.node_if.set_param('save_rate_dict',save_rate_dict)
             return True
         return False
@@ -468,11 +484,14 @@ class SaveDataIF(object):
 
 
     def data_product_snapshot_enabled(self, data_product):
+        '''
         try:
             enabled = self.snapshot_dict[data_product]
             return enabled
         except:
             return False
+        '''
+        return False
 
     def data_product_snapshot_reset(self, data_product):
         try:
@@ -537,7 +556,7 @@ class SaveDataIF(object):
 
     def publish_status(self):
         save_rates_msg = []
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
         self.msg_if.pub_warn("save_rate_dict " + str(save_rate_dict))
         for name in save_rate_dict.keys():
             save_rate_msg = SaveDataRate()
@@ -553,7 +572,7 @@ class SaveDataIF(object):
         status_msg.current_data_dir = ""
         status_msg.current_filename_prefix = self.read_write_if.get_filename_prefix()
         status_msg.save_data_rates = save_rates_msg
-        status_msg.save_data = self.node_if.get_param('save_data')
+        status_msg.save_data = self.save_data
 
         if self.save_data_root_directory is not None:
             status_msg.current_data_dir = self.save_data_root_directory
@@ -566,7 +585,7 @@ class SaveDataIF(object):
 
     def _dataProductQueryHandler(self, req):
         return_list = []
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
         for d in save_rate_dict:
             return_list.append(SaveDataRate(data_product = d, save_rate_hz = save_rate_dict[d][0]))
         return DataProductQueryResponse(return_list)
@@ -586,12 +605,12 @@ class SaveDataIF(object):
 
     def _saveEnableCb(self, msg):
         save_data = msg.data
-        self.set_save_enable(save_data)
+        self.set_saving_enable(save_data)
         
 
     def _snapshotCb(self,msg):
         self.msg_if.pub_info("Recieved Snapshot Trigger")
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        save_rate_dict = self.save_rate_dict
         for data_product in save_rate_dict.keys():
             save_rate = save_rate_dict[data_product][0]
             enabled = (save_rate > 0.0)
@@ -643,7 +662,7 @@ EXAMPLE_SETTINGS_DICT = {
 }
 '''
 
-class SettingsIF(object):
+class SettingsIF:
 
 
     # Class Vars ####################
@@ -941,7 +960,7 @@ EXAMPLE_STATES_DICT = {
 }
 
 
-class StatesIF(object):
+class StatesIF:
 
 
     ready = False
@@ -1066,7 +1085,7 @@ EXAMPLE_TRIGGERS_DICT = {
 
 
 
-class TriggersIF(object):
+class TriggersIF:
 
     msg_if = None
     ready = False
