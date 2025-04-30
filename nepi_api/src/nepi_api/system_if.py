@@ -42,9 +42,9 @@ from nepi_ros_interfaces.msg import SystemTrigger
 from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodeClassIF
+from nepi_api.node_if import  NodeClassIF
 from nepi_api.data_if import ReadWriteIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 
@@ -118,10 +118,18 @@ class SaveDataIF:
         self.namespace = nepi_ros.get_full_namespace(namespace)
         
 
+        ###############################
+        # Connect Sys Mgr Services
+
+
+        self.sys_srv_if = ConnectMgrSystemServicesIF()
+
+        ready = self.sys_srv_if.wait_for_ready()
+
+
         # Setup System Manager IF Class
-        self.sys_mgr_if = ConnectMgrSystemIF()
-        ready = self.sys_mgr_if.wait_for_ready()
-        self.save_data_root_directory = self.sys_mgr_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
+        ready = self.sys_srv_if.wait_for_ready()
+        self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
             self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled")

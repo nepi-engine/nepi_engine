@@ -75,6 +75,9 @@ class NetworkMgr:
     INTERNET_CHECK_INTERVAL_S = 3.0
 
 
+    tx_bw_limit_mbps = -1.0
+
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "network_mgr" # Can be overwitten by luanch command
@@ -370,6 +373,8 @@ class NetworkMgr:
         ###########################
         # Complete Initialization
 
+        self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
+
         if self.wifi_iface:
             self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
             self.set_wifi_ap_from_params()
@@ -555,7 +560,7 @@ class NetworkMgr:
         if Reset.USER_RESET == msg.reset_type:
             user_reset_proxy = nepi_ros.create_service('user_reset', FileReset)
             try:
-                resp = user_reset_proxy(self.self.node_name)
+                resp = user_reset_proxy(self.node_name)
             except nepi_ros.create_serviceException as exc:
                 self.msg_if.pub_warn("Unable to execute user reset")
                 return
@@ -563,7 +568,7 @@ class NetworkMgr:
         elif Reset.FACTORY_RESET == msg.reset_type:
             factory_reset_proxy = nepi_ros.create_service('factory_reset', FileReset)
             try:
-                resp = factory_reset_proxy(self.self.node_name)
+                resp = factory_reset_proxy(self.node_name)
             except nepi_ros.create_serviceException as exc:
                 self.msg_if.pub_warn("Unable to execute factory reset")
                 return
@@ -579,7 +584,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
 
         elif Reset.SOFTWARE_RESET:
-            nepi_ros.signal_shutdown("{}: shutdown by request".format(self.self.node_name))
+            nepi_ros.signal_shutdown("{}: shutdown by request".format(self.node_name))
         elif Reset.HARDWARE_RESET:
             # Reset the interface
             subprocess.call(['ifdown', self.NET_IFACE])
@@ -621,6 +626,7 @@ class NetworkMgr:
             return
 
         # First, update param server
+        self.tx_bw_limit_mbps = msg.data
         node_if.set_param('tx_bw_limit_mbps', msg.data)
 
         # Now set from value from param server
@@ -705,11 +711,7 @@ class NetworkMgr:
         self.msg_if.pub_warn("Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
 
     def set_upload_bw_limit_from_params(self):
-        bw_limit_mbps = -1
-        if (nepi_ros.has_param('~tx_bw_limit_mbps')):
-            bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-        else:
-            self.msg_if.pub_warn("No tx_bw_limit_mbps param set... will clear all bandwidth limits")
+        bw_limit_mbps = self.tx_bw_limit_mbps
 
         # Always clear the current settings
         try:
@@ -948,11 +950,9 @@ class NetworkMgr:
         if len(self.rx_byte_cnt_deque) > 1:
             rx_rate_mbps = 8 * (self.rx_byte_cnt_deque[1] - self.rx_byte_cnt_deque[0]) / (self.BANDWIDTH_MONITOR_PERIOD_S * 1000000)
 
-        tx_rate_limit_mbps = -1.0
-        if (nepi_ros.has_param('~tx_bw_limit_mbps')):
-            tx_rate_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
 
-        return {'tx_rate_mbps':tx_rate_mbps, 'rx_rate_mbps':rx_rate_mbps, 'tx_limit_mbps': tx_rate_limit_mbps}
+
+        return {'tx_rate_mbps':tx_rate_mbps, 'rx_rate_mbps':rx_rate_mbps, 'tx_limit_mbps': self.tx_bw_limit_mbps}
 
     def handle_wifi_query(self, req):
         with self.available_wifi_networks_lock:

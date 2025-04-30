@@ -596,16 +596,6 @@ class PTXActuatorIF:
         ###############################
         # Finish Initialization
 
-        self.max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        self.min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
-
-        self.max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        self.min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
-        self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
-
 
         self.frame_id = self.node_if.get_param('ptx/frame_id')
         self.yaw_joint_name = self.node_if.get_param('ptx/yaw_joint_name')
@@ -929,16 +919,7 @@ class PTXActuatorIF:
                     self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
                     valid = True
 
-                    self.max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-                    self.min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-                    self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
-                    self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
-
-                    self.max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-                    self.min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
-                    self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
-                    self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
-
+                    self.initCb(do_updates = True)
 
 
         if valid == False:
@@ -965,11 +946,7 @@ class PTXActuatorIF:
                 self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
                 valid = True
 
-            self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
-            self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
-
-            self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
-            self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
+                self.initCb(do_updates = True)
 
 
         if valid == False:
@@ -1142,6 +1119,16 @@ class PTXActuatorIF:
 
 
     def resetCb(self, do_updates = True):
+        self.max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
+        self.min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
+        self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
+        self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
+
+        self.max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
+        self.min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
+        self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
+        self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
+
         #**********************
         # This one comes from the parent
         self.node_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
@@ -1151,10 +1138,7 @@ class PTXActuatorIF:
 
 
     def factoryResetCb(self, do_updates = True):
-        #**********************
-        # This one comes from the parent
-        self.node_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
-        #**********************
+        self.resetCb()
 
     def passFunction(self):
         return 0

@@ -14,6 +14,7 @@ import subprocess
 import numpy as np
 import cv2
 import open3d as o3d
+import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -46,7 +47,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
     resolution_ratio = 1.0, 
-    framerate_ratio = 1.0, 
+    framerate_ratio = 0.5, 
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
     min_range_m = 0.0,
@@ -96,7 +97,6 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
                           'alt_m': 0
 }
 
-
 class IDXDeviceIF:
     # Default Global Values
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
@@ -113,7 +113,7 @@ class IDXDeviceIF:
     ctl_auto = False
     ctl_brightness = 0.5
     ctl_contrast = 0.5
-    ctl_threshold = 0.5
+    ctl_threshold = 0.0
     ctl_res_ratio = 1.0  
 
 
@@ -149,6 +149,10 @@ class IDXDeviceIF:
 
     navpose_if = None
     
+    fps_queue = [0,0,0,0,0,0,0,0,0,0]
+    current_fps = 0
+    last_image_time = None
+
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -821,25 +825,6 @@ class IDXDeviceIF:
         self.data_products_list.append(data_product)
         self.data_product_dict[data_product] = dp_dict
 
-        '''
-        # Do same for raw data without start stop functions for images
-        if data_product != 'pointcloud':
-            data_product_raw = data_product + '_raw'
-            dp_dict = dict()
-            dp_dict['data_product'] = data_product_raw
-            dp_dict['namespace'] = namespace
-
-            dp_dict['get_data'] = start_data_function
-            dp_dict['stop_data'] = stop_data_function
-
-            if data_product != 'pointcloud':
-                dp_dict['data_if'] = ImageIF(namespace = namespace, topic = data_product_raw)
-            else:
-                dp_dict['data_if'] = PointcloudIF(namespace = namespace, topic = data_product_raw)
-
-            self.data_products_list.append(data_product)
-            self.data_product_dict[data_product] = dp_dict
-        '''
         # do wait here for all
         success = True
         return success
@@ -1019,7 +1004,7 @@ class IDXDeviceIF:
            
         self.node_if.set_param('framerate_ratio', new_framerate)
         self.status_msg.framerate_ratio = new_framerate
-        self.status_msg.framerate_current = self.getFramerate()
+        #self.status_msg.framerate_current = self.getFramerate()
         self.publishStatus(do_updates=False) # Updated inline here
 
  
@@ -1181,9 +1166,9 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
             pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
-            img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
 
-            #dp_if = ImageIF(namespace = dp_dict['namespace'],topic = data_product)
+            dp_if = ImageIF(namespace = dp_dict['namespace'],topic = data_product)
             
             # Get Data Product Dict and Data_IF
             
@@ -1192,23 +1177,14 @@ class IDXDeviceIF:
             time.sleep(1)
 
             while (not nepi_ros.is_shutdown()):
-
-                dp_has_subs = True # dp_if.has_subscribers_check()
+                dp_has_subs = dp_if.has_subscribers_check()
                 #dp_should_save = False #  
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
                 
-                dp_raw_has_subs = False
-                dp_raw_should_save = False
                 #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
-                # Get Data Product Raw Dict and Data_IF
-
-
-                # Get new data if any required
-                #self.msg_if.pub_warn("Image " + data_product + " has subscribers: " + str(dp_has_subs or dp_raw_has_subs))
-                has_subs = dp_has_subs or dp_raw_has_subs
-                should_save = dp_should_save or dp_raw_should_save
-                get_data = has_subs or should_save
+ 
+                get_data = dp_has_subs or dp_should_save
                 
                 #get_data = True
                 if get_data == True:
@@ -1217,12 +1193,9 @@ class IDXDeviceIF:
                         status, msg, cv2_img, ros_timestamp, encoding = dp_get_data()
                     else:
                         status, msg, cv2_img, ros_timestamp, encoding = dp_get_data(self.render_controls)
-                    if (status is False):
-                        #self.msg_if.pub_warn("Got False Data Status: " + data_product)
-                        continue   
-                    if cv2_img is None:
-                        #self.msg_if.pub_warn("Got None Data: " + data_product)
-                        continue 
+                    if (status is False or cv2_img is None):
+                        #self.msg_if.pub_warn("No Data Recieved: " + data_product)
+                        pass
                     else:
                         #self.msg_if.pub_warn("Got Data: " + data_product)
                         
@@ -1232,54 +1205,71 @@ class IDXDeviceIF:
                         cv2_shape = cv2_img.shape
                         self.img_width = cv2_shape[1] 
                         self.img_height = cv2_shape[0] 
-                        #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
-                        if cur_width != self.img_width or cur_height != self.img_height:
-                            self.publishStatus()
+
 
                         
                         #############################
                         # Apply IDX Post Processing
-                        if dp_has_subs == True or dp_should_save == True: # Don't process idx image if not required
-                            #cv2_img = self.applyIDXControls2Image(cv2_img,data_product)
-                            
-                            enabled = self.ctl_enabled
-                            auto = self.ctl_auto      
-                            brightness = self.ctl_brightness
-                            contrast = self.ctl_contrast
-                            threshold = self.ctl_threshold
-                            res_ratio = self.ctl_res_ratio   
-                            #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
-                            
-                            if enabled == True: 
-                                if res_ratio < 0.9:
-                                    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-                                if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
-                                    if auto is False:
-                                        cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-                                        cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                                        cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-                                    else:
-                                        cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+                        
+                        enabled = self.ctl_enabled
+                        auto = self.ctl_auto      
+                        brightness = self.ctl_brightness
+                        contrast = self.ctl_contrast
+                        threshold = self.ctl_threshold
+                        res_ratio = self.ctl_res_ratio   
+                        #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
+                        
+                        if enabled == True: 
+                            if res_ratio < 0.9:
+                                [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+                            if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
+                                if auto is False:
+                                    cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+                                    cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+                                    cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+                                else:
+                                    cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
 
 
-                            if (dp_has_subs == True):
-                                #Publish Ros Image
-                                frame_id = self.node_if.get_param('frame_3d')
-                                #dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = frame_id)
-                            if (dp_should_save == True):
-                                self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
-                       
-                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding = encoding)
-                            img_pub.publish(ros_img)
+                        if (dp_has_subs == True):
+                            #Publish Ros Image
+                            frame_id = self.node_if.get_param('frame_3d')
+                            dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = frame_id)
+                        if (dp_should_save == True):
+                            self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
+
+
+                        last_image_time = copy.deepcopy(self.last_image_time)
+                        self.last_image_time = nepi_utils.get_time()
+                        last_fps = copy.deepcopy(self.current_fps)
+                        if last_image_time is not None:
+                            f_time = (self.last_image_time - last_image_time)
+                            current_fps = float(1) / f_time
+                            self.fps_queue.pop(0)
+                            self.fps_queue.append(current_fps)
+                            #self.msg_if.pub_warn("Got time and fps: " + str(f_time) + ":" + str(current_fps))
+                            self.current_fps = sum(self.fps_queue)/len(self.fps_queue)
+                            if abs(self.current_fps - last_fps) > 1:
+                                self.publishStatus()
+                            #self.msg_if.pub_warn("Got avg fps: " + str(self.current_fps))
+                        #ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding = encoding)
+                        #img_pub.publish(ros_img)
+
+                        #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        if cur_width != self.img_width or cur_height != self.img_height:
+                            self.publishStatus()
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
                         self.msg_if.pub_info("Stopping " + data_product + " acquisition")
                         dp_stop_data()
                     acquiring = False
+                    self.current_fps = 0.0
+                    self.fps_queue = [0,0,0,0,0,0,0,0,0,0]
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_ros.sleep(0.25)
+                #self.msg_if.pub_warn("Ending with avg fps: " + str(self.current_fps))    
                 nepi_ros.sleep(0.01) # Yield
 
               
@@ -1311,14 +1301,9 @@ class IDXDeviceIF:
 
 
                 dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = False #  
-                #dp_should_save = self.save_data_if.data_product_should_save(data_product)
-                #dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
+                dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
 
-                #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
-                # Get Data Product Raw Dict and Data_IF
-                dp_raw_has_subs = False
-                dp_raw_should_save = False
                 
                 # Get data if requried
                 get_data = dp_has_subs or dp_should_save
@@ -1331,14 +1316,13 @@ class IDXDeviceIF:
                         #********************
                         ros_frame = set_frame
 
-                        '''
-                        set_frame = self.node_if.get_param('frame_3d')
+                        set_frame = self.status_msg.frame_3d
                         if set_frame == 'sensor_frame':
                             ros_frame = set_frame # else pass through sensor frame
                         else:
                             ros_frame = set_frame
 
-                        transform = self.node_if.get_param('frame_3d_transform')
+                        transform = self.status_msg.frame_3d_transform
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
@@ -1346,7 +1330,7 @@ class IDXDeviceIF:
                         should_transform = (zero_transform == False) and (ros_frame == 'nepi_center_frame')
                         if should_transform:   
                             o3d_pc = self.transformPointcloud(o3d_pc,transform)
-                        '''
+
                         #********************
                         if (dp_has_subs == True):
                             dp_if.publish_o3d_pc(o3d_pc, timestamp = ros_timestamp, frame_id = ros_frame )
@@ -1432,8 +1416,8 @@ class IDXDeviceIF:
     # Function to update and publish status message
 
     def publishStatus(self, do_updates = True):
-        if do_updates is True:
-            # TODO: Probably these should be queried from the parent (and through the driver) via explicit callbacks rather than via the param server
+        # TODO: Probably these should be queried from the parent (and through the driver) via explicit callbacks rather than via the param server
+        if do_updates == True:
             param_dict = nepi_ros.get_param('~')
 
             self.status_msg.device_name = param_dict['device_name'] if 'device_name' in param_dict else self.init_device_name
@@ -1462,10 +1446,8 @@ class IDXDeviceIF:
             self.status_msg.resolution_current = res_str
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
-            fr = 0.0
-            if self.getFramerate is not None:
-                fr =  self.getFramerate()
-            self.status_msg.framerate_current = fr
+
+            self.status_msg.framerate_current = self.current_fps
             self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
             self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
             self.status_msg.thresholding = param_dict['thresholding'] if 'thresholding' in param_dict else 0
@@ -1490,6 +1472,6 @@ class IDXDeviceIF:
             self.status_msg.zoom = self.zoom_ratio
             self.status_msg.rotate = self.rotate_ratio
             self.status_msg.tilt = self.tilt_ratio
-
+            #self.msg_if.pub_warn("Got status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
     

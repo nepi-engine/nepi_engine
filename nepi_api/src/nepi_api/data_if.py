@@ -863,6 +863,14 @@ class ImageIF:
 
         self.node_if.wait_for_ready()
 
+
+        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+        self.status_msg.base_overlay_list = self.init_overlay_list
+        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+
         ##############################
         # Start Node Processes
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -906,11 +914,7 @@ class ImageIF:
 
 
     def has_subscribers_check(self):
-        #self.has_subs_lock.acquire()
-        has_subs = copy.deepcopy(self.has_subs)
-        #self.has_subs_lock.release()
-        #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
-        return has_subs
+        return self.has_subs
 
 
     def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
@@ -943,11 +947,7 @@ class ImageIF:
 
         #self.msg_if.pub_warn("Got Image size: " + str([height,width]))
 
-        #self.has_subs_lock.acquire()
-        has_subs = True #copy.deepcopy(self.has_subs)
-        #self.has_subs_lock.release()
-
-        if has_subs == False:
+        if self.has_subs == False:
             #self.msg_if.pub_warn("Image has no subscribers")
             if self.status_msg.publishing == True:
                 self.msg_if.pub_warn("Image has no subscribers")
@@ -958,28 +958,28 @@ class ImageIF:
             if self.status_msg.publishing == False:
                 self.msg_if.pub_warn("Image has subscribers, will publish")
             self.status_msg.publishing = True
-            '''
+
             # Apply Overlays
             overlay_list = []
-            if self.node_if.get_param('overlay_img_name') == True:
+            if self.status_msg.overlay_img_name == True:
                 overlay = nepi_img.getImgShortName(self.img_namespace)
                 overlay_list.append(overlay)
             
-            if self.node_if.get_param('overlay_date_time') == True:
+            if self.status_msg.overlay_date_time == True:
                 date_time = nepi_ros.get_datetime_str_from_stamp(timestamp)
                 overlay_list.append(overlay)
 
             nav_pose_dict = None
-            if self.node_if.get_param('overlay_nav') == True or self.node_if.get_param('overlay_pose') == True:
+            if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
                 if self.nav_mgr_ready == True:
                     nav_pose_dict = self.nav_mgr_if.get_navpose_data_dict()
                     if nav_pose_dict is not None:
 
-                        if self.node_if.get_param('overlay_nav') == True and nav_pose_dict is not None:
+                        if self.status_msg.overlay_nav == True and nav_pose_dict is not None:
                             overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
                             overlay_list.append(overlay)
 
-                        if self.node_if.get_param('overlay_pose') == True and nav_pose_dict is not None:
+                        if self.status_msg.overlay_pose == True and nav_pose_dict is not None:
                             overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
                             overlay_list.append(overlay)
  
@@ -987,7 +987,7 @@ class ImageIF:
 
             cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
 
-            '''
+
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = timestamp
@@ -1046,7 +1046,7 @@ class ImageIF:
         self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
         self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
         self.status_msg.base_overlay_list = self.init_overlay_list
-        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('add_overlay_list')
+        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
 
         self.node_if.publish_pub('status_pub',self.status_msg)
         
@@ -1266,7 +1266,7 @@ class PointcloudIF:
             self.status_msg.publishing = False
         else:
             if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Image has subscribers, will publish")
+                self.msg_if.pub_warn("Pointcloud has subscribers, will publish")
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_id = frame_id)
