@@ -365,6 +365,7 @@ class SaveDataIF:
             self.save_rate_dict = save_rate_dict
             self.node_if.set_param('save_rate_dict',save_rate_dict)
         self.publish_status()    
+
     def register_data_product(self, data_product):
         save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
@@ -477,20 +478,17 @@ class SaveDataIF:
         if (elapsed >= save_period):
             save_rate_dict[data_product][1] = now
             self.save_rate_dict = save_rate_dict
-            self.node_if.set_param('save_rate_dict',save_rate_dict)
             return True
         return False
 
 
 
     def data_product_snapshot_enabled(self, data_product):
-        '''
         try:
             enabled = self.snapshot_dict[data_product]
             return enabled
         except:
             return False
-        '''
         return False
 
     def data_product_snapshot_reset(self, data_product):

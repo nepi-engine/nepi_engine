@@ -44,9 +44,9 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     auto_adjust = False,
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
-    threshold_ratio =  0.5,
-    resolution_ratio = 1.0, # 25%, 50%, 75%, Full
-    framerate_ratio = 0.25, # 25%, 50%, 75%, Full
+    threshold_ratio =  0.0,
+    resolution_ratio = 1.0, 
+    framerate_ratio = 1.0, 
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
     min_range_m = 0.0,
@@ -114,7 +114,7 @@ class IDXDeviceIF:
     ctl_brightness = 0.5
     ctl_contrast = 0.5
     ctl_threshold = 0.5
-    ctl_res_ratio = 1  
+    ctl_res_ratio = 1.0  
 
 
     init_zoom_ratio = 0.5
@@ -1257,7 +1257,7 @@ class IDXDeviceIF:
                                     if auto is False:
                                         cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
                                         cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                                        #cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+                                        cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
                                     else:
                                         cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
 
@@ -1327,19 +1327,11 @@ class IDXDeviceIF:
                     status, msg, o3d_pc, ros_timestamp, ros_frame = dp_get_data()
                     if o3d_pc is not None:
 
-                        '''
-                        #############################
-                        # Process Raw Data Requirements
-                        if dp_raw_if is not None:
-                            if (dp_raw_has_subs == True):
-                                #Publish Ros Image
-                                frame_id = self.node_if.get_param('frame_3d')
-                                dp_raw_if.publish_o3d_pc(o3d_pc, ros_timestamp = ros_timestamp, frame_id = ros_frame)
-                            if (dp_raw_should_save == True):
-                                self.save_data_if.write_pointcloud_file(data_product_raw,o3d_pc,timestamp = ros_timestamp, save_check=False)
-                        '''
 
                         #********************
+                        ros_frame = set_frame
+
+                        '''
                         set_frame = self.node_if.get_param('frame_3d')
                         if set_frame == 'sensor_frame':
                             ros_frame = set_frame # else pass through sensor frame
@@ -1354,7 +1346,7 @@ class IDXDeviceIF:
                         should_transform = (zero_transform == False) and (ros_frame == 'nepi_center_frame')
                         if should_transform:   
                             o3d_pc = self.transformPointcloud(o3d_pc,transform)
-                           
+                        '''
                         #********************
                         if (dp_has_subs == True):
                             dp_if.publish_o3d_pc(o3d_pc, timestamp = ros_timestamp, frame_id = ros_frame )

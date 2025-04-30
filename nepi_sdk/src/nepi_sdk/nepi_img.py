@@ -263,7 +263,7 @@ def adjust_contrast(cv2_img, sensitivity_ratio = 0.5):
   return cv2_img
 
 def adjust_sharpness(cv2_img, sensitivity_ratio = 0.0):
-  if sensitivity_ratio != 0.0:
+  if sensitivity_ratio > 0.05:
     # gaussian kernel for sharpening
     gaussian_blur = cv2.GaussianBlur(cv2_img,(7,7),sigmaX=2)
     # sharpening using addWeighted()
