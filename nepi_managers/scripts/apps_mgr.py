@@ -198,7 +198,7 @@ class NepiAppsMgr(object):
         'update_state': {
             'namespace': self.node_namespace,
             'topic': 'update_state',
-            'msg': Empty,
+            'msg': UpdateState,
             'qsize': 10,
             'callback': self.updateStateCb, 
             'callback_args': ()
