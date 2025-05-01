@@ -102,8 +102,7 @@ class NepiIFSaveData extends Component {
     const saveDataRates = message.save_data_rates
     const saveDirPrefix = message.current_folder_prefix
     const saveNamePrefix = message.current_filename_prefix
-    const saveDataMsg = message.save_data
-    const saveData = saveDataMsg.save_continuous
+    const saveData = message.save_data
     var saveDataPrefix = ""
     if (saveDirPrefix === ""){
       saveDataPrefix = saveNamePrefix

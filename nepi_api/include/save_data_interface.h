@@ -18,7 +18,7 @@
 #include <ros/ros.h>
 
 #include <std_msgs/String.h>
-#include <nepi_ros_interfaces/SaveData.h>
+#include <std_msgs/Bool.h>
 #include <nepi_ros_interfaces/SaveDataRate.h>
 #include <nepi_ros_interfaces/DataProductQuery.h>
 
@@ -111,7 +111,7 @@ protected:
 	 *
 	 * @param[in]  msg   Indicates the save_data settings
 	 */
-	void saveDataHandler(const nepi_ros_interfaces::SaveData::ConstPtr &msg);
+	void saveDataHandler(const std_msgs::Bool::ConstPtr &msg);
 
 	/**
 	 * @brief      Callback for the save_data_prefix topic subscription

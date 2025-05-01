@@ -13,5 +13,4 @@ nepi_ros_interfaces/SaveDataRate[] save_data_rates
 # The save_data field indicates whether captured data is currently being saved in continuous fashion. The
 # save-data-next control does not affect this field
 bool save_data
-bool save_continuous
-bool save_raw
+

@@ -459,7 +459,6 @@ renderDetectorSettings() {
       const detector_enabled = message.enabled
       const detector_state = message.state
 
-      const has_tiling = message.has_tiling
       const is_tiling = message.img_tiling
 
       const overlay_labels = message.overlay_labels
@@ -467,7 +466,8 @@ renderDetectorSettings() {
       const overlay_img_name = message.overlay_img_name
 
       const threshold = message.threshold
-      const max_rate = message.max_rate_hz 
+      const max_det_rate = message.max_det_rate_hz 
+      const max_img_rate = message.max_img_rate_hz
 
 
       const det_img_namespaces = message.image_detector_namespaces
@@ -514,12 +514,22 @@ renderDetectorSettings() {
         </Column>
         </Columns>
 
+        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+        {"\n Start Latency: " + img_latency + "  Detection Latency: " + det_latency + 
+        "\n Process Times (Image,Detect): " + pre_time + " , " + det_time}
+        </pre>
+
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {"Detector Settings"}
+          </label>
+
 
         <Columns>
         <Column>
 
-          <Label title={"Image Selected"}>
+          <Label title={"Images Selected"}>
                 <BooleanIndicator value={img_selected} />
               </Label>
 
@@ -536,21 +546,12 @@ renderDetectorSettings() {
 
 
 
-        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-        {"\n Start Latency: " + img_latency + "  Detection Latency: " + det_latency + 
-        "\n Process Times (Image,Detect): " + pre_time + " , " + det_time}
-        </pre>
-
-
-
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
           <Columns>
         <Column>
 
 
 
-          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          <label align={"left"} textAlign={"left"}>
             {"Select Image Streams to Connect"}
           </label>
 
@@ -602,10 +603,23 @@ renderDetectorSettings() {
                   />
                   
           <SliderAdjustment
-                  title={"Max Rate"}
+                  title={"Max Detection Rate"}
                   msgType={"std_msgs/Float32"}
-                  adjustment={max_rate}
-                  topic={detector_namespace + "/set_max_rate"}
+                  adjustment={max_det_rate}
+                  topic={detector_namespace + "/set_max_det_rate"}
+                  scaled={1.0}
+                  min={1}
+                  max={20}
+                  disabled={false}
+                  tooltip={"Sets detection max rate in hz"}
+                  unit={"Hz"}
+            />
+
+          <SliderAdjustment
+                  title={"Max Image Publish Rate"}
+                  msgType={"std_msgs/Float32"}
+                  adjustment={max_det_rate}
+                  topic={detector_namespace + "/set_max_img_rate"}
                   scaled={1.0}
                   min={1}
                   max={20}
@@ -648,7 +662,7 @@ renderDetectorSettings() {
 
                  
 
-
+          {/*
             <div hidden={has_tiling === false}>           
                 <Label title="Enable Image Tiling">
                   <Toggle
@@ -658,6 +672,8 @@ renderDetectorSettings() {
                   </Label>
 
                   </div>
+          */}
+
 
             </Column>
             </Columns>

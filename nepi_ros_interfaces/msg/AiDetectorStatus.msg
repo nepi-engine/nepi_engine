@@ -21,22 +21,24 @@ string state
 bool sleep_enabled
 int32 sleep_suspend_sec
 int32 sleep_run_sec
+bool sleep_state
 
 bool has_img_tiling
 bool img_tiling
 
 bool overlay_labels
 bool overlay_clf_name
+bool overlay_img_name
 
 
 float32 threshold
-float32 max_rate_hz
+float32 max_det_rate_hz
+float32 max_img_rate_hz
 
+
+string[] image_source_topics
 string[] image_detector_namespaces
 bool[] image_detector_states
-string[] image_source_topics
-
-
 bool[] images_connected
 float32[] image_latency_times
 float32[] detect_latency_times

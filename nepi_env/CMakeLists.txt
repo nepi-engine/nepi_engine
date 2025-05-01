@@ -168,11 +168,6 @@ add_library(${PROJECT_NAME}
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS
-  scripts/image_color_converter.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
 
 ## Mark executables and/or libraries for installation
 install(TARGETS ${PROJECT_NAME}

@@ -26,7 +26,6 @@
 #include "std_msgs/Float64.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/Imu.h"
-#include "nepi_ros_interfaces/SaveData.h"
 #include "nepi_ros_interfaces/Offset.h"
 #include "nepi_ros_interfaces/Heading.h"
 #include "nepi_ros_interfaces/NavPoseQuery.h"
@@ -145,7 +144,7 @@ private:
 	void saveNewData();
 	void reinitHandler(const std_msgs::Empty::ConstPtr &msg);
 	
-	void saveDataHandler(const nepi_ros_interfaces::SaveData::ConstPtr &msg);
+	void saveDataHandler(const std_msgs::Bool::ConstPtr &msg);
 	void snapshotTriggerHandler(const std_msgs::Empty::ConstPtr &msg);
 }; // class NavPoseTimeMgr
 } // namespace Numurus

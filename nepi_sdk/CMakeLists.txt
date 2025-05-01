@@ -120,10 +120,7 @@ catkin_package(
 )
 
 
-#catkin_install_python(PROGRAMS
-#  scripts/nepi_ai_detector_img_pub_node.py
-#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
+
 
 ###########
 ## Build 
@@ -146,11 +143,6 @@ add_library(${PROJECT_NAME}
 )
 
 
-catkin_install_python(PROGRAMS
-  scripts/nepi_ai_detector_img_pub_node.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
 
 #############
 ## Install 
@@ -161,10 +153,11 @@ catkin_install_python(PROGRAMS
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+
+catkin_install_python(PROGRAMS
+  scripts/image_color_converter.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 
 ## Mark executables and/or libraries for installation

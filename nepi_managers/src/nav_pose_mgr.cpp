@@ -662,9 +662,9 @@ void NavPoseMgr::reinitHandler(const std_msgs::Empty::ConstPtr &msg)
 }
 
 
-void NavPoseMgr::saveDataHandler(const nepi_ros_interfaces::SaveData::ConstPtr &msg)
+void NavPoseMgr::saveDataHandler(const std_msgs::Bool::ConstPtr &msg)
 {
-		if ((msg->save_continuous == true) && (nullptr == data_fd))
+		if ((msg->data == true) && (nullptr == data_fd))
 		{
 		    ROS_INFO("saveDataHandler recieved Save Data msg");
 			checkForNewFile = false;

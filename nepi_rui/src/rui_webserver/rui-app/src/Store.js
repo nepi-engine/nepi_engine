@@ -2138,16 +2138,16 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  onToggleSaveDataAll(checked) {
+  onToggleSaveDataAll(value) {
       this.publishMessage({
       name: "save_data",
-      messageType: "nepi_ros_interfaces/SaveData",
-      data: {
-        save_continuous: checked,
-        save_raw: false
-      }
+      messageType: "std_msgs/Bool",
+      data: {data: value},
+      noPrefix: true
     })
   }
+
+
 
   @action.bound
   onChangeSaveFreqAll(rate) {

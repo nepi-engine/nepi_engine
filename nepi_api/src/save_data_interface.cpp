@@ -332,19 +332,17 @@ const std::string SaveDataInterface::getSavePrefixString()
 }
 
 
-void SaveDataInterface::saveDataHandler(const nepi_ros_interfaces::SaveData::ConstPtr &msg)
+void SaveDataInterface::saveDataHandler(const std_msgs::Bool::ConstPtr &msg)
 {
-	const bool save_data_updated = (msg->save_continuous != _save_continuous) ||
-								   (msg->save_raw != _save_raw);
+	const bool save_data_updated = (msg->data != _save_continuous);
 	if (true == save_data_updated)
 	{
-		if ((msg->save_continuous == true) && (_save_continuous == false)) // Must be enabling data saving
+		if ((msg->data == true) && (_save_continuous == false)) // Must be enabling data saving
 		{
 			_new_save_triggered = true;
 		}
 
-		_save_continuous = msg->save_continuous;
-		_save_raw = msg->save_raw;
+		_save_continuous = msg->data;
 		ROS_INFO("%s data save settings updated to (save_continuous=%s, save_raw=%s)", _parent_node->getUnqualifiedName().c_str(),
 				  BOOL_TO_ENABLED(_save_continuous), BOOL_TO_ENABLED(_save_raw));
 	}
@@ -502,8 +500,7 @@ void SaveDataInterface::publishSaveStatus()
 	stat_msg.current_folder_prefix = prefixDirName;
 	stat_msg.current_filename_prefix = prefixFileName;
 	//stat_msg.save_data_rates = saveRates;
-	stat_msg.save_continuous = _save_continuous;
-	stat_msg.save_raw = _save_raw;
+	stat_msg.save_data = _save_continuous;
 
 	_save_status_pub.publish(stat_msg);
 

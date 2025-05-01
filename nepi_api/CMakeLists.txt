@@ -125,6 +125,11 @@ catkin_package(
 #  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 #)
 
+catkin_install_python(PROGRAMS
+  scripts/nepi_ai_detector_img_pub_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 ###########
 ## Build 
 ###########
@@ -178,6 +183,10 @@ install(TARGETS ${PROJECT_NAME}
 #  USE_SOURCE_PERMISSIONS
 #)
 
+catkin_install_python(PROGRAMS
+  scripts/nepi_ai_detector_img_pub_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 #############
 ## Testing General ##

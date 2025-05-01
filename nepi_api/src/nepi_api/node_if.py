@@ -334,8 +334,11 @@ class NodeParamsIF:
 
 
     def get_param_namespace(self,param_name):
-        param_dict = self.params_dict[param_name]
-        return nepi_ros.create_namespace(param_dict['namespace'],param_name)
+        namespace = ""
+        if param_name in self.params_dict.keys():
+            param_dict = self.params_dict[param_name]
+            namespace = nepi_ros.create_namespace(param_dict['namespace'],param_name)
+        return namespace
 
 
 
@@ -472,7 +475,6 @@ class NodeServicesIF:
                 srv_callback = None
                 try:
                     srv_namespace = nepi_ros.create_namespace(srv_dict['namespace'],srv_dict['topic'])
-                    self.msg_if.pub_info("Creating service for: " + service_name + " with namespace: " + srv_namespace )
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
@@ -602,7 +604,7 @@ class NodePublishersIF:
                 #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs))
         return has_subs
 
-    def publish(self,pub_name,pub_msg):
+    def publish_pub(self,pub_name,pub_msg):
         success = False
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
@@ -1075,7 +1077,6 @@ class NodeClassIF:
         success = False
         if self.params_if is not None:
             self.params_if.set_param(param_name,value)
-
         return success
 
     def reset_param(self, param_name):
@@ -1139,8 +1140,8 @@ class NodeClassIF:
             self.pubs_if.unregister_pubs()
 
     def publish_pub(self,pub_name, pub_msg):
-        if self.pubs_if is not None:
-            self.pubs_if.publish(pub_name, pub_msg)   
+        if self.pubs_if is not None and not nepi_ros.is_shutdown():
+            self.pubs_if.publish_pub(pub_name, pub_msg)   
             
     # Subscriber Methods ####################
     def get_subs(self):

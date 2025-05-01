@@ -917,7 +917,7 @@ class ImageIF:
         return self.has_subs
 
 
-    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
+    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'nepi_base', add_overlay_list = []):
         #self.msg_if.pub_warn("Got Image to Publish")
         success = False
         if cv2_img is None:
@@ -992,14 +992,14 @@ class ImageIF:
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = timestamp
             ros_img.header.frame_id = frame_id
+            self.node_if.publish_pub('image_pub', ros_img)
 
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
             latency = (current_time.to_sec() - timestamp.to_sec())
             self.status_msg.pub_latency_time = latency
             
-            if not nepi_ros.is_shutdown():
-                self.node_if.publish_pub('image_pub', ros_img)
+
             if self.last_pub_time is None:
                 self.last_pub_time = nepi_utils.get_time()
             else:

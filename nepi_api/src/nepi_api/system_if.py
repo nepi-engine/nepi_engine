@@ -189,16 +189,19 @@ class SaveDataIF:
 
 
         # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'query_data_products': {
-                'namespace': self.namespace,
-                'topic': 'query_data_products',
-                'srv': DataProductQuery,
-                'req': DataProductQueryRequest(),
-                'resp': DataProductQueryResponse(),
-                'callback': self._dataProductQueryHandler
+        if self.namespace == self.node_namespace:
+            self.SRVS_DICT = {
+                'query_data_products': {
+                    'namespace': self.namespace,
+                    'topic': 'query_data_products',
+                    'srv': DataProductQuery,
+                    'req': DataProductQueryRequest(),
+                    'resp': DataProductQueryResponse(),
+                    'callback': self._dataProductQueryHandler
+                }
             }
-        }
+        else:
+            self.SRVS_DICT = None
 
 
         # Publishers Config Dict ####################
@@ -430,7 +433,7 @@ class SaveDataIF:
                 # Respect the max save rate
                 if save_rate_dict[d][0] > 0:
                     save_rate_dict[d][0] = save_rate_hz if save_rate_hz <= save_rate_dict[d][2] else save_rate_dict[d][2]
-        elif (data_product in save_rate_dict):
+        elif (data_product in save_rate_dict.keys()):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
             self.msg_if.pub_warn("Requested unknown data product: " + data_product)    

@@ -173,7 +173,7 @@ def get_full_namespace(namespace):
   return namespace
 
 def create_namespace(base_namespace,topic):
-  base_namespace = get_full_namespace(base_namespace)
+  #base_namespace = get_full_namespace(base_namespace)
 
   if len(topic)>0:
     if topic[0] == '/':

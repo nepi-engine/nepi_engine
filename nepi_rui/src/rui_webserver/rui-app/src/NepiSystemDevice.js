@@ -686,6 +686,11 @@ class NepiSystemDevice extends Component {
     const userRestoreHidden = (advancedConfigDisabled || (configSubsys !== "All"))
     return (
       <Section title={"Configuration"}>
+          <Label title={"Advanced Settings Enable"}>
+            <Toggle
+              onClick={this.onToggleAdvancedConfig}>
+            </Toggle>
+          </Label>
         <Label title={"Subsystem"}>
           <Select
             onChange={this.onConfigSubsysSelected}
@@ -711,11 +716,6 @@ class NepiSystemDevice extends Component {
     return (
       <Columns>
         <Column>
-          <Label title={"Advanced Settings Enable"}>
-            <Toggle
-              onClick={this.onToggleAdvancedConfig}>
-            </Toggle>
-          </Label>
           {this.renderDeviceSettings()}
           {this.renderLicenseInfo()}
           {/*this.renderTriggerSettings()*/}

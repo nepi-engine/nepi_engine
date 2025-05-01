@@ -360,10 +360,10 @@ class SystemMgrNode():
                 'qsize': 3,
                 'latch': True
             },
-            'save_data': {
+            'save_data_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
-                'msg': SaveDataStatus,
+                'msg': Bool,
                 'qsize': 1,
                 'latch': True
             },
@@ -374,14 +374,14 @@ class SystemMgrNode():
                 'qsize': 1,
                 'latch': True
             },
-            'system_triggers_status': {
+            'triggers_status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_triggers_status',
                 'msg': SystemTriggersStatus,
                 'qsize': 1,
                 'latch': True
             },
-            'system_states_status': {
+            'states_status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_states_status',
                 'msg': SystemStatesStatus,
@@ -395,7 +395,7 @@ class SystemMgrNode():
             'save_data': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
-                'msg': SaveDataStatus,
+                'msg': Bool,
                 'qsize': None,
                 'callback': self.set_save_status, 
                 'callback_args': ()
@@ -746,7 +746,7 @@ class SystemMgrNode():
             self.add_info_string("Max disk usage exceeded",
                                  StampedString.PRI_HIGH)
             # Force all nodes to stop data saving
-            self.node_if.publish_pub('save_data_pub', save_continuous=False, save_raw=False)
+            self.node_if.publish_pub('save_data_pub', False)
         else:
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
@@ -816,7 +816,7 @@ class SystemMgrNode():
         del self.status_msg.info_strings[:]
 
     def set_save_status(self, save_msg):
-        self.status_msg.save_all_enabled = save_msg.save_continuous
+        self.status_msg.save_all_enabled = save_msg.data
 
     def ensure_reqd_storage_subdirs(self):
         # Check for and create subdirectories as necessary
