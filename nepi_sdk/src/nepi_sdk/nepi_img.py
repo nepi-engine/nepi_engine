@@ -329,9 +329,13 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
     # Add text overlay
     if scale is None or thickness is None:
         scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
-    bottomLeftCornerOfText = (x_px,y_px)
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fontColor              = color_rgb
     lineType               = 1
+    bottomLeftCornerOfText = (x_px,y_px)
+
+    fontColorBlk = (0,0,0)
+
     # Add Background Box box if requested
     if background_rgb is not None:
       text_size = cv2.getTextSize(text, 
@@ -350,7 +354,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
       try:
           cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, background_rgb , -1)
       except Exception as e:
-           logger.log_warn("Failed to add text background box: " + str(e))
+           logger.log_warn("Failed to add text background box: " + str(e), throttle_s = 5)
 
     # Add Text Shadow if requested
     if apply_shadow == True:
@@ -358,12 +362,12 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
           cv2.putText(cv2_img,text, 
               bottomLeftCornerOfText, 
               font, 
-              fontScale,
-              fontColorBk,
-              font_thickness*2,
+              scale,
+              fontColorBlk,
+              thickness*2,
               lineType)
       except Exception as e:
-           logger.log_warn("Failed to apply text shadow: " + str(e))
+           logger.log_warn("Failed to apply text shadow: " + str(e), throttle_s = 5)
 
   
     # Overlay Text
@@ -371,16 +375,18 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
         cv2.putText(cv2_img,text, 
             bottomLeftCornerOfText, 
             font, 
-            fontScale,
+            scale,
             fontColor,
-            font_thickness,
+            thickness,
             lineType)
     except Exception as e:
-         logger.log_warn("Failed to apply overlay text: " + str(e))
+         logger.log_warn("Failed to apply overlay text: " + str(e), throttle_s = 5)
     return cv2_img
  
 def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
     # Add text overlay
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    lineType = 1
     for text in text_list:
       if scale is None or thickness is None:
         scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
@@ -416,10 +422,14 @@ def overlay_bounding_box(cv2_img,bot_left_px, top_right_px, line_color=(255,0,0)
         cv2.rectangle(cv2_img, bot_left_px, top_right_px, line_color, thickness=line_thickness)
         success = True
     except Exception as e:
-         logger.log_warn("Failed to create bounding box rectangle: " + str(e))
+         logger.log_warn("Failed to create bounding box rectangle: " + str(e), throttle_s = 5)
     return cv2_img
 
 def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    lineType = 1
+    if scale is None or thickness is None:
+      scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
     text_size = cv2.getTextSize(text, 
       font, 
       scale,
@@ -437,21 +447,22 @@ def create_blank_image(image_size = (350, 700, 3) ):
     return cv2_img
 
 
-def create_message_image(message, image_size = (350, 700, 3),font_color = (0, 255, 0) ):
+def create_message_image(message, image_size = (350, 700, 3),color_rgb = (0, 255, 0) ):
     # Create a blank img for when not running
     cv2_img = create_blank_image(image_size) # Empty Black Image
     # Overlay text data on OpenCV image
+
+    scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+
     font = cv2.FONT_HERSHEY_DUPLEX
-    fontScale              = 0.5
-    fontColor              = font_color
-    thickness              = 1
+    fontColor              = color_rgb
     lineType               = 1
     text2overlay=message
     bottomLeftCornerOfText = (50,50)
     cv2.putText(cv2_img,text2overlay, 
         bottomLeftCornerOfText, 
         font, 
-        fontScale,
+        scale,
         fontColor,
         thickness,
         lineType)

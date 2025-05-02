@@ -493,6 +493,7 @@ class NodeServicesIF:
     def _unregister_service(self, service_name):
         purge = False
         if service_name in self.srvs_dict.keys():
+            srv_dict = self.srvs_dict[service_name]
             purge = True
             if 'service' in srv_dict.keys():
                 try:
@@ -651,6 +652,7 @@ class NodePublishersIF:
     def _unregister_pub(self, pub_name):
         purge = False
         if pub_name in self.pubs_dict.keys():
+            pub_dict = self.pubs_dict[pub_name]
             purge = True
             if 'pub' in pub_dict.keys():
                 try:
@@ -792,6 +794,7 @@ class NodeSubscribersIF:
     def _unregister_sub(self, sub_name):
         purge = False
         if sub_name in self.subs_dict.keys():
+            sub_dict = self.subs_dict[sub_name]
             purge = True
             if 'sub' in sub_dict.keys():
                 try:

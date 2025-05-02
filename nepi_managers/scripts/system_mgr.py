@@ -136,7 +136,7 @@ class SystemMgrNode():
 
     in_container = False
 
-    triggers_list = dict()
+    triggers_list = []
     triggers_status_interval = 1.0
 
     states_status_interval = 1.0
@@ -521,7 +521,7 @@ class SystemMgrNode():
         self.triggers_status_interval = 1.0
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting triggers status pub service: ")
-        nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
+        #nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
         # Create States Status Pub Processes
         self.states_status_interval = 1.0

@@ -347,13 +347,18 @@ class ReadWriteIF:
     ###############################
 
     def _createFileName(self,data_name_str,ext_str,timestamp=None):
+        if timestamp == None:
+            timestamp = nepi_utils.get_time()
         prefix = self.filename_dict['prefix']
         if len(prefix) > 0:
             prefix = prefix + '_'
         add_time = self.filename_dict['add_timestamp']
         data_time_str = ''
         if add_time == True:
-            time_ns = nepi_ros.time_ns_from_timestamp(timestamp)
+            if isinstance(timestamp,'float') == False and isinstance(timestamp,'int') == False:
+                time_ns = nepi_ros.time_ns_from_timestamp(timestamp)
+            else:
+                time_ns = timestamp
             add_ms = self.filename_dict['add_ms']
             add_ns = self.filename_dict['add_ns']
             data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
@@ -717,6 +722,9 @@ class ImageIF:
 
     status_msg = ImageStatus()
 
+    last_width = DEFUALT_IMG_WIDTH
+    last_height = DEFUALT_IMG_HEIGHT
+
     blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
 
     last_pub_time = None
@@ -805,6 +813,13 @@ class ImageIF:
                 'qsize': 1,
                 'latch': False
             },
+            'image_msg_pub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': True
+            },
             'status_pub': {
                 'msg': ImageStatus,
                 'namespace': self.namespace,
@@ -844,12 +859,26 @@ class ImageIF:
                 'qsize': 1,
                 'callback': self._setOverlayPoseCb
             },
+            'overlay_text': {
+                'msg': String,
+                'namespace': self.namespace,
+                'topic': 'add_overlay_text',
+                'qsize': 1,
+                'callback': self._setOverlayTextCb
+            },
             'overlay_list': {
                 'msg': StringArray,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_list',
                 'qsize': 1,
                 'callback': self._setOverlayListCb
+            },
+            'overlay_clear': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'clear_overlay_list',
+                'qsize': 1,
+                'callback': self._clearOverlayListCb
             }
         }
 
@@ -1014,9 +1043,17 @@ class ImageIF:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
         return True
 
-    def publish_cv2_msg_img(self,text):
+    def publish_msg_img(self, msg_text, timestamp = None, frame_id = 'nepi_base'):
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
-        self.publish_cv2_img(cv2_img)
+
+        if timestamp == None:
+            timestamp = nepi_ros.ros_time_now()
+
+        #Convert to ros Image message
+        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+        ros_img.header.stamp = timestamp
+        ros_img.header.frame_id = frame_id
+        self.node_if.publish_pub('image_msg_pub', ros_img)
 
 
     def unregister(self):
@@ -1069,6 +1106,17 @@ class ImageIF:
 
     def _setOverlayListCb(self,msg):
         self.node_if.set_param('add_overlay_list', msg.data)
+        self.publishStatus()
+
+    def _setOverlayTextCb(self,msg):
+        text = msg.data
+        overlay_list = self.node_if.get_param('add_overlay_list')
+        overlay_list.append(text)
+        self.node_if.set_param('add_overlay_list', overlay_list)
+        self.publishStatus()
+
+    def _clearOverlayListCb(self,msg):
+        self.node_if.set_param('add_overlay_list', [])
         self.publishStatus()
 
 

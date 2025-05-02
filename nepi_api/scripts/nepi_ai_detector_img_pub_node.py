@@ -8,6 +8,8 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
+
+
 import os
 import sys
 import copy
@@ -17,11 +19,9 @@ import math
 import cv2
 import threading
 
-
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_aifs
-from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
@@ -29,7 +29,7 @@ from sensor_msgs.msg import Image
 
 from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
 from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+#from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 
 
@@ -37,6 +37,9 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF
 from nepi_api.data_if import ImageIF
+
+### nepi_ais has to be imported last
+from nepi_sdk import nepi_ais
 
 
 
@@ -115,8 +118,6 @@ class AiDetectorImgPub:
     last_get_image_time = 0
     got_img_topic = "None"
 
-    img_dict = None
-    img_dict_lock = threading.Lock()
     clear_img_time = 1.0
 
     first_detect_complete = False
@@ -149,7 +150,7 @@ class AiDetectorImgPub:
 
         self.classes_list = nepi_ros.get_param(self.node_namespace + "/classes_list",[])
         self.classes_color_list = nepi_ais.get_classes_colors_list(self.classes_list)
-        #self.msg_if.pub_warn("Detector provided classes color list: " + str(self.classes_color_list))
+        self.msg_if.pub_warn("Detector provided classes color list: " + str(self.classes_color_list))
 
         self.status_msg = AiDetectorStatus()
         self.model_name = os.path.basename(self.det_namespace)
@@ -277,47 +278,63 @@ class AiDetectorImgPub:
         self.publish_status()
 
 
+    def getActiveImgTopics(self):
+        active_img_topics = []
+        img_topics = self.imgs_info_dict.keys()
+        for i,img_topic in enumerate(img_topics):
+            img_active =  self.imgs_info_dict[img_topic]['active']
+            if img_active == True:
+                active_img_topics.append(img_topic)
+        return active_img_topics
+
+
     def updaterCb(self,timer):
         # Clear boxes if stall
         current_time = nepi_utils.get_time()
+
         for img_topic in self.imgs_info_dict.keys():
             last_time = self.imgs_info_dict[img_topic]['last_det_time']
             check_time = current_time - last_time
             if check_time > self.clear_det_time or self.enabled == False or self.sleep_state == True:
                 self.imgs_info_dict[img_topic]['det_dict_list'] = None
 
-        #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
-        img_topics = self.img_source_topics
-        self.img_ifs_lock.acquire()
-        img_ifs_keys = self.img_ifs_dict.keys()
-        self.img_ifs_lock.release()
+
+        img_topics = copy.deepcopy(self.img_source_topics)
+        active_img_topics = self.getActiveImgTopics()
+        #self.msg_if.pub_warn("")
+        #self.msg_if.pub_warn("Updating with image topics: " +  str(img_topics))
+        #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_img_topics))
+        
+        
         # Update Image subscribers
         for i,img_topic in enumerate(img_topics):
             img_topic = nepi_ros.find_topic(img_topic)
             if img_topic != '':
                 img_topics[i] = img_topic
-                if img_topic not in img_ifs_keys:
+                if img_topic not in active_img_topics:
+                    self.msg_if.pub_warn('Will subscribe to image topic: ' + img_topic)
                     success = self.subscribeImgTopic(img_topic)    
           
         purge_list = []
-        for img_topic in img_ifs_keys:
+        for img_topic in active_img_topics:
             if img_topic not in img_topics:
                 purge_list.append(img_topic)
         #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
-        for topic in purge_list:
-            self.msg_if.pub_warn('Will unsubscribe topics: ' + topic)
-            success = self.unsubscribeImgTopic(topic)
-
-
+        #self.msg_if.pub_warn("")
+        for img_topic in purge_list:
+            self.msg_if.pub_warn('Will unsubscribe from image topic: ' + img_topic)
+            success = self.unsubscribeImgTopic(img_topic)
 
 
         '''
-        self.pub_img_if.publish_cv2_msg_img(self.not_connected_msg)
-        self.pub_img_if.publish_cv2_msg_img(self.not_enabled_msg)
-        self.pub_img_if.publish_cv2_msg_img(self.waiting_img_msg)
-        self.pub_img_det_if.publish_cv2_msg_img(self.waiting_img_msg)
-        '''
+        self.pub_img_if.publish_msg_img("Detector not Enabled")
 
+        self.pub_img_if.publish_msg_img("Detector Sleeping")
+
+        self.pub_img_if.publish_msg_img("Waiting for Image")
+
+        self.pub_img_if.publish_msg_img("Image not Connected")
+        '''
 
 
         nepi_ros.start_timer_process((.5), self.updaterCb, oneshot = True)
@@ -352,7 +369,7 @@ class AiDetectorImgPub:
             else:
                     
                 # Create register new image topic
-                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
+                self.msg_if.pub_info('Registering to image topic: ' + img_topic)
                 img_name = img_topic.replace(self.base_namespace,"")
                 pub_namespace = os.path.join(self.det_namespace,img_name)
 
@@ -360,6 +377,8 @@ class AiDetectorImgPub:
                 # Create img info dict
                 self.imgs_info_dict[img_topic] = dict()  
                 self.imgs_info_dict[img_topic]['namespace'] = pub_namespace
+                self.imgs_info_dict[img_topic]['active'] = True
+                self.imgs_info_dict[img_topic]['publishing'] = False
                 self.imgs_info_dict[img_topic]['connected'] = False 
                 self.imgs_info_dict[img_topic]['get_latency_time'] = 0
                 self.imgs_info_dict[img_topic]['pub_latency_time'] = 0
@@ -368,10 +387,7 @@ class AiDetectorImgPub:
                 self.imgs_info_dict[img_topic]['last_det_time'] = 0
                 self.imgs_info_dict[img_topic]['det_dict_list'] = []   
 
-                self.imgs_info_dict[img_topic]['active'] = True
-                self.imgs_info_dict[img_topic]['img_publishing'] = False
-
-  
+                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
                 img_image_if = ImageIF(namespace = pub_namespace , topic = 'detection_image')
 
                 ####################
@@ -410,17 +426,25 @@ class AiDetectorImgPub:
             return True
 
     def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'nepi_base', add_overlay_list = []):
-        self.img_image_if.publish_pub(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
-        self.img_image_if_all.publish_pub(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+        self.img_image_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+        self.img_image_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
         if img_topic in self.img_ifs_dict.keys():
             self.img_ifs_lock.acquire()
-            self.img_ifs_dict[img_topic]['img_if'].publish_cv2_image(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+            self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+            self.img_ifs_lock.release()
+
+    def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'nepi_base', add_overlay_list = []):
+        self.img_image_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+        self.img_image_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+        if img_topic in self.img_ifs_dict.keys():
+            self.img_ifs_lock.acquire()
+            self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
             self.img_ifs_lock.release()
                  
 
     def unsubscribeImgTopic(self,img_topic):
+        self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
         if img_topic in self.img_ifs_dict.keys():
-            self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[img_topic]['subs_if'].unregister_sub('img_sub')
             self.img_ifs_lock.release()
@@ -430,6 +454,7 @@ class AiDetectorImgPub:
         # Clear info dict
         if img_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[img_topic]['active'] = False
+            self.imgs_info_dict[img_topic]['publishing'] = False
             self.imgs_info_dict[img_topic]['connected'] = False 
             self.imgs_info_dict[img_topic]['get_latency_time'] = 0
             self.imgs_info_dict[img_topic]['pub_latency_time'] = 0
@@ -448,8 +473,9 @@ class AiDetectorImgPub:
         img_topic = args
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
 
-        last_img_time = self.imgs_info_dict[img_topic]['last_img_time']
-        self.imgs_info_dict[img_topic]['last_img_time'] = nepi_utils.get_time()
+
+        self.imgs_info_dict[img_topic]['connected'] = True
+        
 
         if img_topic in imgs_info_dict.keys():
             enabled = self.enabled
@@ -457,15 +483,18 @@ class AiDetectorImgPub:
             active = imgs_info_dict[img_topic]['active']
             if active == True and enabled == True and sleep_state == False:
                 # Process ros image message
-                imgs_info_dict[img_topic]['connected'] = True
+                imgs_info_dict[img_topic]['publishing'] = True
 
 
                 # Check if time to publish
                 delay_time = float(1) / self.max_rate 
+                last_img_time = self.imgs_info_dict[img_topic]['last_img_time']
                 current_time = nepi_utils.get_time()
                 timer = round((current_time - last_img_time), 3)
                 #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
                 if timer > delay_time: 
+                    self.imgs_info_dict[img_topic]['last_img_time'] = current_time
+
                     ros_timestamp = image_msg.header.stamp
                     ros_frame_id = image_msg.header.frame_id
 
@@ -488,138 +517,126 @@ class AiDetectorImgPub:
 
 
 
-    def processDetImage(self,image_topic, cv2_img, detect_dict_list, timestamp = None, frame_id = 'nepi_base'):
-        if 'cv2_img' not in img_dict.keys():
-            return False
-        if img_dict['cv2_img'] is None:
-            return False
-        
+    def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_id = 'nepi_base'):
+      
         # Post process image with overlays
         if detect_dict_list is not None:
             # Publish image first for consumers
             #self.msg_if.pub_warn("Starting detect image: " + str(cv2_img.shape))
-            cv2_img = self.apply_detection_overlay(image_topic, detect_dict_list, cv2_img)
+            cv2_img = self.apply_detection_overlay(img_topic, detect_dict_list, cv2_img)
             #self.msg_if.pub_warn("Return detect image: " + str(cv2_img.shape)
 
             add_overlay_list = []
             ## Overlay Detector Name
-            overlay_clf_name = self.overlay_clf_name
-            if overlay_clf_name:
-                add_overlay_list.append(self.det_status_dict['name'])
-            if overlay_img_name:
-                add_overlay_list.append(nepi_img.getImgShortName(image_topic))
-            publishImgData(self, img_topic, cv2_img, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
+
+            if self.overlay_clf_name:
+                add_overlay_list.append(self.model_name)
+
+            if self.overlay_img_name:
+                add_overlay_list.append(nepi_img.getImgShortName(img_topic))
+            self.publishImgData(img_topic, cv2_img, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
         
             # Save Image Data if needed
             data_product = 'detection_image'
-            if image_topic is not None:
-                image_text = image_topic.replace(self.base_namespace,"")
-                image_text = image_text.replace('/idx',"")
-                image_text = image_text.replace('/','_')
-            else:
-                imagee_text = ""
-            nepi_save.save_ros_img2file(self,data_product,det_img_msg,ros_timestamp, add_text = image_text)
+            self.save_data_if.save_img2file(data_product,cv2_img,timestamp)
         return True
 
 
-    def apply_detection_overlay(self,image_topic, detect_dict_list, cv2_img):
+    def apply_detection_overlay(self,img_topic, detect_dict_list, cv2_img):
         cv2_det_img = copy.deepcopy(cv2_img)
         cv2_shape = cv2_img.shape
         img_width = cv2_shape[1] 
         img_height = cv2_shape[0] 
 
+        for detect_dict in detect_dict_list:
+            img_size = cv2_img.shape[:2]
+
+            # Overlay text data on OpenCV image
+            font = cv2.FONT_HERSHEY_DUPLEX
+            fontScale, font_thickness  = nepi_img.optimal_font_dims(cv2_det_img,font_scale = 1.5e-3, thickness_scale = 1.5e-3)
+            fontColor = (255, 255, 255)
+            fontColorBk = (0,0,0)
+            lineType = cv2.LINE_AA
 
 
-        if self.det_status_dict is not None:
-            for detect_dict in detect_dict_list:
-                img_size = cv2_img.shape[:2]
+            ###### Apply Image Overlays and Publish Image ROS Message
+            # Overlay adjusted detection boxes on image 
+            class_name = detect_dict['name']
+            xmin = detect_dict['xmin']
+            ymin = detect_dict['ymin']
+            xmax = detect_dict['xmax']
+            ymax = detect_dict['ymax']
 
-                # Overlay text data on OpenCV image
-                font = cv2.FONT_HERSHEY_DUPLEX
-                fontScale, font_thickness  = nepi_img.optimal_font_dims(cv2_det_img,font_scale = 1.5e-3, thickness_scale = 1.5e-3)
-                fontColor = (255, 255, 255)
-                fontColorBk = (0,0,0)
-                lineType = cv2.LINE_AA
-
-
-                ###### Apply Image Overlays and Publish Image ROS Message
-                # Overlay adjusted detection boxes on image 
-                class_name = detect_dict['name']
-                xmin = detect_dict['xmin']
-                ymin = detect_dict['ymin']
-                xmax = detect_dict['xmax']
-                ymax = detect_dict['ymax']
-
-                if xmin <= 0:
-                    xmin = 5
-                if ymin <= 0:
-                    ymin = 5
-                if xmax >= img_size[1]:
-                    xmax = img_size[1] - 5
-                if ymax >= img_size[0]:
-                    ymax = img_size[0] - 5
+            if xmin <= 0:
+                xmin = 5
+            if ymin <= 0:
+                ymin = 5
+            if xmax >= img_size[1]:
+                xmax = img_size[1] - 5
+            if ymax >= img_size[0]:
+                ymax = img_size[0] - 5
 
 
-                bot_left_box = (xmin, ymin)
-                top_right_box = (xmax, ymax)
+            bot_left_box = (xmin, ymin)
+            top_right_box = (xmax, ymax)
 
-                class_color = (255,0,0)
-                if class_name in self.classes_list:
-                    class_ind = self.classes_list.index(class_name)
-                    #self.msg_if.pub_warn("Got Class Index: " + str(class_ind))
-                    if class_ind < len(self.classes_color_list):
-                        class_color = tuple(self.classes_color_list[class_ind])
-                        #self.msg_if.pub_warn("Got Class Color: " + str(class_color))
-                class_color =  [int(c) for c in class_color]
+            class_color = (255,0,0)
+            if class_name in self.classes_list:
+                class_ind = self.classes_list.index(class_name)
+                #self.msg_if.pub_warn("Got Class Index: " + str(class_ind))
+                if class_ind < len(self.classes_color_list):
+                    class_color = tuple(self.classes_color_list[class_ind])
+                    #self.msg_if.pub_warn("Got Class Color: " + str(class_color))
+            class_color =  [int(c) for c in class_color]
 
-                line_thickness = font_thickness
+            line_thickness = font_thickness
 
 
-                success = False
-                try:
-                    cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
-                    success = True
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
+            success = False
+            try:
+                cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
 
-                # Overlay text data on OpenCV image
-                if success == True:
+            # Overlay text data on OpenCV image
+            if success == True:
 
-                    ## Overlay Labels
-                    overlay_labels =  self.overlay_labels
-                    if overlay_labels:
-                        text2overlay=class_name
-                        text_size = cv2.getTextSize(text2overlay, 
+                ## Overlay Labels
+                overlay_labels =  self.overlay_labels
+                if overlay_labels:
+                    text2overlay=class_name
+                    text_size = cv2.getTextSize(text2overlay, 
+                        font, 
+                        fontScale,
+                        font_thickness)
+                    #self.msg_if.pub_warn("Text Size: " + str(text_size))
+                    line_height = text_size[0][1]
+                    line_width = text_size[0][0]
+                    x_padding = int(line_height*0.4)
+                    y_padding = int(line_height*0.4)
+                    bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+                    # Create Text Background Box
+
+                    bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
+                    top_right_box = (bot_left_text[0] + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
+                    box_color = [0,0,0]
+
+                    try:
+                        cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, box_color , -1)
+                        cv2.putText(cv2_det_img,text2overlay, 
+                            bot_left_text, 
                             font, 
                             fontScale,
-                            font_thickness)
-                        #self.msg_if.pub_warn("Text Size: " + str(text_size))
-                        line_height = text_size[0][1]
-                        line_width = text_size[0][0]
-                        x_padding = int(line_height*0.4)
-                        y_padding = int(line_height*0.4)
-                        bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
-                        # Create Text Background Box
+                            fontColor,
+                            font_thickness,
+                            lineType)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to apply overlay text: " + str(e))
 
-                        bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
-                        top_right_box = (bot_left_text[0] + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
-                        box_color = [0,0,0]
-
-                        try:
-                            cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, box_color , -1)
-                            cv2.putText(cv2_det_img,text2overlay, 
-                                bot_left_text, 
-                                font, 
-                                fontScale,
-                                fontColor,
-                                font_thickness,
-                                lineType)
-                        except Exception as e:
-                            self.msg_if.pub_warn("Failed to apply overlay text: " + str(e))
-
-                        # Start name overlays    
-                        x_start = int(img_width * 0.05)
-                        y_start = int(img_height * 0.05)
+                    # Start name overlays    
+                    x_start = int(img_width * 0.05)
+                    y_start = int(img_height * 0.05)
 
 
         return cv2_det_img
@@ -632,23 +649,24 @@ class AiDetectorImgPub:
         img_stamp = msg.image_header.stamp
         img_topic = msg.image_topic
         det_count = msg.count
-        self.imgs_info_dict[img_topic]['stamp'] = stamp
-        self.imgs_info_dict[img_topic]['img_stamp'] = img_stamp
-        self.imgs_info_dict[img_topic]['det_count'] = det_count
+        if img_topic in self.imgs_info_dict.keys():
+            self.imgs_info_dict[img_topic]['stamp'] = stamp
+            self.imgs_info_dict[img_topic]['img_stamp'] = img_stamp
+            self.imgs_info_dict[img_topic]['det_count'] = det_count
 
-        current_time = nepi_utils.get_time()
-        self.imgs_info_dict[img_topic]['last_det_time'] = current_time
+            current_time = nepi_utils.get_time()
+            self.imgs_info_dict[img_topic]['last_det_time'] = current_time
 
-        if det_count == 0:
-            self.imgs_info_dict[img_topic]['det_dict_list'] = None
+            if det_count == 0:
+                self.imgs_info_dict[img_topic]['det_dict_list'] = None
 
     def objectDetectedCb(self,msg):
         img_topic = msg.image_topic
-        
-        self.imgs_info_dict[img_topic]['object_detect_msg'] = msg
-        binfo = nepi_ais.get_boxes_info_from_msg(msg)
-        blist = nepi_ais.get_boxes_list_from_msg(msg)
-        self.imgs_info_dict[img_topic]['det_dict_list'] = blist
+        if img_topic in self.imgs_info_dict.keys():
+            self.imgs_info_dict[img_topic]['object_detect_msg'] = msg
+            binfo = nepi_ais.get_boxes_info_from_msg(msg)
+            blist = nepi_ais.get_boxes_list_from_msg(msg)
+            self.imgs_info_dict[img_topic]['det_dict_list'] = blist
 
     def statusCb(self,msg):
         self.status_msg = msg
@@ -662,13 +680,7 @@ class AiDetectorImgPub:
         self.overlay_clf_name = self.status_msg.overlay_clf_name
         self.overlay_img_name = self.status_msg.overlay_img_name
 
-        img_topics = self.status_msg.image_source_topics
-        img_states = self.status_msg.image_detector_states
-        img_source_topics = []
-        for i, img_topic in enumerate(img_topics):
-            if img_states[i] == True:
-                img_source_topics.append(img_topic)
-        self.img_source_topics = img_source_topics
+        self.img_source_topics = self.status_msg.image_source_topics
         
 
 #########################################

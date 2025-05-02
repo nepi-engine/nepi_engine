@@ -462,7 +462,7 @@ renderDetectorSettings() {
       const is_tiling = message.img_tiling
 
       const overlay_labels = message.overlay_labels
-      const overlay_detector_name = message.overlay_detector_name
+      const overlay_detector_name = message.overlay_clf_name
       const overlay_img_name = message.overlay_img_name
 
       const threshold = message.threshold
@@ -471,7 +471,6 @@ renderDetectorSettings() {
 
 
       const det_img_namespaces = message.image_detector_namespaces
-      const det_img_states = message.image_detector_states
       const det_img_topics = message.image_source_topics
 
       const img_selected = message.image_selected
@@ -481,7 +480,7 @@ renderDetectorSettings() {
       const det_latency = round(message.detect_latency_time, 3)
       const pre_time = round(message.preprocess_time, 3)
       const det_time = round(message.detect_time, 3)
-
+      const rate_hz = round(message.avg_rate_hz, 3)
       const img_options = this.createImageTopicsOptions()
 
       const img_list_viewable = this.state.img_list_viewable
@@ -514,18 +513,6 @@ renderDetectorSettings() {
         </Column>
         </Columns>
 
-        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-        {"\n Start Latency: " + img_latency + "  Detection Latency: " + det_latency + 
-        "\n Process Times (Image,Detect): " + pre_time + " , " + det_time}
-        </pre>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-            {"Detector Settings"}
-          </label>
-
-
         <Columns>
         <Column>
 
@@ -543,47 +530,64 @@ renderDetectorSettings() {
           </Column>
           </Columns>
 
+        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+        {"\n Avg Detect Latency: " + det_time +
+        "\n Avg Detect Rate Hz: " + rate_hz}
+        
+        </pre>
 
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
+        <Columns>
+        <Column>
+
+        <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {"Detector Settings"}
+          </label>
+
+          </Column>
+          </Columns>
 
           <Columns>
         <Column>
 
 
 
-          <label align={"left"} textAlign={"left"}>
-            {"Select Image Streams to Connect"}
+          </Column>
+          </Columns>
+
+          <Columns>
+        <Column>
+
+        <label align={"left"} textAlign={"left"}>
+            {"Select Images"}
           </label>
 
-          <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-            <div onClick={this.toggleImagesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
-              <Select style={{width: "10px"}}/>
-            </div>
-            <div hidden={this.state.img_list_viewable}>
-            {img_options.map((image) =>
-            <div onClick={this.onImagesTopicSelected}
-              style={{
-                textAlign: "center",
-                padding: `${Styles.vars.spacing.xs}`,
-                color: Styles.vars.colors.black,
-                backgroundColor: (image.props.value === sel_img) ?
-                  Styles.vars.colors.green :
-                  (det_img_topics.indexOf(image.props.value) !== -1 ) ? 
-                  
-                    (det_img_states[det_img_topics.indexOf(image.props.value)] === true) ? Styles.vars.colors.blue : Styles.vars.colors.grey0 : 
-                      
-                      Styles.vars.colors.grey0,
-                cursor: "pointer",
-                }}>
-                <body image-topic ={image} style={{color: Styles.vars.colors.black}}>{image}</body>
-            </div>
-            )}
-            </div>
 
             </Column>
           <Column>
 
+                <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <div onClick={this.toggleImagesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
+          <Select style={{width: "10px"}}/>
+        </div>
+        <div hidden={this.state.img_list_viewable}>
+        {img_options.map((image) =>
+        <div onClick={this.onImagesTopicSelected}
+          style={{
+            textAlign: "center",
+            padding: `${Styles.vars.spacing.xs}`,
+            color: Styles.vars.colors.black,
+            backgroundColor: (image.props.value === sel_img) ?
+              Styles.vars.colors.green :
+              (det_img_topics.indexOf(image.props.value) !== -1 ) ? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+            cursor: "pointer",
+            }}>
+            <body image-topic ={image} style={{color: Styles.vars.colors.black}}>{image}</body>
+        </div>
+        )}
+        </div>
 
           </Column>
           </Columns>
@@ -618,7 +622,7 @@ renderDetectorSettings() {
           <SliderAdjustment
                   title={"Max Image Publish Rate"}
                   msgType={"std_msgs/Float32"}
-                  adjustment={max_det_rate}
+                  adjustment={max_img_rate}
                   topic={detector_namespace + "/set_max_img_rate"}
                   scaled={1.0}
                   min={1}
@@ -641,7 +645,7 @@ renderDetectorSettings() {
                   </Toggle>
                 </Label>
 
-                <Label title="Overlay Image">
+                <Label title="Overlay Image Name">
                   <Toggle
                   checked={overlay_img_name===true}
                   onClick={() => this.props.ros.sendBoolMsg(detector_namespace + "/set_overlay_img_name", overlay_img_name===false)}>
@@ -750,7 +754,6 @@ renderDetectorSettings() {
               const detector_ns = this.state.detector_namespace
               const detector_enabled = message.enabled
               const det_img_nns = message.image_detector_namespaces
-              const det_img_states = message.image_detector_states
               if (detector_enabled === false) {
                   img_topic === "Detector Not Enabled"
                   img_text = "Detector Not Enabled"
@@ -760,13 +763,13 @@ renderDetectorSettings() {
                 const det_img_topic = detector_ns + "/detection_image"
                 img_text = "All"
                 items.push(<Option value={det_img_topic}>{img_text}</Option>)
-
+                if (sel_img === ""){
+                  this.setState({selected_img_topic: det_img_topic })
+                }
                 for (var i = 0; i < det_img_nns.length; i++) {
-                  if (det_img_states[i] === true){
                     img_topic = det_img_nns[i] + '/detection_image'
                     img_text = img_topic.replace(detector_ns + '/','')
                     items.push(<Option value={img_topic}>{img_text}</Option>)
-                  }
                 }
               }
               else  {
@@ -800,11 +803,12 @@ renderDetectorSettings() {
 
   render() {
     const {topicNames} = this.props.ros
+    const img_options = this.getDisplayImgOptions()
     const sel_img_topic = this.state.selected_img_topic
     const img_publishing = topicNames.indexOf(sel_img_topic) !== -1
     const sel_img = img_publishing? sel_img_topic : ""
     const sel_img_text = img_publishing?  this.state.selected_img_text : 'Waiting for image to publish'
-    const img_options = this.getDisplayImgOptions()
+
     const saveNamespace = this.getSaveNamespace()
 
 

@@ -3,9 +3,9 @@
 string MODEL_STATE_LOADING=Loading
 string MODEL_STATE_LOADED=Loaded
 string MODEL_STATE_WAITING=Waiting
-string MODEL_STATE_WAITING=Listening
+string MODEL_STATE_LISTENING=Listening
 string MODEL_STATE_RUNNING=Running
-string MODEL_STATE_RUNNING=Sleeping
+string MODEL_STATE_SLEEPING=Sleeping
 
 string SLEEP_SUSPEND_UNTIL_WOKEN=-1
 
@@ -38,7 +38,6 @@ float32 max_img_rate_hz
 
 string[] image_source_topics
 string[] image_detector_namespaces
-bool[] image_detector_states
 bool[] images_connected
 float32[] image_latency_times
 float32[] detect_latency_times
@@ -52,6 +51,7 @@ float32 image_latency_time
 float32 detect_latency_time
 float32 preprocess_time
 float32 detect_time
+float32 avg_rate_hz
 
 
 

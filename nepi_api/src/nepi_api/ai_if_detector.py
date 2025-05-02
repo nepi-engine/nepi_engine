@@ -113,6 +113,7 @@ class AiDetectorIF:
 
     detection_state = False
     
+    rate_list = [0,0,0,0,0,0,0,0,0,0]
     sleep_state = False
     def __init__(self, 
                 model_name, 
@@ -536,7 +537,7 @@ class AiDetectorIF:
         self.triggers_dict = {
                         "detection_trigger": {
                             "name":"detection_trigger",
-                            "namespace": self.node_namespace,
+                            "node_name": self.node_name,
                             "description": "Triggered on AI detection",
                             "data_str_list":["None"],
                             "time":nepi_utils.get_time()
@@ -705,6 +706,10 @@ class AiDetectorIF:
 
     def setMaxImgRateCb(self,msg):
         max_rate = msg.data
+        if max_rate <  MIN_MAX_RATE:
+            max_rate = MIN_MAX_RATE
+        elif max_rate > MAX_MAX_RATE:
+            max_rate = MAX_MAX_RATE
         self.node_if.set_param('max_img_rate', max_rate)
         self.publishStatus()
 
@@ -738,27 +743,38 @@ class AiDetectorIF:
     def statusPublishCb(self,timer):
         self.publishStatus()
 
+    def getActiveImgTopics(self):
+        active_img_topics = []
+        img_topics = self.imgs_info_dict.keys()
+        for i,img_topic in enumerate(img_topics):
+            img_active =  self.imgs_info_dict[img_topic]['active']
+            if img_active == True:
+                active_img_topics.append(img_topic)
+        return active_img_topics
+
+
     def updaterCb(self,timer):
         #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
         img_topics = self.node_if.get_param('img_topics')
         self.img_ifs_lock.acquire()
-        img_ifs_keys = self.img_ifs_dict.keys()
+        registered_img_topics = self.img_ifs_dict.keys()
+        active_img_topics = self.getActiveImgTopics()
         self.img_ifs_lock.release()
         # Update Image subscribers
         for i,img_topic in enumerate(img_topics):
             img_topic = nepi_ros.find_topic(img_topic)
             if img_topic != '':
                 img_topics[i] = img_topic
-                if img_topic not in img_ifs_keys:
+                if img_topic not in active_img_topics:
                     success = self.subscribeImgTopic(img_topic)    
           
         purge_list = []
-        for img_topic in img_ifs_keys:
+        for img_topic in active_img_topics:
             if img_topic not in img_topics:
                 purge_list.append(img_topic)
         #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         for topic in purge_list:
-            self.msg_if.pub_warn('Will unsubscribe topics: ' + topic)
+            self.msg_if.pub_warn('Will unsubscribe from image topic: ' + topic)
             success = self.unsubscribeImgTopic(topic)
 
         # Set Image connected state
@@ -815,7 +831,7 @@ class AiDetectorIF:
             else:
                     
                 # Create register new image topic
-                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
+                self.msg_if.pub_info('Registering to image topic: ' + img_topic)
                 img_name = img_topic.replace(self.base_namespace,"")
                 pub_namespace = os.path.join(self.node_namespace,img_name)
 
@@ -824,13 +840,14 @@ class AiDetectorIF:
                 self.imgs_info_dict[img_topic] = dict()  
                 self.imgs_info_dict[img_topic]['namespace'] = pub_namespace
                 self.imgs_info_dict[img_topic]['connected'] = False 
+                self.imgs_info_dict[img_topic]['active'] = True
                 self.imgs_info_dict[img_topic]['image_latency_time'] = 0
                 self.imgs_info_dict[img_topic]['detect_latency_time'] = 0
                 self.imgs_info_dict[img_topic]['preprocess_time'] = 0 
                 self.imgs_info_dict[img_topic]['detect_time'] = 0  
-                self.imgs_info_dict[img_topic]['active'] = True
-                self.imgs_info_dict[img_topic]['img_publishing'] = False
 
+
+                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
                 ####################
                 # Pubs Config Dict 
                 IMG_PUBS_DICT = {
@@ -906,7 +923,6 @@ class AiDetectorIF:
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[img_topic]['subs_if'].unregister_sub('img_sub')
             self.img_ifs_lock.release()
-
         #Leave img pub running in case it is switched back on
     
         # Clear info dict
@@ -1044,6 +1060,9 @@ class AiDetectorIF:
                         #self.msg_if.pub_warn("Setting next topic to: " +  next_img_topic)
                         self.cur_img_topic = next_img_topic
                         self.get_img_topic = next_img_topic
+                        detect_delay = nepi_utils.get_time() - self.last_detect_time
+                        self.rate_list.pop(0)
+                        self.rate_list.append(detect_delay)
                         self.last_detect_time = nepi_ros.get_time()
 
                     #self.msg_if.pub_warn("Timer over delay check, looking for image topic: " +  img_topic)
@@ -1077,6 +1096,9 @@ class AiDetectorIF:
                                     #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
                                     self.first_detect_complete = True
+
+
+
                                 except Exception as e:
                                     self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
                                 ros_img_header = img_dict['msg_header']
@@ -1163,7 +1185,7 @@ class AiDetectorIF:
 
             if det_count > 0:
                 trigger_dict = self.triggers_dict['detection_trigger']
-                trigger_dict['time']=trigger_time
+                trigger_dict['time']=nepi_utils.get_time()
                 self.triggers_if.publish_trigger(trigger_dict)
 
                 self.detection_state = True
@@ -1179,6 +1201,8 @@ class AiDetectorIF:
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
                 bbs_dict['bounding_boxes']=bb_dict_list
                 self.save_data_if.save_dict2file(data_product,'bounding_boxes',ros_img_header.stamp)
+            
+
 
 
     def handleInfoRequest(self,_):
@@ -1196,22 +1220,22 @@ class AiDetectorIF:
 
         img_source_topics = []
         img_det_namespaces = []
-        img_det_states = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
-                img_source_topics.append(img_topic)
-                img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                img_det_states.append( imgs_info_dict[img_topic]['active'])
+                state = imgs_info_dict[img_topic]['active']
+                if state == True:
+                    img_source_topics.append(img_topic)
+                    img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
         resp.image_source_topics = img_source_topics
         resp.image_detector_namespaces = img_det_namespaces
-        resp.image_detector_states = img_det_states
+
 
         return resp
     
 
     def updateDetectionState(self,timer):
         # Update and clear detection state every second
-        self.states_dict['detection'] = self.detection_state
+        self.states_dict['detection']['value'] = str(self.detection_state)
         self.detection_state = False
 
 
@@ -1253,17 +1277,17 @@ class AiDetectorIF:
         img_detect_times = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
-                img_source_topics.append(img_topic)
-                img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                img_det_states.append( imgs_info_dict[img_topic]['active'])
-                img_connects.append(imgs_info_dict[img_topic]['connected'])
-                img_img_lat_times.append(imgs_info_dict[img_topic]['image_latency_time'])
-                img_det_lat_times.append(imgs_info_dict[img_topic]['detect_latency_time'])
-                img_pre_times.append(imgs_info_dict[img_topic]['preprocess_time'])
-                img_detect_times.append(imgs_info_dict[img_topic]['detect_time'])
+                state = imgs_info_dict[img_topic]['active']
+                if state == True:
+                    img_source_topics.append(img_topic)
+                    img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
+                    img_connects.append(imgs_info_dict[img_topic]['connected'])
+                    img_img_lat_times.append(imgs_info_dict[img_topic]['image_latency_time'])
+                    img_det_lat_times.append(imgs_info_dict[img_topic]['detect_latency_time'])
+                    img_pre_times.append(imgs_info_dict[img_topic]['preprocess_time'])
+                    img_detect_times.append(imgs_info_dict[img_topic]['detect_time'])
         self.status_msg.image_source_topics = img_source_topics
         self.status_msg.image_detector_namespaces = img_det_namespaces
-        self.status_msg.image_detector_states = img_det_states
         self.status_msg.images_connected = img_connects
         self.status_msg.image_latency_times = img_img_lat_times
         self.status_msg.detect_latency_times = img_det_lat_times
@@ -1288,6 +1312,12 @@ class AiDetectorIF:
         self.status_msg.detect_latency_time = det_lat_time
         self.status_msg.preprocess_time = pre_time
         self.status_msg.detect_time = detect_time
+        avg_rate = 0
+        avg_time = sum(self.rate_list) / len(self.rate_list)
+        if avg_time > .01:
+            avg_rate = float(1) / avg_time
+       
+        self.status_msg.avg_rate_hz = avg_rate
 
 
         #self.msg_if.pub_warn("Sending Status Msg: " + str(self.status_msg))

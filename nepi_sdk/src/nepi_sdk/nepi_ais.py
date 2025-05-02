@@ -9,6 +9,10 @@
 #
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import cv2
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 
