@@ -1972,11 +1972,14 @@ class ROSConnectionStore {
       .unix()
     this.publishMessage({
       name: "set_time",
-      messageType: "std_msgs/Time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
       data: {
         data: {
+          update_clock: true,
           secs: utcTS,
-          nsecs: 0
+          nsecs: 0,
+          upate_timezone: true,
+          timezone:  this.clockTZ
         }
       }
     })

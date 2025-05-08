@@ -83,6 +83,7 @@ add_message_files(FILES
     WarningFlags.msg
     NavPoseStatus.msg
     NavPoseSystemStatus.msg
+    TimeUpdate.msg
     TimeStatus.msg
     OotStatus.msg
     Heading.msg

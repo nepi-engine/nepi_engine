@@ -58,8 +58,7 @@ EXAMPLE_FILENAME_DICT = {
     'prefix': "", 
     'add_timestamp': True, 
     'add_ms': True,
-    'add_ns': False,
-    'suffix': "",
+    'add_us': False,
     'add_node_name': False
     }
 
@@ -74,8 +73,7 @@ class ReadWriteIF:
     'prefix': "", 
     'add_timestamp': True, 
     'add_ms': True,
-    'add_ns': False,
-    'suffix': "",
+    'add_us': False,
     'add_node_name': False
     }
 
@@ -193,25 +191,19 @@ class ReadWriteIF:
     def set_add_ms(self, add_ms):
         self.filename_dict['add_ms'] = add_ms
 
-    def get_add_ns(self):
-        return self.filename_dict['add_ns']
+    def get_add_us(self):
+        return self.filename_dict['add_us']
 
-    def set_add_ns(self, add_ns):
-        self.filename_dict['add_ns'] = add_ns
+    def set_add_us(self, add_us):
+        self.filename_dict['add_us'] = add_us
 
-    def get_filename_suffix(self):
-        return self.filename_dict['suffix']
 
-    def set_filename_suffix(self, suffix = ''):
-        self.filename_dict['suffix'] = suffix
-
-    def set_filename_config(self, prefix = '', suffix = '', add_time = True, add_ms = True, add_ns = False):
+    def set_filename_config(self, prefix = '', add_time = True, add_ms = True, add_us = False):
         self.filename_dict = {
         'prefix': prefix, 
         'add_timestamp': add_timestamp, 
         'add_ms': add_ms,
-        'add_ns': add_ns,
-        'suffix': suffix
+        'add_us': add_us,
         }
 
     def get_filename_config(self):
@@ -223,7 +215,8 @@ class ReadWriteIF:
         return file_list
 
     '''
-    def get_file_times(self,file_list):
+    def get_file_time(self,file_path):
+        file_time = None
         file_times = []
         for file in file_list:
             file_times.append(nepi_utils.get_time_from_filename(file))
@@ -269,7 +262,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name,ext_str,timestamp)
+                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -305,7 +298,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name,ext_str,timestamp)
+                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -341,7 +334,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name,ext_str,timestamp)
+                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -355,7 +348,7 @@ class ReadWriteIF:
     # Class Private Methods
     ###############################
 
-    def _createFileName(self,data_name_str,ext_str,timestamp=None):
+    def _createFileName(self, data_name_str, timestamp = None, timezone = None, ext_str = ""):
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         prefix = self.filename_dict['prefix']
@@ -366,17 +359,16 @@ class ReadWriteIF:
         if add_time == True:
             time_ns = nepi_ros.sec_from_timestamp(timestamp)
             add_ms = self.filename_dict['add_ms']
-            add_ns = self.filename_dict['add_ns']
-            data_time_str = nepi_ros.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
+            add_us = self.filename_dict['add_us']
+            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone) + '_'
         node_name_str = ""
         if self.filename_dict['add_node_name'] == True:
             node_name_str = self.node_name + '_'
-        if len(data_name_str) > 0:
-            data_name_str = data_name_str + '_'
-        suffix = self.filename_dict['suffix']
-        if len(suffix) > 0:
-            suffix = suffix + '_'
-        filename = prefix + data_time_str + node_name_str + data_name_str + suffix + '.' + ext_str
+        if len(ext_str) > 0:
+            ext_str  = '.' + ext_str
+        if len(data_name_str) >  0:
+            data_name_str = '-' + data_name_str
+        filename = prefix + data_time_str + node_name_str + data_name_str + ext_str
         return filename
 
 

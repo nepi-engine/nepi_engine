@@ -25,7 +25,7 @@ from std_msgs.msg import String, Empty, Time
 from nepi_ros_interfaces.msg import SystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
-from nepi_ros_interfaces.msg import Reset
+from nepi_ros_interfaces.msg import Reset, TimeUpdate
 from nepi_ros_interfaces.msg import TimeStatus
 
 from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
@@ -53,6 +53,8 @@ class time_sync_mgr(object):
     ntp_first_sync_time = None
     ntp_status_check_timer = None
 
+
+    timezone = 'UTC'
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
@@ -180,7 +182,7 @@ class time_sync_mgr(object):
                 'set_time': {
                     'namespace': self.base_namespace,
                     'topic': 'set_time',
-                    'msg': Time,
+                    'msg': TimeUpdate,
                     'qsize': None,
                     'callback': self.set_time, 
                     'callback_args': ()
@@ -392,6 +394,7 @@ class time_sync_mgr(object):
     def handle_time_status_query(self,req):
         time_status = TimeStatus()
         time_status.current_time = nepi_ros.ros_time_now()
+        time_status.timezone = self.timezone
 
         # Get Last PPS time from the sysfs node
         #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
@@ -423,12 +426,30 @@ class time_sync_mgr(object):
     def set_time(self,msg):
         # TODO: Bounds checking?
         # Use the Linux 'date -s' command-line utility.
-        self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.data.secs) + '.' + str(msg.data.nsecs))
-        timestring = '@' + str(float(msg.data.secs) + (float(msg.data.nsecs) / float(1e9)))
-        subprocess.call(["date", "-s", timestring])
-        self.last_set_time = msg.data
-        new_date = subprocess.check_output(["date"], text=True)
-        self.msg_if.pub_info("Updated date: " + str(new_date))
+        update_clock = msg.update_clock
+        if update_clock == True:
+            self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs) + ' timezone: ' + self.timezone)
+            timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
+            try:
+                subprocess.call(["date", "-s", timestring])
+                self.last_set_time = msg.secs + float(msg.nsecs)/1000000000
+                new_date = subprocess.check_output(["date"], text=True)
+                self.msg_if.pub_info("Updated date: " + str(new_date))
+            except Exception as e:
+                self.msg_if.pub_info("Failed to update time: " + str(e))
+
+
+        update_timezone = msg.update_timezone
+        if update_timeone == True:
+            self.msg_if.pub_info("Setting timezone to: " + msg.timezone)
+            try:
+                subprocess.call(["timedatectl", "set-timezone", msg.timezone])
+                self.msg_if.pub_info("Updated timezone: " + str(msg.timezone))
+                self.timezone = msg.timezone
+            except Exception as e:
+                self.msg_if.pub_info("Failed to update timezone: " + str(e))
+
+
 
         # Update the hardware clock from this "better" clock source; helps with RTC drift
         self.msg_if.pub_info("Updating hardware clock from set_time value")

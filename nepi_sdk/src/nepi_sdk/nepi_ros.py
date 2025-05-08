@@ -673,42 +673,6 @@ def start_timer_process(duration, callback_function, oneshot = False):
 def get_time():
   return time.time_ns() / 1000000000
 
-def get_datetime_str_now(add_ms = True, add_ns = False):
-  date_str=datetime.utcnow().strftime('%Y-%m-%d')
-  time_str=datetime.utcnow().strftime('%H%M%S')
-  ms_str = ""
-  if add_ms == True:
-    ms_str ="." + datetime.utcnow().strftime('%f')[:-3]
-  ns_str = ""
-  if add_ns == True:
-    ns_str ="." + datetime.utcnow().strftime('%f')[0:3]
-  dt_str = (date_str + "T" + time_str + ms_str + ns_str)
-  return dt_str
-
-
-def convert_time_to_datetime(time_ns):
-    """Converts nanoseconds since epoch to a datetime object.
-
-    Args:
-        time_ns: Integer representing nanoseconds since the epoch.
-
-    Returns:
-        A datetime object representing the given nanoseconds, or None if
-        the input is invalid.
-    """
-    try:
-        seconds = time_ns / 1_000_000_000  # Convert nanoseconds to seconds
-        return datetime.fromtimestamp(seconds)
-    except (ValueError, OSError, OverflowError) as e:
-        print(f"Error converting: {e}")
-        return None
-
-def convert_date_to_time(year, month, day):
-  """Converts a date (year, month, day) to seconds since the epoch."""
-  dt_object = datetime.datetime(year, month, day)
-  timestamp = time.mktime(dt_object.timetuple())
-  return int(timestamp)
-
 
 def get_ros_time_type():
   return rospy.rostime.Time
@@ -769,7 +733,7 @@ def ros_stamp_from_timestamp(timestamp):
     if timestamp is None:
         stamp = get_ros_stamp()
     elif isinstance(timestamp,get_ros_time_type()) == False:
-          if isinstance(timestamp,float) == True or isinstance(timestamp,int) == True:
+          if isinstance(timestamp,float) == True:
               stamp = ros_stamp_from_sec(timestamp)
           else:
               stamp = get_ros_stamp()
@@ -782,7 +746,7 @@ def ros_stamp_from_timestamp(timestamp):
 
 
 
-def sec_from_timestamp(timestamp):
+def sec_from_timestamp(timestamp = None):
     #rospy.logwarn("Got timestamp to convert to sec: " + str(timestamp))
     #rospy.logwarn("Got timestamp type to convert to sec: " + str(type(timestamp)))
     if timestamp is None:
@@ -796,25 +760,13 @@ def sec_from_timestamp(timestamp):
                   time_ns = sec_from_ros_time(timestamp)
                 except:
                   time_ns = get_time()
-        elif isinstance(timestamp,float) == True or isinstance(timestamp,int) == True:
+        elif isinstance(timestamp,float) == True:
             time_ns = timestamp
         else:
             time_ns = get_time()
     return time_ns
 
-def get_datetime_str_from_timestamp(timestamp, add_ms = True, add_ns = False):
-  time_ns = sec_from_timestamp(timestamp)
-  dt = convert_time_to_datetime(time_ns)
-  date_str=dt.strftime('%Y-%m-%d')
-  time_str=dt.strftime('%H%M%S')
-  ms_str = ""
-  if add_ms == True:
-    ms_str =  ":" + dt.strftime('%f')[:-3]
-  ns_str = ""
-  if add_ns == True:
-    ns_str =":" + dt.strftime('%f')[0:3]
-  dt_str = (date_str + "T" + time_str + ms_str + ns_str)
-  return dt_str
+
 
 def ros_duration(time_s):
   return duration(time_s)
@@ -882,7 +834,7 @@ def time_part_2_valid_str(tm_val):
 
 
 def get_time():
-  return time.time_ns() / 1000000000
+  return time.time()
 
 #########################
 ### Msg Helper Functions

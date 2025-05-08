@@ -68,8 +68,7 @@ EXAMPLE_FILENAME_DICT = {
     'prefix': "", 
     'add_timestamp': True, 
     'add_ms': True,
-    'add_ns': False,
-    'suffix': "",
+    'add_us': False,
     'add_node_name': False
     }
 
@@ -89,8 +88,7 @@ class SaveDataIF:
         'prefix': "", 
         'add_timestamp': True, 
         'add_ms': True,
-        'add_ns': False,
-        'suffix': "",
+        'add_us': False,
         'add_node_name': True
         }
 
@@ -509,7 +507,7 @@ class SaveDataIF:
             pass
      
     def get_timestamp_string(self):
-        return nepi_utils.get_datetime_str_now(add_ms = True, add_ns = False)
+        return nepi_utils.get_datetime_str_now(add_ms = True, add_us = False)
 
     def get_filename_path_and_prefix(self):
         if self.save_path is None:

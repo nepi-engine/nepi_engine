@@ -14,60 +14,72 @@
 
   
 import os
-
 import shutil
 import time
 import subprocess
 import yaml
 
-from datetime import datetime, timezone
+from pytz import timezone
+from datetime import datetime
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk import nepi_ros
 log_name = "nepi_utils"
-logger = Logger(log_name = log_name)
+logger = nepi_ros.logger(log_name = log_name)
 
 #########################
 ### Time Helper Functions
 
 def get_time():
-  return time.time_ns() / 1000000000
+  return time.time()
 
-def get_datetime_str_now(add_ms = True, add_ns = False):
-  date_str=datetime.utcnow().strftime('%Y-%m-%d')
-  time_str=datetime.utcnow().strftime('%H%M%S')
-  ms_str = ""
-  if add_ms == True:
-    ms_str ="." + datetime.utcnow().strftime('%f')[:-3]
-  ns_str = ""
-  if add_ns == True:
-    ns_str ="." + datetime.utcnow().strftime('%f')[0:3]
-  dt_str = (date_str + "T" + time_str + ms_str + ns_str)
+def get_datetime_str_now(add_ms = True, add_us = False, timezone = None):
+  time_ns = get_time()
+  return get_datetime_str_from_timestamp(timestamp = time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone)
+
+
+def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = False, timezone = None):
+  if timestamp is None:
+      timestamp = get_time()
+  time_ns = nepi_ros.sec_from_timestamp(timestamp)
+  dt = convert_time_to_datetime(time_ns, timzone = timezone)
+  date_str='D' + dt.strftime('%Y-%m-%d %Z')
+  time_str=dt.strftime('%H-%M-%S %Z')
+  ms_str = 'p'
+  if add_ms or add_us:
+    ms_str += dt.strftime('%f')[:-3]
+  if add_us == True:
+    ms_str += dt.strftime('%f')[3:]
+  dt_str = (date_str + "T" + time_str + ms_str)
   return dt_str
 
 
-def convert_time_to_datetime(time_ns):
+def convert_time_to_datetime(time_sec, timezone = None):
     """Converts nanoseconds since epoch to a datetime object.
 
     Args:
-        time_ns: Integer representing nanoseconds since the epoch.
+        time_sec: Integer representing nanoseconds since the epoch.
 
     Returns:
         A datetime object representing the given nanoseconds, or None if
         the input is invalid.
     """
+
     try:
-        seconds = time_ns / 1_000_000_000  # Convert nanoseconds to seconds
-        return datetime.fromtimestamp(seconds)
+        dt =  datetime.fromtimestamp(time_sec)
+        #dt.replace(tzinfo=timezone.utc)
     except (ValueError, OSError, OverflowError) as e:
         print(f"Error converting: {e}")
-        return None
+        dt = None
+    return dt
+
+def get_time_from_datetime_str(datetime_str):
+  pass
 
 def convert_date_to_time(year, month, day):
   """Converts a date (year, month, day) to seconds since the epoch."""
   dt_object = datetime.datetime(year, month, day)
   timestamp = time.mktime(dt_object.timetuple())
   return int(timestamp)
-
 
 #########################
 ### Network Helper Functions
