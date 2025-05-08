@@ -107,20 +107,20 @@ class ReadWriteIF:
             'dict': {
                 'data_type': dict,
                 'file_types': ['yaml'],
-                'read_func': self.read_dict_file,
-                'write_func': self.write_dict_file
+                'read_function': self.read_dict_file,
+                'write_function': self.write_dict_file
             },
             'image': {
                 'data_type': np.ndarray,
                 'file_types': ['png','PNG','jpg','jpeg','JPG'],
-                'read_func': self.read_image_file,
-                'write_func': self.write_image_file 
+                'read_function': self.read_image_file,
+                'write_function': self.write_image_file 
             },
             'pointcloud': {
                 'data_type': o3d.geometry.PointCloud,
                 'file_types': ['pcd'],
-                'read_func': self.read_pointcloud_file,
-                'write_func': self.write_pointcloud_file 
+                'read_function': self.read_pointcloud_file,
+                'write_function': self.write_pointcloud_file 
             },
         }
 
@@ -143,10 +143,10 @@ class ReadWriteIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
-            time_start = nepi_ros.get_time()
+            time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+                timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect")
             else:
@@ -230,31 +230,42 @@ class ReadWriteIF:
         return file_times
     '''
 
+    def write_data_file(self, filepath, data, data_name, timestamp = None):
+        data_type = type(data)
+        found_type = False
+        for data_name in self.data_dict:
+            if data_type == self.data_dict[data_name]['data_type']:
+                save_function = self.data_dict[data_name]['write_function']
+                save_function(filepath, data, data_name, timestamp = timestamp)
+                found_type = True
+        if found_type == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) )
+
+
     def read_dict_file(self, filepath, filename):
-        data_key = 'dict'
+        data_name = 'dict'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
+        file_types = self.data_dict[data_name]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            read_data = self.data_dict[data_key]['read_func'](file_path)
-            data_type = self.data_dict[data_key]['data_type']
+            data_type = self.data_dict[data_name]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
-                data = read_data
+                data = nepi_utils.read_yaml_2_dict(file_path)
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, ext_str = 'yaml'):
-        data_key = 'dict'
+        data_name = 'dict'
         success = False
-        data_type = self.data_dict[data_key]['data_type']
+        data_type = self.data_dict[data_name]['data_type']
         if isinstance(data,data_type) == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
-            file_types = self.data_dict[data_key]['file_types']
+            file_types = self.data_dict[data_name]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -263,35 +274,34 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
-                    success = self.data_dict[data_key]['write_func'](data, file_path)
+                    success = nepi_utils.nepi_utils.write_yaml_2_dict(file_path)(data, file_path)
         return success
 
 
     def read_image_file(self, filepath, filename):
-        data_key = 'image'
+        data_name = 'image'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
+        file_types = self.data_dict[data_name]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            read_data = self.data_dict[data_key]['read_func'](file_path)
-            data_type = self.data_dict[data_key]['data_type']
+            data_type = self.data_dict[data_name]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
-                data = read_data
+                data = nepi_img.read_image_file(file_path)
         return data
 
     def write_image_file(self, filepath, data, data_name, timestamp = None, ext_str = 'png'):
-        data_key = 'image'
+        data_name = 'image'
         success = False
-        data_type = self.data_dict[data_key]['data_type']
+        data_type = self.data_dict[data_name]['data_type']
         if isinstance(data,data_type) == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type))
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)))
         else:
-            file_types = self.data_dict[data_key]['file_types']
+            file_types = self.data_dict[data_name]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -300,35 +310,34 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
-                    success = self.data_dict[data_key]['write_func'](data, file_path)
+                    success = nepi_img.write_image_file(data, file_path)
         return success
 
 
     def read_pointcloud_file(self, filepath, filename):
-        data_key = 'pointcloud'
+        data_name = 'pointcloud'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
+        file_types = self.data_dict[data_name]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            read_data = self.data_dict[data_key]['read_func'](file_path)
-            data_type = self.data_dict[data_key]['data_type']
+            data_type = self.data_dict[data_name]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
-                data = read_data
+                data = nepi_pc.read_pointcloud_file(file_path)
         return data
 
     def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, ext_str = 'pcd'):
-        data_key = 'pointcloud'
+        data_name = 'pointcloud'
         success = False
-        data_type = self.data_dict[data_key]['data_type']
+        data_type = self.data_dict[data_name]['data_type']
         if isinstance(data,data_type) == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
-            file_types = self.data_dict[data_key]['file_types']
+            file_types = self.data_dict[data_name]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -337,7 +346,7 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
                 else:
-                    success = self.data_dict[data_key]['write_func'](data, file_path)
+                    success = nepi_pc.write_pointcloud_file(file_path)
         return success
 
 
@@ -355,13 +364,10 @@ class ReadWriteIF:
         add_time = self.filename_dict['add_timestamp']
         data_time_str = ''
         if add_time == True:
-            if isinstance(timestamp,'float') == False and isinstance(timestamp,'int') == False:
-                time_ns = nepi_ros.time_ns_from_timestamp(timestamp)
-            else:
-                time_ns = timestamp
+            time_ns = nepi_ros.sec_from_timestamp(timestamp)
             add_ms = self.filename_dict['add_ms']
             add_ns = self.filename_dict['add_ns']
-            data_time_str = nepi_utils.get_datetime_str_from_time(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
+            data_time_str = nepi_ros.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_ns = add_ns) + '_'
         node_name_str = ""
         if self.filename_dict['add_node_name'] == True:
             node_name_str = self.node_name + '_'
@@ -422,6 +428,7 @@ class NavPoseIF:
     has_subs = False
     has_subs_lock = threading.Lock()
 
+    time_list = [0,0,0,0,0,0,0,0,0,0]
 
     def __init__(self, namespace = None, topic = 'navpose',
         has_location = False, enable_gps_pub = True, 
@@ -546,10 +553,10 @@ class NavPoseIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
-            time_start = nepi_ros.get_time()
+            time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+                timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect")
             else:
@@ -585,15 +592,15 @@ class NavPoseIF:
                 #self.has_subs_lock.release()
 
                 if timestamp == None:
-                    timestamp = nepi_ros.ros_time_now()
+                    timestamp = nepi_utils.get_time()
 
-                current_time = nepi_ros.ros_time_now()
-                latency = (current_time.to_sec() - timestamp.to_sec())
+                current_time = nepi_utils.get_time()
+                latency = (current_time - timestamp)
                 self.status_msg.get_latency_time = latency
                 #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
                 # Start Img Pub Process
-                start_time = nepi_ros.get_time()   
+                start_time = nepi_utils.get_time()   
 
                 try:
                     msg = nepi_nav.convert_navposedata_dict2msg(navpose_dict)
@@ -609,13 +616,17 @@ class NavPoseIF:
                         self.status_msg.frame_alt = navpose_dict['frame_alt']
                         self.status_msg.last_pub_sec = pub_time_sec
                         self.status_msg.fps = float(1) / pub_time_sec
+
+                        self.time_list.pop(0)
+                        self.time_list.append(pub_time_sec)
+                        self.last_detect_time = nepi_utils.get_time()
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
                     success = False
 
-                process_time = round( (nepi_ros.get_time() - start_time) , 3)
+                process_time = round( (nepi_utils.get_time() - start_time) , 3)
                 self.status_msg.process_time = process_time
-                latency = (current_time.to_sec() - timestamp.to_sec())
+                latency = (current_time - timestamp)
                 self.status_msg.pub_latency_time = latency
 
                 if self.enable_gps_pub == True:
@@ -734,6 +745,8 @@ class ImageIF:
 
     has_subs = False
     has_subs_lock = threading.Lock()
+
+    time_list = [0,0,0,0,0,0,0,0,0,0]
 
 
     def __init__(self, namespace = None , topic = 'image', init_overlay_list = []):
@@ -924,10 +937,10 @@ class ImageIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
-            time_start = nepi_ros.get_time()
+            time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+                timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect")
             else:
@@ -956,16 +969,18 @@ class ImageIF:
         self.status_msg.encoding = encoding
 
         if timestamp == None:
-            timestamp = nepi_ros.ros_time_now()
+            timestamp = nepi_utils.get_time()
+        else:
+            timestamp = nepi_ros.sec_from_timestamp(timestamp)
 
 
-        current_time = nepi_ros.ros_time_now()
-        latency = (current_time.to_sec() - timestamp.to_sec())
+        current_time = nepi_utils.get_time()
+        latency = (current_time - timestamp)
         self.status_msg.get_latency_time = latency
         #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
         # Start Img Pub Process
-        start_time = nepi_ros.get_time()   
+        start_time = nepi_utils.get_time()   
 
         # Publish and Save Raw Image Data if Required  
         [height,width] = cv2_img.shape[0:2]
@@ -995,7 +1010,7 @@ class ImageIF:
                 overlay_list.append(overlay)
             
             if self.status_msg.overlay_date_time == True:
-                date_time = nepi_ros.get_datetime_str_from_stamp(timestamp)
+                date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
                 overlay_list.append(overlay)
 
             nav_pose_dict = None
@@ -1019,13 +1034,13 @@ class ImageIF:
 
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = timestamp
+            ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
             ros_img.header.frame_id = frame_id
+            #self.msg_if.pub_warn("Publishing Image with header: " + str(ros_img.header))
             self.node_if.publish_pub('image_pub', ros_img)
-
-            process_time = round( (nepi_ros.get_time() - start_time) , 3)
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
-            latency = (current_time.to_sec() - timestamp.to_sec())
+            latency = (current_time - timestamp)
             self.status_msg.pub_latency_time = latency
             
 
@@ -1038,6 +1053,10 @@ class ImageIF:
                 self.status_msg.last_pub_sec = pub_time_sec
                 self.status_msg.fps = float(1) / pub_time_sec
 
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+                self.last_detect_time = nepi_utils.get_time()
+
         # Update blank image if needed
         if last_width != self.status_msg.width or last_height != self.status_msg.height:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
@@ -1047,11 +1066,11 @@ class ImageIF:
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
 
         if timestamp == None:
-            timestamp = nepi_ros.ros_time_now()
+            timestamp = nepi_utils.get_time()
 
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        ros_img.header.stamp = timestamp
+        ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
         ros_img.header.frame_id = frame_id
         self.node_if.publish_pub('image_msg_pub', ros_img)
 
@@ -1084,6 +1103,13 @@ class ImageIF:
         self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
         self.status_msg.base_overlay_list = self.init_overlay_list
         self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+
+        avg_rate = 0
+        avg_time = sum(self.time_list) / len(self.time_list)
+        if avg_time > .01:
+            avg_rate = float(1) / avg_time
+       
+        self.status_msg.avg_fps = avg_rate
 
         self.node_if.publish_pub('status_pub',self.status_msg)
         
@@ -1144,6 +1170,8 @@ class PointcloudIF:
 
     has_subs = False
     has_subs_lock = threading.Lock()
+
+    time_list = [0,0,0,0,0,0,0,0,0,0]
 
     def __init__(self, namespace = None, topic = 'pointcloud'):
         self.class_name = type(self).__name__
@@ -1243,10 +1271,10 @@ class PointcloudIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
-            time_start = nepi_ros.get_time()
+            time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+                timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect")
             else:
@@ -1277,18 +1305,20 @@ class PointcloudIF:
             return False
 
         if timestamp == None:
-            timestamp = nepi_ros.ros_time_now()
+            timestamp = nepi_utils.get_time()
+        else:
+            timestamp = nepi_ros.sec_from_timestamp(timestamp)
 
         self.status_msg.has_rgb = o3d_pc.has_colors()
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        current_time = nepi_ros.ros_time_now()
-        latency = (current_time.to_sec() - timestamp.to_sec())
+        current_time = nepi_utils.get_time()
+        latency = (current_time - timestamp)
         self.status_msg.get_latency_time = latency
         #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
 
         # Start Img Pub Process
-        start_time = nepi_ros.get_time()   
+        start_time = nepi_utils.get_time()   
         
         self.status_msg.has_rgb = o3d_pc.has_colors() 
         self.status_msg.has_intensity = False # Need to add
@@ -1318,12 +1348,12 @@ class PointcloudIF:
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_id = frame_id)
-            ros_pc.header.stamp = timestamp
+            ros_pc.header.stamp = ros_stamp_from_timestamp(timestamp)
             ros_pc.header.frame_id = frame_id
 
-            process_time = round( (nepi_ros.get_time() - start_time) , 3)
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
-            latency = (current_time.to_sec() - timestamp.to_sec())
+            latency = (current_time - timestamp)
             self.status_msg.pub_latency_time = latency
 
 
@@ -1338,7 +1368,13 @@ class PointcloudIF:
                 self.last_pub_time = cur_time
                 self.status_msg.last_pub_sec = pub_time_sec
                 self.status_msg.fps = float(1) / pub_time_sec
-            process_time = round( (nepi_ros.get_time() - start_time) , 3)
+
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+                self.last_detect_time = nepi_utils.get_time()
+
+                
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
         return True
 
@@ -1366,8 +1402,13 @@ class PointcloudIF:
 
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None and not nepi_ros.is_shutdown():
-            self.node_if.publish_pub('status_pub', self.status_msg)
+        avg_rate = 0
+        avg_time = sum(self.time_list) / len(self.time_list)
+        if avg_time > .01:
+            avg_rate = float(1) / avg_time
+    
+        self.status_msg.avg_fps = avg_rate
+        self.node_if.publish_pub('status_pub', self.status_msg)
 
 
 

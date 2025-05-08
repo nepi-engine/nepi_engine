@@ -44,19 +44,6 @@ def get_datetime_str_now(add_ms = True, add_ns = False):
   dt_str = (date_str + "T" + time_str + ms_str + ns_str)
   return dt_str
 
-def get_datetime_str_from_time(time_ns, add_ms = True, add_ns = False):
-  dt = convert_time_to_datetime(time_ns)
-  date_str=dt.strftime('%Y-%m-%d')
-  time_str=dt.strftime('%H%M%S')
-  ms_str = ""
-  if add_ms == True:
-    ms_str =  ":" + dt.strftime('%f')[:-3]
-  ns_str = ""
-  if add_ns == True:
-    ns_str =":" + dt.strftime('%f')[0:3]
-  dt_str = (date_str + "T" + time_str + ms_str + ns_str)
-  return dt_str
-
 
 def convert_time_to_datetime(time_ns):
     """Converts nanoseconds since epoch to a datetime object.
@@ -229,7 +216,7 @@ def check_if_container():
   return in_cn
 
 
-def read_yaml2dict(file_path):
+def read_yaml_2_dict(file_path):
     dict_from_file = dict()
     if os.path.exists(file_path):
         try:
@@ -242,7 +229,7 @@ def read_yaml2dict(file_path):
     return dict_from_file
 
 
-def write_dict2yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
+def write_dict_2_yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
     success = False
     try:
         with open(file_path, "w") as f:

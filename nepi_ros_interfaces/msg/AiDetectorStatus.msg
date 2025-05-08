@@ -7,7 +7,7 @@ string MODEL_STATE_LISTENING=Listening
 string MODEL_STATE_RUNNING=Running
 string MODEL_STATE_SLEEPING=Sleeping
 
-string SLEEP_SUSPEND_UNTIL_WOKEN=-1
+string MAX_IMG_RATE_NO_PUB=-1
 
 string ALL_IMAGES=All
 
@@ -15,27 +15,22 @@ string name
 
 string namespace
 bool enabled
-string[] selected_classes_list
 string state
 
-bool sleep_enabled
-int32 sleep_suspend_sec
-int32 sleep_run_sec
-bool sleep_state
+float32 max_proc_rate_hz
+float32 max_img_rate_hz
 
-bool has_img_tiling
-bool img_tiling
+string[] available_classes
+string[] selected_classes
+std_msgs/ColorRGBA[] selected_classes_colors
+
+float32 threshold
 
 bool overlay_labels
 bool overlay_clf_name
 bool overlay_img_name
 
-
-float32 threshold
-float32 max_det_rate_hz
-float32 max_img_rate_hz
-
-
+string[] selected_img_topics
 string[] image_source_topics
 string[] image_detector_namespaces
 bool[] images_connected

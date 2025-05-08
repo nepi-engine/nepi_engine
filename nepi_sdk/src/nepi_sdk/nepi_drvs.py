@@ -52,7 +52,7 @@ def getDriversDict(search_path):
           if f.endswith(".yaml") and f.find("params") != -1: 
                   try:
                     file_path = os.path.join(search_path,f)
-                    read_dict = nepi_utils.read_yaml2dict(file_path)
+                    read_dict = nepi_utils.read_yaml_2_dict(file_path)
                   except Exception as e:
                     logger.log_warn("Failed to import param file: " + f + " " + str(e))
                     continue

@@ -387,7 +387,7 @@ class NPXDeviceIF:
     if nav_dict is not None:
       if self.last_nav_dict != nav_dict:
         self.last_nav_dict = nav_dict
-        ros_timestamp = nepi_ros.ros_time_now()
+        timestamp = nepi_utils.get_time()
         set_pub_rate = self.nepi_ros.get_param('pub_rate')
         set_3d_frame = self.nepi_ros.get_param('frame_3d')
         set_alt_frame = self.nepi_ros.get_param('frame_alt')
@@ -425,7 +425,7 @@ class NPXDeviceIF:
         except Exception as e:
           self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
 
-        self.save_data_if.save_dict2file('navpose',nav_dict,ros_timestamp)
+        self.save_data_if.save('navpose',nav_dict,timestamp)
 
     if self.pub_rate != 0:
         delay = float(1) / self.pub_rate

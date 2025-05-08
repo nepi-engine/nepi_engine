@@ -68,6 +68,7 @@ class SystemMgrNode():
     check_ignore_folders = ["data","logs","logs/automation_script_logs","nepi_src","tmp"]
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
+                            "ai_training",
                             "automation_scripts", 
                             "automation_scripts/sys_trigger_scripts",
                             "automation_scripts/sys_state_scripts",
@@ -88,7 +89,8 @@ class SystemMgrNode():
                             "sample_data",
                             "tmp"]
                             
-    REQD_STORAGE_SUBDIRS_CN = ["ai_models", 
+    REQD_STORAGE_SUBDIRS_CN = ["ai_models",
+                            "ai_training", 
                             "automation_scripts", 
                             "data", 
                             "databases", 

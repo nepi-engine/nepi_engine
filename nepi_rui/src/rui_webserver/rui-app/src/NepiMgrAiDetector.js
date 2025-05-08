@@ -44,10 +44,12 @@ class AiDetectorMgr extends Component {
 
     this.state = {
 
-      mgrName: "ai_model_mgr",
-      mgrNamespace: null,
+      modelMgrName: "ai_model_mgr",
+      modelMgrNamespace: null,
 
-      mgrListener: null,
+      modelMgrListener: null,
+
+      model_mgr_connected: false,
 
       frameworks_list: [],
       active_framework: "None",
@@ -63,21 +65,31 @@ class AiDetectorMgr extends Component {
 
       all_namespace: null,
 
-      mgr_connected: false,
+      detectorMgrListener: null,
+      detector_mgr_connected: false,
+      det_mgr_status_msg: null,
 
-      showSettingsControl: this.props.showSettingsControl ? this.props.showSettingsControl : false,      
-      showSettings: false,
+      detectorListener: null,
+      detector_connected: false,
+      det_status_msg: null,
 
       selected_detector: "None",
       last_selected_detector: "None",
       selected_detector_namespace: "None",
       detector_info_resp: null,
-      detector_status_msg: null,
+
 
       img_list_viewable: false,
       img_filter_str_list: ['detection_image','targeting_image','alert_image','tracking_image'],
       selected_img_topic: "",
       selected_img_text: "",
+
+      classes_list_viewable: false,
+      availableClassesList: [],
+      selectedClassesList:[],
+
+      showSettingsControl: this.props.showSettingsControl ? this.props.showSettingsControl : false,      
+      showSettings: false,
 
       needs_update: false
 
@@ -85,21 +97,27 @@ class AiDetectorMgr extends Component {
     }
 
     this.getBaseNamespace = this.getBaseNamespace.bind(this)
-    this.getMgrNamespace = this.getMgrNamespace.bind(this)
+
+    this.getModelMgrNamespace = this.getModelMgrNamespace.bind(this)
+    this.updateModelMgrStatusListener = this.updateModelMgrStatusListener.bind(this)
+    this.modelMgrStatusListener = this.modelMgrStatusListener.bind(this)
+
+    this.updateDetectorStatusListeners = this.updateDetectorStatusListeners.bind(this)
+    this.detectorMgrStatusListener = this.detectorMgrStatusListener.bind(this)
+    this.detectorStatusListener = this.detectorStatusListener.bind(this)
 
     this.getDetectorOptions = this.getDetectorOptions.bind(this)
     this.onDetectorSelected = this.onDetectorSelected.bind(this)
-
-    this.updateMgrStatusListener = this.updateMgrStatusListener.bind(this)
-    this.mgrStatusListener = this.mgrStatusListener.bind(this)
-
-    this.updateDetectorStatusListener = this.updateDetectorStatusListener.bind(this)
-    this.detectorStatusListener = this.detectorStatusListener.bind(this)
 
     this.createImageTopicsOptions = this.createImageTopicsOptions.bind(this)
 
     this.toggleImagesListViewable = this.toggleImagesListViewable.bind(this)
     this.onImagesTopicSelected = this.onImagesTopicSelected.bind(this)
+
+
+    this.onToggleClassSelection = this.onToggleClassSelection.bind(this)
+    this.getClassOptions = this.getClassOptions.bind(this)
+    this.toggleClassesListViewable = this.toggleClassesListViewable.bind(this)
 
     this.getDisplayImgOptions = this.getDisplayImgOptions.bind(this)
     this.onDisplayImgSelected = this.onDisplayImgSelected.bind(this)
@@ -117,17 +135,17 @@ class AiDetectorMgr extends Component {
   }
 
 
-  getMgrNamespace(){
+  getModelMgrNamespace(){
     const { namespacePrefix, deviceId} = this.props.ros
     var mgrNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.mgrName
+      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.modelMgrName
     }
     return mgrNamespace
   }
 
   // Callback for handling ROS Status messages
-  mgrStatusListener(message) {
+  modelMgrStatusListener(message) {
 
     this.setState({
       frameworks_list: message.ai_frameworks,
@@ -142,37 +160,54 @@ class AiDetectorMgr extends Component {
       active_mdoels_nodes: message.active_ai_models_nodes,
       active_models_namespaces: message.active_ai_models_namespaces,
 
-      
+   
       all_namespace: message.all_namespace,
-      mgr_connected: true
+      model_mgr_connected: true
     })    
+
 
   }
 
   // Function for configuring and subscribing to Status
-  updateMgrStatusListener() {
-    const statusNamespace = this.getMgrNamespace() + '/status'
-    if (this.state.mgrListener) {
-      this.state.mgrListener.unsubscribe()
-      this.setState({detector_status_msg: null})
+  updateModelMgrStatusListener() {
+    const statusNamespace = this.getModelMgrNamespace() + '/status'
+    if (this.state.modelMgrListener) {
+      this.state.modelMgrListener.unsubscribe()
+      this.setState({det_status_msg: null, det_mgr_status_msg: null})
     }
-    var mgrListener = this.props.ros.setupStatusListener(
+    var modelMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
           "nepi_ros_interfaces/AiModelMgrStatus",
-          this.mgrStatusListener
+          this.modelMgrStatusListener
         )
-    this.setState({ mgrListener: mgrListener,
+    this.setState({ modelMgrListener: modelMgrListener,
       needs_update: false})
   }
 
+
+
+  // Callback for handling ROS Status messages
+  detectorMgrStatusListener(message) {
+    const sel_detector = this.state.selected_detector
+    const got_detector = message.name
+
+    if (sel_detector === got_detector){
+      this.setState({
+      det_mgr_status_msg: message,
+      detector_mgr_connected: true
+      })
+    }
+
+  }
 
   // Callback for handling ROS Status messages
   detectorStatusListener(message) {
     const sel_detector = this.state.selected_detector
     const got_detector = message.name
+
     if (sel_detector === got_detector){
       this.setState({
-      detector_status_msg: message,
+      det_status_msg: message,
       detector_connected: true
       })
     }
@@ -180,11 +215,18 @@ class AiDetectorMgr extends Component {
   }
 
   // Function for configuring and subscribing to Status
-  updateDetectorStatusListener() {
+  updateDetectorStatusListeners() {
+    if (this.state.detectorMgrListener) {
+      this.state.detectorMgrListener.unsubscribe()
+      this.setState({detector_namespace: null, 
+        det_mgr_status_msg: null,
+        detector_mgr_connected: false})
+    }
+
     if (this.state.detectorListener) {
       this.state.detectorListener.unsubscribe()
       this.setState({detector_namespace: null, 
-        detector_status_msg: null,
+        det_status_msg: null,
         detector_connected: false})
     }
     const models = this.state.active_models_list
@@ -193,9 +235,21 @@ class AiDetectorMgr extends Component {
     const detector_ind = models.indexOf(selected_detector)
     if (detector_ind !== -1){
       const detector_namespace = active_models_namespaces[detector_ind]
+
       const statusNamespace = detector_namespace + '/status'
-      var detectorListener = this.props.ros.setupStatusListener(
+      var detectorMgrListener = this.props.ros.setupStatusListener(
         statusNamespace,
+        "nepi_ros_interfaces/AiDetectorMgrStatus",
+        this.detectorMgrStatusListener
+      )
+      this.setState({ 
+        detectorMgrListener: detectorMgrListener,
+        detector_namespace: detector_namespace
+      })
+
+      const detStatusNamespace = detector_namespace + '/detector_status'
+      var detectorListener = this.props.ros.setupStatusListener(
+        detStatusNamespace,
         "nepi_ros_interfaces/AiDetectorStatus",
         this.detectorStatusListener
       )
@@ -213,7 +267,9 @@ class AiDetectorMgr extends Component {
       selected_detector: "None",
       last_selected_detector: "None", 
       selected_detector_namespace: "None",
-      detector_status_msg: null,
+      det_mgr_status_msg: null,
+      detector_mgr_connected: false,
+      det_status_msg: null,
       detector_connected: false
     })
   }
@@ -222,30 +278,30 @@ class AiDetectorMgr extends Component {
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
     // First update manager status
-    const mgr_namespace = this.getMgrNamespace()
-    const cur_namespace = this.state.mgrNamespace
-    const namespace_updated = (cur_namespace !== mgr_namespace && mgr_namespace !== null)
-    const needs_update = (this.state.needs_update && mgr_namespace !== null)
+    const model_mgr_namespace = this.getModelMgrNamespace()
+    const cur_namespace = this.state.modelMgrNamespace
+    const namespace_updated = (cur_namespace !== model_mgr_namespace && model_mgr_namespace !== null)
+    const needs_update = (this.state.needs_update && model_mgr_namespace !== null)
     if (namespace_updated || needs_update) {
-      if (mgr_namespace.indexOf('null') === -1){
+      if (model_mgr_namespace.indexOf('null') === -1){
         this.setState({
-          mgrNamespace: mgr_namespace
+          modelMgrNamespace: model_mgr_namespace
         })
-        this.updateMgrStatusListener()
+        this.updateModelMgrStatusListener()
       } 
     }
 
     // Once manager is connected update Model status on change
-    if (this.state.mgr_connected === true){
+    if (this.state.model_mgr_connected === true){
       const selected_detector = this.state.selected_detector
       const last_detector = this.state.last_selected_detector
 
       if (last_detector !== selected_detector) {
           this.setState({      
-            detector_status_msg: null,
+            det_status_msg: null,
             last_selected_detector: selected_detector
           })  
-          this.updateDetectorStatusListener()
+          this.updateDetectorStatusListeners()
 
       }
     }
@@ -255,8 +311,8 @@ class AiDetectorMgr extends Component {
   // Lifecycle method called just before the component umounts.
   // Used to unsubscribe to Status message
   componentWillUnmount() {
-    if (this.state.mgrListener) {
-      this.state.mgrListener.unsubscribe()
+    if (this.state.modelMgrListener) {
+      this.state.modelMgrListener.unsubscribe()
     }
   }
 
@@ -288,8 +344,8 @@ class AiDetectorMgr extends Component {
 
   renderAiDetector() {
     const {sendTriggerMsg} = this.props.ros
-    const mgr_namespace = this.getMgrNamespace()
-    const mgr_connected = this.state.mgr_connected == true
+    const model_mgr_namespace = this.getModelMgrNamespace()
+    const model_mgr_connected = this.state.model_mgr_connected == true
 
     const has_framework = this.active_framework !== "None"
 
@@ -299,14 +355,14 @@ class AiDetectorMgr extends Component {
     const selected_detector = this.state.selected_detector
     const detector_selected = (selected_detector !== "None")
 
-    const message = this.state.detector_status_msg
-    const detector_name = message == null? "None" : message.name
+    const det_msg = this.state.det_status_msg
+    const detector_name = det_msg == null? "None" : det_msg.name
     const detector_loading = (detector_name === selected_detector && selected_detector !== "None")? this.state.detector_connected === false : selected_detector !== "None"
     const detector_connected = (detector_name === selected_detector)? (this.state.detector_connected === true && detector_name === selected_detector):false
 
     const Spacer = ({ size }) => <div style={{ height: size, width: size }}></div>;
 
-    if (mgr_connected === false){
+    if (model_mgr_connected === false){
       return(
         <Columns>
         <Column>
@@ -422,10 +478,10 @@ class AiDetectorMgr extends Component {
     const add_img_namespace = detector_namespace + "/add_img_topic"
     const add_imgs_namespace = detector_namespace + "/add_det_img_topics"
     const remove_img_namespace = detector_namespace + "/remove_img_topic"
-    const remove_imgs_namespace = detector_namespace + "/remove_det_img_topics"
+    const remove_imgs_namespace = detector_namespace + "/remove_img_topics"
     const filter_str_list = this.state.img_filter_str_list
     const img_options = filterStrList(imageTopics,filter_str_list)
-    const det_img_topics = this.state.detector_status_msg.image_source_topics
+    const det_img_topics = this.state.det_status_msg.selected_img_topics
     const img_topic = event.target.value
     //this.setState({selected_img_topic: img_topic})
 
@@ -444,48 +500,135 @@ class AiDetectorMgr extends Component {
   }
 
 
+  // Function for creating image topic options.
+  getClassOptions() {
+
+    var items = []
+    items.push(<Option>{"None"}</Option>)
+
+    const selected_detector = this.state.selected_detector
+    const det_msg = this.state.det_status_msg
+    if (det_msg != null){
+      const detector_name = det_msg.name 
+      if (selected_detector === detector_name){
+        const availableClassesList = det_msg.available_classes
+
+        items.push(<Option>{"All"}</Option>)
+        if (availableClassesList.length > 0 ){
+          for (var i = 0; i < availableClassesList.length; i++) {
+              if (availableClassesList[i] !== 'None'){
+                items.push(<Option value={availableClassesList[i]}>{availableClassesList[i]}</Option>)
+              }
+          }
+        }
+      }
+    }
+    return items
+    }
+  
+  
+    toggleClassesListViewable() {
+      const set = !this.state.classes_list_viewable
+      this.setState({classes_list_viewable: set})
+    }
+  
+  
+    onToggleClassSelection(event){
+      const {sendTriggerMsg, sendStringMsg} = this.props.ros
+
+      const selected_detector = this.state.selected_detector
+      const det_msg = this.state.det_status_msg
+      if (det_msg != null){
+        const detector_name = det_msg.name 
+        if (selected_detector === detector_name){
+          const detector_namespace = det_msg.namespace
+          const classSelection = event.target.value
+          const availableClassesList = det_msg.available_classes
+          const selectedClassesList = det_msg.selected_classes
+          const addAllNamespace = detector_namespace + "/add_all_classes"
+          const removeAllNamespace = detector_namespace + "/remove_all_classes"
+          const addNamespace = detector_namespace + "/add_class"
+          const removeNamespace = detector_namespace + "/remove_class"
+          if (detector_namespace){
+            if (classSelection === "None"){
+                sendTriggerMsg(removeAllNamespace)
+            }
+            else if (classSelection === "All"){
+              sendTriggerMsg(addAllNamespace)
+          }
+            else if (selectedClassesList.indexOf(classSelection) !== -1){
+              sendStringMsg(removeNamespace,classSelection)
+            }
+            else {
+              sendStringMsg(addNamespace,classSelection)
+            }
+          }
+        }
+      }
+    }
 
 
 renderDetectorSettings() {
   const { sendTriggerMsg, sendBoolMsg } = this.props.ros
-  const message = this.state.detector_status_msg
-  const selected_detector = this.state.selected_detector
+
+
   const sel_img = this.state.selected_img_topic
-  if (message != null){
-    const detector_name = message.name 
+
+  const classOptions = this.getClassOptions()
+  const selectedClasses = this.state.selectedClassesList
+  const classes_sel = selectedClasses[0] !== "" && selectedClasses[0] !== "None"
+
+  const selected_detector = this.state.selected_detector
+  const det_mgr_msg = this.state.det_mgr_status_msg
+  const det_msg = this.state.det_status_msg
+  if (det_msg != null){
+    const detector_name = det_msg.name 
     if (selected_detector === detector_name){
-      const detector_namespace = message.namespace
 
-      const detector_enabled = message.enabled
-      const detector_state = message.state
+      const has_tiling = det_mgr_msg.has_tiling
+      const is_tiling = det_mgr_msg.img_tiling
 
-      const is_tiling = message.img_tiling
-
-      const overlay_labels = message.overlay_labels
-      const overlay_detector_name = message.overlay_clf_name
-      const overlay_img_name = message.overlay_img_name
-
-      const threshold = message.threshold
-      const max_det_rate = message.max_det_rate_hz 
-      const max_img_rate = message.max_img_rate_hz
+      const has_sleep = det_mgr_msg.has_sleep
+      const sleep_enabled = det_mgr_msg.sleep_enabled
+      const sleep_suspend_sec = det_mgr_msg.sleep_suspend_sec
+      const sleep_run_sec = det_mgr_msg.sleep_run_sec
+      const sleep_state = det_mgr_msg.msg
 
 
-      const det_img_namespaces = message.image_detector_namespaces
-      const det_img_topics = message.image_source_topics
 
-      const img_selected = message.image_selected
-      const img_connected = message.image_connected
+      const detector_namespace = det_msg.namespace
 
-      const img_latency = round(message.image_latency_time, 3)
-      const det_latency = round(message.detect_latency_time, 3)
-      const pre_time = round(message.preprocess_time, 3)
-      const det_time = round(message.detect_time, 3)
-      const rate_hz = round(message.avg_rate_hz, 3)
+      const availableClassesList = det_msg.available_classes
+      const selectedClassesList = det_msg.selected_classes
+
+      const detector_enabled = det_msg.enabled
+      const detector_state = det_msg.state
+
+      const overlay_labels = det_msg.overlay_labels
+      const overlay_detector_name = det_msg.overlay_clf_name
+      const overlay_img_name = det_msg.overlay_img_name
+
+      const threshold = det_msg.threshold
+      const max_det_rate = det_msg.max_proc_rate_hz 
+      const max_img_rate = det_msg.max_img_rate_hz
+
+      const det_img_topics = det_msg.selected_img_topics
+
+      const img_selected = det_msg.image_selected
+      const img_connected = det_msg.image_connected
+
+      const img_latency = round(det_msg.image_latency_time, 3)
+      const det_latency = round(det_msg.detect_latency_time, 3)
+      const pre_time = round(det_msg.preprocess_time, 3)
+      const det_time = round(det_msg.detect_time, 3)
+      const rate_hz = round(det_msg.avg_rate_hz, 3)
       const img_options = this.createImageTopicsOptions()
 
       const img_list_viewable = this.state.img_list_viewable
 
       const detector_display_name = detector_name.toUpperCase()
+
+
 
       
   
@@ -536,6 +679,41 @@ renderDetectorSettings() {
         
         </pre>
 
+
+
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+                      
+        <Columns>
+          <Column>
+          
+                <ButtonMenu style={{marginTop: "10px"}}>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_config")}>{"Reset Config"}</Button>
+                </ButtonMenu>
+
+
+        </Column>
+        <Column>
+                  
+                <ButtonMenu style={{marginTop: "10px"}}>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/save_config")}>{"Save Config"}</Button>
+                </ButtonMenu>
+
+        </Column>
+        <Column>
+              
+              <ButtonMenu style={{marginTop: "10px"}}>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
+                </ButtonMenu>
+
+          </Column>
+        </Columns>
+
+
+
+
+
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
         <Columns>
@@ -572,7 +750,7 @@ renderDetectorSettings() {
         <div onClick={this.toggleImagesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
           <Select style={{width: "10px"}}/>
         </div>
-        <div hidden={this.state.img_list_viewable}>
+        <div hidden={this.state.img_list_viewable === false}>
         {img_options.map((image) =>
         <div onClick={this.onImagesTopicSelected}
           style={{
@@ -591,6 +769,10 @@ renderDetectorSettings() {
 
           </Column>
           </Columns>
+
+
+
+
           
 
           <SliderAdjustment
@@ -610,7 +792,7 @@ renderDetectorSettings() {
                   title={"Max Detection Rate"}
                   msgType={"std_msgs/Float32"}
                   adjustment={max_det_rate}
-                  topic={detector_namespace + "/set_max_det_rate"}
+                  topic={detector_namespace + "/set_max_proc_rate"}
                   scaled={1.0}
                   min={1}
                   max={20}
@@ -682,35 +864,40 @@ renderDetectorSettings() {
             </Column>
             </Columns>
 
+            <Columns>
+        <Column>
+
+        <label align={"left"} textAlign={"left"}>
+            {"Select Classes"}
+          </label>
 
 
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                      
-        <Columns>
+            </Column>
           <Column>
-          
-                <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_config")}>{"Reset Config"}</Button>
-                </ButtonMenu>
 
+                <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-        </Column>
-        <Column>
-                  
-                <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/save_config")}>{"Save Config"}</Button>
-                </ButtonMenu>
-
-        </Column>
-        <Column>
-              
-              <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
-                </ButtonMenu>
+                <div onClick={this.toggleClassesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                      <Select style={{width: "10px"}}/>
+                    </div>
+                    <div hidden={this.state.classes_list_viewable === false}>
+                    {classOptions.map((Class) =>
+                    <div onClick={this.onToggleClassSelection}
+                      style={{
+                        textAlign: "center",
+                        padding: `${Styles.vars.spacing.xs}`,
+                        color: Styles.vars.colors.black,
+                        backgroundColor: (selectedClassesList.includes(Class.props.value))? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                        cursor: "pointer",
+                        }}>
+                        <body class_name ={Class} style={{color: Styles.vars.colors.black}}>{Class}</body>
+                    </div>
+                    )}
+                    </div>
 
           </Column>
-        </Columns>
+          </Columns>
+
 
     </Column>
     </Columns>
@@ -740,7 +927,7 @@ renderDetectorSettings() {
     getDisplayImgOptions() {
 
       var items = []
-      const message = this.state.detector_status_msg
+      const det_msg = this.state.det_status_msg
       const selected_detector = this.state.selected_detector
       const sel_img = this.state.selected_img_topic
 
@@ -749,11 +936,11 @@ renderDetectorSettings() {
       var img_text = "None"
       var img_ns = "None"
 
-        if (message != null){
+        if (det_msg != null){
 
               const detector_ns = this.state.detector_namespace
-              const detector_enabled = message.enabled
-              const det_img_nns = message.image_detector_namespaces
+              const detector_enabled = det_msg.enabled
+              const det_img_nns = det_msg.image_detector_namespaces
               if (detector_enabled === false) {
                   img_topic === "Detector Not Enabled"
                   img_text = "Detector Not Enabled"

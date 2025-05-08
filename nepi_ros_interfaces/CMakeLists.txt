@@ -125,6 +125,8 @@ add_message_files(FILES
     UpdateOption.msg
     AppsStatus.msg
     AppStatus.msg
+    AiDetectorMgrStatus.msg
+    AiDetectorInfo.msg
     AiDetectorStatus.msg
     AiSegmentorStatus.msg
     AiPoseStatus.msg
@@ -140,7 +142,6 @@ add_message_files(FILES
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
-    AiDetectorInfo.msg
     ImageStatus.msg
     PointcloudStatus.msg
     SystemState.msg

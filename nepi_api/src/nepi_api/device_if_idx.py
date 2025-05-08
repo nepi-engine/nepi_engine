@@ -1190,9 +1190,9 @@ class IDXDeviceIF:
                 if get_data == True:
                     acquiring = True
                     if data_product != "pointcloud_image":
-                        status, msg, cv2_img, ros_timestamp, encoding = dp_get_data()
+                        status, msg, cv2_img, timestamp, encoding = dp_get_data()
                     else:
-                        status, msg, cv2_img, ros_timestamp, encoding = dp_get_data(self.render_controls)
+                        status, msg, cv2_img, timestamp, encoding = dp_get_data(self.render_controls)
                     if (status is False or cv2_img is None):
                         #self.msg_if.pub_warn("No Data Recieved: " + data_product)
                         pass
@@ -1234,9 +1234,9 @@ class IDXDeviceIF:
                         if (dp_has_subs == True):
                             #Publish Ros Image
                             frame_id = self.node_if.get_param('frame_3d')
-                            dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = ros_timestamp, frame_id = frame_id)
+                            dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
                         if (dp_should_save == True):
-                            self.save_data_if.write_image_file(data_product,cv2_img,timestamp = ros_timestamp,save_check=False)
+                            self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
 
                         last_image_time = copy.deepcopy(self.last_image_time)
@@ -1251,9 +1251,6 @@ class IDXDeviceIF:
                             self.current_fps = sum(self.fps_queue)/len(self.fps_queue)
                             if abs(self.current_fps - last_fps) > 1:
                                 self.publishStatus()
-                            #self.msg_if.pub_warn("Got avg fps: " + str(self.current_fps))
-                        #ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding = encoding)
-                        #img_pub.publish(ros_img)
 
                         #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
                         if cur_width != self.img_width or cur_height != self.img_height:
@@ -1309,33 +1306,33 @@ class IDXDeviceIF:
                 get_data = dp_has_subs or dp_should_save
                 if get_data == True:
                     acquiring = True
-                    status, msg, o3d_pc, ros_timestamp, ros_frame = dp_get_data()
+                    status, msg, o3d_pc, timestamp, frame_id = dp_get_data()
                     if o3d_pc is not None:
 
 
                         #********************
-                        ros_frame = set_frame
+                        frame_id = set_frame
 
                         set_frame = self.status_msg.frame_3d
                         if set_frame == 'sensor_frame':
-                            ros_frame = set_frame # else pass through sensor frame
+                            frame_id = set_frame # else pass through sensor frame
                         else:
-                            ros_frame = set_frame
+                            frame_id = set_frame
 
                         transform = self.status_msg.frame_3d_transform
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
                                 zero_transform = False
-                        should_transform = (zero_transform == False) and (ros_frame == 'nepi_center_frame')
+                        should_transform = (zero_transform == False) and (frame_id == 'nepi_center_frame')
                         if should_transform:   
                             o3d_pc = self.transformPointcloud(o3d_pc,transform)
 
                         #********************
                         if (dp_has_subs == True):
-                            dp_if.publish_o3d_pc(o3d_pc, timestamp = ros_timestamp, frame_id = ros_frame )
+                            dp_if.publish_o3d_pc(o3d_pc, timestamp = timestamp, frame_id = frame_id )
                         if (dp_should_save == True ):
-                            self.save_data_if.write_pointcloud_file(data_product,o3d_pc,timestamp = ros_timestamp, save_check=False)
+                            self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp, save_check=False)
                 elif acquiring is True:
                     if dp_stop_data is not None:
                         self.msg_if.pub_info("Stopping " + data_product + " acquisition")

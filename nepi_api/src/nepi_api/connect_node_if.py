@@ -202,8 +202,7 @@ class ConnectNodeServicesIF:
     #######################
     ### IF Initialization
     def __init__(self, 
-                services_dict = None,
-                do_wait = False
+                services_dict = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -221,9 +220,6 @@ class ConnectNodeServicesIF:
         if self.srvs_dict is None:
             self.srvs_dict = dict()
         self._initialize_services()
-
-        if do_wait == True:
-            time.sleep(1)
 
         ##############################  
         # Complete Initialization Process
@@ -780,7 +776,7 @@ class ConnectNodeClassIF:
 
     msg_if = None
 
-    srvs_if = None
+    services_if = None
     pubs_if = None
     subs_if = None
 
@@ -817,7 +813,7 @@ class ConnectNodeClassIF:
         # Create Services Class
         if services_dict is not None:
             self.msg_if.pub_info("Starting Connect Node Services IF Initialization Processes")
-            self.srvs_if = ConnectNodeServicesIF(services_dict = services_dict)
+            self.services_if = ConnectNodeServicesIF(services_dict = services_dict)
 
         ##############################  
         # Create Subscribers Class
@@ -834,7 +830,7 @@ class ConnectNodeClassIF:
         ############################## 
         # Wait for ready
         if services_dict is not None:
-            ready = self.srvs_if.wait_for_ready()
+            ready = self.services_if.wait_for_ready()
         if pubs_dict is not None:
             ready = self.pubs_if.wait_for_ready()
         if subs_dict is not None:
@@ -898,41 +894,41 @@ class ConnectNodeClassIF:
     # Service Methods ####################
     def get_services(self):
         srvs_names = None
-        if self.srvs_if is not None:
-            srvs_names = self.srvs_if.get_services()
+        if self.services_if is not None:
+            srvs_names = self.services_if.get_services()
         return srvs_names
 
 
     def create_request_msg(self,service_name):
         req = None
-        if self.srvs_if is not None:
-            req = self.srvs_if.create_request_msg(service_name)
+        if self.services_if is not None:
+            req = self.services_if.create_request_msg(service_name)
         return req
 
     def create_response_msg(self,service_name):
         msg = None
-        if self.srvs_if is not None:
-            msg = self.srvs_if.create_response_msg(service_name)
+        if self.services_if is not None:
+            msg = self.services_if.create_response_msg(service_name)
         return msg
 
     def call_service(self,service_name,request):
         resp = None
-        if self.srvs_if is not None:
-            resp = self.srvs_if.call_service(service_name,request)
+        if self.services_if is not None:
+            resp = self.services_if.call_service(service_name,request)
         return resp
 
     def register_service(self,service_name, service_dict):
-        if self.srvs_if is not None:
-            self.srvs_if.register_service(service_name, service_dict)
+        if self.services_if is not None:
+            self.services_if.register_service(service_name, service_dict)
 
 
     def unregister_service(self,service_name):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_service(service_name)
+        if self.services_if is not None:
+            self.services_if.unregister_service(service_name)
 
     def unregister_services(self):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_services()
+        if self.services_if is not None:
+            self.services_if.unregister_services()
 
 
     # Publisher Methods ####################
@@ -952,17 +948,17 @@ class ConnectNodeClassIF:
                 pass 
 
     def register_pub(self,pub_name, pub_dict):
-        if self.srvs_if is not None:
-            self.srvs_if.register_pub(pub_name, pub_dict)
+        if self.services_if is not None:
+            self.services_if.register_pub(pub_name, pub_dict)
 
 
     def unregister_pub(self,pub_name):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_pub(pub_name)
+        if self.services_if is not None:
+            self.services_if.unregister_pub(pub_name)
 
     def unregister_pubs(self):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_pubs()
+        if self.services_if is not None:
+            self.services_if.unregister_pubs()
                     
     # Subsciber Methods ####################
     def get_subs(self):
@@ -973,17 +969,17 @@ class ConnectNodeClassIF:
 
 
     def register_sub(self,sub_name, sub_dict):
-        if self.srvs_if is not None:
-            self.srvs_if.register_sub(sub_name, sub_dict)
+        if self.services_if is not None:
+            self.services_if.register_sub(sub_name, sub_dict)
 
 
     def unregister_sub(self,sub_name):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_sub(sub_name)
+        if self.services_if is not None:
+            self.services_if.unregister_sub(sub_name)
 
     def unregister_subs(self):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_subs()
+        if self.services_if is not None:
+            self.services_if.unregister_subs()
 
     # Class Methods ####################
     def unregister_class(self):

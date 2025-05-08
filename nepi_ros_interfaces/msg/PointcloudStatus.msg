@@ -18,4 +18,4 @@ string frame_id
 float32 get_latency_time
 float32 pub_latency_time
 float32 process_time
-
+float32 avg_fps

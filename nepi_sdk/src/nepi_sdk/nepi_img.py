@@ -9,7 +9,7 @@
 #
 
 
-
+import os
 import numpy as np
 import cv2
 import math
@@ -70,6 +70,99 @@ def get_img_pointcloud_topic(img_topic):
   if topic == "":
     topic = None
   return topic
+
+def create_bgr_jet_color(x): # x -> 0-1
+    x = np.clip(x, 0, 1)
+    
+    c1 = np.array([0.267004, 0.004874, 0.329415])
+    c2 = np.array([0.232985, 0.298771, 0.538668])
+    c3 = np.array([0.128768, 0.568284, 0.505529])
+    c4 = np.array([0.529777, 0.780797, 0.307166])
+    c5 = np.array([0.993248, 0.906157, 0.143936])
+
+    if 0 <= x <= 0.25:
+        c_list = c1 + (c2 - c1) * (x / 0.25)
+    elif 0.25 < x <= 0.5:
+        c_list = c2 + (c3 - c2) * ((x - 0.25) / 0.25)
+    elif 0.5 < x <= 0.75:
+        c_list = c3 + (c4 - c3) * ((x - 0.5) / 0.25)
+    elif 0.75 < x <= 1:
+        c_list = c4 + (c5 - c4) * ((x - 0.75) / 0.25)
+    else:
+        c_list = np.array([0.0, 0.0, 0.0])
+    c_list = c_list * 255
+    c_list = c_list.astype(int)
+    return (c_list[0],c_list[1],c_list[2])
+
+def create_bgr_jet_colormap_list(num_colors=256):
+  colors_list = []
+  for i in range(num_colors):
+    color = create_bgr_jet_color(i/num_colors)
+    colors_list.append(color)
+  return colors_list
+
+
+
+
+
+
+'''
+def create_jet_colormap_list(num_colors=256):
+    """
+    Generates a jet colormap as a color tuple list.
+
+    Args:
+        num_colors: The number of colors in the colormap.
+
+    Returns:
+        A NumPy array of shape (num_colors, 3) representing the RGB colormap.
+    """
+
+    # Initialize the colormap array
+    colormap_list = []
+    color = [0,0,0]
+
+    # Define the color segments
+    positions = [0.0, 0.125, 0.375, 0.625, 0.875, 1.0]
+    red_values = [0.0, 0.0, 1.0, 1.0, 0.0, 0.0]
+    green_values = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    blue_values = [0.5, 1.0, 1.0, 0.0, 0.0, 0.5]
+
+    # Interpolate colors for each segment
+    for i in range(num_colors):
+        # Normalize the index to the range [0, 1]
+        x = i / (num_colors - 1)
+
+        # Find the segment where x belongs
+        for j in range(len(positions) - 1):
+            if positions[j] <= x <= positions[j + 1]:
+                x0 = positions[j]
+                x1 = positions[j + 1]
+                y_red0 = red_values[j]
+                y_red1 = red_values[j + 1]
+                y_green0 = green_values[j]
+                y_green1 = green_values[j + 1]
+                y_blue0 = blue_values[j]
+                y_blue1 = blue_values[j + 1]
+                break
+
+        # Linear interpolation
+        red = y_red0 + (y_red1 - y_red0) * ((x - x0) / (x1 - x0))
+        green = y_green0 + (y_green1 - y_green0) * ((x - x0) / (x1 - x0))
+        blue = y_blue0 + (y_blue1 - y_blue0) * ((x - x0) / (x1 - x0))
+
+        # Assign RGB values to the colormap array
+        color[0] = int(red*255)
+        color[1] = int(green*255)
+        color[2] = int(blue*255)
+
+        colormap = []
+        for i2 in range(3):
+            colormap.append(int(color[i2])) #*255))
+        colormap_list.append(colormap)
+
+    return colormap_list
+  '''
 
 ###########################################
 ### Image conversion functions
@@ -471,6 +564,31 @@ def create_message_image(message, image_size = (350, 700, 3),color_rgb = (0, 255
     
 ###########################################
 ### Image saving functions
+
+def read_image_file(file_path):
+    cv2_img = None
+    if os.path.exists(file_path):
+        try:
+            cv2_img = cv2.imread(file_path)
+            if cv2_img is not None:
+                success = True
+        except:
+            nepi_msg.publishMsgWarn(self,"Failed to get cv2_img from file: " + file_path + " " + str(e))
+    else:
+        nepi_msg.publishMsgWarn(self,"Failed to find image file: " + file_path)
+    return cv2_img
+
+def write_image_file(cv2_img,file_path):
+    success = False
+    path = os.path.dirname(file_path)
+    if os.path.exists(path):
+        try:
+            success = cv2.imwrite(file_path, cv2_img)
+        except:
+            nepi_msg.publishMsgWarn(self,"Failed to write image to file: " + file_path + " " + str(e))
+    else:
+        nepi_msg.publishMsgWarn(self,"Failed to find file path: " + path)
+    return success
 
 
     

@@ -531,7 +531,7 @@ def render_img(img_renderer,center,eye,up,post_proccessing=False):
 ###########################################
 ### Pointcloud saving functions
 
-def save_pointcloud(o3d_pc,filename):
+def write_pointcloud_file(o3d_pc,filename):
     ''' Save a Open3D PointCloud to a File
         Args:
         o3d_pc (o3d.geometry.PointCloud): Open3D PointCloud
@@ -542,7 +542,7 @@ def save_pointcloud(o3d_pc,filename):
     ret = o3d.io.write_point_cloud(filename, o3d_pc)
     return ret
 
-def save_image(open3d_image,filename):
+def write_pointcloud_image_file(open3d_image,filename):
     ''' Save a Open3D PointCloud Image to a File
         Args:
         open3d_image: Image to be Saved
@@ -553,6 +553,34 @@ def save_image(open3d_image,filename):
     ret = o3d.io.write_image(filename, open3d_image)
     return ret
     
+
+def read_pointcloud_file(file_path):
+    data_from_file = dict()
+    if os.path.exists(file_path):
+        try:
+            data_from_file = o3d.io.read_point_cloud(file_path)
+            if data_from_file is not None:
+                success = True
+        except:
+            nepi_msg.publishMsgWarn(self,"Failed to get dict from file: " + file_path + " " + str(e))
+    else:
+        nepi_msg.publishMsgWarn(self,"Failed to find dict file: " + file_path)
+    return data_from_file
+
+def write_o3dpc_2_pcd(data_2_save,file_path):
+    success = False
+    path = os.path.dirname(file_path)
+    if os.path.exists(path):
+        try:
+            success = nepi_pc.save_pointcloud(data_2_save,file_path)
+        except:
+            nepi_msg.publishMsgWarn(self,"Failed to write dict: " + str(data_2_save) + " to file: " + file_path + " " + str(e))
+    else:
+        nepi_msg.publishMsgWarn(self,"Failed to find file path: " + path)
+    return success
+
+
+
 
 #### 
 # Misc Functions

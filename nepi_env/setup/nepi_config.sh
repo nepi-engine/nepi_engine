@@ -210,16 +210,12 @@ sudo ln -sf /opt/nepi/config/etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf
 ############################################
 ## MANUAL STEPS
 ######################
+#*** Darknet support removed. do not do
+#Install darknet per https://qengineering.eu/install-darknet-on-jetson-nano.html
+#sudo cp libdarknet.so /usr/lib/libdarknet.so
+#udo chmod 644 /usr/lib/libdarknet.so
+
 :'
-___________________________________
-Install darknet per https://qengineering.eu/install-darknet-on-jetson-nano.html
-
-#then from darknet folder
-
-sudo cp libdarknet.so /usr/lib/libdarknet.so
-sudo chmod 644 /usr/lib/libdarknet.so
-
-
 ______________________________
 #- add Gieode databases to FileSystem
 egm2008-2_5.pgm  egm2008-2_5.pgm.aux.xml  egm2008-2_5.wld  egm96-15.pgm  egm96-15.pgm.aux.xml  egm96-15.wld

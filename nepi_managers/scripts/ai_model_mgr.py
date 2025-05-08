@@ -480,27 +480,53 @@ class AIDetectorManager:
         nepi_ros.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
     def modelsInfoUpdaterCb(self,timer):
+        models_dict = self.node_if.get_param("models_dict")
+        model_names = models_dict.keys()
+        #self.msg_if.pub_warn("Calling model info services for models: " + str(model_names))
         # Update detector info
-        for model_name in self.detector_info_dict.keys():
-            if self.detector_info_dict[model_name] is None:
+        detector_info_dict = dict()
+        for model_name in self.model_namespace_dict.keys():
+            namespace = self.model_namespace_dict[model_name]
+            model_type = models_dict[model_name]['type']
+            #self.msg_if.pub_warn("Calling model info service for model namespace: " + str(namespace) + " " + str(model_type)) 
+            if namespace is not None and model_type == 'detection':
                 # Check for service
-                service_namespace = os.path.join(self.base_namespace,'detector_info_query')
-                service_exists = nepi_ros.check_for_service(service_namespace)
+                service_namespace = os.path.join(namespace,'detector_info_query')
+                #self.msg_if.pub_warn("Looking for det info services topic: " + str(service_namespace) )
+                service_exists = True # nepi_ros.check_for_service(service_namespace)
+                #self.msg_if.pub_warn("Got check for service reply: " + str(service_exists) )
                 if service_exists == True:
                     try:
-                        self.msg_if.pub_info("Getting model info service " + service_namespace)
-                        info_service = nepi_ros.create_service(service_namespace, AiDetectorInfoQuery)
+                        #self.msg_if.pub_info("Connecting to model info service " + service_namespace)
+                        info_service = nepi_ros.connect_service(service_namespace, AiDetectorInfoQuery)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to obtain model info service: " + str(e))
                     try:
-                        self.msg_if.pub_info("Requesting model info for service" + service_namespace)
+                        #self.msg_if.pub_info("Requesting model info for service" + service_namespace)
                         request = AiDetectorInfoQueryRequest()
-                        response = folder_query_service(request)
-                        self.msg_if.pub_info("Got model info response: " + str(response))
-                        self.detector_info_dict[model_name] = response
+                        response = nepi_ros.call_service(info_service, request)
+                        #self.msg_if.pub_info("Got model info response: " + str(response))
+                        detector_info_dict[model_name] = response.detector_info
                     except Exception as e:
                         self.msg_if.pub_info("Failed to obtain model info, will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+                else:
+                    self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
+        self.detector_info_dict = detector_info_dict
         nepi_ros.start_timer_process(self.MODEL_INFO_INTERVAL, self.modelsInfoUpdaterCb, oneshot = True)
+
+
+    def handleInfoRequest(self,_):
+        resp = AiMgrActiveModelsInfoQueryResponse()
+        model_name_list = []
+        model_info_list = []
+        for model_name in self.detector_info_dict.keys():
+            if self.detector_info_dict[model_name] is not None:
+                model_name_list.append(model_name)
+                model_info_list.append(self.detector_info_dict[model_name])
+        resp.detector_name_list = model_name_list
+        resp.detector_info_list = model_info_list
+        #self.msg_if.pub_warn("Respose for model info query " + str(resp))
+        return resp
 
 
     def loadModel(self, model_name, model_dict):       
@@ -702,17 +728,6 @@ class AIDetectorManager:
         self.publish_status()
 
 
-    def handleInfoRequest(self,_):
-        resp = AiMgrActiveModelsInfoQueryResponse()
-        model_name_list = []
-        model_info_list = []
-        for model_name in self.detector_info_dict.key():
-            if self.detector_info_dict[model_name] is not None:
-                model_name_list.append(model_name)
-                model_info_list.append(self.detector_info_dict[model_name])
-        resp.detector_name_list = model_name_list
-        resp.detector_info_list = model_info_list
-        return resp
 
 
     def publish_status(self):

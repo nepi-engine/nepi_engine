@@ -151,9 +151,9 @@ class ConnectMgrAiModelIF:
             timer = nepi_ros.get_time() - time_start
         if self.status_msg is None:
             self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
-            success = False
         else:
-            self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
+            #self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
+            pass
 
 
         #################################
@@ -194,7 +194,7 @@ class ConnectMgrAiModelIF:
         models_info_dict = None
 
         # Create service request
-        request = self.NODE_IF.create_request_msg()
+        request = self.NODE_IF.create_request_msg(service_name)
         # Call service
         response = None
         if request is not None:
@@ -205,51 +205,11 @@ class ConnectMgrAiModelIF:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
             models_info_dict = nepi_ros.convert_msg2dict(response)
-            #self.msg_if.pub_info("Got software status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got models info response" + str(status_dict) + " for service: " + models_info_dict)
+            #self.msg_if.pub_info("Got models response" + str(response) + " for service: " + service_name)
+            #self.msg_if.pub_info("Got models info response" + str(models_info_dict) + " for service: " + service_name)
 
         return models_info_dict
 
-
-    def get_active_detector_namespaces(self):
-        model_key = 'detector_namespaces'
-        service_name = 'detector_info_query'
-        request = AiDetectorInfoQueryRequest()
-        namespaces_key = 'image_detector_namespaces'
-        states_key = image_detector_states
-
-        # Get available detector namespaces
-        namespaces = []
-        models_info_dict = self.get_active_models_info_dict()
-        for namespace in models_info_dict[model_key]:
-            # Create Service
-            service_namespace = os.path.join(namespace,service_name)
-            service = None
-            try:
-                service = nepi_ros.connect_service(service_namespace, service_dict['msg'])
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to get service ready: " + service_name + " " + str(e)) 
-
-            # Call Service
-            response = None
-            if service is not None:
-                response = nepi_ros.call_service(service_name, service, request)
-
-            # Get namespaces
-            if response is not None:
-                info_dict = nepi_ros.convert_msg2dict(response)
-
-                if namespaces_key in info_dict.keys():
-                    got_namespaces = info_dict[namespaces_key]
-                    got_states = info_dict[states_key]
-                    if got_namespaces is not None:
-                        active_namespaces = []
-                        for i, state in enumerate(got_states):
-                            if state == True:
-                                active_namespaces.append(got_namespace[i])
-                        namespaces += active_namespaces
-        self.msg_if.pub_warn("Got active detector namespaces: " + str(namespaces))
-        return namespaces
 
     #######################
     # Class Private Methods

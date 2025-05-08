@@ -690,12 +690,12 @@ class PTXActuatorIF:
         # Periodic publishing
         self.status_update_rate = self.node_if.get_param('status_update_rate_hz')   
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
-        status_joint_state_pub_period = float(1.0) / self.status_update_rate
-        self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_joint_state_pub_period))
-        nepi_ros.start_timer_process(status_joint_state_pub_period, self.publishJointStateAndStatus)
+        status_pub_delay = float(1.0) / self.status_update_rate
+        self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
+        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
 
-        self.publishStatus()
+        self.publish_status()
         self.ready = True
         self.msg_if.pub_info("Initialization Complete")
 
@@ -765,14 +765,28 @@ class PTXActuatorIF:
         return  pitch_deg
 
     def publishJointStateAndStatus(self, Timer):
-        self.publishStatus()
+        #self.msg_if.pub_warn("Publishing status")
+        pub_time = self.publish_status()
+        pub_time = round(pub_time, 3)
+        #self.msg_if.pub_warn("Published status with process time: " + str(pub_time))
 
-    def publishStatus(self):
+        status_pub_delay = float(1.0) / self.status_update_rate
+        if pub_time > status_pub_delay:
+            status_pub_delay = 0.01
+        else:
+            status_pub_delay = status_pub_delay - pub_time
+        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
+
+    def publish_status(self):
+        start_time = nepi_utils.get_time()
         self.status_msg.header.stamp = nepi_ros.ros_time_now()
         #self.msg_if.pub_info("Entering Publish Status")
   
         if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
             yaw_now_deg, pitch_now_deg = self.getCurrentPositionCb()
+            got_time = nepi_utils.get_time() - start_time
+            got_time = round(got_time, 3)
+            #self.msg_if.pub_warn("Got PT status with time: " + str(got_time))
 
             if round(yaw_now_deg,5) != round(self.yaw_goal_deg,5) or round(pitch_now_deg,5) != round(self.pitch_goal_deg,5):
                 self.status_msg.yaw_now_deg = yaw_now_deg 
@@ -886,6 +900,8 @@ class PTXActuatorIF:
                 self.odom_msg.pose.pose.orientation = quaternion_from_euler(0.0, pitch_rad, yaw_rad)
                 #self.msg_if.pub_warn("Publishing Odom")
                 self.node_if.publish_pub('odom_pub',self.odom_msg)
+        pub_time = nepi_utils.get_time() - start_time
+        return pub_time
 
 
     def positionWithinSoftLimits(self, yaw_deg, pitch_deg):

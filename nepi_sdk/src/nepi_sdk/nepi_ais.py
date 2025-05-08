@@ -9,9 +9,6 @@
 #
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import cv2
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
@@ -23,6 +20,7 @@ logger = Logger(log_name = log_name)
 ########################
 ## Misc AI Helper Functions
 
+'''
 def get_classes_colors_list(classes_str_list):
     rgb_list = []
     if len(classes_str_list) > 0:
@@ -34,6 +32,7 @@ def get_classes_colors_list(classes_str_list):
                 rgb.append(int(color[i]*255))
             rgb_list.append(rgb)
     return rgb_list
+'''
 
 EXAMPLE_AI_MGR_STATUS_DICT = {
     'ai_frameworks': [],
@@ -59,8 +58,8 @@ EXAMPLE_BOXES_INFO_DICT_ENTRY = {
     'model_name': 'test_model',
     'image_header': Header(),
     'image_topic': '/test_topic',
-    'src_height': 600,
-    'src_width': 1000,
+    'image_height': 600,
+    'image_width': 1000,
     'prc_height': 300,
     'prc_width': 500,
 }
@@ -87,8 +86,8 @@ def get_boxes_info_from_msg(bboxes_msg):
         'model_name': bboxes_msg.model_name ,
         'image_header': bboxes_msg.image_header ,
         'image_topic': bboxes_msg.image_topic ,
-        'src_height': bboxes_msg.src_height ,
-        'src_width': bboxes_msg.src_width ,
+        'image_height': bboxes_msg.image_height ,
+        'image_width': bboxes_msg.image_width ,
         'prc_height': bboxes_msg.prc_height ,
         'prc_width': bboxes_msg.prc_width ,
     }

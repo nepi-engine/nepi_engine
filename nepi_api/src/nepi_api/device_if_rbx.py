@@ -1401,7 +1401,8 @@ class RBXRobotIF:
             self.image_if.publish_cv2_img(cv2_img)
             # You can view the enhanced_2D_image topic at 
             # //192.168.179.103:9091/ in a connected web browser
-        self.save_data_if.save_img2file('image',cv2_img,img_out_msg.header.stamp)
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('image',cv2_img,timestamp = timestamp)
 
         ## Update image source topic and subscriber if changed from last time.
         image_source = self.nepi_if.get_param('rbx/image_source')

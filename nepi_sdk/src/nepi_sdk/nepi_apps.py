@@ -43,7 +43,7 @@ def getAppsDict(search_path):
               file_path = os.path.join(search_path,f)
               #logger.log_warn("Loading app dict from file: " + str(file_path))
               try:
-                new_dict = nepi_utils.read_yaml2dict(file_path)
+                new_dict = nepi_utils.read_yaml_2_dict(file_path)
                 #logger.log_warn("Got app dict: " + str(new_dict))
                 new_dict['order'] = -1
                 new_dict['subprocess'] = ""

@@ -520,39 +520,15 @@ class SaveDataIF:
 
     #***************************
     # NEPI data saving utility functions
-
-    def save_dict2file(self,data_product,data_dict,timestamp = None,save_check=True):
+    def save(self,data_product,data,timestamp = None,save_check=True):
         saving_is_enabled = self.data_product_saving_enabled(data_product)
         should_save = self.data_product_should_save(data_product)
         snapshot_enabled = self.data_product_snapshot_enabled(data_product)
         # Save data if enabled
         if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-            self.read_write_if.write_dict_file(self.save_path, data_dict, data_product, timestamp = timestamp)
+            self.read_write_if.write_data_file(self.save_path, data, data_product, timestamp = timestamp)
             self.data_product_snapshot_reset(data_product)
 
-
-    def save_img2file(self,data_product,cv2_img,timestamp = None,save_check=True):
-        saving_is_enabled = self.data_product_saving_enabled(data_product)
-        should_save = self.data_product_should_save(data_product)
-        snapshot_enabled = self.data_product_snapshot_enabled(data_product)
-        # Save data if enabled
-        if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-            if cv2_img is not None:
-                self.read_write_if.write_image_file(self.save_path, cv2_img, data_product, timestamp = timestamp)
-                self.data_product_snapshot_reset(data_product)
-
-                
-
-    def save_pc2file(self,data_product,o3d_pc,timestamp = None,save_check=True):
-        saving_is_enabled = self.data_product_saving_enabled(data_product)
-        should_save = self.data_product_should_save(data_product)
-        snapshot_enabled = self.data_product_snapshot_enabled(data_product)
-        # Save data if enabled
-        if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-            if o3d_pc is not None:
-                self.read_write_if.write_pointcloud_file(self.save_path, o3d_pc, data_product, timestamp = timestamp)
-                self.data_product_snapshot_reset(data_product)
-            
 
     def publish_status(self):
         save_rates_msg = []

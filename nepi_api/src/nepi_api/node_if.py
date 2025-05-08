@@ -148,14 +148,14 @@ class NodeConfigsIF:
 
     def save_config(self):
         self.save_params_pub.publish(self.node_namespace)
-        if (self.initCb is not None):
+        if self.initCb is not None and not nepi_ros.is_shutdown():
             self.initCb() # Callback provided by container class to update based on param server, etc.
 
     def reset_config(self):
         success = False
         success = nepi_ros.call_service(self.reset_service,self.request_msg)
         nepi_ros.sleep(1)
-        if (self.resetCb and success == True):
+        if (self.resetCb and success == True) and not nepi_ros.is_shutdown():
             self.resetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
@@ -163,7 +163,7 @@ class NodeConfigsIF:
         success = False
         success = nepi_ros.call_service(self.factory_reset_service,self.request_msg)
         nepi_ros.sleep(1)
-        if (self.factoryResetCb):
+        if (self.factoryResetCb) and not nepi_ros.is_shutdown():
             self.factoryResetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
@@ -285,17 +285,18 @@ class NodeParamsIF:
                 self.set_param(param_name, init_val)
 
     def reset_params(self):
-        for param_name in self.params_dict.keys():
+        for param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
             init_val = self.params_dict[param_name]['init_val']
             self.set_param(param_name, init_val)
 
     def factory_reset_params(self):
-        for param_name in self.params_dict.keys():
+        for param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
             factory_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, factory_val)
 
     def save_params(self, file_path):
-        self.nepi_ros.save_params_to_file(file_path,self.namespace)       
+        if not nepi_ros.is_shutdown():
+            self.nepi_ros.save_params_to_file(file_path,self.namespace)       
 
     def has_param(self, param_name):
         namespace = self.get_param_namespace(param_name)
@@ -304,7 +305,7 @@ class NodeParamsIF:
     def get_param(self, param_name):
         value = None
         namespace = self.get_param_namespace(param_name)
-        if param_name in self.params_dict.keys():
+        if param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
             param_dict = self.params_dict[param_name]
             if 'init_val' in param_dict.keys():
                 fallback = param_dict['init_val']
@@ -316,8 +317,9 @@ class NodeParamsIF:
         return value
 
     def set_param(self, param_name, value):
-        namespace = self.get_param_namespace(param_name)
-        nepi_ros.set_param(namespace,value)
+        if not nepi_ros.is_shutdown():
+            namespace = self.get_param_namespace(param_name)
+            nepi_ros.set_param(namespace,value)
 
     def reset_param(self, param_name):
         if param_name in self.params_dict.keys():
@@ -335,7 +337,7 @@ class NodeParamsIF:
 
     def get_param_namespace(self,param_name):
         namespace = ""
-        if param_name in self.params_dict.keys():
+        if param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
             param_dict = self.params_dict[param_name]
             namespace = nepi_ros.create_namespace(param_dict['namespace'],param_name)
         return namespace
@@ -479,7 +481,7 @@ class NodeServicesIF:
                     srv_callback = srv_dict['callback']
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
-                if srv_callback is not None:
+                if srv_callback is not None and not nepi_ros.is_shutdown():
                     self.msg_if.pub_info("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
                     try:
@@ -495,7 +497,7 @@ class NodeServicesIF:
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
             purge = True
-            if 'service' in srv_dict.keys():
+            if 'service' in srv_dict.keys() and not nepi_ros.is_shutdown():
                 try:
                     self.srvs_dict[service_name]['service'].shutdown()
                 except Exception as e:
@@ -598,7 +600,7 @@ class NodePublishersIF:
 
     def has_subscribers_check(self,pub_name):
         has_subs = False
-        if pub_name in self.pubs_dict.keys():
+        if pub_name in self.pubs_dict.keys() and not nepi_ros.is_shutdown():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
@@ -610,7 +612,7 @@ class NodePublishersIF:
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
-                if pub_dict['pub'] is not None:
+                if pub_dict['pub'] is not None and not nepi_ros.is_shutdown():
                     try:
                         pub_dict['pub'].publish(pub_msg)
                         success = True
@@ -638,7 +640,7 @@ class NodePublishersIF:
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' not in pub_dict.keys():
-                if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys():
+                if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_ros.is_shutdown():
                     pub_namespace = nepi_ros.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
                     self.msg_if.pub_info("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
@@ -654,7 +656,7 @@ class NodePublishersIF:
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
-            if 'pub' in pub_dict.keys():
+            if 'pub' in pub_dict.keys() and not nepi_ros.is_shutdown():
                 try:
                     self.pubs_dict[pub_name]['pub'].unregister()
                 except Exception as e:
@@ -771,7 +773,7 @@ class NodeSubscribersIF:
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
-            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None:
+            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_ros.is_shutdown():
                 sub_namespace = nepi_ros.create_namespace(sub_dict['namespace'],sub_dict['topic'])
                 self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
                 if 'callback_args' not in sub_dict.keys():
@@ -796,7 +798,7 @@ class NodeSubscribersIF:
         if sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             purge = True
-            if 'sub' in sub_dict.keys():
+            if 'sub' in sub_dict.keys() and not nepi_ros.is_shutdown():
                 try:
                     self.subs_dict[sub_name]['sub'].unregister()
                 except Exception as e:
@@ -892,7 +894,7 @@ class NodeClassIF:
     configs_dict = None
     configs_if = None
     params_if = None
-    srvs_if = None
+    services_if = None
     pubs_if = None
     subs_if = None
 
@@ -958,7 +960,7 @@ class NodeClassIF:
         # Create Services Class
         if services_dict is not None:
             self.msg_if.pub_info("Starting Node Services IF Initialization Processes")
-            self.srvs_if = NodeServicesIF(services_dict = services_dict, log_name = log_name)
+            self.services_if = NodeServicesIF(services_dict = services_dict, log_name = log_name)
 
 
         ##############################  
@@ -982,7 +984,7 @@ class NodeClassIF:
         if configs_dict is not None:
             ready = self.configs_if.wait_for_ready()
         if services_dict is not None:
-            ready = self.srvs_if.wait_for_ready()
+            ready = self.services_if.wait_for_ready()
         if pubs_dict is not None:
             ready = self.pubs_if.wait_for_ready()
         if subs_dict is not None:
@@ -1098,22 +1100,22 @@ class NodeClassIF:
     # Service Methods ####################
     def get_services(self):
         srvs = None
-        if self.srvs_if is not None:
-            srvs = self.srvs_if.get_services()
+        if self.services_if is not None:
+            srvs = self.services_if.get_services()
         return srvs
 
     def register_service(self,service_name, service_dict):
-        if self.srvs_if is not None:
-            self.srvs_if.register_service(service_name, service_dict)
+        if self.services_if is not None:
+            self.services_if.register_service(service_name, service_dict)
 
 
     def unregister_service(self,service_name):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_service(service_name)
+        if self.services_if is not None:
+            self.services_if.unregister_service(service_name)
 
     def unregister_services(self):
-        if self.srvs_if is not None:
-            self.srvs_if.unregister_services()
+        if self.services_if is not None:
+            self.services_if.unregister_services()
 
 
     # Publisher Methods ####################

@@ -380,7 +380,7 @@ class time_sync_mgr(object):
                 ntp_status.append((source, currently_syncd, last_sync, current_offset))
                 if (self.ntp_first_sync_time is None) and (currently_syncd is True):
                     self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
-                    self.ntp_first_sync_time = nepi_ros.get_rostime_to_sec()
+                    self.ntp_first_sync_time = nepi_utils.get_time()
                     self.informClockUpdate()
 
                     # Update the RTC with this "better" clock source

@@ -2,8 +2,8 @@ Header header
 string model_name
 Header image_header
 string image_topic
-int32 src_height
-int32 src_width
+int32 image_height
+int32 image_width
 int32 prc_height
 int32 prc_width
 BoundingBox[] bounding_boxes

@@ -18,8 +18,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
 from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery,  AiDetectorInfoQueryRequest
+from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,  AiDetectorInfoQueryResponse
 
 
 from nepi_sdk import nepi_ros
@@ -36,8 +35,8 @@ self.BOXES_INFO_DICT_ENTRY = {
     'model_name': 'test_model',
     'image_header': Header(),
     'image_topic': 'my/test_topic',
-    'src_height': 600,
-    'src_width': 1000,
+    'image_height': 600,
+    'image_width': 1000,
     'prc_height': 300,
     'prc_width': 500
 }
