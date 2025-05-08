@@ -536,6 +536,7 @@ class SaveDataIF:
         self.msg_if.pub_warn("save_rate_dict " + str(save_rate_dict))
         for name in save_rate_dict.keys():
             save_rate_msg = SaveDataRate()
+            rate = 0
             try:
                 rate = round(save_rate_dict[name][0])
             except Exception as e:
