@@ -353,10 +353,13 @@ class config_mgr(object):
                     full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
                 self.msg_if.pub_info("Upettings_capabilities_query:1672] call_service InvalidServiceException: Service /nedating " + target + " from user config")
-                # don't overwrite changes to the system's NEPI_ENV_PACKAGE
+                os.system('cp -rf ' + full_name + ' ' + target)
+                os.system('chown -R nepi:nepi ' + target)
+
+                # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     file_lines = []
-                    with open(full_name, "r") as f:
+                    with open(target, "r") as f:
                         for line in f:
                             if line.startswith("export ROS1_PACKAGE="):
                                 file_lines.append("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE + '\n')
@@ -366,8 +369,6 @@ class config_mgr(object):
                     with open(tmp_filename, "w") as f:
                         for line in file_lines:
                             f.write(line)
-                os.system('cp -rf ' + full_name + ' ' + target)
-                os.system('chown -R nepi:nepi ' + target)
 
 
 

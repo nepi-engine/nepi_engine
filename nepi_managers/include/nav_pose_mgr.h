@@ -30,6 +30,7 @@
 #include "nepi_ros_interfaces/Heading.h"
 #include "nepi_ros_interfaces/NavPoseQuery.h"
 #include "nepi_ros_interfaces/NavPoseStatusQuery.h"
+#include "nepi_ros_interfaces/TimeUpdate.h"
 
 namespace Numurus
 {

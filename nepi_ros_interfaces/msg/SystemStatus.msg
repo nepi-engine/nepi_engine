@@ -9,6 +9,8 @@ bool in_container
 
 # Current system time (ROS time)
 time sys_time
+string timezone
+string timezone_description
 
 # Current temperature(s) (C)
 float32[] temperatures

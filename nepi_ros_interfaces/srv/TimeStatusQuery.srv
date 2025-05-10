@@ -3,3 +3,4 @@
 
 ---
 TimeStatus time_status
+string[] available_timezones

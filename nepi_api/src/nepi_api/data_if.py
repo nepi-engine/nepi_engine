@@ -214,21 +214,45 @@ class ReadWriteIF:
         file_list = nepi_utils.get_file_list(path,ext_str=ext_str)
         return file_list
 
-    '''
-    def get_file_time(self,file_path):
+    def get_time_from_filename(self,filename):
         file_time = None
-        file_times = []
-        for file in file_list:
-            file_times.append(nepi_utils.get_time_from_filename(file))
-        return file_times
-    '''
+        dt_str = self._getDtStr(filename)
+        dt_str_base = self._getDtStr(filename)
+        if dt_str is not None:
+            try:
+                dt_str = dt_str[1:]
+                [year,dt_str] = dt_str.split('-', maxsplit=1)
+                year = int(year)
+                [month,dt_str] = dt_str.split('-', maxsplit=1)
+                month = int(month)
+                [day,dt_str] = dt_str.split('T', maxsplit=1)
+                day = int(day)
+                [hour,dt_str] = dt_str.split('-', maxsplit=1)
+                hour = int(hour)
+                [minute,dt_str] = dt_str.split('-', maxsplit=1)
+                minute = int(minute)
+                [sec,dt_str] = dt_str.split('p', maxsplit=1)
+                sec = int(sec)
+                if len(dt_str) > 0:
+                    pad = 6 - len(dt_str)
+                    for i in range(pad):
+                        dt_str = dt_str + '0'
+                    msec = int(dt_str)
+                else:
+                    msec = 0
+                file_time = datetime.datetime(year, month, day, hour, minute, sec, msec)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to convert date time string: " + str(dt_str_base) )
+        return file_time
+
+
 
     def write_data_file(self, filepath, data, data_name, timestamp = None):
         data_type = type(data)
         found_type = False
-        for data_name in self.data_dict:
-            if data_type == self.data_dict[data_name]['data_type']:
-                save_function = self.data_dict[data_name]['write_function']
+        for data_key in self.data_dict:
+            if data_type == self.data_dict[data_key]['data_type']:
+                save_function = self.data_dict[data_key]['write_function']
                 save_function(filepath, data, data_name, timestamp = timestamp)
                 found_type = True
         if found_type == False:
@@ -236,15 +260,15 @@ class ReadWriteIF:
 
 
     def read_dict_file(self, filepath, filename):
-        data_name = 'dict'
+        data_key = 'dict'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_name]['file_types']
+        file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_name]['data_type']
+            data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
@@ -252,13 +276,13 @@ class ReadWriteIF:
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, ext_str = 'yaml'):
-        data_name = 'dict'
+        data_key = 'dict'
         success = False
-        data_type = self.data_dict[data_name]['data_type']
+        data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
-            file_types = self.data_dict[data_name]['file_types']
+            file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -272,15 +296,15 @@ class ReadWriteIF:
 
 
     def read_image_file(self, filepath, filename):
-        data_name = 'image'
+        data_key = 'image'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_name]['file_types']
+        file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_name]['data_type']
+            data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
@@ -288,13 +312,13 @@ class ReadWriteIF:
         return data
 
     def write_image_file(self, filepath, data, data_name, timestamp = None, ext_str = 'png'):
-        data_name = 'image'
+        data_key = 'image'
         success = False
-        data_type = self.data_dict[data_name]['data_type']
+        data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
             self.msg_if.pub_warn("Data type not supported: " + str(type(data)))
         else:
-            file_types = self.data_dict[data_name]['file_types']
+            file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -308,15 +332,15 @@ class ReadWriteIF:
 
 
     def read_pointcloud_file(self, filepath, filename):
-        data_name = 'pointcloud'
+        data_key = 'pointcloud'
         data = None
         ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_name]['file_types']
+        file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_name]['data_type']
+            data_type = self.data_dict[data_key]['data_type']
             if isinstance(read_data,data_type) == False:
                 self.msg_if.pub_warn("Data type not supported: " + str(data_type))
             else:
@@ -324,13 +348,13 @@ class ReadWriteIF:
         return data
 
     def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, ext_str = 'pcd'):
-        data_name = 'pointcloud'
+        data_key = 'pointcloud'
         success = False
-        data_type = self.data_dict[data_name]['data_type']
+        data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type))
         else:
-            file_types = self.data_dict[data_name]['file_types']
+            file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
@@ -363,7 +387,7 @@ class ReadWriteIF:
             data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone) + '_'
         node_name_str = ""
         if self.filename_dict['add_node_name'] == True:
-            node_name_str = self.node_name + '_'
+            node_name_str = self.node_name
         if len(ext_str) > 0:
             ext_str  = '.' + ext_str
         if len(data_name_str) >  0:
@@ -371,6 +395,20 @@ class ReadWriteIF:
         filename = prefix + data_time_str + node_name_str + data_name_str + ext_str
         return filename
 
+    
+    def _getDtStr(self,filename):
+        d_inds = nepi_utils.find_all_indexes(filename, 'D')
+        dt_ind = None
+        dt_str = filename
+        for ind in d_inds:
+            if len(filename) >= ind + 1:
+                if filename[ind + 1].isdigit() == True:
+                    dt_ind = ind
+                    break
+        dt_str = dt_str[dt_ind:]
+        dt_str = dt_str.split('_')[0]
+        return dt_str
+                
 
 
 

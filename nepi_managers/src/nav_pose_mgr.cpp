@@ -216,7 +216,7 @@ void NavPoseMgr::initSubscribers()
 
 void NavPoseMgr::initPublishers()
 {
-	set_time_pub = n.advertise<std_msgs::Time>("set_time", 3);
+	set_time_pub = n.advertise<nepi_ros_interfaces::TimeUpdate>("set_time", 3);
 }
 
 bool NavPoseMgr::provideNavPose(nepi_ros_interfaces::NavPoseQuery::Request &req, nepi_ros_interfaces::NavPoseQuery::Response &resp)
@@ -312,8 +312,11 @@ void NavPoseMgr::gpsFixHandler(const sensor_msgs::NavSatFix::ConstPtr &msg)
 		if ((drift_s > max_gps_clock_drift_s) || (drift_s < -max_gps_clock_drift_s))
 		{
 			//ROS_INFO_THROTTLE(10.0, "Updating system clock to GPS topic timestamp (drift was %.3fs)", drift_s);
-			std_msgs::Time time_msg;
-			time_msg.data = latest_nav_sat_fix.header.stamp;
+			nepi_ros_interfaces::TimeUpdate time_msg;
+			time_msg.update_time = true;
+			time_msg.secs = latest_nav_sat_fix.header.stamp.sec;
+			time_msg.nsecs = latest_nav_sat_fix.header.stamp.nsec;
+			time_msg.update_timezone = false;
 			set_time_pub.publish(time_msg);
 		}
 	}

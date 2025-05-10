@@ -5,6 +5,7 @@
 time current_time
 
 string timezone
+string timezone_description
 
 # System clock at time of last PPS receipt
 time last_pps

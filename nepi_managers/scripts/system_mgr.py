@@ -12,8 +12,9 @@ import time
 import shutil
 from collections import deque
 import re
-from datetime import datetime
+import datetime
 import subprocess
+import importlib
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -803,7 +804,6 @@ class SystemMgrNode():
         return self.DRIVERS_SHARE_PATH
 
     def publish_status(self, event):
-        self.status_msg.sys_time = event.current_real
         # Populate the rest of the message contents
         # Temperature(s)
         self.update_temperatures()
@@ -1018,8 +1018,6 @@ class SystemMgrNode():
         if self.archiving_inactive_image is True:
             self.msg_if.pub_warn("Already in the process of archiving image")
             return
-
-        now = datetime.now()
         backup_file_basename = 'nepi_rootfs_archive_' + now.strftime("%Y_%m_%d_%H%M%S") + '.img.raw'
         self.status_msg.sys_img_archive_status = 'archiving'
         self.status_msg.sys_img_archive_filename = backup_file_basename

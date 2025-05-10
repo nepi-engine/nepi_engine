@@ -10,11 +10,13 @@
 
 import os
 import os.path
+import time
 from shutil import copyfile
 import re
 import errno
 import subprocess
 import sys
+import datetime
 
 
 from nepi_sdk import nepi_ros
@@ -44,7 +46,7 @@ CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
 CHRONY_CFG_BASENAME = '/opt/nepi/config/etc/chrony/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
 
-
+FACTORY_TIMEZONE = 'America/Los_Angeles'
 
 class time_sync_mgr(object):
  
@@ -54,7 +56,6 @@ class time_sync_mgr(object):
     ntp_status_check_timer = None
 
 
-    timezone = 'UTC'
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
@@ -93,6 +94,11 @@ class time_sync_mgr(object):
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
+        self.time_status = TimeStatus()
+        tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
+        timezone = nepi_utils.get_timezone_description(tz)
+        self.time_status.timezone_description = timezone
+
         ##############################
         ### Setup Node
 
@@ -110,6 +116,10 @@ class time_sync_mgr(object):
             'init_time_from_rtc': {
                 'namespace': self.node_namespace,
                 'factory_val': True
+            },
+            'timezone': {
+                'namespace': self.node_namespace,
+                'factory_val': FACTORY_TIMEZONE
             }
         }
 
@@ -144,7 +154,7 @@ class time_sync_mgr(object):
             }
         }  
 
-        if self.in_container == True:
+        if self.in_container == False:
             # Subscribers Config Dict ####################
             self.SUBS_DICT = {
                 'reset': {
@@ -183,7 +193,7 @@ class time_sync_mgr(object):
                     'namespace': self.base_namespace,
                     'topic': 'set_time',
                     'msg': TimeUpdate,
-                    'qsize': None,
+                    'qsize': 10,
                     'callback': self.set_time, 
                     'callback_args': ()
                 }
@@ -209,6 +219,9 @@ class time_sync_mgr(object):
         ready = self.node_if.wait_for_ready()
         self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
             
+        # Upddate Timezone
+        timezone = self.node_if.get_param('timezone')
+        self.set_timezone(timezone)
 
         if self.in_container == False:
 
@@ -222,8 +235,15 @@ class time_sync_mgr(object):
 
             # Set up a periodic timer to check for NTP sync so we can inform the rest of the system when first sync detected
             self.ntp_status_check_timer = nepi_ros.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
+            self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+            
+
         else:
             self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
+
+
+
+
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -367,9 +387,45 @@ class time_sync_mgr(object):
         # Just call the implementation method. We don't care about the event payload
         self.gather_ntp_status()
 
+
+    def updaterCb(self,timer):
+
+        os.environ['TZ'] = time.strftime('%Z')
+        time.tzset()
+        # Get Last PPS time from the sysfs node
+        #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
+        pps_exists = False # Hard code if for now, since Jetson isn't defining /sys/class/pps -- we may never actually use PPS
+        if pps_exists:
+            pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
+            pps_tokens = pps_string.split('#')
+            if (len(pps_tokens) >= 2):
+                self.time_status.last_pps = nepi_ros.ros_time(float(pps_string.split('#')[0]))
+            else:
+                self.time_status.last_pps = nepi_ros.ros_time(0.0)
+                self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
+        else: # Failed to find the assert file - just return no PPS
+            self.time_status.last_pps = nepi_ros.ros_time(0.0)
+
+
+        ntp_status = self.gather_ntp_status()
+        for status_entry in ntp_status:
+            if status_entry[0] not in self.time_status.ntp_sources:
+                self.time_status.ntp_sources.append(status_entry[0])
+                self.time_status.currently_syncd.append(status_entry[1])
+                self.time_status.last_ntp_sync.append(status_entry[2])
+                self.time_status.current_offset.append(status_entry[3])
+            else:
+                ind = self.time_status.ntp_sources.index(status_entry[0])
+                if ind != -1:
+                    self.time_status.currently_syncd[ind] = status_entry[1]
+                    self.time_status.last_ntp_sync[ind] = status_entry[2]
+                    self.time_status.current_offset[ind] = status_entry[3]
+
+        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+
+
+
     def gather_ntp_status(self):
-
-
         chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
         ntp_status = [] # List of lists
         for line in chronyc_sources[1:]:
@@ -392,43 +448,28 @@ class time_sync_mgr(object):
         return ntp_status
 
     def handle_time_status_query(self,req):
-        time_status = TimeStatus()
-        time_status.current_time = nepi_ros.ros_time_now()
-        time_status.timezone = self.timezone
+        start_time = nepi_utils.get_time()
 
-        # Get Last PPS time from the sysfs node
-        #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
-        pps_exists = False # Hard code if for now, since Jetson isn't defining /sys/class/pps -- we may never actually use PPS
-        if pps_exists:
-            pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
-            pps_tokens = pps_string.split('#')
-            if (len(pps_tokens) >= 2):
-                time_status.last_pps = nepi_ros.ros_time(float(pps_string.split('#')[0]))
-            else:
-                time_status.last_pps = nepi_ros.ros_time(0.0)
-                self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
-        else: # Failed to find the assert file - just return no PPS
-            time_status.last_pps = nepi_ros.ros_time(0.0)
-
-        ntp_status = self.gather_ntp_status()
-        for status_entry in ntp_status:
-            time_status.ntp_sources.append(status_entry[0])
-            time_status.currently_syncd.append(status_entry[1])
-            time_status.last_ntp_sync.append(status_entry[2])
-            time_status.current_offset.append(status_entry[3])
-
+        self.time_status.current_time = nepi_ros.ros_time_now()
+        tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
+        self.time_status.timezone = tz
+        self.time_status.timezone_description = nepi_utils.get_timezone_description(tz)
         # Last set time (cheater clock sync method)
-        time_status.last_set_time = self.last_set_time
+        self.time_status.last_set_time = self.last_set_time
+        
+        timezones = nepi_utils.standard_timezones_dict.keys()
+        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.time_status))
 
-        #self.msg_if.pub_warn("Returning Time Status response: " + str(time_status))
-        return  { 'time_status': time_status }
+        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
+
+        return  { 'time_status': self.time_status, 'available_timezones': timezones }
 
     def set_time(self,msg):
         # TODO: Bounds checking?
-        # Use the Linux 'date -s' command-line utility.
-        update_clock = msg.update_clock
-        if update_clock == True:
-            self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs) + ' timezone: ' + self.timezone)
+        self.msg_if.pub_warn("Got time update msg: " + str(msg))
+        update_time = msg.update_time
+        if update_time == True:
+            self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
             timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
             try:
                 subprocess.call(["date", "-s", timestring])
@@ -436,20 +477,13 @@ class time_sync_mgr(object):
                 new_date = subprocess.check_output(["date"], text=True)
                 self.msg_if.pub_info("Updated date: " + str(new_date))
             except Exception as e:
-                self.msg_if.pub_info("Failed to update time: " + str(e))
+                self.msg_if.pub_warn("Failed to update time: " + str(e))
 
 
         update_timezone = msg.update_timezone
-        if update_timeone == True:
+        if update_timezone == True:
             self.msg_if.pub_info("Setting timezone to: " + msg.timezone)
-            try:
-                subprocess.call(["timedatectl", "set-timezone", msg.timezone])
-                self.msg_if.pub_info("Updated timezone: " + str(msg.timezone))
-                self.timezone = msg.timezone
-            except Exception as e:
-                self.msg_if.pub_info("Failed to update timezone: " + str(e))
-
-
+            self.set_timezone(msg.timezone)
 
         # Update the hardware clock from this "better" clock source; helps with RTC drift
         self.msg_if.pub_info("Updating hardware clock from set_time value")
@@ -488,7 +522,17 @@ class time_sync_mgr(object):
     #    ts.tv_sec = int(msg.data.secs)
     #    ts.tv_nsec = int(msg.data.nsecs)
 
-
+    def set_timezone(self,timezone):
+        try:
+            subprocess.call(["timedatectl", "set-timezone", timezone])
+            self.msg_if.pub_warn("Updated timezone: " + str(timezone))
+            self.node_if.set_param('timezone',timezone)
+            self.node_if.save_config()
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to update timezone: " + str(e))
+            tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
+            timezone = nepi_utils.get_timezone_description(tz)
+        self.time_status.timezone_description = timezone
 
     def initCb(self, do_updates = False):
         pass

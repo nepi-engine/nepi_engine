@@ -18,9 +18,10 @@ import shutil
 import time
 import subprocess
 import yaml
+import csv
 
-from pytz import timezone
-from datetime import datetime
+import pytz
+import datetime
 
 from nepi_sdk import nepi_ros
 log_name = "nepi_utils"
@@ -41,9 +42,9 @@ def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = Fa
   if timestamp is None:
       timestamp = get_time()
   time_ns = nepi_ros.sec_from_timestamp(timestamp)
-  dt = convert_time_to_datetime(time_ns, timzone = timezone)
-  date_str='D' + dt.strftime('%Y-%m-%d %Z')
-  time_str=dt.strftime('%H-%M-%S %Z')
+  dt = convert_time_to_datetime(time_ns, timezone = timezone)
+  date_str='D' + dt.strftime('%Y-%m-%d')
+  time_str=dt.strftime('%H-%M-%S')
   ms_str = 'p'
   if add_ms or add_us:
     ms_str += dt.strftime('%f')[:-3]
@@ -65,8 +66,7 @@ def convert_time_to_datetime(time_sec, timezone = None):
     """
 
     try:
-        dt =  datetime.fromtimestamp(time_sec)
-        #dt.replace(tzinfo=timezone.utc)
+        dt =  datetime.datetime.fromtimestamp(time_sec)
     except (ValueError, OSError, OverflowError) as e:
         print(f"Error converting: {e}")
         dt = None
@@ -81,6 +81,24 @@ def convert_date_to_time(year, month, day):
   timestamp = time.mktime(dt_object.timetuple())
   return int(timestamp)
 
+def get_timezone_description(abbreviation):
+    """
+    Returns a standard time zone description for a given abbreviation.
+    """
+    timezone = ""
+    for zone in pytz.all_timezones:
+        if datetime.datetime.now(pytz.timezone(zone)).strftime("%Z") == abbreviation:
+            if zone in standard_timezones_dict.keys():
+              timezone = zone
+              break
+    return timezone
+
+standard_timezones_dict = {'America/New_York': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8,
+ 'America/Anchorage': -9, 'Pacific/Honolulu': -10, 'Africa/Johannesburg': 2, 'America/Mexico City': -6, 'Africa/Monrousing': 0, 'Asia/Tokyo': 9,
+  'America/Jamaica': -5, 'Europe/Rome': 1, 'Asia/Hong Kong': 8, 'Pacific/Guam': 10, 'Europe/Athens': 2, 'Europe/London': 0, 'Europe/Paris': 1,
+   'Europe/Madrid': 1, 'Africa/Cairo': 2, 'Europe/Copenhagen': 1, 'Europe/Berlin': 1, 'Europe/Prague': 1, 'America/Vancouver': -8, 'America/Edmonton': -7,
+    'America/Toronto': -5, 'America/Montreal': -5, 'America/Sao Paulo': -3, 'Europe/Brussels': 1, 'Australia/Perth': 8, 'Australia/Sydney': 10, 'Asia/Seoul': 9,
+     'Africa/Lagos': 1, 'Europe/Warsaw': 1, 'America/Puerto Rico': -4, 'Europe/Moscow': 4, 'Asia/Manila': 8, 'Atlantic/Reykjavik': 0, 'Asia/Jerusalem': 2}
 #########################
 ### Network Helper Functions
 
@@ -251,6 +269,31 @@ def write_dict_2_yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=Fals
         logger.log_info("Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
     return success
   
+def read_csv_file(file_path):
+    """
+    Reads a CSV file and returns its content as a list of rows.
+
+    Args:
+        file_path (str): The path to the CSV file.
+
+    Returns:
+        list: A list of rows, where each row is a list of strings.
+              Returns an empty list if an error occurs.
+    """
+    data = []
+    try:
+        with open(file_path, 'r') as file:
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                data.append(row)
+    except FileNotFoundError:
+        logger.log_warn("File not found: " + file_path)
+    except Exception as e:
+        logger.log_warn("Failed to load file: " + file_path + " " + str(e))
+    return data
+
+
+
 #########################
 ### List Helper Functions
 
@@ -264,3 +307,19 @@ def val_in_list(val2check,list2check):
       if val2check == list_val:
         in_list = True
   return in_list
+
+
+def find_all_indexes(input_string, char):
+    """
+    Finds all indexes of a character in a string.
+
+    Args:
+        input_string: The string to search within.
+        char: The character to find.
+
+    Returns:
+        A list of integers representing the indexes of the character, 
+        or an empty list if the character is not found.
+    """
+    indexes = [i for i, letter in enumerate(input_string) if letter == char]
+    return indexes

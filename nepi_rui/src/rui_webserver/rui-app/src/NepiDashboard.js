@@ -7,10 +7,11 @@
  * License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
  */
 import React, { Component } from "react"
-import Toggle from "react-toggle"
 import { observer, inject } from "mobx-react"
 
 import Input from "./Input"
+import Select, { Option } from "./Select"
+import Toggle from "react-toggle"
 import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Label from "./Label"
@@ -19,8 +20,6 @@ import BooleanIndicator from "./BooleanIndicator"
 import Styles from "./Styles"
 import {createShortUniqueValues} from "./Utilities"
 
-
-import Select, { Option } from "./Select"
 import NepiMessagesSelector from "./NepiMessagesSelector"
 
 
@@ -43,8 +42,10 @@ class NepiDashboard extends Component {
       allowFileDeletion: false,
       saveFreq: this.props.ros.saveFreqHz,
 
-            viewableMessages: false,
-            selected_message: 'NONE'
+      viewableMessages: false,
+      selected_message: 'NONE',
+
+      timezones_list_viewable: false
     }
 
   
@@ -54,6 +55,10 @@ class NepiDashboard extends Component {
 
     this.toggleViewableMessages = this.toggleViewableMessages.bind(this)
     this.onToggleMessagesSelection = this.onToggleMessagesSelection.bind(this)
+
+    this.onToggleTimezoneSelection = this.onToggleTimezoneSelection.bind(this)
+    this.getTimezoneOptions = this.getTimezoneOptions.bind(this)
+    this.toggleTimezonesListViewable = this.toggleTimezonesListViewable.bind(this)
 
   }
 
@@ -186,6 +191,46 @@ class NepiDashboard extends Component {
     )
   }
 
+
+
+  // Function for creating image topic options.
+  getTimezoneOptions() {
+    const {
+      available_timezones
+    } = this.props.ros
+    var items = []
+
+    if (available_timezones != null){
+          for (var i = 0; i < available_timezones.length; i++) {
+              if (available_timezones[i] !== 'None'){
+                items.push(<Option value={available_timezones[i]}>{available_timezones[i]}</Option>)
+              }
+          }
+    }
+    return items
+    }
+  
+  
+    toggleTimezonesListViewable() {
+      const set = !this.state.timezones_list_viewable
+      this.setState({timezones_list_viewable: set})
+    }
+  
+  
+    onToggleTimezoneSelection(event){
+      const {
+        setTimezone,
+        available_timezones,
+        systemStatusTimezoneDesc
+      } = this.props.ros
+      const timezoneSelection = event.target.value
+      if (timezoneSelection !== systemStatusTimezoneDesc){
+        setTimezone(timezoneSelection)
+      }
+    }
+
+
+
   renderSystemClock() {
     const {
       systemInContainer,
@@ -193,13 +238,45 @@ class NepiDashboard extends Component {
       clockUTCMode,
       clockTZ,
       onToggleClockUTCMode,
+      systemStatusTimezone,
+      systemStatusTimezoneDesc,
+      syncTimezone,
+      onToggleSyncTimezone,
+      onSyncTimezone,
+      setTimezoneUTC,
       clockNTP,
       onSyncUTCToDevice
     } = this.props.ros
 
-    const time = systemStatusTime && systemStatusTime.format("h:mm:ss a")
-    const date = systemStatusTime && systemStatusTime.format("l")
+    const timezoneOptions = this.getTimezoneOptions()
 
+
+    var time = ""
+    var date = ""
+    var timezone = ""
+    if (systemStatusTime){
+      time = systemStatusTime && systemStatusTime.format("h:mm:ss a")
+      date = systemStatusTime && systemStatusTime.format("l")
+
+      if (systemInContainer === false){
+        if (systemStatusTimezoneDesc !== clockTZ && syncTimezone === true && clockNTP === false){
+          onSyncTimezone()
+        }
+        else if (systemStatusTimezoneDesc !== 'Europe/London' && clockUTCMode === true ){
+          setTimezoneUTC()
+        }
+      }
+      if (systemStatusTimezoneDesc === 'Europe/London' && clockUTCMode === true){
+        timezone = 'UTC'
+      }
+      else {
+        timezone = systemStatusTimezoneDesc
+      }
+    }
+
+
+  
+    
     return (
       <Section title={"System Clock"}>
         <Label title={"NTP"}>
@@ -212,18 +289,72 @@ class NepiDashboard extends Component {
           <Input disabled value={date} />
         </Label>
         <Label title={"Timezone"}>
-          <Input disabled value={clockTZ} />
+          <Input disabled value={timezone} />
         </Label>
-        <Label title={"UTC"}>
-          <Toggle checked={clockUTCMode} onClick={onToggleClockUTCMode} />
-        </Label>
-        <div hidden={systemInContainer === true}>
-        {(IS_LOCAL === false) &&
-        <ButtonMenu>
-          <Button onClick={onSyncUTCToDevice}>{"Sync Clocks"}</Button>
-        </ButtonMenu>}
-        </div>
 
+
+        {(IS_LOCAL === false && systemInContainer === false) &&
+
+            <Columns>
+            <Column>
+
+            </Column >
+            <Column>
+
+                  <Label title={"UTC"}>
+                  <Toggle checked={clockUTCMode} onClick={onToggleClockUTCMode} />
+                  </Label>
+
+                    <div hidden={clockUTCMode === true}>
+
+                          <ButtonMenu>
+                            <Button onClick={onSyncUTCToDevice}>{"Sync Clocks"}</Button>
+                          </ButtonMenu>
+                        
+
+                          <Label title={"Sync Timezone"}>
+                            <Toggle checked={syncTimezone} onClick={onToggleSyncTimezone} />
+                          </Label>
+
+                    </div>
+
+                    <div hidden={clockUTCMode === true || syncTimezone === true}>
+
+
+
+                          <label align={"left"} textAlign={"left"}>
+                              {"Select Timezone"}
+                            </label>
+                      
+
+
+                              <div onClick={this.toggleTimezonesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                                        <Select style={{width: "10px"}}/>
+                                      </div>
+                                      <div hidden={this.state.timezones_list_viewable === false}>
+                                      {timezoneOptions.map( (Timezone) =>
+                                      <div onClick={this.onToggleTimezoneSelection}
+                                        style={{
+                                          textAlign: "center",
+                                          padding: `${Styles.vars.spacing.xs}`,
+                                          color: Styles.vars.colors.black,
+                                          backgroundColor: (timezone === Timezone.props.value)? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                                          cursor: "pointer",
+                                          }}>
+                                          <body timezone_name ={Timezone} style={{color: Styles.vars.colors.black}}>{Timezone}</body>
+                                      </div>
+                                      )}
+                                </div>
+
+                            
+                      </div>
+
+
+
+                      </Column>
+                      </Columns>
+
+            }
 
 
 

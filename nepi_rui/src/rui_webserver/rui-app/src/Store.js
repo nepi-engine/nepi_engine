@@ -158,6 +158,9 @@ class ROSConnectionStore {
 
   @observable systemStatusTime = null
   @observable clockUTCMode = false
+  @observable available_timezones = []
+  @observable syncTimezone = true
+  @observable systemStatusTimezone = null
   @observable clockTZ = getLocalTZ()
   @observable clockNTP = false
   @observable clockPPS = false
@@ -956,13 +959,7 @@ class ROSConnectionStore {
         this.systemInContainer = message.in_container
         this.systemStatusDiskUsageMB = message.disk_usage
         this.systemStatusDiskRate = message.storage_rate
-
-        if (this.clockUTCMode) {
-          this.systemStatusTime = moment.unix(message.sys_time.secs).utc()
-        } else {
-          this.systemStatusTime = moment.unix(message.sys_time.secs)
-        }
-
+        
         this.diskUsagePercent = `${parseInt(
           100 * this.systemStatusDiskUsageMB / this.systemDefsDiskCapacityMB,
           10
@@ -1831,13 +1828,12 @@ class ROSConnectionStore {
     const _pollOnce = async () => {
       this.timeStatus = await this.callService({
         name: "time_status_query",
-        messageType: "nepi_ros_interfaces/TimeStatus",
-        msgKey: "time_status"
+        messageType: "nepi_ros_interfaces/SystemTriggersQuery",
       })
 
       // if last_ntp_sync is 10y, no sync has happened
       this.clockNTP = false
-      const currentlySyncd = this.timeStatus.currently_syncd
+      const currentlySyncd = this.timeStatus.time_status.currently_syncd
       currentlySyncd &&
       currentlySyncd.length &&
       currentlySyncd.forEach(syncd => {
@@ -1845,10 +1841,13 @@ class ROSConnectionStore {
             this.clockNTP = true
           }
         })
-
+      this.available_timezones = this.timeStatus.available_timezones
       // if last_pps – current_time < 1 second no sync has happened
       this.clockPPS = true
-      const lastPPSTS = moment.unix(this.timeStatus.last_pps.secs).unix()
+      const lastPPSTS = moment.unix(this.timeStatus.time_status.last_pps.secs).unix()
+      this.systemStatusTime = moment.unix(this.timeStatus.time_status.current_time.secs)
+      this.systemStatusTimezone = this.timeStatus.time_status.timezone
+      this.systemStatusTimezoneDesc = this.timeStatus.time_status.timezone_description
       const currTS = this.systemStatusTime && this.systemStatusTime.unix()
       if (currTS && lastPPSTS - currTS < 1) {
         this.clockPPS = false
@@ -1963,8 +1962,65 @@ class ROSConnectionStore {
   @action.bound
   onToggleClockUTCMode() {
     this.clockUTCMode = !this.clockUTCMode
-    this.clockTZ = this.clockUTCMode ? "UTC" : getLocalTZ()
+    const timezone = getLocalTZ()
+    this.clockTZ = timezone.replace(' ','_')
   }
+
+  @action.bound
+  onToggleSyncTimezone() {
+    const new_val = !this.syncTimezone
+    this.syncTimezone = new_val
+    if (new_val === true){
+      this.onSyncTimezone()
+    }
+  }
+
+  @action.bound
+  onSyncTimezone() {
+    this.publishMessage({
+      name: "set_time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
+      data: {
+          update_time: false,
+          secs: 0,
+          nsecs: 0,
+          update_timezone: true,
+          timezone:  this.clockTZ
+      }
+    })
+  }
+
+  @action.bound
+  setTimezone(timezone) {
+    this.publishMessage({
+      name: "set_time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
+      data: {
+          update_time: false,
+          secs: 0,
+          nsecs: 0,
+          update_timezone: true,
+          timezone:  timezone
+      }
+    })
+  }
+
+  @action.bound
+  setTimezoneUTC() {
+    this.publishMessage({
+      name: "set_time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
+      data: {
+          update_time: false,
+          secs: 0,
+          nsecs: 0,
+          update_timezone: true,
+          timezone:  'Europe/London'
+      }
+    })
+  }
+
+
 
   @action.bound
   onSyncUTCToDevice() {
@@ -1974,13 +2030,11 @@ class ROSConnectionStore {
       name: "set_time",
       messageType: "nepi_ros_interfaces/TimeUpdate",
       data: {
-        data: {
-          update_clock: true,
+          update_time: true,
           secs: utcTS,
           nsecs: 0,
-          upate_timezone: true,
+          update_timezone: true,
           timezone:  this.clockTZ
-        }
       }
     })
   }
