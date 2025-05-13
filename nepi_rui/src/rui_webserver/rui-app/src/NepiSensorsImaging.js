@@ -15,6 +15,7 @@ import Label from "./Label"
 import Select, { Option } from "./Select"
 import Button, { ButtonMenu } from "./Button"
 import CameraViewer from "./CameraViewer"
+import Styles from "./Styles"
 
 import NepiSensorsImagingControls from "./NepiSensorsImagingControls"
 
@@ -164,6 +165,7 @@ class NepiSensorsImaging extends Component {
     const { idxSensors, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const SensorSelected = (this.state.currentIDXNamespace != null)
+    const namespace = this.state.currentIDXNamespace
 
     return (
       <React.Fragment>
@@ -177,7 +179,7 @@ class NepiSensorsImaging extends Component {
                 <Label title={"Sensor"}>
                   <Select
                     onChange={this.onTopicIDXSelected}
-                    value={this.state.currentIDXNamespace}
+                    value={namespace}
                   >
                     {this.createTopicOptions(Object.keys(idxSensors))}
                   </Select>
@@ -190,8 +192,8 @@ class NepiSensorsImaging extends Component {
                       onChange={this.onImageTopicSelected}
                       value={this.state.imageTopic_0}
                     >
-                      {this.state.currentIDXNamespace
-                        ? this.createImageOptions(this.state.currentIDXNamespace)
+                      {namespace
+                        ? this.createImageOptions(namespace)
                         : NoneOption}
                     </Select>
                   </Label>
@@ -199,16 +201,42 @@ class NepiSensorsImaging extends Component {
 
               </Column>
               <Column>
-                <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
-                    <ButtonMenu>
-                      <Button onClick={() => saveConfigTriggered(this.state.currentIDXNamespace)}>{"Save Config"}</Button>
-                    </ButtonMenu>
-                    <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg(this.state.currentIDXNamespace + "/idx/reset_factory")}>{"Factory Reset"}</Button>
-                    </ButtonMenu>
-                </div>
+ 
               </Column>
             </Columns>
+
+            <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+                <Columns>
+                  <Column>
+
+
+                    <ButtonMenu>
+                        <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+                  </ButtonMenu>
+
+
+                    </Column>
+                  <Column>
+
+
+                  <ButtonMenu>
+                      <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+                    </ButtonMenu>
+
+                  </Column>
+                  <Column>
+
+                  <ButtonMenu>
+                        <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+                  </ButtonMenu>
+
+
+                  </Column>
+                </Columns>
+          </div>
 
 
             </Section>
@@ -238,6 +266,7 @@ class NepiSensorsImaging extends Component {
   render() {
     const SensorSelected = (this.state.currentIDXNamespace != null)
     const ImageName = this.state.imageText_0
+    const namespace = this.state.currentIDXNamespace
     
     return (
 
@@ -249,7 +278,7 @@ class NepiSensorsImaging extends Component {
 
                     <div hidden={(!SensorSelected)}>
                       <NepiDeviceInfo
-                            deviceNamespace={this.state.currentIDXNamespace}
+                            deviceNamespace={namespace}
                             status_topic={"/idx/status"}
                             status_msg_type={"nepi_ros_interfaces/IDXStatus"}
                             name_update_topic={"/idx/update_device_name"}
@@ -264,7 +293,7 @@ class NepiSensorsImaging extends Component {
                     <div hidden={(!SensorSelected)}>
 
                       <NepiIFSaveData
-                          saveNamespace={this.state.currentIDXNamespace}
+                          saveNamespace={namespace}
                           title={"Nepi_IF_SaveData"}
                       />
                     </div>
@@ -289,7 +318,7 @@ class NepiSensorsImaging extends Component {
 
                     <div hidden={(!SensorSelected && this.state.show_controls)}>
                       <NepiSensorsImagingControls
-                          idxSensorNamespace={this.state.currentIDXNamespace}
+                          idxSensorNamespace={namespace}
                           idxImageName = {ImageName}
                           title={"NepiSensorsImagingControls"}
                       />
@@ -298,7 +327,7 @@ class NepiSensorsImaging extends Component {
 
                     <div hidden={(!SensorSelected && this.state.show_settings)}>
                       <NepiIFSettings
-                        settingsNamespace={this.state.currentIDXNamespace}
+                        settingsNamespace={namespace}
                         title={"Nepi_IF_Settings"}
                       />
                     </div>

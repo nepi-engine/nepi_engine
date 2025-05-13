@@ -1,12 +1,10 @@
 # This message details the data saving rate controls.
 
 # Special constant to indicate that a message should affect all data products
-string ALL_DATA_PRODUCTS=All
-string NONE_DATA_PRODUCTS=None
-string ACTIVE_DATA_PRODUCTS=Active
+string ALL_DATA_PRODUCTS=all
 
 # The data_product field specifies which data product this message controls
-string data_product
+string[] data_product_list
 
 # The save_rate_hz specifies how often data_product should be saved
-float32 save_rate_hz
+float32[] save_rate_hz_list

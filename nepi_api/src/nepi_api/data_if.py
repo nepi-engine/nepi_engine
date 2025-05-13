@@ -55,12 +55,14 @@ SUPPORTED_DATA_TYPES = ['dict','cv2_image','o3d_pointcloud']
 
 
 EXAMPLE_FILENAME_DICT = {
-    'prefix': "", 
-    'add_timestamp': True, 
-    'add_ms': True,
-    'add_us': False,
-    'add_node_name': False
-    }
+        'prefix': "", 
+        'add_timestamp': True, 
+        'use_utc_tz': True,
+        'add_ms': True,
+        'add_us': False,
+        'add_tz': True,
+        'add_node_name': True
+        }
 
 
 
@@ -70,12 +72,14 @@ class ReadWriteIF:
     
     # Save data variables
     filename_dict = {
-    'prefix': "", 
-    'add_timestamp': True, 
-    'add_ms': True,
-    'add_us': False,
-    'add_node_name': False
-    }
+        'prefix': "", 
+        'add_timestamp': True, 
+        'use_utc_tz': True,
+        'add_ms': True,
+        'add_us': False,
+        'add_tz': True,
+        'add_node_name': True
+        }
 
     node_if = None
 
@@ -99,7 +103,9 @@ class ReadWriteIF:
         #############################
         # Initialize Class Variables
         if filename_dict is not None:
-            self.filename_dict = filename_dict
+            for key in self.filename_dict.keys():
+                if key in filename_dict.keys():
+                    self.filename_dict[key] = filename_dict[key]
 
         self.data_dict = {
             'dict': {
@@ -179,6 +185,12 @@ class ReadWriteIF:
     def set_filename_prefix(self, prefix = ''):
         self.filename_dict['prefix'] = prefix
 
+    def get_use_utc_tz(self):
+        return self.filename_dict['use_utc_tz']
+
+    def set_use_utc_tz(self, use_utc_tz):
+        self.filename_dict['use_utc_tz'] = prefix
+
     def get_add_timestamp(self):
         return self.filename_dict['add_timestamp']
 
@@ -197,16 +209,20 @@ class ReadWriteIF:
     def set_add_us(self, add_us):
         self.filename_dict['add_us'] = add_us
 
+    def get_add_tz(self):
+        return self.filename_dict['add_tz']
 
-    def set_filename_config(self, prefix = '', add_time = True, add_ms = True, add_us = False):
-        self.filename_dict = {
-        'prefix': prefix, 
-        'add_timestamp': add_timestamp, 
-        'add_ms': add_ms,
-        'add_us': add_us,
-        }
+    def set_add_tz(self, add_tz):
+        self.filename_dict['add_tz'] = prefix
 
-    def get_filename_config(self):
+
+    def update_filename_dict(self, filename_dict):
+        if filename_dict is not None:
+            for key in self.filename_dict.keys():
+                if key in filename_dict.keys():
+                    self.filename_dict[key] = filename_dict[key]
+
+    def get_filename_dict(self):
         return self.filename_dict
 
 
@@ -217,43 +233,19 @@ class ReadWriteIF:
     def get_time_from_filename(self,filename):
         file_time = None
         dt_str = self._getDtStr(filename)
-        dt_str_base = self._getDtStr(filename)
-        if dt_str is not None:
-            try:
-                dt_str = dt_str[1:]
-                [year,dt_str] = dt_str.split('-', maxsplit=1)
-                year = int(year)
-                [month,dt_str] = dt_str.split('-', maxsplit=1)
-                month = int(month)
-                [day,dt_str] = dt_str.split('T', maxsplit=1)
-                day = int(day)
-                [hour,dt_str] = dt_str.split('-', maxsplit=1)
-                hour = int(hour)
-                [minute,dt_str] = dt_str.split('-', maxsplit=1)
-                minute = int(minute)
-                [sec,dt_str] = dt_str.split('p', maxsplit=1)
-                sec = int(sec)
-                if len(dt_str) > 0:
-                    pad = 6 - len(dt_str)
-                    for i in range(pad):
-                        dt_str = dt_str + '0'
-                    msec = int(dt_str)
-                else:
-                    msec = 0
-                file_time = datetime.datetime(year, month, day, hour, minute, sec, msec)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to convert date time string: " + str(dt_str_base) )
+        file_time = nepi_utils.get_time_from_datetime_str(dt_str)
         return file_time
 
 
 
-    def write_data_file(self, filepath, data, data_name, timestamp = None):
+    def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
         data_type = type(data)
         found_type = False
         for data_key in self.data_dict:
             if data_type == self.data_dict[data_key]['data_type']:
                 save_function = self.data_dict[data_key]['write_function']
-                save_function(filepath, data, data_name, timestamp = timestamp)
+                #self.msg_if.pub_warn("Saving Data with Timezone: " + str(timezone) )
+                save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
                 found_type = True
         if found_type == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type) )
@@ -275,7 +267,7 @@ class ReadWriteIF:
                 data = nepi_utils.read_yaml_2_dict(file_path)
         return data
 
-    def write_dict_file(self, filepath, data, data_name, timestamp = None, ext_str = 'yaml'):
+    def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
         data_key = 'dict'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -286,7 +278,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -311,7 +303,7 @@ class ReadWriteIF:
                 data = nepi_img.read_image_file(file_path)
         return data
 
-    def write_image_file(self, filepath, data, data_name, timestamp = None, ext_str = 'png'):
+    def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
         data_key = 'image'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -322,7 +314,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -347,7 +339,7 @@ class ReadWriteIF:
                 data = nepi_pc.read_pointcloud_file(file_path)
         return data
 
-    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, ext_str = 'pcd'):
+    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
         data_key = 'pointcloud'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -358,7 +350,7 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types))
             else:
-                filename = self._createFileName(data_name, timestamp = timestamp, ext_str = ext_str)
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path)
@@ -367,7 +359,9 @@ class ReadWriteIF:
         return success
 
 
-
+    def get_example_filename(self, data_name = 'data_product', timestamp = None, timezone = None, ext_str = 'ext'):
+        filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+        return filename
     ###############################
     # Class Private Methods
     ###############################
@@ -377,14 +371,16 @@ class ReadWriteIF:
             timestamp = nepi_utils.get_time()
         prefix = self.filename_dict['prefix']
         if len(prefix) > 0:
-            prefix = prefix + '_'
+            if prefix[-1] != '_':
+                prefix = prefix + '_'
         add_time = self.filename_dict['add_timestamp']
         data_time_str = ''
         if add_time == True:
             time_ns = nepi_ros.sec_from_timestamp(timestamp)
             add_ms = self.filename_dict['add_ms']
             add_us = self.filename_dict['add_us']
-            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone) + '_'
+            add_tz = self.filename_dict['add_tz']
+            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, add_tz = add_tz, timezone = timezone) + '_'
         node_name_str = ""
         if self.filename_dict['add_node_name'] == True:
             node_name_str = self.node_name

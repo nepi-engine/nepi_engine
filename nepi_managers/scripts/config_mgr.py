@@ -88,6 +88,7 @@ class config_mgr(object):
         # Configs Config Dict ####################
         self.CFGS_DICT = {
             'init_callback': self.initCb,
+            'system_reset_callback': self.sysResetCb,
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
@@ -126,6 +127,13 @@ class config_mgr(object):
                 'msg': Empty,
                 'qsize': 1,
                 'latch': True
+            },
+            'init_config': {
+                'namespace': self.base_namespace,
+                'topic': 'init_config',
+                'msg': Empty,
+                'qsize': 10,
+                'latch': True
             }
         }  
 
@@ -147,12 +155,20 @@ class config_mgr(object):
                 'callback': self.store_params, 
                 'callback_args': ()
             },
-            'user_restore': {
+            'full_user_restore': {
                 'namespace': self.base_namespace,
                 'topic': 'full_user_restore',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.restore_user_cfgs_mgr, 
+                'callback_args': ()
+            },
+            'full_factory_restore': {
+                'namespace': self.base_namespace,
+                'topic': 'full_user_restore',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.restore_factory_cfgs_mgr, 
                 'callback_args': ()
             }
         }
@@ -182,7 +198,8 @@ class config_mgr(object):
 
         # Restore user configurations
         self.restore_user_cfgs()
-
+        self.msg_if.pub_warn("System user config files restored")
+        
         self.node_if.publish_pub('status_pub', Empty())
 
         #########################################################
@@ -233,16 +250,18 @@ class config_mgr(object):
             paramlist = None
             try:
                 paramlist = nepi_ros.load_params_from_file(file_pathname, namespace)
-                #self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
+                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
             if paramlist is not None:
-                try:
-                    for params, ns in paramlist:
-                        nepi_ros.upload_params(ns, params, verbose=False)
-                except Exception as e:
-                    self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
-                    return [False]
+                for params, ns in paramlist:
+                    try:
+                        nepi_ros.upload_params(ns, params, verbose=True)     
+                    except Exception as e:
+                        self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
+                self.msg_if.pub_info("Updated Params for namespace: " + namespace )
+            #if namespace == '/nepi/s2x/nexigo_23':
+            #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
 
         return [True]
 
@@ -316,12 +335,14 @@ class config_mgr(object):
             target = os.path.join(USER_CFG_PATH, 'sys', cfg)
             os.system('cp -rf ' + source + ' ' + target)
 
-    def restore_user_cfgs_mgr(self,msg):
-        self.restore_user_cfgs()
 
     def initCb(self, do_updates = False):
         if do_updates == True:
             self.resetCb()
+
+
+    def sysResetCb(self,reset_type):
+        pass
 
     def resetCb(self):
         pass
@@ -329,32 +350,36 @@ class config_mgr(object):
     def factoryResetCb(self):
         pass
 
+    def restore_user_cfgs_mgr(self,msg):
+        self.restore_user_cfgs()
+
     def restore_user_cfgs(self):
         # First handle the NEPI-ROS user configs.
         for root, dirs, files in os.walk(NEPI_CFG_PATH):
             for name in files:
                 full_name = os.path.join(root, name)
                 if full_name.endswith(CFG_SUFFIX) and os.path.islink(full_name):
+                    #self.msg_if.pub_warn("Will attempt to update link for " + full_name)
                     user_cfg_name = os.path.join(USER_CFG_PATH, 'ros', name + USER_SUFFIX)
+                    #self.msg_if.pub_warn("Looking for user config file: " + user_cfg_name)
                     if os.path.exists(user_cfg_name): # Restrict to those with present user configs
-                        if os.path.islink(name):
-                            link_name = os.path.join(root, name.replace(FACTORY_SUFFIX, ''))
-                            self.msg_if.pub_info("Updating " + link_name + " to user config: " + user_cfg_name)
-                            self.symlink_force(user_cfg_name, link_name)
+                        link_name = full_name
+                        self.msg_if.pub_info("Updating " + link_name + " to user config: " + user_cfg_name)
+                        self.symlink_force(user_cfg_name, link_name)
                     else:
-                        pass
-                    	#self.msg_if.pub_info("User config file does not exist at " + user_cfg_name)
+                    	self.msg_if.pub_info("User config file does not exist at " + user_cfg_name)    
+                        #pass
 
         # Now handle non-ROS user system configs.        
-        for name in SYS_CFGS_TO_PRESERVE:
+        for name in SYS_CFGS_TO_PRESERVE.keys():
             full_name = os.path.join(USER_CFG_PATH, 'sys', name)
             if os.path.exists(full_name):
                 if os.path.isdir(full_name):
                     full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
-                self.msg_if.pub_info("Upettings_capabilities_query:1672] call_service InvalidServiceException: Service /nedating " + target + " from user config")
+                self.msg_if.pub_warn("Updating " + target + " from user config")
                 os.system('cp -rf ' + full_name + ' ' + target)
-                os.system('chown -R nepi:nepi ' + target)
+                
 
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
@@ -370,7 +395,16 @@ class config_mgr(object):
                         for line in file_lines:
                             f.write(line)
 
+                os.system('chown -R nepi:nepi ' + target)
+        # Send global init command
+        self.node_if.publish_pub('init_config',Empty())
 
+    def restore_factory_cfgs_mgr(self,msg):
+        self.restore_user_cfgs()
+
+    def restore_factory_cfgs(self):
+        # Send global init command
+        self.node_if.publish_pub('init_config',Empty())
 
 if __name__ == '__main__':
     config_mgr()

@@ -15,6 +15,8 @@ from nepi_sdk import nepi_msg
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
+from nepi_ros_interfaces.msg import Reset
+
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
 from std_srvs.srv import EmptyRequest as EmptySrvRequest
@@ -34,6 +36,8 @@ EXAMPLE_CFGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
+        'software_reset_callback': None,
+        'hardware_reset_callback': None,
         'init_configs': True,
         'namespace':  self.node_namespace
 }
@@ -50,6 +54,12 @@ class NodeConfigsIF:
     factory_reset_service = None
     request_msg = FileResetRequest()
     response_msg = FileResetResponse()
+
+
+    initCb = None
+    sysResetCb = None
+    resetCb = None
+    factoryResetCb = None
 
     ### IF Initialization
     def __init__(self, 
@@ -75,9 +85,21 @@ class NodeConfigsIF:
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
-        self.initCb = configs_dict['init_callback']
-        self.resetCb = configs_dict['reset_callback']
-        self.factoryResetCb = configs_dict['factory_reset_callback']
+
+        if 'init_callback' in configs_dict.keys():  
+            self.initCb = configs_dict['init_callback']
+
+        if 'reset_callback' in configs_dict.keys():
+            self.resetCb = configs_dict['reset_callback']
+
+        if 'factory_reset_callback' in configs_dict.keys():
+            self.factoryResetCb = configs_dict['factory_reset_callback']
+
+        if 'software_reset_callback' in configs_dict.keys(): 
+            self.softwareResetCb = configs_dict['software_reset_callback']
+
+        if 'hardware_reset_callback' in configs_dict.keys(): 
+            self.hardwareResetCb = configs_dict['hardware_reset_callback']
         
         namespace = configs_dict['namespace']
         if namespace is None:
@@ -89,6 +111,9 @@ class NodeConfigsIF:
 
         # Create reset serivces
         self.request_msg.node_name = self.namespace
+        self.reset_service = nepi_ros.connect_service('~user_reset', FileReset)
+        self.factory_reset_service = nepi_ros.connect_service('~factory_reset', FileReset)
+
         self.reset_service = nepi_ros.connect_service('user_reset', FileReset)
         self.factory_reset_service = nepi_ros.connect_service('factory_reset', FileReset)
 
@@ -102,17 +127,22 @@ class NodeConfigsIF:
 
         # Subscribe to save config for node namespace
         nepi_ros.create_subscriber('~save_config', Empty, self._saveCb)
+        nepi_ros.create_subscriber('~init_config', Empty, self._initCb)
         nepi_ros.create_subscriber('~reset_config', Empty, self._resetCb)
         nepi_ros.create_subscriber('~factory_reset_config', Empty, self._factoryResetCb)
+        nepi_ros.create_subscriber('~system_reset', Reset, self._systemResetCb)
 
         # Global Topic Subscribers
         nepi_ros.create_subscriber('save_config', Empty, self._saveCb)
+        nepi_ros.create_subscriber('init_config', Empty, self._initCb)
         nepi_ros.create_subscriber('reset_config', Empty, self._resetCb)
         nepi_ros.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
+        nepi_ros.create_subscriber('system_reset', Reset, self._systemResetCb)
 
-        init_configs = configs_dict['init_configs']
-        if init_configs == True and self.initCb is not None:
-            self.initCb()
+        if 'init_configs' in configs_dict.keys():
+            init_configs = configs_dict['init_configs']
+            if init_configs == True:
+                self.init_config(do_updates = False)
 
         ##############################  
         # Complete Initialization Process
@@ -142,9 +172,12 @@ class NodeConfigsIF:
             self.msg_if.pub_info("Ready")
         return self.ready
 
-    def init_config(self):
+    def init_config(self, do_updates = False):
         if (self.initCb):
-            self.initCb() # Callback provided by the container class to set init values to current values, etc.
+            try:
+                self.initCb(do_updates = do_updates) # Callback provided by the container class to set init values to current values, etc.
+            except:
+                self.initCb()
 
     def save_config(self):
         self.save_params_pub.publish(self.node_namespace)
@@ -167,6 +200,21 @@ class NodeConfigsIF:
             self.factoryResetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
+    def software_reset_config(self):
+        if self.softwareResetCb:
+            self.softwareResetCb() # Callback provided by container class to update based on param server, etc.
+        else:
+            self.msg_if.pub_warn("Does not have software reset support")
+        return success
+
+    def hardware_reset_config(self):
+        if self.hardwareResetCb:
+            self.hardwareResetCb() # Callback provided by container class to update based on param server, etc.
+        else:
+            self.msg_if.pub_warn("Does not have hardware reset support")
+        return success
+
+
     ###############################
     # Class Private Methods
     ###############################
@@ -174,11 +222,26 @@ class NodeConfigsIF:
     def _saveCb(self,msg):
         self.save_config()
 
+    def _initCb(self,msg):
+        self.init_config(do_updates = True)
+
     def _resetCb(self,msg):
         self.reset_config()
 
     def _factoryResetCb(self,msg):
         self.factory_reset_config()
+
+    def _systemResetCb(self,msg):
+        reset_type = msg.reset_type
+        if reset_type == 0:
+            self.reset_config()
+        elif reset_type == 1:
+            self.factory_reset_config()
+        elif reset_type == 2:
+            self.software_reset_config()
+        elif reset_type == 3:
+            self.hardware_reset_config()
+
 
 
 
@@ -279,6 +342,7 @@ class NodeParamsIF:
             if 'factory_val' in param_dict:
                 factory_val = param_dict['factory_val']
                 init_val = self.get_param(param_name)
+                #self.msg_if.pub_warn("Got init param value: " + param_name + " : " + str(init_val))
                 if init_val is None:
                     init_val = factory_val
                 self.params_dict[param_name]['init_val'] = init_val

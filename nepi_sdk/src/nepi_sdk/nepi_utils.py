@@ -38,47 +38,114 @@ def get_datetime_str_now(add_ms = True, add_us = False, timezone = None):
   return get_datetime_str_from_timestamp(timestamp = time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone)
 
 
-def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = False, timezone = None):
+def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = False, add_tz = False, timezone = None):
   if timestamp is None:
       timestamp = get_time()
   time_ns = nepi_ros.sec_from_timestamp(timestamp)
+  #logger.log_warn("  Creating dt string with timestamp: " + str(timestamp) + " time_sec: " + str(time_ns))
   dt = convert_time_to_datetime(time_ns, timezone = timezone)
+  #logger.log_warn("  Got dt str: " + dt.strftime('%Y-%m-%d,%H-%M-%S'))
   date_str='D' + dt.strftime('%Y-%m-%d')
   time_str=dt.strftime('%H-%M-%S')
-  ms_str = 'p'
+  ms_str = ''
   if add_ms or add_us:
+    ms_str = 'p'
     ms_str += dt.strftime('%f')[:-3]
-  if add_us == True:
-    ms_str += dt.strftime('%f')[3:]
-  dt_str = (date_str + "T" + time_str + ms_str)
+    if add_us == True:
+      ms_str += dt.strftime('%f')[3:]
+  tz_str = ""
+  if add_tz == True:
+    try:
+        os.environ["TZ"] = timezone
+        time.tzset()
+        tz_str = 'Tz' + time.strftime('%Z')
+    except Exception as e:
+        os.environ["TZ"] = 'UTC'
+        time.tzset()
+        tz_str = 'Tz' + time.strftime('%Z')
+        logger.log_warn("Not valid timezone: " + str(e))
+  #logger.log_warn("  Creating dt string with timezone: " + str(timezone) + " id: " + str(tz_str))
+  dt_str = (date_str + "T" + time_str + ms_str + tz_str)
   return dt_str
 
 
 def convert_time_to_datetime(time_sec, timezone = None):
-    """Converts nanoseconds since epoch to a datetime object.
-
-    Args:
-        time_sec: Integer representing nanoseconds since the epoch.
-
-    Returns:
-        A datetime object representing the given nanoseconds, or None if
-        the input is invalid.
-    """
+    tzo = pytz.timezone('UTC')
+    if timezone is not None:
+      try:
+        tzo = pytz.timezone(timezone)
+      except Exception as e:
+        logger.log_warn("Timezone not valid timezone: " + str(e))
 
     try:
-        dt =  datetime.datetime.fromtimestamp(time_sec)
-    except (ValueError, OSError, OverflowError) as e:
-        print(f"Error converting: {e}")
-        dt = None
+        dt =  datetime.datetime.fromtimestamp(time_sec,tzo)
+    except Exception as e:
+        logger.log_warn("Error converting: " + str(e))
+        dt = datetime.datetime.now(tzo)
     return dt
 
-def get_time_from_datetime_str(datetime_str):
-  pass
+def get_time_from_datetime_str(dt_str):
+    if dt_str is not None:
+        try:
+            if 'Tz' in dt_str:
+              [dt_str,tz] = dt_str.split('Tz', maxsplit=1)
+              try:
+                os.environ["TZ"] = tz
+              except:
+                os.environ["TZ"] = 'UTC'
+            else:
+              os.environ["TZ"] = 'UTC'
+            time.tzset()
+            tstr = time.strftime('%z')
+            tsign = int(tstr[0] + '1')
+            tho = tsign * int(tstr[1:3]) * 60 * 60
+            tmo = tsign * int(tstr[3:5]) * 60
+            sec_offset = tho + tmo
 
-def convert_date_to_time(year, month, day):
+
+            dt_str = dt_str[1:]
+            [year,dt_str] = dt_str.split('-', maxsplit=1)
+            year = int(year)
+            [month,dt_str] = dt_str.split('-', maxsplit=1)
+            month = int(month)
+            [day,dt_str] = dt_str.split('T', maxsplit=1)
+            day = int(day)
+            [hour,dt_str] = dt_str.split('-', maxsplit=1)
+            hour = int(hour) 
+            [minute,dt_str] = dt_str.split('-', maxsplit=1)
+            minute = int(minute)
+
+            if 'p' in dt_str:
+              [sec,dt_str] = dt_str.split('p', maxsplit=1)
+              if len(dt_str) > 0:
+                  pad = 6 - len(dt_str)
+                  for i in range(pad):
+                      dt_str = dt_str + '0'
+                  try:
+                    msec = int(dt_str)
+                  except:
+                    msec = 0
+              else:
+                  msec = 0
+            tzo = pytz.timezone('UTC')
+            file_time = datetime.datetime(year, month, day, hour, minute, sec, msec, tzo) + sec_offset
+        except Exception as e:
+            logger.log_warn("Failed to convert date time string: " + str(dt_str_base) )
+
+
+
+
+def convert_date_to_time(year, month, day, timezone = None):
+  tzo = pytz.timezone('UTC')
+  if timezone is not None:
+    try:
+      tzo = pytz.timezone(timezone)
+    except Exception as e:
+      logger.log_warn("Timezone not valid timezone: " + str(e))
+
   """Converts a date (year, month, day) to seconds since the epoch."""
-  dt_object = datetime.datetime(year, month, day)
-  timestamp = time.mktime(dt_object.timetuple())
+  dto = datetime.datetime(year, month, day, tzo)
+  timestamp = time.mktime(dto.timetuple())
   return int(timestamp)
 
 def get_timezone_description(abbreviation):
@@ -93,7 +160,7 @@ def get_timezone_description(abbreviation):
               break
     return timezone
 
-standard_timezones_dict = {'America/New_York': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8,
+standard_timezones_dict = {'UTC': 0, 'America/New_York': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8,
  'America/Anchorage': -9, 'Pacific/Honolulu': -10, 'Africa/Johannesburg': 2, 'America/Mexico City': -6, 'Africa/Monrousing': 0, 'Asia/Tokyo': 9,
   'America/Jamaica': -5, 'Europe/Rome': 1, 'Asia/Hong Kong': 8, 'Pacific/Guam': 10, 'Europe/Athens': 2, 'Europe/London': 0, 'Europe/Paris': 1,
    'Europe/Madrid': 1, 'Africa/Cairo': 2, 'Europe/Copenhagen': 1, 'Europe/Berlin': 1, 'Europe/Prague': 1, 'America/Vancouver': -8, 'America/Edmonton': -7,
@@ -136,14 +203,14 @@ def clear_end_slash(str_2_check):
 def get_folder_list(search_path):
   filelist=os.listdir(search_path + '/')
   folder_list=[]
-  #print('')
-  #print('Files and Folders in Path:')
-  #print(search_path)
-  #print(filelist)
+  #logger.log_warn('')
+  #logger.log_warn('Files and Folders in Path:')
+  #logger.log_warn(search_path)
+  #logger.log_warn(filelist)
   for file in enumerate(filelist):
     foldername = (search_path + '/' + file[1])
-    #print('Checking file: ')
-    #print(foldername)
+    #logger.log_warn('Checking file: ')
+    #logger.log_warn(foldername)
     if os.path.isdir(foldername): # file is a folder
        folder_list.append(foldername)
   return folder_list
@@ -154,7 +221,7 @@ def get_file_list(search_path,ext_str=""):
   file_list = []
   for f in os.listdir(search_path):
     if f.endswith(ext_str) or ext_str == "":
-      #print('Found image file')
+      #logger.log_warn('Found image file')
       count = count + 1
       file = (search_path + '/' + f)
       file_list.append(file)
@@ -164,7 +231,7 @@ def get_file_count(search_path,ext_str=""):
   count = 0
   for f in os.listdir(search_path):
     if f.endswith(ext_str) or ext_str == "":
-      #print('Found image file')
+      #logger.log_warn('Found image file')
       count = count + 1
   return count
 
@@ -182,7 +249,7 @@ def get_symlink_target(symlink_path):
         target_path = os.readlink(symlink_path)
         return target_path
     except OSError as e:
-        print(f"Error reading symlink: {e}")
+        logger.log_warn("Error reading symlink: " + str(e))
         return None
 
 def copy_files_from_folder(src_path,dest_path):
@@ -302,8 +369,8 @@ def val_in_list(val2check,list2check):
   in_list = False
   if len(list2check) > 0:
     for list_val in list2check:
-      #print(str(val2check) + ' , ' + str(list_val))
-      #print(val2check == list_val)
+      #logger.log_warn(str(val2check) + ' , ' + str(list_val))
+      #logger.log_warn(val2check == list_val)
       if val2check == list_val:
         in_list = True
   return in_list

@@ -178,6 +178,7 @@ class NepiControlsPanTilt extends Component {
     var yawMaxElement = null
     var pitchMinElement = null
     var pitchMaxElement = null
+    const namespace = this.state.ptxNamespace
     if(e.key === 'Enter'){
       if ((e.target.id === "PTXYawHomePos") || (e.target.id === "PTXPitchHomePos"))
       {
@@ -187,7 +188,7 @@ class NepiControlsPanTilt extends Component {
         pitchElement = document.getElementById("PTXPitchHomePos")
         clearElementStyleModified(pitchElement)
                 
-        onSetPTXHomePos(this.state.ptxNamespace, Number(yawElement.value), Number(pitchElement.value))
+        onSetPTXHomePos(namespace, Number(yawElement.value), Number(pitchElement.value))
         this.setState({yawHomePosEdited:null, pitchHomePosEdited:null})
       }
       else if ((e.target.id === "PTXYawSoftStopMin") || (e.target.id === "PTXYawSoftStopMax") ||
@@ -205,7 +206,7 @@ class NepiControlsPanTilt extends Component {
         pitchMaxElement = document.getElementById("PTXPitchSoftStopMax")
         clearElementStyleModified(pitchMaxElement)
 
-        onSetPTXSoftStopPos(this.state.ptxNamespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
+        onSetPTXSoftStopPos(namespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
                             Number(pitchMinElement.value), Number(pitchMaxElement.value))
         this.setState({yawMaxSoftstopEdited: null, yawMinSoftstopEdited: null, pitchMaxSoftstopEdited: null, pitchMinSoftstopEdited: null})
       }
@@ -225,7 +226,7 @@ class NepiControlsPanTilt extends Component {
         pitchMaxElement = document.getElementById("PTXPitchHardStopMax")
         clearElementStyleModified(pitchMaxElement)
 
-      onSetPTXHardStopPos(this.state.ptxNamespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
+      onSetPTXHardStopPos(namespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
                         Number(pitchMinElement.value), Number(pitchMaxElement.value))
       this.setState({yawMaxHardstopEdited: null, yawMinHardstopEdited: null, pitchMaxHardstopEdited: null, pitchMinHardstopEdited: null})
       }
@@ -237,7 +238,7 @@ class NepiControlsPanTilt extends Component {
           pitchElement = document.getElementById("PTXPitchGoto")
           clearElementStyleModified(pitchElement)
                   
-          onSetPTXGotoPos(this.state.ptxNamespace, Number(yawElement.value), Number(pitchElement.value))
+          onSetPTXGotoPos(namespace, Number(yawElement.value), Number(pitchElement.value))
         }
 
     }
@@ -414,6 +415,8 @@ class NepiControlsPanTilt extends Component {
     const pitchSoftStopMin = (pitchMinSoftstopEdited === null)? round(pitchMinSoftstopDeg, 1) : pitchMinSoftstopEdited
     const yawSoftStopMax = (yawMaxSoftstopEdited === null)? round(yawMaxSoftstopDeg, 1) : yawMaxSoftstopEdited
     const pitchSoftStopMax = (pitchMaxSoftstopEdited === null)? round(pitchMaxSoftstopDeg, 1) : pitchMaxSoftstopEdited
+
+    const namespace = this.state.ptxNamespace
     
     return (
       <Section title={ptx_id} >
@@ -668,6 +671,8 @@ class NepiControlsPanTilt extends Component {
     const ptx_caps = ptxUnits[ptxNamespace]
     const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
 
+    const namespace = this.state.ptxNamespace
+
     return (
       <React.Fragment>
         <Columns>
@@ -740,7 +745,7 @@ class NepiControlsPanTilt extends Component {
             <Label title={"Pan/Tilt Unit"}>
               <Select
                 onChange={this.onPTXUnitSelected}
-                value={this.state.ptxNamespace}
+                value={namespace}
               >
                 {this.createPTXOptions(ptxUnits)}
               </Select>
@@ -756,34 +761,38 @@ class NepiControlsPanTilt extends Component {
             </Label>
 
 
+            <div align={"left"} textAlign={"left"} hidden={namespace == null}>
 
-            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-  <Columns>
-    <Column>
-
-      <ButtonMenu>
-        <Button onClick={() => sendTriggerMsg( this.state.ptxNamespace + "/reset_device")}>{"Reset Device"}</Button>
-      </ButtonMenu>
-
-      </Column>
-    <Column>
-
-        <ButtonMenu>
-          <Button onClick={() => sendTriggerMsg(this.state.ptxNamespace + "/save_config")}>{"Save Config"}</Button>
-    </ButtonMenu>
-
-    </Column>
-    <Column>
-
-    <ButtonMenu>
-          <Button onClick={() => sendTriggerMsg( this.state.ptxNamespace + "/reset_config")}>{"Reset Config"}</Button>
-    </ButtonMenu>
+                <Columns>
+                  <Column>
 
 
-    </Column>
-  </Columns>
+                    <ButtonMenu>
+                        <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+                  </ButtonMenu>
 
+
+                    </Column>
+                  <Column>
+
+
+                  <ButtonMenu>
+                      <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+                    </ButtonMenu>
+
+                  </Column>
+                  <Column>
+
+                  <ButtonMenu>
+                        <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+                  </ButtonMenu>
+
+
+                  </Column>
+                </Columns>
+            </div>
 
 
             { ptxNamespace?

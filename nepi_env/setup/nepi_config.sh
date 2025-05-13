@@ -113,6 +113,13 @@ sudo apt-get install cmake
 
 #Install python tools
 
+# Install Python 
+sudo apt-get install --reinstall ca-certificates
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update 
+sudo apt install python3.13-full
+
+
 sudo apt-get install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
@@ -137,6 +144,9 @@ sudo -H pip install python-gnupg
 sudo -H pip install onvif_zeep
 sudo -H pip install onvif 
 sudo -H pip install rospy_message_converter
+
+
+
 
 
 pip install --user labelImg # For onboard training

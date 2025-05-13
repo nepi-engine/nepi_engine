@@ -150,6 +150,7 @@ add_message_files(FILES
     SystemTrigger.msg
     SystemTriggersStatus.msg
     NPXStatus.msg
+    FilenameConfig.msg
 )
 
 ## Generate services in the 'srv' folder

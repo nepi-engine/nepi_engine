@@ -56,3 +56,56 @@ def folder_import_test(folder = os.getcwd()):
     return msg_dict
      
 
+'''
+# RUN TEST COMMAND LINE FROM ANY FOLDER
+python -c "from nepi_sdk import nepi_test; nepi_test.test_cv2_cuda()"
+'''
+
+def test_cv2_cuda():    
+  import cv2
+  cuda_available = False
+  try:
+      count = cv2.cuda.getCudaEnabledDeviceCount()
+      if count > 0:
+          cuda_available = True
+          print(f"OpenCV is using CUDA. {count} CUDA-enabled device(s) found.")
+      else:
+          print("OpenCV is not using CUDA.")
+  except:
+      print("OpenCV was likely not built with CUDA support.")
+
+  if cuda_available:
+      print(f"Device name: {cv2.cuda.getDevice(0).getName()}")
+  return cuda_available
+
+
+'''
+# RUN TEST COMMAND LINE FROM ANY FOLDER
+python -c "from nepi_sdk import nepi_test; nepi_test.test_o3d_cuda()"
+'''
+def test_o3d_cuda():     
+  import open3d as o3d
+  cuda_available = False
+  if o3d.core.cuda.is_available():
+      cuda_available = True
+      print("Open3D with CUDA is available.")
+  else:
+      print("Open3D with CUDA is not available.")
+  return cuda_available
+
+
+
+'''
+# RUN TEST COMMAND LINE FROM ANY FOLDER
+python -c "import torch; from nepi_sdk import nepi_test; nepi_test.test_torch_cuda()"
+'''
+def test_torch_cuda():      
+  cuda_available = False
+  if torch.cuda.is_available():
+      cuda_available = True
+      print("CUDA is available!")
+      device = torch.device('cuda')
+  else:
+      print("CUDA is not available.")
+      device = torch.device('cpu')
+  return cuda_available

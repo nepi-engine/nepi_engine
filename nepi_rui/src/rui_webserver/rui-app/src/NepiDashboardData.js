@@ -59,6 +59,7 @@ class NepiDashboardData extends Component {
     this.onKeySaveSettingFilePrefix = this.onKeySaveSettingFilePrefix.bind(this)
     this.onToggleDataDeletion = this.onToggleDataDeletion.bind(this)
     this.onToggleSaveData = this.onToggleSaveData.bind(this)
+    this.onToggleSaveUTC = this.onToggleSaveUTC.bind(this)
 
     
   }
@@ -125,11 +126,13 @@ class NepiDashboardData extends Component {
   onToggleSaveData(e){
     const {onChangeSaveFreqAll, onToggleSaveDataAll} = this.props.ros
     const checked = e.target.checked
-    if(checked){
-     onChangeSaveFreqAll(this.state.saveFreq)
-    }
     onToggleSaveDataAll(checked)
+  }
 
+  onToggleSaveUTC(e){
+    const {onToggleSaveUTCAll} = this.props.ros
+    const checked = e.target.checked
+    onToggleSaveUTCAll(checked)
   }
 
   renderSaveData() {
@@ -152,6 +155,9 @@ class NepiDashboardData extends Component {
             onChange={this.onUpdateSaveSettingFilePrefix}
             onKeyDown={this.onKeySaveSettingFilePrefix}
           />
+        </Label>
+        <Label title={"Use UTC Timezone"}>
+          <Toggle id={"toggle_utc"} onClick={this.onToggleSaveUTC} />
         </Label>
       </Section>
     )
@@ -200,6 +206,7 @@ class NepiDashboardData extends Component {
     var items = []
     //items.push(<Option value={"All"}>{"All"}</Option>)
     items.push(<Option value={"None"}>{"None"}</Option>)
+    items.push(<Option value={allNamespace}>{'All'}</Option>)
     const saveData_topics = this.props.ros.saveDataTopics
     const shortnames = createShortUniqueValues(saveData_topics)
     var topic = ""

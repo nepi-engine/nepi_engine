@@ -331,11 +331,6 @@ class NepiControlsRobots extends Component {
             </Column>
             <Column>
 
-            <div align={"left"} textAlign={"left"} hidden={!robotSelected}>
-                  <ButtonMenu>
-                    <Button onClick={() => saveConfigTriggered(this.state.currentRBXNamespace)}>{"Save Config"}</Button>
-                  </ButtonMenu>
-            </div>
             
             </Column>
           </Columns>
@@ -374,9 +369,6 @@ class NepiControlsRobots extends Component {
                   </Column>
                   <Column>
 
-                          <ButtonMenu>
-                            <Button onClick={() => sendTriggerMsg(this.state.currentRBXNamespace + "/reset_factory")}>{"Factory Reset"}</Button>
-                          </ButtonMenu>
 
                           <Label title="Image Status Overlay">
                             <Toggle
@@ -579,15 +571,16 @@ class NepiControlsRobots extends Component {
 
 
   render() {
+    const { sendTriggerMsg} = this.props.ros
     const robotSelected = (this.state.currentRBXNamespace != null)
-    
+    const namespace = this.state.currentRBXNamespace
     return (
       <Columns>
         <Column>
 
         <div hidden={(!robotSelected)}>
             <NepiDeviceInfo
-                  deviceNamespace={this.state.currentRBXNamespace}
+                  deviceNamespace={namespace}
                   status_topic={"/rbx/info"}
                   status_msg_type={"nepi_ros_interfaces/RBXInfo"}
                   name_update_topic={"/rbx/update_device_name"}
@@ -601,7 +594,7 @@ class NepiControlsRobots extends Component {
           <div hidden={(!robotSelected)}>
 
             <NepiIFSaveData
-                saveNamespace={this.state.currentRBXNamespace}
+                saveNamespace={namespace}
                 title={"Nepi_IF_SaveData"}
             />
           </div>
@@ -609,7 +602,7 @@ class NepiControlsRobots extends Component {
 
           <div hidden={(!robotSelected && this.state.show_controls)}>
             <NepiRobotMessages
-                rbxNamespace={this.state.currentRBXNamespace}
+                rbxNamespace={namespace}
                 title={"NepiRobotMessages"}
             />
           </div>
@@ -622,16 +615,51 @@ class NepiControlsRobots extends Component {
           {this.renderSetupControls()}
           </div>
 
+          <div hidden={(!robotSelected)}>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          <Columns>
+              <Column>
+
+
+                <ButtonMenu>
+                    <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+              </ButtonMenu>
+
+
+                </Column>
+              <Column>
+
+
+              <ButtonMenu>
+                  <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+                </ButtonMenu>
+
+              </Column>
+              <Column>
+
+              <ButtonMenu>
+                    <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+              </ButtonMenu>
+
+
+              </Column>
+              </Columns>
+
+          </div>
+
+
           <div hidden={(!robotSelected && this.state.show_controls)}>
             <NepiRobotControls
-                rbxNamespace={this.state.currentRBXNamespace}
+                rbxNamespace={namespace}
                 title={"NepiRobotControls"}
             />
           </div>
 
           <div hidden={(!robotSelected && this.state.show_settings)}>
             <NepiIFSettings
-              settingsNamespace={this.state.currentRBXNamespace}
+              settingsNamespace={namespace}
               title={"Nepi_IF_Settings"}
             />
           </div>

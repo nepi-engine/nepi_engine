@@ -30,7 +30,7 @@ from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 
-from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
+from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
@@ -45,6 +45,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
 from nepi_api.data_if import ReadWriteIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
+from nepi_api.connect_mgr_if_time_sync import ConnectMgrTimeSyncIF
 
 
 
@@ -67,15 +68,22 @@ EXAMPLE_RATE_DICT = {
 EXAMPLE_FILENAME_DICT = {
     'prefix': "", 
     'add_timestamp': True, 
+    'use_utc_tz': True,
     'add_ms': True,
     'add_us': False,
+    'add_tz': True,
     'add_node_name': False
     }
 
 class SaveDataIF:
 
+    DEFAULT_TIMEZONE = 'UTC'
+
     ready = None
     namespace = "~"
+
+    node_if = None
+    read_write_if = None
  
     snapshot_dict = dict()
 
@@ -87,13 +95,21 @@ class SaveDataIF:
     filename_dict = {
         'prefix': "", 
         'add_timestamp': True, 
+        'use_utc_tz': True,
         'add_ms': True,
         'add_us': False,
+        'add_tz': True,
         'add_node_name': True
         }
 
     save_rate_dict = dict()
     save_data = False
+    use_utc_tz = False
+
+    file_prefix = ""
+    subfolder = ""
+
+    was_saving = False
 
     ### IF Initialization
     def __init__(self, data_products = [], factory_rate_dict = None, factory_filename_dict = None, namespace = None):
@@ -115,16 +131,16 @@ class SaveDataIF:
             namespace = '~'
         self.namespace = nepi_ros.get_full_namespace(namespace)
         
-
+        tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
+        self.timezone = tzd
         ###############################
         # Connect Sys Mgr Services
 
 
+        ##############################
+        ## Wait for NEPI core managers to start
         self.sys_srv_if = ConnectMgrSystemServicesIF()
-
         ready = self.sys_srv_if.wait_for_ready()
-
-
         # Setup System Manager IF Class
         ready = self.sys_srv_if.wait_for_ready()
         self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
@@ -139,32 +155,40 @@ class SaveDataIF:
         self.DATA_UID = stat_info.st_uid
         self.DATA_GID = stat_info.st_gid
 
+        # Wait for Time manager to start to call timezone info
+        self.mgr_time_if = ConnectMgrTimeSyncIF()
+        success = self.mgr_time_if.wait_for_ready()
+ 
+ 
+
 
         # Setup System IF Classes
-
-        if factory_filename_dict is not None:
-            self.filename_dict = factory_filename_dict
-
+        # Initialize with empty dict, then call update function
         self.read_write_if = ReadWriteIF(
-                            filename_dict = self.filename_dict
+                            filename_dict = dict()
                             )
+        self.update_filename_dict(factory_filename_dict)
 
-        # Config initial data products dictions
+        # Config initial data products dict
         self.msg_if.pub_info("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.msg_if.pub_info("Starting Save_Data_IF with data products: " + str(data_products))
-
+        self.msg_if.pub_info("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict))
         save_rate_dict = dict()
+        save_rate = 0.0
+        last_time = 0.0
+        max_rate = 100,0
         for data_product in data_products:
-            save_rate = 0.0
-            last_time = 0.0
-            max_rate = 100,0
-            save_rate_entry = [save_rate, last_time, max_rate]
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
-                    save_rate = factory_rate_dict[data_product]
-            save_rate_dict[data_product] = save_rate
-            self.snapshot_dict['data_product'] = False
-        
+                    save_rate_entry = factory_rate_dict[data_product]
+                else:
+                    save_rate_entry = [save_rate, last_time, max_rate]
+            else:
+                save_rate_entry = [save_rate, last_time, max_rate]
+            save_rate_dict[data_product] = save_rate_entry
+            self.snapshot_dict[data_product] = False
+        self.save_rate_dict = save_rate_dict
+        self.msg_if.pub_warn("Init save rate dict: " + str(self.save_rate_dict))
         
             
 
@@ -181,6 +205,10 @@ class SaveDataIF:
             'save_data': {
                 'namespace': self.namespace,
                 'factory_val': False
+            },
+            'filename_dict': {
+                'namespace': self.namespace,
+                'factory_val': self.filename_dict
             }
         }
 
@@ -216,13 +244,28 @@ class SaveDataIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-
             'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
+                'callback_args': ()
+            },
+            'save_data_utc': {
+                'namespace': self.namespace,
+                'msg': Bool,
+                'topic': 'save_data_utc',
+                'qsize': 1,
+                'callback': self._setLocalTzCb, 
+                'callback_args': ()
+            },
+            'filename': {
+                'namespace': self.namespace,
+                'msg': FilenameConfig,
+                'topic': 'filename_config',
+                'qsize': 1,
+                'callback': self._setFilenameCb, 
                 'callback_args': ()
             },
             'rate': {
@@ -265,14 +308,28 @@ class SaveDataIF:
                 'callback': self._factoryResetCb,  
                 'callback_args': ()
             },
-
-
             'prefix_all': {
                 'namespace': self.base_namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
+                'callback_args': ()
+            },
+            'use_local_tz_all': {
+                'namespace': self.base_namespace,
+                'msg': Bool,
+                'topic': 'save_data_utc',
+                'qsize': 1,
+                'callback': self._setLocalTzCb, 
+                'callback_args': ()
+            },
+            'filename_all': {
+                'namespace': self.base_namespace,
+                'msg': FilenameConfig,
+                'topic': 'filename_config',
+                'qsize': 1,
+                'callback': self._setFilenameCb, 
                 'callback_args': ()
             },
             'rate_all': {
@@ -332,11 +389,19 @@ class SaveDataIF:
         nepi_ros.sleep(1)
         #self.node_if.wait_for_ready()
 
-        self.save_rate_dict = self.node_if.get_param('save_rate_dict')
-        self.save_data = self.node_if.get_param('save_data')
-        
-        
+        save_rate_dict = self.node_if.get_param('save_rate_dict')
+        for data_product in self.save_rate_dict.keys():
+            if data_product in save_rate_dict.keys():
+                self.save_rate_dict[data_product] = save_rate_dict[data_product]
+            self.save_rate_dict[data_product][1] = 0.0 # Reset timer
+        self.node_if.set_param('save_rate_dict',self.save_rate_dict)
+        self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
 
+        self.save_data = self.node_if.get_param('save_data')
+        filename_dict =  self.node_if.get_param('filename_dict')
+        self.update_filename_dict(filename_dict)
+        
+        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
         ##############################
         # Complete Initialization
         self.publish_status()
@@ -367,83 +432,116 @@ class SaveDataIF:
                 self.msg_if.pub_info("Connected")
         return self.ready    
 
-    def register_data_product(self, data_product):
-        save_rate_dict = nepi_ros.get_param('save_rate_dict')
-        if data_product not in save_rate_dict.keys():
-            save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
-            self.save_rate_dict = save_rate_dict
-            self.node_if.set_param('save_rate_dict',save_rate_dict)
-        self.publish_status()    
+            
 
     def register_data_product(self, data_product):
         save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] = [1.0, 0.0, 100.0] # Default to 1Hz save rate, max rate = 100.0Hz
             self.save_rate_dict = save_rate_dict
+            self.snapshot_dict[data_product] = False
+            self.publish_status()
             self.node_if.set_param('save_rate_dict',save_rate_dict)
-        self.publish_status()
 
-    def set_save_prefix(self,prefix = ""):
-        if '\\' not in prefix:
-            if prefix.find('/') == -1:
-                subfolder = "set"
-                prefix = prefix
+    def update_filename_dict(self,filename_dict):
+
+        if self.filename_dict != filename_dict:
+            cur_prefix = self.filename_dict['prefix']
+            if 'prefix' in filename_dict.keys():
+                new_prefix = filename_dict['prefix']
             else:
-                prefix_split = prefix.rsplit('/',1)
-                subfolder = prefix_split[0]
-                prefix = prefix_split[1]
-            # Now ensure the directory exists if this prefix defines a subdirectory
-        else:
-            subfolder = ""
-            prefix = ""
-        if subfolder != "" and self.save_data_root_directory != None:
-            full_path = os.path.join(self.save_data_root_directory, subfolder)
-        elif self.save_data_root_directory != None:
-            full_path = self.save_data_root_directory
-        else:
-            full_path = ""
-        #self.msg_if.pub_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
-        if not os.path.exists(full_path):
-            self.msg_if.pub_info("Creating new data subdirectory " + full_path)
-            try:
-                os.makedirs(full_path)
-                os.chown(full_path, self.DATA_UID, self.DATA_GID)
-                self.save_path = full_path
-                self.save_data_subfolder  = subfolder
-            except Exception as e:
-                self.save_path = self.save_data_root_directory # revert to root folder
-                self.save_data_subfolder  = ""
-                self.msg_if.pub_info("Could not create save folder " + subfolder + str(e) )
-        else:
-            self.save_path = full_path
-            self.save_data_subfolder  = subfolder
-        self.read_write_if.set_filename_prefix(prefix)
+                new_prefix = cur_prefix
 
-        self.publish_status()
+
+            # Get the file floder and file info from prefix
+            if '\\' not in new_prefix:
+                if new_prefix.find('/') == -1:
+                    subfolder = ""
+                    file_prefix = new_prefix
+                else:
+                    prefix_split = new_prefix.rsplit('/',1)
+                    subfolder = prefix_split[0]
+                    file_prefix = prefix_split[1]
+                # Now ensure the directory exists if this prefix defines a subdirectory
+            else:
+                subfolder = ""
+                file_prefix = ""
+            self.file_prefix = file_prefix
+
+            # Apply Updates
+            for key in self.filename_dict.keys():
+                if key in filename_dict.keys():
+                    self.filename_dict[key] = filename_dict[key]        
+            if self.read_write_if is not None:
+                filename_dict = copy.deepcopy(self.filename_dict)
+                filename_dict['prefix'] = file_prefix
+                self.read_write_if.update_filename_dict(filename_dict)
+            if self.node_if is not None:
+                self.node_if.set_param('filename_dict',self.filename_dict)
+            self.publish_status()
+
+            if cur_prefix != new_prefix:
+                if subfolder != "" and self.save_data_root_directory != None:
+                    full_path = os.path.join(self.save_data_root_directory, subfolder)
+                elif self.save_data_root_directory != None:
+                    full_path = self.save_data_root_directory
+                else:
+                    full_path = ""
+                #self.msg_if.pub_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
+                if self.subfolder != subfolder:
+                    if not os.path.exists(full_path):
+                        self.msg_if.pub_info("Creating new data subdirectory " + full_path)
+                        try:
+                            os.makedirs(full_path)
+                            os.chown(full_path, self.DATA_UID, self.DATA_GID)
+                            self.save_path = full_path
+                            self.subfolder  = subfolder
+                        except Exception as e:
+                            self.save_path = self.save_data_root_directory # revert to root folder
+                            self.subfolder  = ""
+                            self.msg_if.pub_info("Could not create save folder " + subfolder + str(e) )
+                    else:
+                        self.save_path = full_path
+                        self.subfolder  = subfolder
+                    self.publish_status()
 
 
 
     def set_save_rate(self,data_product,save_rate_hz=0):
         save_all = SaveDataRate().ALL_DATA_PRODUCTS
+        save_none = SaveDataRate().NONE_DATA_PRODUCTS
+        save_active = SaveDataRate().ACTIVE_DATA_PRODUCTS
         save_rate_dict = self.save_rate_dict
-        if (data_product == save_all):
-            for d in save_rate_dict:
+        if (data_product == save_active):
+            for d in save_rate_dict.keys():
                 # Respect the max save rate
                 if save_rate_dict[d][0] > 0:
                     save_rate_dict[d][0] = save_rate_hz if save_rate_hz <= save_rate_dict[d][2] else save_rate_dict[d][2]
+        elif (data_product == save_all):
+            for d in save_rate_dict.keys():
+                save_rate_dict[d][0] = save_rate_hz
+        elif (data_product == save_none):
+            for d in save_rate_dict.keys():
+                save_rate_dict[d][0] = 0.0
         elif (data_product in save_rate_dict.keys()):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
             self.msg_if.pub_warn("Requested unknown data product: " + data_product)    
-        self.save_rate_dict = save_rate_dict       
-        self.node_if.set_param('save_rate_dict',save_rate_dict)
+        self.save_rate_dict = save_rate_dict     
+        self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
         self.publish_status()
+        self.node_if.set_param('save_rate_dict',save_rate_dict)
         
-
-    def set_saving_enable(self, save_data = False):
-        self.save_data = save_data
-        self.node_if.set_param('save_data', save_data)
-        self.publish_status()       
+    def save_data_enable(self, enabled):
+        if enabled == True and self.was_saving == False:
+            for d in self.save_rate_dict.keys():
+                self.save_rate_dict[d][1] = 0.0
+            self.was_saving = True
+        else:
+            self.was_saving = False
+        self.save_data = enabled
+        self.publish_status()     
+        self.node_if.set_param('save_data', enabled)  
 
 
     def get_saving_enable(self):
@@ -474,18 +572,19 @@ class SaveDataIF:
             return False
 
         if data_product not in save_rate_dict.keys():
-            self.msg_if.pub_warn("Unknown data product " + data_product)
+            self.msg_if.pub_warn("Unknown data product " + data_product, throttle_s = 5)
             return False
 
         save_rate = save_rate_dict[data_product][0]
         if save_rate == 0.0:
             return False
 
-        save_period = 1.0 / save_rate
+        save_period = float(1) / float(save_rate)
         now = nepi_utils.get_time()
         elapsed = now - save_rate_dict[data_product][1]
+        #self.msg_if.pub_warn("Checking should save: " + str([save_period,elapsed]))
         if (elapsed >= save_period):
-            save_rate_dict[data_product][1] = now
+            #self.msg_if.pub_warn("Should save: " + data_product + " : " + str([save_period,elapsed]))
             self.save_rate_dict = save_rate_dict
             return True
         return False
@@ -497,6 +596,7 @@ class SaveDataIF:
             enabled = self.snapshot_dict[data_product]
             return enabled
         except:
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product)
             return False
         return False
 
@@ -504,6 +604,7 @@ class SaveDataIF:
         try:
             self.snapshot_dict[data_product] = False
         except:
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product)
             pass
      
     def get_timestamp_string(self):
@@ -516,47 +617,90 @@ class SaveDataIF:
 
 
 
+    
+
     #***************************
     # NEPI data saving utility functions
     def save(self,data_product,data,timestamp = None,save_check=True):
-        saving_is_enabled = self.data_product_saving_enabled(data_product)
         should_save = self.data_product_should_save(data_product)
         snapshot_enabled = self.data_product_snapshot_enabled(data_product)
         # Save data if enabled
-        if (saving_is_enabled and should_save) or snapshot_enabled or save_check == False:
-            self.read_write_if.write_data_file(self.save_path, data, data_product, timestamp = timestamp)
+        #self.msg_if.pub_warn("******")
+        #self.msg_if.pub_warn("Checking save data: " + data_product + " " + str([saving_is_enabled,should_save,snapshot_enabled,save_check]) )
+        if should_save or snapshot_enabled or save_check == False:
+            if self.filename_dict['use_utc_tz'] == False:
+                timezone = self.timezone
+            else:
+                timezone = 'UTC'
+            #self.msg_if.pub_warn("Saving Data with Timezone: " + str(timezone) )
+            self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
             self.data_product_snapshot_reset(data_product)
+            self.save_rate_dict[data_product][1] = nepi_utils.get_time()
+        #self.msg_if.pub_warn("Finished Checking save data: " + data_product )
+        #self.msg_if.pub_warn("******")
+
+
+    def create_filename_msg(self):
+        fn_msg = FilenameConfig()
+        fn_dict = self.filename_dict
+        fn_msg.prefix = fn_dict['prefix']
+        fn_msg.add_timestamp = fn_dict['add_timestamp']
+        fn_msg.use_utc_tz = fn_dict['use_utc_tz']
+        fn_msg.add_ms = fn_dict['add_ms']
+        fn_msg.add_us = fn_dict['add_us']
+        fn_msg.add_tz = fn_dict['add_tz']
+        return fn_msg
 
 
     def publish_status(self):
         save_rates_msg = []
         save_rate_dict = self.save_rate_dict
-        self.msg_if.pub_warn("save_rate_dict " + str(save_rate_dict))
+        #self.msg_if.pub_warn("Status pub save_rate_dict " + str(save_rate_dict))
         for name in save_rate_dict.keys():
             save_rate_msg = SaveDataRate()
-            rate = 0
-            try:
-                rate = round(save_rate_dict[name][0])
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to get rate for data_product: " + name + " " + str(e))
             save_rate_msg.data_product = name
-            save_rate_msg.save_rate_hz = rate
+            save_rate_msg.save_rate_hz = save_rate_dict[name][0]
             save_rates_msg.append(save_rate_msg)
-            #self.msg_if.pub_warn("data_rates_msg " + str(save_rates_msg))
+            #self.msg_if.pub_warn("data_rates_msg " + str(save_rates_msg)
         status_msg = SaveDataStatus()
-        status_msg.current_data_dir = ""
-        status_msg.current_filename_prefix = self.read_write_if.get_filename_prefix()
+        status_msg.filename_config = self.create_filename_msg()
+        status_msg.current_data_dir = self.save_path
+        status_msg.current_filename_prefix = self.filename_dict['prefix']
+        status_msg.current_subfolder = self.subfolder
+        status_msg.save_data_utc = self.filename_dict['use_utc_tz']
+        status_msg.current_timezone = self.timezone
         status_msg.save_data_rates = save_rates_msg
         status_msg.save_data = self.save_data
 
         if self.save_data_root_directory is not None:
             status_msg.current_data_dir = self.save_data_root_directory
-        self.node_if.publish_pub('status_pub', status_msg)
+
+        if self.filename_dict['use_utc_tz'] == False:
+            timezone = self.timezone
+        else:
+            timezone = 'UTC'
+        #self.msg_if.pub_warn("Saving Data with Timezone: " + str(timezone) )
+        exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
+        status_msg.example_filename = exp_filename
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', status_msg)
 
 
     ###############################
     # Class Private Methods
     ###############################
+
+
+    def updaterCb(self,timer):
+        time_status_dict = self.mgr_time_if.get_time_status()
+        #self.msg_if.pub_warn("Got time status dict " + str(time_status_dict))
+        if time_status_dict is not None:
+            last_tz = copy.deepcopy(self.timezone)
+            tzd = time_status_dict['timezone_description']
+            #tzd = nepi_utils.get_timezone_description(tzd)
+            self.timezone = tzd
+        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+
 
     def _dataProductQueryHandler(self, req):
         return_list = []
@@ -567,11 +711,25 @@ class SaveDataIF:
 
 
     def _setPrefixCb(self, msg):
-        new_prefix = msg.data
-        self.set_save_prefix(new_prefix)
+        prefix = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['prefix'] = prefix
+        self.update_filename_dict(filename_dict)
+
+    def _setLocalTzCb(self, msg):
+        use_utc = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['use_utc_tz'] = use_utc
+        self.update_filename_dict(filename_dict)
+
+    def _setFilenameCb(self, msg):
+        filename_dict = nepi_utils.convert_msg2dict(msg)
+        self.update_filename_dict(filename_dict)
+
 
 
     def _saveRateCb(self, msg):
+        self.msg_if.pub_info("Recieved Rate Update: " + str(msg))
         data_product = msg.data_product
         save_rate_hz = msg.save_rate_hz
         self.set_save_rate(data_product,save_rate_hz)
@@ -579,8 +737,8 @@ class SaveDataIF:
 
 
     def _saveEnableCb(self, msg):
-        save_data = msg.data
-        self.set_saving_enable(save_data)
+        enabled = msg.data
+        self.save_data_enable(enabled)
         
 
     def _snapshotCb(self,msg):
@@ -800,7 +958,7 @@ class SettingsIF:
 
         ##############################
         # Run Initialization Processes
-        self.initialize_settings(do_updates = False)     
+        self.initialize_settings(do_updates = True)     
         #self.msg_if.pub_info("Cap Settings Message: " + str(self.capabilities_response))      
         nepi_ros.start_timer_process(1.0, self._publishSettingsCb)
 
@@ -868,9 +1026,9 @@ class SettingsIF:
 
 
     def initialize_settings(self, do_updates = True):
-        self.msg_if.pub_info("Setting init values to param server values")
         current_settings = self.getSettingsFunction()
         self.init_settings = self.node_if.get_param('settings')
+        #self.msg_if.pub_info("Setting init values to param server values: " + str(self.init_settings) )
         if do_updates:
             self.reset_settings()
 

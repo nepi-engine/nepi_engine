@@ -151,6 +151,7 @@ class NetworkMgr:
         # Configs Config Dict ####################
         self.CFGS_DICT = {
             'init_callback': self.initCb,
+            'system_reset_callback': self.sysResetCb,
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
@@ -239,38 +240,6 @@ class NetworkMgr:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'reset': {
-                'namespace': self.node_namespace,
-                'topic': 'reset',
-                'msg': Reset,
-                'qsize': None,
-                'callback': self.reset, 
-                'callback_args': ()
-            },
-            'save_config': {
-                'namespace': self.node_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': None,
-                'callback': self.save_config, 
-                'callback_args': ()
-            },
-            'reset': {
-                'namespace': self.base_namespace,
-                'topic': 'reset',
-                'msg': Reset,
-                'qsize': None,
-                'callback': self.reset, 
-                'callback_args': ()
-            },
-            'save_config': {
-                'namespace': self.base_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': None,
-                'callback': self.save_config, 
-                'callback_args': ()
-            },
             'add_ip_addr': {
                 'namespace': self.base_namespace,
                 'topic': 'add_ip_addr',
@@ -392,6 +361,8 @@ class NetworkMgr:
         else:
             self.msg_if.pub_info("No WiFi detected")
 
+        self.node_if.save_config()
+
         nepi_ros.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
 
         # Long duration internet check -- do oneshot and reschedule from within the callback
@@ -482,8 +453,11 @@ class NetworkMgr:
     def add_ip_impl(self, new_addr):
         try:
             subprocess.check_call(['ip','addr','add',new_addr,'dev',self.NET_IFACE])
+            self.save_config()
         except:
             self.msg_if.pub_warn("Failed to set IP address to " + str(new_addr))
+
+
     def add_ip(self, new_addr_msg):
         if True == self.validate_cidr_ip(new_addr_msg.data):
             self.add_ip_impl(new_addr_msg.data)
@@ -493,6 +467,7 @@ class NetworkMgr:
     def remove_ip_impl(self, old_addr):
         try:
             subprocess.check_call(['ip','addr','del',old_addr,'dev',self.NET_IFACE])
+            self.save_config()
         except:
             self.msg_if.pub_warn("Failed to remove IP address " + str(old_addr))
 
@@ -507,17 +482,18 @@ class NetworkMgr:
         if self.in_container == False:
             if enabled is True:
                 if self.dhcp_enabled is False:
-                    self.msg_if.pub_info("Enabling DHCP Client")
+                    self.msg_if.pub_warn("Enabling DHCP Client")
                     try:
                         subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
                         self.dhcp_enabled = True
+                        self.save_config()
                     except Exception as e:
                         self.msg_if.pub_warn("Unable to enable DHCP: " + str(e))
                 else:
-                    self.msg_if.pub_info("DHCP already enabled")
+                    self.msg_if.pub_warn("DHCP already enabled")
             else:
                 if self.dhcp_enabled is True:
-                    self.msg_if.pub_info("Disabling DHCP Client")
+                    self.msg_if.pub_warn("Disabling DHCP Client")
                     try:
                         # The dhclient -r call below causes all IP addresses on the interface to be dropped, so
                         # we reinitialize them here... this will not work for IP addresses that were
@@ -530,58 +506,58 @@ class NetworkMgr:
                         subprocess.call(['ifdown', self.NET_IFACE])
                         nepi_ros.sleep(1)
                         subprocess.call(['ifup', self.NET_IFACE])
-
+                        self.save_config()
                     except Exception as e:
                         self.msg_if.pub_warn("Unable to disable DHCP: " + str(e))
                 else:
-                    self.msg_if.pub_info("DHCP already disabled")
+                    self.msg_if.pub_warn("DHCP already disabled")
         else:
-            self.msg_if.pub_info("Ignoring DHCP change request from container. Update in host system")
+            self.msg_if.pub_warn("Ignoring DHCP change request from container. Update in host system")
 
     def enable_dhcp(self, enabled_msg):
         self.enable_dhcp_impl(enabled_msg.data)
 
     def set_dhcp_from_params(self):
-        if (nepi_ros.has_param('~dhcp_enabled')):
-            enabled = self.node_if.get_param('dhcp_enabled')
-            if self.dhcp_enabled != enabled:
-                self.enable_dhcp_impl(enabled)
+        enabled = self.node_if.get_param('dhcp_enabled')
+        if self.dhcp_enabled != enabled:
+            self.enable_dhcp_impl(enabled)
 
     def initCb(self, do_updates = False):
         pass
 
     def resetCb(self):
-        pass
+        user_reset_proxy = nepi_ros.create_service('user_reset', FileReset)
+        try:
+            resp = user_reset_proxy(self.node_name)
+        except nepi_ros.create_serviceException as exc:
+            self.msg_if.pub_warn("Unable to execute user reset")
+            return
+        self.set_dhcp_from_params()
 
     def factoryResetCb(self):
-        pass
+        factory_reset_proxy = nepi_ros.create_service('factory_reset', FileReset)
+        try:
+            resp = factory_reset_proxy(self.node_name)
+        except nepi_ros.create_serviceException as exc:
+            self.msg_if.pub_warn("Unable to execute factory reset")
+            return
 
-    def reset(self, msg):
-        if Reset.USER_RESET == msg.reset_type:
-            user_reset_proxy = nepi_ros.create_service('user_reset', FileReset)
-            try:
-                resp = user_reset_proxy(self.node_name)
-            except nepi_ros.create_serviceException as exc:
-                self.msg_if.pub_warn("Unable to execute user reset")
-                return
-            self.set_dhcp_from_params()
-        elif Reset.FACTORY_RESET == msg.reset_type:
-            factory_reset_proxy = nepi_ros.create_service('factory_reset', FileReset)
-            try:
-                resp = factory_reset_proxy(self.node_name)
-            except nepi_ros.create_serviceException as exc:
-                self.msg_if.pub_warn("Unable to execute factory reset")
-                return
+        # Overwrite the user static IP file with the blank version
+        with open(self.USER_STATIC_IP_FILE, "w") as f:
+            f.write(self.USER_STATIC_IP_FILE_PREFACE)
 
-            # Overwrite the user static IP file with the blank version
-            with open(self.USER_STATIC_IP_FILE, "w") as f:
-                f.write(self.USER_STATIC_IP_FILE_PREFACE)
+        # Set the rosmaster back to localhost
+        self.set_rosmaster_impl("localhost")
 
-            # Set the rosmaster back to localhost
-            self.set_rosmaster_impl("localhost")
+        self.set_dhcp_from_params()
+        self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
 
-            self.set_dhcp_from_params()
-            self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
+    def sysResetCb(self, reset_type = 0):
+        if Reset.USER_RESET == reset_type:
+            pass # resetCb called by node_if
+
+        elif Reset.FACTORY_RESET == reset_type:
+            pass # factoryResetCb called by node_if
 
         elif Reset.SOFTWARE_RESET:
             nepi_ros.signal_shutdown("{}: shutdown by request".format(self.node_name))
@@ -590,8 +566,9 @@ class NetworkMgr:
             subprocess.call(['ifdown', self.NET_IFACE])
             nepi_ros.sleep(1)
             subprocess.call(['ifup', self.NET_IFACE])
+        self.save_config()
 
-    def save_config(self, msg):
+    def save_config(self):
         # First update user static IP file
         # Note that this is outside the scope of ROS param server because we need these
         # aliases to come up even before ROS (hence this node) comes up in case the remoted ROSMASTER
@@ -606,7 +583,11 @@ class NetworkMgr:
                     f.write("auto " + alias_name + "\n")
                     f.write("iface " + alias_name + " inet static\n")
                     f.write("    address " + ip_cidr + "\n\n")
-                    
+        if self.node_if is not None:
+            self.node_if.save_config()
+
+        # Now handled by node_if.save_config
+        '''
         # DHCP Settings are stored in the ROS config file
         self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
 
@@ -619,10 +600,12 @@ class NetworkMgr:
         self.node_if.set_param('wifi/client_passphrase', self.wifi_client_passphrase)
 
         self.node_if.publish_pub('store_params', nepi_ros.get_node_namespace())
+        '''
 
     def set_upload_bwlimit(self, msg):
         if msg.data >= 0 and msg.data < 1:
             self.msg_if.pub_warn('Cannot set bandwidth limit below 1Mbps')
+            self.save_config()
             return
 
         # First, update param server
@@ -635,6 +618,7 @@ class NetworkMgr:
     def set_rosmaster(self, msg):
         new_master_ip = msg.data
         self.set_rosmaster_impl(new_master_ip)
+        self.save_config()
 
     def set_rosmaster_impl(self, master_ip):
         auto_comment = " # Modified by network_mgr " + str(datetime.now()) + "\n"
@@ -709,6 +693,7 @@ class NetworkMgr:
             os.remove(tmp_env_loader_file)
 
         self.msg_if.pub_warn("Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
+        self.save_config()
 
     def set_upload_bw_limit_from_params(self):
         bw_limit_mbps = self.tx_bw_limit_mbps
@@ -732,6 +717,7 @@ class NetworkMgr:
             #self.tx_byte_cnt_deque.clear()
         except Exception as e:
             self.msg_if.pub_warn("Unable to set upload bandwidth limit: " + str(e))
+        self.save_config()
 
     def enable_wifi_ap_handler(self, enabled_msg):
         if self.wifi_iface is None:
@@ -741,6 +727,7 @@ class NetworkMgr:
         # Just set the param and let the ...from_params() function handle the rest
         self.node_if.set_param("wifi/enable_access_point", enabled_msg.data)
         self.set_wifi_ap_from_params()
+        self.save_config()
 
     def set_wifi_ap_credentials_handler(self, msg):
         # Just set the param and let the ...from_params() function handle the rest
@@ -748,6 +735,7 @@ class NetworkMgr:
         self.node_if.set_param("wifi/access_point_passphrase", msg.passphrase)
 
         self.set_wifi_ap_from_params()
+        self.save_config()
 
     def set_wifi_ap_from_params(self):
         self.wifi_ap_enabled = self.node_if.get_param('wifi/enable_access_point')
@@ -766,12 +754,14 @@ class NetworkMgr:
                 # Use the create_ap command line
                 subprocess.check_call([self.CREATE_AP_CALL, '-n', '--redirect-to-localhost', '--isolate-clients', '--daemon',
                                        self.wifi_iface, self.wifi_ap_ssid, self.wifi_ap_passphrase])
+                self.save_config()
                 self.msg_if.pub_info("Started WiFi access point: " + str(self.wifi_ap_ssid))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to start wifi access point with " + str(e))
         else:
             try:
                 subprocess.check_call([self.CREATE_AP_CALL, '--stop', self.wifi_iface])
+                self.save_config()
             except Exception as e:
                 self.msg_if.pub_warn("Unable to terminate wifi access point: " + str(e))
 
@@ -788,6 +778,7 @@ class NetworkMgr:
         # Just set the param and let the ...from_params() function handle the rest
         self.node_if.set_param("wifi/enable_client", enabled_msg.data)
         self.set_wifi_client_from_params()
+        self.save_config()
 
     def set_wifi_client_credentials_handler(self, msg):
         self.msg_if.pub_info("Updating WiFi client credentials (SSID: " + msg.ssid + ", Passphrase: " + msg.passphrase + ")")
@@ -796,6 +787,7 @@ class NetworkMgr:
         self.node_if.set_param("wifi/client_passphrase", msg.passphrase)
 
         self.set_wifi_client_from_params()
+        self.save_config()
 
     def auto_retry_wifi_client_connect(self, event):
         self.msg_if.pub_info("Automatically retrying wifi client setup")
@@ -880,6 +872,7 @@ class NetworkMgr:
             else:
                 with self.available_wifi_networks_lock:
                     self.available_wifi_networks = []
+        self.save_config()
 
     def get_wifi_client_connected_ssid(self):
         if self.wifi_iface is None:
@@ -914,12 +907,13 @@ class NetworkMgr:
         try:
             #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             response = requests.get("https://www.github.com", timeout=5)
-            if prev_connected is False:
-                self.msg_if.pub_info("Detected new internet connection")
+            if prev_connected == False:
+                self.msg_if.pub_warn("Detected new internet connection")
+                self.msg_if.pub_warn("Internet check response: " + str(response) )
             connected = True
         except Exception as e:
-            if prev_connected is True:
-                self.msg_if.pub_info("Detected internet connection dropped")
+            if prev_connected == True:
+                self.msg_if.pub_warn("Lost internet connection")
             connected = False
 
         if prev_connected != connected:

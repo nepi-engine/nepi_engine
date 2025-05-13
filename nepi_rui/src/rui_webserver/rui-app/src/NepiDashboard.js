@@ -235,6 +235,8 @@ class NepiDashboard extends Component {
     const {
       systemInContainer,
       systemStatusTime,
+      systemStatusTimeStr,
+      systemStatusDateStr,
       clockUTCMode,
       clockTZ,
       onToggleClockUTCMode,
@@ -245,37 +247,29 @@ class NepiDashboard extends Component {
       onSyncTimezone,
       setTimezoneUTC,
       clockNTP,
-      onSyncUTCToDevice
+      syncTime2Device
     } = this.props.ros
 
     const timezoneOptions = this.getTimezoneOptions()
 
 
-    var time = ""
-    var date = ""
+    var time_str = ""
+    var date_str = ""
     var timezone = ""
     if (systemStatusTime){
-      time = systemStatusTime && systemStatusTime.format("h:mm:ss a")
-      date = systemStatusTime && systemStatusTime.format("l")
+      time_str = systemStatusTimeStr
+      date_str = systemStatusDateStr
 
+      timezone = systemStatusTimezoneDesc
+      
       if (systemInContainer === false){
         if (systemStatusTimezoneDesc !== clockTZ && syncTimezone === true && clockNTP === false){
           onSyncTimezone()
         }
-        else if (systemStatusTimezoneDesc !== 'Europe/London' && clockUTCMode === true ){
-          setTimezoneUTC()
-        }
       }
-      if (systemStatusTimezoneDesc === 'Europe/London' && clockUTCMode === true){
-        timezone = 'UTC'
-      }
-      else {
-        timezone = systemStatusTimezoneDesc
-      }
+
     }
-
-
-  
+ 
     
     return (
       <Section title={"System Clock"}>
@@ -283,10 +277,10 @@ class NepiDashboard extends Component {
           <BooleanIndicator value={clockNTP} />
         </Label>
         <Label title={"Time"}>
-          <Input disabled value={time} />
+          <Input disabled value={time_str} />
         </Label>
         <Label title={"Date"}>
-          <Input disabled value={date} />
+          <Input disabled value={date_str} />
         </Label>
         <Label title={"Timezone"}>
           <Input disabled value={timezone} />
@@ -298,61 +292,62 @@ class NepiDashboard extends Component {
             <Columns>
             <Column>
 
+
+              <ButtonMenu>
+                <Button onClick={syncTime2Device}>{"Sync Clocks"}</Button>
+              </ButtonMenu>
+
+
             </Column >
             <Column>
 
-                  <Label title={"UTC"}>
-                  <Toggle checked={clockUTCMode} onClick={onToggleClockUTCMode} />
-                  </Label>
 
-                    <div hidden={clockUTCMode === true}>
 
-                          <ButtonMenu>
-                            <Button onClick={onSyncUTCToDevice}>{"Sync Clocks"}</Button>
-                          </ButtonMenu>
+
+              <Label title={"Auto Sync Timezone"}>
+                <Toggle checked={syncTimezone} onClick={onToggleSyncTimezone} />
+              </Label>
+
+
+
+                <div hidden={syncTimezone === true}>
+
+
+
+                      <label align={"left"} textAlign={"left"}>
+                          {"Select Timezone"}
+                        </label>
+                  
+
+
+                          <div onClick={this.toggleTimezonesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                                    <Select style={{width: "10px"}}/>
+                                  </div>
+                                  <div hidden={this.state.timezones_list_viewable === false}>
+                                  {timezoneOptions.map( (Timezone) =>
+                                  <div onClick={this.onToggleTimezoneSelection}
+                                    style={{
+                                      textAlign: "center",
+                                      padding: `${Styles.vars.spacing.xs}`,
+                                      color: Styles.vars.colors.black,
+                                      backgroundColor: (timezone === Timezone.props.value)? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                                      cursor: "pointer",
+                                      }}>
+                                      <body timezone_name ={Timezone} style={{color: Styles.vars.colors.black}}>{Timezone}</body>
+                                  </div>
+                                  )}
+                            </div>
+
                         
-
-                          <Label title={"Sync Timezone"}>
-                            <Toggle checked={syncTimezone} onClick={onToggleSyncTimezone} />
-                          </Label>
-
-                    </div>
-
-                    <div hidden={clockUTCMode === true || syncTimezone === true}>
-
-
-
-                          <label align={"left"} textAlign={"left"}>
-                              {"Select Timezone"}
-                            </label>
-                      
-
-
-                              <div onClick={this.toggleTimezonesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
-                                        <Select style={{width: "10px"}}/>
-                                      </div>
-                                      <div hidden={this.state.timezones_list_viewable === false}>
-                                      {timezoneOptions.map( (Timezone) =>
-                                      <div onClick={this.onToggleTimezoneSelection}
-                                        style={{
-                                          textAlign: "center",
-                                          padding: `${Styles.vars.spacing.xs}`,
-                                          color: Styles.vars.colors.black,
-                                          backgroundColor: (timezone === Timezone.props.value)? Styles.vars.colors.blue : Styles.vars.colors.grey0,
-                                          cursor: "pointer",
-                                          }}>
-                                          <body timezone_name ={Timezone} style={{color: Styles.vars.colors.black}}>{Timezone}</body>
-                                      </div>
-                                      )}
-                                </div>
-
-                            
-                      </div>
+                  </div>
 
 
 
                       </Column>
                       </Columns>
+
+
+
 
             }
 

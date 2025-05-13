@@ -555,13 +555,12 @@ class IDXDeviceIF:
         #############################
         # Finish Initialization
 
-        self.enabled = self.node_if.get_param('controls_enable')
-        self.auto = self.node_if.get_param('auto_adjust')       
-        self.brightness = self.node_if.get_param('brightness')
-        self.contrast = self.node_if.get_param('contrast')        
-        self.threshold = self.node_if.get_param('thresholding')
-        self.res_ratio = self.node_if.get_param('resolution_ratio')  
-
+        self.ctl_enabled = self.node_if.get_param('controls_enable')
+        self.ctl_auto = self.node_if.get_param('auto_adjust')       
+        self.ctl_brightness = self.node_if.get_param('brightness')
+        self.ctl_contrast = self.node_if.get_param('contrast')        
+        self.ctl_threshold = self.node_if.get_param('thresholding')
+        self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
 
         # Start the data producers
@@ -1178,15 +1177,11 @@ class IDXDeviceIF:
 
             while (not nepi_ros.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
-                #dp_should_save = False #  
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
-                
-                #self.msg_if.pub_warn("Data product " + data_product + " has subscribers: " + str(dp_has_subs), throttle_s = 1)
- 
+
+                # Get data if requried
                 get_data = dp_has_subs or dp_should_save
-                
-                #get_data = True
                 if get_data == True:
                     acquiring = True
                     if data_product != "pointcloud_image":
@@ -1294,14 +1289,10 @@ class IDXDeviceIF:
             while (not nepi_ros.is_shutdown()):
  
                 # Get Data Product Dict and Data_IF
-                
-
-
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
 
-                
                 # Get data if requried
                 get_data = dp_has_subs or dp_should_save
                 if get_data == True:
@@ -1436,17 +1427,26 @@ class IDXDeviceIF:
             self.status_msg.rtsp_password = rtsp_password
 
             self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
+            self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
+
+            self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
             self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
             
+            self.status_msg.resolution_ratio = param_dict['resolution_ratio'] if 'resolution_ratio' in param_dict else 0
             self.status_msg.resolution_ratio = param_dict['resolution_ratio'] if 'resolution_ratio' in param_dict else 0
             res_str = str(self.img_width) + ":" + str(self.img_height)
             self.status_msg.resolution_current = res_str
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
-
+            self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.framerate_current = self.current_fps
+
             self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
+            self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
+
             self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
+            self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
+            
             self.status_msg.thresholding = param_dict['thresholding'] if 'thresholding' in param_dict else 0
             
             self.status_msg.range_window.start_range = self.node_if.get_param('range_window/start_range_ratio')

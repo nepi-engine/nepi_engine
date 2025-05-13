@@ -2,13 +2,16 @@
 # including status about synchronization sources
 
 # Current system clock time
-time current_time
+float32 current_time
 
-string timezone
+string date_str
+string time_str
+
+string timezone_id
 string timezone_description
 
 # System clock at time of last PPS receipt
-time last_pps
+float32 last_pps
 
 # Servers
 string[] ntp_sources
@@ -23,5 +26,5 @@ string[] last_ntp_sync
 string[] current_offset
 
 # Last set_time (hard set from external host)
-time last_set_time
+float32 last_set_time
 

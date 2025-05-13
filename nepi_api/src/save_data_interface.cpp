@@ -497,7 +497,7 @@ void SaveDataInterface::publishSaveStatus()
 		}
 	nepi_ros_interfaces::SaveDataStatus stat_msg;
 	stat_msg.current_data_dir = _save_data_dir; 
-	stat_msg.current_folder_prefix = prefixDirName;
+	stat_msg.current_subfolder = prefixDirName;
 	stat_msg.current_filename_prefix = prefixFileName;
 	//stat_msg.save_data_rates = saveRates;
 	stat_msg.save_data = _save_continuous;

@@ -212,6 +212,7 @@ class NepiControlsLights extends Component {
     const { lsxNamespace, lsxTempC } = this.state
     const { lsxUnits } = this.props.ros
     const lsx_id = lsxNamespace? lsxNamespace.split('/').slice(-1) : "No Light Selected"
+    const namespace = this.state.lsxNamespace
 
     const lsx_caps = lsxUnits[lsxNamespace]
     const has_standby_mode = lsx_caps && (lsx_caps['has_standby_mode'] === true)
@@ -237,7 +238,7 @@ class NepiControlsLights extends Component {
           <Label title="Set On_Off State">
                   <Toggle
                     checked={this.state.lsxOnOffState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(this.state.lsxNamespace + "/lsx/turn_on_off",!this.state.lsxOnOffState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/turn_on_off",!this.state.lsxOnOffState)}>
                   </Toggle>
             </Label>
             </div>
@@ -247,7 +248,7 @@ class NepiControlsLights extends Component {
           <Label title="Set Standby State">
                   <Toggle
                     checked={this.state.lsxStandbyState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(this.state.lsxNamespace + "/lsx/set_standby",!this.state.lsxStandbyState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/set_standby",!this.state.lsxStandbyState)}>
                   </Toggle>
             </Label>
             </div>
@@ -274,7 +275,7 @@ class NepiControlsLights extends Component {
             <Label title={"Select Color"}>
                     <Select
                       id="select_color"
-                        onChange={(event) => onDropdownSelectedSendStr.bind(this)(event,this.state.lsxNamespace + "/lsx/set_color")}
+                        onChange={(event) => onDropdownSelectedSendStr.bind(this)(event,namespace + "/lsx/set_color")}
                         value={this.state.lsxColorStr}
                       >
                         {this.state.lsxColorStr
@@ -305,7 +306,7 @@ class NepiControlsLights extends Component {
                   <Input id="blink_interval" 
                     value={this.state.lsxKelvinVal} 
                     onChange={(event) => onUpdateSetStateValue.bind(this)(event,"lsxKelvinVal")} 
-                    onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,this.state.lsxNamespace + "/lsx/set_kelvin")} />
+                    onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,namespace + "/lsx/set_kelvin")} />
                 </Label>
 
                 disabled={!has_intensity_control}
@@ -350,47 +351,21 @@ class NepiControlsLights extends Component {
             <Label title="Set Strobe State">
                   <Toggle
                     checked={this.state.lsxStrobezState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(this.state.lsxNamespace + "/lsx/set_strobe_enable",!this.state.lsxStrobezState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/set_strobe_enable",!this.state.lsxStrobezState)}>
                   </Toggle>
             </Label>
             </div>
-
-            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-          <Columns>
-            <Column>
-
-              <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg( this.state.lsxNamespace + "/reset_device")}>{"Reset Device"}</Button>
-              </ButtonMenu>
-
-              </Column>
-            <Column>
-
-                <ButtonMenu>
-                  <Button onClick={() => sendTriggerMsg(this.state.lsxNamespace + "/save_config")}>{"Save Config"}</Button>
-            </ButtonMenu>
-
-            </Column>
-            <Column>
-
-            <ButtonMenu>
-                  <Button onClick={() => sendTriggerMsg( this.state.lsxNamespace + "/reset_config")}>{"Reset Config"}</Button>
-            </ButtonMenu>
-
-
-            </Column>
-          </Columns>
-
 
                </Section>
     )
   }
 
   render() {
+    const { sendTriggerMsg } = this.props.ros
     const { lsxUnits } = this.props.ros
     const { lsxNamespace } = this.state
     const connected = this.state.connected
+    const namespace = this.state.lsxNamespace
 
     //const lsxImageViewerElement = document.getElementById("lsxImageViewer")
 
@@ -402,7 +377,7 @@ class NepiControlsLights extends Component {
           <Column equalWidth = {false} >
 
           <NepiDeviceInfo
-                  deviceNamespace={this.state.lsxNamespace}
+                  deviceNamespace={namespace}
                   status_topic={"/lsx/status"}
                   status_msg_type={"nepi_ros_interfaces/LSXStatus"}
                   name_update_topic={"/lsx/update_device_name"}
@@ -426,7 +401,7 @@ class NepiControlsLights extends Component {
             <Label title={"Lighting Device"}>
               <Select
                 onChange={this.onLSXUnitSelected}
-                value={this.state.lsxNamespace}
+                value={namespace}
               >
                 {this.createLSXOptions(lsxUnits)}
               </Select>
@@ -441,7 +416,7 @@ class NepiControlsLights extends Component {
               </Select>
             </Label>
 
-            <div hidden={this.state.lsxNamespace === null}>    
+            <div hidden={namespace === null}>    
 
             <Label title={"Serial Number"}>
               <Input disabled={true} value={this.state.lsxSerialNum}/>
@@ -460,11 +435,44 @@ class NepiControlsLights extends Component {
 
           <div hidden={connected === false}>
           
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+              <Columns>
+              <Column>
+
+
+                <ButtonMenu>
+                    <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+              </ButtonMenu>
+
+
+                </Column>
+              <Column>
+
+
+              <ButtonMenu>
+                  <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+                </ButtonMenu>
+
+              </Column>
+              <Column>
+
+              <ButtonMenu>
+                    <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+              </ButtonMenu>
+
+
+              </Column>
+              </Columns>
+
+
+
+
             {this.renderControlPanel()}
             
 
             <NepiIFSettings
-            settingsNamespace={this.state.lsxNamespace}
+            settingsNamespace={namespace}
             title={"Nepi_IF_Settings"}
           />
 

@@ -410,73 +410,6 @@ class NepiSystemDevice extends Component {
     )
   }
 
-  nodeNameFromConfigSubsys() {
-    const { resetTopics } = this.props.ros
-    const { configSubsys } = this.state
-    if ((configSubsys === 'All') && (resetTopics.length > 0)){
-      return resetTopics[0]
-    }
-    else {
-      var config_sys_node_name = nodeNameFromDisplayName(configSubsys)
-      if (!config_sys_node_name) {
-        // Just try with the original name in case this node doesn't have a Display Name
-        config_sys_node_name = configSubsys
-      }
-      for (var i = 1; i < resetTopics.length; i++) {
-        var node_name = resetTopics[i].split('/').pop()
-        if (node_name === config_sys_node_name) {
-          return resetTopics[i]
-        }
-      }
-
-      return 'UNKNOWN_NODE'
-    }
-  }
-
-  async onSaveCfg() {
-    const { saveCfg } = this.props.ros
-    var node_name = this.nodeNameFromConfigSubsys()
-    if (node_name !== 'UNKNOWN_NODE') {
-      saveCfg({baseTopic: node_name})
-    }
-  }
-
-  async onUserReset() {
-    const { resetCfg } = this.props.ros
-    var node_name = this.nodeNameFromConfigSubsys()
-    if (node_name !== 'UNKNOWN_NODE') {
-      resetCfg({baseTopic: node_name, resetVal: 0}) // Value 0 per Reset.msg
-    }
-  }
-
-  async onFactoryReset() {
-    const { resetCfg } = this.props.ros
-    var node_name = this.nodeNameFromConfigSubsys()
-    if (node_name !== 'UNKNOWN_NODE') {
-      resetCfg({baseTopic: node_name, resetVal: 1}) // Value 1 per Reset.msg
-    }
-  }
-
-  async onConfigSubsysSelected(e) {
-    await this.setState({configSubsys: e.target.value})
-  }
-
-  async onToggleAdvancedConfig() {
-    var disabled = this.state.advancedConfigDisabled
-    this.setState({advancedConfigDisabled: !disabled})
-  }
-
-  createConfigSubsysOptions(resetTopics) {
-    var subsys_options = []
-    subsys_options.push(<Option>{"All"}</Option>)
-    for (var i = 1; i < resetTopics.length; i++) { // Skip the first one -- it is global /numurus/dev_3dx/<s/n>
-      var node_name = resetTopics[i].split("/").pop()
-      var subsys = displayNameFromNodeName(node_name)
-      subsys_options.push(<Option>{subsys}</Option>)
-    }
-    return subsys_options
-  }
-
   createWifiNetworkOptions(wifiNetworks) {
     var network_options = []
     network_options.push(<Option>{""}</Option>)
@@ -512,7 +445,7 @@ class NepiSystemDevice extends Component {
   }
 
   renderNetworkInfo() {
-    const { systemInContainer, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
+    const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
     const { ipAddrVal } = this.state
     
     return (
@@ -565,6 +498,7 @@ class NepiSystemDevice extends Component {
             onKeyDown={this.onKeyTXRateLimitText}
           />
         </Label>
+
 
        </div>
 
@@ -679,18 +613,73 @@ class NepiSystemDevice extends Component {
     )
   }
 
+  async onSaveCfg() {
+    const { saveCfg } = this.props.ros
+    var node_name = this.state.configSubsys
+    if (node_name !== 'UNKNOWN_NODE') {
+      saveCfg({baseTopic: node_name})
+    }
+  }
+
+  async onUserReset() {
+    const { systemReset } = this.props.ros
+    var node_name = this.state.configSubsys
+    if (node_name !== 'UNKNOWN_NODE') {
+      systemReset(node_name, 0) // Value 1 per Reset.msg
+    }
+  }
+
+  async onFactoryReset() {
+    const { systemReset } = this.props.ros
+    var node_name = this.state.configSubsys
+    if (node_name !== 'UNKNOWN_NODE') {
+      systemReset(node_name, 1) // Value 1 per Reset.msg
+    }
+  }
+
+  async onSoftwareReset() {
+    const { systemReset } = this.props.ros
+    var node_name = this.state.configSubsys
+    if (node_name !== 'UNKNOWN_NODE') {
+      systemReset(node_name, 2) // Value 1 per Reset.msg
+    }
+  }
+
+  async onHardwareReset() {
+    const { systemReset } = this.props.ros
+    var node_name = this.state.configSubsys
+    if (node_name !== 'UNKNOWN_NODE') {
+      systemReset(node_name, 3) // Value 1 per Reset.msg
+    }
+  }
+
+  async onConfigSubsysSelected(e) {
+    await this.setState({configSubsys: e.target.value})
+  }
+
+  async onToggleAdvancedConfig() {
+    var disabled = this.state.advancedConfigDisabled
+    this.setState({advancedConfigDisabled: !disabled})
+  }
+
+  createConfigSubsysOptions(resetTopics) {
+    var subsys_options = []
+    for (var i = 1; i < resetTopics.length; i++) { // Skip the first one -- it is global /numurus/dev_3dx/<s/n>
+      var node_name = resetTopics[i].split("/").pop()
+      subsys_options.push(<Option value={resetTopics[i]}>{node_name}</Option>)
+    }
+    return subsys_options
+  }
+
+
+
   renderConfiguration() {
-    const { resetTopics, onUserCfgRestore } = this.props.ros
+    const { resetTopics, onUserCfgRestore, onFactoryCfgRestore } = this.props.ros
     const { advancedConfigDisabled, configSubsys } = this.state
 
-    const userRestoreHidden = (advancedConfigDisabled || (configSubsys !== "All"))
     return (
       <Section title={"Configuration"}>
-          <Label title={"Advanced Settings Enable"}>
-            <Toggle
-              onClick={this.onToggleAdvancedConfig}>
-            </Toggle>
-          </Label>
+
         <Label title={"Subsystem"}>
           <Select
             onChange={this.onConfigSubsysSelected}
@@ -702,9 +691,18 @@ class NepiSystemDevice extends Component {
           <ButtonMenu>
             <Button onClick={this.onSaveCfg}>{"Save"}</Button>
             <Button onClick={this.onUserReset}>{"Reset"}</Button>
-            <Button hidden={advancedConfigDisabled} onClick={this.onFactoryReset}>{"Factory Reset"}</Button>
-            <Button hidden={userRestoreHidden} onClick={onUserCfgRestore}>{"User Restore"}</Button>
+            <Button onClick={this.onFactoryReset}>{"Factory Reset"}</Button>
+            <Button onClick={this.onSoftwareReset}>{"Software Reset"}</Button>
+            <Button onClick={this.onHardwareReset}>{"Hardware Reset"}</Button>
+            <Button hidden={advancedConfigDisabled} onClick={this.onFactoryCfgRestore}>{"Full Factory Restore"}</Button>
+            <Button hidden={advancedConfigDisabled} onClick={onUserCfgRestore}>{"Full User Restore"}</Button>
           </ButtonMenu>
+
+          <Label title={"Show Advanced Settings"}>
+            <Toggle
+              onClick={this.onToggleAdvancedConfig}>
+            </Toggle>
+          </Label>
       </Section>
     )
   }

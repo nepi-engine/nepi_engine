@@ -16,6 +16,7 @@ import re
 import errno
 import subprocess
 import sys
+import pytz
 import datetime
 
 
@@ -46,15 +47,18 @@ CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
 CHRONY_CFG_BASENAME = '/opt/nepi/config/etc/chrony/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
 
-FACTORY_TIMEZONE = 'America/Los_Angeles'
+FACTORY_TIMEZONE = 'UTC'
 
 class time_sync_mgr(object):
  
 
-    last_set_time = nepi_ros.ros_time(0.0)
+    last_set_time = 0.0
     ntp_first_sync_time = None
     ntp_status_check_timer = None
 
+    node_if = None
+
+    timezone = FACTORY_TIMEZONE
 
     #######################
     ### Node Initialization
@@ -95,9 +99,7 @@ class time_sync_mgr(object):
         
 
         self.time_status = TimeStatus()
-        tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
-        timezone = nepi_utils.get_timezone_description(tz)
-        self.time_status.timezone_description = timezone
+        self.set_timezone(FACTORY_TIMEZONE)
 
         ##############################
         ### Setup Node
@@ -105,6 +107,7 @@ class time_sync_mgr(object):
         # Configs Config Dict ####################
         self.CFGS_DICT = {
             'init_callback': self.initCb,
+            'system_reset_callback': self.sysResetCb,
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
@@ -125,21 +128,16 @@ class time_sync_mgr(object):
 
 
         # Services Config Dict ####################
-        
-
-        if self.in_container == True:
-            self.SRVS_DICT = None
-        else:
-            self.SRVS_DICT = {
-                'time_status_query': {
-                    'namespace': self.base_namespace,
-                    'topic': 'time_status_query',
-                    'srv': TimeStatusQuery,
-                    'req': TimeStatusQueryRequest(),
-                    'resp': TimeStatusQueryResponse(),
-                    'callback': self.handle_time_status_query
-                }
+        self.SRVS_DICT = {
+            'time_status_query': {
+                'namespace': self.base_namespace,
+                'topic': 'time_status_query',
+                'srv': TimeStatusQuery,
+                'req': TimeStatusQueryRequest(),
+                'resp': TimeStatusQueryResponse(),
+                'callback': self.handle_time_status_query
             }
+        }
 
 
 
@@ -157,22 +155,6 @@ class time_sync_mgr(object):
         if self.in_container == False:
             # Subscribers Config Dict ####################
             self.SUBS_DICT = {
-                'reset': {
-                    'namespace': self.node_namespace,
-                    'topic': 'reset',
-                    'msg': Reset,
-                    'qsize': None,
-                    'callback': self.reset, 
-                    'callback_args': ()
-                },
-                'reset': {
-                    'namespace': self.base_namespace,
-                    'topic': 'reset',
-                    'msg': Reset,
-                    'qsize': None,
-                    'callback': self.reset, 
-                    'callback_args': ()
-                },
                 'add_ntp_server': {
                     'namespace': self.base_namespace,
                     'topic': 'add_ntp_server',
@@ -215,11 +197,14 @@ class time_sync_mgr(object):
                         log_class_name = True
         )
 
+
+
         self.msg_if.pub_warn("Waiting for Node Class Ready")
         ready = self.node_if.wait_for_ready()
         self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
             
-        # Upddate Timezone
+
+        # Upddate Vars
         timezone = self.node_if.get_param('timezone')
         self.set_timezone(timezone)
 
@@ -366,23 +351,6 @@ class time_sync_mgr(object):
             # Restart chrony to allow changes to take effect
             self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
 
-    def reset(self,msg):
-        if Reset.USER_RESET == msg.reset_type:
-            # Nothing to do for a User Reset as config file is always up-to-date
-            self.msg_if.pub_info("Ignoring NTP user-reset NO-OP")
-        elif Reset.FACTORY_RESET == msg.reset_type:
-            self.msg_if.pub_info("Restoring NTP to factory config")
-            self.reset_to_factory_conf()
-        elif Reset.SOFTWARE_RESET == msg.reset_type:
-            self.msg_if.pub_info("Executing soft reset for NTP")
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
-            nepi_ros.signal_shutdown('Shutdown by request')
-        elif Reset.HARDWARE_RESET == msg.reset_type:
-            self.msg_if.pub_info("Executing hard reset for NTP")
-            # TODO: Any hardware restart required?
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
-            nepi_ros.signal_shutdown('Shutdown by request')
-
     def gather_ntp_status_timer_cb(self,event):
         # Just call the implementation method. We don't care about the event payload
         self.gather_ntp_status()
@@ -390,8 +358,9 @@ class time_sync_mgr(object):
 
     def updaterCb(self,timer):
 
-        os.environ['TZ'] = time.strftime('%Z')
-        time.tzset()
+        #os.environ['TZ'] = time.strftime('%Z')
+        #time.tzset()
+
         # Get Last PPS time from the sysfs node
         #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
         pps_exists = False # Hard code if for now, since Jetson isn't defining /sys/class/pps -- we may never actually use PPS
@@ -399,12 +368,12 @@ class time_sync_mgr(object):
             pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
             pps_tokens = pps_string.split('#')
             if (len(pps_tokens) >= 2):
-                self.time_status.last_pps = nepi_ros.ros_time(float(pps_string.split('#')[0]))
+                self.time_status.last_pps = float(pps_string.split('#')[0])
             else:
-                self.time_status.last_pps = nepi_ros.ros_time(0.0)
+                self.time_status.last_pps = 0.0
                 self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
         else: # Failed to find the assert file - just return no PPS
-            self.time_status.last_pps = nepi_ros.ros_time(0.0)
+            self.time_status.last_pps = 0.0
 
 
         ntp_status = self.gather_ntp_status()
@@ -447,33 +416,17 @@ class time_sync_mgr(object):
 
         return ntp_status
 
-    def handle_time_status_query(self,req):
-        start_time = nepi_utils.get_time()
-
-        self.time_status.current_time = nepi_ros.ros_time_now()
-        tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
-        self.time_status.timezone = tz
-        self.time_status.timezone_description = nepi_utils.get_timezone_description(tz)
-        # Last set time (cheater clock sync method)
-        self.time_status.last_set_time = self.last_set_time
-        
-        timezones = nepi_utils.standard_timezones_dict.keys()
-        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.time_status))
-
-        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
-
-        return  { 'time_status': self.time_status, 'available_timezones': timezones }
 
     def set_time(self,msg):
         # TODO: Bounds checking?
         self.msg_if.pub_warn("Got time update msg: " + str(msg))
         update_time = msg.update_time
-        if update_time == True:
+        if update_time == True and self.in_container == False:
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
             timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
             try:
                 subprocess.call(["date", "-s", timestring])
-                self.last_set_time = msg.secs + float(msg.nsecs)/1000000000
+                self.last_set_time = float(msg.secs) + float(msg.nsecs)/1000000000
                 new_date = subprocess.check_output(["date"], text=True)
                 self.msg_if.pub_info("Updated date: " + str(new_date))
             except Exception as e:
@@ -484,55 +437,63 @@ class time_sync_mgr(object):
         if update_timezone == True:
             self.msg_if.pub_info("Setting timezone to: " + msg.timezone)
             self.set_timezone(msg.timezone)
+            self.node_if.save_config()
 
-        # Update the hardware clock from this "better" clock source; helps with RTC drift
-        self.msg_if.pub_info("Updating hardware clock from set_time value")
-        subprocess.call(['hwclock', '-w'])
+        if self.in_container == False:
+            # Update the hardware clock from this "better" clock source; helps with RTC drift
+            self.msg_if.pub_info("Updating hardware clock from set_time value")
+            subprocess.call(['hwclock', '-w'])
 
         # And tell the rest of the system
-        self.informClockUpdate()
-
-        # TODO: Should we use this CTypes call into librt instead?
-    #    import ctypes
-    #    import ctypes.util
-    #    import time
-
-        # /usr/include/linux/time.h:
-        #
-        # define CLOCK_REALTIME             0
-    #    CLOCK_REALTIME = 0
-
-        # /usr/include/time.h
-        #
-        # struct timespec
-        #  {
-        #    __time_t tv_sec;        /* Seconds.  */
-        #    long int tv_nsec;       /* Nanoseconds.  */
-        #  };
-        # Structure for the timespec arg. to librt::clock_settime()
-    #    class timespec(ctypes.Structure):
-    #        _fields_ = [("tv_sec", ctypes.c_long),
-    #                    ("tv_nsec", ctypes.c_long)]
-
-        # Bring in the C-language librt
-    #    librt = ctypes.CDLL(ctypes.util.find_library("rt"))
-
-        # Create a new timespec object
-    #    ts = timespec()
-    #    ts.tv_sec = int(msg.data.secs)
-    #    ts.tv_nsec = int(msg.data.nsecs)
+        #self.informClockUpdate()
 
     def set_timezone(self,timezone):
-        try:
-            subprocess.call(["timedatectl", "set-timezone", timezone])
-            self.msg_if.pub_warn("Updated timezone: " + str(timezone))
-            self.node_if.set_param('timezone',timezone)
-            self.node_if.save_config()
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to update timezone: " + str(e))
-            tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
-            timezone = nepi_utils.get_timezone_description(tz)
-        self.time_status.timezone_description = timezone
+        if self.timezone != timezone:
+            try:
+                self.msg_if.pub_warn("Updating timezone: " + str(timezone))
+                os.environ["TZ"] = timezone
+                time.tzset()
+                self.timezone = timezone
+                if self.node_if is not None:
+                    self.node_if.set_param('timezone',timezone)
+                    self.node_if.save_config()
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to update timezone: " + str(e))
+                tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
+                self.timezone = nepi_utils.get_timezone_description(tz)
+            if self.in_container == False:
+                try:
+                    subprocess.call(["timedatectl", "set-timezone", self.timezone])
+                except:
+                    pass
+
+
+    def handle_time_status_query(self,req):
+        current_time = nepi_utils.get_time()
+        self.time_status.current_time = current_time
+
+        self.time_status.timezone_id = time.strftime('%Z')
+        self.time_status.timezone_description = self.timezone
+
+        tzo = pytz.timezone(self.timezone)
+        now = datetime.datetime.now(tzo) # current date and time
+        dt_str = now.strftime("%m/%d/%Y,%H:%M:%S")
+        self.time_status.date_str = dt_str.split(',')[0]
+        self.time_status.time_str = dt_str.split(',')[1]
+        
+        timezones = nepi_utils.standard_timezones_dict.keys()
+             
+        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.time_status))
+
+        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
+
+        # Last set time (cheater clock sync method)
+        self.time_status.last_set_time = self.last_set_time
+
+
+        return  { 'time_status': self.time_status, 'available_timezones': timezones }
+
+
 
     def initCb(self, do_updates = False):
         pass
@@ -541,7 +502,26 @@ class time_sync_mgr(object):
         pass
 
     def factoryResetCb(self):
-        pass
+        self.msg_if.pub_info("Restoring NTP to factory config")
+        self.reset_to_factory_conf()
+
+
+    def sysResetCb(self,reset_type = 0):
+        if Reset.USER_RESET == reset_type:
+            # Nothing to do for a User Reset as config file is always up-to-date
+            self.msg_if.pub_info("Ignoring NTP user-reset NO-OP")
+        elif Reset.FACTORY_RESET == reset_type:
+            pass # factoryResetCb called by node_if
+        elif Reset.SOFTWARE_RESET == reset_type:
+            self.msg_if.pub_info("Executing soft reset for NTP")
+            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            nepi_ros.signal_shutdown('Shutdown by request')
+        elif Reset.HARDWARE_RESET == reset_type:
+            self.msg_if.pub_info("Executing hard reset for NTP")
+            # TODO: Any hardware restart required?
+            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            nepi_ros.signal_shutdown('Shutdown by request')
+
 
     def informClockUpdate(self):
         self.node_if.publish_pub('sys_time_updated', Empty()) # Make sure to inform the rest of the nodes that the system clock was updated

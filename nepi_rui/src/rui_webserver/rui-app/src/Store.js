@@ -157,11 +157,13 @@ class ROSConnectionStore {
   @observable diskUsagePercent = null
 
   @observable systemStatusTime = null
+  @observable systemStatusTimeStr = null
+  @observable systemStatusDateStr = null
   @observable clockUTCMode = false
   @observable available_timezones = []
   @observable syncTimezone = true
   @observable systemStatusTimezone = null
-  @observable clockTZ = getLocalTZ()
+  @observable clockTZ = this.get_timezone_desc()
   @observable clockNTP = false
   @observable clockPPS = false
 
@@ -676,7 +678,7 @@ class ROSConnectionStore {
       var last_element = topic_name_parts.pop()
       var topic_base = topic_name_parts.join("/")
       if (
-        last_element === "reset" &&
+        last_element === "system_reset" &&
         this.topicTypes[i] === "nepi_ros_interfaces/Reset"
       ) {
         newResetTopics.push(topic_base)
@@ -1844,8 +1846,10 @@ class ROSConnectionStore {
       this.available_timezones = this.timeStatus.available_timezones
       // if last_pps – current_time < 1 second no sync has happened
       this.clockPPS = true
-      const lastPPSTS = moment.unix(this.timeStatus.time_status.last_pps.secs).unix()
-      this.systemStatusTime = moment.unix(this.timeStatus.time_status.current_time.secs)
+      const lastPPSTS = moment.unix(this.timeStatus.time_status.last_pps).unix()
+      this.systemStatusTime = moment.unix(this.timeStatus.time_status.current_time)
+      this.systemStatusTimeStr =this.timeStatus.time_status.time_str
+      this.systemStatusDateStr = this.timeStatus.time_status.date_str
       this.systemStatusTimezone = this.timeStatus.time_status.timezone
       this.systemStatusTimezoneDesc = this.timeStatus.time_status.timezone_description
       const currTS = this.systemStatusTime && this.systemStatusTime.unix()
@@ -1959,12 +1963,7 @@ class ROSConnectionStore {
     })
   }
 
-  @action.bound
-  onToggleClockUTCMode() {
-    this.clockUTCMode = !this.clockUTCMode
-    const timezone = getLocalTZ()
-    this.clockTZ = timezone.replace(' ','_')
-  }
+
 
   @action.bound
   onToggleSyncTimezone() {
@@ -1973,6 +1972,20 @@ class ROSConnectionStore {
     if (new_val === true){
       this.onSyncTimezone()
     }
+  }
+
+
+  get_timezone_desc(){
+    var timezone = getLocalTZ()
+    timezone = timezone.replace(' ','_')
+    return timezone
+  }
+
+
+  @action.bound
+  onToggleClockUTCMode() {
+    this.clockUTCMode = !this.clockUTCMode
+    this.clockTZ = this.get_timezone_desc()
   }
 
   @action.bound
@@ -1985,7 +1998,7 @@ class ROSConnectionStore {
           secs: 0,
           nsecs: 0,
           update_timezone: true,
-          timezone:  this.clockTZ
+          timezone: this.get_timezone_desc()
       }
     })
   }
@@ -2023,7 +2036,7 @@ class ROSConnectionStore {
 
 
   @action.bound
-  onSyncUTCToDevice() {
+  syncTime2Device() {
     const utcTS = moment.utc()
       .unix()
     this.publishMessage({
@@ -2031,7 +2044,41 @@ class ROSConnectionStore {
       messageType: "nepi_ros_interfaces/TimeUpdate",
       data: {
           update_time: true,
-          secs: utcTS,
+          secs: Math.floor(utcTS),
+          nsecs: 0,
+          update_timezone: false,
+          timezone:  ''
+      }
+    })
+  }
+
+
+  @action.bound
+  syncTz2Device() {
+    this.clockTZ = this.get_timezone_desc()
+    this.publishMessage({
+      name: "set_time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
+      data: {
+          update_time: false,
+          secs: 0,
+          nsecs: 0,
+          update_timezone: true,
+          timezone:  this.clockTZ
+      }
+    })
+  }
+
+  @action.bound
+  syncTimeTz2Device() {
+    const utcTS = moment.utc().unix()
+    this.clockTZ = this.get_timezone_desc()
+    this.publishMessage({
+      name: "set_time",
+      messageType: "nepi_ros_interfaces/TimeUpdate",
+      data: {
+          update_time: true,
+          secs: Math.floor(utcTS),
           nsecs: 0,
           update_timezone: true,
           timezone:  this.clockTZ
@@ -2204,6 +2251,16 @@ class ROSConnectionStore {
     })
   }
 
+  @action.bound
+  onToggleSaveUTCAll(value) {
+      this.publishMessage({
+      name: "save_data_utc",
+      messageType: "std_msgs/Bool",
+      data: {data: value},
+      noPrefix: true
+    })
+  }
+
 
 
   @action.bound
@@ -2218,7 +2275,7 @@ class ROSConnectionStore {
       name: "save_data_rate",
       messageType: "nepi_ros_interfaces/SaveDataRate",
       data: {
-        data_product: "all",
+        data_product: "Active",
         save_rate_hz: freq,
       }
     })
@@ -2258,11 +2315,13 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  resetCfg({baseTopic, resetVal}) {
+  systemReset(baseTopic, reset_type) {
     this.publishMessage({
-      name: baseTopic + "/reset",
+      name: baseTopic + "/factory_reset_config",
       messageType: "nepi_ros_interfaces/Reset",
-      data: { reset_type: resetVal },
+      data: {
+        reset_type: reset_type
+      },
       noPrefix: true
     })
   }
@@ -2271,6 +2330,15 @@ class ROSConnectionStore {
   onUserCfgRestore() {
     this.publishMessage({
       name: "full_user_restore",
+      messageType: "std_msgs/Empty",
+      data: {}
+    })
+  }
+
+  @action.bound
+  onFactoryCfgRestore() {
+    this.publishMessage({
+      name: "full_factory_restore",
       messageType: "std_msgs/Empty",
       data: {}
     })
