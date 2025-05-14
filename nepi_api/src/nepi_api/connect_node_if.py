@@ -21,6 +21,7 @@ from std_srvs.srv import Empty as EmptySrv
 from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
+from nepi_ros_interfaces.msg import Reset
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF
@@ -79,6 +80,7 @@ class ConnectNodeConfigsIF:
         self.save_pub = nepi_ros.create_publisher('~save_config', Empty, queue_size=1) 
         self.reset_pub = nepi_ros.create_publisher('~reset_config', Empty, queue_size=1) 
         self.factory_reset_pub = nepi_ros.create_publisher('~factory_reset_config', Empty, queue_size=1) 
+        self.sys_reset_pub = nepi_ros.create_publisher('~system_reset', Reset, queue_size=1)
 
         ##############################  
         # Complete Initialization Process
@@ -128,8 +130,7 @@ class ConnectNodeConfigsIF:
         success = False
         if self.reset_pub is not None:
             try:
-                msg = Reset()
-                msg.reset_type = Reset.USER_RESET
+                msg = Empty()
                 self.reset_pub.publish(msg)
                 success = True
             except Exception as e:
@@ -138,15 +139,65 @@ class ConnectNodeConfigsIF:
 
     def factory_reset(self):
         success = False
-        if self.reset_pub is not None:
+        if self.factory_reset_pub is not None:
             try:
-                msg = Reset()
-                msg.reset_type = Reset.FACTORY_RESET
-                self.reset_pub.publish(msg)
+                msg = Empty()
+                self.factory_reset_pub.publish(msg)
                 success = True
             except Exception as e:
                 self.msg_if.pub_warn("Failed send config reset: "  + str(e))
         return success
+
+    def system_user_reset(self):
+        success = False
+        if self.sys_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.USER_RESET
+                self.sys_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+        return success
+
+    def system_factory_reset(self):
+        success = False
+        if self.sys_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.FACTORY_RESET
+                self.sys_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+        return success
+
+    def system_software_reset(self):
+        success = False
+        if self.sys_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.SOFTWARE_RESET
+                self.sys_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+        return success
+
+    def system_hardware_reset(self):
+        success = False
+        if self.sys_reset_pub is not None:
+            try:
+                msg = Reset()
+                msg.reset_type = Reset.HARDWARE_RESET
+                self.sys_reset_pub.publish(msg)
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+        return success
+
+
+
 
     def unregister_save_if(self): 
         success = False
@@ -158,6 +209,9 @@ class ConnectNodeConfigsIF:
             try:
                 self.save_pub.unregister()
                 self.reset_pub.unregister()
+                self.factory_reset_pub.unregister()
+                self.syst_reset_pub.unregister()
+
 
                 success = True
             except:
@@ -166,6 +220,8 @@ class ConnectNodeConfigsIF:
             self.ready = False
             self.save_pub = None
             self.reset_pub = None
+            self.factory_reset_pub = None
+            self.sys_reset_pub = None
             self.namespace = None
         return success       
 

@@ -375,13 +375,12 @@ class ROSConnectionStore {
         } else {
           this.ros.connect(ROS_WS_URL)
         }
+        //update the topics periodically
+        this.updateTopics()
       } catch (e) {
         console.error(e)
       }
     }
-
-    // update the topics periodically
-    this.updateTopics()
 
     if (this.rosAutoReconnect) {
       setTimeout(async () => {
@@ -391,14 +390,15 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  updateTopics() {
+  async updateTopics() {
     // topicQueryLock is used so we don't call getTopics many times
     // while witing for it to return.  With many topics on a slow
     // target it takes a few seconds to retrun.
-    if (this.ros && !this.connectedToROS && !this.rosCheckStarted){
-      this.checkROSConnection()
-    }
-    else if (this.ros && !this.topicQueryLock && this.connectedToROS) {
+    //if (this.ros && !this.connectedToROS && !this.rosCheckStarted){
+    //  this.checkROSConnection()
+    //}
+    //else if (this.ros && !this.topicQueryLock && this.connectedToROS) {
+    if (this.ros && !this.topicQueryLock && this.connectedToROS) {
       this.topicQueryLock = true
       this.ros.getTopics(result => {
         this.topicNames = result.topics
@@ -422,6 +422,11 @@ class ROSConnectionStore {
         this.topicQueryLock = false
       })
     }
+
+    setTimeout(async () => {
+      await this.updateTopics()
+    }, 2000)
+
   }
 
   validPrefix() {
@@ -1656,7 +1661,7 @@ class ROSConnectionStore {
       })
 
       if (this.connectedToROS) {
-        setTimeout(_pollOnce, 3000)
+        setTimeout(_pollOnce, 1000)
       }
     }
 

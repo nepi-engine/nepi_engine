@@ -1043,7 +1043,10 @@ class SystemMgrNode():
 
     def provide_op_environment(self, req):
         # Just proxy the param server
-        return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
+        if self.node_if is not None:
+            return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
+        else:
+            return OpEnvironmentQueryResponse(OpEnvironmentQueryResponse.OP_ENV_AIR)
     
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data

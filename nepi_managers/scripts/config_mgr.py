@@ -45,15 +45,13 @@ SYS_CFGS_TO_PRESERVE = {
     'authorized_keys' : '/opt/nepi/config/home/nepi/ssh/authorized_keys', # NEPI Device SSH public keys
     'hostname' : '/opt/nepi/config/etc/hostname', # NEPI Device hostname
     'sshd_config' : '/opt/nepi/config/etc/ssh/sshd_config', # SSH Server Config
-    'chrony.conf' : '/opt/nepi/config/etc/chrony/chrony.conf.user', # NTP/Chrony Config
-    'iptables.rules' : '/opt/nepi/config/etc/iptables/s2x_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
-    'sensor_if_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/s2x_sensor_if_static_ip', # Static IP address for secondary/sensor ethernet interface
-    'ip_aliases' : '/opt/nepi/config/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
-    'static_ip' : '/opt/nepi/config/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
+    'chrony.conf.user' : '/opt/nepi/config/etc/chrony/chrony.conf.user', # NTP/Chrony Config
+    's2x_iptables.rules' : '/opt/nepi/config/etc/iptables/s2x_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
+    's2x_sensor_if_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/s2x_sensor_if_static_ip', # Static IP address for secondary/sensor ethernet interface
+    'nepi_user_ip_aliases' : '/opt/nepi/config/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
+    'nepi_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
     'fstab' : '/opt/nepi/config/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
-    'smb.conf' : '/opt/nepi/config/etc/samba/smb.conf', # Samba configuration
-    'nepi_connect_cfg' : '/opt/nepi/nepi_link/nepi-bot/devinfo/', # NEPI Connect Device NUID, SSH keys, etc.
-    'nepi_connect_bot_cfg.json' : '/opt/nepi/nepi_link/nepi-bot/cfg/bot/config.json' # NEPI Connect device (nepi-bot) config file
+    'smb.conf' : '/opt/nepi/config/etc/samba/smb.conf'
 }
 
 class config_mgr(object):
@@ -144,7 +142,15 @@ class config_mgr(object):
                 'topic': 'save_config',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.save_non_ros_cfgs, 
+                'callback': self.save_non_ros_cfgs_Cb, 
+                'callback_args': ()
+            },
+            'save_system_config': {
+                'namespace': self.base_namespace,
+                'topic': 'save_system_config',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.save_non_ros_cfgs_Cb, 
                 'callback_args': ()
             },
             'store_params': {
@@ -160,7 +166,7 @@ class config_mgr(object):
                 'topic': 'full_user_restore',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.restore_user_cfgs_mgr, 
+                'callback': self.restore_user_cfgs_all, 
                 'callback_args': ()
             },
             'full_factory_restore': {
@@ -168,7 +174,7 @@ class config_mgr(object):
                 'topic': 'full_user_restore',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.restore_factory_cfgs_mgr, 
+                'callback': self.restore_factory_cfgs_all, 
                 'callback_args': ()
             }
         }
@@ -198,7 +204,10 @@ class config_mgr(object):
 
         # Restore user configurations
         self.restore_user_cfgs()
-        self.msg_if.pub_warn("System user config files restored")
+        self.msg_if.pub_warn("System & User config files restored")
+        time.sleep(1)
+        self.save_non_ros_cfgs()
+        self.msg_if.pub_warn("System config files saved")
         
         self.node_if.publish_pub('status_pub', Empty())
 
@@ -325,7 +334,11 @@ class config_mgr(object):
             if os.path.islink(cfg_pathname):
                 self.symlink_force(user_cfg_pathname, cfg_pathname) # Error logged upstream
 
-    def save_non_ros_cfgs(self,msg):
+    def save_non_ros_cfgs_Cb(self,msg):
+        self.save_non_ros_cfgs()
+
+
+    def save_non_ros_cfgs(self):
         target_dir = os.path.join(USER_CFG_PATH, 'sys')
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
@@ -350,8 +363,10 @@ class config_mgr(object):
     def factoryResetCb(self):
         pass
 
-    def restore_user_cfgs_mgr(self,msg):
+    def restore_user_cfgs_all(self,msg):
         self.restore_user_cfgs()
+        time.sleep(1)
+        os.system('reboot')
 
     def restore_user_cfgs(self):
         # First handle the NEPI-ROS user configs.
@@ -383,28 +398,59 @@ class config_mgr(object):
 
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
+                    self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
                     file_lines = []
                     with open(target, "r") as f:
                         for line in f:
+                            #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
-                                file_lines.append("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE + '\n')
+                                self.msg_if.pub_warn("Found sys_env Package line")
+                                update_line = ("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE + '\n')
+                                self.msg_if.pub_warn("Update sys_env Package line: " + update_line)
                             else:
-                                file_lines.append(line)
-                    tmp_filename = full_name + ".tmp"
+                                update_line = line
+                            #self.msg_if.pub_info("Update sys_env line: " + update_line)
+                            file_lines.append(update_line)
+                    tmp_filename = target + ".tmp"
                     with open(tmp_filename, "w") as f:
                         for line in file_lines:
                             f.write(line)
-
+                    bak_filename = target + ".bak"
+                    os.system('cp -rf ' + tmp_filename + ' ' + bak_filename)
+                    os.system('cp -rf ' + tmp_filename + ' ' + target)
+                    os.system('rm ' + tmp_filename)
                 os.system('chown -R nepi:nepi ' + target)
-        # Send global init command
-        self.node_if.publish_pub('init_config',Empty())
 
-    def restore_factory_cfgs_mgr(self,msg):
-        self.restore_user_cfgs()
+
+    def restore_factory_cfgs_all(self,msg):
+        self.restore_factory_cfgs()
+        time.sleep(1)
+        os.system('reboot')
 
     def restore_factory_cfgs(self):
-        # Send global init command
-        self.node_if.publish_pub('init_config',Empty())
+        # First handle the NEPI-ROS user configs.
+        for root, dirs, files in os.walk(USER_CFG_PATH):
+            for name in files:
+                full_name = os.path.join(root, name)
+                if full_name.endswith(USER_SUFFIX) and os.path.islink(full_name):
+                    #self.msg_if.pub_warn("Will attempt to update link for " + full_name)
+                    factory_cfg_name = os.path.join(NEPI_CFG_PATH, 'ros', name + CFG_SUFFIX)
+                    #self.msg_if.pub_warn("Looking for user config file: " + factory_cfg_name)
+                    if os.path.exists(factory_cfg_name): # Restrict to those with present user configs
+                        link_name = full_name
+                        self.msg_if.pub_info("Updating " + link_name + " to user config: " + factory_cfg_name)
+                        self.symlink_force(factory_cfg_name, link_name)
+                    else:
+                    	self.msg_if.pub_info("User config file does not exist at " + factory_cfg_name)    
+                        #pass
+                os.system('rm ' + full_name)
+
+        # Now handle non-ROS user system configs.        
+        for name in SYS_CFGS_TO_PRESERVE.keys():
+            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(full_name):
+                os.system('rm ' + full_name)
+                
 
 if __name__ == '__main__':
     config_mgr()

@@ -265,6 +265,7 @@ class NepiSystemDevice extends Component {
         <Label title={"Issue Date"}>
           <Input value={license_issue_date} disabled={true}/>
         </Label>
+        {/*
         <Label title={"Issue Version"}>
           <Input value={license_issue_version} disabled={true}/>
         </Label>
@@ -280,6 +281,7 @@ class NepiSystemDevice extends Component {
           </Label>
           : null
         }
+      */}
       </div>
     )
   }
@@ -331,8 +333,8 @@ class NepiSystemDevice extends Component {
           <Input value={license_type} disabled={true}/>
         </Label>
 
-        <div hidden={license_type === "Unlicensed"}> 
-        <pre style={{ height: "88px", overflowY: "auto" }}>
+        <div hidden={license_type !== "Unlicensed"}> 
+        <pre style={{ height: "25px", overflowY: "auto" }}>
             {"No Commercial License Found. Valid for development purposes only"}
           </pre>
         </div>
@@ -447,6 +449,9 @@ class NepiSystemDevice extends Component {
   renderNetworkInfo() {
     const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
     const { ipAddrVal } = this.state
+    const { wifi_query_response } = this.props.ros
+    const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
+    const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to use DHCP"
     
     return (
       <Section title={"Ethernet"}>
@@ -461,16 +466,12 @@ class NepiSystemDevice extends Component {
         <div hidden={systemInContainer === true}>  
 
         <Label title={"Device IP Addresses"}>
-          <pre style={{ height: "88px", overflowY: "auto" }}>
+          <pre style={{ height: "75px", overflowY: "auto" }}>
             {(ip_query_response !== null)? ip_query_response.ip_addrs.join('\n') : ""}
           </pre>
         </Label>
-        <Label title={"DHCP Enabled"}>
-          <Toggle
-            checked={(ip_query_response !== null)? ip_query_response.dhcp_enabled : false}
-            onClick= {onToggleDHCPEnabled}
-          />
-        </Label>
+
+
 
 
         <Label>
@@ -480,6 +481,28 @@ class NepiSystemDevice extends Component {
           <Button onClick={this.onAddButtonPressed}>{"Add"}</Button>
           <Button onClick={this.onRemoveButtonPressed}>{"Remove"}</Button>
         </ButtonMenu>
+
+        <Columns>
+      <Column>
+
+      <div hidden={clock_skewed === false}> 
+
+        <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
+            {message}
+          </pre>
+
+          </div>
+
+          </Column>
+      </Columns>
+
+          <Label title={"DHCP Enable"}>
+                <Toggle
+                  checked={(ip_query_response !== null)? ip_query_response.dhcp_enabled : false}
+                  onClick= {onToggleDHCPEnabled}
+                />
+              </Label>
+
 
 
 
@@ -516,19 +539,36 @@ class NepiSystemDevice extends Component {
     const ap_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_ap_ssid : ""
     const ap_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_ap_passphrase : ""
     const available_networks = (wifi_query_response !== null)? wifi_query_response.available_networks : []
-    
+
+    const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
+    const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to Connect to Internet"
     return (
       <Section title={"WiFi"}>
         <div hidden={systemInContainer === false}> 
 
-        <pre style={{ height: "88px", overflowY: "auto" }}>
+        <pre style={{ height: "50px", overflowY: "auto" }}>
           {"NEPI Running in Container Mode.  WiFi configuration set by host system"}
         </pre>
       </div>
+
       <div hidden={systemInContainer === true}> 
+
+      <Columns>
+          <Column>
+          <div hidden={clock_skewed === false && wifi_enabled === true}> 
+
+            <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
+                {message}
+              </pre>
+
+          </div>
+          </Column>
+        </Columns>
+
+
         <Columns>
           <Column>
-            <Label title={"Client Enabled"} marginTop={Styles.vars.spacing.medium}>
+            <Label title={"WiFi Enable"}>
               <Toggle
                 checked={wifi_enabled}
                 onClick= {onToggleWifiClientEnabled}
@@ -536,6 +576,7 @@ class NepiSystemDevice extends Component {
             </Label>
           </Column>
           <Column>
+
             <Label title={"Connected"}>
               <BooleanIndicator value={(wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false} />
             </Label>
@@ -578,7 +619,7 @@ class NepiSystemDevice extends Component {
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
         <Columns>
           <Column>
-            <Label title={"Access Point Enabled"} >
+            <Label title={"Access Point Enable"} >
               <Toggle
                 checked={(wifi_query_response !== null)? wifi_query_response.wifi_ap_enabled : false}
                 onClick= {onToggleWifiAPEnabled}
@@ -664,6 +705,7 @@ class NepiSystemDevice extends Component {
 
   createConfigSubsysOptions(resetTopics) {
     var subsys_options = []
+    subsys_options.push(<Option value={resetTopics[0]}>{'All'}</Option>)
     for (var i = 1; i < resetTopics.length; i++) { // Skip the first one -- it is global /numurus/dev_3dx/<s/n>
       var node_name = resetTopics[i].split("/").pop()
       subsys_options.push(<Option value={resetTopics[i]}>{node_name}</Option>)
@@ -692,10 +734,10 @@ class NepiSystemDevice extends Component {
             <Button onClick={this.onSaveCfg}>{"Save"}</Button>
             <Button onClick={this.onUserReset}>{"Reset"}</Button>
             <Button onClick={this.onFactoryReset}>{"Factory Reset"}</Button>
+            {/*
             <Button onClick={this.onSoftwareReset}>{"Software Reset"}</Button>
             <Button onClick={this.onHardwareReset}>{"Hardware Reset"}</Button>
-            <Button hidden={advancedConfigDisabled} onClick={this.onFactoryCfgRestore}>{"Full Factory Restore"}</Button>
-            <Button hidden={advancedConfigDisabled} onClick={onUserCfgRestore}>{"Full User Restore"}</Button>
+          */}
           </ButtonMenu>
 
           <Label title={"Show Advanced Settings"}>
@@ -703,6 +745,12 @@ class NepiSystemDevice extends Component {
               onClick={this.onToggleAdvancedConfig}>
             </Toggle>
           </Label>
+
+          <ButtonMenu>
+            <Button hidden={advancedConfigDisabled} onClick={this.onFactoryCfgRestore}>{"Full Factory Restore"}</Button>
+            <Button hidden={advancedConfigDisabled} onClick={onUserCfgRestore}>{"Full User Restore"}</Button>
+          </ButtonMenu>
+
       </Section>
     )
   }
@@ -710,6 +758,7 @@ class NepiSystemDevice extends Component {
   render() {
     const { wifi_query_response } = this.props.ros
     const has_wifi = wifi_query_response? wifi_query_response.has_wifi : false
+    const internet_connected = (wifi_query_response !== null)? wifi_query_response.internet_connected : false
 
     return (
       <Columns>
@@ -720,11 +769,26 @@ class NepiSystemDevice extends Component {
           {this.renderConfiguration()}
         </Column>
         <Column>
-          <Label title={"Internet Connected"}>
-            <BooleanIndicator value={(wifi_query_response !== null)? wifi_query_response.internet_connected : false} />
-          </Label>
+
+
+            <Columns>
+            <Column>
+
+              <Label title={"Internet Connected"}>
+                <BooleanIndicator value={internet_connected} />
+              </Label>
+
+
+              </Column>
+            <Column>
+
+
+            </Column>
+            </Columns>
+
           {this.renderNetworkInfo()}
           {has_wifi? this.renderWifiInfo(): null}
+
         </Column>
       </Columns>
     )
