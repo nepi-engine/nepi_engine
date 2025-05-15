@@ -157,13 +157,14 @@ class SaveDataIF:
         for data_product in data_products:
             save_rate = 0.0
             last_time = 0.0
-            max_rate = 100,0
+            max_rate = 100.0
             save_rate_entry = [save_rate, last_time, max_rate]
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
                     save_rate = factory_rate_dict[data_product]
-            save_rate_dict[data_product] = save_rate
-            self.snapshot_dict['data_product'] = False
+            save_rate_entry[0] = save_rate
+            save_rate_dict[data_product] = save_rate_entry
+            self.snapshot_dict[data_product] = False
         
         
             
