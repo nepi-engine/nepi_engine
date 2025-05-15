@@ -144,6 +144,7 @@ class SaveDataIF:
         # Setup System Manager IF Class
         ready = self.sys_srv_if.wait_for_ready()
         self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
+        
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
             self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled")
@@ -178,17 +179,17 @@ class SaveDataIF:
         last_time = 0.0
         max_rate = 100,0
         for data_product in data_products:
+            save_rate = 0.0
+            last_time = 0.0
+            max_rate = 100.0
+            save_rate_entry = [save_rate, last_time, max_rate]
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
-                    save_rate_entry = factory_rate_dict[data_product]
-                else:
-                    save_rate_entry = [save_rate, last_time, max_rate]
-            else:
-                save_rate_entry = [save_rate, last_time, max_rate]
+                    save_rate = factory_rate_dict[data_product]
+            save_rate_entry[0] = save_rate
             save_rate_dict[data_product] = save_rate_entry
             self.snapshot_dict[data_product] = False
-        self.save_rate_dict = save_rate_dict
-        self.msg_if.pub_warn("Init save rate dict: " + str(self.save_rate_dict))
+        
         
             
 
