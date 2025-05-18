@@ -15,13 +15,15 @@ import Label from "./Label"
 import Select, { Option } from "./Select"
 import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
-import CameraViewer from "./CameraViewer"
-import NepiRobotControls from "./NepiControlsRobotsControls"
-import NepiRobotMessages from "./NepiControlsRobotsMessages"
+
 import Input from "./Input"
 import Styles from "./Styles"
 
-import NepiDeviceInfo from "./NepiDeviceInfo"
+import NepiDeviceControls from "./NepiDeviceRBX-Controls"
+import NepiDeviceMessages from "./NepiDeviceRBX-Info"
+
+import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
+import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
@@ -34,7 +36,7 @@ import {  createShortValuesFromNamespaces, createMenuListFromStrList, onDropdown
 @observer
 
 // ControlsRBX Application page
-class NepiControlsRobots extends Component {
+class NepiDeviceRBX extends Component {
   constructor(props) {
     super(props)
 
@@ -77,7 +79,7 @@ class NepiControlsRobots extends Component {
 
 
       currentRBXNamespace: null,
-      currentRBXNamespaceText: "No robot selected",
+      currentRBXNamespaceText: "No device selected",
 
       rbxInfoListener: null
     }
@@ -146,7 +148,7 @@ class NepiControlsRobots extends Component {
   
   // Function for configuring and subscribing to Status
   updateInfoListener() {
-    const robotNamespace = this.state.currentRBXNamespace
+    const deviceNamespace = this.state.currentRBXNamespace
 
     if (this.state.rbxInfoListener) {
       this.state.rbxInfoListener.unsubscribe()
@@ -158,7 +160,7 @@ class NepiControlsRobots extends Component {
       })
     }
     var listener = this.props.ros.setupStatusListener(
-          robotNamespace + "/info" ,
+          deviceNamespace + "/info" ,
           "nepi_ros_interfaces/RBXInfo",
           this.infoListener
         )
@@ -207,9 +209,11 @@ class NepiControlsRobots extends Component {
 
     var items = []
     items.push(<Option>{"None"}</Option>)
-    var unique_names = createShortValuesFromNamespaces(filteredTopics)
+    //var unique_names = createShortUniqueValues(filteredTopics)
+    var device_name = ""
     for (i = 0; i < filteredTopics.length; i++) {
-      items.push(<Option value={filteredTopics[i]}>{unique_names[i]}</Option>)
+      device_name = filteredTopics[i].split('/rbx')[0].split('/').pop()
+      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
     // Check that our current selection hasn't disappeard as an available option
     const { currentRBXNamespace } = this.state
@@ -220,7 +224,7 @@ class NepiControlsRobots extends Component {
     return items
   }
 
-  createImageOptions(RBXRobotNamespace) {
+  createImageOptions(RBXDeviceNamespace) {
     var items = []
     items.push(<Option>{"None"}</Option>)
 
@@ -229,7 +233,7 @@ class NepiControlsRobots extends Component {
 
     for (var i = 0; i < image_topics.length; i++) {
       const topic = image_topics[i]
-      if (topic.startsWith(RBXRobotNamespace) === true || topic.includes('zed_node') === true) {
+      if (topic.startsWith(RBXDeviceNamespace) === true || topic.includes('zed_node') === true) {
         continue
       }
       img_topics.push(topic)
@@ -245,7 +249,7 @@ class NepiControlsRobots extends Component {
   clearTopicRBXSelection() {
     this.setState({
       currentRBXNamespace: null,
-      currentRBXNamespaceText: "No robot selected",
+      currentRBXNamespaceText: "No device selected",
       imageText_0: null,
     })
   }
@@ -309,19 +313,19 @@ class NepiControlsRobots extends Component {
     }
 
 
-    renderSensorSelection() {
+    renderDeviceSelection() {
       const { rbxDevices, sendTriggerMsg, sendStringMsg, sendBoolMsg, saveConfigTriggered, sendGeoPointMsg } = this.props.ros
       const NoneOption = <Option>None</Option>
-      const robotSelected = (this.state.currentRBXNamespace != null)
+      const deviceSelected = (this.state.currentRBXNamespace != null)
       const has_fake_gps = (this.state.rbx_capabilities !== null)? this.state.rbx_capabilities.has_fake_gps : false
   
       return (
         <React.Fragment>
-        <Section title={"Robot Slection and Configuration"}>
+        <Section title={"Device Slection and Configuration"}>
           <Columns>
             <Column>
   
-              <Label title={"Robot"}>
+              <Label title={"Device"}>
                     <Select
                       onChange={this.onTopicRBXSelected}
                       value={this.state.currentRBXNamespace}
@@ -339,7 +343,7 @@ class NepiControlsRobots extends Component {
   
   
   
-          <div align={"left"} textAlign={"left"} hidden={!robotSelected}>
+          <div align={"left"} textAlign={"left"} hidden={!deviceSelected}>
   
   
               <Columns>
@@ -510,7 +514,7 @@ class NepiControlsRobots extends Component {
 
              <Label title={"Set Mode"}>
              <Select
-               id="robot_mode"
+               id="device_mode"
                onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,this.state.currentRBXNamespace + "/set_mode")}
                value={current_mode}
              >
@@ -521,7 +525,7 @@ class NepiControlsRobots extends Component {
 
              <Label title={"Set State"}>
              <Select
-               id="robot_state"
+               id="device_state"
                onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,this.state.currentRBXNamespace + "/set_state")}
                value={current_state}
              >
@@ -560,7 +564,7 @@ class NepiControlsRobots extends Component {
       <React.Fragment>
         <Columns>
           <Column equalWidth={false}>
-            <CameraViewer
+            <ImageViewer
               imageTopic={this.state.image_topic}
               title={""}
               hideQualitySelector={false}
@@ -574,26 +578,26 @@ class NepiControlsRobots extends Component {
 
   render() {
     const { sendTriggerMsg} = this.props.ros
-    const robotSelected = (this.state.currentRBXNamespace != null)
+    const deviceSelected = (this.state.currentRBXNamespace != null)
     const namespace = this.state.currentRBXNamespace
     return (
       <Columns>
         <Column>
 
-        <div hidden={(!robotSelected)}>
+        <div hidden={(!deviceSelected)}>
             <NepiDeviceInfo
                   deviceNamespace={namespace}
                   status_topic={"/info"}
                   status_msg_type={"nepi_ros_interfaces/RBXInfo"}
                   name_update_topic={"/update_device_name"}
                   name_reset_topic={"/reset_device_name"}
-                  title={"NepiRobotInfo"}
+                  title={"Device Info"}
               />
           </div>
 
           {this.renderImageViewer()}
 
-          <div hidden={(!robotSelected)}>
+          <div hidden={(!deviceSelected)}>
 
             <NepiIFSaveData
                 saveNamespace={namespace}
@@ -602,22 +606,22 @@ class NepiControlsRobots extends Component {
           </div>
 
 
-          <div hidden={(!robotSelected && this.state.show_controls)}>
-            <NepiRobotMessages
+          <div hidden={(!deviceSelected && this.state.show_controls)}>
+            <NepiDeviceMessages
                 rbxNamespace={namespace}
-                title={"NepiRobotMessages"}
+                title={"Device Messages"}
             />
           </div>
 
         </Column>
         <Column>
-          {this.renderSensorSelection()}
+          {this.renderDeviceSelection()}
 
-          <div hidden={(!robotSelected && this.state.show_controls)}>
+          <div hidden={(!deviceSelected && this.state.show_controls)}>
           {this.renderSetupControls()}
           </div>
 
-          <div hidden={(!robotSelected)}>
+          <div hidden={(!deviceSelected)}>
 
           <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -652,14 +656,14 @@ class NepiControlsRobots extends Component {
           </div>
 
 
-          <div hidden={(!robotSelected && this.state.show_controls)}>
-            <NepiRobotControls
+          <div hidden={(!deviceSelected && this.state.show_controls)}>
+            <NepiDeviceControls
                 rbxNamespace={namespace}
-                title={"NepiRobotControls"}
+                title={"Device Controls"}
             />
           </div>
 
-          <div hidden={(!robotSelected && this.state.show_settings)}>
+          <div hidden={(!deviceSelected && this.state.show_settings)}>
             <NepiIFSettings
               settingsNamespace={namespace + ''}
               title={"Nepi_IF_Settings"}
@@ -672,4 +676,4 @@ class NepiControlsRobots extends Component {
   }
 }
 
-export default NepiControlsRobots
+export default NepiDeviceRBX

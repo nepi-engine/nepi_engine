@@ -20,7 +20,7 @@ import BooleanIndicator from "./BooleanIndicator"
 import Styles from "./Styles"
 import {createShortUniqueValues} from "./Utilities"
 
-import NepiMessagesSelector from "./NepiMessagesSelector"
+import NepiMessagesSelector from "./NepiSelectorMessages"
 
 
 // TODO: This is redundant with the one defined in APP.js

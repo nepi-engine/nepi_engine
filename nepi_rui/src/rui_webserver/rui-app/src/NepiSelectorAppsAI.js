@@ -14,12 +14,12 @@ import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
 import AiDetectorMgr from "./NepiMgrAiDetector"
-import AiSegmentorMgr from "./NepiMgrAiSegmentor"
-import AiPoserMgr from "./NepiMgrAiPoser"
-import AiOrientatorMgr from "./NepiMgrAiOrientator"
+//import AiSegmentorMgr from "./NepiMgrAiSegmentor"
+//import AiPoserMgr from "./NepiMgrAiPoser"
+//import AiOrientatorMgr from "./NepiMgrAiOrientator"
 import AifsMgr from "./NepiSystemAIFs"
 
-import AppRender from "./AppRender"
+import AppRender from "./Nepi_IF_Apps"
 
 
 
@@ -350,6 +350,7 @@ class AppsAiSelector extends Component {
         </React.Fragment>
       )
     }
+    {/*
     if (sel_app === "AI Segmentor"){
       return (
         <React.Fragment>
@@ -404,6 +405,7 @@ class AppsAiSelector extends Component {
         </React.Fragment>
       )
     }
+  */}
     if (sel_app === "AI Model Manager"){
       return (
         <React.Fragment>
@@ -422,7 +424,6 @@ class AppsAiSelector extends Component {
         </React.Fragment>
       )
     }
-
     else if (appNameList.indexOf(sel_app) !== -1){
      return (
         <AppRender

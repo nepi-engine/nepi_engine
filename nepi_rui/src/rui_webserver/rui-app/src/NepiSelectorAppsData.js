@@ -6,6 +6,7 @@
  *
  * License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
  */
+
 import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
@@ -13,14 +14,16 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import AutomationMgr from "./NepiMgrAutomation"
+import NepiDashboardData from "./NepiDashboardData"
 
-import AppRender from "./AppRender"
+import AppRender from "./Nepi_IF_Apps"
+
 
 @inject("ros")
 @observer
 
-class AppsAutoSelector extends Component {
+// Pointcloud Application page
+class AppsDataSelector extends Component {
   constructor(props) {
     super(props)
 
@@ -38,7 +41,7 @@ class AppsAutoSelector extends Component {
       apps_install_list: [],
       selected_app: 'NONE',
 
-      apps_rui_list: null,
+      apps_rui_list: [],
       apps_group_list: [],
 
       app_name: 'NONE',
@@ -53,9 +56,9 @@ class AppsAutoSelector extends Component {
 
       appsListener: null,
       appListener: null,
-
       selected_app_install_pkg: null,
       needs_update: false
+
     }
     this.checkConnection = this.checkConnection.bind(this)
 
@@ -92,9 +95,7 @@ class AppsAutoSelector extends Component {
       apps_rui_list: message.apps_rui_list,
       connected: true
     })    
-
     this.props.ros.appNames = message.apps_ordered_list
-
   }
 
   // Function for configuring and subscribing to Status
@@ -128,7 +129,6 @@ class AppsAutoSelector extends Component {
     this.checkConnection()
   }
 
-
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
@@ -150,7 +150,14 @@ class AppsAutoSelector extends Component {
     }
   }
 
-  
+  // Lifecycle method called just before the component umounts.
+  // Used to unsubscribe to Status message
+  componentWillUnmount() {
+    if (this.state.appsListener) {
+      this.state.appsListener.unsubscribe()
+    }
+  }
+
 
   toggleViewableApps() {
     const viewable = !this.state.viewableApps
@@ -176,16 +183,14 @@ class AppsAutoSelector extends Component {
       items.push(<Option value={'Connecting'}>{'Connecting'}</Option>)
     }
     else {
-
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
-          if (groupList[i] === "AUTOMATION" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
+          if (groupList[i] === "DATA" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
             items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
-      items.push(<Option value={'Automation Mgr'}>{'Automation Mgr'}</Option>)
-      //items.push(<Option value={"AI PanTilt Tracker"}>{"AI PanTilt Tracker"}</Option>)
+      items.push(<Option value={'Data Dashboard'}>{'Data Dashboard'}</Option>)
     }
     return items
   }
@@ -202,7 +207,7 @@ class AppsAutoSelector extends Component {
         <Column>
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Select App"}
+          {"Select Data App"}
          </label>
          
 
@@ -237,7 +242,7 @@ class AppsAutoSelector extends Component {
 
     const {appNameList} = this.props.ros
   
-    if (sel_app === "Automation Mgr"){
+    if (sel_app === "Data Dashboard"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
@@ -246,8 +251,8 @@ class AppsAutoSelector extends Component {
             <Columns>
             <Column>
 
-              <AutomationMgr
-              title={"Automation Manager"}
+              <NepiDashboardData
+              title={"Data Dashboard"}
               />
 
           </Column>
@@ -286,13 +291,13 @@ class AppsAutoSelector extends Component {
 
 
 
-
   render() {
     return (
 
 
       <div style={{ display: 'flex' }}>
         <div style={{ width: '10%' }}>
+
           {this.renderSelection()}
         </div>
 
@@ -310,4 +315,4 @@ class AppsAutoSelector extends Component {
 
 }
 
-export default AppsAutoSelector
+export default AppsDataSelector

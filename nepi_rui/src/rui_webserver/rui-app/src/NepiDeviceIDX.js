@@ -14,12 +14,12 @@ import { Columns, Column } from "./Columns"
 import Label from "./Label"
 import Select, { Option } from "./Select"
 import Button, { ButtonMenu } from "./Button"
-import CameraViewer from "./CameraViewer"
 import Styles from "./Styles"
 
-import NepiSensorsImagingControls from "./NepiSensorsImagingControls"
+import NepiDeviceIDXControls from "./NepiDeviceIDX-Controls"
 
-import NepiDeviceInfo from "./NepiDeviceInfo"
+import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
+import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
@@ -28,8 +28,8 @@ import {createShortUniqueValues} from "./Utilities"
 @inject("ros")
 @observer
 
-// SensorIDX Application page
-class NepiSensorsImaging extends Component {
+// IDX Application page
+class NepiDeviceIDX extends Component {
   constructor(props) {
     super(props)
 
@@ -39,7 +39,7 @@ class NepiSensorsImaging extends Component {
     this.createTopicOptions = this.createTopicOptions.bind(this)
     this.createImageOptions = this.createImageOptions.bind(this)
 
-    //const idxSensorNamespaces = Object.keys(props.ros.idxDevices)
+    //const idxNamespaces = Object.keys(props.ros.idxDevices)
 
 
     
@@ -72,9 +72,11 @@ class NepiSensorsImaging extends Component {
 
     var items = []
     items.push(<Option>{"None"}</Option>)
-    var unique_names = createShortUniqueValues(filteredTopics)
+    //var unique_names = createShortUniqueValues(filteredTopics)
+    var device_name = ""
     for (i = 0; i < filteredTopics.length; i++) {
-      items.push(<Option value={filteredTopics[i]}>{unique_names[i]}</Option>)
+      device_name = filteredTopics[i].split('/idx')[0].split('/').pop()
+      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
     // Check that our current selection hasn't disappeard as an available option
     const { currentIDXNamespace } = this.state
@@ -85,7 +87,7 @@ class NepiSensorsImaging extends Component {
     return items
   }
 
-  createImageOptions(idxSensorNamespace) {
+  createImageOptions(idxNamespace) {
     var items = []
     items.push(<Option>{"None"}</Option>)
 
@@ -94,7 +96,7 @@ class NepiSensorsImaging extends Component {
 
     for (var i = 0; i < image_topics.length; i++) {
       const topic = image_topics[i]
-      if (topic.startsWith(idxSensorNamespace) === false || image_topics[i].includes("idx") === false || image_topics[i].includes("depth_map")) {
+      if (topic.startsWith(idxNamespace) === false || image_topics[i].includes("idx") === false || image_topics[i].includes("depth_map")) {
         continue
       }
       sensor_img_topics.push(topic)
@@ -161,7 +163,7 @@ class NepiSensorsImaging extends Component {
     })
   }
 
-  renderSensorSelection() {
+  renderDeviceSelection() {
     const { idxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const SensorSelected = (this.state.currentIDXNamespace != null)
@@ -251,7 +253,7 @@ class NepiSensorsImaging extends Component {
       <React.Fragment>
         <Columns>
           <Column equalWidth={false}>
-            <CameraViewer
+            <ImageViewer
               imageTopic={this.state.imageTopic_0}
               title={this.state.imageText_0}
               hideQualitySelector={false}
@@ -283,7 +285,7 @@ class NepiSensorsImaging extends Component {
                             status_msg_type={"nepi_ros_interfaces/IDXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
-                            title={"NepiSensorsImagingInfo"}
+                            title={"NepiDeviceIDXInfo"}
                         />
 
                     </div>
@@ -313,14 +315,14 @@ class NepiSensorsImaging extends Component {
           <div style={{ width: "30%"}}>
 
 
-                    {this.renderSensorSelection()}
+                    {this.renderDeviceSelection()}
 
 
                     <div hidden={(!SensorSelected && this.state.show_controls)}>
-                      <NepiSensorsImagingControls
-                          idxSensorNamespace={namespace}
+                      <NepiDeviceIDXControls
+                          idxNamespace={namespace}
                           idxImageName = {ImageName}
-                          title={"NepiSensorsImagingControls"}
+                          title={"NepiDeviceIDXControls"}
                       />
                     </div>
 
@@ -344,4 +346,4 @@ class NepiSensorsImaging extends Component {
   }
 }
 
-export default NepiSensorsImaging
+export default NepiDeviceIDX

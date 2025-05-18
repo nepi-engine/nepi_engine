@@ -58,6 +58,7 @@ class SystemMgrNode():
 
     STATES_DICT = dict()
 
+    node_if = None
     status_msg = SystemStatus()
     system_defs_msg = SystemDefs()
 
@@ -228,12 +229,6 @@ class SystemMgrNode():
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
 
-        '''
-        # Want to update the op_environment (from param server) through the whole system once at
-        # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-        self.msg_if.pub_warn("Updating From Param Server")
-        self.initConfig()
-        '''
 
         if self.in_container == False:
             self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
@@ -413,6 +408,13 @@ class SystemMgrNode():
                 'msg': SystemStatesStatus,
                 'qsize': 1,
                 'latch': True
+            },
+            'debug_pub': {
+                'namespace': self.base_namespace,
+                'topic': 'debug_mode',
+                'msg': Bool,
+                'qsize': 1,
+                'latch': True
             }
         }  
 
@@ -500,7 +502,7 @@ class SystemMgrNode():
             },
             'enable_debug': {
                 'namespace': self.base_namespace,
-                'topic': 'enable_debug_mode',
+                'topic': 'debug_mode_enable',
                 'msg': Bool,
                 'qsize': None,
                 'callback': self.enable_debug_callback, 
@@ -566,6 +568,14 @@ class SystemMgrNode():
 
         self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_enabled')
 
+    
+        # Want to update the op_environment (from param server) through the whole system once at
+        # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
+        self.msg_if.pub_warn("Updating From Param Server")
+        self.initConfig()
+    
+
+
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
         nepi_ros.start_timer_process(self.STATUS_PERIOD, self.publish_status)
@@ -580,35 +590,36 @@ class SystemMgrNode():
     
 
     def initConfig(self):
-        op_env = self.node_if.get_param("op_environment")
-        # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
-        self.node_if.publish_pub('set_op_env_pub', String(op_env))
+        if self.node_if is not None:
+            op_env = self.node_if.get_param("op_environment")
+            # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
+            self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
-        # Now gather all the params and set members appropriately
-        self.storage_mountpoint = self.node_if.get_param("storage_mountpoint")
-        
-        self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
-            "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
+            # Now gather all the params and set members appropriately
+            self.storage_mountpoint = self.node_if.get_param("storage_mountpoint")
+            
+            self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
+                "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-        self.first_stage_rootfs_device = nepi_ros.get_param(
-            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
+            self.first_stage_rootfs_device = nepi_ros.get_param(
+                "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
-        # nepi_storage_device has some additional logic
-        self.getNEPIStorageDevice()
-        
-        self.new_img_staging_device = nepi_ros.get_param(
-            "~new_img_staging_device", self.new_img_staging_device)
+            # nepi_storage_device has some additional logic
+            self.getNEPIStorageDevice()
+            
+            self.new_img_staging_device = nepi_ros.get_param(
+                "~new_img_staging_device", self.new_img_staging_device)
 
-        self.new_img_staging_device_removable = nepi_ros.get_param(
-            "~new_img_staging_device_removable", self.new_img_staging_device_removable)
+            self.new_img_staging_device_removable = nepi_ros.get_param(
+                "~new_img_staging_device_removable", self.new_img_staging_device_removable)
 
-        self.emmc_device = self.node_if.get_param("emmc_device")
+            self.emmc_device = self.node_if.get_param("emmc_device")
 
-        self.usb_device = self.node_if.get_param("usb_device")
+            self.usb_device = self.node_if.get_param("usb_device")
 
-        self.sd_card_device = self.node_if.get_param("sd_card_device")
+            self.sd_card_device = self.node_if.get_param("sd_card_device")
 
-        self.ssd_device = self.node_if.get_param("ssd_device")
+            self.ssd_device = self.node_if.get_param("ssd_device")
     
     def initCb(self, do_updates = False):
         pass
@@ -660,7 +671,8 @@ class SystemMgrNode():
                 has_triggered_list.append(has_triggered)
             self.triggers_list = [] # Clear List
             msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
-            self.node_if.publish_pub('triggers_status_pub', msg)
+            if self.node_if is not None:
+                self.node_if.publish_pub('triggers_status_pub', msg)
         nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
 
@@ -690,7 +702,8 @@ class SystemMgrNode():
                 msg = nepi_states.create_states_status_msg(states_list)
             except:
                 self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-            self.node_if.publish_pub('states_status_pub', msg)
+            if self.node_if is not None:
+                self.node_if.publish_pub('states_status_pub', msg)
         nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
@@ -751,7 +764,8 @@ class SystemMgrNode():
                     self.status_msg.warnings.flags[WarningFlags.HIGH_TEMPERATURE] = False
             # If a new thermal throttle ratio was computed, publish it globally
             if (throttle_ratio_min != self.current_throttle_ratio):
-                self.node_if.publish_pub('throttle_ratio_pub', Float32(throttle_ratio_min))
+                if self.node_if is not None:
+                    self.node_if.publish_pub('throttle_ratio_pub', Float32(throttle_ratio_min))
                 self.current_throttle_ratio = throttle_ratio_min
                 #self.msg_if.pub_warn("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
 
@@ -781,7 +795,8 @@ class SystemMgrNode():
             self.add_info_string("Max disk usage exceeded",
                                  StampedString.PRI_HIGH)
             # Force all nodes to stop data saving
-            self.node_if.publish_pub('save_data_pub', False)
+            if self.node_if is not None:
+                self.node_if.publish_pub('save_data_pub', False)
         else:
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
@@ -843,6 +858,7 @@ class SystemMgrNode():
     def provide_system_status(self, req):
         response = SystemStatusQueryResponse()
         response.system_status = self.status_msg
+        #self.msg_if.pub_warn("Returning status query response: " + str(response))
         return response
 
     def publish_status(self, event):
@@ -854,7 +870,9 @@ class SystemMgrNode():
         self.update_storage()
 
         # Now publish it
-        self.node_if.publish_pub('status_pub', self.status_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', self.status_msg)
+            self.node_if.publish_pub('debug_pub', self.status_msg.sys_debug_enabled)
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
@@ -864,7 +882,9 @@ class SystemMgrNode():
 
     def enable_debug_callback(self, msg):
         self.status_msg.sys_debug_enabled = msg
-        self.node_if.set_param['debug_enabled']
+        if self.node_if is not None:
+            self.node_if.set_param['debug_enabled']
+            self.node_if.save_config()
 
     def ensure_reqd_storage_subdirs(self):
         # Check for and create subdirectories as necessary

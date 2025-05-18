@@ -13,15 +13,15 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import NavPoseMgr from "./NepiMgrNavPose"
+import DriversMgr from "./NepiSystemDrivers"
 
-import AppRender from "./AppRender"
+import AppRender from "./Nepi_IF_Apps"
+
 
 @inject("ros")
 @observer
 
-// Pointcloud Application page
-class AppsNavPoseSelector extends Component {
+class DriversSelector extends Component {
   constructor(props) {
     super(props)
 
@@ -56,11 +56,10 @@ class AppsNavPoseSelector extends Component {
       appListener: null,
 
       selected_app_install_pkg: null,
-      needs_update: false
+      needs_update: true
     }
 
-    this.checkConnection = this.checkConnection.bind(this)
-    
+
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
     this.updateAppsStatusListener = this.updateAppsStatusListener.bind(this)
@@ -115,26 +114,13 @@ class AppsNavPoseSelector extends Component {
   }
 
 
-  async checkConnection() {
-    const { namespacePrefix, deviceId} = this.props.ros
-    if (namespacePrefix != null && deviceId != null) {
-      this.setState({needs_update: true})
-    }
-    else {
-      setTimeout(async () => {
-        await this.checkConnection()
-      }, 1000)
-    }
-  }
 
-  componentDidMount(){
-    this.checkConnection()
-  }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
     const namespace = this.getMgrNamespace()
+
     const {topicNames} = this.props.ros
     const script_file = this.state.automationSelectedScript
     const check_topic = namespace + "/status"
@@ -161,6 +147,7 @@ class AppsNavPoseSelector extends Component {
   }
 
 
+
   toggleViewableApps() {
     const viewable = !this.state.viewableApps
     this.setState({viewableApps: viewable})
@@ -185,10 +172,10 @@ class AppsNavPoseSelector extends Component {
       items.push(<Option value={'Connecting'}>{'Connecting'}</Option>)
     }
     else {
-      items.push(<Option value={'NavPose Manager'}>{'NavPose Manager'}</Option>)
+      items.push(<Option value={'Driver Manager'}>{'Driver Manager'}</Option>)
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
-          if (groupList[i] === "NAVPOSE" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
+          if (groupList[i] === "DRIVER" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1){
             items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
@@ -209,7 +196,7 @@ class AppsNavPoseSelector extends Component {
         <Column>
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Select NavPose App"}
+          {"Select Driver App"}
          </label>
          
 
@@ -244,7 +231,7 @@ class AppsNavPoseSelector extends Component {
 
     const {appNameList} = this.props.ros
   
-    if (sel_app === "NavPose Manager"){
+    if (sel_app === "Driver Manager"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
@@ -253,8 +240,8 @@ class AppsNavPoseSelector extends Component {
             <Columns>
             <Column>
 
-              <NavPoseMgr
-              title={"NavPose Manager"}
+              <DriversMgr
+              title={"Driver Manager"}
               />
 
           </Column>
@@ -292,6 +279,8 @@ class AppsNavPoseSelector extends Component {
   }
 
 
+
+
   render() {
     return (
 
@@ -315,4 +304,4 @@ class AppsNavPoseSelector extends Component {
 
 }
 
-export default AppsNavPoseSelector
+export default DriversSelector

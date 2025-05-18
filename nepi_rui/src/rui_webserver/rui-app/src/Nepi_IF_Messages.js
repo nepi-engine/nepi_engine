@@ -195,7 +195,7 @@ class NepiSystemMessages extends Component {
             <Label title="Show Debug Messages"> </Label>
             <Toggle
             checked={show_debug}
-            onClick={() => this.props.ros.sendBoolMsg("enable_debug_mode", !show_debug)}>
+            onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !show_debug)}>
             </Toggle>
               
             </Column>

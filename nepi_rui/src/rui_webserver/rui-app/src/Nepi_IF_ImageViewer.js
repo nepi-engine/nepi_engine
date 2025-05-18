@@ -43,7 +43,7 @@ const ROS_WEBCAM_URL_BASE = `http://${
 
 @inject("ros")
 @observer
-class CameraViewer extends Component {
+class ImageViewer extends Component {
   constructor(props) {
     super(props)
 
@@ -349,7 +349,7 @@ class CameraViewer extends Component {
   }
 }
 
-CameraViewer.defaultProps = {
+ImageViewer.defaultProps = {
   imageRecognitions: [
     // {
     //   label: "foobar",
@@ -358,4 +358,4 @@ CameraViewer.defaultProps = {
   ]
 }
 
-export default CameraViewer
+export default ImageViewer

@@ -18,12 +18,12 @@ import HorizontalDivider from "./HorizontalDivider"
 
 import Dashboard from "./NepiDashboard"
 
-import DevicesSelector from "./NepiDevicesSelector"
-import AppsAutoSelector from "./NepiAppsAutoSelector"
-import AppsDataSelector from "./NepiAppsDataSelector"
-import AppsNavPoseSelector from "./NepiAppsNavPoseSelector"
-import AppsAiSelector from "./NepiAppsAiSelector"
-import DriversSelector from "./NepiDriversSelector"
+import DevicesSelector from "./NepiSelectorDevices"
+import AppsAutoSelector from "./NepiSelectorAppsAuto"
+import AppsDataSelector from "./NepiSelectorAppsData"
+import AppsNavPoseSelector from "./NepiSelectorAppsNavPose"
+import AppsAiSelector from "./NepiSelectorAppsAI"
+import DriversSelector from "./NepiSelectorAppsDrivers"
 
 
 import DeviceMgr from "./NepiSystemDevice"

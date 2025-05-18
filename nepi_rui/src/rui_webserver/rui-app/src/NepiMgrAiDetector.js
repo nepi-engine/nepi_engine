@@ -22,8 +22,7 @@ import Toggle from "react-toggle"
 import BooleanIndicator from "./BooleanIndicator"
 import {SliderAdjustment} from "./AdjustmentWidgets"
 
-import CameraViewer from "./CameraViewer"
-
+import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
 import {filterStrList, createShortImagesFromNamespaces,onChangeSwitchStateValue} from "./Utilities"
@@ -1024,7 +1023,7 @@ renderDetectorSettings() {
           </Columns>
 
 
-      <CameraViewer
+      <ImageViewer
         imageTopic={sel_img}
         title={sel_img_text}
         hideQualitySelector={false}

@@ -70,6 +70,10 @@ add_message_files(FILES
     BoundingBoxes3D.msg
     Frame3DTransform.msg
     Frame3DTransformUpdate.msg
+    DataControlsImage.msg
+    DataControlsDepthMap.msg
+    DataControlsPointcloud.msg
+    DataControlsSonar.msg
     IDXStatus.msg
     HwTrigInCfg.msg
     HwTrigOutCfg.msg

@@ -23,8 +23,8 @@ import { round, onUpdateSetStateValue, onEnterSetStateFloatValue,  } from "./Uti
 @inject("ros")
 @observer
 
-// Component that contains the IDX Sensor controls
-class NepiSensorsImagingControls extends Component {
+// Component that contains the IDX Device controls
+class NepiDeviceIDXControls extends Component {
   constructor(props) {
     super(props)
 
@@ -121,12 +121,12 @@ class NepiSensorsImagingControls extends Component {
 
   // Function for configuring and subscribing to StatusIDX
   updateListener() {
-    const { idxSensorNamespace } = this.props
+    const { idxNamespace } = this.props
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
     var listener = this.props.ros.setupIDXStatusListener(
-      idxSensorNamespace,
+      idxNamespace,
       this.statusListener
     )
     this.setState({ listener: listener, disabled: false })
@@ -136,11 +136,11 @@ class NepiSensorsImagingControls extends Component {
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const { idxSensorNamespace } = this.props
-    if (prevProps.idxSensorNamespace !== idxSensorNamespace){
-      if (idxSensorNamespace != null) {
+    const { idxNamespace } = this.props
+    if (prevProps.idxNamespace !== idxNamespace){
+      if (idxNamespace != null) {
         this.updateListener()
-      } else if (idxSensorNamespace == null){
+      } else if (idxNamespace == null){
         this.setState({ disabled: true })
       }
     }
@@ -186,7 +186,7 @@ class NepiSensorsImagingControls extends Component {
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.idxSensorNamespace + "/set_frame_3d_transform"
+    const namespace = this.props.idxNamespace + "/set_frame_3d_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -210,7 +210,7 @@ class NepiSensorsImagingControls extends Component {
       transformHO: 0,      
     })
     const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.idxSensorNamespace + "/set_frame_3d_transform"
+    const namespace = this.props.idxNamespace + "/set_frame_3d_transform"
     const transformList = [0,0,0,0,0,0,0]
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
@@ -252,10 +252,10 @@ class NepiSensorsImagingControls extends Component {
 
   renderControls() {
     const { idxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
-    const capabilities = idxDevices[this.props.idxSensorNamespace]
+    const capabilities = idxDevices[this.props.idxNamespace]
     const has_auto_adjust = (capabilities && capabilities.auto_adjustment && !this.state.disabled)
     const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
-    const resetControlsNamespace = this.props.idxSensorNamespace + "/reset_controls"
+    const resetControlsNamespace = this.props.idxNamespace + "/reset_controls"
     const imageName = this.props.idxImageName 
     const framerates = this.state.frameratesCurrent
     const dp_index = framerates ? this.state.dataProducts.indexOf(imageName) : -1
@@ -278,7 +278,7 @@ class NepiSensorsImagingControls extends Component {
                               title={"Framerate"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.framerateAdjustment}
-                              topic={this.props.idxSensorNamespace + '/set_framerate_ratio'}
+                              topic={this.props.idxNamespace + '/set_framerate_ratio'}
                               scaled={0.01}
                               min={0}
                               max={100}
@@ -316,7 +316,7 @@ class NepiSensorsImagingControls extends Component {
                               title={"Resolution"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.resolutionAdjustment}
-                              topic={this.props.idxSensorNamespace + '/set_resolution_ratio'}
+                              topic={this.props.idxNamespace + '/set_resolution_ratio'}
                               scaled={0.01}
                               min={0}
                               max={100}
@@ -357,7 +357,7 @@ class NepiSensorsImagingControls extends Component {
                                 <Label title={"Auto Adjust"}>
                                     <Toggle
                                       checked={this.state.autoAdjust}
-                                      onClick={() => setIdxAutoAdjust(this.props.idxSensorNamespace,!this.state.autoAdjust)}
+                                      onClick={() => setIdxAutoAdjust(this.props.idxNamespace,!this.state.autoAdjust)}
                                     /> 
                                   </Label>
                         
@@ -376,7 +376,7 @@ class NepiSensorsImagingControls extends Component {
                               title={"Brightness"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.brightnessAdjustment}
-                              topic={this.props.idxSensorNamespace + "/set_brightness"}
+                              topic={this.props.idxNamespace + "/set_brightness"}
                               scaled={0.01}
                               min={0}
                               max={100}
@@ -388,7 +388,7 @@ class NepiSensorsImagingControls extends Component {
                             title={"Contrast"}
                             msgType={"std_msgs/Float32"}
                             adjustment={this.state.contrastAdjustment}
-                            topic={this.props.idxSensorNamespace + "/set_contrast"}
+                            topic={this.props.idxNamespace + "/set_contrast"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -400,7 +400,7 @@ class NepiSensorsImagingControls extends Component {
                               title={"Thresholding"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.thresholdingAdjustment}
-                              topic={this.props.idxSensorNamespace + "/set_thresholding"}
+                              topic={this.props.idxNamespace + "/set_thresholding"}
                               scaled={0.01}
                               min={0}
                               max={100}
@@ -421,7 +421,7 @@ class NepiSensorsImagingControls extends Component {
                   max={this.state.rangeMax}
                   min_limit_m={this.state.rangeLimitMinM}
                   max_limit_m={this.state.rangeLimitMaxM}
-                  topic={this.props.idxSensorNamespace + "/set_range_window"}
+                  topic={this.props.idxNamespace + "/set_range_window"}
                   disabled={(capabilities && capabilities.adjustable_range && !this.state.disabled)? false : true}
                   tooltip={"Adjustable range"}
                   unit={"m"}
@@ -435,7 +435,7 @@ class NepiSensorsImagingControls extends Component {
                         title={"Zoom"}
                         msgType={"std_msgs/Float32"}
                         adjustment={this.state.zoomAdjustment}
-                        topic={this.props.idxSensorNamespace + "/set_zoom_ratio"}
+                        topic={this.props.idxNamespace + "/set_zoom_ratio"}
                         scaled={0.01}
                         min={0}
                         max={100}
@@ -449,7 +449,7 @@ class NepiSensorsImagingControls extends Component {
                         title={"Rotate"}
                         msgType={"std_msgs/Float32"}
                         adjustment={this.state.rotateAdjustment}
-                        topic={this.props.idxSensorNamespace + "/set_rotate_ratio"}
+                        topic={this.props.idxNamespace + "/set_rotate_ratio"}
                         scaled={0.01}
                         min={0}
                         max={100}
@@ -462,7 +462,7 @@ class NepiSensorsImagingControls extends Component {
                         title={"Tilt"}
                         msgType={"std_msgs/Float32"}
                         adjustment={this.state.tiltAdjustment}
-                        topic={this.props.idxSensorNamespace + "/set_tilt_ratio"}
+                        topic={this.props.idxNamespace + "/set_tilt_ratio"}
                         scaled={0.01}
                         min={0}
                         max={100}
@@ -599,7 +599,7 @@ class NepiSensorsImagingControls extends Component {
                   <Toggle 
                     checked={this.state.frame_3d === "nepi_center_frame"} 
                     disabled={(!this.state.disabled)? false : true}
-                    onClick={() => setFrame3D(this.props.idxSensorNamespace + '',"nepi_center_frame")}
+                    onClick={() => setFrame3D(this.props.idxNamespace + '',"nepi_center_frame")}
                   />
                 </div>
      
@@ -611,7 +611,7 @@ class NepiSensorsImagingControls extends Component {
                   <Toggle 
                     checked={this.state.frame_3d === "map"} 
                     disabled={(!this.state.disabled)? false : true}
-                    onClick={() => setFrame3D(this.props.idxSensorNamespace + '',"map")}
+                    onClick={() => setFrame3D(this.props.idxNamespace + '',"map")}
                   />
                    </div>
 
@@ -658,4 +658,4 @@ class NepiSensorsImagingControls extends Component {
 
 
 }
-export default NepiSensorsImagingControls
+export default NepiDeviceIDXControls

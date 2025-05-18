@@ -13,14 +13,15 @@ import Styles from "./Styles"
 import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
-import CameraViewer from "./CameraViewer"
+
 import { SliderAdjustment } from "./AdjustmentWidgets"
 import Label from "./Label"
 import Input from "./Input"
 import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
 
-import NepiDeviceInfo from "./NepiDeviceInfo"
+import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
+import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
@@ -191,9 +192,11 @@ class NepiControlsLights extends Component {
 
     var items = []
     items.push(<Option>{""}</Option>)
-    var unique_names = createShortUniqueValues(filteredTopics)
+    //var unique_names = createShortUniqueValues(filteredTopics)
+    var device_name = ""
     for (i = 0; i < filteredTopics.length; i++) {
-      items.push(<Option value={filteredTopics[i]}>{unique_names[i]}</Option>)
+      device_name = filteredTopics[i].split('/lsx')[0].split('/').pop()
+      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
     // Check that our current selection hasn't disappeard as an available Option
     const { currentIDXNamespace } = this.state
@@ -384,7 +387,7 @@ class NepiControlsLights extends Component {
               />
 
                 <div id="lsxImageViewer">
-                  <CameraViewer
+                  <ImageViewer
                     id="lsxImageViewer"
                     imageTopic={this.state.imageTopic}
                     title={this.state.imageText}
@@ -396,7 +399,7 @@ class NepiControlsLights extends Component {
           <Column>
           <Section title={"Selection"}>
 
-            <Label title={"Lighting Device"}>
+            <Label title={"Device"}>
               <Select
                 onChange={this.onlxsDeviceselected}
                 value={namespace}
@@ -404,7 +407,7 @@ class NepiControlsLights extends Component {
                 {this.createLSXOptions(lxsDevices)}
               </Select>
             </Label>
-            <Label title={"Selected Image"}>
+            <Label title={"Select Image"}>
               <Select
                 id="lsxImageTopicSelect"
                 onChange={this.onImageTopicSelected}

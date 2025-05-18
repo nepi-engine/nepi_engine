@@ -21,7 +21,7 @@ import './Automation.css';
 import Styles from "./Styles"
 
 
-import NepiSystemMessages from "./NepiSystemMessages"
+import NepiSystemMessages from "./Nepi_IF_Messages"
 
 // Utilities
 function bytesToKBString(bytes) {

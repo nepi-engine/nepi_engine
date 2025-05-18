@@ -15,7 +15,6 @@ import Label from "./Label"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 import Button, { ButtonMenu } from "./Button"
-import CameraViewer from "./CameraViewer"
 import Input from "./Input"
 import Toggle from "react-toggle"
 

@@ -755,7 +755,7 @@ class IDXDeviceIF:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
         if 'color_2d_image' in self.data_products_list:
             factory_data_rates['color_2d_image'] = [1.0, 0.0, 100.0] 
-        self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
+        
 
         factory_filename_dict = {
             'prefix': "", 
@@ -765,7 +765,8 @@ class IDXDeviceIF:
             'suffix': "",
             'add_node_name': True
             }
-
+        #self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
+        #self.msg_if.pub_warn("Starting save_rate_dict: " + str(factory_data_rates))
         sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,

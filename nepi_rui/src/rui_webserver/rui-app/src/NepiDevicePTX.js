@@ -13,7 +13,6 @@ import Toggle from "react-toggle"
 import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
-import CameraViewer from "./CameraViewer"
 import { SliderAdjustment } from "./AdjustmentWidgets"
 import Label from "./Label"
 import Input from "./Input"
@@ -22,7 +21,8 @@ import Button, { ButtonMenu } from "./Button"
 import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
-import NepiDeviceInfo from "./NepiDeviceInfo"
+import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
+import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
@@ -35,7 +35,7 @@ function round(value, decimals = 0) {
 @observer
 
 // Component that contains the PTX controls
-class NepiControlsPanTilt extends Component {
+class NepiDevicePTX extends Component {
   constructor(props) {
     super(props)
 
@@ -356,9 +356,11 @@ class NepiControlsPanTilt extends Component {
 
     var items = []
     items.push(<Option>{""}</Option>)
-    var unique_names = createShortUniqueValues(filteredTopics)
+    //var unique_names = createShortUniqueValues(filteredTopics)
+    var device_name = ""
     for (i = 0; i < filteredTopics.length; i++) {
-      items.push(<Option value={filteredTopics[i]}>{unique_names[i]}</Option>)
+      device_name = filteredTopics[i].split('/rbx')[0].split('/').pop()
+      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
 
     return items
@@ -696,7 +698,7 @@ class NepiControlsPanTilt extends Component {
 
 
                 <div id="ptxImageViewer">
-                  <CameraViewer
+                  <ImageViewer
                     id="ptxImageViewer"
                     imageTopic={this.state.imageTopic}
                     title={this.state.imageText}
@@ -760,7 +762,7 @@ class NepiControlsPanTilt extends Component {
             />
           </Column>
           <Column>
-            <Label title={"Pan/Tilt Unit"}>
+            <Label title={"Device"}>
               <Select
                 onChange={this.onptxDeviceselected}
                 value={namespace}
@@ -768,7 +770,7 @@ class NepiControlsPanTilt extends Component {
                 {this.createPTXOptions(ptxDevices)}
               </Select>
             </Label>
-            <Label title={"Selected Image"}>
+            <Label title={"Select Image"}>
               <Select
                 id="ptxImageTopicSelect"
                 onChange={this.onImageTopicSelected}
@@ -832,4 +834,4 @@ class NepiControlsPanTilt extends Component {
   }
 }
 
-export default NepiControlsPanTilt
+export default NepiDevicePTX

@@ -25,7 +25,7 @@ import {convertStrToStrList, onEnterSetStateFloatValue, createMenuListFromStrLis
 @observer
 
 // Component that contains RBX Controls
-class NepiRobotControls extends Component {
+class NepiDeviceControls extends Component {
   constructor(props) {
     super(props)
 
@@ -111,7 +111,7 @@ class NepiRobotControls extends Component {
 
   // Callback for handling ROS Status messages
   controlsStatusListener(message) {
-    const {rbxRobots} = this.props.ros
+    const {rbxDevices} = this.props.ros
     this.setState({
       current_lat: message.current_lat ,
       current_long: message.current_long ,
@@ -140,7 +140,7 @@ class NepiRobotControls extends Component {
       last_error_message: message.last_error_message 
     })
     if (this.state.rbx_capabilities === null){
-      const capabilities = rbxRobots[this.props.rbxNamespace]
+      const capabilities = rbxDevices[this.props.rbxNamespace]
       if (capabilities){
         const actions=convertStrToStrList(capabilities.action_options)
         const actions_menu_options=createMenuListFromStrList(actions,false,[],[],[])
@@ -675,4 +675,4 @@ class NepiRobotControls extends Component {
   }
 
 }
-export default NepiRobotControls
+export default NepiDeviceControls

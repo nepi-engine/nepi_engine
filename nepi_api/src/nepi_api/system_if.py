@@ -197,12 +197,12 @@ class SaveDataIF:
             save_rate_entry = [save_rate, last_time, max_rate]
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
-                    save_rate = factory_rate_dict[data_product]
+                    save_rate = factory_rate_dict[data_product][0]
             save_rate_entry[0] = save_rate
             save_rate_dict[data_product] = save_rate_entry
             self.snapshot_dict[data_product] = False
-        
-        
+        self.save_rate_dict = save_rate_dict
+        #self.msg_if.pub_warn("Initialized rate dict: " + str(self.save_rate_dict))
             
 
 
@@ -404,7 +404,7 @@ class SaveDataIF:
         save_rate_dict = self.node_if.get_param('save_rate_dict')
         for data_product in self.save_rate_dict.keys():
             if data_product in save_rate_dict.keys():
-                self.save_rate_dict[data_product] = save_rate_dict[data_product]
+                self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
             self.save_rate_dict[data_product][1] = 0.0 # Reset timer
         self.node_if.set_param('save_rate_dict',self.save_rate_dict)
         self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))

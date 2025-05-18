@@ -335,14 +335,14 @@ class ConnectNodeServicesIF:
         return resp
 
 
-    def call_service(self, service_name, request):
+    def call_service(self, service_name, request, verbose = True):
         resp = None
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
             if 'service' in srv_dict.keys():
                 service = srv_dict['service']
                 if service is not None:
-                    resp = nepi_ros.call_service(service, request)
+                    resp = nepi_ros.call_service(service, request, verbose = verbose)
         return resp
 
 
@@ -915,10 +915,10 @@ class ConnectNodeClassIF:
             msg = self.services_if.create_response_msg(service_name)
         return msg
 
-    def call_service(self,service_name,request):
+    def call_service(self,service_name,request, verbose = True):
         resp = None
         if self.services_if is not None:
-            resp = self.services_if.call_service(service_name,request)
+            resp = self.services_if.call_service(service_name,request, verbose = verbose)
         return resp
 
     def register_service(self,service_name, service_dict):

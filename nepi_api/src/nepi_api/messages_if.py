@@ -14,7 +14,7 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_ros_interfaces.msg import Message
-
+from nepi_ros_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 
 class MsgIF(object):
 
@@ -37,15 +37,9 @@ class MsgIF(object):
             self.ln_str = log_name + ": "
         self._logSelfMsg("Starting IF Initialization Processes")
         ##############################   
-        '''
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        print_debug = mgr_sys_if.get_system_debug_mode()
-        if print_debug is not None: 
-            self.print_debug = print_debug
-        '''
+        
+        nepi_ros.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
+
         self._createMsgPublishers()
         ##############################
         self._logSelfMsg("IF Initialization Complete")
@@ -97,4 +91,5 @@ class MsgIF(object):
     def _createMsgString(self,msg):
          return self.ns_str + self.ln_str + str(msg)
 
-
+    def _debugCb(self,msg):
+        self.print_debug = msg.data

@@ -163,15 +163,23 @@ class ConnectMgrTimeSyncIF:
         self.msg_if.pub_info("Waiting for status connection")
         timer = 0
         time_start = nepi_ros.get_time()
-        while self.services_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            ret = self.get_time_status()
-            nepi_ros.sleep(.5)
+        connected = False
+        while connected == False and timer < timeout and not nepi_ros.is_shutdown():
+            exists = nepi_ros.check_for_service('time_status_query')
+            nepi_ros.sleep(1)
+            if exists == True:
+                ret = None
+                try:
+                    ret = self.get_time_status(verbose = True)
+                except:
+                    pass # Don't Print Exception
+                connected = (ret is not None)
             timer = nepi_ros.get_time() - time_start
-        if self.services_connected == False:
+        if connected == False:
             self.msg_if.pub_info("Failed to connect to status msg")
         else:
             self.msg_if.pub_info("Status Connected")
-        return self.services_connected
+        return connected
 
 
     def get_status_dict(self):
@@ -183,7 +191,7 @@ class ConnectMgrTimeSyncIF:
             self.msg_if.pub_info("Status Listener Not connected")
         return status_dict
 
-    def get_time_status(self):
+    def get_time_status(self, verbose = True):
         service_name = 'time_status_query'
         response = None
         time_dict = None
@@ -192,14 +200,17 @@ class ConnectMgrTimeSyncIF:
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + " " + str(e))
         try:
-            response = self.node_if.call_service(service_name, request)
+            response = self.node_if.call_service(service_name, request, verbose = verbose)
+            #self.msg_if.pub_info("Got time status response: " + str(response))
             self.status_msg = response.time_status
             time_status = response.time_status
             time_dict = nepi_ros.convert_msg2dict(time_status)
-            self.services_connected = True
-            #self.msg_if.pub_info("Got time status dict: " + time_dict)
+            #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
         except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
+            if verbose == True:
+                self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
+            else:
+                pass
 
         return time_dict    
 

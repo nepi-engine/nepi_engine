@@ -13,12 +13,12 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import DriversSelector from "./NepiDriversSelector"
+import DriversSelector from "./NepiSelectorAppsDrivers"
 
-import IDX from "./NepiSensorsImaging"
-import PTX from "./NepiControlsPanTilt"
-import LSX from "./NepiControlsLights"
-import RBX from "./NepiControlsRobots"
+import IDX from "./NepiDeviceIDX"
+import PTX from "./NepiDevicePTX"
+import LSX from "./NepiDeviceLSX"
+import RBX from "./NepiDeviceRBX"
 
 
 

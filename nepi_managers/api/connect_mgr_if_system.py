@@ -111,6 +111,7 @@ class ConnectMgrSystemServicesIF:
 
         self.services_if = ConnectNodeServicesIF(
                         services_dict = self.SRVS_DICT,
+                        msg_if = self.msg_if
         )
 
         ################################
@@ -144,16 +145,23 @@ class ConnectMgrSystemServicesIF:
         self.msg_if.pub_info("Waiting for status connection")
         timer = 0
         time_start = nepi_ros.get_time()
-        while self.services_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            ret = self.get_system_status_dict()
-            self.services_connected = (ret is not None)
+        connected = False
+        while connected == False and timer < timeout and not nepi_ros.is_shutdown():
+            exists = nepi_ros.check_for_service('system_status_query')
             nepi_ros.sleep(1)
+            if exists == True:
+                ret = None
+                try:
+                    ret = self.get_system_status_dict(verbose = False)
+                except:
+                    pass # Don't Print Exception
+                connected = (ret is not None)
             timer = nepi_ros.get_time() - time_start
-        if self.services_connected == False:
+        if connected == False:
             self.msg_if.pub_info("Failed to connect to status msg")
         else:
-            self.msg_if.pub_info("Status Connected")
-        return self.services_connected
+            self.msg_if.pub_info("Services Connected")
+        return connected
     
 
     def get_sys_folder_path(self, folder_name, fallback_path = ""):
@@ -198,7 +206,7 @@ class ConnectMgrSystemServicesIF:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
             env_str = response.op_env
-            self.msg_if.pub_info("Got system env response" + str(response) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system env response " + str(response) + " for service: " + service_name)
 
         return env_str
 
@@ -222,7 +230,7 @@ class ConnectMgrSystemServicesIF:
         else:
             status_dict = nepi_ros.convert_msg2dict(response)
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got system software response" + str(status_dict) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system software response " + str(status_dict) + " for service: " + service_name)
 
         return status_dict
 
@@ -246,7 +254,7 @@ class ConnectMgrSystemServicesIF:
         else:
             stats_dict = nepi_ros.convert_msg2dict(response)['defs']
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got system stats dict" + str(stats_dict) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system stats dict " + str(stats_dict) + " for service: " + service_name)
 
         return stats_dict
 
@@ -270,11 +278,11 @@ class ConnectMgrSystemServicesIF:
         else:
             debug_mode = response.debug_enabled
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got system debug mode" + str(debug_mode) + " for service: " + service_name)
+            self.msg_if.pub_info("Got system debug mode " + str(debug_mode) + " for service: " + service_name)
 
         return debug_mode
 
-    def get_system_status_dict(self):
+    def get_system_status_dict(self, verbose = True):
         service_name = 'status_query'
         status_dict = None
         response = None
@@ -283,17 +291,19 @@ class ConnectMgrSystemServicesIF:
         except Exception as e:
             self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
         try:
-            response = self.services_if.call_service(service_name, request)
+            response = self.services_if.call_service(service_name, request, verbose = verbose)
         except Exception as e:
             self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
         # Process Response
         if response is None:
-            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
+            if verbose == True:
+                self.msg_if.pub_warn("Failed to get response for service: " + service_name)
+            else:
+                pass
         else:
             status_dict = nepi_ros.convert_msg2dict(response)['system_status']
-            #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_info("Got system status dict" + str(status_dict) + " for service: " + service_name)
+            #self.msg_if.pub_info("Got status response " + str(response) + " for service: " + service_name)
+            #self.msg_if.pub_info("Got system status dict " + str(status_dict) + " for service: " + service_name)
 
         return status_dict
 
@@ -418,6 +428,10 @@ class ConnectMgrSystemIF:
             self.msg_if.pub_info("ready")
         return self.ready
 
+    def wait_for_services(self, timeout = float('inf') ):
+        self.msg_if.pub_info("Waiting for status connection")
+        services_connected = self.services_if.get_sys_folderwait_for_services_path(timeout = timeout)
+        return services_connected
 
     def get_sys_folder_path(self, folder_name, fallback_path = ""):
         return self.services_if.get_sys_folder_path(folder_name, fallback_path = "")

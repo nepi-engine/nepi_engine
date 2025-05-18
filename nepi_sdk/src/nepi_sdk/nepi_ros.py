@@ -524,13 +524,16 @@ def connect_service(service_namespace, service_msg):
       rospy.loginfo("nepi_ros: Failed to connect to service: " + str(e) )
   return service
 
-def call_service(service, request):
+def call_service(service, request, verbose = True):
     response = None
     if service is not None and service != "None":
       try:
           response = service(request)
       except Exception as e:
-          rospy.loginfo("nepi_ros: Failed to call service: " + str(e) )
+          if verbose == True:
+            rospy.loginfo("nepi_ros: Failed to call service: " + str(e) )
+          else:
+            pass
     else:
       rospy.loginfo("nepi_ros: Cant call None service")
     return response

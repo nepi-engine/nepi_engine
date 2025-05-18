@@ -29,7 +29,7 @@ import {Queue} from "./Utilities"
 @observer
 
 // Component that contains RBX Controls
-class NepiRobotMessages extends Component {
+class NepiRBXMessages extends Component {
   constructor(props) {
     super(props)
 
@@ -368,4 +368,4 @@ class NepiRobotMessages extends Component {
   }
 
 }
-export default NepiRobotMessages
+export default NepiRBXMessages
