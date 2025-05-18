@@ -152,7 +152,7 @@ class AiDetectorIF:
 
         ## Get folder info
         mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-        success = self.mgr_time_if.wait_for_services()
+        success = self.mgr_sys_srv_if.wait_for_services()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
