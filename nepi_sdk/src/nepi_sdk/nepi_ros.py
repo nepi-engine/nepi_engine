@@ -343,7 +343,7 @@ def create_publisher(pub_namespace, msg, queue_size = None,  latch = False):
   pub = None
   pub_namespace = get_full_namespace(pub_namespace)
   try:
-    pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size,  latch = latch)
+    pub = rospy.Publisher(pub_namespace, msg, queue_size=queue_size, latch=latch)
   except Exception as e:
     rospy.logwarn("nepi_ros: Failed to create publisher: " + str(e))
   return pub

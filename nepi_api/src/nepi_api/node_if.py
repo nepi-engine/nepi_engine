@@ -710,7 +710,8 @@ class NodePublishersIF:
         self._unregister_pub(pub_name)
 
     def unregister_pubs(self):
-        for pub_name in self.pubs_dict.keys():
+        pub_names = list(self.pubs_dict.keys())
+        for pub_name in pub_names:
             self._unregister_pub(pub_name)
 
 
@@ -850,7 +851,8 @@ class NodeSubscribersIF:
         self._unregister_sub(sub_name)
 
     def unregister_subs(self):
-        for sub_name in self.subs_dict.keys():
+        sub_names = list(self.subs_dict.keys())
+        for sub_name in sub_names:
             self._unregister_sub(sub_name)
 
     ###############################
@@ -1198,7 +1200,8 @@ class NodeClassIF:
             self.services_if.unregister_service(service_name)
 
     def unregister_services(self):
-        if self.services_if is not None:
+        service_names = list(self.srvs_dict.keys())  
+        for service_name in service_names:  
             self.services_if.unregister_services()
 
 
