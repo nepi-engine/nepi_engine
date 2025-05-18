@@ -206,7 +206,7 @@ class NepiRobotControls extends Component {
       this.state.controlsStatusListener.unsubscribe()
     }
     var listener = this.props.ros.setupStatusListener(
-          Namespace + "/rbx/status",
+          Namespace + "/status",
           "nepi_ros_interfaces/RBXStatus",
           this.controlsStatusListener
         )
@@ -236,7 +236,7 @@ class NepiRobotControls extends Component {
   
   sendGoActionIndex(){
   const {sendIntMsg} = this.props.ros
-  const namespace = this.props.rbxNamespace + "/rbx/go_action"
+  const namespace = this.props.rbxNamespace + "/go_action"
   if (this.state.selected_go_action_index !== null) {
       sendIntMsg(namespace,this.state.selected_go_action_index)
     }
@@ -348,7 +348,7 @@ class NepiRobotControls extends Component {
             <Column>
 
             <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(this.props.rbxNamespace + "/rbx/go_stop")}>{"stop"}</Button>
+                <Button onClick={() => sendTriggerMsg(this.props.rbxNamespace + "/go_stop")}>{"stop"}</Button>
             </ButtonMenu>
 
             </Column>
@@ -357,7 +357,7 @@ class NepiRobotControls extends Component {
             <div hidden={(!this.state.has_go_home)}>
             <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendTriggerMsg(this.props.rbxNamespace + "/rbx/go_home"):
+                  sendTriggerMsg(this.props.rbxNamespace + "/go_home"):
                   this.doNothing()
                 }>{"Go Home"}</Button>
               </ButtonMenu>
@@ -437,7 +437,7 @@ class NepiRobotControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() => this.state.autonomous_ready ? 
-                  sendFloatGotoPoseMsg(this.props.rbxNamespace + "/rbx/goto_pose", this.state.roll_deg, this.state.pitch_deg, this.state.yaw_deg_pose ) :
+                  sendFloatGotoPoseMsg(this.props.rbxNamespace + "/goto_pose", this.state.roll_deg, this.state.pitch_deg, this.state.yaw_deg_pose ) :
                   this.doNothing()
                   }>{"Send"}</Button>
               </ButtonMenu>
@@ -491,7 +491,7 @@ class NepiRobotControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendFloatGotoPositionMsg(this.props.rbxNamespace + "/rbx/goto_position", this.state.x_meters, this.state.y_meters, this.state.z_meters, this.state.yaw_deg_position ):
+                  sendFloatGotoPositionMsg(this.props.rbxNamespace + "/goto_position", this.state.x_meters, this.state.y_meters, this.state.z_meters, this.state.yaw_deg_position ):
                   this.doNothing()
                   }>{"Send"}</Button>
               </ButtonMenu>
@@ -553,7 +553,7 @@ class NepiRobotControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendFloatGotoLocationMsg(this.props.rbxNamespace + "/rbx/goto_location", this.state.location_lat, this.state.location_long, this.state.altitude_meters, this.state.yaw_deg_location ):
+                  sendFloatGotoLocationMsg(this.props.rbxNamespace + "/goto_location", this.state.location_lat, this.state.location_long, this.state.altitude_meters, this.state.yaw_deg_location ):
                   this.doNothing()
                 }>{"Send"}</Button>
               </ButtonMenu>

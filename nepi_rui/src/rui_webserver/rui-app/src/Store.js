@@ -129,6 +129,7 @@ Object.defineProperty(Array.prototype, "equals", { enumerable: false })
 //////////////////////////////////////////////////////////////
 
 class ROSConnectionStore {
+  @observable rosCheckDelay = 1000
   @observable rosCheckStarted = false
   @observable connectedToROS = false
   @observable rosAutoReconnect = true
@@ -148,6 +149,7 @@ class ROSConnectionStore {
   @observable systemSoftwareStatus = null
 
   @observable systemStatus = null
+  @observable systemDebugEnabled = false
   @observable heartbeat = false
   @observable systemInContainer = false
   @observable systemStatusDiskUsageMB = null
@@ -224,11 +226,12 @@ class ROSConnectionStore {
   @observable imageTopics = []
   @observable imageDetectionTopics = []
   @observable pointcloudTopics = []
-  @observable idxSensors = {}
   @observable settingCaps = {}
-  @observable ptxUnits = {}
-  @observable lsxUnits = {}
-  @observable rbxRobots = {}
+  @observable idxDevices = {}
+  @observable ptxDevices = {}
+  @observable lsxDevices = {}
+  @observable rbxDevices = {}
+  @observable npxDevices = {}
   @observable saveDataTopics = []
   @observable resetTopics = []
   @observable navSatFixTopics = []
@@ -385,7 +388,7 @@ class ROSConnectionStore {
     if (this.rosAutoReconnect) {
       setTimeout(async () => {
         await this.checkROSConnection()
-      }, 1000)
+      }, this.rosCheckDelay)
     }
   }
 
@@ -410,10 +413,11 @@ class ROSConnectionStore {
         var newMessageTopics = this.updateMessageTopics()
         var newPointcloudTopics = this.updatePointcloudTopics()
         this.updateAppStatusList()
-        this.updateIDXSensorList()
-        this.updatePTXUnits()
-		    this.updateLSXUnits()
-        this.updateRBXRobotsList()
+        this.updateIDXDevices()
+        this.updatePTXDevices()
+		    this.updateLXSDevices()
+        this.updateRBXDevices()
+        this.updateNPXDevices()
         this.updateNavPoseSourceTopics()
 
         if (newPrefix || newResetTopics || newSaveDataTopics || newMessageTopics || newImageTopics || newPointcloudTopics) {
@@ -549,129 +553,155 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  updateIDXSensorList() {
-    var idx_sensors_changed = false
-    var sensors_detected = []
+  updateIDXDevices() {
+    var idx_devices_changed = false
+    var devices_detected = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicNames[i].endsWith("/idx/status")) {
-        const idx_sensor_namespace = this.topicNames[i].split("/idx")[0]
-        if (!(sensors_detected.includes(idx_sensor_namespace))) {
-          this.callIDXCapabilitiesQueryService(idx_sensor_namespace) // Testing
-          this.callSettingsCapabilitiesQueryService(idx_sensor_namespace)
-          const idxSensor = this.idxSensors[idx_sensor_namespace]
-          const settingCaps = this.settingCaps[idx_sensor_namespace]
-          if (idxSensor && settingCaps) { // Testing
-            sensors_detected.push(idx_sensor_namespace)
+        const idx_device_namespace = this.topicNames[i].replace("/status","")
+        if (!(devices_detected.includes(idx_device_namespace))) {
+          this.callIDXCapabilitiesQueryService(idx_device_namespace) // Testing
+          this.callSettingsCapabilitiesQueryService(idx_device_namespace)
+          const idxDevices = this.idxDevices[idx_device_namespace]
+          if (idxDevices) { // Testing
+            devices_detected.push(idx_device_namespace)
           }
-          idx_sensors_changed = true // Testing -- always declare changed
+          idx_devices_changed = true // Testing -- always declare changed
         }
       }
     }
 
-    // Now clean out any sensors that are no longer detected
-    const previously_known = Object.keys(this.idxSensors)
+    // Now clean out any devices that are no longer detected
+    const previously_known = Object.keys(this.idxDevices)
     for (i = 0; i < previously_known.length; ++i) {
-      if (!(sensors_detected.includes(previously_known[i]))) {
-        delete this.idxSensors[previously_known[i]]
-        idx_sensors_changed = true
+      if (!(devices_detected.includes(previously_known[i]))) {
+        delete this.idxDevices[previously_known[i]]
+        idx_devices_changed = true
       }
     }
-    return idx_sensors_changed
+    return idx_devices_changed
   }
 
   @action.bound
-  updatePTXUnits() {
-    var ptx_units_changed = false
-    var ptx_units_detected = []
+  updatePTXDevices() {
+    var ptx_devices_changed = false
+    var ptx_devices_detected = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicNames[i].endsWith("/ptx/status")) {
-        const ptx_unit_namespace = this.topicNames[i].split("/ptx")[0]
-        if (!(ptx_units_detected.includes(ptx_unit_namespace))) {
-          this.callPTXCapabilitiesQueryService(ptx_unit_namespace)
-          this.callSettingsCapabilitiesQueryService(ptx_unit_namespace)
-          const ptxUnit = this.ptxUnits[ptx_unit_namespace]
-          const settingCaps = this.settingCaps[ptx_unit_namespace]
+        const ptx_device_namespace = this.topicNames[i].replace("/status","")
+        if (!(ptx_devices_detected.includes(ptx_device_namespace))) {
+          this.callPTXCapabilitiesQueryService(ptx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(ptx_device_namespace)
+          const ptxUnit = this.ptxDevices[ptx_device_namespace]
           if (ptxUnit)
           {
-            ptx_units_detected.push(ptx_unit_namespace)
+            ptx_devices_detected.push(ptx_device_namespace)
           }
         }
-        ptx_units_changed = true
+        ptx_devices_changed = true
       }
     }
 
     // Now clean out any units that are no longer detected
-    const previously_known = Object.keys(this.ptxUnits)
+    const previously_known = Object.keys(this.ptxDevices)
     for (i = 0; i < previously_known.length; ++i) {
-      if (!(ptx_units_detected.includes(previously_known[i]))) {
-        delete this.ptxUnits[previously_known[i]]
-        ptx_units_changed = true
+      if (!(ptx_devices_detected.includes(previously_known[i]))) {
+        delete this.ptxDevices[previously_known[i]]
+        ptx_devices_changed = true
       }
     }
-    return ptx_units_changed
+    return ptx_devices_changed
   }
   
   @action.bound
-  updateLSXUnits() {
-    var lsx_units_changed = false
-    var lsx_units_detected = []
+  updateLXSDevices() {
+    var lsx_devices_changed = false
+    var lsx_devices_detected = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicNames[i].endsWith("/lsx/status")) {
-        const lsx_unit_namespace = this.topicNames[i].split("/lsx")[0]
-        if (!(lsx_units_detected.includes(lsx_unit_namespace))) {
-          this.callLSXCapabilitiesQueryService(lsx_unit_namespace)
-          this.callSettingsCapabilitiesQueryService(lsx_unit_namespace)
-          const lsxUnits = this.lsxUnits[lsx_unit_namespace]
-          const settingCaps = this.settingCaps[lsx_unit_namespace]
-          if (lsxUnits && settingCaps)
+        const lsx_device_namespace = this.topicNames[i].replace("/status","")
+        if (!(lsx_devices_detected.includes(lsx_device_namespace))) {
+          this.callLSXCapabilitiesQueryService(lsx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(lsx_device_namespace)
+          const lsxDevices = this.lsxDevices[lsx_device_namespace]
+          if (lsxDevices)
           {
-            lsx_units_detected.push(lsx_unit_namespace)
+            lsx_devices_detected.push(lsx_device_namespace)
           }
         }
-        lsx_units_changed = true
+        lsx_devices_changed = true
       }
     }
 
     // Now clean out any units that are no longer detected
-    const previously_known = Object.keys(this.lsxUnits)
+    const previously_known = Object.keys(this.lsxDevices)
     for (i = 0; i < previously_known.length; ++i) {
-      if (!(lsx_units_detected.includes(previously_known[i]))) {
-        delete this.lsxUnits[previously_known[i]]
-        lsx_units_changed = true
+      if (!(lsx_devices_detected.includes(previously_known[i]))) {
+        delete this.lsxDevices[previously_known[i]]
+        lsx_devices_changed = true
       }
     }
-    return lsx_units_changed
+    return lsx_devices_changed
   }  
   
   @action.bound
-  updateRBXRobotsList() {
-    var rbx_robots_changed = false
-    var robots_detected = []
+  updateRBXDevices() {
+    var rbx_devices_changed = false
+    var devices_detected = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicNames[i].endsWith("/rbx/status")) {
-        const rbx_robot_namespace = this.topicNames[i].split("/rbx")[0]
-        if (!(robots_detected.includes(rbx_robot_namespace))) {
-          this.callRBXCapabilitiesQueryService(rbx_robot_namespace)
-          this.callSettingsCapabilitiesQueryService(rbx_robot_namespace)
-          const rbxRobot = this.rbxRobots[rbx_robot_namespace]
-          const settingCaps = this.settingCaps[rbx_robot_namespace]
-          if (rbxRobot && settingCaps) { // Testing
-            robots_detected.push(rbx_robot_namespace)
+        const rbx_device_namespace = this.topicNames[i].replace("/status","")
+        if (!(devices_detected.includes(rbx_device_namespace))) {
+          this.callRBXCapabilitiesQueryService(rbx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(rbx_device_namespace)
+          const rbxDevice = this.rbxDevices[rbx_device_namespace]
+          if (rbxDevice) {
+            devices_detected.push(rbx_device_namespace)
           }
-          rbx_robots_changed = true // Testing -- always declare changed
+          rbx_devices_changed = true // Testing -- always declare changed
         }
       }
     }
 
-    // Now clean out any sensors that are no longer detected
-    const previously_known = Object.keys(this.rbxRobots)
+    // Now clean out any devices that are no longer detected
+    const previously_known = Object.keys(this.rbxDevices)
     for (i = 0; i < previously_known.length; ++i) {
-      if (!(robots_detected.includes(previously_known[i]))) {
-        delete this.rbxRobots[previously_known[i]]
-        rbx_robots_changed = true
+      if (!(devices_detected.includes(previously_known[i]))) {
+        delete this.rbxDevices[previously_known[i]]
+        rbx_devices_changed = true
       }
     }
-    return rbx_robots_changed
+    return rbx_devices_changed
+  }
+
+  @action.bound
+  updateNPXDevices() {
+    var npx_devices_changed = false
+    var devices_detected = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicNames[i].endsWith("/npx/status")) {
+        const npx_device_namespace = this.topicNames[i].replace("/status","")
+        if (!(devices_detected.includes(npx_device_namespace))) {
+          this.callNPXCapabilitiesQueryService(npx_device_namespace) // Testing
+          this.callSettingsCapabilitiesQueryService(npx_device_namespace)
+          const npxSensor = this.npxDevices[npx_device_namespace]
+          if (npxSensor) { // Testing
+            devices_detected.push(npx_device_namespace)
+          }
+          npx_devices_changed = true // Testing -- always declare changed
+        }
+      }
+    }
+
+    // Now clean out any devices that are no longer detected
+    const previously_known = Object.keys(this.npxDevices)
+    for (i = 0; i < previously_known.length; ++i) {
+      if (!(devices_detected.includes(previously_known[i]))) {
+        delete this.npxDevices[previously_known[i]]
+        npx_devices_changed = true
+      }
+    }
+    return npx_devices_changed
   }
 
 
@@ -736,7 +766,7 @@ class ROSConnectionStore {
       else if ((this.topicTypes[i] === "nav_msgs/Odometry") || (this.topicTypes[i] === "sensor_msgs/Imu")) {
         newOrientationTopics.push(this.topicNames[i])
       }
-      else if (this.topicTypes[i] === "std_msgs/Float64") {
+      else if ((this.topicTypes[i] === "std_msgs/Float64")   || (this.topicTypes[i] === "nepi_ros_interfaces/Heading")){
         // Float64 ==> Not a very good differentiator!
         newHeadingTopics.push(this.topicNames[i])
       }
@@ -838,6 +868,7 @@ class ROSConnectionStore {
   @action.bound
   onConnectedToROS() {
     this.connectedToROS = true
+    this.rosCheckDelay = 3000
     this.rosLog("Connected to NEPI device")
     this.checkLicense()
   }
@@ -963,6 +994,7 @@ class ROSConnectionStore {
           this.heartbeat = false
         }, 500)
         this.systemStatus = message
+        this.systemDebugEnabled = message.sys_debug_enabled
         this.systemInContainer = message.in_container
         this.systemStatusDiskUsageMB = message.disk_usage
         this.systemStatusDiskRate = message.storage_rate
@@ -994,7 +1026,7 @@ class ROSConnectionStore {
   setupPTXStatusListener(ptxNamespace, callback) {
     if (ptxNamespace) {
       return this.addListener({
-        name: ptxNamespace + "/ptx/status",
+        name: ptxNamespace + "/status",
         messageType: "nepi_ros_interfaces/PTXStatus",
         noPrefix: true,
         callback: callback,
@@ -1007,7 +1039,7 @@ class ROSConnectionStore {
   setupLSXStatusListener(lsxNamespace, callback) {
     if (lsxNamespace) {
       return this.addListener({
-        name: lsxNamespace + "/lsx/status",
+        name: lsxNamespace + "/status",
         messageType: "nepi_ros_interfaces/LSXStatus",
         noPrefix: true,
         callback: callback,
@@ -1029,10 +1061,10 @@ class ROSConnectionStore {
 
 
   @action.bound
-  setupIDXStatusListener(idxSensorNamespace, callback) {
-    if (idxSensorNamespace) {
+  setupIDXStatusListener(idxDeviceNamespace, callback) {
+    if (idxDeviceNamespace) {
       return this.addListener({
-        name: idxSensorNamespace + "/idx/status",
+        name: idxDeviceNamespace + "/status",
         messageType: "nepi_ros_interfaces/IDXStatus",
         noPrefix: true,
         callback: callback,
@@ -1041,7 +1073,18 @@ class ROSConnectionStore {
     }
   }
 
-
+  @action.bound
+  setupNPXStatusListener(npxDeviceNamespace, callback) {
+    if (npxDeviceNamespace) {
+      return this.addListener({
+        name: npxDeviceNamespace + "/status",
+        messageType: "nepi_ros_interfaces/NPXStatus",
+        noPrefix: true,
+        callback: callback,
+        manageListener: false
+      })
+    }
+  }
 
 
 
@@ -1491,9 +1534,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  resetIdxFactoryTriggered(idxSensorNamespace) {
+  resetIdxFactoryTriggered(idxDeviceNamespace) {
     this.publishMessage({
-      name: idxSensorNamespace + "/idx/reset_factory",
+      name: idxDeviceNamespace + "/reset_factory",
       messageType: "std_msgs/Empty",
       data: {},
       noPrefix: true
@@ -1504,9 +1547,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  setIdxControlsEnable(idxSensorNamespace,idxControls) {
+  setIdxControlsEnable(idxDeviceNamespace,idxControls) {
      this.publishMessage({
-      name: idxSensorNamespace + "/idx/set_controls_enable",
+      name: idxDeviceNamespace + "/set_controls_enable",
       messageType: "std_msgs/Bool",
       data: {'data':idxControls},
       noPrefix: true
@@ -1515,9 +1558,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  setIdxAutoAdjust(idxSensorNamespace,autoAdjust) {
+  setIdxAutoAdjust(idxDeviceNamespace,autoAdjust) {
      this.publishMessage({
-      name: idxSensorNamespace + "/idx/set_auto_adjust",
+      name: idxDeviceNamespace + "/set_auto_adjust",
       messageType: "std_msgs/Bool",
       data: {'data':autoAdjust},
       noPrefix: true
@@ -1560,41 +1603,50 @@ class ROSConnectionStore {
 
 
   @action.bound
-  async callIDXCapabilitiesQueryService(idxSensorNamespace) {
+  async callIDXCapabilitiesQueryService(idxDeviceNamespace) {
     const capabilities = await this.callService({
-      name: idxSensorNamespace + "/idx/capabilities_query",
+      name: idxDeviceNamespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/IDXCapabilitiesQuery",  
     })
-    this.idxSensors[idxSensorNamespace] = capabilities
+    this.idxDevices[idxDeviceNamespace] = capabilities
   }
 
 
   @action.bound
-  async callPTXCapabilitiesQueryService(ptxUnitNamespace) {
+  async callPTXCapabilitiesQueryService(ptxDeviceNamespace) {
     const capabilities = await this.callService({
-      name: ptxUnitNamespace + "/ptx/capabilities_query",
+      name: ptxDeviceNamespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/PTXCapabilitiesQuery",
     })
-    this.ptxUnits[ptxUnitNamespace] = capabilities
+    this.ptxDevices[ptxDeviceNamespace] = capabilities
   }
 
   @action.bound
-  async callLSXCapabilitiesQueryService(lsxUnitNamespace) {
+  async callLSXCapabilitiesQueryService(lsxDeviceNamespace) {
     const capabilities = await this.callService({
-      name: lsxUnitNamespace + "/lsx/capabilities_query",
+      name: lsxDeviceNamespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/LSXCapabilitiesQuery",
     })
-    this.lsxUnits[lsxUnitNamespace] = capabilities
+    this.lsxDevices[lsxDeviceNamespace] = capabilities
   }
 
 
   @action.bound
-  async callRBXCapabilitiesQueryService(rbxRobotNamespace) {
+  async callRBXCapabilitiesQueryService(rbxDeviceNamespace) {
     const capabilities = await this.callService({
-      name: rbxRobotNamespace + "/rbx/capabilities_query",
+      name: rbxDeviceNamespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/RBXCapabilitiesQuery",  
     })
-    this.rbxRobots[rbxRobotNamespace] = capabilities
+    this.rbxDevices[rbxDeviceNamespace] = capabilities
+  }
+
+  @action.bound
+  async callNPXCapabilitiesQueryService(npxDeviceNamespace) {
+    const capabilities = await this.callService({
+      name: npxDeviceNamespace + "/capabilities_query",
+      messageType: "nepi_ros_interfaces/NPXCapabilitiesQuery",  
+    })
+    this.npxDevice[npxDeviceNamespace] = capabilities
   }
 
   @action.bound
@@ -2626,7 +2678,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXGoHome(ptxNamespace) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/go_home",
+      name: ptxNamespace + "/go_home",
       messageType: "std_msgs/Empty",
       data: {},
       noPrefix: true
@@ -2636,7 +2688,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXSetHomeHere(ptxNamespace) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/set_home_position_here",
+      name: ptxNamespace + "/set_home_position_here",
       messageType: "std_msgs/Empty",
       data: {},
       noPrefix: true
@@ -2646,7 +2698,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXGotoWaypoint(ptxNamespace, waypoint_index) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/goto_waypoint",
+      name: ptxNamespace + "/goto_waypoint",
       messageType: "std_msgs/UInt8",
       data: { data: waypoint_index },
       noPrefix: true
@@ -2656,7 +2708,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXSetWaypointHere(ptxNamespace, waypoint_index) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/set_waypoint_here",
+      name: ptxNamespace + "/set_waypoint_here",
       messageType: "std_msgs/UInt8",
       data: { data: waypoint_index },
       noPrefix: true
@@ -2666,7 +2718,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXStop(ptxNamespace) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/stop_moving",
+      name: ptxNamespace + "/stop_moving",
       messageType: "std_msgs/Empty",
       data: {},
       noPrefix: true
@@ -2676,7 +2728,7 @@ class ROSConnectionStore {
   @action.bound
   onSetPTXHomePos(ptxNamespace, yawHomePos, pitchHomePos) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/set_home_position",
+      name: ptxNamespace + "/set_home_position",
       messageType: "nepi_ros_interfaces/PanTiltPosition",
       data: {"yaw_deg": yawHomePos, "pitch_deg": pitchHomePos},
       noPrefix: true
@@ -2686,7 +2738,7 @@ class ROSConnectionStore {
   @action.bound
   onSetPTXGotoPos(ptxNamespace, yawHomePos, pitchHomePos) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/jog_to_position",
+      name: ptxNamespace + "/jog_to_position",
       messageType: "nepi_ros_interfaces/PanTiltPosition",
       data: {"yaw_deg": yawHomePos, "pitch_deg": pitchHomePos},
       noPrefix: true
@@ -2696,7 +2748,7 @@ class ROSConnectionStore {
   @action.bound
   onSetPTXSoftStopPos(ptxNamespace, yawMin, yawMax, pitchMin, pitchMax) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/set_soft_limits",
+      name: ptxNamespace + "/set_soft_limits",
       messageType: "nepi_ros_interfaces/PanTiltLimits",
       data: {"min_yaw_deg": yawMin,
              "max_yaw_deg": yawMax,
@@ -2709,7 +2761,7 @@ class ROSConnectionStore {
   @action.bound
   onSetPTXHardStopPos(ptxNamespace, yawMin, yawMax, pitchMin, pitchMax) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/set_hard_limits",
+      name: ptxNamespace + "/set_hard_limits",
       messageType: "nepi_ros_interfaces/PanTiltLimits",
       data: {"min_yaw_deg": yawMin,
              "max_yaw_deg": yawMax,
@@ -2722,7 +2774,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXJogYaw(ptxNamespace, direction) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/jog_timed_yaw",
+      name: ptxNamespace + "/jog_timed_yaw",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
@@ -2733,7 +2785,7 @@ class ROSConnectionStore {
   @action.bound
   onPTXJogPitch(ptxNamespace, direction) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/jog_timed_pitch",
+      name: ptxNamespace + "/jog_timed_pitch",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
@@ -2744,7 +2796,7 @@ class ROSConnectionStore {
   @action.bound
   onSetReverseYawControl(ptxNamespace, reverse) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/reverse_yaw_control",
+      name: ptxNamespace + "/reverse_yaw_control",
       messageType: "std_msgs/Bool",
       data: {"data" : reverse},
       noPrefix: true
@@ -2754,7 +2806,7 @@ class ROSConnectionStore {
   @action.bound
   onSetReversePitchControl(ptxNamespace, reverse) {
     this.publishMessage({
-      name: ptxNamespace + "/ptx/reverse_pitch_control",
+      name: ptxNamespace + "/reverse_pitch_control",
       messageType: "std_msgs/Bool",
       data: {"data" : reverse},
       noPrefix: true
@@ -2764,7 +2816,7 @@ class ROSConnectionStore {
   @action.bound
   onLSXSetStandby(lsxNamespace, enable) {
     this.publishMessage({
-      name: lsxNamespace + "/lsx/set_standby",
+      name: lsxNamespace + "/set_standby",
       messageType: "std_msgs/Bool",
       data: {"data" : enable},
       noPrefix: true
@@ -2774,7 +2826,7 @@ class ROSConnectionStore {
   @action.bound
   onLSXSetStrobeEnable(lsxNamespace, enable) {
     this.publishMessage({
-      name: lsxNamespace + "/lsx/set_strobe_enable",
+      name: lsxNamespace + "/set_strobe_enable",
       messageType: "std_msgs/Bool",
       data: {"data" : enable},
       noPrefix: true

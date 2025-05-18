@@ -26,7 +26,7 @@ from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetRespon
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 NEPI_ENV_PACKAGE = 'nepi_env'
@@ -74,10 +74,11 @@ class config_mgr(object):
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_ready()
+        self.msg_if.pub_info("Starting ConnectSystemIF processes")
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         ###########################
 
         ##############################
@@ -190,7 +191,7 @@ class config_mgr(object):
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         self.msg_if.pub_warn("Waiting for Node Class Ready")

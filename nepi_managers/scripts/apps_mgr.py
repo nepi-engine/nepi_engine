@@ -89,7 +89,7 @@ class NepiAppsMgr(object):
     ## Wait for NEPI core managers to start
     # Wait for System Manager
     mgr_sys_if = ConnectMgrSystemIF()
-    success = mgr_sys_if.wait_for_ready()
+    success = mgr_sys_if.wait_for_status()
     if success == False:
         nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
@@ -105,7 +105,7 @@ class NepiAppsMgr(object):
 
     # Wait for Config Manager
     mgr_cfg_if = ConnectMgrConfigIF()
-    success = mgr_cfg_if.wait_for_ready()
+    success = mgr_cfg_if.wait_for_status()
     if success == False:
         nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
@@ -221,7 +221,7 @@ class NepiAppsMgr(object):
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
     )
 
     self.msg_if.pub_warn("Waiting for Node Class Ready")

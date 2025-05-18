@@ -67,7 +67,7 @@ def UPDATE_NONE_SETTINGS_FUNCTION():
   return False, "No settings update function available"
 
 def GET_NONE_SETTINGS_FUNCTION():
-  return nepi_nex.NONE_SETTINGS
+  return NONE_SETTINGS
         
 def parse_cap_settings_msg_data(cap_settings_msg):
   cap_settings = cap_settings_msg.setting_caps_list

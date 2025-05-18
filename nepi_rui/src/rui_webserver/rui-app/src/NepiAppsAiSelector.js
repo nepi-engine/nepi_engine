@@ -78,7 +78,7 @@ class AppsAiSelector extends Component {
       needs_update: false
     }
 
-    this.checkROSConnection = this.checkROSConnection.bind(this)
+    this.checkConnection = this.checkConnection.bind(this)
 
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
     this.getAiMgrNamespace = this.getAiMgrNamespace.bind(this)
@@ -180,20 +180,20 @@ class AppsAiSelector extends Component {
   }
 
 
-  async checkROSConnection() {
+  async checkConnection() {
     const { namespacePrefix, deviceId} = this.props.ros
     if (namespacePrefix != null && deviceId != null) {
       this.setState({needs_update: true})
     }
     else {
       setTimeout(async () => {
-        await this.checkROSConnection()
+        await this.checkConnection()
       }, 1000)
     }
   }
 
   componentDidMount(){
-    this.checkROSConnection()
+    this.checkConnection()
   }
 
   // Lifecycle method called when compnent updates.

@@ -92,7 +92,7 @@ class AIDetectorManager:
         ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_ready()
+        success = mgr_sys_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
@@ -110,7 +110,7 @@ class AIDetectorManager:
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
+        success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
@@ -210,6 +210,14 @@ class AIDetectorManager:
                 'callback': self.updateFrameworkStateCb, 
                 'callback_args': ()
             },
+            'enable_all_frameworks': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_all_frameworks',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.enableAllFwsCb, 
+                'callback_args': ()
+            },
             'disable_all_frameworks': {
                 'namespace': self.node_namespace,
                 'topic': 'disable_all_frameworks',
@@ -254,7 +262,7 @@ class AIDetectorManager:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         self.msg_if.pub_warn("Waiting for Node Class Ready")
@@ -609,8 +617,8 @@ class AIDetectorManager:
             if framework_name not in current_aifs:
                 self.msg_if.pub_warn("Setting AI Framework: " + str(framework_name) + " Active")
                 if framework_name in aifs_dict.keys():
-                    #current_aifs.append(framework_name)
-                    current_aifs = [framework_name] # Just one framework for now
+                    current_aifs.append(framework_name)
+                    #current_aifs = [framework_name] # Just one framework for now
                     self.node_if.set_param('active_aifs', current_aifs)
                     self.refreshFrameworks()
                     self.saveConfig() # Save config
@@ -632,41 +640,15 @@ class AIDetectorManager:
         self.saveConfig() # Save config
         self.publish_status()
 
-    '''
+
     def enableAllFwsCb(self,msg):
-        aifs_dict = self.node_if.get_param("aifs_dict")
-        aifs_dict = nepi_aifs.activateAllFws(aifs_dict)
-        self.node_if.set_param("aifs_dict",aifs_dict)
+        aifs_dict = self.node_if.get_param('aifs_dict')
+        available_frameworks = list(aifs_dict.keys())
+        self.node_if.set_param('active_aifs', available_frameworks)
         self.refreshFrameworks()
         self.saveConfig() # Save config
         self.publish_status()
 
-
-    def disableAllFwsCb(self,msg):
-        aifs_dict = self.node_if.get_param("aifs_dict")
-        aifs_dict = nepi_aifs.disableAllFws(aifs_dict)
-        self.node_if.set_param("aifs_dict",aifs_dict)
-        self.refreshFrameworks()
-        self.saveConfig() # Save config
-        self.publish_status()
-
-    def updateFwStateCb(self,msg):
-        aif_name = msg.name
-        new_active_state = msg.active_state
-        aifs_dict = self.node_if.get_param("aifs_dict")
-        if aif_name in aifs_dict.keys():
-            app = aifs_dict[aif_name]
-            active_state = app['active']
-            if new_active_state != active_state:
-                if new_active_state == True:
-                    aifs_dict = nepi_aifs.activateFw(aif_name,aifs_dict)
-                else:
-                    aifs_dict = nepi_aifs.disableFw(aif_name,aifs_dict)
-        self.node_if.set_param("aifs_dict",aifs_dict)
-        self.refreshFrameworks()
-        self.saveConfig() # Save config
-        self.publish_status()
-    '''
 
     def enableAllModelsCb(self,msg):
         self.msg_if.pub_warn("Recieved Enable All Models msg: " + str(msg))

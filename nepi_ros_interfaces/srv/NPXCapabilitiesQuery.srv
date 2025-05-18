@@ -1,12 +1,13 @@
 # This service definition provides the navpose capabilities report for a general NEPI NEX driver node
 
 ---
-bool has_location
+bool has_heading
 bool has_position
 bool has_orientation
-bool has_heading
+bool has_altitude
+bool has_depth
 
 float32[] pub_rate_min_max
 string[] frame_3d_options
-string[] frame_alt_options
+string[] frame_altitude_options
 

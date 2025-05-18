@@ -29,6 +29,7 @@ class ConnectMgrConfigIF:
     ready = False
 
     status_msg = None
+    status_connected = False
 
     #######################
     ### IF Initialization
@@ -132,34 +133,17 @@ class ConnectMgrConfigIF:
 
         # Create Node Class ####################
 
-        self.NODE_IF = ConnectNodeClassIF(
+        self.node_if = ConnectNodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
-        ready = self.NODE_IF.wait_for_ready()
 
         ################################
         # Complete Initialization
-
-        # Wait for Service Message
-        nepi_ros.sleep(1)
-        self.msg_if.pub_info("Waiting for status message")
-        timer = 0
-        time_start = nepi_ros.get_time()
-        while self.status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.2)
-            timer = nepi_ros.get_time() - time_start
-        if self.status_msg is None:
-            self.msg_if.pub_warn("Status msg topic subscribe timed out")
-            success = False
-        else:
-            pass
-            #self.msg_if.pub_warn("Got status msg " + str(self.status_msg))
-
 
         #################################
         self.ready = True
@@ -172,7 +156,7 @@ class ConnectMgrConfigIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for connection")
         timer = 0
@@ -186,7 +170,27 @@ class ConnectMgrConfigIF:
             self.msg_if.pub_info("ready")
         return self.ready
 
+    def wait_for_status(self, timeout = float('inf') ):
+        self.msg_if.pub_info("Waiting for status connection")
+        timer = 0
+        time_start = nepi_ros.get_time()
+        while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
+            nepi_ros.sleep(.1)
+            timer = nepi_ros.get_time() - time_start
+        if self.status_connected == False:
+            self.msg_if.pub_info("Failed to connect to status msg")
+        else:
+            self.msg_if.pub_info("Status Connected")
+        return self.status_connected
 
+    def get_status_dict(self):
+        status_dict = None
+
+        if self.status_msg is not None:
+            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+        else:
+            self.msg_if.pub_info("Status Listener Not connected")
+        return status_dict
 
     #######################
     # Class Private Methods
@@ -194,5 +198,6 @@ class ConnectMgrConfigIF:
 
     # Update System Status
     def _statusCb(self,msg):
+        self.status_connected = True
         self.status_msg = msg
 

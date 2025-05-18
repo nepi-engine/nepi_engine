@@ -21,8 +21,6 @@ import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
 
 import NepiDeviceInfo from "./NepiDeviceInfo"
-
-
 import NepiIFSettings from "./Nepi_IF_Settings"
 
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
@@ -80,7 +78,7 @@ class NepiControlsLights extends Component {
 
     this.createImageTopicsOptions = this.createImageTopicsOptions.bind(this)
     this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
-    this.onLSXUnitSelected = this.onLSXUnitSelected.bind(this)
+    this.onlxsDeviceselected = this.onlxsDeviceselected.bind(this)
     this.lsxStatusListener = this.lsxStatusListener.bind(this)
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createLSXOptions = this.createLSXOptions.bind(this)
@@ -142,7 +140,7 @@ class NepiControlsLights extends Component {
   }
 
   // Function for configuring and subscribing to lsx/status
-  onLSXUnitSelected(event) {
+  onlxsDeviceselected(event) {
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
@@ -210,11 +208,11 @@ class NepiControlsLights extends Component {
   renderControlPanel() {
     const { sendTriggerMsg } = this.props.ros
     const { lsxNamespace, lsxTempC } = this.state
-    const { lsxUnits } = this.props.ros
+    const { lxsDevices } = this.props.ros
     const lsx_id = lsxNamespace? lsxNamespace.split('/').slice(-1) : "No Light Selected"
     const namespace = this.state.lsxNamespace
 
-    const lsx_caps = lsxUnits[lsxNamespace]
+    const lsx_caps = lxsDevices[lsxNamespace]
     const has_standby_mode = lsx_caps && (lsx_caps['has_standby_mode'] === true)
     const has_on_off_control = lsx_caps && (lsx_caps['has_on_off_control'] === true)
     const has_intensity_control = lsx_caps && (lsx_caps['has_intensity_control'] === true)
@@ -238,7 +236,7 @@ class NepiControlsLights extends Component {
           <Label title="Set On_Off State">
                   <Toggle
                     checked={this.state.lsxOnOffState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/turn_on_off",!this.state.lsxOnOffState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.lsxOnOffState)}>
                   </Toggle>
             </Label>
             </div>
@@ -248,7 +246,7 @@ class NepiControlsLights extends Component {
           <Label title="Set Standby State">
                   <Toggle
                     checked={this.state.lsxStandbyState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/set_standby",!this.state.lsxStandbyState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_standby",!this.state.lsxStandbyState)}>
                   </Toggle>
             </Label>
             </div>
@@ -260,7 +258,7 @@ class NepiControlsLights extends Component {
                     title={"Intensity ratio"}
                     msgType={"std_msgs/Float32"}
                     adjustment={this.state.lsxIntensityRatio}
-                    topic={lsxNamespace + "/lsx/set_intensity_ratio"}
+                    topic={lsxNamespace + "/set_intensity_ratio"}
                     scaled={.01}
                     min={0}
                     max={100}
@@ -275,7 +273,7 @@ class NepiControlsLights extends Component {
             <Label title={"Select Color"}>
                     <Select
                       id="select_color"
-                        onChange={(event) => onDropdownSelectedSendStr.bind(this)(event,namespace + "/lsx/set_color")}
+                        onChange={(event) => onDropdownSelectedSendStr.bind(this)(event,namespace + "/set_color")}
                         value={this.state.lsxColorStr}
                       >
                         {this.state.lsxColorStr
@@ -291,7 +289,7 @@ class NepiControlsLights extends Component {
                     title={"Blink Interval (ms)"}
                     msgType={"std_msgs/Float32"}
                     adjustment={this.state.lsxBlinkInterval}
-                    topic={lsxNamespace + "/lsx/set_blink_interval"}
+                    topic={lsxNamespace + "/set_blink_interval"}
                     scaled={.01}
                     min={25}
                     max={200}
@@ -306,7 +304,7 @@ class NepiControlsLights extends Component {
                   <Input id="blink_interval" 
                     value={this.state.lsxKelvinVal} 
                     onChange={(event) => onUpdateSetStateValue.bind(this)(event,"lsxKelvinVal")} 
-                    onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,namespace + "/lsx/set_kelvin")} />
+                    onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,namespace + "/set_kelvin")} />
                 </Label>
 
                 disabled={!has_intensity_control}
@@ -319,7 +317,7 @@ class NepiControlsLights extends Component {
                     title={"Kelvin Setting"}
                     msgType={"std_msgs/Int32"}
                     adjustment={this.state.lsxKelvinVal}
-                    topic={lsxNamespace + "/lsx/set_kelvin"}
+                    topic={lsxNamespace + "/set_kelvin"}
                     scaled={1}
                     min={kelvin_min}
                     max={kelvin_max}
@@ -351,7 +349,7 @@ class NepiControlsLights extends Component {
             <Label title="Set Strobe State">
                   <Toggle
                     checked={this.state.lsxStrobezState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/lsx/set_strobe_enable",!this.state.lsxStrobezState)}>
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_strobe_enable",!this.state.lsxStrobezState)}>
                   </Toggle>
             </Label>
             </div>
@@ -362,14 +360,14 @@ class NepiControlsLights extends Component {
 
   render() {
     const { sendTriggerMsg } = this.props.ros
-    const { lsxUnits } = this.props.ros
+    const { lxsDevices } = this.props.ros
     const { lsxNamespace } = this.state
     const connected = this.state.connected
     const namespace = this.state.lsxNamespace
 
     //const lsxImageViewerElement = document.getElementById("lsxImageViewer")
 
-    //const lsx_caps = lsxUnits[lsxNamespace]
+    //const lsx_caps = lxsDevices[lsxNamespace]
     return (
       <React.Fragment>
 
@@ -378,10 +376,10 @@ class NepiControlsLights extends Component {
 
           <NepiDeviceInfo
                   deviceNamespace={namespace}
-                  status_topic={"/lsx/status"}
+                  status_topic={"/status"}
                   status_msg_type={"nepi_ros_interfaces/LSXStatus"}
-                  name_update_topic={"/lsx/update_device_name"}
-                  name_reset_topic={"/lsx/reset_device_name"}
+                  name_update_topic={"/update_device_name"}
+                  name_reset_topic={"/reset_device_name"}
                   title={"NepiSensorsImagingInfo"}
               />
 
@@ -400,10 +398,10 @@ class NepiControlsLights extends Component {
 
             <Label title={"Lighting Device"}>
               <Select
-                onChange={this.onLSXUnitSelected}
+                onChange={this.onlxsDeviceselected}
                 value={namespace}
               >
-                {this.createLSXOptions(lsxUnits)}
+                {this.createLSXOptions(lxsDevices)}
               </Select>
             </Label>
             <Label title={"Selected Image"}>
@@ -472,7 +470,7 @@ class NepiControlsLights extends Component {
             
 
             <NepiIFSettings
-            settingsNamespace={namespace}
+            settingsNamespace={namespace + '/lxs'}
             title={"Nepi_IF_Settings"}
           />
 

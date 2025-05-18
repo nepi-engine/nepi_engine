@@ -23,7 +23,6 @@ from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequ
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_msg
 from nepi_sdk import nepi_ais
 
 
@@ -31,7 +30,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
-self.BOXES_INFO_DICT_ENTRY = {
+BOXES_INFO_DICT_ENTRY = {
     'model_name': 'test_model',
     'image_header': Header(),
     'image_topic': 'my/test_topic',
@@ -42,7 +41,7 @@ self.BOXES_INFO_DICT_ENTRY = {
 }
 
 
-self.BOX_DICT_ENTRY = {
+BOX_DICT_ENTRY = {
     'name': 'chair', # Class String Name
     'id': 1, # Class Index from Classes List
     'uid': '', # Reserved for unique tracking by downstream applications
@@ -55,9 +54,9 @@ self.BOX_DICT_ENTRY = {
     'area_pixels': 8100
 }
 
-self.BOXES_DICT = {
-    'info': self.BOXES_INFO_DICT_ENTRY,
-    'boxes': [self.BOX_DICT_ENTRY]
+BOXES_DICT = {
+    'info': BOXES_INFO_DICT_ENTRY,
+    'boxes': [BOX_DICT_ENTRY]
 }
 
 class ConnectAiDetectorIF:
@@ -121,8 +120,9 @@ class ConnectAiDetectorIF:
     #######################
     ### IF Initialization
     log_name = "ConnectAiDetectorIF"
-    def __init__(self, det_namespace, auto_reg_img = False, auto_dereg_img = False, timeout = 500):
-        #################################
+    def __init__(self, det_namespace, auto_reg_img = False, auto_dereg_img = False, timeout = 500,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -131,8 +131,11 @@ class ConnectAiDetectorIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + pc_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
 
 
         ##############################    
@@ -222,8 +225,7 @@ class ConnectAiDetectorIF:
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         
@@ -315,7 +317,7 @@ class ConnectAiDetectorIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -337,7 +339,7 @@ class ConnectAiDetectorIF:
     def check_det_connection(self):
         return self.det_connected
 
-    def wait_for_det_connection(self, timout = float('inf') ):
+    def wait_for_det_connection(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for connection")
         timer = 0
@@ -378,14 +380,14 @@ class ConnectAiDetectorIF:
         info_dict = None
 
         if srv_dict['service'] is None:
-            nepi_msg.publishMsgWarn(self,"Sevice is not connected: " + service_name)
+            self.msg_if.pub_warn(self,"Sevice is not connected: " + service_name)
         else:
             # Create service request
             request = None
             try:
                 request = srv_dict['req']
             except Exception as e:
-                nepi_msg.publishMsgWarn(self,"Failed to create service request: " + service_name + " " + str(e))
+                self.msg_if.pub_warn(self,"Failed to create service request: " + service_name + " " + str(e))
                 
             # Call service
             response = None
@@ -394,9 +396,9 @@ class ConnectAiDetectorIF:
 
             # Process Response
             if response is None:
-                nepi_msg.publishMsgWarn(self,"Failed to get response for service: " + service_name)
+                self.msg_if.pub_warn(self,"Failed to get response for service: " + service_name)
             else:
-                #nepi_msg.publishMsgInfo(self,"Got status response" + str(response) + " for service: " + service_name)
+                #self.msg_if.pub_info(self,"Got status response" + str(response) + " for service: " + service_name)
                 det_info_msg = response.detector_info
                 self.det_img_width = det_info_msg.det_img_width
                 self.det_img_height = det_info_msg.det_img_height
@@ -475,7 +477,7 @@ class ConnectAiDetectorIF:
         return connected
 
 
-    def wait_for_det_img_connection(self, det_img_ns, timout = float('inf') ):
+    def wait_for_det_img_connection(self, det_img_ns, timeout = float('inf') ):
         success = False
         if det_img_ns in self.det_img_data_dict.keys():
             self.msg_if.pub_info("Waiting for connection")
@@ -574,7 +576,7 @@ class ConnectAiDetectorIF:
 
     def register_detector_img(self, det_img_namespace, timeout = 20):
         #######################
-        nepi_msg.publishMsgInfo(self,":" + self.log_name + ":" + det_img_namespace + ":" + det_img_namespace + ": Initialization Detection Img Registration for namespace")
+        self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ":" + det_img_namespace + ": Initialization Detection Img Registration for namespace")
         success = True
 
         #### Check ns
@@ -584,17 +586,17 @@ class ConnectAiDetectorIF:
         # Check if currently connected and unregister if so
         if det_img_namespace != "None" and det_img_namespace != "None":
             if det_img_namespace == self.det_img_namespace:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ":" + det_img_namespace + ": Specified Detector already connected, Exiting registration process")
+                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Specified Detector already connected, Exiting registration process")
                 return True
             elif self.sub_dict['status_sub'] is not None:
-                nepi_msg.publishMsgWarn(self,":" + self.log_name + ":" + det_img_namespace + ": Different Detector already connected, unregistering current detector first")
+                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Different Detector already connected, unregistering current detector first")
                 unreged = self.unregister_detector()
                 if unreged == False:
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ":" + det_img_namespace + ": Failed to unregister current detector: " + str(self.det_img_namespace))
+                    self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Failed to unregister current detector: " + str(self.det_img_namespace))
 
         #######################
         # Start Initialize 
-        nepi_msg.publishMsgWarn(self,":" + self.log_name + ":" + det_img_namespace + ": Initializing detector with det_img_namespace: " + str(det_img_namespace))
+        self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Initializing detector with det_img_namespace: " + str(det_img_namespace))
         self.det_img_namespace = det_img_namespace
 
 
@@ -616,7 +618,7 @@ class ConnectAiDetectorIF:
             self.unregister_detector()
         else:
             self.det_connected = True
-            nepi_msg.publishMsgInfo(self,":" + self.log_name + ":" + det_img_namespace + ": Detector Registration Complete")
+            self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ": Detector Registration Complete")
         return success
 
     def unregister_detector_img(self, det_img_namespace):
@@ -629,7 +631,7 @@ class ConnectAiDetectorIF:
                     pub_sub.unregister()
                 except Exception as e:
                     success = False
-                    nepi_msg.publishMsgWarn(self,":" + self.log_name + ":" + det_img_namespace + ": Failed to unregister: " + pub_sub_name + " " + str(e))
+                    self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Failed to unregister: " + pub_sub_name + " " + str(e))
         time.sleep(1)
         for pub_sub_name in self.sub_dict.keys():
             self.sub_dict[pub_sub_name] = None

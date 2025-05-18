@@ -62,7 +62,7 @@ class AisMgr extends Component {
 
     }
 
-
+    this.checkConnection = this.checkConnection.bind(this)
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
 
@@ -137,8 +137,20 @@ class AisMgr extends Component {
       needs_update: false})
   }
 
+  async checkConnection() {
+    const { namespacePrefix, deviceId} = this.props.ros
+    if (namespacePrefix != null && deviceId != null) {
+      this.setState({needs_update: true})
+    }
+    else {
+      setTimeout(async () => {
+        await this.checkConnection()
+      }, 1000)
+    }
+  }
+
   componentDidMount(){
-    this.setState({needs_update: true})
+    this.checkConnection()
   }
 
   // Lifecycle method called when compnent updates.
@@ -265,13 +277,18 @@ class AisMgr extends Component {
 
           <div hidden={(this.state.selected_framework === "None")}>
 
-        <Label title="Enable AI Framework"> </Label>
+        <Label title="Enable AI Framework"> 
           <Toggle
             checked={framework_state }
             onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
         </Toggle>
+        </Label>
 
           </div>
+
+          <ButtonMenu>
+        <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/enable_all_frameworks")}>{"Enable All"}</Button>
+        </ButtonMenu>
 
         <ButtonMenu>
         <Button onClick={() => this.props.ros.sendTriggerMsg(this.state.mgrNamespace + "/disable_all_frameworks")}>{"Disable All"}</Button>

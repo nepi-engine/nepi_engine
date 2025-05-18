@@ -34,7 +34,7 @@ from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilit
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
@@ -103,12 +103,10 @@ class NepiDriversMgr(object):
       ## Wait for NEPI core managers to start
       # Wait for System Manager
       self.msg_if.pub_info("Starting ConnectSystemIF processes")
-      mgr_sys_if = ConnectMgrSystemIF()
-      self.msg_if.pub_info("Waiting for system if initialiation to complete")
-      success = mgr_sys_if.wait_for_ready()
-      self.msg_if.pub_info("Got System Ready: " + str(success))
+      mgr_sys_if = ConnectMgrSystemServicesIF()
+      success = mgr_sys_if.wait_for_services()
       if success == False:
-        nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+          nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
       self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
       self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
       self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
@@ -118,7 +116,7 @@ class NepiDriversMgr(object):
       
       # Wait for Config Manager
       mgr_cfg_if = ConnectMgrConfigIF()
-      success = mgr_cfg_if.wait_for_ready()
+      success = mgr_cfg_if.wait_for_status()
       if success == False:
           nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
       
@@ -271,7 +269,7 @@ class NepiDriversMgr(object):
                           services_dict = self.SRVS_DICT,
                           pubs_dict = self.PUBS_DICT,
                           subs_dict = self.SUBS_DICT,
-                          log_class_name = True
+                        msg_if = self.msg_if
       )
 
       self.msg_if.pub_warn("Waiting for Node Class Ready")
@@ -331,6 +329,7 @@ class NepiDriversMgr(object):
   
 
   def refreshCb(self,msg):
+    self.msg_if.pub_warn("Got refresh drivers request")
     self.refresh()
 
   def refresh(self):

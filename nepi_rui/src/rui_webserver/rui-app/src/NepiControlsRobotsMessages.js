@@ -142,7 +142,7 @@ class NepiRobotMessages extends Component {
       this.state.MessagesStatusListener.unsubscribe()
     }
     var listener = this.props.ros.setupStatusListener(
-          Namespace + "/rbx/status",
+          Namespace + "/status",
           "nepi_ros_interfaces/RBXStatus",
           this.MessagesStatusListener
         )
@@ -168,7 +168,7 @@ class NepiRobotMessages extends Component {
       this.state.MessagesStatusStrListener.unsubscribe()
     }
     var statuslistener = this.props.ros.setupStringListener(
-          Namespace + "/rbx/status_str",
+          Namespace + "/status_str",
           this.MessagesStatusStrListener
         )
     this.setState({ MessagesStatusStrListener : statuslistener})

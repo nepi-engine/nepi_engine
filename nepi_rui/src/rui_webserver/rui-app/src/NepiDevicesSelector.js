@@ -61,9 +61,10 @@ class DevicesSelector extends Component {
       drvListener: null,
 
       selected_app_install_pkg: null,
-      needs_update: true
+      needs_update: false
     }
 
+    this.checkConnection = this.checkConnection.bind(this)
 
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
@@ -113,7 +114,21 @@ class DevicesSelector extends Component {
   }
 
 
+  async checkConnection() {
+    const { namespacePrefix, deviceId} = this.props.ros
+    if (namespacePrefix != null && deviceId != null) {
+      this.setState({needs_update: true})
+    }
+    else {
+      setTimeout(async () => {
+        await this.checkConnection()
+      }, 1000)
+    }
+  }
 
+  componentDidMount(){
+    this.checkConnection()
+  }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic

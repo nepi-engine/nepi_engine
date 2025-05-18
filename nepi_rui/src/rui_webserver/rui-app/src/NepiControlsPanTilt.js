@@ -22,6 +22,10 @@ import Button, { ButtonMenu } from "./Button"
 import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
+import NepiDeviceInfo from "./NepiDeviceInfo"
+import NepiIFSettings from "./Nepi_IF_Settings"
+import NepiIFSaveData from "./Nepi_IF_SaveData"
+
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
   //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
@@ -104,7 +108,7 @@ class NepiControlsPanTilt extends Component {
     this.onKeyText = this.onKeyText.bind(this)
     this.createImageTopicsOptions = this.createImageTopicsOptions.bind(this)
     this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
-    this.onPTXUnitSelected = this.onPTXUnitSelected.bind(this)
+    this.onptxDeviceselected = this.onptxDeviceselected.bind(this)
     this.ptxStatusListener = this.ptxStatusListener.bind(this)
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createPTXOptions = this.createPTXOptions.bind(this)
@@ -259,8 +263,8 @@ class NepiControlsPanTilt extends Component {
 
   // Handler for Image topic selection
   onImageTopicSelected(event) {
-    var idx = event.nativeEvent.target.selectedIndex
-    var text = event.nativeEvent.target[idx].text
+    var ind = event.nativeEvent.target.selectedIndex
+    var text = event.nativeEvent.target[ind].text
     var value = event.target.value
 
     this.setState({
@@ -302,16 +306,16 @@ class NepiControlsPanTilt extends Component {
   }
 
   // Function for configuring and subscribing to ptx/status
-  onPTXUnitSelected(event) {
+  onptxDeviceselected(event) {
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
 
-    var idx = event.nativeEvent.target.selectedIndex
+    var ind = event.nativeEvent.target.selectedIndex
     var value = event.target.value
 
     // Handle the "None" option -- always index 0
-    if (idx === 0) {
+    if (ind === 0) {
       this.setState({ disabled: true })
       return
     }
@@ -370,8 +374,8 @@ class NepiControlsPanTilt extends Component {
 
   onWaypointSelected(event)
   {
-    const idx = event.nativeEvent.target.selectedIndex
-    this.setState({selectedWaypoint: idx})
+    const ind = event.nativeEvent.target.selectedIndex
+    this.setState({selectedWaypoint: ind})
   }
 
   onClickToggleShowLimits(){
@@ -389,14 +393,14 @@ class NepiControlsPanTilt extends Component {
             yawMinSoftstopEdited, pitchMinSoftstopEdited, yawMaxSoftstopEdited, pitchMaxSoftstopEdited,
             speedRatio, yawHomePosEdited, pitchHomePosEdited,
             reverseYawControl, reversePitchControl, selectedWaypoint } = this.state
-    const { ptxUnits, onPTXGoHome, onPTXSetHomeHere, onPTXGotoWaypoint, onPTXSetWaypointHere,
+    const { ptxDevices, onPTXGoHome, onPTXSetHomeHere, onPTXGotoWaypoint, onPTXSetWaypointHere,
             onSetReverseYawControl, onSetReversePitchControl } = this.props.ros
     const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
 
     const yawPositionDegClean = yawPositionDeg + .02
     const pitchPositionDegClean = pitchPositionDeg + .02
 
-    const ptx_caps = ptxUnits[ptxNamespace]
+    const ptx_caps = ptxDevices[ptxNamespace]
     const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
     const has_speed_control = ptx_caps && (ptx_caps['adjustable_speed'] === true)
     const has_homing = ptx_caps && (ptx_caps['homing'] === true)
@@ -460,7 +464,7 @@ class NepiControlsPanTilt extends Component {
           title={"Speed"}
           msgType={"std_msgs/Float32"}
           adjustment={speedRatio}
-          topic={ptxNamespace + "/ptx/set_speed_ratio"}
+          topic={ptxNamespace + "/set_speed_ratio"}
           scaled={0.01}
           min={0}
           max={100}
@@ -662,13 +666,13 @@ class NepiControlsPanTilt extends Component {
   }
 
   render() {
-    const { ptxUnits, onPTXJogYaw, onPTXJogPitch, onPTXStop, sendTriggerMsg } = this.props.ros
+    const { ptxDevices, onPTXJogYaw, onPTXJogPitch, onPTXStop, sendTriggerMsg } = this.props.ros
     const { ptxNamespace, yawNowRatio, pitchNowRatio} = this.state
 
     const ptxImageViewerElement = document.getElementById("ptxImageViewer")
     const pitchSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"
 
-    const ptx_caps = ptxUnits[ptxNamespace]
+    const ptx_caps = ptxDevices[ptxNamespace]
     const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
 
     const namespace = this.state.ptxNamespace
@@ -677,6 +681,20 @@ class NepiControlsPanTilt extends Component {
       <React.Fragment>
         <Columns>
           <Column equalWidth = {false} >
+
+                <div hidden={(namespace === null)}>
+                      <NepiDeviceInfo
+                            deviceNamespace={namespace}
+                            status_topic={"/status"}
+                            status_msg_type={"nepi_ros_interfaces/PTXStatus"}
+                            name_update_topic={"/update_device_name"}
+                            name_reset_topic={"/reset_device_name"}
+                            title={"NepiSensorsImagingInfo"}
+                        />
+
+                </div>
+
+
                 <div id="ptxImageViewer">
                   <CameraViewer
                     id="ptxImageViewer"
@@ -690,7 +708,7 @@ class NepiControlsPanTilt extends Component {
                   title={"Yaw"}
                   msgType={"std_msgs/Float32"}
                   adjustment={yawNowRatio}
-                  topic={ptxNamespace + "/ptx/jog_to_yaw_ratio"}
+                  topic={ptxNamespace + "/jog_to_yaw_ratio"}
                   scaled={0.01}
                   min={0}
                   max={100}
@@ -729,7 +747,7 @@ class NepiControlsPanTilt extends Component {
               title={"Pitch"}
               msgType={"std_msgs/Float32"}
               adjustment={pitchNowRatio}
-              topic={ptxNamespace + "/ptx/jog_to_pitch_ratio"}
+              topic={ptxNamespace + "/jog_to_pitch_ratio"}
               scaled={0.01}
               min={0}
               max={100}
@@ -744,10 +762,10 @@ class NepiControlsPanTilt extends Component {
           <Column>
             <Label title={"Pan/Tilt Unit"}>
               <Select
-                onChange={this.onPTXUnitSelected}
+                onChange={this.onptxDeviceselected}
                 value={namespace}
               >
-                {this.createPTXOptions(ptxUnits)}
+                {this.createPTXOptions(ptxDevices)}
               </Select>
             </Label>
             <Label title={"Selected Image"}>
@@ -799,6 +817,14 @@ class NepiControlsPanTilt extends Component {
               this.renderControlPanel()
               : null
             }
+
+            <div hidden={(namespace == null)}>
+              <NepiIFSettings
+                settingsNamespace={namespace}
+                title={"Nepi_IF_Settings"}
+              />
+            </div>
+
           </Column>
         </Columns>
       </React.Fragment>

@@ -28,7 +28,9 @@ from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, Stam
 from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
-                                SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+                             SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
+                             DebugQuery, DebugQueryRequest, DebugQueryResponse, \
+                            SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
 from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
@@ -145,6 +147,7 @@ class SystemMgrNode():
     states_status_interval = 1.0
 
     current_throttle_ratio = 1.0
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -299,6 +302,10 @@ class SystemMgrNode():
             'ssd_device': {
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
+            },
+            'debug_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': False
             }
         }
 
@@ -328,6 +335,22 @@ class SystemMgrNode():
                 'req': SystemSoftwareStatusQueryRequest(),
                 'resp': SystemSoftwareStatusQueryResponse(),
                 'callback': self.provide_sw_update_status
+            },
+            'debug_query': {
+                'namespace': self.base_namespace,
+                'topic': 'debug_mode_query',
+                'srv': DebugQuery,
+                'req': DebugQueryRequest(),
+                'resp': DebugQueryResponse(),
+                'callback': self.provide_debug_status
+            },
+            'status_query': {
+                'namespace': self.base_namespace,
+                'topic': 'system_status_query',
+                'srv': SystemStatusQuery,
+                'req': SystemStatusQueryRequest(),
+                'resp': SystemStatusQueryResponse(),
+                'callback': self.provide_system_status
             }
         }
 
@@ -474,6 +497,14 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.system_triggers_callback, 
                 'callback_args': ()
+            },
+            'enable_debug': {
+                'namespace': self.base_namespace,
+                'topic': 'enable_debug_mode',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_debug_callback, 
+                'callback_args': ()
             }
         }
 
@@ -484,7 +515,7 @@ class SystemMgrNode():
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         self.msg_if.pub_warn("Waiting for Node Class Ready")
@@ -507,7 +538,8 @@ class SystemMgrNode():
                             "value": str(self.in_container)
                             }
         }
-        self.sys_if_states = StatesIF(self.getStatesDictCb)
+        self.sys_if_states = StatesIF(self.getStatesDictCb,
+                        msg_if = self.msg_if)
         time.sleep(1)
 
 
@@ -532,7 +564,7 @@ class SystemMgrNode():
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
-
+        self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_enabled')
 
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
@@ -803,6 +835,16 @@ class SystemMgrNode():
     def provide_driver_folder(self, req):
         return self.DRIVERS_SHARE_PATH
 
+    def provide_debug_status(self, req):
+        response = DebugQueryResponse()
+        response.degug_enabled = self.status_msg.sys_debug_enabled
+        return response
+
+    def provide_system_status(self, req):
+        response = SystemStatusQueryResponse()
+        response.system_status = self.status_msg
+        return response
+
     def publish_status(self, event):
         # Populate the rest of the message contents
         # Temperature(s)
@@ -819,6 +861,10 @@ class SystemMgrNode():
 
     def set_save_status(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
+
+    def enable_debug_callback(self, msg):
+        self.status_msg.sys_debug_enabled = msg
+        self.node_if.set_param['debug_enabled']
 
     def ensure_reqd_storage_subdirs(self):
         # Check for and create subdirectories as necessary

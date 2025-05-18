@@ -30,7 +30,6 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading
-from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
 
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import StringArray, ImageStatus
@@ -142,7 +141,7 @@ class ReadWriteIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -412,29 +411,45 @@ NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
-                          'time': nepi_utils.get_time(),
-                          'frame_id': 'nepi_base',
-                          'frame_pos': 'ENU',
-                          'frame_alt': 'WGS84',
+    'frame_3d': 'ENU',
+    'frame_altitude': 'WGS84',
 
-                          'geoid_height_meters': 0,
+    'geoid_height_meters': 0,
 
-                          'heading_deg': 120.50,
+    'has_heading': True,
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 120.50,
 
-                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
-                          'roll_deg': 30.51,
-                          'pitch_deg': 30.51,
-                          'yaw_deg': 30.51,
+    'has_position': True,
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 1.234,
+    'y_m': 1.234,
+    'z_m': 1.234,
 
-                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
-                          'x_m': 1.234,
-                          'y_m': 1.234,
-                          'z_m': 1.234,
+    'has_orientation': True,
+    'time_orientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 30.51,
+    'pitch_deg': 30.51,
+    'yaw_deg': 30.51,
 
-                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
-                          'lat': 47.080909,
-                          'long': -120.8787889,
-                          'alt_m': 12.321,
+    'has_location': True,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 47.080909,
+    'long': -120.8787889,
+
+    'has_altitude': True,
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters in specified alt frame
+    'altitude_m': 12.321,
+
+    'has_depth': False,
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive meters
+    'depth_m': 0.0
 }
 
 
@@ -457,9 +472,8 @@ class NavPoseIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
     def __init__(self, namespace = None, topic = 'navpose',
-        has_location = False, enable_gps_pub = True, 
-        has_position = False, has_orientation = False, enable_pose_pub = True, 
-        has_heading = False, enable_heading_pub = True):
+        enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True
+        ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -468,7 +482,7 @@ class NavPoseIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
@@ -476,80 +490,69 @@ class NavPoseIF:
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
-        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
 
         # Initialize Status Msg.  Updated on each publish
-        status_msg = NavPoseStatus()
-        status_msg.has_location = has_location
-        status_msg.has_position = has_position
-        status_msg.has_orientation = has_orientation
-        status_msg.has_heading = has_heading
+        self.enable_gps_pub = enable_gps_pub
+        self.enable_pose_pub = enable_pose_pub
+        self.enable_heading_pub = enable_heading_pub
 
-        status_msg.frame_id = "nepi_base"
-        status_msg.get_latency_time
-        status_msg.pub_latency_time
-        status_msg.process_time
-        self.status_msg = status_msg
 
+        self.status_msg = NavPoseStatus()
 
         ##############################   
         ## Node Setup
 
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-        }
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'navpose_pub': {
-                'msg': NavPoseData,
-                'namespace': self.namespace,
-                'topic': '',
-                'qsize': 1,
-                'latch': False
-            },
-            'gps_pub': {
-                'msg': NavSatFix,
-                'namespace': os.path.dirname(self.namespace),
-                'topic': 'gps_fix',
-                'qsize': 1,
-                'latch': False
-            },
-            'pose_pub': {
-                'msg': Odometry,
-                'namespace': os.path.dirname(self.namespace),
-                'topic': 'odom',
-                'qsize': 1,
-                'latch': False
-            },
-            'heading_pub': {
-                'msg': Heading,
-                'namespace': os.path.dirname(self.namespace),
-                'topic': 'heading',
-                'qsize': 1,
-                'latch': False
-            },
             'status_pub': {
                 'msg': NavPoseStatus,
                 'namespace': self.namespace,
-                'topic': 'status',
+                'topic': 'navpose/status',
                 'qsize': 1,
                 'latch': True
+            },
+            'navpose_pub': {
+                'msg': NavPoseData,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
         }
 
+        if self.enable_gps_pub == True:
+            self.PUBS_DICT['gps_pub'] = {
+                'msg': NavSatFix,
+                'namespace': self.namespace,
+                'topic': 'gps_fix',
+                'qsize': 1,
+                'latch': False
+            }
+            
+        if self.enable_pose_pub == True:
+            self.PUBS_DICT['pose_pub'] = {
+                'msg': Odometry,
+                'namespace': self.namespace,
+                'topic': 'odom',
+                'qsize': 1,
+                'latch': False
+            }
 
+        if self.enable_heading_pub == True:
+            self.PUBS_DICT['heading_pub'] = {
+                'msg': Heading,
+                'namespace': self.namespace,
+                'topic': 'heading',
+                'qsize': 1,
+                'latch': False
+            }
 
         # Subs Config Dict ####################
-        self.SUBS_DICT = {
-        }
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        params_dict = self.PARAMS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        pubs_dict = self.PUBS_DICT
         )
 
         self.node_if.wait_for_ready()
@@ -574,7 +577,7 @@ class NavPoseIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -588,6 +591,9 @@ class NavPoseIF:
             else:
                 self.msg_if.pub_info("Connected")
         return self.ready  
+
+    def get_blank_navpose_dict(self):
+        return nepi_nav.BLANK_NAVPOSE_DICT
 
     def get_status_dict(self):
         status_dict = None
@@ -610,62 +616,82 @@ class NavPoseIF:
         if navpose_dict is None:
             success = False
         else:
+            has_subs = copy.deepcopy(self.has_subs)
+            if has_subs == False:
+                self.status_msg.publishing = False
             # Pub NavPoseData
-            if self.node_if is not None:
+            else: 
+                np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+                for key in np_dict.keys():
+                    if key in navpose_dict.keys():
+                        np_dict[key] = navpose_dict[key]
 
-                #self.has_subs_lock.acquire()
-                has_subs = copy.deepcopy(self.has_subs)
-                #self.has_subs_lock.release()
 
                 if timestamp == None:
                     timestamp = nepi_utils.get_time()
+                else:
+                    timestamp = nepi_ros.sec_from_timestamp(timestamp)
 
                 current_time = nepi_utils.get_time()
-                latency = (current_time - timestamp)
-                self.status_msg.get_latency_time = latency
-                #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+                get_latency = (current_time - timestamp)
+                #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency))
 
                 # Start Img Pub Process
                 start_time = nepi_utils.get_time()   
-
                 try:
-                    msg = nepi_nav.convert_navposedata_dict2msg(navpose_dict)
-                    self.node_if.publish_pub('navpose_pub', msg)
-                    if self.last_pub_time is None:
-                        self.last_pub_time = nepi_utils.get_time()
-                    else:
-                        cur_time = nepi_utils.get_time()
-                        pub_time_sec = cur_time - self.last_pub_time
-                        self.last_pub_time = cur_time
-                        self.status_msg.frame_id = navpose_dict['frame_id']
-                        self.status_msg.frame_pos = navpose_dict['frame_pos']
-                        self.status_msg.frame_alt = navpose_dict['frame_alt']
-                        self.status_msg.last_pub_sec = pub_time_sec
-                        self.status_msg.fps = float(1) / pub_time_sec
-
-                        self.time_list.pop(0)
-                        self.time_list.append(pub_time_sec)
-                        self.last_detect_time = nepi_utils.get_time()
+                    msg = nepi_nav.convert_navposedata_dict2msg(np_dict)
+                    if msg is not None:
+                        self.node_if.publish_pub('navpose_pub', msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
                     success = False
 
-                process_time = round( (nepi_utils.get_time() - start_time) , 3)
-                self.status_msg.process_time = process_time
-                latency = (current_time - timestamp)
-                self.status_msg.pub_latency_time = latency
+                current_time = nepi_utils.get_time()
+                pub_latency = (current_time - timestamp)
+                process_time = (current_time - start_time)
+                #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency))
 
+                # Update Pub Stats
+                if self.last_pub_time is None:
+                    pub_time_sec = 1.0
+                    self.last_pub_time = nepi_utils.get_time()
+                else:
+                    cur_time = nepi_utils.get_time()
+                    pub_time_sec = cur_time - self.last_pub_time
+                    self.last_pub_time = cur_time
+
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+
+                # Update Status Info
+                self.status_msg.publishing = True
+                self.status_msg.frame_3d = np_dict['frame_3d']
+                self.status_msg.frame_altitude = np_dict['frame_altitude']
+
+                self.status_msg.has_heading = np_dict['has_heading']
+                self.status_msg.has_position = np_dict['has_position']
+                self.status_msg.has_orientation = np_dict['has_orientation']
+                self.status_msg.has_location = np_dict['has_location']
+                self.status_msg.has_altitude = np_dict['has_altitude']
+                self.status_msg.has_depth = np_dict['has_depth']
+
+                self.status_msg.get_latency_time = get_latency
+                self.status_msg.pub_latency_time = pub_latency
+                self.status_msg.process_time = process_time  
+
+
+                # Publish nav pose subs
                 if self.enable_gps_pub == True:
                     msg = self.PUBS_DICT['gps_pub']['msg']()
                     # gps_fix pub
                     try:
-                        if self.status_msg.has_location == True:
-                            if navpose_dict['frame_alt'] == 'AMSL':
-                                navpose_dict = nepi_nav.convert_navposedata_amsl2wgs84(navpose_dict)
+                        if np_dict['has_location'] == True:
+                            if np_dict['has_altitude'] and np_dict['frame_altitude'] == 'AMSL':
+                                np_dict = nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
                                 
-                            msg.latitude = navpose_dict['latitude']
-                            msg.latitude = navpose_dict['longitude']
-                            msg.latitude = navpose_dict['altitude']
+                            msg.latitude = np_dict['latitude']
+                            msg.latitude = np_dict['longitude']
+                            msg.latitude = np_dict['altitude']
                         self.node_if.publish_pub('gps_pub',msg)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
@@ -676,18 +702,18 @@ class NavPoseIF:
                     #Create odom pub
                     msg = self.PUBS_DICT['pose_pub']['msg']()
                     try:
-                        pose_msg = None
-                        if navpose_dict['frame_pos'] == 'NED':
-                            navpose_dict = nepi_nav.convert_navposedata_ned2edu(navpose_dict)
+                        if np_dict['has_position'] or np_dict['has_orientation']:
+                            if np_dict['frame_3d'] == 'NED':
+                                np_dict = nepi_nav.convert_navposedata_ned2edu(np_dict)
                                     
-                        if self.status_msg.has_position == True:
+                        if np_dict['has_position'] == True:
                             point_msg = Point()
-                            point_msg.x = navpose_dict['x_m']
-                            point_msg.y = navpose_dict['y_m']
-                            point_msg.z = navpose_dict['z_m']
+                            point_msg.x = np_dict['x_m']
+                            point_msg.y = np_dict['y_m']
+                            point_msg.z = np_dict['z_m']
                             msg.pose.pose.position = point_msg
-                        if self.status_msg.has_orientation == True:
-                            rpy = [navpose_dict['roll_deg'],navpose_dict['pitch_deg'],navpose_dict['yaw_deg']]
+                        if np_dict['has_orientation'] == True:
+                            rpy = [np_dict['roll_deg'],np_dict['pitch_deg'],np_dict['yaw_deg']]
                             quad = nepi_nav.convert_rpy2quat(rpy)
                             quad_msg = Quaternion()
                             quad_msg.x = quad[0]
@@ -702,10 +728,10 @@ class NavPoseIF:
 
                 if self.enable_heading_pub == True:
                     #Create heading pub
-                    msg = self.PUBS_DICT['pose_pub']['msg']()
+                    msg = self.PUBS_DICT['heading_pub']['msg']()
                     try:
-                        if self.status_msg.has_heading == True:
-                            msg.heading = navpose_dict['heading']
+                        if np_dict['has_heading'] == True:
+                            msg.heading = np_dict['heading']
                         self.node_if.publish_pub('heading_pub',msg)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish heading data msg: " + str(e))
@@ -738,6 +764,11 @@ class NavPoseIF:
 
     def _publishStatusCb(self,timer):
         if self.node_if is not None and not nepi_ros.is_shutdown():
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_fps = avg_rate
             self.node_if.publish_pub('status_pub', self.status_msg)
 
 
@@ -784,7 +815,7 @@ class ImageIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
@@ -925,8 +956,7 @@ class ImageIF:
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         self.node_if.wait_for_ready()
@@ -958,7 +988,7 @@ class ImageIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -1003,7 +1033,7 @@ class ImageIF:
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
         self.status_msg.get_latency_time = latency
-        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency))
 
         # Start Img Pub Process
         start_time = nepi_utils.get_time()   
@@ -1077,7 +1107,6 @@ class ImageIF:
                 pub_time_sec = cur_time - self.last_pub_time
                 self.last_pub_time = cur_time
                 self.status_msg.last_pub_sec = pub_time_sec
-                self.status_msg.fps = float(1) / pub_time_sec
 
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
@@ -1123,21 +1152,20 @@ class ImageIF:
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
-        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
-        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
-        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
-        self.status_msg.base_overlay_list = self.init_overlay_list
-        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+        if self.node_if is not None and not nepi_ros.is_shutdown():
+            self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+            self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+            self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+            self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+            self.status_msg.base_overlay_list = self.init_overlay_list
+            self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
 
-        avg_rate = 0
-        avg_time = sum(self.time_list) / len(self.time_list)
-        if avg_time > .01:
-            avg_rate = float(1) / avg_time
-       
-        self.status_msg.avg_fps = avg_rate
-
-        self.node_if.publish_pub('status_pub',self.status_msg)
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_fps = avg_rate
+            self.node_if.publish_pub('status_pub',self.status_msg)
         
 
     def _setOverlayImgNameCb(self,msg):
@@ -1207,7 +1235,7 @@ class PointcloudIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
@@ -1266,8 +1294,7 @@ class PointcloudIF:
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         self.node_if.wait_for_ready()
@@ -1292,7 +1319,7 @@ class PointcloudIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -1341,7 +1368,7 @@ class PointcloudIF:
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
         self.status_msg.get_latency_time = latency
-        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency))
 
         # Start Img Pub Process
         start_time = nepi_utils.get_time()   
@@ -1393,7 +1420,6 @@ class PointcloudIF:
                 pub_time_sec = cur_time - self.last_pub_time
                 self.last_pub_time = cur_time
                 self.status_msg.last_pub_sec = pub_time_sec
-                self.status_msg.fps = float(1) / pub_time_sec
 
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
@@ -1428,13 +1454,13 @@ class PointcloudIF:
 
 
     def _publishStatusCb(self,timer):
-        avg_rate = 0
-        avg_time = sum(self.time_list) / len(self.time_list)
-        if avg_time > .01:
-            avg_rate = float(1) / avg_time
-    
-        self.status_msg.avg_fps = avg_rate
-        self.node_if.publish_pub('status_pub', self.status_msg)
+        if self.node_if is not None and not nepi_ros.is_shutdown():
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_fps = avg_rate
+            self.node_if.publish_pub('status_pub', self.status_msg)
 
 
 

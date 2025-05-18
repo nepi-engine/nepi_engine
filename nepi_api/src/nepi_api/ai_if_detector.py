@@ -129,7 +129,9 @@ class AiDetectorIF:
                 all_namespace, 
                 preprocessImageFunction, 
                 processDetectionFunction,
-                has_img_tiling = False):
+                has_img_tiling = False,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -138,8 +140,11 @@ class AiDetectorIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
 
         ##############################  
         # Init Class Variables 
@@ -147,7 +152,7 @@ class AiDetectorIF:
 
         ## Get folder info
         mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_srv_if.wait_for_ready()
+        success = mgr_sys_srv_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
@@ -520,8 +525,7 @@ class AiDetectorIF:
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         self.node_if.wait_for_ready()
@@ -548,7 +552,8 @@ class AiDetectorIF:
                             "value":"False"
                             }
         }
-        self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function)
+        self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
+                        msg_if = self.msg_if)
 
 
         # Setup Triggers IF
@@ -563,7 +568,8 @@ class AiDetectorIF:
 
         }
 
-        self.triggers_if = TriggersIF(triggers_dict = self.triggers_dict)
+        self.triggers_if = TriggersIF(triggers_dict = self.triggers_dict,
+                        msg_if = self.msg_if)
 
         
         # Setup Save Data IF
@@ -952,8 +958,7 @@ class AiDetectorIF:
                 }
 
                 img_pubs_if = NodePublishersIF(
-                                pubs_dict = IMG_PUBS_DICT,
-                                log_class_name = False
+                                pubs_dict = IMG_PUBS_DICT
                 )
 
                 ####################

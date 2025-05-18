@@ -92,7 +92,7 @@ def getDriversDict(search_path):
                       # Clean up options
                       for option_name in options_dict.keys():
                         option_dict = new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]
-                        if 'options' not in options_dict.keys():
+                        if 'options' not in option_dict.keys():
                           new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'] = []
                         default_val = options_dict[option_name]['default']
                         new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = default_val

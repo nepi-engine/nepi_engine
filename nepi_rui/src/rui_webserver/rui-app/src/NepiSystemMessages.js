@@ -142,6 +142,7 @@ class NepiSystemMessages extends Component {
   }
   
   render() {
+    const show_debug = this.props.ros.systemDebugEnabled
     const connected = this.state.connected
     const msg_str_list = (connected === true && this.msg_queue.getLength() > 0) ? this.msg_queue.getItems() : ["Waiting for message to publish"]
     const msg_str = this.convertStrListToJoinedStr(msg_str_list.reverse())
@@ -164,7 +165,7 @@ class NepiSystemMessages extends Component {
               
             </Column>
             <Column>
-              
+
 
             </Column>
             <Column>
@@ -187,6 +188,25 @@ class NepiSystemMessages extends Component {
 
           </Column>
           </Columns>
+
+          <Columns>
+            <Column>
+
+            <Label title="Show Debug Messages"> </Label>
+            <Toggle
+            checked={show_debug}
+            onClick={() => this.props.ros.sendBoolMsg("enable_debug_mode", !show_debug)}>
+            </Toggle>
+              
+            </Column>
+            <Column>
+
+
+            </Column>
+            <Column>
+
+            </Column>
+            </Columns>
 
 
       </Section>

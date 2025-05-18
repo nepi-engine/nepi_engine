@@ -15,11 +15,13 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_ros_interfaces.msg import Message
 
+
 class MsgIF(object):
 
     ns_str = ""
     ln_str = ""
 
+    print_debug = False
     #######################
     ### IF Initialization
     def __init__(self, log_name = None):
@@ -35,8 +37,15 @@ class MsgIF(object):
             self.ln_str = log_name + ": "
         self._logSelfMsg("Starting IF Initialization Processes")
         ##############################   
-
-
+        '''
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_services()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+        print_debug = mgr_sys_if.get_system_debug_mode()
+        if print_debug is not None: 
+            self.print_debug = print_debug
+        '''
         self._createMsgPublishers()
         ##############################
         self._logSelfMsg("IF Initialization Complete")
@@ -60,7 +69,8 @@ class MsgIF(object):
         self.pub_msg(msg, level = 'warn', throttle_s = throttle_s)
     
     def pub_debug(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'debug', throttle_s = throttle_s)
+        if self.print_debug == True:
+            self.pub_msg(msg, level = 'debug', throttle_s = throttle_s)
     
     def pub_error(self, msg, throttle_s = None):
         self.pub_msg(msg,level = 'error', throttle_s = throttle_s)
@@ -75,7 +85,7 @@ class MsgIF(object):
     ###############################
   
     def _createMsgPublishers(self):
-        self._logSelfMsg("Creating Msg Publishers")
+        #self._logSelfMsg("Creating Msg Publishers")
         self.msg_pub = nepi_ros.create_publisher("~messages", Message, queue_size=1)
         self.msg_pub_sys = nepi_ros.create_publisher("messages", Message, queue_size=1)
         
@@ -86,4 +96,5 @@ class MsgIF(object):
 
     def _createMsgString(self,msg):
          return self.ns_str + self.ln_str + str(msg)
+
 

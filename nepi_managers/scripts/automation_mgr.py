@@ -48,7 +48,7 @@ from nepi_ros_interfaces.msg import AutoStartEnabled
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
@@ -91,10 +91,11 @@ class AutomationManager(object):
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_ready()
+        self.msg_if.pub_info("Starting ConnectSystemIF processes")
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
         self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
         self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
 
@@ -104,7 +105,7 @@ class AutomationManager(object):
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
+        success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
     
@@ -203,7 +204,7 @@ class AutomationManager(object):
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         self.msg_if.pub_warn("Waiting for Node Class Ready")

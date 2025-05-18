@@ -234,7 +234,7 @@ class AiDetectorImgPub:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         self.node_if.wait_for_ready()
@@ -247,7 +247,8 @@ class AiDetectorImgPub:
         factory_data_rates= {}
         factory_data_rates[self.data_product] = [1.0, 0.0, 100.0] 
 
-        self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.det_namespace)
+        self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.det_namespace,
+                        msg_if = self.msg_if)
         
         time.sleep(1)
 

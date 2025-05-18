@@ -11,7 +11,6 @@ import os
 import time
 
 from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_msg
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
@@ -51,7 +50,6 @@ class NodeConfigsIF:
     namespace = '~'
 
     reset_sub = None
-    factory_reset_service = None
     request_msg = FileResetRequest()
     response_msg = FileResetResponse()
 
@@ -65,8 +63,9 @@ class NodeConfigsIF:
     def __init__(self, 
                 configs_dict,
                 log_name = None,
-                log_class_name = True):
-        #################################
+                log_class_name = True,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -75,14 +74,17 @@ class NodeConfigsIF:
 
         ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": "
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is None:
+                log_name = ''
+            elif log_class_name == True:
+                log_name = log_name + ": "
+            if log_class_name == True:
+                log_name = log_name + self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
 
         ##############################    
 
@@ -122,7 +124,7 @@ class NodeConfigsIF:
         self.save_params_pub = nepi_ros.create_publisher('store_params', String, queue_size=1)
 
         self.msg_if.pub_info("Loading saved config data")
-        self._resetCb('user_reset')
+        self.reset_config()
 
 
         # Subscribe to save config for node namespace
@@ -147,7 +149,7 @@ class NodeConfigsIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("Node Configs IF Initialization Complete")
         ##############################  
 
 
@@ -158,7 +160,7 @@ class NodeConfigsIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0
@@ -276,7 +278,8 @@ class NodeParamsIF:
     def __init__(self, 
                 params_dict = None,
                 log_name = None,
-                log_class_name = True
+                log_class_name = True,
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -284,16 +287,19 @@ class NodeParamsIF:
         self.node_name = nepi_ros.get_node_name()
         self.node_namespace = nepi_ros.get_node_namespace()
 
-        ##############################
+        ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": " 
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is None:
+                log_name = ''
+            elif log_class_name == True:
+                log_name = log_name + ": "
+            if log_class_name == True:
+                log_name = log_name + self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Node Params IF Initialization Processes")
         ##############################   
 
         ##############################  
@@ -319,7 +325,7 @@ class NodeParamsIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0
@@ -444,22 +450,28 @@ class NodeServicesIF:
     def __init__(self, 
                 services_dict = None,
                 log_name = None,
-                log_class_name = True
+                log_class_name = True,
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
         self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": " 
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is None:
+                log_name = ''
+            elif log_class_name == True:
+                log_name = log_name + ": "
+            if log_class_name == True:
+                log_name = log_name + self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Node Services IF Initialization Processes")
         ##############################   
 
         ##############################  
@@ -483,7 +495,7 @@ class NodeServicesIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0
@@ -546,12 +558,12 @@ class NodeServicesIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
                 if srv_callback is not None and not nepi_ros.is_shutdown():
-                    self.msg_if.pub_info("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
+                    self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
                     try:
                         service = nepi_ros.create_service(srv_namespace, srv_msg, srv_callback)   
                         self.srvs_dict[service_name]['service'] = service
-                        self.msg_if.pub_info("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
+                        self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
                     
@@ -603,22 +615,28 @@ class NodePublishersIF:
                 pubs_dict = None,
                 log_name = None,
                 log_class_name = True,
-                do_wait = True
+                do_wait = True,
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
         self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": " 
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is None:
+                log_name = ''
+            elif log_class_name == True:
+                log_name = log_name + ": "
+            if log_class_name == True:
+                log_name = log_name + self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Node Pubs IF Initialization Processes")
         ##############################   
 
         self.do_wait = do_wait
@@ -643,7 +661,7 @@ class NodePublishersIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0
@@ -706,7 +724,7 @@ class NodePublishersIF:
             if 'pub' not in pub_dict.keys():
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_ros.is_shutdown():
                     pub_namespace = nepi_ros.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_info("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
+                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
                         pub = nepi_ros.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
@@ -758,23 +776,28 @@ class NodeSubscribersIF:
                 subs_dict = None,
                 log_name = None,
                 log_class_name = True,
-                do_wait = True
+                do_wait = True,
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
         self.node_namespace = nepi_ros.get_node_namespace()
-        ############################## 
+
+        ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": " 
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is None:
+                log_name = ''
+            elif log_class_name == True:
+                log_name = log_name + ": "
+            if log_class_name == True:
+                log_name = log_name + self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Node Subs IF Initialization Processes")
 
         ##############################   
         self.do_wait = do_wait
@@ -800,7 +823,7 @@ class NodeSubscribersIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0
@@ -839,7 +862,7 @@ class NodeSubscribersIF:
             #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_ros.is_shutdown():
                 sub_namespace = nepi_ros.create_namespace(sub_dict['namespace'],sub_dict['topic'])
-                self.msg_if.pub_info("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
+                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
@@ -874,7 +897,7 @@ class NodeSubscribersIF:
 ##################################################
 ### Node Class
 
-# Configs Config Dict ####################
+# Configs Dict ####################
 '''
 EXAMPLE_CFGS_DICT = {
         'init_callback': None,
@@ -885,7 +908,7 @@ EXAMPLE_CFGS_DICT = {
 }
 
 
-# Params Config Dict ####################
+# Params Dict ####################
 EXAMPLE_PARAMS_DICT = {
     'param1_name': {
         'namespace':  self.node_namespace,
@@ -898,7 +921,7 @@ EXAMPLE_PARAMS_DICT = {
 }
 
 
-# Services Config Dict ####################
+# Services Dict ####################
 EXAMPLE_SRVS_DICT = {
     'service_name': {
         'namespace':  self.node_namespace,
@@ -911,7 +934,7 @@ EXAMPLE_SRVS_DICT = {
 }
 
 
-# Publishers Config Dict ####################
+# Publishers Dict ####################
 EXAMPLE_PUBS_DICT = {
     'pub_name': {
         'namespace':  self.node_namespace,
@@ -923,7 +946,7 @@ EXAMPLE_PUBS_DICT = {
 }
 
 
-# Subscribers Config Dict ####################
+# Subscribers Dict ####################
 EXAMPLE_SUBS_DICT = {
     'sub_name': {
         'namespace':  self.node_namespace,
@@ -970,10 +993,9 @@ class NodeClassIF:
                 services_dict = None,
                 pubs_dict = None,
                 subs_dict = None,
-                log_name = None,
-                log_class_name = False,
                 node_name = None,
-                do_wait = True
+                do_wait = False,
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         if node_name is not None:
@@ -985,14 +1007,11 @@ class NodeClassIF:
 
         ##############################  
         # Create Msg Class
-        if log_name is None:
-            log_name = ''
-        elif log_class_name == True:
-            log_name = log_name + ": " 
-        if log_class_name == True:
-          log_name = log_name + self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Node Class IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
         ##############################   
         self.do_wait = do_wait
 
@@ -1000,14 +1019,14 @@ class NodeClassIF:
         ##############################  
         # Create Params Class
         if params_dict is not None:
-            self.msg_if.pub_info("Starting Node Params IF Initialization Processes")
-            self.params_if = NodeParamsIF(params_dict = params_dict, log_name = log_name)
+            self.msg_if.pub_debug("Starting Node Params IF Initialization Processes")
+            self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if)
 
 
         ##############################  
         # Create Config Class After Params
         if configs_dict is not None:
-            self.msg_if.pub_info("Starting Node Configs IF Initialization Processes")
+            self.msg_if.pub_debug("Starting Node Configs IF Initialization Processes")
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
             configs_dict = {
@@ -1017,42 +1036,43 @@ class NodeClassIF:
                     'init_configs': True,
                     'namespace': self.node_namespace
             }
-            self.configs_if = NodeConfigsIF(configs_dict = configs_dict, log_name = log_name)
+            self.configs_if = NodeConfigsIF(configs_dict = configs_dict, msg_if = self.msg_if)
 
 
         ##############################  
         # Create Services Class
         if services_dict is not None:
-            self.msg_if.pub_info("Starting Node Services IF Initialization Processes")
-            self.services_if = NodeServicesIF(services_dict = services_dict, log_name = log_name)
+            self.msg_if.pub_debug("Starting Node Services IF Initialization Processes")
+            self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if)
 
 
         ##############################  
         # Create Publisers Class
         if pubs_dict is not None:
-            self.msg_if.pub_info("Starting Node Publishers IF Initialization Processes")
-            self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, log_name = log_name, do_wait = self.do_wait)
+            self.msg_if.pub_debug("Starting Node Publishers IF Initialization Processes")
+            self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, do_wait = self.do_wait, msg_if = self.msg_if)
 
 
         ##############################  
         # Create Subscribers Class
         if subs_dict is not None:
-            self.msg_if.pub_info("Starting Node Subscribers IF Initialization Processes")
-            self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, log_name = log_name)
+            self.msg_if.pub_debug("Starting Node Subscribers IF Initialization Processes")
+            self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if)
 
             
         ############################## 
         # Wait for ready
-        if params_dict is not None:
-            ready = self.params_if.wait_for_ready()
-        if configs_dict is not None:
-            ready = self.configs_if.wait_for_ready()
-        if services_dict is not None:
-            ready = self.services_if.wait_for_ready()
-        if pubs_dict is not None:
-            ready = self.pubs_if.wait_for_ready()
-        if subs_dict is not None:
-            ready = self.subs_if.wait_for_ready()
+        if self.do_wait == True:
+            if params_dict is not None:
+                ready = self.params_if.wait_for_ready()
+            if configs_dict is not None:
+                ready = self.configs_if.wait_for_ready()
+            if services_dict is not None:
+                ready = self.services_if.wait_for_ready()
+            if pubs_dict is not None:
+                ready = self.pubs_if.wait_for_ready()
+            if subs_dict is not None:
+                ready = self.subs_if.wait_for_ready()
 
 
 
@@ -1070,7 +1090,7 @@ class NodeClassIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         self.msg_if.pub_info("Waiting for Ready")
         timer = 0

@@ -19,6 +19,7 @@ import time
 import subprocess
 import yaml
 import csv
+import inspect
 
 import pytz
 import datetime
@@ -26,6 +27,9 @@ import datetime
 from nepi_sdk import nepi_ros
 log_name = "nepi_utils"
 logger = nepi_ros.logger(log_name = log_name)
+
+
+
 
 #########################
 ### Time Helper Functions
@@ -390,3 +394,29 @@ def find_all_indexes(input_string, char):
     """
     indexes = [i for i, letter in enumerate(input_string) if letter == char]
     return indexes
+
+
+
+########################
+### Misc Helper Functions
+def get_caller_class(self):
+    caller_class = None
+    frame = inspect.stack()[1][0]
+    args, _, _, value_dict = inspect.getargvalues(frame)
+    # we check the first parameter for the frame function is
+    if len(args) and args[0] == 'self':
+      # in that case, 'self' will be referenced in value_dict
+      instance = value_dict.get('self', None)
+      if instance:
+        caller_class = getattr(instance, '__class__', None)
+    return caller_class
+
+
+
+def get_caller_class_name(self):
+    caller_class = get_caller_class(self)
+    if caller_class is None:
+      return ""
+    else:
+        caller_class_name = str(caller_class.__name__)
+    return caller_class_name

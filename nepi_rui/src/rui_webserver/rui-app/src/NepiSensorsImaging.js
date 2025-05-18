@@ -39,7 +39,7 @@ class NepiSensorsImaging extends Component {
     this.createTopicOptions = this.createTopicOptions.bind(this)
     this.createImageOptions = this.createImageOptions.bind(this)
 
-    //const idxSensorNamespaces = Object.keys(props.ros.idxSensors)
+    //const idxSensorNamespaces = Object.keys(props.ros.idxDevices)
 
 
     
@@ -130,13 +130,13 @@ class NepiSensorsImaging extends Component {
     else{
       var autoSelectedImgTopic = null
       var autoSelectedImgTopicText = null
-      const capabilities = this.props.ros.idxSensors[value]
+      const capabilities = this.props.ros.idxDevices[value]
       if (capabilities.has_color_2d_image) {
-        autoSelectedImgTopic = value.concat("/idx/color_2d_image")
+        autoSelectedImgTopic = value.concat("/color_2d_image")
         autoSelectedImgTopicText = 'color_2d_image'
       }
       else if (capabilities.has_bw_2d_image) {
-        autoSelectedImgTopic = value.concat("/idx/bw_2d_image")
+        autoSelectedImgTopic = value.concat("/bw_2d_image")
         autoSelectedImgTopicText = 'bw_2d_image'      
       }
 
@@ -162,7 +162,7 @@ class NepiSensorsImaging extends Component {
   }
 
   renderSensorSelection() {
-    const { idxSensors, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
+    const { idxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const SensorSelected = (this.state.currentIDXNamespace != null)
     const namespace = this.state.currentIDXNamespace
@@ -181,7 +181,7 @@ class NepiSensorsImaging extends Component {
                     onChange={this.onTopicIDXSelected}
                     value={namespace}
                   >
-                    {this.createTopicOptions(Object.keys(idxSensors))}
+                    {this.createTopicOptions(Object.keys(idxDevices))}
                   </Select>
                 </Label>
                
@@ -279,10 +279,10 @@ class NepiSensorsImaging extends Component {
                     <div hidden={(!SensorSelected)}>
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
-                            status_topic={"/idx/status"}
+                            status_topic={"/status"}
                             status_msg_type={"nepi_ros_interfaces/IDXStatus"}
-                            name_update_topic={"/idx/update_device_name"}
-                            name_reset_topic={"/idx/reset_device_name"}
+                            name_update_topic={"/update_device_name"}
+                            name_reset_topic={"/reset_device_name"}
                             title={"NepiSensorsImagingInfo"}
                         />
 
@@ -293,7 +293,7 @@ class NepiSensorsImaging extends Component {
                     <div hidden={(!SensorSelected)}>
 
                       <NepiIFSaveData
-                          saveNamespace={namespace}
+                          saveNamespace={namespace + ''}
                           title={"Nepi_IF_SaveData"}
                       />
                     </div>
@@ -327,7 +327,7 @@ class NepiSensorsImaging extends Component {
 
                     <div hidden={(!SensorSelected && this.state.show_settings)}>
                       <NepiIFSettings
-                        settingsNamespace={namespace}
+                        settingsNamespace={namespace + ''}
                         title={"Nepi_IF_Settings"}
                       />
                     </div>

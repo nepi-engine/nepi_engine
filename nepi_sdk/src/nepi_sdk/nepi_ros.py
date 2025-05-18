@@ -710,6 +710,10 @@ def get_ros_stamp():
     ros_time = ros_time_now()
     return ros_stamp_from_ros_time(ros_time)
 
+def ros_stamp_now():
+    ros_time = ros_time_now()
+    return ros_stamp_from_ros_time(ros_time)
+
 
 def ros_stamp_from_ros_time(ros_time):
   ros_stamp = ros_time
@@ -722,7 +726,7 @@ def ros_stamp_from_sec(time_sec):
   return ros_stamp
   
 def sec_from_ros_stamp(stamp):
-  sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
+  sec_str = str(stamp.secs) + '.' + str(stamp.nsecs)
   sec = float(sec_str)
   return sec
 

@@ -75,7 +75,6 @@ class ConnectImageIF:
 
     #######################
     ### IF Initialization
-    log_name = "ConnectImageIF"
     def __init__(self, 
                 namespace,
                 preprocess_function = None,
@@ -89,18 +88,16 @@ class ConnectImageIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+        topic = os.path.basename(namespace)
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
         ##############################    
         # Initialize Class Variables
 
-        if namespace is None:
-            namespace = self.node_namespace
-        else:
-            namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(namespace)
 
         self.preprocessFunction = preprocess_function
         self.callbackFunction = callback_function
@@ -130,11 +127,8 @@ class ConnectImageIF:
 
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
-
-        self.con_node_if.wait_for_ready()
 
 
         ##############################
@@ -151,7 +145,7 @@ class ConnectImageIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -172,7 +166,7 @@ class ConnectImageIF:
     def check_connection(self):
         return self.connected
 
-    def wait_for_connection(self, timout = float('inf') ):
+    def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
@@ -190,7 +184,7 @@ class ConnectImageIF:
     def check_status_connection(self):
         return self.status_connected
 
-    def wait_for_status_connection(self, timout = float('inf') ):
+    def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection")
             timer = 0
@@ -259,7 +253,7 @@ class ConnectImageIF:
         ros_timestamp = data_msg.header.stamp
         latency = (current_time.to_sec() - ros_timestamp.to_sec())
         data_dict['get_latency_time'] = latency
-        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency))
 
         start_time = nepi_ros.get_time()   
 
@@ -280,7 +274,6 @@ class ConnectImageIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Provided Image Preprocess Function failed:  " + str(e))
 
-            data = self.preprocessFunction(data)
             data_dict = dict()
             data_dict['namespace'] = self.namespace
             data_dict['data'] = data
@@ -298,7 +291,7 @@ class ConnectImageIF:
 
             latency = (current_time.to_sec() - ros_timestamp.to_sec())
             data_dict['got_latency_time'] = latency
-            #self.msg_if.pub_info("Img Pub Latency: {:.2f}".format(latency))
+            #self.msg_if.pub_debug("Img Pub Latency: {:.2f}".format(latency))
 
             if self.callbackFunction is not None:
                 self.callbackFunction(data_dict)
@@ -365,7 +358,6 @@ class ConnectPointcloudIF:
  
     #######################
     ### IF Initialization
-    log_name = "ConnectPointcloudIF"
     def __init__(self, 
                 namespace,
                 preprocess_function = None,
@@ -379,18 +371,16 @@ class ConnectPointcloudIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + pc_name)
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+        topic = os.path.basename(namespace)
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
         ##############################    
         # Initialize Class Variables
 
-        if namespace is None:
-            namespace = self.node_namespace
-        else:
-            namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+        
 
         self.preprocessFunction = preprocess_function
         self.callbackFunction = callback_function
@@ -419,8 +409,7 @@ class ConnectPointcloudIF:
 
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         self.con_node_if.wait_for_ready()
@@ -441,7 +430,7 @@ class ConnectPointcloudIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -462,7 +451,7 @@ class ConnectPointcloudIF:
     def check_connection(self):
         return self.connected
 
-    def wait_for_connection(self, timout = float('inf') ):
+    def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
@@ -480,7 +469,7 @@ class ConnectPointcloudIF:
     def check_status_connection(self):
         return self.status_connected
 
-    def wait_for_status_connection(self, timout = float('inf') ):
+    def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection")
             timer = 0
@@ -551,7 +540,7 @@ class ConnectPointcloudIF:
         ros_timestamp = data_msg.header.stamp
         latency = (current_time.to_sec() - ros_timestamp.to_sec())
         self.data_dict['get_latency_time'] = latency
-        #self.msg_if.pub_info("Get Pc Latency: {:.2f}".format(latency))
+        #self.msg_if.pub_debug("Get Pc Latency: {:.2f}".format(latency))
 
         start_time = nepi_ros.get_time()   
 
@@ -571,7 +560,6 @@ class ConnectPointcloudIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Provided Pointcloud Preprocess Function failed:  " + str(e))
 
-            data = self.pointcloudPreprocessFunction(data)
             data_dict = dict()
             data_dict['namespace'] = self.namespace
             data_dict['data'] = data
@@ -596,7 +584,7 @@ class ConnectPointcloudIF:
 
             latency = (current_time.to_sec() - ros_timestamp.to_sec())
             data_dict['got_latency_time'] = latency
-            #self.msg_if.pub_info("Img Pub Latency: {:.2f}".format(latency))
+            #self.msg_if.pub_debug("Img Pub Latency: {:.2f}".format(latency))
 
             if self.callbackFunction is not None:
                 self.callbackFunction(data_dict)
@@ -618,30 +606,50 @@ class ConnectPointcloudIF:
 
 
 
-
 ############################################################
 
 
-
-
-
-
-
-
-
-
-NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
-NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 '''
-EXAMPLE_DATA_DICT = {   
-    'namespace': self.node_namespace,     
-    'data': None,
-    'timestamp': nepi_ros.get_time(),
-    'ros_img_header': Header(),
-    'ros_pc_stamp': Header().stamp,
-    'get_latency_time':0,
-    'pub_latency_time':0,
-    'process_time':0
+EXAMPLE_NAVPOSE_DATA_DICT = {
+    'frame_3d': 'ENU',
+    'frame_altitude': 'WGS84',
+
+    'geoid_height_meters': 0,
+
+    'has_heading': True,
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 120.50,
+
+    'has_position': True,
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 1.234,
+    'y_m': 1.234,
+    'z_m': 1.234,
+
+    'has_orientation': True,
+    'time_oreientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 30.51,
+    'pitch_deg': 30.51,
+    'yaw_deg': 30.51,
+
+    'has_location': True,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 47.080909,
+    'long': -120.8787889,
+
+    'has_altitude': True,
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters in specified alt frame
+    'altitude_m': 12.321,
+
+    'has_depth': False,
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive meters
+    'depth_m': 0.0
 }
 '''
 
@@ -657,19 +665,16 @@ class ConnectNavPoseIF:
     status_msg = None
     status_connected = False
 
+
     data_dict = None
     data_dict_lock = threading.Lock()
 
-    get_data = False
-    got_data = False
 
-
-
+ 
     #######################
     ### IF Initialization
     def __init__(self, 
                 namespace,
-                preprocess_function = None,
                 callback_function = None
                 ):
         ####  IF INIT SETUP ####
@@ -680,29 +685,25 @@ class ConnectNavPoseIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + img_name)
+        self.namespace = nepi_ros.get_full_namespace(namespace)
+        topic = os.path.basename(namespace)
+        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
         ##############################    
         # Initialize Class Variables
 
-        if namespace is None:
-            namespace = self.node_namespace
-        else:
-            namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(namespace)
-
-        self.preprocessFunction = preprocess_function
+    
         self.callbackFunction = callback_function
 
 
         ##############################   
         ## Node Setup
 
-        # Subs Config Dict ####################
+        # Pubs Config Dict ####################
         self.SUBS_DICT = {
-            'img_sub': {
+            'navpose_sub': {
                 'msg': NavPoseData,
                 'namespace': self.namespace,
                 'topic': '',
@@ -718,10 +719,11 @@ class ConnectNavPoseIF:
             }
         }
 
+        # Subs Config Dict ####################
+
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         self.con_node_if.wait_for_ready()
@@ -732,6 +734,7 @@ class ConnectNavPoseIF:
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
+    
 
     #######################
     # Class Public Methods
@@ -741,7 +744,7 @@ class ConnectNavPoseIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -759,11 +762,10 @@ class ConnectNavPoseIF:
     def get_namespace(self):
         return self.namespace
 
-
     def check_connection(self):
         return self.connected
 
-    def wait_for_connection(self, timout = float('inf') ):
+    def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
@@ -781,7 +783,7 @@ class ConnectNavPoseIF:
     def check_status_connection(self):
         return self.status_connected
 
-    def wait_for_status_connection(self, timout = float('inf') ):
+    def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection")
             timer = 0
@@ -796,17 +798,11 @@ class ConnectNavPoseIF:
         return self.status_connected
 
     def get_status_dict(self):
-        img_status_dict = None
+        status_dict = None
         if self.status_msg is not None:
-            img_status_dict = nepi_ros.convert_msg2dict(self.status_msg)
-        return self.img_status_dict
+            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+        return self.status_dict
 
-    def set_get_img(self,state):
-        self.get_data = state
-        return True
-
-    def read_get_got_states(self):
-        return [self.get_data, self.got_data]
 
     def get_data_dict(self):
         self.data_dict_lock.acquire()
@@ -827,7 +823,7 @@ class ConnectNavPoseIF:
         success = False
         self.connected = False
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Unregistering topic: " + str(self.namespace))
+            self.msg_if.pub_warn("Unregistering topic: " + str(self.namespace))
             try:
                 self.connected = False 
                 self.con_node_if.unregister_class()
@@ -842,67 +838,48 @@ class ConnectNavPoseIF:
         return success
 
 
-    def _dataCb(self,data_msg):      
-        #self.msg_if.pub_warn("Got img for topic:  " + self.namespace)
 
-        # Process ros image message
+    def _dataCb(self,data_msg):      
+        #self.msg_if.pub_warn("Got pc for topic:  " + self.namespace)
+
+        # Process ros navpose message
         current_time = nepi_ros.ros_time_now()
         ros_timestamp = data_msg.header.stamp
         latency = (current_time.to_sec() - ros_timestamp.to_sec())
         self.data_dict['get_latency_time'] = latency
-        #self.msg_if.pub_info("Get Img Latency: {:.2f}".format(latency))
+        #self.msg_if.pub_debug("Get Pc Latency: {:.2f}".format(latency))
 
         start_time = nepi_ros.get_time()   
 
-
-        get_data = (self.callbackFunction is not None or self.get_data == True)
-        #self.msg_if.pub_warn("Got Img with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
+        get_data = True # (self.callbackFunction is not None or self.get_data == True)
+        #self.msg_if.pub_warn("Got Pc with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
         if get_data == True:
             self.get_data = False
-           # self.msg_if.pub_warn("Got get_data flag. Processing img for topic:  " + self.namespace)
+           # self.msg_if.pub_warn("Got get_data flag. Processing pc for topic:  " + self.namespace)
             ##############################
-            ### Preprocess Image
+            ### Preprocess NavPose
             
-            data = nepi_nav.convert_navposedata_msg2dict(data_msg)
+            data_dict = nepi_nav.convert_navposedata_msg2dict(data_mgs)
 
-            if self.preprocessFunction is not None:
-                try:
-                    data = self.preprocessFunction(data)
-                except Exception as e:
-                    self.msg_if.pub_warn("Provided Image Preprocess Function failed:  " + str(e))
-
-            data = self.preprocessFunction(data)
-            data_dict = dict()
-            data_dict['namespace'] = self.namespace
-            data_dict['data'] = data
-            ros_timestamp = data_msg.header.stamp
-            data_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
-            data_dict['ros_img_header'] = data_msg.header
-            data_dict['ros_img_stamp'] = ros_timestamp
-            ##############################
 
             process_time = round( (nepi_ros.get_time() - start_time) , 3)
             data_dict['process_time'] = process_time
 
             latency = (current_time.to_sec() - ros_timestamp.to_sec())
             data_dict['got_latency_time'] = latency
-            #self.msg_if.pub_info("Img Pub Latency: {:.2f}".format(latency))
+            #self.msg_if.pub_debug("Img Pub Latency: {:.2f}".format(latency))
 
             if self.callbackFunction is not None:
                 self.callbackFunction(data_dict)
-            else:
-                self.data_dict_lock.acquire()
-                self.data_dict = data_dict
-                self.data_dict_lock.release()
-                self.got_data = True
+
+            self.data_dict_lock.acquire()
+            self.data_dict = data_dict
+            self.data_dict_lock.release()
+            self.got_data = True
         self.connected = True
 
 
     def _statusCb(self,status_msg):      
         self.status_connected = True
-        self.status_msg = status_msg
-
-
-
-
+        self.pc_status_msg = status_msg
 

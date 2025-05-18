@@ -30,6 +30,8 @@ from nepi_api.system_if import SaveDataIF, SettingsIF
 
 
 class PTXActuatorIF:
+    POSITION_UPDATE_RATE = 10
+
     PTX_DIRECTION_POSITIVE = 1
     PTX_DIRECTION_NEGATIVE = -1
     WAYPOINT_COUNT = 256
@@ -41,49 +43,18 @@ class PTXActuatorIF:
                 'pitch_joint_name' : 'ptx_pitch_joint',
                 'reverse_yaw_control' : False,
                 'reverse_pitch_control' : False,
-                'speed_ratio' : 0.5,
-                'status_update_rate_hz' : 10
+                'speed_ratio' : 0.5
     }
 
-    navpose_dict = {
-                          'frame_3d': 'ENU',
-                          'frame_alt': 'WGS84',
+    data_products_list = ['orientation']
 
-                          'geoid_height_meters': 0,
-
-                          'has_heading': False,
-                          'time_heading': 0,
-                          'heading_deg': 0,
-
-                          'has_oreientation': True,
-                          'time_oreientation': nepi_utils.get_time(),
-                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
-                          'roll_deg': 0,
-                          'pitch_deg': 0,
-                          'yaw_deg': 0,
-
-                          'has_position': False,
-                          'time_position': 0,
-                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
-                          'x_m': 0,
-                          'y_m': 0,
-                          'z_m': 0,
-
-                          'has_location': False,
-                          'time_location': 0,
-                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
-                          'lat': 0,
-                          'long': 0,
-
-                          'has_altitude': False,
-                          'time_altitude': 0,
-                          'alt_m': 0,
-    
-                          'has_depth': False,
-                          'time_depth': 0,
-                          'alt_m': 0
+    orientation_dict = {
+        'time_orientation': nepi_utils.get_time(),
+        # Orientation should be provided in Degrees ENU
+        'roll_deg': 0.0,
+        'pitch_deg': 0.0,
+        'yaw_deg': 0.0,
     }
-
 
     ready = False
 
@@ -119,11 +90,11 @@ class PTXActuatorIF:
     max_pitch_softstop_deg = 0
     min_pitch_softstop_deg = 0
 
-
-
+    position_update_rate = POSITION_UPDATE_RATE
     ### IF Initialization
-    def __init__(self,  device_info, capSettings, 
-                 factorySettings, settingUpdateFunction, getSettingsFunction,
+    def __init__(self,  device_info, 
+                 capSettings=None, factorySettings=None, 
+                 settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
                  defaultSettings,
                  capabilities_dict, # Dictionary to be supplied by parent, specific key set is required
@@ -133,25 +104,32 @@ class PTXActuatorIF:
                  setSpeedCb=None, # None ==> No speed adjustment capability; Speed ratio arg
                  getSpeedCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
                  gotoPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
-                 getCurrentPositionCb=None, # None ==> no positional feedback; 
                  goHomeCb=None, # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
                  setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
                  setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
                  gotoWaypointCb=None, # None ==> No native driver support for waypoints, can still use if absolute positioning is supported
                  setWaypointCb=None, # None ==> No native driver support for absolute waypoints, can still use if absolute positioning is supported
                  setWaypointHereCb=None, # None ==> No native driver support for instant waypoints, can still use if absolute positioning is supported
+                 capSettingsNavPose=None, factorySettingsNavPose=None, 
+                 settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
+                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
+                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
+                 navpose_update_rate = 10,
+                msg_if = None
                 ):
-
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.msg_if.pub_info("Starting PTX Device IF Initialization Processes")
 
 
         ############################## 
@@ -162,6 +140,10 @@ class PTXActuatorIF:
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
 
+        if navpose_update_rate < 1:
+            self.position_update_rate = 1.0
+        else:
+            self.position_update_rate = navpose_update_rate
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
         if factoryControls is not None:
@@ -191,7 +173,7 @@ class PTXActuatorIF:
 
 
         self.defaultSettings = defaultSettings                
-        if (self.getCurrentPositionCb is None and capabilities_dict['has_absolute_positioning']):
+        if (capabilities_dict['has_absolute_positioning']):
             # Hard limits
             self.defaultSettings['max_yaw_hardstop_deg'] = 0
             self.defaultSettings['min_yaw_hardstop_deg'] = 0
@@ -219,7 +201,7 @@ class PTXActuatorIF:
 
         
         # Positioning and soft limits setup if available
-        if (capabilities_dict['has_absolute_positioning'] is True and self.getCurrentPositionCb is None):
+        if (capabilities_dict['has_absolute_positioning']):
             self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided")
             self.has_position_feedback = False
         else:
@@ -254,10 +236,6 @@ class PTXActuatorIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-           'status_update_rate_hz': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['status_update_rate_hz']
-            },
             'ptx/has_absolute_positioning': {
                 'namespace': self.node_namespace,
                 'factory_val': capabilities_dict['has_absolute_positioning']
@@ -368,13 +346,6 @@ class PTXActuatorIF:
                 'namespace': self.node_namespace,
                 'topic': 'ptx/status',
                 'msg': PTXStatus,
-                'qsize': 10,
-                'latch': False
-            },
-            'odom_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/odometry',
-                'msg': Odometry,
                 'qsize': 10,
                 'latch': False
             }
@@ -521,6 +492,8 @@ class PTXActuatorIF:
                 'callback_args': ()
             },
         }
+        
+        
 
 
         # Create Node Class ####################
@@ -530,7 +503,7 @@ class PTXActuatorIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         ready = self.node_if.wait_for_ready()
@@ -538,59 +511,85 @@ class PTXActuatorIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization")
-        if capSettings is not None:
-            self.SETTINGS_DICT = {
+        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+
+        self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
                     'getSettingsFunction': getSettingsFunction, 
-                    'namespace': self.node_namespace
+                    'namespace':  settings_ns
         }
-        else:
-            self.SETTINGS_DICT = {
-                    'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
-                    'factorySettings': nepi_settings.NONE_SETTINGS,
-                    'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
-                    'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                    'namespace': self.node_namespace
-        }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT)
+        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
+                        msg_if = self.msg_if)
 
-        '''
+
         # Setup System IF Classes ####################
-        self.msg_if.pub_info("Starting Save Data IF Initialization")
-        factory_data_rates = {}
-        for d in self.data_products_list:
-            factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+        if self.gotoPositionCb is not None:
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name = self.class_name)
+            factory_data_rates = {}
+            for d in self.data_products_list:
+                factory_data_rates[d] = [10.0, 0.0, 100.0] # Default to 10Hz save rate, set last save = 0.0, max rate = 100.0Hz
 
-        factory_filename_dict = {
-            'prefix': "", 
-            'add_timestamp': True, 
-            'add_ms': True,
-            'add_us': False,
-            'suffix': "",
-            'add_node_name': True
-            }
-
-        self.save_data_if = SaveDataIF(data_products = self.data_products_list,
+            factory_filename_dict = {
+                'prefix': "", 
+                'add_timestamp': True, 
+                'add_ms': True,
+                'add_us': False,
+                'suffix': "",
+                'add_node_name': True
+                }
+                
+            sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+            self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict)
+                                    factory_filename_dict = factory_filename_dict,
+                                    namespace = sd_namespace,
+                                    msg_if = self.msg_if
+                                    )
 
 
-        time.sleep(1)
+            time.sleep(1)
 
 
-        # Create a NavPose Device IF
-        if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
-            self.msg_if.pub_info("Starting NPX Device IF Initialization")
-            navpose_if = NPXDeviceIF(device_info, 
-                                    has_location = False,
-                                    has_position = False,
-                                    has_orientation = True,
-                                    has_heading = False,
-                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
-                                    pub_rate = 10)
-        '''
+            # Create a NavPose Device IF
+            self.capSettingsNavPose = capSettingsNavPose
+            self.factorySettingsNavPose=factorySettingsNavPose
+            self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
+            self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
+
+            self.getHeadingCb = getHeadingCb  
+            self.getPositionCb = getPositionCb
+            self.getOrientationCb = getOrientationCb
+            self.getLocationCb = getLocationCb
+            self.getAltitudeCb = getAltitudeCb
+            self.getDepthCb = getDepthCb
+            self.navpose_update_rate = navpose_update_rate
+
+            has_navpose = ( getHeadingCb is not None or \
+            getPositionCb is not None or \
+            getOrientationCb is not None or \
+            getLocationCb is not None or \
+            getAltitudeCb is not None or \
+            getDepthCb is not None )
+            
+            if has_navpose == True:
+                self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+                npx_if = NPXDeviceIF(device_info, 
+                    capSettings = self.capSettingsNavPose,
+                    factorySettings = self.factorySettingsNavPose,
+                    settingUpdateFunction = self.settingUpdateFunctionNavPose, 
+                    getSettingsFunction = self.getSettingsFunctionNavPose,
+                    getHeadingCb = self.getHeadingCb, 
+                    getPositionCb = self.getPositionCb, 
+                    getOrientationCb = self.getOrientationCb,
+                    getLocationCb = self.getLocationCb, 
+                    getAltitudeCb = self.getAltitudeCb, 
+                    getDepthCb = self.getDepthCb,
+                    navpose_update_rate = self.navpose_update_rate
+                )
+
+
         time.sleep(1)
    
         ###############################
@@ -688,7 +687,10 @@ class PTXActuatorIF:
         self.initCb(do_updates = True)
 
         # Periodic publishing
-        self.status_update_rate = self.node_if.get_param('status_update_rate_hz')   
+        status_update_rate = self.position_update_rate  
+        if status_update_rate > 10:
+            status_update_rate = 10
+        self.status_update_rate = status_update_rate
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
         self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
@@ -707,7 +709,7 @@ class PTXActuatorIF:
     def check_ready(self):
         return self.ready  
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -721,15 +723,6 @@ class PTXActuatorIF:
             else:
                 self.msg_if.pub_info("Connected")
         return self.ready   
-
-
-    def getNavPoseDictFunction():
-        if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
-            yaw_now_deg, pitch_now_deg = self.getCurrentPositionCb()
-            self.navpose_dict['pitch_deg'] = pitch_now_deg
-            self.navpose_dict['yaw_deg'] = yaw_now_deg
-        self.navpose_dict['time_oreintation'] = nepi_utils.get_time()
-        return self.navpose_dict 
 
 
     def yawRatioToDeg(self, ratio):
@@ -782,8 +775,10 @@ class PTXActuatorIF:
         self.status_msg.header.stamp = nepi_ros.ros_time_now()
         #self.msg_if.pub_info("Entering Publish Status")
   
-        if self.capabilities_report.absolute_positioning is True and self.getCurrentPositionCb is not None:
-            yaw_now_deg, pitch_now_deg = self.getCurrentPositionCb()
+        if self.capabilities_report.absolute_positioning and npx_if is not None:
+            navpose_dict = npx_if.get_navpose_dict()
+            yaw_now_deg = navpose_dict['yaw_deg']
+            pitch_now_deg = navpose_dict['pitch_deg']
             got_time = nepi_utils.get_time() - start_time
             got_time = round(got_time, 3)
             #self.msg_if.pub_warn("Got PT status with time: " + str(got_time))
@@ -791,6 +786,7 @@ class PTXActuatorIF:
             if round(yaw_now_deg,5) != round(self.yaw_goal_deg,5) or round(pitch_now_deg,5) != round(self.pitch_goal_deg,5):
                 self.status_msg.yaw_now_deg = yaw_now_deg 
                 self.status_msg.pitch_now_deg = pitch_now_deg 
+
                 '''
                 if self.yaw_goal_deg == -999:
                     self.yaw_goal_deg = yaw_now_deg
@@ -875,32 +871,31 @@ class PTXActuatorIF:
                 self.status_msg.pitch_goal_ratio = pitch_goal_ratio 
 
 
-                if self.capabilities_report.adjustable_speed is True:
-                    self.status_msg.speed_ratio = self.getSpeedCb()
 
-                self.status_msg.has_position_feedback = self.has_position_feedback
-                self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        if self.capabilities_report.adjustable_speed is True:
+            self.status_msg.speed_ratio = self.getSpeedCb()
 
-                #self.msg_if.pub_warn("Publishing Status")
+        self.status_msg.has_position_feedback = self.has_position_feedback
+        self.status_msg.has_adjustable_speed = self.has_adjustable_speed
 
-                self.node_if.publish_pub('status_pub',self.status_msg)
+        #self.msg_if.pub_warn("Publishing Status")
+
+        self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-                yaw_rad = 0.01745329 * self.status_msg.yaw_now_deg
-                pitch_rad = 0.01745329 * self.status_msg.pitch_now_deg
+        yaw_rad = 0.01745329 * self.status_msg.yaw_now_deg
+        pitch_rad = 0.01745329 * self.status_msg.pitch_now_deg
 
-                # And joint state if appropriate
-                self.joint_state_msg.header.stamp = self.status_msg.header.stamp
-                self.joint_state_msg.position[0] = yaw_rad
-                self.joint_state_msg.position[1] = pitch_rad
-                #self.msg_if.pub_warn("Publishing Joint")
-                self.node_if.publish_pub('joint_pub',self.joint_state_msg)
+        # And joint state if appropriate
+        self.joint_state_msg.header.stamp = self.status_msg.header.stamp
+        self.joint_state_msg.position[0] = yaw_rad
+        self.joint_state_msg.position[1] = pitch_rad
+        #self.msg_if.pub_warn("Publishing Joint")
+        self.node_if.publish_pub('joint_pub',self.joint_state_msg)
 
-                self.odom_msg.header.stamp = self.status_msg.header.stamp
-                self.odom_msg.pose.pose.orientation = quaternion_from_euler(0.0, pitch_rad, yaw_rad)
-                #self.msg_if.pub_warn("Publishing Odom")
-                self.node_if.publish_pub('odom_pub',self.odom_msg)
         pub_time = nepi_utils.get_time() - start_time
+
+
         return pub_time
 
 
@@ -1086,9 +1081,10 @@ class PTXActuatorIF:
         if self.setHomePositionHereCb is not None:
             # Driver supports it directly
             # Capture home position if possible
-            if self.getCurrentPositionCb is not None:
-                self.home_yaw_deg = self.status_msg.yaw_now_deg
-                self.home_pitch_deg = self.status_msg.pitch_now_deg
+            if self.capabilities_report.absolute_positioning and npx_if is not None:
+                navpose_dict = npx_if.get_navpose_dict()
+                self.home_yaw_deg = navpose_dict['yaw_deg']
+                self.home_pitch_deg = navpose_dict['pitch_deg']
             self.setHomePositionHereCb()
         else:
             self.msg_if.pub_warn("Instant home position not available for this device")

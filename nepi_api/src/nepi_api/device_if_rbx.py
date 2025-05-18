@@ -51,43 +51,47 @@ from nepi_api.device_if_npx import NPXDeviceIF
 
 
 
-EXAMPLE_NAVPOSE_DATA_DICT = {
-                          'frame_3d': 'ENU',
-                          'frame_alt': 'WGS84',
 
-                          'geoid_height_meters': 0,
 
-                          'has_heading': True,
-                          'time_heading': nepi_utils.get_time(),
-                          'heading_deg': 120.50,
+EXAMPLE_HEADING_DATA_DICT = {
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 120.50,
+}
 
-                          'has_oreientation': True,
-                          'time_oreientation': nepi_utils.get_time(),
-                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
-                          'roll_deg': 30.51,
-                          'pitch_deg': 30.51,
-                          'yaw_deg': 30.51,
+EXAMPLE_POSITION_DATA_DICT = {
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
+    'x_m': 1.234,
+    'y_m': 1.234,
+    'z_m': 1.234,
+}
 
-                          'has_position': True,
-                          'time_position': nepi_utils.get_time(),
-                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
-                          'x_m': 1.234,
-                          'y_m': 1.234,
-                          'z_m': 1.234,
+EXAMPLE_ORIENTATION_DATA_DICT = {
+    'time_orientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees ENU
+    'roll_deg': 30.51,
+    'pitch_deg': 30.51,
+    'yaw_deg': 30.51,
+}
 
-                          'has_location': True,
-                          'time_location': nepi_utils.get_time(),
-                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
-                          'lat': 47.080909,
-                          'long': -120.8787889,
+EXAMPLE_LOCATION_DATA_DICT = {
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 47.080909,
+    'long': -120.8787889,
+}
 
-                          'has_altitude': True,
-                          'time_altitude': nepi_utils.get_time(),
-                          'alt_m': 12.321,
-    
-                          'has_depth': False,
-                          'time_depth': nepi_utils.get_time(),
-                          'alt_m': 0
+EXAMPLE_ALTITUDE_DATA_DICT = {
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters WGS84
+    'altitude_m': 12.321,
+}
+
+EXAMPLE_ALTITUDE_DATA_DICT = {
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive distance from surface in meters
+    'altitude_m': 0
 }
 
 
@@ -167,9 +171,11 @@ class RBXRobotIF:
                  autonomousControlsReadyFunction=None,
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
-                 getNavPoseDictFunction=None, 
-                 has_heading = False, has_position = False, has_orientation = False, 
-                 has_location = False, has_altitude = False, has_depth = False,
+                 capSettingsNavPose=None, factorySettingsNavPose=None, 
+                 settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
+                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
+                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
+                 navpose_update_rate = 10, 
                  setFakeGPSFunction = None
                  ):
 
@@ -244,12 +250,7 @@ class RBXRobotIF:
 
 
         # Create and start initializing Capabilities values
-        self.nav_pose_capabilities_report = NavPoseCapabilitiesQueryResponse()
-        self.nav_pose_capabilities_report.has_gps = gpsTopic is not None
-        self.nav_pose_capabilities_report.has_orientation = odomTopic is not None
-        self.nav_pose_capabilities_report.has_heading = headingTopic is not None
 
-        self.capabilities_report = RBXCapabilitiesQueryResponse()
         if axisControls == None:
           axis_controls = AxisControls()
           axis_controls.x = False
@@ -457,35 +458,7 @@ class RBXRobotIF:
                 'msg': String,
                 'qsize': 1,
                 'latch': True
-            },            
-            'set_gps_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'NEPI_SET_NAVPOSE_GPS_TOPIC',
-                'msg': String,
-                'qsize': 1,
-                'latch': None
-            },
-            'set_orientation_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'NEPI_SET_NAVPOSE_ORIENTATION_TOPIC',
-                'msg': String,
-                'qsize': 1,
-                'latch': None
-            },
-            'set_heading_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'NEPI_SET_NAVPOSE_HEADING_TOPIC',
-                'msg': String,
-                'qsize': 1,
-                'latch': None
-            },            
-            'set_gps_timesync_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'NEPI_ENABLE_NAVPOSE_GPS_CLOCK_SYNC_TOPIC',
-                'msg': Bool,
-                'qsize': 1,
-                'latch': None
-            }            
+            }      
         }
      
         self.SUBS_DICT = {
@@ -688,7 +661,7 @@ class RBXRobotIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        msg_if = self.msg_if
         )
 
         ready = self.node_if.wait_for_ready()
@@ -702,23 +675,16 @@ class RBXRobotIF:
 
         # Setup System IF Classes ####################
         self.msg_if.pub_info("Starting Settings IF Initialization")
-        if capSettings is not None:
-          self.SETTINGS_DICT = {
+        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+
+        self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
                     'getSettingsFunction': getSettingsFunction, 
-                    'namespace': self.node_namespace
+                    'namespace':  settings_ns
         }
-        else:
-          self.SETTINGS_DICT = {
-                    'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
-                    'factorySettings': nepi_settings.NONE_SETTINGS,
-                    'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
-                    'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                    'namespace': self.node_namespace
-        }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT)
+        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name)
 
 
         # Setup Save Data IF Class ####################
@@ -736,25 +702,56 @@ class RBXRobotIF:
             'add_node_name': True
             }
 
+        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                    factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict)
+                                factory_rate_dict = factory_data_rates,
+                                factory_filename_dict = factory_filename_dict,
+                                namespace = sd_namespace)
 
 
    
+
         # Create a NavPose Device IF
-        self.getNavPoseDictFunction = getNavPoseDictFunction
-        if getNavPoseDictFunction is not None:
-            self.msg_if.pub_info("Starting NPX Device IF Initialization")
-            navpose_if = NPXDeviceIF(device_info, 
-                                    has_heading = has_heading,
-                                    has_position = has_position,
-                                    has_orientation = has_orientation,
-                                    has_location = has_location,
-                                    has_altitude = has_altitude,
-                                    has_depth = has_depth,
-                                    getNavPoseDictFunction = self.getNavPoseDictFunction,
-                                    pub_rate = 10)
+        self.capSettingsNavPose = capSettingsNavPose
+        self.factorySettingsNavPose=factorySettingsNavPose
+        self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
+        self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
+
+        self.frame_3d = frame_3d
+        self.frame_alt = frame_alt
+
+        self.getHeadingCb = getHeadingCb  
+        self.getPositionCb = getPositionCb
+        self.getOrientationCb = getOrientationCb
+        self.getLocationCb = getLocationCb
+        self.getAltitudeCb = getAltitudeCb
+        self.getDepthCb = getDepthCb
+        self.navpose_update_rate = navpose_update_rate
+
+        has_navpose = ( getHeadingCb is not None or \
+        getPositionCb is not None or \
+        getOrientationCb is not None or \
+        getLocationCb is not None or \
+        getAltitudeCb is not None or \
+        getDepthCb is not None )
+        
+        if has_navpose == True:
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+            npx_if = NPXDeviceIF(device_info, 
+                capSettings = self.capSettingsNavPose,
+                factorySettings = self.factorySettingsNavPose,
+                settingUpdateFunction = self.settingUpdateFunctionNavPose, 
+                getSettingsFunction = self.getSettingsFunctionNavPose,
+                frame_3d = self.frame_3d, frame_alt = self.frame_alt,
+                getHeadingCb = self.getHeadingCb, 
+                getPositionCb = self.getPositionCb, 
+                getOrientationCb = self.getOrientationCb,
+                getLocationCb = self.getLocationCb, 
+                getAltitudeCb = self.getAltitudeCb, 
+                getDepthCb = self.getDepthCb,
+                navpose_update_rate = self.navpose_update_rate
+            )
+
 
         time.sleep(1)
 

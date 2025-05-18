@@ -14,6 +14,8 @@ import datetime
 import numpy as np
 import cv2
 import open3d as o3d
+import inspect
+
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -112,19 +114,31 @@ class SaveDataIF:
     was_saving = False
 
     ### IF Initialization
-    def __init__(self, data_products = [], factory_rate_dict = None, factory_filename_dict = None, namespace = None):
+    def __init__(self, 
+                data_products = [], 
+                factory_rate_dict = None, 
+                factory_filename_dict = None, 
+                namespace = None,
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
-
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting SaveData IF Initialization Processes")
         ############################## 
         # Initialize Class Variables
         if namespace is None:
@@ -141,8 +155,6 @@ class SaveDataIF:
         ## Wait for NEPI core managers to start
         self.sys_srv_if = ConnectMgrSystemServicesIF()
         ready = self.sys_srv_if.wait_for_ready()
-        # Setup System Manager IF Class
-        ready = self.sys_srv_if.wait_for_ready()
         self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
@@ -157,7 +169,7 @@ class SaveDataIF:
 
         # Wait for Time manager to start to call timezone info
         self.mgr_time_if = ConnectMgrTimeSyncIF()
-        success = self.mgr_time_if.wait_for_ready()
+        success = self.mgr_time_if.wait_for_status()
  
  
 
@@ -170,9 +182,9 @@ class SaveDataIF:
         self.update_filename_dict(factory_filename_dict)
 
         # Config initial data products dict
-        self.msg_if.pub_info("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        self.msg_if.pub_info("Starting Save_Data_IF with data products: " + str(data_products))
-        self.msg_if.pub_info("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict))
+        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products))
+        self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict))
         save_rate_dict = dict()
         save_rate = 0.0
         last_time = 0.0
@@ -382,8 +394,7 @@ class SaveDataIF:
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
         nepi_ros.sleep(1)
@@ -417,7 +428,7 @@ class SaveDataIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -490,7 +501,7 @@ class SaveDataIF:
                 #self.msg_if.pub_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
                 if self.subfolder != subfolder:
                     if not os.path.exists(full_path):
-                        self.msg_if.pub_info("Creating new data subdirectory " + full_path)
+                        self.msg_if.pub_debug("Creating new data subdirectory " + full_path)
                         try:
                             os.makedirs(full_path)
                             os.chown(full_path, self.DATA_UID, self.DATA_GID)
@@ -499,7 +510,7 @@ class SaveDataIF:
                         except Exception as e:
                             self.save_path = self.save_data_root_directory # revert to root folder
                             self.subfolder  = ""
-                            self.msg_if.pub_info("Could not create save folder " + subfolder + str(e) )
+                            self.msg_if.pub_warn("Could not create save folder " + subfolder + str(e) )
                     else:
                         self.save_path = full_path
                         self.subfolder  = subfolder
@@ -818,7 +829,9 @@ class SettingsIF:
     ### IF Initialization
     def __init__(self, 
                 settings_dict,
-                    ):
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -827,8 +840,15 @@ class SettingsIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes")
         
 
         #############################
@@ -855,28 +875,29 @@ class SettingsIF:
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
             self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
-            self.msg_if.pub_info("Got Node settings capabilitis dict : " + str(capSettings))
+            self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings))
             self.cap_settings = capSettings   
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_response.settings_count = len(cap_setting_msgs_list)
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
+        #self.msg_if.pub_warn("Cap Settings: " + str(self.capabilities_response))  
 
-            if factorySettings is None:
-                self.factory_settings = nepi_settings.NONE_SETTINGS
-            else:
-                self.factory_settings = factorySettings
-            #self.msg_if.pub_warn(str(self.factory_settings))
+        if factorySettings is None:
+            self.factory_settings = nepi_settings.NONE_SETTINGS
+        else:
+            self.factory_settings = factorySettings
+        #self.msg_if.pub_warn(str(self.factory_settings))
 
-            if setSettingFunction is None:
-                self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
-            else:
-                self.setSettingFunction = setSettingFunction
-            
-            if getSettingsFunction is None:
-                self.getSettingsFunction = nepi_settings.GET_NONE_SETTINGS_FUNCTION
-            else:
-                self.getSettingsFunction = getSettingsFunction
-            #Reset Settings and Update Param Server
+        if setSettingFunction is None:
+            self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
+        else:
+            self.setSettingFunction = setSettingFunction
+        
+        if getSettingsFunction is None:
+            self.getSettingsFunction = nepi_settings.GET_NONE_SETTINGS_FUNCTION
+        else:
+            self.getSettingsFunction = getSettingsFunction
+        #Reset Settings and Update Param Server
 
 
         ##############################  
@@ -947,9 +968,7 @@ class SettingsIF:
         self.node_if = NodeClassIF(params_dict = self.PARAMS_DICT,
                                     services_dict = self.SRVS_DICT,
                                     pubs_dict = self.PUBS_DICT,
-                                    subs_dict = self.SUBS_DICT,
-                                    log_name = self.class_name,
-                                    log_class_name = True
+                                    subs_dict = self.SUBS_DICT
         )
    
 
@@ -959,7 +978,7 @@ class SettingsIF:
         ##############################
         # Run Initialization Processes
         self.initialize_settings(do_updates = True)     
-        #self.msg_if.pub_info("Cap Settings Message: " + str(self.capabilities_response))      
+    
         nepi_ros.start_timer_process(1.0, self._publishSettingsCb)
 
   
@@ -978,7 +997,7 @@ class SettingsIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -1011,7 +1030,7 @@ class SettingsIF:
         if self.setSettingFunction != None:
             [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(new_setting,current_settings)
             if value_match == False: # name_match would be true for value_match to be true
-                self.msg_if.pub_info("Will try to update setting " + str(new_setting))
+                self.msg_if.pub_debug("Will try to update setting " + str(new_setting))
                 [success,msg] = nepi_settings.try_to_update_setting(new_setting,current_settings,self.cap_settings,self.setSettingFunction)
                 self.msg_if.pub_warn(msg)
                 if success:
@@ -1021,14 +1040,14 @@ class SettingsIF:
                     if update_status:
                         self.publish_status() 
         else:
-            self.msg_if.pub_info("Settings updates ignored. No settings update function defined ")
+            self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ")
         return success
 
 
     def initialize_settings(self, do_updates = True):
         current_settings = self.getSettingsFunction()
         self.init_settings = self.node_if.get_param('settings')
-        #self.msg_if.pub_info("Setting init values to param server values: " + str(self.init_settings) )
+        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings) )
         if do_updates:
             self.reset_settings()
 
@@ -1063,7 +1082,7 @@ class SettingsIF:
 
 
     def _updateSettingCb(self,msg):
-        self.msg_if.pub_info("Received settings update msg ")
+        self.msg_if.pub_info("Received settings update msg: " + str(msg))
         #self.msg_if.pub_warn(msg)
         setting = nepi_settings.parse_setting_update_msg_data(msg)
         self.update_setting(setting, update_status = True, update_param = True)
@@ -1106,18 +1125,29 @@ class StatesIF:
 
     #######################
     ### IF Initialization
-    log_name = "StatesIF"
-    def __init__(self, get_states_dict_function, namespace = None):
+    def __init__(self, 
+                get_states_dict_function, 
+                namespace = None,
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting States IF Initialization Processes")
         
         #############################
         # Initialize Class Variables
@@ -1162,7 +1192,7 @@ class StatesIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -1189,7 +1219,7 @@ class StatesIF:
             states_dict = self.get_states_dict_function()
             resp = nepi_states.create_query_resp(states_dict)
         except:
-            self.msg_if.pub_info("Failed to create resp msg: " + str(e))
+            self.msg_if.pub_warn("Failed to create resp msg: " + str(e))
         return resp
 
 
@@ -1228,17 +1258,28 @@ class TriggersIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, triggers_dict = None):
+    def __init__(self, 
+                triggers_dict = None,
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Triggers IF Initialization Processes")
         
         #############################
         # Initialize Class Variables
@@ -1297,7 +1338,7 @@ class TriggersIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -1327,7 +1368,7 @@ class TriggersIF:
         try:
             resp = nepi_triggers.create_query_resp(self.triggers_dict)
         except:
-            self.msg_if.pub_info("Failed to create resp msg: " + str(e))
+            self.msg_if.pub_warn("Failed to create resp msg: " + str(e))
         return resp
 
 

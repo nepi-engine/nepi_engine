@@ -28,7 +28,6 @@ from geometry_msgs.msg import Point, Pose, Quaternion
 
 from nepi_ros_interfaces.msg import NavPose, NavPoseData
 from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest
-from nepi_ros_interfaces.srv import NavPoseCapabilitiesQuery
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -60,10 +59,10 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    services_list = nepi_ros.find_services_by_msg(NavPoseCapabilitiesQuery)
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseData)
     namespaces_list = []
-    for service in services_list:
-        namespaces_list.append(os.path.dirname(service))
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
     return namespaces_list
 
 
@@ -96,86 +95,136 @@ def get_heading_publisher_namespaces():
 NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
-EXAMPLE_NAVPOSE_DATA_DICT = {
-                          'frame_3d': 'ENU',
-                          'frame_alt': 'WGS84',
-
-                          'geoid_height_meters': 0,
-
-                          'has_heading': True,
-                          'heading_deg': 120.50,
-
-                          'has_oreientation': True,
-                          'time_oreientation': nepi_utils.get_time(),
-                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
-                          'roll_deg': 30.51,
-                          'pitch_deg': 30.51,
-                          'yaw_deg': 30.51,
-
-                          'has_position': True,
-                          'time_position': nepi_utils.get_time(),
-                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
-                          'x_m': 1.234,
-                          'y_m': 1.234,
-                          'z_m': 1.234,
-
-                          'has_location': True,
-                          'time_location': nepi_utils.get_time(),
-                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
-                          'lat': 47.080909,
-                          'long': -120.8787889,
-
-                          'has_altitude': True,
-                          'time_altitude': nepi_utils.get_time(),
-                          'alt_m': 12.321,
-    
-                          'has_depth': False,
-                          'time_depth': nepi_utils.get_time(),
-                          'alt_m': 0
+BLANK_HEADING_DATA_DICT = {
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 0.0,
 }
+
+BLANK_POSITION_DATA_DICT = {
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+}
+
+BLANK_ORIENTATION_DATA_DICT = {
+    'time_orientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees ENU
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+}
+
+BLANK_LOCATION_DATA_DICT = {
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 0.0,
+    'long': 0.0,
+}
+
+BLANK_ALTITUDE_DATA_DICT = {
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters WGS84
+    'altitude_m': 0.0,
+}
+
+BLANK_DEPTH_DATA_DICT = {
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive distance from surface in meters
+    'depth_m': 0.0
+}
+
+
+
+BLANK_NAVPOSE_DICT = {
+    'frame_3d': 'ENU',
+    'frame_altitude': 'WGS84',
+
+    'geoid_height_meters': 0.0,
+
+    'has_heading': False,
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 0.0,
+
+    'has_position': False,
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'has_orientation': False,
+    'time_orientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'has_location': False,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 0.0,
+    'long': 0.0,
+
+    'has_altitude': False,
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters in specified alt frame
+    'altitude_m': 0.0,
+
+    'has_depth': False,
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive meters
+    'depth_m': 0.0
+}
+
 
 
 def convert_navposedata_dict2msg(npdata_dict):
   npdata_msg = None
-  try:
-    npdata_msg = NavPoseData()
-    npdata_msg.header.stamp = nepi_ros.ros_stampros_time_now()
-    npdata.msg.frame_3d = npdata_dict['3d_frame']
-    npdata.msg.frame_alt = npdata_dict['alt_frame']
-    npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
+  if npdata_dict is None:
+    logger.log_info("Got None navpose dict")
+  else:
+    try:
+      npdata_msg = NavPoseData()
+      npdata_msg.header.stamp = nepi_ros.ros_stamp_now()
+      npdata_msg.frame_3d = npdata_dict['frame_3d']
+      npdata_msg.frame_altitude = npdata_dict['frame_altitude']
+      npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
 
-    npdata_msg.has_heading = npdata_dict['has_heading']
-    npdata_msg.time_heading = npdata_dict['time_heading']
-    npdata_msg.heading_deg = npdata_dict['heading_deg']
+      npdata_msg.has_heading = npdata_dict['has_heading']
+      npdata_msg.time_heading = npdata_dict['time_heading']
+      npdata_msg.heading_deg = npdata_dict['heading_deg']
 
-    npdata_msg.has_orientation = npdata_dict['has_orientation']
-    npdata_msg.time_orientation = npdata_dict['time_orientation']
-    npdata_msg.roll_deg = npdata_dict['roll_deg']
-    npdata_msg.pitch_deg = npdata_dict['pitch_deg']
-    npdata_msg.yaw_deg = npdata_dict['yaw_deg']
+      npdata_msg.has_orientation = npdata_dict['has_orientation']
+      npdata_msg.time_orientation = npdata_dict['time_orientation']
+      npdata_msg.roll_deg = npdata_dict['roll_deg']
+      npdata_msg.pitch_deg = npdata_dict['pitch_deg']
+      npdata_msg.yaw_deg = npdata_dict['yaw_deg']
 
-    npdata_msg.has_position = npdata_dict['has_position']
-    npdata_msg.time_position = npdata_dict['time_position']
-    npdata_msg.x_m = npdata_dict['x_m']
-    npdata_msg.y_m = npdata_dict['y_m']
-    npdata_msg.z_m = npdata_dict['z_m']
+      npdata_msg.has_position = npdata_dict['has_position']
+      npdata_msg.time_position = npdata_dict['time_position']
+      npdata_msg.x_m = npdata_dict['x_m']
+      npdata_msg.y_m = npdata_dict['y_m']
+      npdata_msg.z_m = npdata_dict['z_m']
 
-    npdata_msg.has_location = npdata_dict['has_location']
-    npdata_msg.time_location = npdata_dict['time_location']
-    npdata_msg.lat = npdata_dict['lat']
-    npdata_msg.long = npdata_dict['long']
+      npdata_msg.has_location = npdata_dict['has_location']
+      npdata_msg.time_location = npdata_dict['time_location']
+      npdata_msg.lat = npdata_dict['lat']
+      npdata_msg.long = npdata_dict['long']
 
-    npdata_msg.has_altitude = npdata_dict['has_altitude']
-    npdata_msg.time_altitude = npdata_dict['time_altitude']
-    npdata_msg.alt_m = npdata_dict['alt_m']
+      npdata_msg.has_altitude = npdata_dict['has_altitude']
+      npdata_msg.time_altitude = npdata_dict['time_altitude']
+      npdata_msg.altitude_m = npdata_dict['altitude_m']
 
-    npdata_msg.has_depth = npdata_dict['has_depth']
-    npdata_msg.time_depth = npdata_dict['time_depth']
-    npdata_msg.depth_m = npdata_dict['depth_m']
-
-  except Exception as e:
-    logger.log_info("Failed to convert NavPoseData dict: " + str(e))
-    npdata_msg = None
+      npdata_msg.has_depth = npdata_dict['has_depth']
+      npdata_msg.time_depth = npdata_dict['time_depth']
+      npdata_msg.depth_m = npdata_dict['depth_m']
+    except Exception as e:
+      npdata_msg = None
+      logger.log_info("Failed to convert NavPoseData dict: " + str(e), throttle_s = 5.0)
   return npdata_msg
 
 def convert_navposedata_msg2dict(npdata_msg):
@@ -187,7 +236,7 @@ def convert_navposedata_msg2dict(npdata_msg):
     logger.log_info("Failed to convert NavPoseData msg: " + str(e))
   return npdata_dict
 
-def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WGS84'):
+def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_altitude = 'WGS84'):
   time_ns = nepi_ros.time_ns_from_timestamp(navpose_msg.header.stamp)
   npdata_msg = None
   navpose_msg = np_reponse.nav_pose
@@ -206,11 +255,11 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WG
         ort_values = get_navpose_orientation_enu_degs(navpose_msg)
         # Get current position vector (x, y, z) in meters enu frame
         pos_values = get_navpose_position_enu_m(navpose_msg)
-      if frame_alt == "AMSL":
+      if frame_altitude == "AMSL":
         # Get current location vector (lat, long, alt) in geopoint data with AMSL height
         geo_values =  get_navpose_location_amsl_geo(navpose_msg)
       else:
-        frame_alt = 'WGS84'
+        frame_altitude = 'WGS84'
         # Get current location vector (lat, long, alt) in geopoint data with WGS84 height
         geo_values =  get_navpose_location_wgs84_geo(navpose_msg)  
       # Get current geoid heihgt
@@ -220,7 +269,7 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WG
       npdata_msg = NavPoseData()
       npdata_msg.header.stamp = navpose_msg.header.stamp
       npdata_msg.frame_3d = frame_3d
-      npdata_msg.frame_alt = frame_alt
+      npdata_msg.frame_altitude = frame_altitude
       npdata_msg.geoid_height_meters = geoid_height
 
       npdata_msg.has_heading = heading_deg != 0
@@ -246,7 +295,7 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WG
 
       npdata_msg.has_altitude = geo_values[2] != 0
       npdata_msg.time_altitude = time_ns
-      npdata_msg.alt_m =geo_values[2]
+      npdata_msg.altitude_m =geo_values[2]
 
       npdata_msg.has_depth = geo_values[2] != 0
       npdata_msg.time_depth = time_ns
@@ -257,9 +306,9 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_alt = 'WG
     npdata_msg = None
   return npdata_msg
 
-def convert_navpose_resp2data_dict(np_response, frame_3d = 'ENU', frame_alt = 'WGS84'):
+def convert_navpose_resp2data_dict(np_response, frame_3d = 'ENU', frame_altitude = 'WGS84'):
   navpose_msg = np_response.nav_pose
-  npdata_msg = convert_navpose_resp2data_msg(navpose_msg, frame_3d, frame_alt)
+  npdata_msg = convert_navpose_resp2data_msg(navpose_msg, frame_3d, frame_altitude)
   npdata_dict = None
   try:
     npdata_dict = nepi_ros.convdert_msg2dict(npdata_msg)
@@ -277,8 +326,6 @@ def get_navpose_response():
     navpose_response = get_navpose_service(NavPoseQueryRequest())
   except Exception as e:
     logger.log_info("Service call failed: " + str(e))
-    time.sleep(1)
-    nepi_ros.signal_shutdown("Service call failed")
   return navpose_response
 
 def get_navpose_heading_deg(navpose_response):
@@ -318,21 +365,21 @@ def get_navpose_position_ned_m(navpose_response):
 
 
 def get_navpose_location_wgs84_geo(navpose_response): 
-  # Set current location vector (lat, long, alt) in geopoint data with AMSL height
+  # Set current location vector (lat, long, altitude) in geopoint data with AMSL height
   fix_wgs84 = navpose_response.nav_pose.fix
   current_location_wgs84_geo =  [fix_wgs84.latitude,fix_wgs84.longitude,fix_wgs84.altitude]
   return current_location_wgs84_geo
 
 
 def get_navpose_location_amsl_geo(navpose_response):  
-  # Set current location vector (lat, long, alt) in geopoint data with AMSL height
+  # Set current location vector (lat, long, altitude) in geopoint data with AMSL height
   geoid_height = get_navpose_geoid_height(navpose_response)
   fix_wgs84 = navpose_response.nav_pose.fix
   current_location_amsl_geo =  [fix_wgs84.latitude,fix_wgs84.longitude,(fix_wgs84.altitude + geoid_height)]
   return current_location_amsl_geo
 
 def get_navpose_geoid_height(navpose_response):
-  # Set current location vector (lat, long, alt) in geopoint data with WGS84 height
+  # Set current location vector (lat, long, altitude) in geopoint data with WGS84 height
   fix_wgs84 = navpose_response.nav_pose.fix
   single_position=LatLon(fix_wgs84.latitude,fix_wgs84.longitude)
   geoid_height = ginterpolator(single_position)
@@ -357,11 +404,11 @@ def convert_navposedata_amsl2wgs84(npdata_dict):
     geopoint_in = GeoPoint()
     geopoint_in.latitude = npdata_dict['lat']
     geopoint_in.longitude = npdata_dict['long']
-    geopoint_in.altitude = npdata_dict['alt_m']
+    geopoint_in.altitude = npdata_dict['altitude_m']
     geopoint_out = convert_amsl_to_wgs84(geopoint_in)
     npdata_dict['lat'] = geopoint_out.latitude
     npdata_dict['long'] = geopoint_out.longitude
-    npdata_dict['alt_m'] = geopoint_out.altitude
+    npdata_dict['altitude_m'] = geopoint_out.altitude
   return npdata_dict
 
 def convert_navposedata_wgs842amsl(npdata_dict):
@@ -369,11 +416,11 @@ def convert_navposedata_wgs842amsl(npdata_dict):
     geopoint_in = GeoPoint()
     geopoint_in.latitude = npdata_dict['lat']
     geopoint_in.longitude = npdata_dict['long']
-    geopoint_in.altitude = npdata_dict['alt_m']
+    geopoint_in.altitude = npdata_dict['altitude_m']
     geopoint_out = convert_wgs84_to_amsl(geopoint_in)
     npdata_dict['lat'] = geopoint_out.latitude
     npdata_dict['long'] = geopoint_out.longitude
-    npdata_dict['alt_m'] = geopoint_out.altitude
+    npdata_dict['altitude_m'] = geopoint_out.altitude
   return npdata_dict  
 
   
@@ -613,10 +660,10 @@ def distance_geopoints(geopoint1,geopoint2):
   # Radius of earth in kilometers. Use 3956 for miles
   r = 6371
   xy_m=c*r*1000
-  alt_m = abs(geopoint1[2]-geopoint2[2])
-  distance_m = math.sqrt(alt_m**2 + xy_m**2)
+  altitude_m = abs(geopoint1[2]-geopoint2[2])
+  distance_m = math.sqrt(altitude_m**2 + xy_m**2)
   #logger.log_info("Moving : " + "%.2f" % (xy_m) + " meters in xy plane")
-  #logger.log_info("Moving : " + "%.2f" % (alt_m) + " meters in z axis")
+  #logger.log_info("Moving : " + "%.2f" % (altitude_m) + " meters in z axis")
   #logger.log_info("Moving : " + "%.2f" % (distance_m) + " total meters")
  
   # calculate the result
@@ -639,8 +686,8 @@ def point_from_geopoints(geopoint1,geopoint2,current_heading):
   xy_m=c*r*1000
   delta_x_ned_m = xy_m * math.cos(point_bearing_ned_rad) # north:pos,south:neg
   delta_y_ned_m = xy_m * math.sin(point_bearing_ned_rad) # east:pos,west:neg
-  delta_alt_m = abs(geopoint1[2]-geopoint2[2])
+  delta_altitude_m = abs(geopoint1[2]-geopoint2[2])
 
-  return delta_x_ned_m,delta_y_ned_m,delta_alt_m
+  return delta_x_ned_m,delta_y_ned_m,delta_altitude_m
 
 

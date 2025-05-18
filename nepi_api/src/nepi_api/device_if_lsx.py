@@ -76,19 +76,22 @@ class LSXDeviceIF:
                  kelvin_limits_list = None, setKelvinFunction = None,
                  enableStrobeFunction = None,
                  blinkOnOffFunction = None,
-                 reports_temp = False, reports_power = False
-                 ):
-        
+                 reports_temp = False, reports_power = False,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.msg_if.pub_info("Starting LSX Device IF Initialization Processes")
 
 
         ##############################
@@ -353,7 +356,7 @@ class LSXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                                    msg_if = self.msg_if
         )
 
         ready = self.node_if.wait_for_ready()
@@ -361,23 +364,17 @@ class LSXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization")
-        if capSettings is not None:
-          self.SETTINGS_DICT = {
-                      'capSettings': capSettings, 
-                      'factorySettings': factorySettings,
-                      'setSettingFunction': settingUpdateFunction, 
-                      'getSettingsFunction': getSettingsFunction, 
-                      'namespace': self.node_namespace
-          }
-        else:
-          self.SETTINGS_DICT = {
-                      'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
-                      'factorySettings': nepi_settings.NONE_SETTINGS,
-                      'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
-                      'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                      'namespace': self.node_namespace
-          }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT)
+        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction, 
+                    'namespace':  settings_ns
+        }
+        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
+                                    msg_if = self.msg_if)
 
         '''
         self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -395,10 +392,12 @@ class LSXDeviceIF:
             'add_node_name': True
             }
 
+        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                      factory_rate_dict = factory_data_rates,
-                                      factory_filename_dict = factory_filename_dict)
-
+                                factory_rate_dict = factory_data_rates,
+                                factory_filename_dict = factory_filename_dict,
+                                namespace = sd_namespace,
+                                    msg_if = self.msg_if)
         '''
  
         time.sleep(1)
@@ -421,7 +420,7 @@ class LSXDeviceIF:
         def check_ready(self):
             return self.ready  
 
-        def wait_for_ready(self, timout = float('inf') ):
+        def wait_for_ready(self, timeout = float('inf') ):
             success = False
             if self.ready is not None:
                 self.msg_if.pub_info("Waiting for connection")

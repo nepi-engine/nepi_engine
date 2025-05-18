@@ -38,3 +38,5 @@ float32 sys_img_update_progress
 string sys_img_archive_status
 float32 sys_img_archive_progress
 string sys_img_archive_filename
+
+bool sys_debug_enabled

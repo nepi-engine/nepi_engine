@@ -36,7 +36,7 @@ from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, Tim
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
@@ -80,20 +80,20 @@ class time_sync_mgr(object):
         ##############################
         ## Wait for NEPI core managers to start
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_ready()
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        sys_stats_dict = mgr_sys_if.get_system_stats_dict()
+        sys_status_dict = mgr_sys_if.get_system_status_dict()
         in_container = False
-        if sys_stats_dict is not None: 
-            #self.msg_if.pub_info("Got System Stats Dict: " + str(sys_stats_dict))
-            in_container = sys_stats_dict['in_container']
+        if sys_status_dict is not None: 
+            #self.msg_if.pub_info("Got System Stats Dict: " + str(sys_status_dict))
+            in_container = sys_status_dict['in_container']
         self.in_container = in_container
         
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
+        success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
@@ -193,8 +193,7 @@ class time_sync_mgr(object):
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_class_name = True
+                        subs_dict = self.SUBS_DICT
         )
 
 

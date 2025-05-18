@@ -26,7 +26,8 @@ float32 resolution_ratio
 string resolution_current
 
 float32 framerate_ratio
-float32 framerate_current
+string[] data_products
+float32[] framerates
 
 
 # Enable or Disable IDX controls
@@ -67,7 +68,6 @@ nepi_ros_interfaces/Frame3DTransform frame_3d_transform
 # Output transform into which 3D data (pointclouds) are published
 string frame_3d
 
-#String of available produced data products that can be subscribed to or saved
-string data_products
+
 
 

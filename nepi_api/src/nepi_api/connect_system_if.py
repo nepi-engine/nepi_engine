@@ -10,6 +10,7 @@
 import os
 import time
 import copy
+import inspect
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -52,17 +53,28 @@ class ConnectSaveDataIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, namespace = None , timeout = float('inf')):
+    def __init__(self, namespace = None , timeout = float('inf'),
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting SaveData IF Initialization Processes")
+        ############################## 
         
 
         #############################
@@ -197,7 +209,7 @@ class ConnectSaveDataIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -302,17 +314,28 @@ class ConnectSettingsIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, namespace , timeout = float('inf')):
+    def __init__(self, namespace , timeout = float('inf'),
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes")
+        ############################## 
         
 
         #############################
@@ -391,7 +414,7 @@ class ConnectSettingsIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -474,19 +497,28 @@ class ConnectStatesIF:
 
     #######################
     ### IF Initialization
-    log_name = "ConnectStatesIF"
-    def __init__(self):
+    def __init__(self,
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        log_name = self.class_name
-        self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting States IF Initialization Processes")
+        ############################## 
         
         #############################
         # Initialize Class Variables
@@ -527,7 +559,7 @@ class ConnectStatesIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -548,7 +580,7 @@ class ConnectStatesIF:
         if self.status_msg is not None:
                 state_names = self.status_msg.states_names_list
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
+            self.msg_if.pub_warn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
         return state_names
 
 
@@ -557,7 +589,7 @@ class ConnectStatesIF:
         if self.status_msg is not None:
                 states_dict = nepi_states.parse_trigger_status_msg(self.status_msg)
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
+            self.msg_if.pub_warn(self,":" + self.class_name + ": state Status listener has not received any data yet: ")
         return states_dict
 
 
@@ -605,17 +637,28 @@ class ConnectTriggersIF:
 
     #######################
     ### IF Initialization
-    def __init__(self):
+    def __init__(self,
+                log_name = None,
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            if log_name is not None:
+                log_name = log_name + ": " + self.class_name
+            else:
+                log_name = self.class_name
+            self.msg_if = MsgIF(log_name = log_name)
+        self.msg_if.pub_info("Starting Triggers IF Initialization Processes")
+        ############################## 
         
 
         #############################
@@ -662,7 +705,7 @@ class ConnectTriggersIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timout = float('inf') ):
+    def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -683,7 +726,7 @@ class ConnectTriggersIF:
         if self.status_msg is not None:
             trigger_names = self.status_msg.triggers_name_list
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
+            self.msg_if.pub_warn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
         return trigger_names
 
 
@@ -694,7 +737,7 @@ class ConnectTriggersIF:
             for i, name in enumerate(name_list):
                 triggers_dict[name] = triggered_list[i]
         else:
-            nepi_msg.publishMsgWarn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
+            self.msg_if.pub_warn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ")
         return triggers_dict
 
 
@@ -717,7 +760,7 @@ class ConnectTriggersIF:
             del self.trigger_handlers_dict[trigger_name]
             success = True
         except Exception as e:
-            self.msg_if.pub_info("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
+            self.msg_if.pub_warn("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
         return success
 
 
@@ -726,7 +769,7 @@ class ConnectTriggersIF:
         try:
             last_time = self.trigger_handlers_dict[trigger_name]['last_time']
         except Exception as e:
-            self.msg_if.pub_info("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
+            self.msg_if.pub_warn("No trigger handler registed for trigger: " + trigger_name + " " + str(e))
         return self.last_time
 
 
@@ -744,13 +787,13 @@ class ConnectTriggersIF:
             try:
                 self.trigger_handlers_dict["All"]['handler'](trigger_dict)
             except:
-                self.msg_if.pub_info("Failed to call trigger handler function: " + str(e))
+                self.msg_if.pub_warn("Failed to call trigger handler function: " + str(e))
         if trigger_name in self.trigger_handlers_dict.keys():
             self.trigger_handlers_dict[trigger_name]['last_time'] = nepi_utils.get_time()
             try:
                 self.trigger_handlers_dict[trigger_name]['handler'](trigger_dict)
             except:
-                self.msg_if.pub_info("Failed to call trigger handler function: " + str(e))
+                self.msg_if.pub_warn("Failed to call trigger handler function: " + str(e))
 
     # Update System Status
     def _statusCb(self,msg):

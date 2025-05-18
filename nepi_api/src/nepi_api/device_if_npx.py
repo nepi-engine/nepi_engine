@@ -24,56 +24,104 @@ import tf
 import yaml
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
+from geographic_msgs.msg import GeoPoint
+
 from nepi_ros_interfaces.msg import NPXStatus
 from nepi_ros_interfaces.msg import NavPose, NavPoseData
-from nepi_ros_interfaces.srv import  NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_settings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import NavPoseIF
 
+EXAMPLE_HEADING_DATA_DICT = {
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 120.50,
+}
 
+EXAMPLE_POSITION_DATA_DICT = {
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
+    'x_m': 1.234,
+    'y_m': 1.234,
+    'z_m': 1.234,
+}
+
+EXAMPLE_ORIENTATION_DATA_DICT = {
+    'time_orientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees ENU
+    'roll_deg': 30.51,
+    'pitch_deg': 30.51,
+    'yaw_deg': 30.51,
+}
+
+EXAMPLE_LOCATION_DATA_DICT = {
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 47.080909,
+    'long': -120.8787889,
+}
+
+EXAMPLE_ALTITUDE_DATA_DICT = {
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters WGS84
+    'altitude_m': 12.321,
+}
+
+EXAMPLE_DEPTH_DATA_DICT = {
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive distance from surface in meters
+    'depth_m': 0
+}
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
+    'frame_3d': 'ENU',
+    'frame_altitude': 'WGS84',
 
-                          'frame_3d': 'ENU',
-                          'frame_alt': 'WGS84',
+    'geoid_height_meters': 0,
 
-                          'geoid_height_meters': 0,
+    'has_heading': True,
+    'time_heading': nepi_utils.get_time(),
+    # Heading should be provided in Degrees True North
+    'heading_deg': 120.50,
 
-                          'has_heading': True,
-                          'time_heading': nepi_utils.get_time(),
-                          'heading_deg': 120.50,
+    'has_position': True,
+    'time_position': nepi_utils.get_time(),
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 1.234,
+    'y_m': 1.234,
+    'z_m': 1.234,
 
-                          'has_oreientation': True,
-                          'time_oreientation': nepi_utils.get_time(),
-                          # Orientation Degrees in selected 3d frame (roll,pitch,yaw)
-                          'roll_deg': 30.51,
-                          'pitch_deg': 30.51,
-                          'yaw_deg': 30.51,
+    'has_orientation': True,
+    'time_oreientation': nepi_utils.get_time(),
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 30.51,
+    'pitch_deg': 30.51,
+    'yaw_deg': 30.51,
 
-                          'has_position': True,
-                          'time_position': nepi_utils.get_time(),
-                          # Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
-                          'x_m': 1.234,
-                          'y_m': 1.234,
-                          'z_m': 1.234,
+    'has_location': True,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'lat': 47.080909,
+    'long': -120.8787889,
 
-                          'has_location': True,
-                          # Global Location in set altitude frame (lat,long,alt) with alt in meters
-                          'lat': 47.080909,
-                          'long': -120.8787889,
+    'has_altitude': True,
+    'time_altitude': nepi_utils.get_time(),
+    # Altitude should be provided in postivie meters in specified alt frame
+    'altitude_m': 12.321,
 
-                          'has_altitude': True,
-                          'alt_m': 12.321,
-                          'has_depth': False,
-                          'alt_m': 0
+    'has_depth': False,
+    'time_depth': nepi_utils.get_time(),
+    # Depth should be provided in positive meters
+    'depth_m': 0.0
 }
 
 #########################################
@@ -83,93 +131,109 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 
 class NPXDeviceIF:
 
-  NAVPOSE_PUB_RATE_OPTIONS = [1.0,40.0] 
+  NAVPOSE_UPDATE_RATE_OPTIONS = [1.0,40.0] 
   NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
   NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
-  FACTORY_3D_FRAME = 'ENU'
-  FACTORY_ALT_FRAME = 'WGS84'
+  DEFAULT_UPDATE_RATE = 10
+  DEFAULT_3D_FRAME = 'ENU'
+  DEFAULT_ALT_FRAME = 'WGS84'
 
   data_products_list = ['navpose']
 
+  node_if = None
 
-  has_location = False
+  update_rate = DEFAULT_UPDATE_RATE
+  frame_3d = DEFAULT_3D_FRAME
+  frame_altitude = DEFAULT_ALT_FRAME
+
+  has_heading = False
   has_position = False
   has_orientation = False
-  has_heading = False
+  has_location = False  
+  has_altitude = False
+  has_depth = False
 
+  navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
   last_nav_dict = None
 
   navpose_if = None  
 
   settings_if = None
+
+  has_updated = False
   #######################
   ### IF Initialization
   def __init__(self, 
                 device_info,
                 capSettings=None, factorySettings=None, 
                 settingUpdateFunction=None, getSettingsFunction=None,
-                has_heading = False, has_position = False, has_orientation = False, 
-                has_location = False, has_altitude = False, has_depth = False,
-                getNavPoseDictFunction = None,
-                pub_rate = 10):
+                frame_3d = None, frame_altitude = None,
+                getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
+                getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
+                navpose_update_rate = DEFAULT_UPDATE_RATE,
+                msg_if = None
+                ):
     ####  IF INIT SETUP ####
     self.class_name = type(self).__name__
     self.base_namespace = nepi_ros.get_base_namespace()
     self.node_name = nepi_ros.get_node_name()
-    self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+    self.node_namespace = nepi_ros.get_node_namespace()
 
     ##############################  
     # Create Msg Class
-    log_name = self.class_name
-    self.msg_if = MsgIF(log_name = self.class_name)
-    self.msg_if.pub_info("Starting IF Initialization Processes")  
+    if msg_if is not None:
+        self.msg_if = msg_if
+    else:
+        self.msg_if = MsgIF()
+    self.msg_if.pub_info("Starting NPX Device IF Initialization Processes")  
 
     ##############################
     # Initialize Class Variables
-    self.has_location = has_location
-    self.has_position = has_position
-    self.has_orientation = has_orientation
-    self.has_heading = has_heading
-
+  
+    self.update_rate = navpose_update_rate
 
     self.initCb(do_updates = False)
 
-    if pub_rate < .1:
-      pub_rate = .1
-    if pub_rate > 50:
-      pub_rate = 50
-    self.factory_pub_rate_hz = pub_rate
 
 
-    # Test get dict funciton
-    test_dict = None
-    test_msg = None
-    if getNavPoseDictFunction is not None:
-      try:
-          test_dict = getNavPoseDictFunction()
-          test_msg = nepi_nav.convert_navposedata_dict2msg(test_dict)
-      except Exception as e:
-          self.msg_if.pub_warn("Failed to call get data function: " + str(e))
-    if test_msg is None:
-      return
+    if frame_3d is not None:
+      self.frame_3d = frame_3d
+    if frame_altitude is not None:
+      self.frame_altitude = frame_altitude
+
+
+    ###
+    self.getHeadingCb = getHeadingCb
+    if self.getHeadingCb is not None:
+      self.has_heading = True
+
+    self.getPositionCb = getPositionCb
+    if self.getPositionCb is not None:
+      self.has_position = True
+
+    self.getOrientationCb = getOrientationCb
+    if self.getOrientationCb is not None:
+      self.has_orientation = True
+
+    self.getLocationCb = getLocationCb
+    if self.getLocationCb is not None:
+      self.has_location = True  
+
+    self.getAltitudeCb = getAltitudeCb
+    if self.getAltitudeCb is not None:
+      self.has_altitude = True
+
+    self.getDepthCb = getDepthCb
+    if self.getDepthCb is not None:
+      self.has_depth = True
 
     # All Good
 
-    npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx','navpose')
+    npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx')
     self.navpose_if = NavPoseIF(namespace = npx_namespace,
-                                has_location = has_location,  
-                                has_orientation = has_orientation,
-                                has_position = has_position, 
-                                has_heading = has_heading )
-
-    # Create a navpose capabilities service
-    self.navpose_capabilities_report = NavPoseCapabilitiesQueryResponse()
-    self.navpose_capabilities_report.has_location = has_location
-    self.navpose_capabilities_report.has_position = has_position
-    self.navpose_capabilities_report.has_orientation = has_orientation
-    self.navpose_capabilities_report.has_heading = has_heading
-
+            enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True
+                                )
 
     self.status_msg = NPXStatus()
 
@@ -191,17 +255,17 @@ class NPXDeviceIF:
     # Params Config Dict ####################
 
     self.PARAMS_DICT = {
-        'pub_rate': {
+        'update_rate': {
             'namespace': self.node_namespace,
-            'factory_val': self.factory_pub_rate_hz
+            'factory_val': self.update_rate
         },
         'frame_3d': {
             'namespace': self.node_namespace,
-            'factory_val': self.FACTORY_3D_FRAME
+            'factory_val': self.frame_3d
         },
-        'frame_alt': {
+        'frame_altitude': {
             'namespace': self.node_namespace,
-            'factory_val': self.FACTORY_ALT_FRAME
+            'factory_val': self.frame_altitude
         }        
     }
 
@@ -211,10 +275,10 @@ class NPXDeviceIF:
         'navpose_capabilities_query': {
             'namespace': self.node_namespace,
             'topic': 'npx/navpose_capabilities_query',
-            'srv': NavPoseCapabilitiesQuery,
-            'req': NavPoseCapabilitiesQueryRequest(),
-            'resp': NavPoseCapabilitiesQueryResponse(),
-            'callback': self.navposeCapabilitiesHandler
+            'srv': NPXCapabilitiesQuery,
+            'req': NPXCapabilitiesQueryRequest(),
+            'resp': NPXCapabilitiesQueryResponse(),
+            'callback': self._navposeCapabilitiesHandler
         }
     }
 
@@ -231,20 +295,12 @@ class NPXDeviceIF:
 
     # Subscribers Config Dict ####################
     self.SUBS_DICT = {
-        'set_pub_rate': {
+        'set_update_rate': {
             'namespace': self.node_namespace,
-            'topic': 'npx/set_pub_rate',
+            'topic': 'npx/set_update_rate',
             'msg': Float32,
             'qsize': 1,
-            'callback': self.setPublishRateCb, 
-            'callback_args': ()
-        },
-        'publish_once': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/publish_once',
-            'msg': Empty,
-            'qsize': 1,
-            'callback': self.publishOnceCb, 
+            'callback': self._setUpdateRateCb, 
             'callback_args': ()
         },
         'set_3d_frame': {
@@ -252,15 +308,15 @@ class NPXDeviceIF:
             'topic': 'npx/set_3d_frame',
             'msg': String,
             'qsize': 1,
-            'callback': self.set3dFrameCb, 
+            'callback': self._set3dFrameCb, 
             'callback_args': ()
         },
-        'set_alt_frame': {
+        'set_altitude_frame': {
             'namespace': self.node_namespace,
-            'topic': 'npx/set_alt_frame',
+            'topic': 'npx/set_altitude_frame',
             'msg': String,
             'qsize': 1,
-            'callback': self.setAltFrameCb, 
+            'callback': self._setAltFrameCb, 
             'callback_args': ()
         }
 
@@ -275,7 +331,7 @@ class NPXDeviceIF:
                     services_dict = self.SRVS_DICT,
                     pubs_dict = self.PUBS_DICT,
                     subs_dict = self.SUBS_DICT,
-                    log_class_name = True
+                    msg_if = self.msg_if
     )
 
     ready = self.node_if.wait_for_ready()
@@ -283,23 +339,19 @@ class NPXDeviceIF:
 
     # Setup Settings IF Class ####################
     self.msg_if.pub_info("Starting Settings IF Initialization")
-    if capSettings is not None:
-      self.SETTINGS_DICT = {
-                  'capSettings': capSettings, 
-                  'factorySettings': factorySettings,
-                  'setSettingFunction': settingUpdateFunction, 
-                  'getSettingsFunction': getSettingsFunction, 
-                  'namespace': self.node_namespace
-      }
-    else:
-      self.SETTINGS_DICT = {
-                  'capSettings': nepi_settings.NONE_CAP_SETTINGS, 
-                  'factorySettings': nepi_settings.NONE_SETTINGS,
-                  'setSettingFunction': nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION, 
-                  'getSettingsFunction': nepi_settings.GET_NONE_SETTINGS_FUNCTION, 
-                  'namespace': self.node_namespace
-      }
-    self.settings_if = SettingsIF(self.SETTINGS_DICT)
+    settings_ns = nepi_ros.create_namespace(self.node_namespace,'npx')
+
+    self.SETTINGS_DICT = {
+                'capSettings': capSettings, 
+                'factorySettings': factorySettings,
+                'setSettingFunction': settingUpdateFunction, 
+                'getSettingsFunction': getSettingsFunction, 
+                'namespace': settings_ns
+                
+    }
+
+    self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
+                                    msg_if = self.msg_if)
 
 
     # Setup Save Data IF Class ####################
@@ -317,17 +369,22 @@ class NPXDeviceIF:
         'add_node_name': True
         }
 
+    sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
     self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                  factory_rate_dict = factory_data_rates,
-                                  factory_filename_dict = factory_filename_dict)
+                            factory_rate_dict = factory_data_rates,
+                            factory_filename_dict = factory_filename_dict,
+                            namespace = sd_namespace,
+                                    msg_if = self.msg_if)
 
 
     time.sleep(1)
+    self.initCb(do_updates = True)
 
+    nepi_ros.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
+    nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
     ###############################
     # Finish Initialization
-    self.initCb(do_updates = True)
-    self.publish_once()
+
     self.ready = True
     self.msg_if.pub_info("IF Initialization Complete")
 
@@ -339,7 +396,7 @@ class NPXDeviceIF:
   def check_ready(self):
       return self.ready  
 
-  def wait_for_ready(self, timout = float('inf') ):
+  def wait_for_ready(self, timeout = float('inf') ):
       success = False
       if self.ready is not None:
           self.msg_if.pub_info("Waiting for connection")
@@ -355,105 +412,39 @@ class NPXDeviceIF:
       return self.ready   
 
 
-  def publish_once(self):
-    nepi_ros.timer(nepi_ros.ros_duration(0.1), self.publishNavPoseCb, oneshot = True)
-    return True
+  def get_navpose_dict(self):
+    return self.nav_dict
 
 
-  def publish_status(self):
-      self.status_msg.pub_rate = self.nepi_ros.get_param('pub_rate')
-      self.status_msg.frame_3d = self.nepi_ros.get_param('frame_3d')
-      self.status_msg.frame_alt = self.nepi_ros.get_param('frame_alt')
-      self.node_if.publish_pub('status_pub',self.status_msg)
+
 
     ###############################
     # Class Private Methods
     ###############################
 
-  def navposeCapabilitiesHandler(self, _):
-    return self.navpose_capabilities_report    
-
-
-  def publishOnceCb(self,msg):
-    self.publish_once()
-
-  def publishNavPoseCb(self,timer):
-    nav_dict = None
-    try:
-        nav_dict = self.getNavPoseDictFunction()
-    except Exception as e:
-        self.msg_if.pub_warn("Failed to call get navpose dict function: " + str(e))
-    
-    if nav_dict is not None:
-      if self.last_nav_dict != nav_dict:
-        self.last_nav_dict = nav_dict
-        timestamp = nepi_utils.get_time()
-        set_pub_rate = self.nepi_ros.get_param('pub_rate')
-        set_3d_frame = self.nepi_ros.get_param('frame_3d')
-        set_alt_frame = self.nepi_ros.get_param('frame_alt')
-        # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
-
-        # Adjust alt Frame if Needed
-        got_f = nav_dict['frame_alt']
-        if got_f not in self.NAVPOSE_ALT_FRAME_OPTIONS:
-          nav_dict['frame_alt'] = 'WGS84'
-
-        f = nav_dict['frame_alt']
-        if f != set_alt_frame:
-          if set_alt_frame == 'WGS84':
-            nav_dict = nepi_nav.convert_navposedata_amsl2wgs84(nav_dict)
-          else:
-            nav_dict = nepi_nav.convert_navposedata_wgs842amsl(nav_dict)
-
-
-        # Adjust 3d Frame if Needed
-        got_f = nav_dict['frame_3d']
-        if got_f not in self.NAVPOSE_3D_FRAME_OPTIONS:
-          nav_dict['frame_3d'] = 'ENU'
-        
-        f = nav_dict['frame_3d']
-        if f != set_3d_frame:
-          if set_3d_frame == 'ENU':
-            nav_dict = nav_dict = nepi_nav.convert_navposedata_ned2edu(nav_dict)
-          else:
-            nav_dict = nav_dict = nepi_nav.convert_navposedata_enu2ned(nav_dict)
-                        
-
-        # Pub NavPoseData
-        try:
-          self.navpose_if.publish_navpose_dict(nav_dict)
-        except Exception as e:
-          self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
-
-        self.save_data_if.save('navpose',nav_dict,timestamp)
-
-    if self.pub_rate != 0:
-        delay = float(1) / self.pub_rate
-        self.nepi_ros.start_timer_process(nepi_ros.ros_duration(delay), self.publishNavPoseCb, oneshot = True)
-            
-
-  def setPublishRateCb(self,msg):
+  def _setUpdateRateCb(self,msg):
     rate = msg.data
-    min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
-    max = self.NAVPOSE_PUB_RATE_OPTIONS[1]
+    min = self.NAVPOSE_UPDATE_RATE_OPTIONS[0]
+    max = self.NAVPOSE_UPDATE_RATE_OPTIONS[1]
     if rate < min:
       rate = min
     if rate > max:
       rate = max
-    self.nepi_ros.set_param('pub_rate',rate)
+    self.update_rate = rate
+    self.node_if.set_param('update_rate',rate)
 
-  def set3dFrameCb(self,msg):
+  def _set3dFrameCb(self,msg):
     frame = msg.data
     if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
-      self.nepi_ros.set_param('frame_3d',frame)
+      self.frame_3d = frame
+      self.node_if.set_param('frame_3d',frame)
 
-  def setAltFrameCb(self,msg):
+  def _setAltFrameCb(self,msg):
     frame = msg.data
     if frame in self.NAVPOSE_ALT_FRAME_OPTIONS:
-      self.nepi_ros.set_param('frame_alt',frame)
+      self.frame_altitude = frame
+      self.node_if.set_param('frame_altitude',frame)
 
-  def initConfig(self):
-      self.initCb(do_updates = True)
 
   def initCb(self,do_updates = False):
       self.msg_if.pub_info("Setting init values to param values")
@@ -462,14 +453,134 @@ class NPXDeviceIF:
         self.resetCb(do_updates)
 
   def resetCb(self,do_updates = True):
-      self.nepi_ros.set_param('pub_rate',self.init_pub_rate)
-      self.nepi_ros.set_param('frame_3d',self.init_frame_3d)
-      self.nepi_ros.set_param('frame_alt',self.init_frame_alt)
+      if self.node_if is not None:
+        self.update_rate = self.node_if.get_param('update_rate')
+        self.frame_3d = self.node_if.get_param('frame_3d')
+        self.frame_altitude = self.node_if.get_param('frame_altitude')
 
-  def factoryresetCb(self,do_updates = True):
-      self.nepi_ros.set_param('pub_rate',self.init_pub_rate)
-      self.nepi_ros.set_param('frame_3d',self.init_frame_3d)
-      self.nepi_ros.set_param('frame_alt',self.init_frame_alt)
+  def factoryResetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.update_rate = self.node_if.get_param('update_rate')
+        self.frame_3d = self.node_if.get_param('frame_3d')
+        self.frame_altitude = self.node_if.get_param('frame_altitude')
+
+
+
+  def _navposeCapabilitiesHandler(self, _):
+    return self.navpose_capabilities_report    
+
+
+  def _updateNavPoseDictCb(self,timer):
+
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    
+    navpose_dict['frame_3d'] = self.frame_3d
+    navpose_dict['altitude_frame'] = self.frame_altitude
+       
+
+    navpose_dict['has_heading'] = self.has_heading 
+    if self.has_heading == True:
+      try:
+          data_dict = self.getHeadingCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Heading function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Heading Cb: " + str(e))  
+
+
+    navpose_dict['has_position'] = self.has_position 
+    if self.has_position == True:
+      try:
+          data_dict = self.getPositionCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Position function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Position Cb: " + str(e)) 
+
+
+    navpose_dict['has_orientation'] = self.has_orientation 
+    if self.has_orientation == True:
+      try:
+          data_dict = self.getOrientationCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Orientation function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Orientation Cb: " + str(e)) 
+
+
+    navpose_dict['has_location'] = self.has_location 
+    if self.has_location == True:
+      try:
+          data_dict = self.getLocationCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Location function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+
+          geopoint = GeoPoint()
+          geopoint.latitude = data_dict['latitude']
+          geopoint.longitude = data_dict['longitude']
+          geiod_height = nepi_nav.get_navpose_geoid_height_at_geopoint(geopoint)
+          navpose_dict['geoid_height_meters'] = geiod_height
+          self.msg_if.pub_warn("Got Geoid Height: " + str(geiod_height))
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Location Cb: " + str(e))
+
+    navpose_dict['has_altitude'] = self.has_altitude 
+    if self.has_altitude == True:
+      try:
+          data_dict = self.getAltitudeCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Altitude function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Altitude Cb: " + str(e))
+
+    navpose_dict['has_depth'] = self.has_depth 
+    if self.has_depth == True:
+      try:
+          data_dict = self.getDepthCb()
+          if self.has_updated == False:
+            self.msg_if.pub_warn("Get Depth function returned: " + str(data_dict))
+          for key in data_dict.keys():
+            navpose_dict[key] = data_dict[key]
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to call get Depth Cb: " + str(e))            
+
+    # Do Conversions if Needed
+    if self.frame_3d == 'NED':
+        np_dict = nepi_nav.convert_navposedata_edu2ned(np_dict)
+    if self.frame_altitude == 'AMSL':
+        np_dict = nepi_nav.convert_navposedata_wgs842amsl(np_dict)
+
+    if self.has_updated == False:
+        self.msg_if.pub_warn("Returning navpose dict: " + str(navpose_dict))
+
+    self.has_updated = True
+    self.navpose_dict =  navpose_dict
+    try:
+      self.navpose_if.publish_navpose(self.navpose_dict)
+    except Exception as e:
+      self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
+    timestamp = nepi_utils.get_time()
+    self.save_data_if.save('navpose',self.navpose_dict,timestamp)
+
+    delay = float(1) / self.update_rate
+    nepi_ros.start_timer_process(delay, self._updateNavPoseDictCb, oneshot = True)
+
+  def _publishStatusCb(self,timer):
+      self.status_msg.update_rate = self.update_rate
+      self.status_msg.frame_3d = self.frame_3d
+      self.status_msg.frame_altitude = self.frame_altitude
+      self.node_if.publish_pub('status_pub',self.status_msg)
+
 
 
   #######################

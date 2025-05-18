@@ -181,7 +181,7 @@ add_service_files(
     SystemStorageFolderQuery.srv
     PTXCapabilitiesQuery.srv
     RBXCapabilitiesQuery.srv
-    NavPoseCapabilitiesQuery.srv
+    NPXCapabilitiesQuery.srv
     LSXCapabilitiesQuery.srv
     ImageMuxSequenceQuery.srv
     OnvifDeviceCfgDelete.srv
@@ -196,6 +196,8 @@ add_service_files(
     AiDetectorInfoQuery.srv
     SystemStatesQuery.srv
     SystemTriggersQuery.srv
+    SystemStatusQuery.srv
+    DebugQuery.srv
     
 )
 

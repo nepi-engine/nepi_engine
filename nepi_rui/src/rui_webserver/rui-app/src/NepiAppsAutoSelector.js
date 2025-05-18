@@ -57,7 +57,7 @@ class AppsAutoSelector extends Component {
       selected_app_install_pkg: null,
       needs_update: false
     }
-
+    this.checkConnection = this.checkConnection.bind(this)
 
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
@@ -112,8 +112,20 @@ class AppsAutoSelector extends Component {
       needs_update: false})
   }
 
+  async checkConnection() {
+    const { namespacePrefix, deviceId} = this.props.ros
+    if (namespacePrefix != null && deviceId != null) {
+      this.setState({needs_update: true})
+    }
+    else {
+      setTimeout(async () => {
+        await this.checkConnection()
+      }, 1000)
+    }
+  }
+
   componentDidMount(){
-    this.setState({needs_update: true})
+    this.checkConnection()
   }
 
 
