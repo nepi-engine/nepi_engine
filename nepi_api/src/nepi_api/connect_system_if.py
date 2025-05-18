@@ -37,7 +37,7 @@ from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest,
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
-from nepi_api.connect_system_if import *
+
 
 
 class ConnectSaveDataIF:
@@ -475,7 +475,7 @@ class ConnectStatesIF:
     #######################
     ### IF Initialization
     log_name = "ConnectStatesIF"
-    def __init__(self):
+    def __init__(self, namespace ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()

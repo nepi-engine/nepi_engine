@@ -218,7 +218,7 @@ class ConnectAiDetectorIF:
 
         # Create Node Class ####################
         
-        self.NODE_IF = NodeClassIF(
+        self.con_node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
