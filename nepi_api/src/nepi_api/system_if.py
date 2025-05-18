@@ -154,7 +154,7 @@ class SaveDataIF:
         ##############################
         ## Wait for NEPI core managers to start
         self.sys_srv_if = ConnectMgrSystemServicesIF()
-        ready = self.sys_srv_if.wait_for_ready()
+        success = self.mgr_time_if.wait_for_services()
         self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
         
         # Ensure the data folder exists with proper ownership
@@ -170,7 +170,7 @@ class SaveDataIF:
 
         # Wait for Time manager to start to call timezone info
         self.mgr_time_if = ConnectMgrTimeSyncIF()
-        success = self.mgr_time_if.wait_for_status()
+        success = self.mgr_time_if.wait_for_services()
  
  
 
