@@ -10,7 +10,6 @@ import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
 import Section from "./Section"
-//import EnableAdjustment from "./EnableAdjustment"
 import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
 import Label from "./Label"

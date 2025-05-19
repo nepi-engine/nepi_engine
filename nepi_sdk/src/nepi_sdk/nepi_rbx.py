@@ -31,8 +31,8 @@ from mavros_msgs.msg import State, AttitudeTarget
 from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest, CommandTOL, CommandHome
 from nepi_ros_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, \
     RBXGotoPose, RBXGotoPosition, RBXGotoLocation, Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, RBXCapabilitiesQuery, \
-     RBXCapabilitiesQueryResponse, NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
+from nepi_ros_interfaces.srv import NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 
 # ROS namespace setup
@@ -47,7 +47,7 @@ def rbx_initialize(self, rbx_namespace):
   self.rbx_cap_modes = [""]
   self.rbx_cap_setup_actions = [""]
   self.rbx_cap_go_actions = [""]
-  rbx_caps_navpose = NavPoseCapabilitiesQueryResponse()
+  rbx_caps_navpose = NPXCapabilitiesQueryResponse()
   self.rbx_settings = None
   self.rbx_info = None
   self.rbx_status= None
@@ -197,7 +197,7 @@ def get_capabilities(self,caps_topic):
 
 def get_navpose_capabilities(self,caps_navpose_topic):
   nepi_ros.wait_for_service(caps_navpose_topic)
-  rbx_cap_navpose_service = rospy.ServiceProxy(caps_navpose_topic, NavPoseCapabilitiesQuery)
+  rbx_cap_navpose_service = rospy.ServiceProxy(caps_navpose_topic, NPXCapabilitiesQuery)
   time.sleep(1)
   rbx_cap_navpose = rbx_cap_navpose_service()
   return rbx_caps_navpose

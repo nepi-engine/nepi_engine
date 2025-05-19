@@ -2,14 +2,13 @@
 # Set all fields if sending to 'set_controls' topic
 # Set topic_name and specific control value for specific control topics
 
-# Data Product Name (color_2d_img, bw_2d_img, depth_map, pointcloud)
-string data_product
+# Enable or Disable IDX controls
+bool controls_enable
 
 float32 resolution_ratio
 float32 framerate_ratio
 
-# Enable or Disable IDX controls
-bool controls_enable
+
 
 # Enable or Disable IDX auto adjusting brightness, contrast, and threshold control
 bool auto_adjust

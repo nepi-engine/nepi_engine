@@ -230,15 +230,6 @@ class IDXDeviceIF:
 
         ##############################  
         # Create Msg Class
-
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
-
-        ##############################  
-        # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
         else:
@@ -982,10 +973,10 @@ class IDXDeviceIF:
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setControlsEnable(new_controls_enable)
         self.ctl_enabled = new_controls_enable
-        
-        self.node_if.set_param('controls_enable', new_controls_enable)
         self.status_msg.controls_enable = new_controls_enable
-        self.publishStatus(do_updates=False) # Updated inline here
+        self.publishStatus(do_updates=False) # Updated inline here        
+        self.node_if.set_param('controls_enable', new_controls_enable)
+
  
 
             
@@ -1554,18 +1545,12 @@ class IDXDeviceIF:
             self.status_msg.rtsp_username = rtsp_username
             self.status_msg.rtsp_password = rtsp_password
 
-            self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
-            self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
 
-            self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
-            self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
             
-            self.status_msg.resolution_ratio = param_dict['resolution_ratio'] if 'resolution_ratio' in param_dict else 0
             self.status_msg.resolution_ratio = param_dict['resolution_ratio'] if 'resolution_ratio' in param_dict else 0
             res_str = str(self.img_width) + ":" + str(self.img_height)
             self.status_msg.resolution_current = res_str
 
-            self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.data_products = self.data_products_list
             framerates = []
@@ -1573,12 +1558,11 @@ class IDXDeviceIF:
                 framerates.append(self.current_fps[dp])
             self.status_msg.framerates = framerates
 
-            self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
-            self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
 
+            self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
+            self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
+            self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
             self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
-            self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
-            
             self.status_msg.thresholding = param_dict['thresholding'] if 'thresholding' in param_dict else 0
             
             self.status_msg.range_window.start_range = self.node_if.get_param('range_window/start_range_ratio')

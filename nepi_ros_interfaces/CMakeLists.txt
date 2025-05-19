@@ -70,10 +70,6 @@ add_message_files(FILES
     BoundingBoxes3D.msg
     Frame3DTransform.msg
     Frame3DTransformUpdate.msg
-    DataControlsImage.msg
-    DataControlsDepthMap.msg
-    DataControlsPointcloud.msg
-    DataControlsSonar.msg
     IDXStatus.msg
     HwTrigInCfg.msg
     HwTrigOutCfg.msg
@@ -147,14 +143,16 @@ add_message_files(FILES
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
-    ImageStatus.msg
-    PointcloudStatus.msg
     SystemState.msg
     SystemStatesStatus.msg
     SystemTrigger.msg
     SystemTriggersStatus.msg
     NPXStatus.msg
     FilenameConfig.msg
+    ImageStatus.msg
+    DepthMapStatus.msg
+    PointcloudStatus.msg
+    SonarStatus.msg
 )
 
 ## Generate services in the 'srv' folder

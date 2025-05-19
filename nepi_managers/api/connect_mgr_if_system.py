@@ -454,7 +454,7 @@ class ConnectMgrSystemIF:
 
     def wait_for_services(self, timeout = float('inf') ):
         self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
-        services_connected = self.services_if.get_sys_folderwait_for_services_path(timeout = timeout)
+        services_connected = self.services_if.wait_for_services_path(timeout = timeout)
         return services_connected
 
     def get_sys_folder_path(self, folder_name, fallback_path = ""):

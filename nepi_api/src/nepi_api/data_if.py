@@ -829,6 +829,13 @@ class ImageIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
 
+    ctl_enabled = True
+    ctl_auto = False
+    ctl_brightness = 0.5
+    ctl_contrast = 0.5
+    ctl_threshold = 0.0
+    ctl_res_ratio = 1.0  
+
     def __init__(self, namespace = None , 
                 init_overlay_list = [],
                 log_name = None,
@@ -888,6 +895,26 @@ class ImageIF:
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
+            'controls_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ctl_enabled
+            },
+            'auto_adjust': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ctl_auto
+            },
+            'brightness': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ctl_brightness
+            },
+            'contrast': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ctl_contrast
+            },
+            'threshold': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ctl_threshold
+            },
             'overlay_img_name': {
                 'namespace': self.namespace,
                 'factory_val': False
@@ -937,10 +964,50 @@ class ImageIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
+            'set_controls_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'set_controls_enable',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setControlsEnableCb, 
+                'callback_args': ()
+            },
+            'set_auto_adjust': {
+                'namespace': self.node_namespace,
+                'topic': 'set_auto_adjust',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setAutoAdjustCb, 
+                'callback_args': ()
+            },
+            'set_brightness': {
+                'namespace': self.node_namespace,
+                'topic': 'set_brightness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setBrightnessCb, 
+                'callback_args': ()
+            },
+            'set_contrast': {
+                'namespace': self.node_namespace,
+                'topic': 'set_contrast_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setContrastCb, 
+                'callback_args': ()
+            },
+            'set_threshold': {
+                'namespace': self.node_namespace,
+                'topic': 'set_threshold_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setThresholdingCb, 
+                'callback_args': ()
+            },
             'overlay_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_img_name',
+                'topic': 'set_overlay_source_name',
                 'qsize': 1,
                 'callback': self._setOverlayImgNameCb
             },
@@ -999,14 +1066,13 @@ class ImageIF:
 
         self.node_if.wait_for_ready()
 
+        self.ctl_enabled = self.node_if.get_param('controls_enable')
+        self.ctl_auto = self.node_if.get_param('auto_adjust')       
+        self.ctl_brightness = self.node_if.get_param('brightness')
+        self.ctl_contrast = self.node_if.get_param('contrast')        
+        self.ctl_threshold = self.node_if.get_param('threshold')
 
-        self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-        self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
-        self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
-        self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
-        self.status_msg.base_overlay_list = self.init_overlay_list
-        self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
-
+        
         ##############################
         # Start Node Processes
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -1097,6 +1163,23 @@ class ImageIF:
                 self.msg_if.pub_warn("Image has subscribers, will publish")
             self.status_msg.publishing = True
 
+            # Apply Controls
+            enabled = self.status_msg.controls_enabled
+            auto = self.status_msg.auto_adjust_enabled
+            brightness = self.status_msg.contrast_ratio
+            contrast = self.status_msg.brightness_ratio
+            threshold = self.status_msg.threshold_ratio
+            if enabled == True: 
+                #if res_ratio < 0.9:
+                #    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+                if auto is False:
+                    cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+                    cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+                    cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+                else:
+                    cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+
+
             # Apply Overlays
             overlay_list = []
             if self.status_msg.overlay_img_name == True:
@@ -1175,6 +1258,30 @@ class ImageIF:
         self.namespace = '~'
         self.status_msg = None
 
+
+    def publish_status(self, do_updates = True):
+        if self.node_if is not None:
+            if do_updates == True:
+                self.status_msg.controls_enabled= self.node_if.get_param('controls_enabled')
+                self.status_msg.auto_adjust_enabled = self.node_if.get_param('auto_adjust')
+                self.status_msg.contrast_ratio = self.node_if.get_param('contrast')
+                self.status_msg.brightness_ratio = self.node_if.get_param('brightness')
+                self.status_msg.threshold_ratio = self.node_if.get_param('threshold')
+
+                self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+                self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+                self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+                self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+                self.status_msg.base_overlay_list = self.init_overlay_list
+                self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_fps = avg_rate
+            self.node_if.publish_pub('status_pub',self.status_msg)
+
     ###############################
     # Class Private Methods
     ###############################
@@ -1190,61 +1297,115 @@ class ImageIF:
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None and not nepi_ros.is_shutdown():
-            self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-            self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
-            self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
-            self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
-            self.status_msg.base_overlay_list = self.init_overlay_list
-            self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+        self.publish_status()
 
-            avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
-            self.status_msg.avg_fps = avg_rate
-            self.node_if.publish_pub('status_pub',self.status_msg)
+
+
+    # Define local IDX Control callbacks
+    def _setControlsEnableCb(self, msg):
+        self.msg_if.pub_info("Recived IDX Controls enable update message: " + str(msg))
+        new_controls_enable = msg.data
+        if self.setControlsEnable is not None:
+            # Call the parent's method and update ROS param as necessary
+            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
+            status, err_str = self.setControlsEnable(new_controls_enable)
+        self.ctl_enabled = new_controls_enable
+        self.status_msg.controls_enabled= new_controls_enable
+        self.publishStatus(do_updates=False) # Updated inline here        
+        self.node_if.set_param('controls_enabled', new_controls_enable)
+
+ 
+    def _setAutoAdjustCb(self, msg):
+        self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
+        new_auto_adjust = msg.data
+        if new_auto_adjust:
+            self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
+
+        self.status_msg.auto_adjust_enabled = new_auto_adjust
+        self.publishStatus(do_updates=False) # Updated inline here
+        self.node_if.set_param('auto_adjust', new_auto_adjust)
+
+
+    def _setBrightnessCb(self, msg):
+        self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
+        new_ratio = msg.data
+        if new_ratio < 0:
+            new_ratio = 0
+        if new_ratio > 1.0:
+            new_ratio = 1.0
+        self.status_msg.brightness_ratio = new_ratio
+        self.publishStatus(do_updates=False) # Updated inline here
+        self.node_if.set_param('brightness', new_ratio)
+
+
+    def _setContrastCb(self, msg):
+        self.msg_if.pub_info("Recived Contrast update message: " + str(msg))
+        new_ratio = msg.data
+        if new_ratio < 0:
+            new_ratio = 0
+        if new_ratio > 1.0:
+            new_ratio = 1.0   
+        self.status_msg.contrast_ratio = new_ratio
+        self.publishStatus(do_updates=False) # Updated inline here   
+        self.node_if.set_param('contrast', new_ratio)
         
 
+
+    def _setThresholdingCb(self, msg):
+        self.msg_if.pub_info("Received Threshold update message: " + str(msg))
+        new_ratio = msg.data
+        if new_ratio < 0:
+            new_ratio = 0
+        if new_ratio > 1.0:
+            new_ratio = 1.0
+        self.status_msg.threshold_ratio = new_ratio
+        self.publishStatus(do_updates=False) # Updated inline here   
+        self.node_if.set_param('threshold', new_ratio)
+                
+
     def _setOverlayImgNameCb(self,msg):
+        self.status_msg.overlay_img_name = msg.data
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('overlay_img_name', msg.data)
-        self.publishStatus()
 
     def _setOverlayDateTimeCb(self,msg):
+        self.status_msg.overlay_date_time =  msg.data
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('overlay_date_time', msg.data)
-        self.publishStatus()
 
     def _setOverlayNavCb(self,msg):
+        self.status_msg.overlay_nav = msg.data
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('overlay_nav', msg.data)
-        self.publishStatus()
 
     def _setOverlayPoseCb(self,msg):
+        self.status_msg.overlay_pose = msg.data
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('overlay_pose', msg.data)
-        self.publishStatus()
+
 
     def _setOverlayListCb(self,msg):
+        self.status_msg.overlay_pose = msg.data  
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('add_overlay_list', msg.data)
-        self.publishStatus()
+
 
     def _setOverlayTextCb(self,msg):
         text = msg.data
-        overlay_list = self.node_if.get_param('add_overlay_list')
+        overlay_list = self.status_msg.add_overlay_list
         overlay_list.append(text)
+        self.status_msg.add_overlay_list = overlay_list
+        self.publishStatus(do_updates=False) # Updated inline here
+
         self.node_if.set_param('add_overlay_list', overlay_list)
-        self.publishStatus()
+
 
     def _clearOverlayListCb(self,msg):
+        self.status_msg.add_overlay_list = []
+        self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('add_overlay_list', [])
-        self.publishStatus()
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1490,6 +1651,30 @@ class PointcloudIF:
         self.namespace = '~'
         self.status_msg = None
 
+
+    def publish_status(self, do_updates = True):
+        if self.node_if is not None:
+            '''
+            if do_updates == True:
+                self.status_msg.controls_enabled= self.node_if.get_param('controls_enabled')
+                self.status_msg.auto_adjust_enabled = self.node_if.get_param('auto_adjust')
+                self.status_msg.contrast_ratio = self.node_if.get_param('contrast')
+                self.status_msg.brightness_ratio = self.node_if.get_param('brightness')
+                self.status_msg.threshold_ratio = self.node_if.get_param('threshold')
+
+                self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+                self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+                self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+                self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+                self.status_msg.base_overlay_list = self.init_overlay_list
+                self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+            '''
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_fps = avg_rate
+            self.node_if.publish_pub('status_pub',self.status_msg)
     ###############################
     # Class Private Methods
     ###############################
@@ -1506,13 +1691,7 @@ class PointcloudIF:
 
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None and not nepi_ros.is_shutdown():
-            avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
-            self.status_msg.avg_fps = avg_rate
-            self.node_if.publish_pub('status_pub', self.status_msg)
+        self.publish_status(do_updates = True)
 
 
 

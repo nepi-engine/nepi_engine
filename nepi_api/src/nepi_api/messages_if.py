@@ -17,8 +17,6 @@ from nepi_ros_interfaces.msg import Message
 from nepi_ros_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 
 
-
-
 class MsgIF:
 
     ns_str = ""

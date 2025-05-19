@@ -183,7 +183,8 @@ class SaveDataIF:
         self.read_write_if = ReadWriteIF(
                             filename_dict = dict()
                             )
-        self.update_filename_dict(factory_filename_dict)
+        if factory_filename_dict is not None:
+            self.update_filename_dict(factory_filename_dict)
 
         # Config initial data products dict
         self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
@@ -461,7 +462,6 @@ class SaveDataIF:
             self.node_if.set_param('save_rate_dict',save_rate_dict)
 
     def update_filename_dict(self,filename_dict):
-
         if self.filename_dict != filename_dict:
             cur_prefix = self.filename_dict['prefix']
             if 'prefix' in filename_dict.keys():

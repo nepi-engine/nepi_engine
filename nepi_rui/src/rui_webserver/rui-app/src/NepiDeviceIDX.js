@@ -255,6 +255,7 @@ class NepiDeviceIDX extends Component {
           <Column equalWidth={false}>
             <ImageViewer
               imageTopic={this.state.imageTopic_0}
+              dataType={'Image'}
               title={this.state.imageText_0}
               hideQualitySelector={false}
             />

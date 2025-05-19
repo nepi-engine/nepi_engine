@@ -107,6 +107,11 @@ export function onChangeSwitchStateValue(stateVarNameStr,currentVal){
   this.setState(obj)
 }
 
+export function onChangeSwitchSendBoolValue(namespace,newVal) {
+  const {sendBoolMsg} = this.props.ros
+  sendBoolMsg(namespace,newVal)
+}
+
 
 /////////////////////////////
 // MENU FUNCTIONS
@@ -248,6 +253,7 @@ export function onDropdownSelectedSetState(event, stateVarStr) {
   obj[key] = value
   this.setState(obj)
 }
+
 
 export function onDropdownSelectedSendStr(event, namespace) {
   const {sendStringMsg} = this.props.ros

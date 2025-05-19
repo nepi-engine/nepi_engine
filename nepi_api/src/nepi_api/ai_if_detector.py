@@ -158,7 +158,7 @@ class AiDetectorIF:
         self.has_img_tiling = has_img_tiling
 
         ## Get folder info
-        mgr_sys_srv_if = ConnectMgrSystemServicesIF()
+        self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
         success = self.mgr_sys_srv_if.wait_for_services()
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
@@ -210,7 +210,7 @@ class AiDetectorIF:
            #Try and launch node
             img_pub_node_name = self.node_name + "_img_pub"
             img_pub_namespace = self.node_namespace + "_img_pub"
-            all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors", log_name_list = self.log_name_list)
+            all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
             self.msg_if.pub_warn("Launching Detector Img Pub Node: " + img_pub_node_name)
 
             # Pre Set Img Pub Params

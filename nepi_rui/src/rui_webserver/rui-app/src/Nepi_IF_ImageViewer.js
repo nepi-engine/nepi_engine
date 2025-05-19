@@ -11,12 +11,19 @@ import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
 import Section from "./Section"
-
-import Styles from "./Styles"
-
+//import EnableAdjustment from "./EnableAdjustment"
+import Button, { ButtonMenu } from "./Button"
 import Toggle from "react-toggle"
 import Label from "./Label"
+import RangeAdjustment from "./RangeAdjustment"
+import {RadioButtonAdjustment, SliderAdjustment} from "./AdjustmentWidgets"
 import { Column, Columns } from "./Columns"
+import Styles from "./Styles"
+import Select from "./Select"
+import Input from "./Input"
+
+
+import { createMenuListFromStrList, onChangeSwitchStateValue, onChangeSwitchSendBoolValue, onEnterSendFloatValue } from "./Utilities"
 
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
@@ -50,20 +57,24 @@ class ImageViewer extends Component {
     this.state = {
       hasInitialized: false,
       shouldUpdate: true,
-      //clockTime: moment(),
       streamWidth: null,
       streamHeight: null,
       streamSize: 0,
       currentStreamingImageQuality: COMPRESSION_HIGH_QUALITY,
       status_listenter: null,
       status_msg: null,
+      show_stats: false,
+      show_controls: false,
+      show_overlays: false,
       connected: false
     }
     this.updateFrame = this.updateFrame.bind(this)
     this.onCanvasRef = this.onCanvasRef.bind(this)
     this.updateImageSource = this.updateImageSource.bind(this)
     this.onChangeImageQuality = this.onChangeImageQuality.bind(this)
-    this.renderImgStats = this.renderImgStats.bind(this)
+    this.renderControls = this.renderControls.bind(this)
+    this.renderOverlays = this.renderOverlays.bind(this)
+    this.renderStats = this.renderStats.bind(this)
     this.getImgStatsText = this.getImgStatsText.bind(this)
 
     this.statusListener = this.statusListener.bind(this)
@@ -136,7 +147,6 @@ class ImageViewer extends Component {
 
   // Callback for handling ROS Status messages
   statusListener(message) {
-
     this.setState({
       status_msg: message
     })    
@@ -200,9 +210,9 @@ class ImageViewer extends Component {
     const size_changed = (size !== got_size)
     if (prevProps.imageTopic !== imageTopic || size_changed === true || prevState.currentStreamingImageQuality !== this.state.currentStreamingImageQuality){
       this.updateImageSource()
-      //if (prevProps.imageTopic !== imageTopic) {
-      //  this.updateStatusListener()
-      //}
+      if (prevProps.imageTopic !== imageTopic) {
+        this.updateStatusListener()
+      }
     }
   }
 
@@ -228,7 +238,7 @@ class ImageViewer extends Component {
   getImgStatsText(){
     const status_msg = this.state.status_msg
     var msg = ""
-    if (status_msg){
+    if (status_msg != null){
       const get_lat = round(status_msg.get_latency_time, 3)
       const pup_lat = round(status_msg.pub_latency_time, 3)
       const proc_time = round(status_msg.process_time, 3)
@@ -242,16 +252,24 @@ class ImageViewer extends Component {
     return msg
   }
 
-  renderImgStats() {
-    const show_img_stats = this.props.showImgStats ? this.props.showImgStats: false
+  renderStats() {
    
-    if (show_img_stats === true){
+    if (this.state.status_msg != null){
+      const show_stats = this.state.show_stats
       const img_stats_text = this.getImgStatsText()
       return (
         <Columns>
         <Column>
     
-        <pre style={{ height: "50px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+        <Label title="Show Stats">
+        <Toggle
+        checked={this.state.show_install_app===true}
+        onClick={() => onChangeSwitchStateValue.bind(this)("show_stats",this.state.show_stats)}>
+        </Toggle>
+        </Label>
+
+
+        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
                   {img_stats_text}
                   </pre>
     
@@ -275,6 +293,217 @@ class ImageViewer extends Component {
 
 
 
+  renderControls() {
+
+    const namespace = this.props.imageTopic
+   
+    if (this.state.status_msg != null && namespace != null){
+      const show_controls = this.state.show_controls
+      const message = this.state.status_msg
+      const controls_enabled = message.controls_enabled
+      const auto_adjust_enabled = message.auto_adjust_enabled
+      const brightness_ratio = message.brightness_ratio
+      const contrast_ratio = message.contrast_ratio
+      const threshold_ratio = message.threshold_ratio
+
+
+      return (
+
+        <Columns>
+        <Column>
+
+
+        <Columns>
+          <Column>
+      
+          <Label title="Show Controls">
+          <Toggle
+          checked={this.state.show_install_app===true}
+          onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+          </Toggle>
+          </Label>
+
+          </Column>
+          <Column>
+
+        </Column>
+      </Columns>
+
+      
+
+    <Columns>
+    <Column>
+
+          <Label title={"Auto Adjust"}>
+              <Toggle
+                checked={auto_adjust_enabled}
+                onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_auto_adjust',!auto_adjust_enabled)}
+              /> 
+            </Label>
+
+        </Column>
+        <Column>
+
+        </Column>
+      </Columns>
+
+
+
+      <Columns>
+      <Column>
+          <div hidden={this.state.auto_adjust_enabled}>
+          <SliderAdjustment
+              title={"Brightness"}
+              msgType={"std_msgs/Float32"}
+              adjustment={brightness_ratio}
+              topic={namespace + "/set_brightness_ratio"}
+              scaled={0.01}
+              min={0}
+              max={100}
+              tooltip={"Adjustable brightness"}
+              unit={"%"}
+          />
+          <SliderAdjustment
+            title={"Contrast"}
+            msgType={"std_msgs/Float32"}
+            adjustment={contrast_ratio}
+            topic={namespace + "/set_contrast_ratio"}
+            scaled={0.01}
+            min={0}
+            max={100}
+            tooltip={"Adjustable contrast"}
+            unit={"%"}
+          />
+          <SliderAdjustment
+              title={"Threshold"}
+              msgType={"std_msgs/Float32"}
+              adjustment={threshold_ratio}
+              topic={namespace + "/set_threshold_ratio"}
+              scaled={0.01}
+              min={0}
+              max={100}
+              tooltip={"Adjustable threshold"}
+              unit={"%"}
+          />
+          </div>
+          </Column>
+            </Columns>
+
+      </Column>
+      </Columns>
+      )
+    }
+    else {
+      return (
+        <Columns>
+        <Column>
+
+        </Column>
+        </Columns>
+      )
+
+    }
+
+  }
+
+
+
+  renderOverlays() {
+
+    const namespace = this.props.imageTopic
+   
+    if (this.state.status_msg != null && namespace != null){
+      const show_overlays = this.state.show_overlays
+      const message = this.state.status_msg
+      const name = message.overlay_img_name
+      const date = message.overlay_date_time
+      const nav = message.overlay_nav
+      const pose = message.overlay_pose
+
+
+      return (
+
+        <Columns>
+        <Column>
+
+
+          <Columns>
+          <Column>
+      
+          <Label title="Show Overlays">
+          <Toggle
+          checked={this.state.show_install_app===true}
+          onClick={() => onChangeSwitchStateValue.bind(this)("show_overlays",this.state.show_overlays)}>
+          </Toggle>
+          </Label>
+
+          </Column>
+          <Column>
+
+          </Column>
+        </Columns>
+
+        
+
+      <Columns>
+      <Column>
+
+            <Label title={"Source Name"}>
+                <Toggle
+                  checked={name}
+                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_source_name',!name)}
+                /> 
+              </Label>
+
+              <Label title={"Date Time"}>
+                <Toggle
+                  checked={date}
+                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_date_time',!date)}
+                /> 
+              </Label>
+
+              <Label title={"Location"}>
+                <Toggle
+                  checked={nav}
+                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_nav',!nav)}
+                /> 
+              </Label>
+
+              <Label title={"Pose"}>
+                <Toggle
+                  checked={pose}
+                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_pose',!pose)}
+                /> 
+              </Label>
+
+
+          </Column>
+          <Column>
+
+          </Column>
+        </Columns>
+
+
+      </Column>
+      </Columns>
+      )
+    }
+    else {
+      return (
+        <Columns>
+        <Column>
+
+        </Column>
+        </Columns>
+      )
+
+    }
+
+  }
+
+
+
+
 
   render() {
     const {
@@ -290,7 +519,25 @@ class ImageViewer extends Component {
 
     return (
       <Section title={this.props.title}>
-       {/* {this.renderImgStats()} */}
+        <Columns>
+          <Column>
+
+          {this.renderControls()}
+
+          </Column>
+          <Column>
+
+          {this.renderOverlays()}
+
+          </Column>
+          <Column>
+
+        {this.renderStats()}
+
+
+          </Column>
+        </Columns>
+
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
         <Columns>
           <Column>

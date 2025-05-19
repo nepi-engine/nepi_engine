@@ -29,6 +29,6 @@ bool controls_enabled
 bool auto_adjust_enabled
 float32 contrast_ratio
 float32 brightness_ratio
-float32 threshold_ratio
+float32 thresholding_ratio
 
 

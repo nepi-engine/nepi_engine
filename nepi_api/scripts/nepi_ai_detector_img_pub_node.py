@@ -235,7 +235,6 @@ class AiDetectorImgPub:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
@@ -251,7 +250,6 @@ class AiDetectorImgPub:
         factory_data_rates[self.data_product] = [1.0, 0.0, 100.0] 
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.det_namespace,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
@@ -314,13 +312,11 @@ class AiDetectorImgPub:
         if len(active_img_topics) > 0:
             if self.img_image_if == None:
                 self.img_image_if = ImageIF(namespace = self.det_namespace , log_name = self.data_product,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
             if self.img_image_if_all == None and self.all_namespace != "":
                 self.img_image_if_all = ImageIF(namespace = self.all_namespace , log_name = self.data_product,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
@@ -423,7 +419,6 @@ class AiDetectorImgPub:
 
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
                 img_image_if = ImageIF(namespace = pub_namespace , log_name = self.data_product,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
@@ -438,7 +433,6 @@ class AiDetectorImgPub:
                 # Subs Config Dict 
                 img_subs_if = NodeSubscribersIF(
                                 subs_dict = SUBS_DICT,
-                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
 
