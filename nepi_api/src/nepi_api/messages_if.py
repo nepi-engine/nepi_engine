@@ -16,10 +16,15 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_ros_interfaces.msg import Message
 from nepi_ros_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 
-class MsgIF(object):
+
+
+
+class MsgIF:
 
     ns_str = ""
+    cn_str = ""
     ln_str = ""
+    log_name_list = []
 
     print_debug = False
     #######################
@@ -31,13 +36,12 @@ class MsgIF(object):
         self.base_namespace = nepi_ros.get_base_namespace()
 
         ############################## 
-
         self.ns_str = self.node_name + ": "
+        self.cn_str = self.class_name + ": "
         if log_name is not None:
-            self.ln_str = log_name + ": "
-        self._logSelfMsg("Starting IF Initialization Processes")
+            self.ln_str = str(log_name) + ": "
+        self._logSelfMsg("Starting IF Initialization Processes", )
         ##############################   
-        
         nepi_ros.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
 
         self._createMsgPublishers()
@@ -48,29 +52,29 @@ class MsgIF(object):
     ###############################
     # Class Public Methods
     
-    def pub_msg(self, msg, level = "None", throttle_s = None):
+    def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None):
         if msg is None:
             msg = "MSGIF got None msg"
-        msg_str = self._createMsgString(msg)
+        msg_str = self._createMsgString(msg, log_name_list = log_name_list)
         nepi_ros.log_msg(msg_str, level = level, throttle_s = throttle_s)
         self.msg_pub.publish(msg_str)
         self.msg_pub_sys.publish(msg_str)
     
-    def pub_info(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'info', throttle_s = throttle_s)
+    def pub_info(self, msg, throttle_s = None, log_name_list = []):
+        self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s)
     
-    def pub_warn(self, msg, throttle_s = None):
-        self.pub_msg(msg, level = 'warn', throttle_s = throttle_s)
+    def pub_warn(self, msg, throttle_s = None, log_name_list = []):
+        self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s)
     
-    def pub_debug(self, msg, throttle_s = None):
+    def pub_debug(self, msg, throttle_s = None, log_name_list = []):
         if self.print_debug == True:
-            self.pub_msg(msg, level = 'debug', throttle_s = throttle_s)
+            self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s)
     
-    def pub_error(self, msg, throttle_s = None):
-        self.pub_msg(msg,level = 'error', throttle_s = throttle_s)
+    def pub_error(self, msg, throttle_s = None, log_name_list = []):
+        self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s)
     
-    def pub_fatal(self, msg, throttle_s = None):
-        self.pub_msg(msg,level = 'fatal', throttle_s = throttle_s)
+    def pub_fatal(self, msg, throttle_s = None, log_name_list = []):
+        self.pub_msg(msg,level = 'fatal', log_name_list = log_name_list, throttle_s = throttle_s)
 
 
 
@@ -79,17 +83,25 @@ class MsgIF(object):
     ###############################
   
     def _createMsgPublishers(self):
-        #self._logSelfMsg("Creating Msg Publishers")
         self.msg_pub = nepi_ros.create_publisher("~messages", Message, queue_size=1)
         self.msg_pub_sys = nepi_ros.create_publisher("messages", Message, queue_size=1)
-        
-        return 
-    def _logSelfMsg(self,msg):
-        msg_str = self.ns_str + self.ln_str + self.class_name + ": " + str(msg)
+
+
+    def _logSelfMsg(self,msg, log_name_list = []):
+        ln_str = self._createLogNameStr(log_name_list)
+        msg_str = self.ns_str + ln_str + self.ln_str + self.cn_str + str(msg)
         nepi_ros.log_msg_info(msg_str)
 
-    def _createMsgString(self,msg):
-         return self.ns_str + self.ln_str + str(msg)
+    def _createMsgString(self,msg, log_name_list = []):
+        ln_str = self._createLogNameStr(log_name_list)
+        msg_str = self.ns_str + ln_str + self.ln_str + str(msg)
+        return msg_str
+
+    def _createLogNameStr(self,log_name_list):
+        ln_str = ""
+        for log_name in log_name_list:
+            ln_str = ln_str + log_name + ": "
+        return ln_str
 
     def _debugCb(self,msg):
         self.print_debug = msg.data

@@ -8,8 +8,9 @@
 #
 
 import os
-import time
+import time 
 import copy
+
 import datetime
 import numpy as np
 import cv2
@@ -120,6 +121,7 @@ class SaveDataIF:
                 factory_filename_dict = None, 
                 namespace = None,
                 log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -133,12 +135,13 @@ class SaveDataIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            if log_name is not None:
-                log_name = log_name + ": " + self.class_name
-            else:
-                log_name = self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting SaveData IF Initialization Processes")
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+
+        self.msg_if.pub_info("Starting SaveData IF Initialization Processes", log_name_list = self.log_name_list)
         ############################## 
         # Initialize Class Variables
         if namespace is None:
@@ -159,7 +162,7 @@ class SaveDataIF:
         
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
-            self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled")
+            self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled", log_name_list = self.log_name_list)
             self.save_data_root_directory = None # Flag it as non-existent
             return # Don't enable any of the ROS interface stuff
         self.save_path = self.save_data_root_directory
@@ -183,7 +186,7 @@ class SaveDataIF:
         self.update_filename_dict(factory_filename_dict)
 
         # Config initial data products dict
-        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
         self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products))
         self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict))
         save_rate_dict = dict()
@@ -395,8 +398,10 @@ class SaveDataIF:
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
 
         nepi_ros.sleep(1)
         #self.node_if.wait_for_ready()
@@ -418,7 +423,7 @@ class SaveDataIF:
         # Complete Initialization
         self.publish_status()
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -432,16 +437,16 @@ class SaveDataIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready    
 
             
@@ -637,7 +642,7 @@ class SaveDataIF:
         should_save = self.data_product_should_save(data_product)
         snapshot_enabled = self.data_product_snapshot_enabled(data_product)
         # Save data if enabled
-        #self.msg_if.pub_warn("******")
+        #self.msg_if.pub_warn("******", log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Checking save data: " + data_product + " " + str([saving_is_enabled,should_save,snapshot_enabled,save_check]) )
         if should_save or snapshot_enabled or save_check == False:
             if self.filename_dict['use_utc_tz'] == False:
@@ -649,7 +654,7 @@ class SaveDataIF:
             self.data_product_snapshot_reset(data_product)
             self.save_rate_dict[data_product][1] = nepi_utils.get_time()
         #self.msg_if.pub_warn("Finished Checking save data: " + data_product )
-        #self.msg_if.pub_warn("******")
+        #self.msg_if.pub_warn("******", log_name_list = self.log_name_list)
 
 
     def create_filename_msg(self):
@@ -754,7 +759,7 @@ class SaveDataIF:
         
 
     def _snapshotCb(self,msg):
-        self.msg_if.pub_info("Recieved Snapshot Trigger")
+        self.msg_if.pub_info("Recieved Snapshot Trigger", log_name_list = self.log_name_list)
         save_rate_dict = self.save_rate_dict
         for data_product in save_rate_dict.keys():
             save_rate = save_rate_dict[data_product][0]
@@ -764,12 +769,12 @@ class SaveDataIF:
 
 
     def _resetCb(self,reset_msg):
-        self.msg_if.pub_info("Recieved save data reset msg")
+        self.msg_if.pub_info("Recieved save data reset msg", log_name_list = self.log_name_list)
         self.node_if.reset_params()
         self.publish_status()
 
     def _factoryResetCb(self,reset_msg):
-        self.msg_if.pub_info("Recieved save data factory reset msg")
+        self.msg_if.pub_info("Recieved save data factory reset msg", log_name_list = self.log_name_list)
         self.node_if.factory_reset_params()
         self.publish_status()
 
@@ -831,6 +836,7 @@ class SettingsIF:
     def __init__(self, 
                 settings_dict,
                 log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -844,12 +850,12 @@ class SettingsIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            if log_name is not None:
-                log_name = log_name + ": " + self.class_name
-            else:
-                log_name = self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Settings IF Initialization Processes")
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes", log_name_list = self.log_name_list)
         
 
         #############################
@@ -969,7 +975,8 @@ class SettingsIF:
         self.node_if = NodeClassIF(params_dict = self.PARAMS_DICT,
                                     services_dict = self.SRVS_DICT,
                                     pubs_dict = self.PUBS_DICT,
-                                    subs_dict = self.SUBS_DICT
+                                    subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list
         )
    
 
@@ -987,7 +994,7 @@ class SettingsIF:
         # Complete Initialization
         self.publish_status()
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
     ###############################
@@ -1001,16 +1008,16 @@ class SettingsIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
     def publish_status(self):
@@ -1041,7 +1048,7 @@ class SettingsIF:
                     if update_status:
                         self.publish_status() 
         else:
-            self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ")
+            self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ", log_name_list = self.log_name_list)
         return success
 
 
@@ -1054,7 +1061,7 @@ class SettingsIF:
 
 
     def reset_settings(self, update_status = True):
-        self.msg_if.pub_info("Applying Init Settings")
+        self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
         #self.msg_if.pub_warn(self.init_settings)
         for setting_name in self.init_settings:
             setting = self.init_settings[setting_name]
@@ -1063,7 +1070,7 @@ class SettingsIF:
             self.publish_status()
 
     def factory_reset_settings(self, update_params = True, update_status = True):
-        self.msg_if.pub_info("Applying Factory Settings")
+        self.msg_if.pub_info("Applying Factory Settings", log_name_list = self.log_name_list)
         #self.msg_if.pub_warn(self.init_settings)
         for setting_name in self.factory_settings.keys():
             setting = self.factory_settings[setting_name]
@@ -1130,6 +1137,7 @@ class StatesIF:
                 get_states_dict_function, 
                 namespace = None,
                 log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1143,12 +1151,12 @@ class StatesIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            if log_name is not None:
-                log_name = log_name + ": " + self.class_name
-            else:
-                log_name = self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting States IF Initialization Processes")
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting States IF Initialization Processes", log_name_list = self.log_name_list)
         
         #############################
         # Initialize Class Variables
@@ -1175,14 +1183,17 @@ class StatesIF:
         }
 
         # Create Node Class ####################
-        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT)
+        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
     ###############################
@@ -1196,16 +1207,16 @@ class StatesIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
 
@@ -1262,6 +1273,7 @@ class TriggersIF:
     def __init__(self, 
                 triggers_dict = None,
                 log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1275,12 +1287,12 @@ class TriggersIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            if log_name is not None:
-                log_name = log_name + ": " + self.class_name
-            else:
-                log_name = self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Triggers IF Initialization Processes")
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting Triggers IF Initialization Processes", log_name_list = self.log_name_list)
         
         #############################
         # Initialize Class Variables
@@ -1318,15 +1330,17 @@ class TriggersIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
-                                    pubs_dict = self.PUBS_DICT
-                                )
+                                    pubs_dict = self.PUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -1342,16 +1356,16 @@ class TriggersIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
 

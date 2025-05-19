@@ -8,7 +8,9 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-import time
+import time 
+import copy 
+import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -115,6 +117,8 @@ class PTXActuatorIF:
                  getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
                  getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
                  navpose_update_rate = 10,
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -129,7 +133,11 @@ class PTXActuatorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting PTX Device IF Initialization Processes")
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting PTX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ############################## 
@@ -192,7 +200,7 @@ class PTXActuatorIF:
             if self.setSpeedCb is not None and self.getSpeedCb is not None:
                 self.has_adjustable_speed = True
             else:
-                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided")
+                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
                 self.has_adjustable_speed = False
         else:
             self.has_adjustable_speed = False
@@ -202,7 +210,7 @@ class PTXActuatorIF:
         
         # Positioning and soft limits setup if available
         if (capabilities_dict['has_absolute_positioning']):
-            self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided")
+            self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided", log_name_list = self.log_name_list)
             self.has_position_feedback = False
         else:
             self.has_position_feedback = True
@@ -222,7 +230,7 @@ class PTXActuatorIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_info("Starting Node IF Initialization")
+        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
         self.CFGS_DICT = {
             'init_callback': self.initCb,
@@ -503,14 +511,15 @@ class PTXActuatorIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
-        )
+                        )
 
         ready = self.node_if.wait_for_ready()
 
 
         # Setup Settings IF Class ####################
-        self.msg_if.pub_info("Starting Settings IF Initialization")
+        self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
 
         self.SETTINGS_DICT = {
@@ -520,13 +529,15 @@ class PTXActuatorIF:
                     'getSettingsFunction': getSettingsFunction, 
                     'namespace':  settings_ns
         }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
-                        msg_if = self.msg_if)
+        self.settings_if = SettingsIF(self.SETTINGS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
 
         # Setup System IF Classes ####################
         if self.gotoPositionCb is not None:
-            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name = self.class_name)
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
             for d in self.data_products_list:
                 factory_data_rates[d] = [10.0, 0.0, 100.0] # Default to 10Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -545,8 +556,9 @@ class PTXActuatorIF:
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     namespace = sd_namespace,
-                                    msg_if = self.msg_if
-                                    )
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
 
             time.sleep(1)
@@ -574,7 +586,7 @@ class PTXActuatorIF:
             getDepthCb is not None )
             
             if has_navpose == True:
-                self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+                self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
                 npx_if = NPXDeviceIF(device_info, 
                     capSettings = self.capSettingsNavPose,
                     factorySettings = self.factorySettingsNavPose,
@@ -586,8 +598,10 @@ class PTXActuatorIF:
                     getLocationCb = self.getLocationCb, 
                     getAltitudeCb = self.getAltitudeCb, 
                     getDepthCb = self.getDepthCb,
-                    navpose_update_rate = self.navpose_update_rate
-                )
+                    navpose_update_rate = self.navpose_update_rate,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
 
         time.sleep(1)
@@ -601,8 +615,8 @@ class PTXActuatorIF:
         self.pitch_joint_name = self.node_if.get_param('ptx/pitch_joint_name')
         self.reverse_yaw_control = self.node_if.get_param('ptx/reverse_yaw_control')
         self.reverse_pitch_control = self.node_if.get_param('ptx/reverse_pitch_control')
-        #self.msg_if.pub_warn("Factory Controls Dict: " + str(self.factory_controls_dict))
-        #self.msg_if.pub_warn("reverse_yaw_control: " + str(self.reverse_yaw_control))
+        self.msg_if.pub_debug("Factory Controls Dict: " + str(self.factory_controls_dict))
+        self.msg_if.pub_debug("reverse_yaw_control: " + str(self.reverse_yaw_control))
         # set class reverse int values
         ryi = 1
         if self.reverse_yaw_control:
@@ -640,7 +654,7 @@ class PTXActuatorIF:
                 self.setSpeedCb(speed_ratio)
                 self.capabilities_report.adjustable_speed = True
             else:
-                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided")
+                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
                 self.capabilities_report.adjustable_speed = False
         self.capabilities_report.homing = self.node_if.get_param('ptx/has_homing')
         self.capabilities_report.waypoints = self.node_if.get_param('ptx/has_waypoints')
@@ -651,7 +665,7 @@ class PTXActuatorIF:
         # Positioning and soft limits setup if available
         if self.capabilities_report.absolute_positioning is True:
             if (self.getCurrentPositionCb is None):
-                self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided")
+                self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided", log_name_list = self.log_name_list)
                 self.capabilities_report.adjustable_speed = False
                 # We require both command and feedback reporting to support absolute positioning
                 self.capabilities_report.absolute_positioning = False
@@ -664,7 +678,7 @@ class PTXActuatorIF:
             self.setHomePositionHereCb = setHomePositionHereCb
         
             if self.goHomeCb is None and self.capabilities_report.absolute_positioning is False:
-                self.msg_if.pub_warn("Inconsistent capabilities: homing reports true, but no goHome callback provided and no absolute positioning")
+                self.msg_if.pub_warn("Inconsistent capabilities: homing reports true, but no goHome callback provided and no absolute positioning", log_name_list = self.log_name_list)
                 self.capabilities_report.homing = False
                 
             self.home_yaw_deg = self.node_if.get_param('ptx/home_position/yaw_deg')
@@ -677,7 +691,7 @@ class PTXActuatorIF:
             self.setWaypointHereCb = setWaypointHereCb
 
             if self.gotoWaypointCb is None:
-                self.msg_if.pub_warn("Inconsistent capabilities: waypoints reports true, but no gotoWaypoint callback provided")
+                self.msg_if.pub_warn("Inconsistent capabilities: waypoints reports true, but no gotoWaypoint callback provided", log_name_list = self.log_name_list)
                 self.capabilities_report.waypoints = False
                               
 
@@ -699,7 +713,7 @@ class PTXActuatorIF:
 
         self.publish_status()
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
 
 
 
@@ -712,16 +726,16 @@ class PTXActuatorIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready   
 
 
@@ -758,10 +772,10 @@ class PTXActuatorIF:
         return  pitch_deg
 
     def publishJointStateAndStatus(self, Timer):
-        #self.msg_if.pub_warn("Publishing status")
+        self.msg_if.pub_debug("Publishing status", log_name_list = self.log_name_list)
         pub_time = self.publish_status()
         pub_time = round(pub_time, 3)
-        #self.msg_if.pub_warn("Published status with process time: " + str(pub_time))
+        self.msg_if.pub_debug("Published status with process time: " + str(pub_time))
 
         status_pub_delay = float(1.0) / self.status_update_rate
         if pub_time > status_pub_delay:
@@ -773,7 +787,7 @@ class PTXActuatorIF:
     def publish_status(self):
         start_time = nepi_utils.get_time()
         self.status_msg.header.stamp = nepi_ros.ros_time_now()
-        #self.msg_if.pub_info("Entering Publish Status")
+        #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
   
         if self.capabilities_report.absolute_positioning and npx_if is not None:
             navpose_dict = npx_if.get_navpose_dict()
@@ -781,7 +795,7 @@ class PTXActuatorIF:
             pitch_now_deg = navpose_dict['pitch_deg']
             got_time = nepi_utils.get_time() - start_time
             got_time = round(got_time, 3)
-            #self.msg_if.pub_warn("Got PT status with time: " + str(got_time))
+            self.msg_if.pub_debug("Got PT status with time: " + str(got_time))
 
             if round(yaw_now_deg,5) != round(self.yaw_goal_deg,5) or round(pitch_now_deg,5) != round(self.pitch_goal_deg,5):
                 self.status_msg.yaw_now_deg = yaw_now_deg 
@@ -816,7 +830,7 @@ class PTXActuatorIF:
                 self.status_msg.yaw_home_pos_deg = self.home_yaw_deg * self.ryi
 
                 yaw_now_ratio =  1 - (yaw_now_deg - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
-                #self.msg_if.pub_warn("yaw_now, min_yaw, max_yaw, yaw_now_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_now_ratio]))
+                self.msg_if.pub_debug("yaw_now, min_yaw, max_yaw, yaw_now_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_now_ratio]))
                 if yaw_now_ratio < 0:
                     yaw_now_ratio = 0
                 elif yaw_now_ratio > 1:
@@ -824,7 +838,7 @@ class PTXActuatorIF:
                 self.status_msg.yaw_now_ratio = yaw_now_ratio 
                 yaw_goal_deg = self.yaw_goal_deg * self.ryi
                 yaw_goal_ratio =  1 - (yaw_goal_deg - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
-                #self.msg_if.pub_warn("yaw_now, min_yaw, max_yaw, yaw_goal_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_goal_ratio]))
+                self.msg_if.pub_debug("yaw_now, min_yaw, max_yaw, yaw_goal_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_goal_ratio]))
                 if yaw_goal_ratio < 0:
                     yaw_goal_ratio = 0
                 elif yaw_goal_ratio > 1:
@@ -855,7 +869,7 @@ class PTXActuatorIF:
                 self.status_msg.pitch_home_pos_deg = self.home_pitch_deg * self.ryi
 
                 pitch_now_ratio =  1 - (pitch_now_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
-                #self.msg_if.pub_warn("pitch_now, min_pitch, max_pitch,pitch_now_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_now_ratio]))
+                self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch,pitch_now_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_now_ratio]))
                 if pitch_now_ratio < 0:
                     pitch_now_ratio = 0
                 elif pitch_now_ratio > 1:
@@ -863,7 +877,7 @@ class PTXActuatorIF:
                 self.status_msg.pitch_now_ratio = pitch_now_ratio 
                 pitch_goal_deg = self.pitch_goal_deg * self.ryi
                 pitch_goal_ratio =  1 - (pitch_goal_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
-                #self.msg_if.pub_warn("pitch_now, min_pitch, max_pitch, pitch_goal_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_goal_ratio]))
+                self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch, pitch_goal_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_goal_ratio]))
                 if pitch_goal_ratio < 0:
                     pitch_goal_ratio = 0
                 elif pitch_goal_ratio > 1:
@@ -878,7 +892,7 @@ class PTXActuatorIF:
         self.status_msg.has_position_feedback = self.has_position_feedback
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
 
-        #self.msg_if.pub_warn("Publishing Status")
+        self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
 
         self.node_if.publish_pub('status_pub',self.status_msg)
 
@@ -890,7 +904,7 @@ class PTXActuatorIF:
         self.joint_state_msg.header.stamp = self.status_msg.header.stamp
         self.joint_state_msg.position[0] = yaw_rad
         self.joint_state_msg.position[1] = pitch_rad
-        #self.msg_if.pub_warn("Publishing Joint")
+        self.msg_if.pub_debug("Publishing Joint", log_name_list = self.log_name_list)
         self.node_if.publish_pub('joint_pub',self.joint_state_msg)
 
         pub_time = nepi_utils.get_time() - start_time
@@ -978,7 +992,7 @@ class PTXActuatorIF:
 
     def setHomePositionHandler(self, msg):
         if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-            self.msg_if.pub_warn("Requested home position is invalid... ignoring")
+            self.msg_if.pub_warn("Requested home position is invalid... ignoring", log_name_list = self.log_name_list)
             return
 
         if self.setHomePositionCb is not None:
@@ -987,7 +1001,7 @@ class PTXActuatorIF:
             self.home_pitch_deg = msg.pitch_deg
             self.setHomePositionCb(self.home_yaw_deg, self.home_pitch_deg)
         else:
-            self.msg_if.pub_warn("Absolution position home setpoints not available... ignoring")
+            self.msg_if.pub_warn("Absolution position home setpoints not available... ignoring", log_name_list = self.log_name_list)
             return
         
         self.msg_if.pub_info("Updated home position to " + "%.2f" % self.home_yaw_deg + " " + "%.2f" %  self.home_pitch_deg)
@@ -1003,7 +1017,7 @@ class PTXActuatorIF:
     def jogToPositionHandler(self, msg):
         if self.positionWithinSoftLimits is not None:
             if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-                self.msg_if.pub_warn("Requested jog position is invalid... ignoring")
+                self.msg_if.pub_warn("Requested jog position is invalid... ignoring", log_name_list = self.log_name_list)
                 return
             self.yaw_goal_deg = msg.yaw_deg
             self.pitch_goal_deg = msg.pitch_deg
@@ -1040,7 +1054,7 @@ class PTXActuatorIF:
             self.stopMovingCb()
             self.yaw_goal_deg = self.status_msg.yaw_now_deg
             self.pitch_goal_deg = self.status_msg.pitch_now_deg
-            self.msg_if.pub_info("Stopping motion by request")
+            self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
         
 
     def jogTimedYawHandler(self, msg):
@@ -1048,7 +1062,7 @@ class PTXActuatorIF:
             direction = msg.direction if self.reverse_yaw_control is False else (-1 * msg.direction)
             duration = 1000000.0 if (msg.duration_s < 0.0) else msg.duration_s
             self.moveYawCb(direction,  duration)
-            self.msg_if.pub_info("Jogging yaw")
+            self.msg_if.pub_info("Jogging yaw", log_name_list = self.log_name_list)
         
 
     def jogTimedPitchHandler(self, msg):
@@ -1056,7 +1070,7 @@ class PTXActuatorIF:
             direction = msg.direction if self.reverse_pitch_control is False else (-1 * msg.direction)
             duration = 1000000.0 if (msg.duration_s < 0.0) else msg.duration_s
             self.movePitchCb(direction, duration)
-            self.msg_if.pub_info("Jogging pitch")
+            self.msg_if.pub_info("Jogging pitch", log_name_list = self.log_name_list)
         
 
     def setReverseYawControl(self, msg):
@@ -1087,9 +1101,9 @@ class PTXActuatorIF:
                 self.home_pitch_deg = navpose_dict['pitch_deg']
             self.setHomePositionHereCb()
         else:
-            self.msg_if.pub_warn("Instant home position not available for this device")
+            self.msg_if.pub_warn("Instant home position not available for this device", log_name_list = self.log_name_list)
             return
-        self.msg_if.pub_info("Updated home position to current position")
+        self.msg_if.pub_info("Updated home position to current position", log_name_list = self.log_name_list)
         
 
     def setWaypointHandler(self, msg):
@@ -1098,7 +1112,7 @@ class PTXActuatorIF:
             pitch_deg = msg.pitch_deg
             waypoint_index = msg.waypoint_index
             if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-                self.msg_if.pub_warn("Requested waypoint position is invalid... ignoring")
+                self.msg_if.pub_warn("Requested waypoint position is invalid... ignoring", log_name_list = self.log_name_list)
                 return
             if self.setWaypointCb is not None:
                 self.setWaypointCb(waypoint_index, yaw_deg, pitch_deg)

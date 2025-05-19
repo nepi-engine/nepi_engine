@@ -8,7 +8,8 @@
 #
 
 import os
-import time
+import time 
+import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -53,6 +54,7 @@ class ConnectNodeConfigsIF:
     #######################
     ### IF Initialization
     def __init__(self, configs_dict , timeout = float('inf'),
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -63,11 +65,13 @@ class ConnectNodeConfigsIF:
 
         ##############################  
         # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
+        if msg_if is None:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Connect Node Configs IF Initialization Processes")
+        else:
+            self.msg_if = msg_if
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        self.msg_if.pub_info("Starting Connect Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################  
         # Initialize Class Variables
@@ -90,7 +94,7 @@ class ConnectNodeConfigsIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################   
 
 
@@ -103,16 +107,16 @@ class ConnectNodeConfigsIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for Ready")
+        self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Wait for Ready Timed Out")
+            self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
 
@@ -207,7 +211,7 @@ class ConnectNodeConfigsIF:
     def unregister_save_if(self): 
         success = False
         if self.ready is False or self.namespace is None:
-            self.msg_if.pub_warn("Save Config IF not running")
+            self.msg_if.pub_warn("Save Config IF not running", log_name_list = self.log_name_list)
             success = True
         else:
             self.msg_if.pub_warn("Killing Save Confg IF for trigger: " + self.namespace)
@@ -264,6 +268,7 @@ class ConnectNodeServicesIF:
     ### IF Initialization
     def __init__(self, 
                 services_dict = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -274,11 +279,13 @@ class ConnectNodeServicesIF:
 
         ##############################  
         # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
+        if msg_if is None:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Connect Node Services IF Initialization Processes")
+        else:
+            self.msg_if = msg_if
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        self.msg_if.pub_info("Starting Connect Node Services IF Initialization Processes", log_name_list = self.log_name_list)
         ##############################   
 
         ##############################  
@@ -291,7 +298,7 @@ class ConnectNodeServicesIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################   
 
     ###############################
@@ -302,16 +309,16 @@ class ConnectNodeServicesIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for Ready")
+        self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Wait for Ready Timed Out")
+            self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
 
@@ -419,6 +426,7 @@ class ConnectNodePublishersIF:
                 log_name = None,
                 log_class_name = True,
                 do_wait = True,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -428,18 +436,17 @@ class ConnectNodePublishersIF:
         self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
+        if msg_if is None:
+            self.msg_if = MsgIF()
         else:
-            if log_name is None:
-                log_name = ''
-            elif log_class_name == True:
-                log_name = log_name + ": "
-            if log_class_name == True:
-                log_name = log_name + self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Node Pubs IF Initialization Processes")
+            self.msg_if = msg_if
+
+        self.msg_if.pub_warn("Connect Node Pub: " + self.class_name + " " + str(log_name_list))     
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        self.msg_if.pub_info("Starting Node Pubs IF Initialization Processes", log_name_list = self.log_name_list)
         ##############################   
 
         self.do_wait = do_wait
@@ -453,7 +460,7 @@ class ConnectNodePublishersIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################  
 
 
@@ -466,16 +473,16 @@ class ConnectNodePublishersIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for Ready")
+        self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Wait for Ready Timed Out")
+            self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Ready")
+            self.msg_if.pub_info("Ready", log_name_list = self.log_name_list)
         return self.ready
 
         
@@ -580,6 +587,7 @@ class ConnectNodeSubscribersIF:
                 log_name = None,
                 log_class_name = True,
                 do_wait = True,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -590,17 +598,13 @@ class ConnectNodeSubscribersIF:
 
         ##############################  
         # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
+        if msg_if is None:
+            self.msg_if = MsgIF()
         else:
-            if log_name is None:
-                log_name = ''
-            elif log_class_name == True:
-                log_name = log_name + ": "
-            if log_class_name == True:
-                log_name = log_name + self.class_name
-            self.msg_if = MsgIF(log_name = log_name)
-        self.msg_if.pub_info("Starting Node Subs IF Initialization Processes")
+            self.msg_if = msg_if
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        self.msg_if.pub_info("Starting Node Subs IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################   
         self.do_wait = do_wait
@@ -615,7 +619,7 @@ class ConnectNodeSubscribersIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################  
 
 
@@ -628,16 +632,16 @@ class ConnectNodeSubscribersIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for Ready")
+        self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Wait for Ready Timed Out")
+            self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Ready")
+            self.msg_if.pub_info("Ready", log_name_list = self.log_name_list)
         return self.ready
 
         
@@ -790,6 +794,7 @@ class ConnectNodeClassIF:
                 pubs_dict = None,
                 subs_dict = None,
                 node_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -802,34 +807,36 @@ class ConnectNodeClassIF:
 
         ##############################  
         # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
+        if msg_if is None:
             self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
+        else:
+            self.msg_if = msg_if
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
         ##############################    
         # Create Configs Class
         if configs_dict is not None:
-            self.msg_if.pub_debug("Starting Connect Node Configs IF Initialization Processes")
-            self.configs_if = ConnectNodeConfigsIF(configs_dict = configs_dict, msg_if = self.msg_if)
+            self.msg_if.pub_debug("Starting Connect Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
+            self.configs_if = ConnectNodeConfigsIF(configs_dict = configs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         ##############################    
         # Create Services Class
         if services_dict is not None:
-            self.msg_if.pub_debug("Starting Connect Node Services IF Initialization Processes")
-            self.services_if = ConnectNodeServicesIF(services_dict = services_dict, msg_if = self.msg_if)
+            self.msg_if.pub_debug("Starting Connect Node Services IF Initialization Processes", log_name_list = self.log_name_list)
+            self.services_if = ConnectNodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         ##############################  
         # Create Subscribers Class
         if pubs_dict is not None:
-            self.msg_if.pub_debug("Starting Connect Node Publishers IF Initialization Processes")
-            self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if)
+            self.msg_if.pub_debug("Starting Connect Node Publishers IF Initialization Processes", log_name_list = self.log_name_list)
+            self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         ##############################  
         # Create Subscribers Class
         if subs_dict is not None:
-            self.msg_if.pub_debug("Starting Connect Node Subscribers IF Initialization Processes")
-            self.subs_if = ConnectNodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if)
+            self.msg_if.pub_debug("Starting Connect Node Subscribers IF Initialization Processes", log_name_list = self.log_name_list)
+            self.subs_if = ConnectNodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         ############################## 
         # Wait for ready
@@ -843,7 +850,7 @@ class ConnectNodeClassIF:
 
         ###############################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -856,16 +863,16 @@ class ConnectNodeClassIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for Ready")
+        self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Wait for Ready Timed Out")
+            self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
 

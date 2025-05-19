@@ -11,7 +11,8 @@
 
 
 import os
-import time
+import time 
+import copy
 import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -121,6 +122,8 @@ class ConnectAiDetectorIF:
     ### IF Initialization
     log_name = "ConnectAiDetectorIF"
     def __init__(self, det_namespace, auto_reg_img = False, auto_dereg_img = False, timeout = 500,
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -135,7 +138,11 @@ class ConnectAiDetectorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -225,8 +232,11 @@ class ConnectAiDetectorIF:
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
 
         
         
@@ -270,7 +280,7 @@ class ConnectAiDetectorIF:
             self.msg_if.pub_info("Waiting for " + service_name + " on det_namespace " + service_namespace)
             ret = nepi_ros.wait_for_service(service_namespace, timeout = timeout )
             if ret == "":
-                self.msg_if.pub_warn("Wait for service: " + service_name + " timed out") 
+                self.msg_if.pub_warn("Wait for service: " + service_name + " timed out", log_name_list = self.log_name_list) 
             else:
                 self.msg_if.pub_info("Creating service call for: " + service_name)
                 #self.msg_if.pub_warn("Creating service with det_namespace: " + service_namespace)
@@ -297,13 +307,13 @@ class ConnectAiDetectorIF:
             self.msg_if.pub_info("Detector Connected: " + det_namespace)
 
         if success == True and auto_reg_img == True:
-            self.msg_if.pub_info("Starting auto reg check service")
+            self.msg_if.pub_info("Starting auto reg check service", log_name_list = self.log_name_list)
             nepi_ros.start_timer_process(nepi_ros.ros_duration(.1), self.autoRegImgCb, oneshot = True)
 
         #################################
         self.ready = True
 
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         #################################
 
 
@@ -320,16 +330,16 @@ class ConnectAiDetectorIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
 
@@ -341,16 +351,16 @@ class ConnectAiDetectorIF:
 
     def wait_for_det_connection(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.det_connected == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.det_connected == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Connected")
+            self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.det_connected
 
 
@@ -415,9 +425,9 @@ class ConnectAiDetectorIF:
             if self.det_status_msg is not None:
                 status_dict = nepi_ros.convert_msg2dict(self.det_status_msg)
             else:
-                self.msg_if.pub_warn("Status Dict not Available")
+                self.msg_if.pub_warn("Status Dict not Available", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_warn("Detector Not connected")
+            self.msg_if.pub_warn("Detector Not connected", log_name_list = self.log_name_list)
         return status_dict
 
 
@@ -480,7 +490,7 @@ class ConnectAiDetectorIF:
     def wait_for_det_img_connection(self, det_img_ns, timeout = float('inf') ):
         success = False
         if det_img_ns in self.det_img_data_dict.keys():
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             connected = False
@@ -493,9 +503,9 @@ class ConnectAiDetectorIF:
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if connected == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_info("Requested img detector not registered: " + det_img_ns)
         return connected
@@ -576,7 +586,7 @@ class ConnectAiDetectorIF:
 
     def register_detector_img(self, det_img_namespace, timeout = 20):
         #######################
-        self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ":" + det_img_namespace + ": Initialization Detection Img Registration for namespace")
+        self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ":" + det_img_namespace + ": Initialization Detection Img Registration for namespace", log_name_list = self.log_name_list)
         success = True
 
         #### Check ns
@@ -586,10 +596,10 @@ class ConnectAiDetectorIF:
         # Check if currently connected and unregister if so
         if det_img_namespace != "None" and det_img_namespace != "None":
             if det_img_namespace == self.det_img_namespace:
-                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Specified Detector already connected, Exiting registration process")
+                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Specified Detector already connected, Exiting registration process", log_name_list = self.log_name_list)
                 return True
             elif self.sub_dict['status_sub'] is not None:
-                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Different Detector already connected, unregistering current detector first")
+                self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Different Detector already connected, unregistering current detector first", log_name_list = self.log_name_list)
                 unreged = self.unregister_detector()
                 if unreged == False:
                     self.msg_if.pub_warn(self,":" + self.log_name + ":" + det_img_namespace + ": Failed to unregister current detector: " + str(self.det_img_namespace))
@@ -618,7 +628,7 @@ class ConnectAiDetectorIF:
             self.unregister_detector()
         else:
             self.det_connected = True
-            self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ": Detector Registration Complete")
+            self.msg_if.pub_info(self,":" + self.log_name + ":" + det_img_namespace + ": Detector Registration Complete", log_name_list = self.log_name_list)
         return success
 
     def unregister_detector_img(self, det_img_namespace):

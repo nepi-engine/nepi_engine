@@ -10,6 +10,7 @@
 
 import os
 import time
+import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
@@ -33,7 +34,11 @@ class ConnectMgrConfigIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, timeout = float('inf')):
+    def __init__(self, timeout = float('inf'),
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -42,8 +47,15 @@ class ConnectMgrConfigIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -138,8 +150,9 @@ class ConnectMgrConfigIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
-        )
+                                            )
 
 
         ################################
@@ -147,7 +160,7 @@ class ConnectMgrConfigIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         
 
     #######################
@@ -158,29 +171,29 @@ class ConnectMgrConfigIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
     def wait_for_status(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection")
+        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.status_connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg")
+            self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Status Connected")
+            self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
     def get_status_dict(self):
@@ -189,7 +202,7 @@ class ConnectMgrConfigIF:
         if self.status_msg is not None:
             status_dict = nepi_ros.convert_msg2dict(self.status_msg)
         else:
-            self.msg_if.pub_info("Status Listener Not connected")
+            self.msg_if.pub_info("Status Listener Not connected", log_name_list = self.log_name_list)
         return status_dict
 
     #######################

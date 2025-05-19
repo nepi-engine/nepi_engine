@@ -10,7 +10,8 @@
 
 import os
 import copy
-import time
+import time 
+import copy
 import numpy as np
 import math
 import threading
@@ -130,6 +131,8 @@ class AiDetectorIF:
                 preprocessImageFunction, 
                 processDetectionFunction,
                 has_img_tiling = False,
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -144,7 +147,11 @@ class AiDetectorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes")
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################  
         # Init Class Variables 
@@ -154,7 +161,7 @@ class AiDetectorIF:
         mgr_sys_srv_if = ConnectMgrSystemServicesIF()
         success = self.mgr_sys_srv_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
 
         #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
         #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
@@ -203,7 +210,7 @@ class AiDetectorIF:
            #Try and launch node
             img_pub_node_name = self.node_name + "_img_pub"
             img_pub_namespace = self.node_namespace + "_img_pub"
-            all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
+            all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors", log_name_list = self.log_name_list)
             self.msg_if.pub_warn("Launching Detector Img Pub Node: " + img_pub_node_name)
 
             # Pre Set Img Pub Params
@@ -525,8 +532,10 @@ class AiDetectorIF:
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
@@ -553,7 +562,10 @@ class AiDetectorIF:
                             }
         }
         self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
-                        msg_if = self.msg_if)
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
 
 
         # Setup Triggers IF
@@ -579,7 +591,11 @@ class AiDetectorIF:
         if self.img_data_product in self.data_products:
             factory_data_rates[self.img_data_product] = [1.0, 0.0, 100.0] 
 
-        self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates)
+        self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
         
         time.sleep(1)
 
@@ -595,7 +611,7 @@ class AiDetectorIF:
 
         self.state = 'Loaded'
         ##########################
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##########################
 
 
@@ -624,7 +640,7 @@ class AiDetectorIF:
 
 
     def initCb(self,do_updates = False):
-        self.msg_if.pub_info(" Setting init values to param values")
+        self.msg_if.pub_info(" Setting init values to param values", log_name_list = self.log_name_list)
         if do_updates == True:
             self.resetCb(do_updates)
 
@@ -958,8 +974,10 @@ class AiDetectorIF:
                 }
 
                 img_pubs_if = NodePublishersIF(
-                                pubs_dict = IMG_PUBS_DICT
-                )
+                                pubs_dict = IMG_PUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
                 ####################
                 # Pubs Config Dict 
@@ -971,8 +989,10 @@ class AiDetectorIF:
                 # Subs Config Dict 
                 img_subs_if = NodeSubscribersIF(
                                 subs_dict = SUBS_DICT,
-                                log_class_name = False
-                )
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
 
 
                 time.sleep(1)

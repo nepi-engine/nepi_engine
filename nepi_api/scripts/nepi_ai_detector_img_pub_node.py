@@ -13,7 +13,8 @@
 import os
 import sys
 import copy
-import time
+import time 
+import copy
 import numpy as np
 import math
 import cv2
@@ -36,7 +37,7 @@ from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 
 
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
 from nepi_api.data_if import ImageIF
 
@@ -234,8 +235,10 @@ class AiDetectorImgPub:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
-        )
+                                            )
+
 
         self.node_if.wait_for_ready()
 
@@ -248,7 +251,10 @@ class AiDetectorImgPub:
         factory_data_rates[self.data_product] = [1.0, 0.0, 100.0] 
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.det_namespace,
-                        msg_if = self.msg_if)
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
         
         time.sleep(1)
 
@@ -307,9 +313,17 @@ class AiDetectorImgPub:
         # Manage group detector image ifs
         if len(active_img_topics) > 0:
             if self.img_image_if == None:
-                self.img_image_if = ImageIF(namespace = self.det_namespace , topic = self.data_product)
+                self.img_image_if = ImageIF(namespace = self.det_namespace , log_name = self.data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
             if self.img_image_if_all == None and self.all_namespace != "":
-                self.img_image_if_all = ImageIF(namespace = self.all_namespace , topic = self.data_product)
+                self.img_image_if_all = ImageIF(namespace = self.all_namespace , log_name = self.data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
         else:
             if self.img_image_if != None:
                 self.img_image_if.unregister() 
@@ -408,7 +422,11 @@ class AiDetectorImgPub:
                 self.imgs_info_dict[img_topic]['det_dict_list'] = []   
 
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
-                img_image_if = ImageIF(namespace = pub_namespace , topic = self.data_product)
+                img_image_if = ImageIF(namespace = pub_namespace , log_name = self.data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
 
                 ####################
                 # Pubs Config Dict 
@@ -420,8 +438,10 @@ class AiDetectorImgPub:
                 # Subs Config Dict 
                 img_subs_if = NodeSubscribersIF(
                                 subs_dict = SUBS_DICT,
-                                log_class_name = False
-                )
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
 
 
                 time.sleep(1)

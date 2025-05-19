@@ -10,7 +10,8 @@
 
 
 import os
-import time
+import time 
+import copy
 import copy
 import cv2
 import open3d as o3d
@@ -78,7 +79,10 @@ class ConnectImageIF:
     def __init__(self, 
                 namespace,
                 preprocess_function = None,
-                callback_function = None
+                callback_function = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -88,11 +92,15 @@ class ConnectImageIF:
 
         ##############################  
         # Create Msg Class
-
-        self.namespace = nepi_ros.get_full_namespace(namespace)
-        topic = os.path.basename(namespace)
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -127,14 +135,16 @@ class ConnectImageIF:
 
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
 
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
     #######################
@@ -148,16 +158,16 @@ class ConnectImageIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
     def get_namespace(self):
@@ -168,16 +178,16 @@ class ConnectImageIF:
 
     def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.connected
 
 
@@ -186,16 +196,16 @@ class ConnectImageIF:
 
     def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection")
+            self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
+                self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Status Connected")
+                self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
     def get_status_dict(self):
@@ -361,7 +371,10 @@ class ConnectPointcloudIF:
     def __init__(self, 
                 namespace,
                 preprocess_function = None,
-                callback_function = None
+                callback_function = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -371,10 +384,15 @@ class ConnectPointcloudIF:
 
         ##############################  
         # Create Msg Class
-        self.namespace = nepi_ros.get_full_namespace(namespace)
-        topic = os.path.basename(namespace)
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -409,8 +427,10 @@ class ConnectPointcloudIF:
 
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.con_node_if.wait_for_ready()
 
@@ -418,7 +438,7 @@ class ConnectPointcloudIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
     
 
@@ -433,16 +453,16 @@ class ConnectPointcloudIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
     def get_namespace(self):
@@ -453,16 +473,16 @@ class ConnectPointcloudIF:
 
     def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.connected
 
 
@@ -471,16 +491,16 @@ class ConnectPointcloudIF:
 
     def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection")
+            self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
+                self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Status Connected")
+                self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
     def get_status_dict(self):
@@ -675,7 +695,10 @@ class ConnectNavPoseIF:
     ### IF Initialization
     def __init__(self, 
                 namespace,
-                callback_function = None
+                callback_function = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -685,10 +708,15 @@ class ConnectNavPoseIF:
 
         ##############################  
         # Create Msg Class
-        self.namespace = nepi_ros.get_full_namespace(namespace)
-        topic = os.path.basename(namespace)
-        self.msg_if = MsgIF(log_name = self.class_name + ": " + topic)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -723,8 +751,11 @@ class ConnectNavPoseIF:
 
         # Create Node Class ####################
         self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
+  
 
         self.con_node_if.wait_for_ready()
 
@@ -732,7 +763,7 @@ class ConnectNavPoseIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
     
 
@@ -747,16 +778,16 @@ class ConnectNavPoseIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
     def get_namespace(self):
@@ -767,16 +798,16 @@ class ConnectNavPoseIF:
 
     def wait_for_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.connected
 
 
@@ -785,16 +816,16 @@ class ConnectNavPoseIF:
 
     def wait_for_status_connection(self, timeout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection")
+            self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
+                self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Status Connected")
+                self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
     def get_status_dict(self):

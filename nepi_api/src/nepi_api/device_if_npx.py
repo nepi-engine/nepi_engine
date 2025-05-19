@@ -18,7 +18,8 @@
 import os
 import numpy as np
 import math
-import time
+import time 
+import copy
 import sys
 import tf
 import yaml
@@ -172,221 +173,236 @@ class NPXDeviceIF:
                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
                 navpose_update_rate = DEFAULT_UPDATE_RATE,
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
-    ####  IF INIT SETUP ####
-    self.class_name = type(self).__name__
-    self.base_namespace = nepi_ros.get_base_namespace()
-    self.node_name = nepi_ros.get_node_name()
-    self.node_namespace = nepi_ros.get_node_namespace()
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
 
-    ##############################  
-    # Create Msg Class
-    if msg_if is not None:
-        self.msg_if = msg_if
-    else:
-        self.msg_if = MsgIF()
-    self.msg_if.pub_info("Starting NPX Device IF Initialization Processes")  
+        ##############################  
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting NPX Device IF Initialization Processes", log_name_list = self.log_name_list)  
 
-    ##############################
-    # Initialize Class Variables
-  
-    self.update_rate = navpose_update_rate
+        ##############################
+        # Initialize Class Variables
+      
+        self.update_rate = navpose_update_rate
 
-    self.initCb(do_updates = False)
-
-
-
-    if frame_3d is not None:
-      self.frame_3d = frame_3d
-    if frame_altitude is not None:
-      self.frame_altitude = frame_altitude
-
-
-    ###
-    self.getHeadingCb = getHeadingCb
-    if self.getHeadingCb is not None:
-      self.has_heading = True
-
-    self.getPositionCb = getPositionCb
-    if self.getPositionCb is not None:
-      self.has_position = True
-
-    self.getOrientationCb = getOrientationCb
-    if self.getOrientationCb is not None:
-      self.has_orientation = True
-
-    self.getLocationCb = getLocationCb
-    if self.getLocationCb is not None:
-      self.has_location = True  
-
-    self.getAltitudeCb = getAltitudeCb
-    if self.getAltitudeCb is not None:
-      self.has_altitude = True
-
-    self.getDepthCb = getDepthCb
-    if self.getDepthCb is not None:
-      self.has_depth = True
-
-    # All Good
-
-    npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx')
-    self.navpose_if = NavPoseIF(namespace = npx_namespace,
-            enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True
-                                )
-
-    self.status_msg = NPXStatus()
-
-    ##################################################
-    ### Node Class Setup
-
-    self.msg_if.pub_info("Starting Node IF Initialization")
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-            'init_callback': self.initCb,
-            'reset_callback': self.resetCb,
-            'factory_reset_callback': self.factoryResetCb,
-            'init_configs': True,
-            'namespace':  self.node_namespace
-    }
+        self.initCb(do_updates = False)
 
 
 
-    # Params Config Dict ####################
-
-    self.PARAMS_DICT = {
-        'update_rate': {
-            'namespace': self.node_namespace,
-            'factory_val': self.update_rate
-        },
-        'frame_3d': {
-            'namespace': self.node_namespace,
-            'factory_val': self.frame_3d
-        },
-        'frame_altitude': {
-            'namespace': self.node_namespace,
-            'factory_val': self.frame_altitude
-        }        
-    }
-
-    # Services Config Dict ####################
-
-    self.SRVS_DICT = {
-        'navpose_capabilities_query': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/navpose_capabilities_query',
-            'srv': NPXCapabilitiesQuery,
-            'req': NPXCapabilitiesQueryRequest(),
-            'resp': NPXCapabilitiesQueryResponse(),
-            'callback': self._navposeCapabilitiesHandler
-        }
-    }
-
-    self.PUBS_DICT = {
-        'status_pub': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/status',
-            'msg': NPXStatus,
-            'qsize': 1,
-            'latch': True
-        }
-    }
+        if frame_3d is not None:
+          self.frame_3d = frame_3d
+        if frame_altitude is not None:
+          self.frame_altitude = frame_altitude
 
 
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'set_update_rate': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/set_update_rate',
-            'msg': Float32,
-            'qsize': 1,
-            'callback': self._setUpdateRateCb, 
-            'callback_args': ()
-        },
-        'set_3d_frame': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/set_3d_frame',
-            'msg': String,
-            'qsize': 1,
-            'callback': self._set3dFrameCb, 
-            'callback_args': ()
-        },
-        'set_altitude_frame': {
-            'namespace': self.node_namespace,
-            'topic': 'npx/set_altitude_frame',
-            'msg': String,
-            'qsize': 1,
-            'callback': self._setAltFrameCb, 
-            'callback_args': ()
+        ###
+        self.getHeadingCb = getHeadingCb
+        if self.getHeadingCb is not None:
+          self.has_heading = True
+
+        self.getPositionCb = getPositionCb
+        if self.getPositionCb is not None:
+          self.has_position = True
+
+        self.getOrientationCb = getOrientationCb
+        if self.getOrientationCb is not None:
+          self.has_orientation = True
+
+        self.getLocationCb = getLocationCb
+        if self.getLocationCb is not None:
+          self.has_location = True  
+
+        self.getAltitudeCb = getAltitudeCb
+        if self.getAltitudeCb is not None:
+          self.has_altitude = True
+
+        self.getDepthCb = getDepthCb
+        if self.getDepthCb is not None:
+          self.has_depth = True
+
+        # All Good
+
+        npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx')
+        self.navpose_if = NavPoseIF(namespace = npx_namespace,
+                enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
+                            log_name = 'navpose',
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+
+        self.status_msg = NPXStatus()
+
+        ##################################################
+        ### Node Class Setup
+
+        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.node_namespace
         }
 
 
-    }
 
+        # Params Config Dict ####################
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                    configs_dict = self.CFGS_DICT,
-                    params_dict = self.PARAMS_DICT,
-                    services_dict = self.SRVS_DICT,
-                    pubs_dict = self.PUBS_DICT,
-                    subs_dict = self.SUBS_DICT,
-                    msg_if = self.msg_if
-    )
-
-    ready = self.node_if.wait_for_ready()
-
-
-    # Setup Settings IF Class ####################
-    self.msg_if.pub_info("Starting Settings IF Initialization")
-    settings_ns = nepi_ros.create_namespace(self.node_namespace,'npx')
-
-    self.SETTINGS_DICT = {
-                'capSettings': capSettings, 
-                'factorySettings': factorySettings,
-                'setSettingFunction': settingUpdateFunction, 
-                'getSettingsFunction': getSettingsFunction, 
-                'namespace': settings_ns
-                
-    }
-
-    self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
-                                    msg_if = self.msg_if)
-
-
-    # Setup Save Data IF Class ####################
-    self.msg_if.pub_info("Starting Save Data IF Initialization")
-    factory_data_rates = {}
-    for d in self.data_products_list:
-        factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-
-    factory_filename_dict = {
-        'prefix': "", 
-        'add_timestamp': True, 
-        'add_ms': True,
-        'add_us': False,
-        'suffix': "",
-        'add_node_name': True
+        self.PARAMS_DICT = {
+            'update_rate': {
+                'namespace': self.node_namespace,
+                'factory_val': self.update_rate
+            },
+            'frame_3d': {
+                'namespace': self.node_namespace,
+                'factory_val': self.frame_3d
+            },
+            'frame_altitude': {
+                'namespace': self.node_namespace,
+                'factory_val': self.frame_altitude
+            }        
         }
 
-    sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
-    self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                            factory_rate_dict = factory_data_rates,
-                            factory_filename_dict = factory_filename_dict,
-                            namespace = sd_namespace,
-                                    msg_if = self.msg_if)
+        # Services Config Dict ####################
+
+        self.SRVS_DICT = {
+            'navpose_capabilities_query': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/navpose_capabilities_query',
+                'srv': NPXCapabilitiesQuery,
+                'req': NPXCapabilitiesQueryRequest(),
+                'resp': NPXCapabilitiesQueryResponse(),
+                'callback': self._navposeCapabilitiesHandler
+            }
+        }
+
+        self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/status',
+                'msg': NPXStatus,
+                'qsize': 1,
+                'latch': True
+            }
+        }
 
 
-    time.sleep(1)
-    self.initCb(do_updates = True)
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'set_update_rate': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_update_rate',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setUpdateRateCb, 
+                'callback_args': ()
+            },
+            'set_3d_frame': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_3d_frame',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._set3dFrameCb, 
+                'callback_args': ()
+            },
+            'set_altitude_frame': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_altitude_frame',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setAltFrameCb, 
+                'callback_args': ()
+            }
 
-    nepi_ros.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
-    nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-    ###############################
-    # Finish Initialization
 
-    self.ready = True
-    self.msg_if.pub_info("IF Initialization Complete")
+        }
+
+
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        configs_dict = self.CFGS_DICT,
+                        params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+      
+
+        ready = self.node_if.wait_for_ready()
+
+
+        # Setup Settings IF Class ####################
+        self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+        settings_ns = nepi_ros.create_namespace(self.node_namespace,'npx')
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction, 
+                    'namespace': settings_ns
+                    
+        }
+
+        self.settings_if = SettingsIF(self.SETTINGS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+
+
+        # Setup Save Data IF Class ####################
+        self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+        factory_data_rates = {}
+        for d in self.data_products_list:
+            factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+
+        factory_filename_dict = {
+            'prefix': "", 
+            'add_timestamp': True, 
+            'add_ms': True,
+            'add_us': False,
+            'suffix': "",
+            'add_node_name': True
+            }
+
+        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+        self.save_data_if = SaveDataIF(data_products = self.data_products_list,
+                                factory_rate_dict = factory_data_rates,
+                                factory_filename_dict = factory_filename_dict,
+                                namespace = sd_namespace,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+
+
+        time.sleep(1)
+        self.initCb(do_updates = True)
+
+        nepi_ros.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
+        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        ###############################
+        # Finish Initialization
+
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
 
 
 
@@ -399,16 +415,16 @@ class NPXDeviceIF:
   def wait_for_ready(self, timeout = float('inf') ):
       success = False
       if self.ready is not None:
-          self.msg_if.pub_info("Waiting for connection")
+          self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
           timer = 0
           time_start = nepi_ros.get_time()
           while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
               nepi_ros.sleep(.1)
               timer = nepi_ros.get_time() - time_start
           if self.ready == False:
-              self.msg_if.pub_info("Failed to Connect")
+              self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
           else:
-              self.msg_if.pub_info("Connected")
+              self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
       return self.ready   
 
 
@@ -447,7 +463,7 @@ class NPXDeviceIF:
 
 
   def initCb(self,do_updates = False):
-      self.msg_if.pub_info("Setting init values to param values")
+      self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
 
       if do_updates == True:
         self.resetCb(do_updates)
@@ -587,7 +603,7 @@ class NPXDeviceIF:
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    self.msg_if.pub_info("Shutting down: Executing script cleanup actions")
+    self.msg_if.pub_info("Shutting down: Executing script cleanup actions", log_name_list = self.log_name_list)
 
 
 #########################################

@@ -8,7 +8,8 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-import time
+import time 
+import copy
 
 
 from nepi_sdk import nepi_ros
@@ -77,6 +78,8 @@ class LSXDeviceIF:
                  enableStrobeFunction = None,
                  blinkOnOffFunction = None,
                  reports_temp = False, reports_power = False,
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -91,7 +94,11 @@ class LSXDeviceIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting LSX Device IF Initialization Processes")
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting LSX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################
@@ -187,7 +194,7 @@ class LSXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_info("Starting Node IF Initialization")
+        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -356,14 +363,15 @@ class LSXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                    msg_if = self.msg_if
-        )
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         ready = self.node_if.wait_for_ready()
 
 
         # Setup Settings IF Class ####################
-        self.msg_if.pub_info("Starting Settings IF Initialization")
+        self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
 
         self.SETTINGS_DICT = {
@@ -373,11 +381,13 @@ class LSXDeviceIF:
                     'getSettingsFunction': getSettingsFunction, 
                     'namespace':  settings_ns
         }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
-                                    msg_if = self.msg_if)
+        self.settings_if = SettingsIF(self.SETTINGS_DICT, 
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         '''
-        self.msg_if.pub_info("Starting Save Data IF Initialization")
+        self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         # Setup Save Data IF Class ####################
         factory_data_rates = {}
         for d in self.data_products:
@@ -397,7 +407,9 @@ class LSXDeviceIF:
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
-                                    msg_if = self.msg_if)
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
         '''
  
         time.sleep(1)
@@ -409,7 +421,7 @@ class LSXDeviceIF:
         nepi_ros.start_timer_process(status_update_time, self.statusTimerCb)      
         self.publish_status()
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
 
 
         nepi_ros.sleep
@@ -423,16 +435,16 @@ class LSXDeviceIF:
         def wait_for_ready(self, timeout = float('inf') ):
             success = False
             if self.ready is not None:
-                self.msg_if.pub_info("Waiting for connection")
+                self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
                 timer = 0
                 time_start = nepi_ros.get_time()
                 while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                     nepi_ros.sleep(.1)
                     timer = nepi_ros.get_time() - time_start
                 if self.ready == False:
-                    self.msg_if.pub_info("Failed to Connect")
+                    self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
                 else:
-                    self.msg_if.pub_info("Connected")
+                    self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
             return self.ready   
 
 
@@ -459,7 +471,7 @@ class LSXDeviceIF:
 
         nepi_ros.sleep
         def resetControlsCb(self, msg):
-            self.msg_if.pub_info("Resetting LSX Device Controls")
+            self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
             self.node_if.set_param('standby_enabled', self.init_standby_enabled)
             self.node_if.set_param('on_off_state', self.init_on_off_state)
             self.node_if.set_param('intensity_ratio', self.init_intensity_ratio)
@@ -530,8 +542,7 @@ class LSXDeviceIF:
 
         ### Device Name callbacks
         def updateDeviceNameCb(self, msg):
-            self.msg_if.pub_info("Received Device Name update msg")
-            self.msg_if.pub_info(msg)
+            self.msg_if.pub_info("Received Device Name update msg:" + str(msg), log_name_list = self.log_name_list)
             new_device_name = msg.data
             self.updateDeviceName(new_device_name)
 
@@ -548,8 +559,7 @@ class LSXDeviceIF:
 
 
         def resetDeviceNameCb(self,msg):
-            self.msg_if.pub_info("Received Device Name reset msg")
-            self.msg_if.pub_info(msg)
+            self.msg_if.pub_info("Received Device Name reset msg:" + str(msg), log_name_list = self.log_name_list)
             self.resetDeviceName()
 
         def resetDeviceName(self):
@@ -558,7 +568,7 @@ class LSXDeviceIF:
 
         ### LSX callbacks
         def setStandbyCb(self, standby_msg):
-          self.msg_if.pub_info("Recieved standby message: (" + str(standby_msg) + ")")
+          self.msg_if.pub_info("Recieved standby message: " + str(standby_msg), log_name_list = self.log_name_list)
           standby=standby_msg.data
           if self.standbyEnableFunction is not None:
             self.standbyEnableFunction(standby)
@@ -567,7 +577,7 @@ class LSXDeviceIF:
 
 
         def turnOnOffCb(self, on_off_msg):
-          self.msg_if.pub_info("Recieved on off message: (" + str(on_off_msg) + ")")
+          self.msg_if.pub_info("Recieved on off message: " + str(on_off_msg), log_name_list = self.log_name_list)
           on_off=on_off_msg.data
           if self.turnOnOffFunction is not None:
             self.turnOnOffFunction(on_off)
@@ -576,7 +586,7 @@ class LSXDeviceIF:
 
         ### Set intensity callback
         def setIntensityRatioCb(self, intensity_msg):
-          self.msg_if.pub_info("Recieved intensity message (" + str(intensity_msg) + ")")
+          self.msg_if.pub_info("Recieved intensity message: " + str(intensity_msg), log_name_list = self.log_name_list)
           intensity=intensity_msg.data
           if self.setIntensityRatioFunction is not None:
             self.setIntensityRatioFunction(intensity)
@@ -585,7 +595,7 @@ class LSXDeviceIF:
 
         ### Set color selection callback
         def setColorCb(self, color_msg):
-          self.msg_if.pub_info("Recieved color selection message (" + str(color_msg) + ")")
+          self.msg_if.pub_info("Recieved color selection message: " + str(color_msg), log_name_list = self.log_name_list)
           color = color_msg.data
           if color in self.color_options_list:
             if self.setColorFunction is not None:
@@ -595,7 +605,7 @@ class LSXDeviceIF:
 
         ### Set kelvin value callback
         def setKelvinCb(self, kelvin_msg):
-          self.msg_if.pub_info("Recieved set kelvin message (" + str(kelvin_msg) + ")")
+          self.msg_if.pub_info("Recieved set kelvin message: " + str(kelvin_msg), log_name_list = self.log_name_list)
           kelvin = kelvin_msg.data
           if kelvin >= self.kelvin_limits_list[0] and kelvin <= self.kelvin_limits_list[1]:
             if self.setKelvinFunction is not None:
@@ -604,7 +614,7 @@ class LSXDeviceIF:
           self.publish_status()
 
         def setStrobeEnableCb(self, strobe_enable_msg):
-          self.msg_if.pub_info("Recieved strobe enable message (" + str(strobe_enable_msg) + ")")
+          self.msg_if.pub_info("Recieved strobe enable message: " + str(standb), log_name_list = self.log_name_list)
           strobe_enable=strobe_enable_msg.data
           if self.enableStrobeFunction is not None:
             self.enableStrobeFunction(strobe_enable)
@@ -614,7 +624,7 @@ class LSXDeviceIF:
 
         ### Set blink interval callback
         def setBlinkIntervalCb(self, blink_int_msg):
-          self.msg_if.pub_info("Recieved blink interval message (" + str(blink_int_msg) + ")")
+          self.msg_if.pub_info("Recieved blink interval message: " + str(blink_int_msg), log_name_list = self.log_name_list)
           blink_interval = blink_int_msg.data
           if self.blinkOnOffFunction is not None:
             self.blinkOnOffFunction(blink_interval)

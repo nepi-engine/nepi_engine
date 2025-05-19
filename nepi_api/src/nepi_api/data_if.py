@@ -9,7 +9,8 @@
 #
 
 import os
-import time
+import time 
+import copy
 import numpy as np
 import copy
 import threading
@@ -85,18 +86,28 @@ class ReadWriteIF:
     #######################
     ### IF Initialization
     def __init__(self,
-                filename_dict = None
+                filename_dict = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        self.node_namespace = nepi_ros.get_node_namespace()
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
         
 
         #############################
@@ -130,7 +141,7 @@ class ReadWriteIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -144,16 +155,16 @@ class ReadWriteIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready   
         
 
@@ -471,9 +482,12 @@ class NavPoseIF:
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    def __init__(self, namespace = None, topic = 'navpose',
-        enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True
-        ):
+    def __init__(self, namespace = None,
+        enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -482,8 +496,15 @@ class NavPoseIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################    
         # Initialize Class Variables
@@ -552,8 +573,10 @@ class NavPoseIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        pubs_dict = self.PUBS_DICT
-        )
+                        pubs_dict = self.PUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
@@ -565,7 +588,7 @@ class NavPoseIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -806,7 +829,12 @@ class ImageIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
 
-    def __init__(self, namespace = None , topic = 'image', init_overlay_list = []):
+    def __init__(self, namespace = None , 
+                init_overlay_list = [],
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -815,15 +843,23 @@ class ImageIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################    
         # Initialize Class Variables
+        self.msg_if.pub_warn("Got namespace: " + str(namespace))
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
-        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
+        self.msg_if.pub_warn("Using namespace: " + str(self.namespace))
 
 
         self.init_overlay_list = init_overlay_list
@@ -835,8 +871,8 @@ class ImageIF:
         status_msg.width = 0
         status_msg.height = 0
         status_msg.frame_id = "sensor_frame"
-        status_msg.depth_map_topic = nepi_img.get_img_depth_map_topic(namespace)
-        status_msg.pointcloud_topic = nepi_img.get_img_pointcloud_topic(namespace)
+        #status_msg.depth_map_topic = nepi_img.get_img_depth_map_topic(self.namespace)
+        #status_msg.pointcloud_topic = nepi_img.get_img_pointcloud_topic(self.namespace)
         status_msg.get_latency_time = 0
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
@@ -956,8 +992,10 @@ class ImageIF:
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
@@ -1227,7 +1265,12 @@ class PointcloudIF:
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    def __init__(self, namespace = None, topic = 'pointcloud'):
+    def __init__(self, namespace = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
         self.node_name = nepi_ros.get_node_name()
@@ -1235,15 +1278,22 @@ class PointcloudIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name + ': ' + topic)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################    
         # Initialize Class Variables
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
-        self.namespace = nepi_ros.create_namespace(self.namespace,topic)
+        
 
         # Initialize Status Msg.  Updated on each publish
         status_msg = PointcloudStatus()
@@ -1294,8 +1344,10 @@ class PointcloudIF:
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
-        )
+                        subs_dict = self.SUBS_DICT,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if
+                                            )
 
         self.node_if.wait_for_ready()
 
@@ -1307,7 +1359,7 @@ class PointcloudIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
 
 
@@ -1322,16 +1374,16 @@ class PointcloudIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
     def get_status_dict(self):
@@ -1351,10 +1403,10 @@ class PointcloudIF:
 
     def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_id = 'sensor_frame'):
         if self.node_if is None:
-            self.msg_if.pub_info("Can't publish on None publisher")
+            self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
             return False
         if o3d_pc is None:
-            self.msg_if.pub_info("Can't publish None image")
+            self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
 
         if timestamp == None:
@@ -1363,7 +1415,7 @@ class PointcloudIF:
             timestamp = nepi_ros.sec_from_timestamp(timestamp)
 
         self.status_msg.has_rgb = o3d_pc.has_colors()
-        self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
+        #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
@@ -1393,11 +1445,11 @@ class PointcloudIF:
 
         if self.has_subs == False:
             if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Pointcloud has no subscribers")
+                self.msg_if.pub_warn("Pointcloud has no subscribers", log_name_list = self.log_name_list)
             self.status_msg.publishing = False
         else:
             if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Pointcloud has subscribers, will publish")
+                self.msg_if.pub_warn("Pointcloud has subscribers, will publish", log_name_list = self.log_name_list)
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_id = frame_id)

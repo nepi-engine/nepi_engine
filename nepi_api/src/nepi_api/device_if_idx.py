@@ -8,7 +8,8 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-import time
+import time 
+import copy
 import threading
 import subprocess
 import numpy as np
@@ -217,8 +218,19 @@ class IDXDeviceIF:
                  getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
                  navpose_update_rate = 10,
                  data_products =  ['image','depth','pointcloud'],
+                log_name = None,
+                log_name_list = [],
                 msg_if = None
                 ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = nepi_ros.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -231,7 +243,11 @@ class IDXDeviceIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IDX IF Initialization Processes")
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IDX IF Initialization Processes", log_name_list = self.log_name_list)
         
         ############################# 
         # Initialize Class Variables
@@ -296,7 +312,7 @@ class IDXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_debug("Starting Node IF Initialization")
+        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
         self.CFGS_DICT = {
                 'init_callback': self.initCb,
@@ -556,15 +572,16 @@ class IDXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
-        )
+                        )
 
         ready = self.node_if.wait_for_ready()
 
 
 
         # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization")
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
 
         self.SETTINGS_DICT = {
@@ -575,8 +592,10 @@ class IDXDeviceIF:
                     'namespace':  settings_ns
         }
 
-        self.settings_if = SettingsIF(self.SETTINGS_DICT, log_name = self.class_name,
-                                    msg_if = self.msg_if)
+        self.settings_if = SettingsIF(self.SETTINGS_DICT, 
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         # Create a NavPose Device IF
         self.capSettingsNavPose = capSettingsNavPose
@@ -600,7 +619,7 @@ class IDXDeviceIF:
         getDepthCb is not None )
         
         if has_navpose == True:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
             npx_if = NPXDeviceIF(device_info, 
                 capSettings = self.capSettingsNavPose,
                 factorySettings = self.factorySettingsNavPose,
@@ -612,12 +631,11 @@ class IDXDeviceIF:
                 getLocationCb = self.getLocationCb, 
                 getAltitudeCb = self.getAltitudeCb, 
                 getDepthCb = self.getDepthCb,
-                navpose_update_rate = self.navpose_update_rate
-            )
+                navpose_update_rate = self.navpose_update_rate,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
-
-
-        time.sleep(1)
 
         #############################
         # Finish Initialization
@@ -642,7 +660,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.color_img_thread = threading.Thread(target=self.runColorImgThread)
             self.color_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -681,7 +699,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -699,7 +717,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.depth_img_thread = threading.Thread(target=self.runDepthImgThread)
             self.depth_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -717,7 +735,7 @@ class IDXDeviceIF:
             data_status_msg = PointcloudStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -736,7 +754,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_img_thread = threading.Thread(target=self.runPointcloudImgThread)
             self.pointcloud_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -749,7 +767,7 @@ class IDXDeviceIF:
 
 
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization")
+        self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates= {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
@@ -765,14 +783,16 @@ class IDXDeviceIF:
             'suffix': "",
             'add_node_name': True
             }
-        #self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
-        #self.msg_if.pub_warn("Starting save_rate_dict: " + str(factory_data_rates))
+        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
+        self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
         sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
-                                    msg_if = self.msg_if)
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         for data_product in self.data_products_list:
             self.last_data_time[data_product] = nepi_utils.get_time()
@@ -802,7 +822,7 @@ class IDXDeviceIF:
         self.initCb(do_updates = True)
         self.publishStatus()
         self.ready = True
-        self.msg_if.pub_info("IDX IF Initialization Complete")
+        self.msg_if.pub_info("IDX IF Initialization Complete", log_name_list = self.log_name_list)
 
 
     ###############################
@@ -814,16 +834,16 @@ class IDXDeviceIF:
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_ros.get_time()
             while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
                 nepi_ros.sleep(.1)
                 timer = nepi_ros.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready   
 
 
@@ -879,7 +899,7 @@ class IDXDeviceIF:
         if self.settings_if is not None:
             self.settings_if.reset_settings()
         param_dict = nepi_ros.get_param('~', dict())
-        #self.msg_if.pub_warn("Applying Config Updates from Params: " + str(param_dict))
+        self.msg_if.pub_debug("Applying Config Updates from Params: " + str(param_dict))
         if (self.setControlsEnable is not None and 'controls_enable' in param_dict):
             self.setControlsEnable(param_dict['controls_enable'])
         if (self.setAutoAdjust is not None and 'auto_adjust' in param_dict):
@@ -978,9 +998,9 @@ class IDXDeviceIF:
             status, err_str = self.setAutoAdjust(new_auto_adjust)
 
         if new_auto_adjust:
-            self.msg_if.pub_info("Enabling Auto Adjust")
+            self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Disabling IDX Auto Adjust")
+            self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
 
         self.ctl_auto = new_auto_adjust       
         self.status_msg.auto_adjust = new_auto_adjust
@@ -994,12 +1014,12 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         new_brightness = msg.data
         if self.node_if.get_param('auto_adjust'):
-            self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled")
+            self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled", log_name_list = self.log_name_list)
         else:
             if self.setBrightness is not None:
 
                 if (new_brightness < 0.0 or new_brightness > 1.0):
-                    self.msg_if.pub_error("Brightness value out of bounds")
+                    self.msg_if.pub_error("Brightness value out of bounds", log_name_list = self.log_name_list)
                 else:
                     # Call the parent's method and update ROS param as necessary
                     # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
@@ -1016,12 +1036,12 @@ class IDXDeviceIF:
         new_contrast = msg.data
 
         if (new_contrast < 0.0 and new_contrast != -1.0) or (new_contrast > 1.0):
-            self.msg_if.pub_error("Contrast value out of bounds")
+            self.msg_if.pub_error("Contrast value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
 
         if self.node_if.get_param('auto_adjust'):
-            self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled")
+            self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled", log_name_list = self.log_name_list)
         else:
             if self.setContrast is not None:
                 # Call the parent's method and update ROS param as necessary
@@ -1041,7 +1061,7 @@ class IDXDeviceIF:
         new_thresholding = msg.data
 
         if (new_thresholding < 0.0 or new_thresholding > 1.0):
-            self.msg_if.pub_error("Thresholding value out of bounds")
+            self.msg_if.pub_error("Thresholding value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -1061,7 +1081,7 @@ class IDXDeviceIF:
         new_resolution = msg.data
 
         if (new_resolution < 0.0 or new_resolution > 1.0):
-            self.msg_if.pub_error("Resolution value out of bounds")
+            self.msg_if.pub_error("Resolution value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
 
@@ -1105,7 +1125,7 @@ class IDXDeviceIF:
         new_start_range_ratio = msg.start_range
         new_stop_range_ratio = msg.stop_range
         if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
-            self.msg_if.pub_error("Range values out of bounds")
+            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1126,7 +1146,7 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Zoom update message: " + str(msg))
         new_zoom = msg.data
         if (new_zoom < 0.0 and new_zoom != -1.0) or (new_zoom > 1.0):
-            self.msg_if.pub_error("Zoom value out of bounds")
+            self.msg_if.pub_error("Zoom value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1139,7 +1159,7 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Rotate update message: " + str(msg))
         new_rotate = msg.data
         if (new_rotate < 0.0 and new_rotate != -1.0) or (new_rotate > 1.0):
-            self.msg_if.pub_error("rotate value out of bounds")
+            self.msg_if.pub_error("rotate value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1151,7 +1171,7 @@ class IDXDeviceIF:
     def setTiltCb(self, msg):
         new_tilt = msg.data
         if (new_tilt < 0.0 and new_tilt != -1.0) or (new_tilt > 1.0):
-            self.msg_if.pub_error("tilt value out of bounds")
+            self.msg_if.pub_error("tilt value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
         else:
@@ -1255,7 +1275,7 @@ class IDXDeviceIF:
             self.msg_if.pub_warn("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
             self.fps_queue[data_product].pop(0)
             self.fps_queue[data_product].append(current_fps)
-            #self.msg_if.pub_warn("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
+            self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
             self.current_fps[data_product] = sum(self.fps_queue[data_product])/len(self.fps_queue[data_product])
             fps_changed = abs(self.current_fps[data_product] - last_fps) > 1
             fps_changing = 0 in self.fps_queue[data_product]
@@ -1268,9 +1288,9 @@ class IDXDeviceIF:
         ros_img = None
 
         if data_product not in self.data_product_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict")
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
             acquiring = False
 
             dp_dict = self.data_product_dict[data_product]
@@ -1280,13 +1300,14 @@ class IDXDeviceIF:
             pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
             #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
 
-            dp_if = ImageIF(namespace = dp_dict['namespace'],topic = data_product)
+            dp_if = ImageIF(namespace = pub_namespace,log_name = data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
             
             # Get Data Product Dict and Data_IF
             
-            #self.msg_if.pub_warn("Accessing data_product dict: " + data_product + " " + str(dp_dict))
-
-            time.sleep(1)
+            self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
 
             while (not nepi_ros.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
@@ -1302,10 +1323,10 @@ class IDXDeviceIF:
                     else:
                         status, msg, cv2_img, timestamp, encoding = dp_get_data(self.render_controls)
                     if (status is False or cv2_img is None):
-                        #self.msg_if.pub_warn("No Data Recieved: " + data_product)
+                        self.msg_if.pub_debug("No Data Recieved: " + data_product)
                         pass
                     else:
-                        #self.msg_if.pub_warn("Got Data: " + data_product)
+                        self.msg_if.pub_debug("Got Data: " + data_product)
                         
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.img_width
@@ -1325,7 +1346,7 @@ class IDXDeviceIF:
                         contrast = self.ctl_contrast
                         threshold = self.ctl_threshold
                         res_ratio = self.ctl_res_ratio   
-                        #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
+                        self.msg_if.pub_debug("Applying resolution ratio: " + data_product + " " + str(res_ratio))
                         
                         if enabled == True: 
                             if res_ratio < 0.9:
@@ -1349,13 +1370,13 @@ class IDXDeviceIF:
 
                         self.update_fps(data_product)
 
-                        #self.msg_if.pub_warn("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
                         if cur_width != self.img_width or cur_height != self.img_height:
                             self.publishStatus()
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
-                        self.msg_if.pub_info("Stopping " + data_product + " acquisition")
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
                         dp_stop_data()
                     acquiring = False
                     self.current_fps[data_product] = 0.0
@@ -1363,7 +1384,7 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_ros.sleep(0.25)
-                #self.msg_if.pub_warn("Ending with avg fps: " + str(self.current_fps[data_product]))    
+                self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
                 nepi_ros.sleep(0.01) # Yield
 
               
@@ -1375,18 +1396,22 @@ class IDXDeviceIF:
         ros_pc = None
 
         if data_product not in self.data_product_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict")
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition")
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
             acquiring = False
 
             dp_dict = self.data_product_dict[data_product]
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            dp_if = PointcloudIF(namespace =  dp_dict['namespace'],topic = data_product)
+            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
+            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
 
-            time.sleep(1)
+            dp_if = PointcloudIF(namespace =  pub_namespace,log_name = data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
             while (not nepi_ros.is_shutdown()):
  
@@ -1404,13 +1429,11 @@ class IDXDeviceIF:
 
 
                         #********************
-                        frame_id = set_frame
-
                         set_frame = self.status_msg.frame_3d
                         if set_frame == 'sensor_frame':
                             frame_id = set_frame # else pass through sensor frame
                         else:
-                            frame_id = set_frame
+                            frame_id = 'base_frame'
 
                         transform = self.status_msg.frame_3d_transform
                         zero_transform = True
@@ -1431,7 +1454,7 @@ class IDXDeviceIF:
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
-                        self.msg_if.pub_info("Stopping " + data_product + " acquisition")
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
                         dp_stop_data()
                     acquiring = False
                 else: # No subscribers and already stopped
@@ -1490,7 +1513,7 @@ class IDXDeviceIF:
         contrast = self.ctl_contrast
         threshold = self.ctl_threshold
         res_ratio = self.ctl_res_ratio      
-        #self.msg_if.pub_warn("Applying resolution ratio: " + data_product + " " + str(res_ratio))
+        self.msg_if.pub_debug("Applying resolution ratio: " + data_product + " " + str(res_ratio))
 
         if enabled == True: 
             if res_ratio < 0.9:
@@ -1578,6 +1601,6 @@ class IDXDeviceIF:
             self.status_msg.zoom = self.zoom_ratio
             self.status_msg.rotate = self.rotate_ratio
             self.status_msg.tilt = self.tilt_ratio
-            #self.msg_if.pub_warn("Got status msg: " + str(self.status_msg))
+            self.msg_if.pub_debug("Got status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
     

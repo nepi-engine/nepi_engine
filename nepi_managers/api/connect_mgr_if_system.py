@@ -10,6 +10,7 @@
 
 import os
 import time
+import copy
 
 
 from nepi_sdk import nepi_ros
@@ -37,7 +38,11 @@ class ConnectMgrSystemServicesIF:
     services_connected = False
     #######################
     ### IF Initialization
-    def __init__(self, timeout = float('inf')):
+    def __init__(self, timeout = float('inf'),
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -46,8 +51,15 @@ class ConnectMgrSystemServicesIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -119,7 +131,7 @@ class ConnectMgrSystemServicesIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         
 
     #######################
@@ -129,20 +141,20 @@ class ConnectMgrSystemServicesIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection")
+        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         connected = False
@@ -158,9 +170,9 @@ class ConnectMgrSystemServicesIF:
                 connected = (ret is not None)
             timer = nepi_ros.get_time() - time_start
         if connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg")
+            self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Services Connected")
+            self.msg_if.pub_info("Services Connected", log_name_list = self.log_name_list)
         return connected
     
 
@@ -325,7 +337,11 @@ class ConnectMgrSystemIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, timeout = float('inf')):
+    def __init__(self, timeout = float('inf'),
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_ros.get_base_namespace()
@@ -334,8 +350,15 @@ class ConnectMgrSystemIF:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 
         ##############################    
@@ -395,8 +418,9 @@ class ConnectMgrSystemIF:
         self.node_if = ConnectNodeClassIF(
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
                         msg_if = self.msg_if
-        )
+                                            )
 
 
         self.services_if = ConnectMgrSystemServicesIF()
@@ -406,7 +430,7 @@ class ConnectMgrSystemIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         
 
     #######################
@@ -416,25 +440,25 @@ class ConnectMgrSystemIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for connection")
+        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect")
+            self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("ready")
+            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection")
+        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         services_connected = self.services_if.get_sys_folderwait_for_services_path(timeout = timeout)
         return services_connected
 
     def get_sys_folder_path(self, folder_name, fallback_path = ""):
-        return self.services_if.get_sys_folder_path(folder_name, fallback_path = "")
+        return self.services_if.get_sys_folder_path(folder_name, fallback_path = fallback_path)
         
 
     def get_op_env_str(self):
@@ -455,16 +479,16 @@ class ConnectMgrSystemIF:
 
 
     def wait_for_status(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection")
+        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_ros.get_time()
         while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
             nepi_ros.sleep(.1)
             timer = nepi_ros.get_time() - time_start
         if self.status_connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg")
+            self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
-            self.msg_if.pub_info("Status Connected")
+            self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
     def get_status_dict(self):
@@ -473,7 +497,7 @@ class ConnectMgrSystemIF:
         if self.status_msg is not None:
             status_dict = nepi_ros.convert_msg2dict(self.status_msg)
         else:
-            self.msg_if.pub_info("Status Listener Not connected")
+            self.msg_if.pub_info("Status Listener Not connected", log_name_list = self.log_name_list)
         return status_dict
 
 
@@ -486,7 +510,7 @@ class ConnectMgrSystemIF:
 
     # Update System Status
     def _statusCb(self,msg):
-        #self.msg_if.pub_warn("Got System Status Msg")
+        #self.msg_if.pub_warn("Got System Status Msg", log_name_list = self.log_name_list)
         self.status_msg = msg
         self.status_connected = True
 
