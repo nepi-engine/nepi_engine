@@ -431,7 +431,7 @@ class AiDetectorImgPub:
 
                 ####################
                 # Subs Config Dict 
-                img_subs_if = NodeSubscribersIF(
+                img_subs_if = NodeClassIF(
                                 subs_dict = SUBS_DICT,
                         msg_if = self.msg_if
                                             )
@@ -575,7 +575,7 @@ class AiDetectorImgPub:
         
             # Save Image Data if needed
             data_product = self.data_product
-            self.save_data_if.save_img2file(data_product,cv2_img,timestamp)
+            self.save_data_if.save(data_product,cv2_img,timestamp)
         return True
 
 

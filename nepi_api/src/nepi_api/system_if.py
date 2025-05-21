@@ -144,7 +144,6 @@ class SaveDataIF:
         self.msg_if.pub_info("Starting SaveData IF Initialization Processes", log_name_list = self.log_name_list)
         ############################## 
         # Initialize Class Variables
-        self.msg_if.pub_warn("Got data namespace: " + namespace, log_name_list = self.log_name_list)
         if namespace is None:
             namespace = '~'
         self.namespace = nepi_ros.get_full_namespace(namespace)

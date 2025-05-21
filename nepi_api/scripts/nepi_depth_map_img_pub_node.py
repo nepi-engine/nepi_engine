@@ -389,7 +389,7 @@ class DepthMapImgPub:
                     
                     # Save Image Data if needed
                     data_product = self.data_product
-                    self.save_data_if.save_img2file(data_product,cv2_img,timestamp)
+                    self.save_data_if.save(data_product,cv2_img,timestamp)
 
                     current_time = nepi_ros.ros_time_now()
                     latency = (current_time.to_sec() - ros_timestamp.to_sec())
