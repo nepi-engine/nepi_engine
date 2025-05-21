@@ -131,6 +131,7 @@ class AiDetectorIF:
                 preprocessImageFunction, 
                 processDetectionFunction,
                 has_img_tiling = False,
+                enable_image_pub = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -204,29 +205,29 @@ class AiDetectorIF:
         img_pub_file = self.det_img_pub_file
         img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
     
-        if os.path.exists(img_pub_file_path) == False:
-            self.msg_if.pub_warn("Could not find det img pub node file at: " + img_pub_file_path)
+        if os.path.exists(img_pub_file_path) == False or enable_image_pub == False:
+            self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path)
         else: 
-           #Try and launch node
+            #Try and launch node
             img_pub_node_name = self.node_name + "_img_pub"
             img_pub_namespace = self.node_namespace + "_img_pub"
             all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
-            self.msg_if.pub_warn("Launching Detector Img Pub Node: " + img_pub_node_name)
+            self.msg_if.pub_warn("Launching Img Pub Node: " + img_pub_node_name)
 
             # Pre Set Img Pub Params
-            dp_param_ns = nepi_ros.create_namespace(img_pub_node_name,'data_product')
-            nepi_ros.set_param(dp_param_ns,self.img_data_product)
+            param_ns = nepi_ros.create_namespace(img_pub_namespace,'data_product')
+            nepi_ros.set_param(param_ns,self.img_data_product)
 
-            det_param_ns = nepi_ros.create_namespace(img_pub_node_name,'det_namespace')
-            nepi_ros.set_param(det_param_ns,self.node_namespace)
+            param_ns = nepi_ros.create_namespace(img_pub_namespace,'det_namespace')
+            nepi_ros.set_param(param_ns,self.node_namespace)
 
-            all_param_ns = nepi_ros.create_namespace(img_pub_node_name,'all_namespace')
-            nepi_ros.set_param(all_param_ns,self.all_namespace)
+            param_ns = nepi_ros.create_namespace(img_pub_namespace,'all_namespace')
+            nepi_ros.set_param(param_ns,self.all_namespace)
                      
 
             [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, img_pub_node_name)
 
-            self.msg_if.pub_warn("Detector Img Pub Node launch return msg: " + msg)
+            self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg)
         
 
 

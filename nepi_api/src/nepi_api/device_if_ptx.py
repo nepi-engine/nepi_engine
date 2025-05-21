@@ -26,6 +26,7 @@ from tf.transformations import quaternion_from_euler
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
+from nepi_api.device_if_npx import NPXDeviceIF
 
 #from nepi_api.device_if_npx import NPXDeviceIF
 
@@ -95,8 +96,8 @@ class PTXActuatorIF:
     position_update_rate = POSITION_UPDATE_RATE
     ### IF Initialization
     def __init__(self,  device_info, 
-                 capSettings=None, factorySettings=None, 
-                 settingUpdateFunction=None, getSettingsFunction=None,
+                 capSettings, factorySettings, 
+                 settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
                  defaultSettings,
                  capabilities_dict, # Dictionary to be supplied by parent, specific key set is required
@@ -166,7 +167,7 @@ class PTXActuatorIF:
         self.setSpeedCb = setSpeedCb
         self.getSpeedCb = getSpeedCb
         self.gotoPositionCb = gotoPositionCb
-        self.getCurrentPositionCb = getCurrentPositionCb
+        self.getPositionCb = getPositionCb
 
         self.stopMovingCb = stopMovingCb
         self.moveYawCb = moveYawCb
@@ -664,7 +665,7 @@ class PTXActuatorIF:
         
         # Positioning and soft limits setup if available
         if self.capabilities_report.absolute_positioning is True:
-            if (self.getCurrentPositionCb is None):
+            if (self.getPositionCb is None):
                 self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided", log_name_list = self.log_name_list)
                 self.capabilities_report.adjustable_speed = False
                 # We require both command and feedback reporting to support absolute positioning

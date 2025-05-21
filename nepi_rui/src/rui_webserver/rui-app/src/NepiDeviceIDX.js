@@ -104,7 +104,8 @@ class NepiDeviceIDX extends Component {
 
     const sensor_img_topics_short = createShortUniqueValues(sensor_img_topics)
     for (i = 0; i < sensor_img_topics.length; i++) {
-      items.push(<Option value={sensor_img_topics[i]}>{sensor_img_topics_short[i]}</Option>)
+      const dp_name = sensor_img_topics_short[i].replace('_image','')
+      items.push(<Option value={sensor_img_topics[i]}>{dp_name}</Option>)
     }
     return items    
   }
@@ -133,13 +134,9 @@ class NepiDeviceIDX extends Component {
       var autoSelectedImgTopic = null
       var autoSelectedImgTopicText = null
       const capabilities = this.props.ros.idxDevices[value]
-      if (capabilities.has_color_2d_image) {
-        autoSelectedImgTopic = value.concat("/color_2d_image")
-        autoSelectedImgTopicText = 'color_2d_image'
-      }
-      else if (capabilities.has_bw_2d_image) {
-        autoSelectedImgTopic = value.concat("/bw_2d_image")
-        autoSelectedImgTopicText = 'bw_2d_image'      
+      if (capabilities.has_image) {
+        autoSelectedImgTopic = value.concat("/image")
+        autoSelectedImgTopicText = 'image'
       }
 
       this.setState({
@@ -255,7 +252,6 @@ class NepiDeviceIDX extends Component {
           <Column equalWidth={false}>
             <ImageViewer
               imageTopic={this.state.imageTopic_0}
-              dataType={'Image'}
               title={this.state.imageText_0}
               hideQualitySelector={false}
             />

@@ -146,7 +146,8 @@ def refreshDriversDict(drivers_path,drvs_dict):
             for get_option_name in get_options_dict.keys():
               if get_option_name in options_dict.keys():
                 cur_value = options_dict[get_option_name]['value']
-                get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] = cur_value
+                if cur_value in options_dict[get_option_name]['options']:
+                  get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] = cur_value
 
 
 

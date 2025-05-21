@@ -7,11 +7,11 @@ float32 fps
 bool has_rgb
 bool has_intensity
 
-int32 point_count
+int32 width_m
+int32 height_m
+int32 depth_m
 
-int32 width
-int32 height
-int32 depth
+int32 point_count
 
 string frame_id
 
@@ -20,46 +20,21 @@ float32 pub_latency_time
 float32 process_time
 float32 avg_fps
 
+bool image_pub_enabled
+int32 max_image_pub_rate
 ######################################
-# This message details pointcloud processing status
-# Range clipping on pointcloud enabled
-
-bool controls_enabled
-
-bool clip_enabled
-string[] clip_options
-string clip_selection
-
-# Range limits in meters for the clipping
-RangeWindow clip_meters
-
-# Clip bounding box topic
-string clip_target_topic
-
-# Voxel Downsample Size, val 0 skips process
-float32 voxel_downsample_size_m
-
-# Uniform Downsample Size, val 0 skips process
-int32 uniform_downsample_points
-
-# Outlier Removal K Points, val 0 skips process
-int32 outlier_k_points
-
-
-######################################
-# The range_window field provides the start and stop range as currently configured for the device
-
+# Pointcloud Render Controls if image publishing is enabled
 
 # Standard Image Size Opions string list
-string standard_image_sizes
+string[] standard_image_sizes
 
 # Render Image Size
 int32 image_width
 int32 image_height
 
+# The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-RangeWindow range_clip_ratios
-
+nepi_ros_interfaces/RangeWindow range_ratios
 
 # Zoom Ratio 0.0 - 1.0
 float32 zoom_ratio
@@ -82,5 +57,6 @@ geometry_msgs/Vector3 camera_position
 # Camera Rotation -1,0,1 options for (x,y,z)
 geometry_msgs/Vector3 camera_rotation
 
-# Render Enable
-bool render_enable
+bool white_background
+
+

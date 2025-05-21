@@ -263,16 +263,18 @@ class ImageViewer extends Component {
     
         <Label title="Show Stats">
         <Toggle
-        checked={this.state.show_install_app===true}
+        checked={show_stats===true}
         onClick={() => onChangeSwitchStateValue.bind(this)("show_stats",this.state.show_stats)}>
         </Toggle>
         </Label>
 
+        <div hidden={show_stats == false}>
 
         <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
                   {img_stats_text}
                   </pre>
     
+        </div>
         </Column>
         </Columns>
 
@@ -318,7 +320,7 @@ class ImageViewer extends Component {
       
           <Label title="Show Controls">
           <Toggle
-          checked={this.state.show_install_app===true}
+          checked={show_controls===true}
           onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
           </Toggle>
           </Label>
@@ -330,7 +332,7 @@ class ImageViewer extends Component {
       </Columns>
 
       
-
+      <div hidden={show_controls == false}>
     <Columns>
     <Column>
 
@@ -351,7 +353,7 @@ class ImageViewer extends Component {
 
       <Columns>
       <Column>
-          <div hidden={this.state.auto_adjust_enabled}>
+          <div hidden={this.state.auto_adjust_enabled == true}>
           <SliderAdjustment
               title={"Brightness"}
               msgType={"std_msgs/Float32"}
@@ -385,9 +387,12 @@ class ImageViewer extends Component {
               tooltip={"Adjustable threshold"}
               unit={"%"}
           />
+
           </div>
           </Column>
             </Columns>
+        </div>
+
 
       </Column>
       </Columns>
@@ -427,62 +432,63 @@ class ImageViewer extends Component {
         <Column>
 
 
-          <Columns>
-          <Column>
-      
-          <Label title="Show Overlays">
-          <Toggle
-          checked={this.state.show_install_app===true}
-          onClick={() => onChangeSwitchStateValue.bind(this)("show_overlays",this.state.show_overlays)}>
-          </Toggle>
-          </Label>
-
-          </Column>
-          <Column>
-
-          </Column>
-        </Columns>
-
-        
-
-      <Columns>
-      <Column>
-
-            <Label title={"Source Name"}>
-                <Toggle
-                  checked={name}
-                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_source_name',!name)}
-                /> 
+              <Columns>
+              <Column>
+          
+              <Label title="Show Overlays">
+              <Toggle
+              checked={show_overlays===true}
+              onClick={() => onChangeSwitchStateValue.bind(this)("show_overlays",this.state.show_overlays)}>
+              </Toggle>
               </Label>
 
-              <Label title={"Date Time"}>
-                <Toggle
-                  checked={date}
-                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_date_time',!date)}
-                /> 
-              </Label>
+              </Column>
+              <Column>
 
-              <Label title={"Location"}>
-                <Toggle
-                  checked={nav}
-                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_nav',!nav)}
-                /> 
-              </Label>
+              </Column>
+            </Columns>
 
-              <Label title={"Pose"}>
-                <Toggle
-                  checked={pose}
-                  onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_pose',!pose)}
-                /> 
-              </Label>
+        <div hidden={show_overlays == false}>
+
+            <Columns>
+            <Column>
+
+                  <Label title={"Source Name"}>
+                      <Toggle
+                        checked={name}
+                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_source_name',!name)}
+                      /> 
+                    </Label>
+
+                    <Label title={"Date Time"}>
+                      <Toggle
+                        checked={date}
+                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_date_time',!date)}
+                      /> 
+                    </Label>
+
+                    <Label title={"Location"}>
+                      <Toggle
+                        checked={nav}
+                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_nav',!nav)}
+                      /> 
+                    </Label>
+
+                    <Label title={"Pose"}>
+                      <Toggle
+                        checked={pose}
+                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_pose',!pose)}
+                      /> 
+                    </Label>
 
 
-          </Column>
-          <Column>
+                </Column>
+                <Column>
 
-          </Column>
-        </Columns>
+                </Column>
+              </Columns>
 
+       </div>
 
       </Column>
       </Columns>
@@ -519,6 +525,9 @@ class ImageViewer extends Component {
 
     return (
       <Section title={this.props.title}>
+
+        <canvas style={styles.canvas} ref={this.onCanvasRef} />
+
         <Columns>
           <Column>
 
@@ -538,7 +547,8 @@ class ImageViewer extends Component {
           </Column>
         </Columns>
 
-        <canvas style={styles.canvas} ref={this.onCanvasRef} />
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
+
         <Columns>
           <Column>
           <div align={"left"} textAlign={"left"}>
@@ -591,6 +601,8 @@ class ImageViewer extends Component {
           </div>
           </Column>
         </Columns>
+
+        
       </Section>
     )
   }

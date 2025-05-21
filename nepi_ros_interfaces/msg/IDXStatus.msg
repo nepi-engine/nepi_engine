@@ -27,8 +27,8 @@ string resolution_current
 
 float32 framerate_ratio
 string[] data_products
+string[] data_product_types
 float32[] framerates
-
 
 # Enable or Disable IDX controls
 bool controls_enable
@@ -45,13 +45,15 @@ float32 brightness
 # The thresholding field indicates the 0.0 - 1.0 thresholding setting of the device
 float32 thresholding
 
-# The range_window field provides the start and stop range as currently configured for the device
-# Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-RangeWindow range_window
 
 # Following provide the range limits in meters for the device (if available)
 float32 min_range_m
 float32 max_range_m
+
+# The range_window field provides the start and stop range as currently configured for the device
+# Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
+RangeWindow range_window
+
 
 # The zoom field indicates the 0.0 - 1.0 zoom ratio for pointcloud image setting of the device
 float32 zoom

@@ -881,7 +881,7 @@ class SystemMgrNode():
         self.status_msg.save_all_enabled = save_msg.data
 
     def enable_debug_callback(self, msg):
-        self.status_msg.sys_debug_enabled = msg
+        self.status_msg.sys_debug_enabled = msg.data
         if self.node_if is not None:
             self.node_if.set_param['debug_enabled']
             self.node_if.save_config()

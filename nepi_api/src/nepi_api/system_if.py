@@ -144,9 +144,11 @@ class SaveDataIF:
         self.msg_if.pub_info("Starting SaveData IF Initialization Processes", log_name_list = self.log_name_list)
         ############################## 
         # Initialize Class Variables
+        self.msg_if.pub_warn("Got data namespace: " + namespace, log_name_list = self.log_name_list)
         if namespace is None:
             namespace = '~'
         self.namespace = nepi_ros.get_full_namespace(namespace)
+        self.msg_if.pub_warn("Using data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
         self.timezone = tzd
@@ -216,15 +218,15 @@ class SaveDataIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'save_rate_dict': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': save_rate_dict
             },
             'save_data': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': False
             },
             'filename_dict': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.filename_dict
             }
         }
@@ -250,7 +252,7 @@ class SaveDataIF:
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.namespace,
+                'namespace': self.node_namespace,
                 'msg': SaveDataStatus,
                 'topic': 'save_data_status',
                 'qsize': 1,
@@ -882,7 +884,7 @@ class SettingsIF:
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
             self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
-            self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings))
+            self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings), log_name_list = self.log_name_list)
             self.cap_settings = capSettings   
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_response.settings_count = len(cap_setting_msgs_list)

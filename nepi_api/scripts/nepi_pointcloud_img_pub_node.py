@@ -58,7 +58,11 @@ class DepthMapImgPub:
 
     IMG_DATA_PRODUCT = 'depth_map_image'
 
+    img_ifs_dict = dict()
+    img_ifs_lock = threading.Lock()
+    
     img_image_if = None
+    img_info_dict = None
  
     save_cfg_if = None
     
@@ -74,7 +78,7 @@ class DepthMapImgPub:
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF(log_name = self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_warn("Starting IF Initialization Processes")
 
         ##############################  
         # Init Class Variables 
@@ -91,9 +95,12 @@ class DepthMapImgPub:
 
         self.status_msg = DepthMapStatus()
         self.dm_name = os.path.basename(self.dm_namespace)
-        self.enabled = False
-        self.state = "Unknown"
-        self.max_rate = 1.0
+        self.enabled = True
+        self.max_pub_rate = 5
+        self.min_range_m = 0.0
+        self.max_range_m = 20.0
+        self.min_range_ratio = 0.0
+        self.max_range_ratio = 1.0
 
   
         ##############################  
@@ -190,8 +197,12 @@ class DepthMapImgPub:
 
     def updaterCb(self,timer):
         # Unsubsribe if image not publishing
-        connected = self.img_info_dict['connected']
-        last_time = self.img_info_dict['last_img_time']
+        if self.img_info_dict is not None:
+            connected = self.img_info_dict['connected']
+            last_time = self.img_info_dict['last_img_time']
+        else:
+            connected = False
+            last_time = None
         current_time = nepi_utils.get_time()
         if connected == True and last_time is not None:
             check_time = current_time - last_time
@@ -223,7 +234,7 @@ class DepthMapImgPub:
 
             img_info_dict = copy.deepcopy(self.img_info_dict)
             # Check if exists
-            if depth_map_topic in img_info_dict.keys():
+            if img_info_dict is not None:
                 if self.img_ifs_dict:
                     self.msg_if.pub_info('Subsribing to image topic: ' + depth_map_topic)  
                     # Try and Reregister img_sub
@@ -267,7 +278,7 @@ class DepthMapImgPub:
 
                 ####################
                 # Subs Config Dict 
-                img_subs_if = NodeSubscribersIF(
+                img_subs_if = NodeClassIF(
                                 subs_dict = SUBS_DICT,
                         msg_if = self.msg_if
                                             )
@@ -320,7 +331,7 @@ class DepthMapImgPub:
 
 
 
-    def depthMapCb(self, msg, args):     
+    def depthMapCb(self, depth_map_msg, args):     
         start_time = nepi_ros.get_time()   
         depth_map_topic = args
         img_info_dict = copy.deepcopy(self.img_info_dict) 
@@ -347,15 +358,38 @@ class DepthMapImgPub:
                 if timer > delay_time: 
                     self.img_info_dict['last_img_time'] = current_time
 
-                    ros_timestamp = msg.header.stamp
-                    ros_frame_id = msg.header.frame_id
+                    ros_timestamp = depth_map_msg.header.stamp
+                    ros_frame_id = depth_map_msg.header.frame_id
 
                     current_time = nepi_ros.ros_time_now()
                     latency = (current_time.to_sec() - ros_timestamp.to_sec())
                     img_info_dict['get_latency_time'] = latency
 
-                    cv2_img = nepi_img.rosimg_to_cv2img(msg)
+                    # Apply Colormap
+                    cv2_depth_map = nepi_img.rosimg_to_cv2img(depth_map_msg, encoding="passthrough")
+                    depth_data = (np.array(cv2_depth_map, dtype=np.float32)) # replace nan values
+                    # Get range data
+                    start_range_ratio = self.min_range_ratio
+                    stop_range_ratio = self.max_range_ratio
+                    min_range_m = self.min_range_m
+                    max_range_m = self.max_range_m
+                    delta_range_m = max_range_m - min_range_m
+                    # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
+                    if (start_range_ratio > 0 or stop_range_ratio < 1):
+                        max_range_m = min_range_m + stop_range_ratio * delta_range_m
+                        min_range_m = min_range_m + start_range_ratio * delta_range_m
+                        delta_range_m = max_range_m - min_range_m
+                        # Filter depth_data in range
+                        depth_data[np.isnan(depth_data)] = max_range_m 
+                        depth_data[depth_data <= min_range_m] = max_range_m # set to max
+                        depth_data[depth_data >= max_range_m] = max_range_m # set to max
+                        # Create colored cv2 depth image
+                        depth_data = depth_data - min_range_m # Shift down 
+                        depth_data = np.abs(depth_data - max_range_m) # Reverse for colormap
+                        depth_data = np.array(255*depth_data/delta_range_m,np.uint8) # Scale for bgr colormap
+                        cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
 
+                    # Publish Data
                     if self.img_image_if is not None:
                         self.img_image_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id, add_overlay_list = add_overlay_list)
                     
@@ -373,27 +407,13 @@ class DepthMapImgPub:
 
     def statusCb(self,msg):
         self.status_msg = msg
-
-        self.dm_name = self.status_msg.name
-        self.enabled = self.status_msg.enabled
-        self.state = self.status_msg.state
-        self.max_rate = self.status_msg.max_img_rate_hz
-
-        self.classes_list = self.status_msg.selected_classes
-        class_colors = self.status_msg.selected_classes_colors
-        #self.msg_if.pub_warn("Got Classes Colors Msg " + str(class_colors))
-        classes_colors_list = []
-        for color_msg in class_colors:
-            class_color = (int(color_msg.b),int(color_msg.g),int(color_msg.r))
-            classes_colors_list.append(class_color)
-        self.classes_colors_list = classes_colors_list
-        #self.msg_if.pub_warn("Got Classes Colors List " + str(self.classes_colors_list))
-
-        self.overlay_labels = self.status_msg.overlay_labels
-        self.overlay_clf_name = self.status_msg.overlay_clf_name
-        self.overlay_img_name = self.status_msg.overlay_img_name
-
-        self.img_source_topics = self.status_msg.image_source_topics
+        self.enabled = self.status_msg.image_pub_enabled
+        self.max_pub_rate = self.status_msg.max_image_pub_rate
+        self.min_range_m = self.status_msg.min_range_m
+        self.max_range_m = self.status_msg.max_range_m
+        self.min_range_ratio = self.status_msg.range_ratios.start_range
+        self.max_range_ratio = self.status_msg.range_ratios.stop_range
+       
         
 
 #########################################

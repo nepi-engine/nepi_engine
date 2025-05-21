@@ -37,6 +37,7 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF
 
 from nepi_api.data_if import ImageIF
+from nepi_api.data_if import DepthMapIF
 from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
@@ -169,8 +170,10 @@ class IDXDeviceIF:
     tilt_ratio = init_rotate_ratio
     render_controls = [zoom_ratio,rotate_ratio,tilt_ratio]
 
-
+    
     data_products_list = []
+    data_types_list = []
+
 
     settings_if = None
     save_data_if = None
@@ -196,6 +199,10 @@ class IDXDeviceIF:
     current_fps = dict()
     last_data_time = dict()
 
+    image_thread = None
+    depth_map_thread = None
+    pointcloud_thread = None
+
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -206,7 +213,7 @@ class IDXDeviceIF:
                  setContrast=None, setBrightness=None, setThresholding=None,
                  setResolutionRatio=None, setFramerateRatio=None, 
                  setRange=None, getFramerate=None,
-                 getColor2DImg=None, stopColor2DImgAcquisition=None, 
+                 getImage=None, stopImageAcquisition=None, 
                  getBW2DImg=None, stopBW2DImgAcquisition=None,
                  getDepthMap=None, stopDepthMapAcquisition=None, 
                  getDepthImg=None, stopDepthImgAcquisition=None,
@@ -217,7 +224,7 @@ class IDXDeviceIF:
                  getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
                  getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
                  navpose_update_rate = 10,
-                 data_products =  ['image','depth','pointcloud'],
+                 data_products =  ['image','depth_map','pointcloud'],
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -640,56 +647,39 @@ class IDXDeviceIF:
 
 
         # Start the data producers
-        if (getColor2DImg is not None and 'image' in self.data_products):
-            self.getColor2DImg = getColor2DImg
-            self.stopColor2DImgAcquisition = stopColor2DImgAcquisition
-            data_product = 'color_2d_image'
+        if (getImage is not None and 'image' in self.data_products):
+            self.getImage = getImage
+            self.stopImageAcquisition = stopImageAcquisition
+            data_product = 'image'
+            data_type = 'image'
 
-            start_data_function = self.getColor2DImg
-            stop_data_function = self.stopColor2DImgAcquisition
+            start_data_function = self.getImage
+            stop_data_function = self.stopImageAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
-            self.color_img_thread = threading.Thread(target=self.runColorImgThread)
-            self.color_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
+            self.image_thread = threading.Thread(target=self.runImageThread)
+            self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.capabilities_report.has_color_2d_image = True
+            self.capabilities_report.has_image = True
         else:
-            self.capabilities_report.has_color_2d_image = False
+            self.capabilities_report.has_image = False
         
 
-        if (getBW2DImg is not None and 'image' in self.data_products):
-            self.getBW2DImg = getBW2DImg
-            self.stopBW2DImgAcquisition = stopBW2DImgAcquisition
-            data_product = 'bw_2d_image'
-
-            start_data_function = self.getBW2DImg
-            stop_data_function = self.stopBW2DImgAcquisition
-            data_msg = Image
-            data_status_msg = ImageStatus
-
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-
-            self.bw_img_thread = threading.Thread(target=self.runBWImgThread)
-            self.bw_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
-
-            self.capabilities_report.has_bw_2d_image = True
-        else:
-            self.capabilities_report.has_bw_2d_image = False
-        
-
-        if (getDepthMap is not None and 'depth' in self.data_products):
+        if (getDepthMap is not None and 'depth_map' in self.data_products):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
             data_product = 'depth_map'
+            data_type = 'depth_map'
+            
             start_data_function = self.getDepthMap
             stop_data_function = self.stopDepthMapAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -697,35 +687,20 @@ class IDXDeviceIF:
             self.capabilities_report.has_depth_map = True
         else:
             self.capabilities_report.has_depth_map = False
-            
-        if (getDepthImg is not None and 'depth' in self.data_products):
-            self.getDepthImg = getDepthImg
-            self.stopDepthImgAcquisition = stopDepthImgAcquisition
-            data_product = 'depth_image'
-            start_data_function = self.getDepthImg
-            stop_data_function = self.stopDepthImgAcquisition
-            data_msg = Image
-            data_status_msg = ImageStatus
-
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
-            self.depth_img_thread = threading.Thread(target=self.runDepthImgThread)
-            self.depth_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
-
-            self.capabilities_report.has_depth_image = True
-        else:
-            self.capabilities_report.has_depth_image = False
+          
 
         if (getPointcloud is not None and 'pointcloud' in self.data_products):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
             data_product = 'pointcloud'
+            data_type = 'pointcloud'
+
             start_data_function = self.getPointcloud
             stop_data_function = self.stopPointcloudAcquisition
             data_msg = PointCloud2
             data_status_msg = PointcloudStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -734,17 +709,19 @@ class IDXDeviceIF:
         else:
             self.capabilities_report.has_pointcloud = False
 
+        '''
         if (getPointcloudImg is not None and 'pointcloud' in self.data_products):
             self.getPointcloudImg = getPointcloudImg
             self.stopPointcloudImgAcquisition = stopPointcloudImgAcquisition
             data_product = 'pointcloud_image'
+            data_type = 'pointcloud'
 
             start_data_function = self.getPointcloudImg
             stop_data_function = self.stopPointcloudImgAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_img_thread = threading.Thread(target=self.runPointcloudImgThread)
             self.pointcloud_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -752,18 +729,23 @@ class IDXDeviceIF:
             self.capabilities_report.has_pointcloud_image = True
 
         else:
+            pass
             self.capabilities_report.has_pointcloud_image = False
+        '''
 
         self.capabilities_report.data_products = str(self.data_products_list)
+        self.capabilities_report.data_product_types = str(self.data_types_list)
 
+        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
+        self.msg_if.pub_debug("Starting data types list: " + str(self.data_types_list))
 
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates= {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'color_2d_image' in self.data_products_list:
-            factory_data_rates['color_2d_image'] = [1.0, 0.0, 100.0] 
+        if 'image' in self.data_products_list:
+            factory_data_rates['image'] = [1.0, 0.0, 100.0] 
         
 
         factory_filename_dict = {
@@ -774,7 +756,7 @@ class IDXDeviceIF:
             'suffix': "",
             'add_node_name': True
             }
-        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
+
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
         sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
@@ -791,23 +773,15 @@ class IDXDeviceIF:
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
 
         # Launch the acquisition and saving threads
-        if (getColor2DImg is not None):
-            self.color_img_thread.start()
+        if self.image_thread is not None:
+            self.image_thread.start()
 
-        #if (getBW2DImg is not None):
-        #    self.bw_img_thread.start()
-
-        if (getDepthMap is not None):
+        if self.depth_map_thread is not None:
             self.depth_map_thread.start()
 
-        if (getDepthImg is not None):
-            self.depth_img_thread.start()
-
-        if (getPointcloud is not None):
+        if self.pointcloud_thread is not None:
             self.pointcloud_thread.start()
 
-        if (getPointcloudImg is not None):
-           self.pointcloud_img_thread.start()
 
         ####################################
         self.initCb(do_updates = True)
@@ -911,18 +885,26 @@ class IDXDeviceIF:
 
 
 
-    def addDataProduct2Dict(self,data_product,start_data_function,stop_data_function,data_msg,data_status_msg):
+    def addDataProduct2Dict(self,data_product,data_type, start_data_function,stop_data_function,data_msg,data_status_msg):
         success = False
         data_product = data_product
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
+        dp_dict['data_type'] = data_type
         dp_dict['namespace'] = namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
         self.data_products_list.append(data_product)
+        self.data_types_list.append(data_type)
+        if data_type == 'depth_map':
+            self.data_products_list.append(data_product + '_image')
+            self.data_types_list.append('image')
+        if data_type == 'pointcloud':
+            self.data_products_list.append(data_product + '_image')
+            self.data_types_list.append('image')
         self.data_product_dict[data_product] = dp_dict
 
         # do wait here for all
@@ -1378,6 +1360,95 @@ class IDXDeviceIF:
                 self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
                 nepi_ros.sleep(0.01) # Yield
 
+
+    def depth_map_thread_proccess(self,data_product):
+        cv2_img = None
+        ros_img = None
+
+        if data_product not in self.data_product_dict.keys():
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
+            acquiring = False
+
+            dp_dict = self.data_product_dict[data_product]
+            dp_get_data = dp_dict['get_data']
+            dp_stop_data = dp_dict['stop_data']
+
+            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
+            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
+            min_range_m = self.status_msg.range_window.start_range
+            max_range_m = self.status_msg.range_window.stop_range
+            dp_if = DepthMapIF(namespace = pub_namespace,
+                        default_min_meters = min_range_m,
+                        default_max_meters = max_range_m,
+                        enable_image_pub = True,
+                        max_image_pub_rate = 5,
+                        init_overlay_list = [],
+                        log_name = data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+            
+            # Get Data Product Dict and Data_IF
+            
+            self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
+
+            while (not nepi_ros.is_shutdown()):
+                dp_has_subs = dp_if.has_subscribers_check()
+                dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
+
+                # Get data if requried
+                get_data = dp_has_subs or dp_should_save
+                if get_data == True:
+                    acquiring = True
+
+                    status, msg, cv2_img, timestamp, encoding = dp_get_data()
+                    if (status is False or cv2_img is None):
+                        self.msg_if.pub_debug("No Data Recieved: " + data_product)
+                        pass
+                    else:
+                        self.msg_if.pub_debug("Got Data: " + data_product)
+                        
+                        # Get Image Info and Pub Status if Changed
+                        cur_width = self.img_width
+                        cur_height = self.img_height
+                        cv2_shape = cv2_img.shape
+                        self.img_width = cv2_shape[1] 
+                        self.img_height = cv2_shape[0] 
+
+
+                        if (dp_has_subs == True):
+                            #Publish Ros Image
+                            min_range_m = self.status_msg.range_window.start_range
+                            max_range_m = self.status_msg.range_window.stop_range
+                            frame_id = self.node_if.get_param('frame_3d')
+                            dp_if.publish_cv2_depth_map(cv2_img,min_range_m = min_range_m, max_range_m = max_range_m, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
+                        if (dp_should_save == True):
+                            self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
+
+
+                        self.update_fps(data_product)
+
+                        self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        if cur_width != self.img_width or cur_height != self.img_height:
+                            self.publishStatus()
+
+                elif acquiring is True:
+                    if dp_stop_data is not None:
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
+                        dp_stop_data()
+                    acquiring = False
+                    self.current_fps[data_product] = 0.0
+                    self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
+                else: # No subscribers and already stopped
+                    acquiring = False
+                    nepi_ros.sleep(0.25)
+                self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
+                nepi_ros.sleep(0.01) # Yield
+
+
               
 
    
@@ -1471,54 +1542,16 @@ class IDXDeviceIF:
         return o3d_pc
 
 
-    def runColorImgThread(self):
-        self.image_thread_proccess('color_2d_image')
-        
-    def runBWImgThread(self):
-        self.image_thread_proccess('bw_2d_image')
+    def runImageThread(self):
+        self.image_thread_proccess('image')
 
     def runDepthMapThread(self):
-        self.image_thread_proccess('depth_map')
-
-    def runDepthImgThread(self):
-        self.image_thread_proccess('depth_image')
+        self.depth_map_thread_proccess('depth_map')
 
     def runPointcloudThread(self):
         self.pointcloud_thread_proccess('pointcloud')
 
-    def runPointcloudImgThread(self):
-        self.image_thread_proccess('pointcloud_image')
-
-
  
-
-        
-    
-    # Utility Functions
-
-    def applyIDXControls2Image(self,cv2_img,data_product):
-
-        enabled = self.ctl_enabled
-        auto = self.ctl_auto      
-        brightness = self.ctl_brightness
-        contrast = self.ctl_contrast
-        threshold = self.ctl_threshold
-        res_ratio = self.ctl_res_ratio      
-        self.msg_if.pub_debug("Applying resolution ratio: " + data_product + " " + str(res_ratio))
-
-        if enabled == True: 
-            if res_ratio < 0.9:
-                [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-            if data_product != 'depth_map' and data_product != 'depth_image' and data_product != 'pointcloud_image':
-                if auto is False:
-                    cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-                    cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                    #cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-                else:
-                    cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-
-        return cv2_img
-
 
     # Function to update and publish status message
 
@@ -1553,6 +1586,7 @@ class IDXDeviceIF:
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.data_products = self.data_products_list
+            self.status_msg.data_product_types = self.data_types_list
             framerates = []
             for dp in self.current_fps.keys():
                 framerates.append(self.current_fps[dp])

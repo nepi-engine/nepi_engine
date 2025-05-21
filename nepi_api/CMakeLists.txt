@@ -127,6 +127,8 @@ catkin_package(
 
 catkin_install_python(PROGRAMS
   scripts/nepi_ai_detector_img_pub_node.py
+  scripts/nepi_depth_map_img_pub_node.py
+  scripts/nepi_pointcloud_img_pub_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
