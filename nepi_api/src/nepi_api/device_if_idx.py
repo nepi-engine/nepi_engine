@@ -1245,7 +1245,7 @@ class IDXDeviceIF:
         if last_data_time is not None:
             f_time = (self.last_data_time[data_product] - last_data_time)
             current_fps = float(1) / f_time
-            self.msg_if.pub_warn("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
+            #self.msg_if.pub_warn("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
             self.fps_queue[data_product].pop(0)
             self.fps_queue[data_product].append(current_fps)
             self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)

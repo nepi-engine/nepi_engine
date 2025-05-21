@@ -873,6 +873,3 @@ def on_shutdown(shutdown_fuction):
 
 def Time(float):
   rospy.Time(float)
-
-def wait_for_service(wait_topic, timeout_s):
-  rospy.wait_for_service(wait_topic, timeout_s)

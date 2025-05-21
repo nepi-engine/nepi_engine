@@ -544,7 +544,7 @@ class NPXDeviceIF:
           geopoint.longitude = data_dict['longitude']
           geiod_height = nepi_nav.get_navpose_geoid_height_at_geopoint(geopoint)
           navpose_dict['geoid_height_meters'] = geiod_height
-          self.msg_if.pub_warn("Got Geoid Height: " + str(geiod_height))
+          #self.msg_if.pub_warn("Got Geoid Height: " + str(geiod_height))
       except Exception as e:
           self.msg_if.pub_warn("Failed to call get Location Cb: " + str(e))
 

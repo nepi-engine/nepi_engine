@@ -26,8 +26,8 @@ from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_nav
 
 
-
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
+from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix, BatteryState
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
@@ -682,7 +682,7 @@ class RBXRobotIF:
 
         # Setup Data IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
-        image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
+        self.image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -838,7 +838,7 @@ class RBXRobotIF:
             self.update_error_msg("Received invalid device name update: " + new_device_name)
         else:
             self.node_if.set_param('rbx/device_name', new_device_name)
-        self.device_save_config_pub.publish(Empty())
+        self.node_if.save_config()
         self.publishInfo()
 
 
@@ -849,7 +849,7 @@ class RBXRobotIF:
 
     def resetDeviceName(self):
         self.node_if.set_param('rbx/device_name', self.factory_device_name)
-        self.device_save_config_pub.publish(Empty())
+        self.node_if.save_config()
         self.publishInfo()
 
 
@@ -1302,7 +1302,7 @@ class RBXRobotIF:
 
         if not nepi_ros.is_shutdown():
             #self.msg_if.pub_info(self.rbx_info)
-            self.rbx_info_pub.publish(self.rbx_info)
+            self.node_if.publish_pub('rbx_info_pub',self.rbx_info)
 
     ### Callback for rbx status publisher
     def statusPublishCb(self,timer):
@@ -1392,8 +1392,8 @@ class RBXRobotIF:
 
         self.status_str_msg = status_str_msg
         if not nepi_ros.is_shutdown():
-            self.rbx_status_pub.publish(self.rbx_status)
-            self.rbx_status_str_pub.publish(str(status_str_msg))
+            self.node_if.publish_pub('rbx_status_pub', self.rbx_status)
+            self.node_if.publish_pub('rbx_status_str_pub', str(status_str_msg))
 
         # Create ROS Image message
         cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
