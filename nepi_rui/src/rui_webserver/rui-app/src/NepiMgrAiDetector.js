@@ -459,8 +459,11 @@ class AiDetectorMgr extends Component {
     items.push(<Option value={'None'}>{'None'}</Option>)
     items.push(<Option value={'All'}>{'All'}</Option>)
     var img_text = ""
+    const sel_det = this.state.selected_detector
     for (var i = 0; i < img_options.length; i++) {
+      if (img_options[i].indexOf(sel_det) === -1){
        items.push(<Option value={img_options[i]}>{imageTopicShortnames[i]}</Option>)
+      }
     }
     return items
   }

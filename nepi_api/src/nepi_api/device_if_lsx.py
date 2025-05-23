@@ -372,7 +372,7 @@ class LSXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+        settings_ns = nepi_ros.create_namespace(self.node_namespace,'lsx')
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -402,7 +402,7 @@ class LSXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'lsx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,

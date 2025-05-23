@@ -132,7 +132,7 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 
 class NPXDeviceIF:
 
-  NAVPOSE_UPDATE_RATE_OPTIONS = [1.0,40.0] 
+  MIN_PUB_RATE = 1.0
   NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
   NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
@@ -156,7 +156,6 @@ class NPXDeviceIF:
   has_depth = False
 
   navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-  last_nav_dict = None
 
   navpose_if = None  
 
@@ -172,7 +171,7 @@ class NPXDeviceIF:
                 frame_3d = None, frame_altitude = None,
                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
-                navpose_update_rate = DEFAULT_UPDATE_RATE,
+                max_navpose_update_rate = DEFAULT_UPDATE_RATE,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -198,7 +197,7 @@ class NPXDeviceIF:
         ##############################
         # Initialize Class Variables
       
-        self.update_rate = navpose_update_rate
+        self.update_rate = max_navpose_update_rate
 
         self.initCb(do_updates = False)
 
@@ -234,6 +233,20 @@ class NPXDeviceIF:
         self.getDepthCb = getDepthCb
         if self.getDepthCb is not None:
           self.has_depth = True
+
+
+        # Create capabilities report
+        self.navpose_capabilities_report = NPXCapabilitiesQueryResponse()
+        self.navpose_capabilities_report.has_heading = self.has_heading
+        self.navpose_capabilities_report.has_position = self.has_position
+        self.navpose_capabilities_report.has_orientation = self.has_orientation
+        self.navpose_capabilities_report.has_location = self.has_location      
+        self.navpose_capabilities_report.has_altitude = self.has_altitude
+        self.navpose_capabilities_report.has_depth =  self.has_depth
+
+        self.navpose_capabilities_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
+        self.navpose_capabilities_report.frame_3d_options = self.NAVPOSE_3D_FRAME_OPTIONS
+        self.navpose_capabilities_report.frame_altitude_options = self.NAVPOSE_ALT_FRAME_OPTIONS
 
         # All Good
 
@@ -284,7 +297,7 @@ class NPXDeviceIF:
         self.SRVS_DICT = {
             'navpose_capabilities_query': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/navpose_capabilities_query',
+                'topic': 'npx/capabilities_query',
                 'srv': NPXCapabilitiesQuery,
                 'req': NPXCapabilitiesQueryRequest(),
                 'resp': NPXCapabilitiesQueryResponse(),
@@ -383,7 +396,7 @@ class NPXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'ptx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -429,7 +442,7 @@ class NPXDeviceIF:
 
 
   def get_navpose_dict(self):
-    return self.nav_dict
+    return self.navpose_dict
 
 
 

@@ -181,7 +181,20 @@ def create_namespace(base_namespace,topic):
   namespace = os.path.join(base_namespace,topic)
   return namespace
 
-
+def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
+    try:
+        uid = '_'.join(namespace.split(base_namespace)[1].split('/'))
+    except:
+        uid = '_'.join(namespace.split('/'))
+    if len(uid) > 1:
+        if uid[0] == '_':
+            uid = uid[1:]
+    else:
+        uid = base_namespace + str(time.time_ns())[-6:]
+    if add_name is not None:
+      uid = uid + '_' + add_name
+    uid = uid.replace('.','')
+    return uid
 
 #######################
 ### Node Utility Functions

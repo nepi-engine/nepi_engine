@@ -154,24 +154,6 @@ class NepiDevicePTX extends Component {
                      pitchMinSoftstopEdited: pitchMinElement.value, pitchMaxSoftstopEdited: pitchMaxElement.value})
     }
 
-    else if ((e.target.id === "PTXYawHardStopMin") || (e.target.id === "PTXYawHardStopMax") ||
-    (e.target.id === "PTXPitchHardStopMin") || (e.target.id === "PTXPitchHardStopMax"))
-    {
-      yawMinElement = document.getElementById("PTXYawHardStopMin")
-      setElementStyleModified(yawMinElement)
-
-      yawMaxElement = document.getElementById("PTXYawHardStopMax")
-      setElementStyleModified(yawMaxElement)
-
-      pitchMinElement = document.getElementById("PTXPitchHardStopMin")
-      setElementStyleModified(pitchMinElement)
-
-      pitchMaxElement = document.getElementById("PTXPitchHardStopMax")
-      setElementStyleModified(pitchMaxElement)
-
-      this.setState({yawMinHardstopEdited: yawMinElement.value, yawMaxHardstopEdited: yawMaxElement.value, 
-                  pitchMinHardstopEdited: pitchMinElement.value, pitchMaxHardstopEdited: pitchMaxElement.value})
-    }
   }
 
   onKeyText(e) {
@@ -213,26 +195,6 @@ class NepiDevicePTX extends Component {
         onSetPTXSoftStopPos(namespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
                             Number(pitchMinElement.value), Number(pitchMaxElement.value))
         this.setState({yawMaxSoftstopEdited: null, yawMinSoftstopEdited: null, pitchMaxSoftstopEdited: null, pitchMinSoftstopEdited: null})
-      }
-
-      else if ((e.target.id === "PTXYawHardStopMin") || (e.target.id === "PTXYawHardStopMax") ||
-      (e.target.id === "PTXPitchHardStopMin") || (e.target.id === "PTXPitchHardStopMax"))
-      {
-        yawMinElement = document.getElementById("PTXYawHardStopMin")
-        clearElementStyleModified(yawMinElement)
-
-        yawMaxElement = document.getElementById("PTXYawHardStopMax")
-        clearElementStyleModified(yawMaxElement)
-
-        pitchMinElement = document.getElementById("PTXPitchHardStopMin")
-        clearElementStyleModified(pitchMinElement)
-
-        pitchMaxElement = document.getElementById("PTXPitchHardStopMax")
-        clearElementStyleModified(pitchMaxElement)
-
-      onSetPTXHardStopPos(namespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
-                        Number(pitchMinElement.value), Number(pitchMaxElement.value))
-      this.setState({yawMaxHardstopEdited: null, yawMinHardstopEdited: null, pitchMaxHardstopEdited: null, pitchMinHardstopEdited: null})
       }
       else if ((e.target.id === "PTXYawGoto") || (e.target.id === "PTXPitchGoto"))
         {
@@ -359,7 +321,7 @@ class NepiDevicePTX extends Component {
     //var unique_names = createShortUniqueValues(filteredTopics)
     var device_name = ""
     for (i = 0; i < filteredTopics.length; i++) {
-      device_name = filteredTopics[i].split('/rbx')[0].split('/').pop()
+      device_name = filteredTopics[i].split('/ptx')[0].split('/').pop()
       items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
 
@@ -399,8 +361,8 @@ class NepiDevicePTX extends Component {
             onSetReverseYawControl, onSetReversePitchControl } = this.props.ros
     const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
 
-    const yawPositionDegClean = yawPositionDeg + .02
-    const pitchPositionDegClean = pitchPositionDeg + .02
+    const yawPositionDegClean = yawPositionDeg + .001
+    const pitchPositionDegClean = pitchPositionDeg + .001
 
     const ptx_caps = ptxDevices[ptxNamespace]
     const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
@@ -482,12 +444,12 @@ class NepiDevicePTX extends Component {
           <Input
             disabled
             style={{ width: "45%", float: "left" }}
-            value={round(yawPositionDegClean, 1)}
+            value={round(yawPositionDegClean, 2)}
           />
           <Input
             disabled
             style={{ width: "45%" }}
-            value={round(pitchPositionDegClean, 1)}
+            value={round(pitchPositionDegClean, 2)}
           />
         </Label>
 
@@ -544,16 +506,14 @@ class NepiDevicePTX extends Component {
             id={"PTXYawHardStopMin"}
             style={{ width: "45%", float: "left" }}
             value={yawHardStopMin}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
+            disabled={true}
           />
           <Input
             disabled={!has_abs_positioning}
             id={"PTXPitchHardStopMin"}
             style={{ width: "45%" }}
             value={pitchHardStopMin}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
+            disabled={true}
           />
         </Label>
         <Label title={"Hard Limit Max"}>
@@ -562,16 +522,14 @@ class NepiDevicePTX extends Component {
             id={"PTXYawHardStopMax"}
             style={{ width: "45%", float: "left" }}
             value={yawHardStopMax}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
+            disabled={true}
           />
           <Input
             disabled={!has_abs_positioning}
             id={"PTXPitchHardStopMax"}
             style={{ width: "45%" }}
             value={pitchHardStopMax}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
+            disabled={true}
           />
         </Label>
 

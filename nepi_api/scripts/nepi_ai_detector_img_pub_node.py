@@ -153,12 +153,15 @@ class AiDetectorImgPub:
 
         self.data_product = nepi_ros.get_param(self.node_namespace + "/data_product",self.IMG_DATA_PRODUCT)
         self.data_products = [self.data_product]
-        self.msg_if.pub_info("Starting with Image Data Product: " + str(self.data_product))
+        self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
         
         backup_det_namespace = self.node_namespace.replace("_img_pub","")
         self.det_namespace = nepi_ros.get_param(self.node_namespace + "/det_namespace",backup_det_namespace)
+        self.msg_if.pub_warn("Starting with Detector Namespace: " + str(self.det_namespace))
 
         self.all_namespace = nepi_ros.get_param(self.node_namespace + "/all_namespace",'')
+        self.msg_if.pub_warn("Starting with All Namespace: " + str(self.all_namespace))
+
 
 
         self.status_msg = AiDetectorStatus()
@@ -311,12 +314,14 @@ class AiDetectorImgPub:
         # Manage group detector image ifs
         if len(active_img_topics) > 0:
             if self.img_image_if == None:
-                self.img_image_if = ImageIF(namespace = self.det_namespace , log_name = self.data_product,
+                namespace = nepi_utils.create_namespace(self.det_namespace,self.data_product)
+                self.img_image_if = ImageIF(namespace = namespace , log_name = self.data_product,
                         msg_if = self.msg_if
                                             )
 
             if self.img_image_if_all == None and self.all_namespace != "":
-                self.img_image_if_all = ImageIF(namespace = self.all_namespace , log_name = self.data_product,
+                namespace = nepi_utils.create_namespace(self.all_namespace,self.data_product)
+                self.img_image_if_all = ImageIF(namespace = namespace , log_name = self.data_product,
                         msg_if = self.msg_if
                                             )
 
@@ -401,7 +406,7 @@ class AiDetectorImgPub:
                 # Create register new image topic
                 self.msg_if.pub_info('Registering to image topic: ' + img_topic)
                 img_name = img_topic.replace(self.base_namespace,"")
-                pub_namespace = os.path.join(self.det_namespace,img_name)
+                pub_namespace = os.path.join(self.det_namespace,img_name,self.data_product)
 
                 ####################
                 # Create img info dict

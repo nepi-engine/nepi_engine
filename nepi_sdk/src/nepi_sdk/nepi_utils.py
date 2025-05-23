@@ -14,6 +14,7 @@
 
   
 import os
+import sys
 import shutil
 import time
 import subprocess
@@ -398,7 +399,15 @@ def find_all_indexes(input_string, char):
 
 
 ########################
-### Misc Helper Functions
+### Class and Method Helper Functions
+
+
+
+# These calls must be imbedded in class method
+#  method_name = sys._getframe().f_code.co_name
+#  caller_method_name = inspect.currentframe().f_back.f_code.co_name
+
+
 def get_caller_class(self):
     caller_class = None
     frame = inspect.stack()[1][0]
@@ -410,8 +419,6 @@ def get_caller_class(self):
       if instance:
         caller_class = getattr(instance, '__class__', None)
     return caller_class
-
-
 
 def get_caller_class_name(self):
     caller_class = get_caller_class(self)
