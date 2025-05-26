@@ -487,7 +487,7 @@ class NavPoseIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
     def __init__(self, namespace = None,
-        enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
+                enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -516,7 +516,6 @@ class NavPoseIF:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
 
-        # Initialize Status Msg.  Updated on each publish
         self.enable_gps_pub = enable_gps_pub
         self.enable_pose_pub = enable_pose_pub
         self.enable_heading_pub = enable_heading_pub
@@ -790,7 +789,9 @@ class NavPoseIF:
 
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None and not nepi_ros.is_shutdown():
+        if self.node_if is not None:
+            if self.status_msg is None:
+                self.status_msg = NavPoseStatus()
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
@@ -840,7 +841,7 @@ class ImageIF:
     ctl_threshold = 0.0
     ctl_res_ratio = 1.0  
 
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None ,  
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -866,13 +867,13 @@ class ImageIF:
 
         ##############################    
         # Initialize Class Variables
-        self.msg_if.pub_warn("Got image namespace: " + str(namespace), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got data product namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
-        self.msg_if.pub_warn("Using image namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
-
+ 
         self.init_overlay_list = init_overlay_list
 
         # Initialize Status Msg.  Updated on each publish
@@ -900,23 +901,23 @@ class ImageIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'controls_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.ctl_enabled
             },
             'auto_adjust': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.ctl_auto
             },
             'brightness': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.ctl_brightness
             },
             'contrast': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.ctl_contrast
             },
             'threshold': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.ctl_threshold
             },
             'overlay_img_name': {
@@ -969,7 +970,7 @@ class ImageIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'set_controls_enable': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_controls_enable',
                 'msg': Bool,
                 'qsize': 1,
@@ -977,7 +978,7 @@ class ImageIF:
                 'callback_args': ()
             },
             'set_auto_adjust': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_auto_adjust',
                 'msg': Bool,
                 'qsize': 1,
@@ -985,7 +986,7 @@ class ImageIF:
                 'callback_args': ()
             },
             'set_brightness': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -993,7 +994,7 @@ class ImageIF:
                 'callback_args': ()
             },
             'set_contrast': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1001,7 +1002,7 @@ class ImageIF:
                 'callback_args': ()
             },
             'set_threshold': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1058,7 +1059,7 @@ class ImageIF:
                 'callback': self._clearOverlayListCb
             },
             'reset_controls': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'idx/reset_controls',
                 'msg': Empty,
                 'qsize': 1,
@@ -1269,6 +1270,8 @@ class ImageIF:
 
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
+            if self.status_msg is None:
+                self.status_msg = ImageStatus()
             if do_updates == True:
                 self.status_msg.controls_enabled= self.node_if.get_param('controls_enabled')
                 self.status_msg.auto_adjust_enabled = self.node_if.get_param('auto_adjust')
@@ -1288,8 +1291,8 @@ class ImageIF:
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
             self.status_msg.avg_fps = avg_rate
-            self.node_if.publish_pub('status_pub',self.status_msg)
 
+            self.node_if.publish_pub('status_pub',self.status_msg)
     ###############################
     # Class Private Methods
     ###############################
@@ -1457,10 +1460,10 @@ class DepthMapIF:
     max_range_m = 20.0
 
 
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None,
+                enable_image_pub = True,
                 default_min_meters = 0.0,
                 default_max_meters = 20.0,
-                enable_image_pub = True,
                 max_image_pub_rate = 5,
                 init_overlay_list = [],
                 log_name = None,
@@ -1487,12 +1490,11 @@ class DepthMapIF:
 
         ##############################    
         # Initialize Class Variables
-        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got data product namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is not None:
             self.namespace = namespace
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
-        self.msg_if.pub_warn("Using namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-
+        self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ###############################
         if enable_image_pub == True:
@@ -1518,7 +1520,8 @@ class DepthMapIF:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path)
             else: 
                 #Try and launch node
-                img_pub_node_name = self.node_name + "_depth_map_img_pub"
+                unique_name = nepi_ros.get_unique_name_from_namespace(self.namespace,self.base_namespace)
+                img_pub_node_name = unique_name + "_depth_map_img_pub"
                 img_pub_namespace = self.node_namespace + "_depth_map_img_pub"
                 self.msg_if.pub_warn("Launching Depth Map Pub Node: " + img_pub_node_name)
                 self.msg_if.pub_warn("Launching Depth Map Pub on namespace: " + img_pub_namespace)
@@ -1757,9 +1760,12 @@ class DepthMapIF:
 
 
     def publish_status(self, do_updates = True):
-        self.status_msg.min_range_m = self.min_range_m
-        self.status_msg.max_range_m = self.max_range_m
         if self.node_if is not None:
+            if self.status_msg is None:
+                self.status_msg = DepthMapStatus()
+            self.status_msg.min_range_m = self.min_range_m
+            self.status_msg.max_range_m = self.max_range_m
+
             if do_updates == True:
                 self.status_msg.max_image_pub_rate = self.node_if.get_param('max_img_pub_rate')
                 self.status_msg.range_ratios.start_range = self.node_if.get_param('render_start_range_ratio')
@@ -1770,6 +1776,7 @@ class DepthMapIF:
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
             self.status_msg.avg_fps = avg_rate
+
             self.node_if.publish_pub('status_pub',self.status_msg)
 
     ###############################
@@ -1931,7 +1938,8 @@ class PointcloudIF:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path)
             else: 
                 #Try and launch node
-                img_pub_node_name = self.node_name + "_img_pub"
+                unique_name = nepi_ros.get_unique_name_from_namespace(self.namespace,self.base_namespace)
+                img_pub_node_name = unique_name + "_img_pub"
                 self.msg_if.pub_warn("Launching Img Pub Node: " + img_pub_node_name)
                 img_pub_namespace = self.node_namespace + "_img_pub"
                 self.msg_if.pub_warn("Launching Img Pub Namespace: " + img_pub_namespace)
@@ -2283,6 +2291,8 @@ class PointcloudIF:
 
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
+            if self.status_msg is None:
+                self.status_msg = PointcloudStatus()
             if do_updates == True:
                 self.status_msg.max_image_pub_rate = self.node_if.get_param('max_img_pub_rate')
                 self.status_msg.image_width = self.node_if.get_param('render_image_width')
@@ -2329,7 +2339,9 @@ class PointcloudIF:
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
             self.status_msg.avg_fps = avg_rate
+
             self.node_if.publish_pub('status_pub',self.status_msg)
+
     ###############################
     # Class Private Methods
     ###############################

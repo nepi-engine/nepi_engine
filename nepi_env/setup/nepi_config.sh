@@ -67,6 +67,15 @@ rsync -a config/ /opt/nepi/config
 sudo adduser nepi dialout
 
 
+#or //https://arduino.stackexchange.com/questions/74714/arduino-dev-ttyusb0-permission-denied-even-when-user-added-to-group-dialout-o
+#Add your standard user to the group "dialout'
+sudo usermod -a -G dialout nepi
+#Add your standard user to the group "tty"
+sudo usermod -a -G tty nepi
+
+
+
+
 
 # share this folder on your network using samba
 echo "Installing samba for network shared drives"

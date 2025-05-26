@@ -251,7 +251,8 @@ class NodeConfigsIF:
 EXAMPLE_PARAMS_DICT = {
     'param1_name': {
         'namespace':  self.node_namespace,
-        'factory_val': 100
+        'factory_val': 100,
+        'current_val: 20  # Optional
     },
     'param2_name': {
         'namespace':  self.node_namespace,
@@ -340,10 +341,13 @@ class NodeParamsIF:
     def initialize_params(self):
         for param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
-            if 'factory_val' in param_dict:
+            if 'factory_val' in param_dict.keys():
                 factory_val = param_dict['factory_val']
-                init_val = self.get_param(param_name)
-                #self.msg_if.pub_warn("Got init param value: " + param_name + " : " + str(init_val))
+                if 'current_val' in param_dict.keys():
+                    init_val = param_dict['current_val']
+                else:
+                    init_val = self.get_param(param_name)
+                    #self.msg_if.pub_warn("Got init param value: " + param_name + " : " + str(init_val))
                 if init_val is None:
                     init_val = factory_val
                 self.params_dict[param_name]['init_val'] = init_val
@@ -900,7 +904,8 @@ EXAMPLE_CFGS_DICT = {
 EXAMPLE_PARAMS_DICT = {
     'param1_name': {
         'namespace':  self.node_namespace,
-        'factory_val': 100
+        'factory_val': 100,
+        'current_val: 20  # Optional
     },
     'param2_name': {
         'namespace':  self.node_namespace,

@@ -1064,9 +1064,10 @@ class SettingsIF:
     def reset_settings(self, update_status = True):
         self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
         #self.msg_if.pub_warn(self.init_settings)
-        for setting_name in self.init_settings:
-            setting = self.init_settings[setting_name]
-            self.update_setting(setting, update_status = False, update_param = False)
+        if self.init_settings is not None:
+            for setting_name in self.init_settings:
+                setting = self.init_settings[setting_name]
+                self.update_setting(setting, update_status = False, update_param = False)
         if update_status:
             self.publish_status()
 
