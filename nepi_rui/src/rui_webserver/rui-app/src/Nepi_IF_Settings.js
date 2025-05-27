@@ -134,15 +134,16 @@ class Nepi_IF_Settings extends Component {
     var namesList = []
     var typesList = []
     var optionsLists = []
+    var ind = 0
     if (settingCaps && cur_namespace){
       if (settingCaps[this.props.settingsNamespace]){
         const set_namespace = this.state.settings_namespace
         if (set_namespace !== cur_namespace){
 
           const capabilities = settingCaps[this.props.settingsNamespace]
-          const cap_settings = capabilities.setting_caps_list
-          if (capabilities !== undefined){
-            for (let ind = 0; ind < cap_settings.length; ind++){
+          if (capabilities != null){
+            const cap_settings = capabilities.setting_caps_list
+            for ( ind = 0; ind < cap_settings.length; ind++){
               namesList.push(cap_settings[ind].name_str)
               typesList.push(cap_settings[ind].type_str)
               optionsLists.push(cap_settings[ind].options_list)

@@ -18,7 +18,7 @@ import Label from "./Label"
 import Input from "./Input"
 import Styles from "./Styles"
 import Button, { ButtonMenu } from "./Button"
-import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified} from "./Utilities"
+import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified, onChangeSwitchSendBoolValue, onUpdateSetStateValue} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
@@ -98,6 +98,13 @@ class NepiDevicePTX extends Component {
       reverseYawControl: false,
       reversePitchControl: false,
 
+      auto_pan: false,
+      auto_pan_min: -1,
+      auto_pan_max: 1,
+      auto_tilt: false,
+      auto_tilt_min: -1,
+      auto_tilt_max: 1,
+
       selectedWaypoint: 0,
 
       listener: null,
@@ -115,6 +122,8 @@ class NepiDevicePTX extends Component {
     this.createWaypointOptions = this.createWaypointOptions.bind(this)
     this.onWaypointSelected = this.onWaypointSelected.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
+
+    this.onEnterSendInputBoxRangeWindowValue = this.onEnterSendInputBoxRangeWindowValue.bind(this)
   }
 
   onUpdateText(e) {
@@ -157,7 +166,7 @@ class NepiDevicePTX extends Component {
   }
 
   onKeyText(e) {
-    const {onSetPTXGotoPos, onSetPTXHomePos, onSetPTXSoftStopPos, onSetPTXHardStopPos} = this.props.ros
+    const {onSetPTXGotoPos, onSetPTXGotoPanPos, onSetPTXGotoTiltPos, onSetPTXHomePos, onSetPTXSoftStopPos, onSetPTXHardStopPos} = this.props.ros
     var yawElement = null
     var pitchElement = null
     var yawMinElement = null
@@ -196,16 +205,21 @@ class NepiDevicePTX extends Component {
                             Number(pitchMinElement.value), Number(pitchMaxElement.value))
         this.setState({yawMaxSoftstopEdited: null, yawMinSoftstopEdited: null, pitchMaxSoftstopEdited: null, pitchMinSoftstopEdited: null})
       }
-      else if ((e.target.id === "PTXYawGoto") || (e.target.id === "PTXPitchGoto"))
+      else if (e.target.id === "PTXYawGoto") 
         {
           yawElement = document.getElementById("PTXYawGoto")
           clearElementStyleModified(yawElement)
-          
-          pitchElement = document.getElementById("PTXPitchGoto")
-          clearElementStyleModified(pitchElement)
-                  
-          onSetPTXGotoPos(namespace, Number(yawElement.value), Number(pitchElement.value))
+                            
+          onSetPTXGotoPanPos(namespace, Number(yawElement.value))
         }
+        else if  (e.target.id === "PTXPitchGoto")
+          {
+            
+            pitchElement = document.getElementById("PTXPitchGoto")
+            clearElementStyleModified(pitchElement)
+                    
+            onSetPTXGotoTiltPos(namespace, Number(pitchElement.value))
+          }
 
     }
   }
@@ -261,6 +275,12 @@ class NepiDevicePTX extends Component {
       pitchMinSoftstopDeg: message.pitch_min_softstop_deg,
       reverseYawControl: message.reverse_yaw_control,
       reversePitchControl: message.reverse_pitch_control,
+      auto_pan: message.auto_pan,
+      auto_pan_min: message.auto_pan_range_window.start,
+      auto_pan_max: message.auto_pan_range_window.stop,
+      auto_tilt: message.auto_tilt,
+      auto_tilt_min: message.auto_tilt_range_window.start,
+      auto_tilt_max: message.auto_tilt_range_window.stop
     })
   
 
@@ -348,6 +368,32 @@ class NepiDevicePTX extends Component {
     this.render()
   }
 
+
+
+
+onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
+  const {publishRangeWindow} = this.props.ros
+  const ptxNamespace = this.state.ptxNamespace
+  const namespace = ptxNamespace + topicName
+  var min = -60
+  var max = 60
+  if(event.key === 'Enter'){
+    const value = parseFloat(event.target.value)
+    if (!isNaN(value)){
+      if (entryName === "min"){
+        min = value
+        max = other_val
+      }
+      else if (entryName === "max"){
+        min = other_val
+        max = value
+      }
+      publishRangeWindow(namespace,min,max,false)
+    }
+    document.getElementById(event.target.id).style.color = Styles.vars.colors.black
+  }
+}
+
   renderControlPanel() {
     const { ptxNamespace, ptSerialNum, ptHwVersion, ptSwVersion,
             yawPositionDeg, pitchPositionDeg, yawHomePosDeg, pitchHomePosDeg,
@@ -365,10 +411,14 @@ class NepiDevicePTX extends Component {
     const pitchPositionDegClean = pitchPositionDeg + .001
 
     const ptx_caps = ptxDevices[ptxNamespace]
-    const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
-    const has_speed_control = ptx_caps && (ptx_caps['adjustable_speed'] === true)
-    const has_homing = ptx_caps && (ptx_caps['homing'] === true)
-    const has_waypoints = ptx_caps && (ptx_caps['waypoints'] === true)
+    const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning)
+    const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning)
+    const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt)
+    const has_auto_pan = ptx_caps && (ptx_caps.has_auto_pan)
+    const has_auto_tilt = ptx_caps && (ptx_caps.has_auto_tilt)
+    const has_speed_control = ptx_caps && (ptx_caps.adjustable_speed)
+    const has_homing = ptx_caps && (ptx_caps.has_homing)
+    const has_waypoints = ptx_caps && (ptx_caps.has_waypoints)
     
     const yawHomePos = (yawHomePosEdited === null)? round(yawHomePosDeg, 1) : yawHomePosEdited
     const pitchHomePos = (pitchHomePosEdited === null)? round(pitchHomePosDeg, 1) : pitchHomePosEdited
@@ -400,14 +450,81 @@ class NepiDevicePTX extends Component {
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Angles in ENU frame (Tilt+:Down , Pitch+:Left)"}
+          {"Angles in ENU frame (Tilt+:Down , Pan+:Left)"}
          </label>
+
+
+         <Columns>
+                  <Column>
+
+                  <div hidden={has_auto_pan === false}>
+
+                  <Label title="Enable Auto Pan">
+                    <Toggle
+                      checked={this.state.auto_pan===true}
+                      onClick={() => this.onChangeSwitchSendBoolValue("/set_auto_pan_enable",!this.state_auto_pan)}>
+                    </Toggle>
+                  </Label>
+
+
+
+                <Label title={"Set Pan Min"}>
+                    <Input id="set_pan_min" 
+                      value={this.state.set_pan_min} 
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_pan_min")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",this.state.set_pan_max)} />
+              </Label>
+            
+
+                  <Label title={"Set Pan Max"}>
+                    <Input id="set_pan_max" 
+                     value={this.state.set_pan_max} 
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_pan_max")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",this.state.set_pan_min)} />                      
+                  </Label>  
+
+                  </div>
+
+                </Column>
+                <Column>
+
+                <div hidden={has_auto_tilt === false}>
+
+                <Label title="Enable Auto Tilt">
+                    <Toggle
+                      checked={this.state.auto_pan===true}
+                      onClick={() => this.onChangeSwitchSendBoolValue("/set_auto_tilt_enable",!this.state_auto_pan)}>
+                    </Toggle>
+                  </Label>
+
+
+                  <Label title={"Set Tilt Min"}>
+                    <Input id="set_tilt_min" 
+                      value={this.state.set_tilt_min} 
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_tilt_min")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",this.state.set_tilt_max)} />
+              </Label>
+            
+
+                  <Label title={"Set Tilt Max"}>
+                    <Input id="set_tilt_max" 
+                     value={this.state.set_tilt_max} 
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_tilt_max")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",this.state.set_tilt_min)} />                      
+                  </Label>  
+
+                  </div>
+
+                  </Column>
+                </Columns>
+
+
 
         <Label title={""}>
         <div style={{ display: "inline-block", width: "45%", float: "left" }}>
-          {"Yaw"}
+          {"Pan"}
         </div>
-        <div style={{ display: "inline-block", width: "45%" }}>{"Pitch"}</div>
+        <div style={{ display: "inline-block", width: "45%" }}>{"Tilt"}</div>
         </Label>
 
         <Label title={"Reverse Control"}>
@@ -438,7 +555,7 @@ class NepiDevicePTX extends Component {
 
         </div>
 
-        <div hidden={(has_abs_positioning === false)}>
+        <div hidden={(has_abs_pos === false)}>
 
         <Label title={"Present Position"}>
           <Input
@@ -456,7 +573,7 @@ class NepiDevicePTX extends Component {
 
         <Label title={"GoTo Position"}>
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXYawGoto"}
             style={{ width: "45%", float: "left" }}
             value={this.state.yawGotoDeg}
@@ -464,7 +581,7 @@ class NepiDevicePTX extends Component {
             onKeyDown= {this.onKeyText}
           />
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXPitchGoto"}
             style={{ width: "45%" }}
             value={this.state.pitchGotoDeg}
@@ -502,14 +619,14 @@ class NepiDevicePTX extends Component {
 
         <Label title={"Hard Limit Min"}>
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXYawHardStopMin"}
             style={{ width: "45%", float: "left" }}
             value={yawHardStopMin}
             disabled={true}
           />
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXPitchHardStopMin"}
             style={{ width: "45%" }}
             value={pitchHardStopMin}
@@ -518,14 +635,14 @@ class NepiDevicePTX extends Component {
         </Label>
         <Label title={"Hard Limit Max"}>
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXYawHardStopMax"}
             style={{ width: "45%", float: "left" }}
             value={yawHardStopMax}
             disabled={true}
           />
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXPitchHardStopMax"}
             style={{ width: "45%" }}
             value={pitchHardStopMax}
@@ -536,7 +653,7 @@ class NepiDevicePTX extends Component {
 
         <Label title={"Soft Limit Min"}>
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXYawSoftStopMin"}
             style={{ width: "45%", float: "left" }}
             value={yawSoftStopMin}
@@ -544,7 +661,7 @@ class NepiDevicePTX extends Component {
             onKeyDown= {this.onKeyText}
           />
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXPitchSoftStopMin"}
             style={{ width: "45%" }}
             value={pitchSoftStopMin}
@@ -554,7 +671,7 @@ class NepiDevicePTX extends Component {
         </Label>
         <Label title={"Soft Limit Max"}>
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXYawSoftStopMax"}
             style={{ width: "45%", float: "left" }}
             value={yawSoftStopMax}
@@ -562,7 +679,7 @@ class NepiDevicePTX extends Component {
             onKeyDown= {this.onKeyText}
           />
           <Input
-            disabled={!has_abs_positioning}
+            disabled={!has_abs_pos}
             id={"PTXPitchSoftStopMax"}
             style={{ width: "45%" }}
             value={pitchSoftStopMax}
@@ -633,7 +750,8 @@ class NepiDevicePTX extends Component {
     const pitchSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"
 
     const ptx_caps = ptxDevices[ptxNamespace]
-    const has_abs_positioning = ptx_caps && (ptx_caps['absolute_positioning'] === true)
+    const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
+    const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning === true)
 
     const namespace = this.state.ptxNamespace
 
@@ -664,7 +782,7 @@ class NepiDevicePTX extends Component {
                   />
                 </div>
                 <SliderAdjustment
-                  disabled={!has_abs_positioning}
+                  disabled={!has_abs_pos}
                   title={"Yaw"}
                   msgType={"std_msgs/Float32"}
                   adjustment={yawNowRatio}
@@ -677,7 +795,11 @@ class NepiDevicePTX extends Component {
                   noTextBox={true}
                   noLabel={true}
                 />
-                <ButtonMenu>
+
+              <div hidden={(has_timed_pos === false)}>
+
+              <ButtonMenu>
+
                   <Button 
                     buttonDownAction={() => onPTXJogYaw(ptxNamespace, - 1)}
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
@@ -698,12 +820,25 @@ class NepiDevicePTX extends Component {
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
                     {'\u25BC'}
                   </Button>
-                  <Button onClick={() => onPTXStop(ptxNamespace)}>{"STOP"}</Button>
+                  
                 </ButtonMenu>
+
+
+                </div>
+
+
+
+                <ButtonMenu>
+
+                  <Button onClick={() => onPTXStop(ptxNamespace)}>{"STOP"}</Button>
+                  
+                  </ButtonMenu>
+
+
           </Column>
           <Column style={{flex: 0.05}}>
             <SliderAdjustment
-              disabled={!has_abs_positioning}
+              disabled={!has_abs_pos}
               title={"Pitch"}
               msgType={"std_msgs/Float32"}
               adjustment={pitchNowRatio}

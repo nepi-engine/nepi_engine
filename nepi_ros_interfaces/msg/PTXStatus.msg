@@ -28,8 +28,21 @@ float32 pitch_max_hardstop_deg
 float32 pitch_min_softstop_deg
 float32 pitch_max_softstop_deg
 
+bool has_auto_pan
+bool has_auto_tilt
+
+bool has_homing
+bool has_waypoints
+
 bool reverse_yaw_control
 bool reverse_pitch_control
+
+bool auto_pan
+RangeWindow auto_pan_range_window
+
+bool auto_tilt
+RangeWindow auto_tilt_range_window
+
 
 bool is_scanning
 float32 timed_scan_sec

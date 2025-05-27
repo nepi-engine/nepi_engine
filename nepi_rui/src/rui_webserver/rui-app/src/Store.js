@@ -1646,7 +1646,7 @@ class ROSConnectionStore {
       name: npxDeviceNamespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/NPXCapabilitiesQuery",  
     })
-    this.npxDevice[npxDeviceNamespace] = capabilities
+    this.npxDevices[npxDeviceNamespace] = capabilities
   }
 
   @action.bound
@@ -2738,9 +2738,29 @@ class ROSConnectionStore {
   @action.bound
   onSetPTXGotoPos(ptxNamespace, yawHomePos, pitchHomePos) {
     this.publishMessage({
-      name: ptxNamespace + "/jog_to_position",
+      name: ptxNamespace + "/goto_to_position",
       messageType: "nepi_ros_interfaces/PanTiltPosition",
       data: {"yaw_deg": yawHomePos, "pitch_deg": pitchHomePos},
+      noPrefix: true
+    })
+  }
+
+  @action.bound
+  onSetPTXGotoPanPos(ptxNamespace, yawHomePos) {
+    this.publishMessage({
+      name: ptxNamespace + "/goto_to_pan_position",
+      messageType: "std_msgs/Float32",
+      data: {"data": yawHomePos},
+      noPrefix: true
+    })
+  }
+
+  @action.bound
+  onSetPTXGotoTiltPos(ptxNamespace, pitchHomePos) {
+    this.publishMessage({
+      name: ptxNamespace + "/jog_to_tilt_position",
+      messageType: "std_msgs/Float32",
+      data: {"data": pitchHomePos},
       noPrefix: true
     })
   }

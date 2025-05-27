@@ -18,6 +18,7 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
+from nepi_ros_interfaces.msg import RangeWindow
 from nepi_ros_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, AbsolutePanTiltWaypoint
 from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
@@ -62,7 +63,15 @@ class PTXActuatorIF:
     ready = False
 
     has_absolute_positioning = False
+    has_timed_positioning = False
+    has_adjustable_limits = False
     has_speed_control = False
+    has_auto_pan = False
+    has_auto_tilt = False
+    has_homing = False
+    has_waypoints = False
+
+
     # Define some member variables
     yaw_now_deg = 0.0
     yaw_goal_deg = -999
@@ -75,6 +84,9 @@ class PTXActuatorIF:
     min_pitch_softstop_deg = 0.0
     max_pitch_softstop_deg = 0.0
 
+    home_yaw_deg = 0.0
+    home_pitch_deg = 0.0
+
     reverse_yaw_control = False
     ryi = 1
     reverse_pitch_control = False
@@ -85,13 +97,27 @@ class PTXActuatorIF:
 
     max_yaw_hardstop_deg = 0
     min_yaw_hardstop_deg = 0
-    max_yaw_softstop_deg = 0
-    min_yaw_softstop_deg = 0
 
     max_pitch_hardstop_deg = 0
     min_pitch_hardstop_deg = 0
+
+    max_yaw_softstop_deg = 0
+    min_yaw_softstop_deg = 0
+
     max_pitch_softstop_deg = 0
     min_pitch_softstop_deg = 0
+
+    speed_ratio = 0.0
+
+    is_auto_pan = False
+    auto_pan = False
+    auto_pan_min = -10
+    auto_pan_max = 10
+
+    is_auto_tilt = False
+    auto_tilt = False
+    auto_tilt_min = -10
+    auto_tilt_max = 10
 
 
     ### IF Initialization
@@ -106,9 +132,11 @@ class PTXActuatorIF:
                  movePitchCb, # Required; direction and time args
                  setSoftLimitsCb=None,
                  getSoftLimitsCb=None,
-                 setSpeedCb=None, # None ==> No speed adjustment capability; Speed ratio arg
-                 getSpeedCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
+                 setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
+                 getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
                  gotoPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
+                 gotoPanPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
+                 gotoTiltPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
                  goHomeCb=None, # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
                  setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
                  setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
@@ -178,13 +206,36 @@ class PTXActuatorIF:
 
         self.setSoftLimitsCb = setSoftLimitsCb
         self.getSoftLimitsCb = getSoftLimitsCb
-        self.setSpeedCb = setSpeedCb
-        self.getSpeedCb = getSpeedCb
-        self.gotoPositionCb = gotoPositionCb
+        self.setSpeedRatioCb = setSpeedRatioCb
+        self.getSpeedRatioCb = getSpeedRatioCb
 
         self.stopMovingCb = stopMovingCb
+
+
         self.moveYawCb = moveYawCb
         self.movePitchCb = movePitchCb
+        if self.moveYawCb is not None and self.movePitchCb is not None:
+            self.has_timed_positioning = True
+        else:
+            self.has_timed_positioning = False
+
+
+        self.gotoPositionCb = gotoPositionCb
+        if gotoPanPositionCb is not None:
+            self.gotoPanPositionCb = gotoPanPositionCb
+        else:
+            if self.gotoPositionCb is not None:
+                self.gotoPanPositionCb = self.gotoPanPositionCurTiltCb
+            else:
+                self.gotoPanPositionCb = None
+
+        if gotoTiltPositionCb is not None:
+            self.gotoTiltPositionCb = gotoTiltPositionCb
+        else:
+            self.gotoTiltPositionCb = None
+
+
+
 
         self.goHomeCb = goHomeCb
         self.setHomePositionCb = setHomePositionCb
@@ -202,27 +253,14 @@ class PTXActuatorIF:
 
               
         if (capabilities_dict['has_absolute_positioning'] == True):
-            self.factoryLimits = factoryLimits  
             self.has_absolute_positioning = True
-            '''
-            if self.getSoftLimitsCb is not None:
-                [min_yaw,max_yaw,min_pitch,max_pitch] = self.getSoftLimitsCb()
-                if min_yaw != -999:
-                    self.min_yaw_softstop_deg = min_yaw
-                    self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', self.min_yaw_softstop_deg)
-                if max_yaw != -999:
-                    self.max_yaw_softstop_deg = max_yaw
-                    self.node_if.set_param('ptx/limits/max_yaw_softstop_deg',self.max_yaw_softstop_deg)
-
-                if min_pitch != -999:
-                    self.min_pitch_softstop_deg = min_pitch
-                    self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', self.min_pitch_softstop_deg)
-                if max_pitch != -999:
-                    self.max_pitch_softstop_deg = max_pitch
-                    self.node_if.set_param('ptx/limits/max_pitch_softstop_deg',self.max_pitch_softstop_deg)
-                '''
         else:
             self.has_absolute_positioning = False
+
+
+        if factoryLimits is not None:
+            self.factoryLimits = factoryLimits  
+        else:
             # Hard limits
             self.factoryLimits['max_yaw_hardstop_deg'] = 0
             self.factoryLimits['min_yaw_hardstop_deg'] = 0
@@ -235,8 +273,17 @@ class PTXActuatorIF:
             self.factoryLimits['max_pitch_softstop_deg'] = 0
             self.factoryLimits['min_pitch_softstop_deg'] = 0
 
+
+        self.max_yaw_softstop_deg = self.factoryLimits['max_yaw_softstop_deg']
+        self.min_yaw_softstop_deg =  self.factoryLimits['min_yaw_softstop_deg']
+
+        self.max_pitch_softstop_deg = self.factoryLimits['max_pitch_softstop_deg']
+        self.min_pitch_softstop_deg = self.factoryLimits['min_pitch_softstop_deg']
+
+
         # Gather capabilities - Config file takes precedence over parent-supplied defaults
-        if capabilities_dict['has_limit_control'] is True:
+
+        if capabilities_dict['has_limit_control'] == True:
             if self.setSoftLimitsCb is not None and self.setSoftLimitsCb is not None:
                 self.has_adjustable_limits = True
             else:
@@ -247,65 +294,100 @@ class PTXActuatorIF:
 
 
         # Gather capabilities - Config file takes precedence over parent-supplied defaults
-        if capabilities_dict['has_speed_control'] is True:
-            if self.setSpeedCb is not None and self.getSpeedCb is not None:
+        if capabilities_dict['has_speed_control'] == True:
+            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
                 self.has_adjustable_speed = True
             else:
                 self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
                 self.has_adjustable_speed = False
         else:
             self.has_adjustable_speed = False
-            self.setSpeedCb = None
-            self.getSpeedCb = self.getZeroCb
+            self.setSpeedRatioCb = None
+            self.getSpeedRatioCb = self.getZeroCb
 
         
         # Create Capabilities Report
         self.capabilities_report = PTXCapabilitiesQueryResponse()
-        self.capabilities_report.absolute_positioning = self.has_absolute_positioning
+
+
+        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
         # Positioning and soft limits setup if available
-        if self.capabilities_report.absolute_positioning is True:
+        if self.capabilities_report.has_absolute_positioning == True:
             if (getOrientationCb is None):
                 self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided", log_name_list = self.log_name_list)
-                self.capabilities_report.adjustable_speed = False
                 # We require both command and feedback reporting to support absolute positioning
-                self.capabilities_report.absolute_positioning = False
+                self.capabilities_report.has_absolute_positioning = False
+
+        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
+
+
+        if self.gotoPanPositionCb is not None and self.gotoTiltPositionCb is not None:
+            self.capabilities_report.has_seperate_pan_tilt = True
+        else:
+            self.capabilities_report.has_seperate_pan_tilt = False
 
 
 
-        if self.capabilities_report.adjustable_speed is False:
-            if self.setSpeedCb is not None and self.getSpeedCb is not None:
-                self.capabilities_report.adjustable_speed = True
+
+        if self.capabilities_report.has_absolute_positioning == True:
+            self.capabilities_report.has_auto_pan = True
+            if self.capabilities_report.has_seperate_pan_tilt == True:
+                self.capabilities_report.has_auto_tilt = True
+            else:
+                self.capabilities_report.has_auto_tilt = False
+
+        else:
+            self.capabilities_report.has_auto_pan =  False
+            self.capabilities_report.has_auto_tilt =  False
+
+        self.has_auto_pan = self.capabilities_report.has_auto_pan
+        self.has_auto_tilt = self.capabilities_report.has_auto_tilt
+
+        if self.gotoPanPositionCb is not None and self.gotoTiltPositionCb is not None:
+            self.capabilities_report.has_seperate_pan_tilt = True
+        else:
+            self.capabilities_report.has_seperate_pan_tilt = False
+
+
+
+
+        if self.capabilities_report.has_adjustable_speed == False:
+            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
+                self.capabilities_report.has_adjustable_speed = True
             else:
                 self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
-                self.capabilities_report.adjustable_speed = False
+                self.capabilities_report.has_adjustable_speed = False
 
 
-        self.capabilities_report.homing = capabilities_dict['has_homing']
+        self.capabilities_report.has_homing = capabilities_dict['has_homing']
         # Homing setup
-        if self.capabilities_report.homing is True:
+        if self.capabilities_report.has_homing == True:
             self.goHomeCb = goHomeCb
             self.setHomePositionCb = setHomePositionCb
             self.setHomePositionHereCb = setHomePositionHereCb
         
-            if self.goHomeCb is None and self.capabilities_report.absolute_positioning is False:
+            if self.goHomeCb is None and self.capabilities_report.has_absolute_positioning == False:
                 self.msg_if.pub_warn("Inconsistent capabilities: homing reports true, but no goHome callback provided and no absolute positioning", log_name_list = self.log_name_list)
-                self.capabilities_report.homing = False
+                self.capabilities_report.has_homing = False
                 
-            self.home_yaw_deg = 0
-            self.home_pitch_deg = 0
+            self.home_yaw_deg = 0.0
+            self.home_pitch_deg = 0.0
+
+        self.has_homing = self.capabilities_report.has_homing
                 
 
-        self.capabilities_report.waypoints = capabilities_dict['has_waypoints']
+        self.capabilities_report.has_waypoints = capabilities_dict['has_waypoints']
         # Waypoint setup
-        if self.capabilities_report.waypoints is True:
+        if self.capabilities_report.has_waypoints == True:
             self.gotoWaypointCb = gotoWaypointCb
             self.setWaypointCb = setWaypointCb
             self.setWaypointHereCb = setWaypointHereCb
 
             if self.gotoWaypointCb is None:
                 self.msg_if.pub_warn("Inconsistent capabilities: waypoints reports true, but no gotoWaypoint callback provided", log_name_list = self.log_name_list)
-                self.capabilities_report.waypoints = False
+                self.capabilities_report.has_waypoints = False
 
+        self.has_waypoints = self.capabilities_report.has_waypoints
 
         # Set up status message static values
         self.status_msg = PTXStatus()
@@ -331,87 +413,111 @@ class PTXActuatorIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'ptx/has_absolute_positioning': {
+            'has_absolute_positioning': {
                 'namespace': self.node_namespace,
                 'factory_val': capabilities_dict['has_absolute_positioning']
             },
-            'ptx/has_speed_control': {
+            'has_speed_control': {
                 'namespace': self.node_namespace,
                 'factory_val': capabilities_dict['has_speed_control']
             },
-            'ptx/speed_ratio': {
+            'speed_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
             },
-            'ptx/has_homing': {
+            'has_homing': {
                 'namespace': self.node_namespace,
                 'factory_val': capabilities_dict['has_homing']
             },
-            'ptx/has_waypoints': {
+            'has_waypoints': {
                 'namespace': self.node_namespace,
                 'factory_val': capabilities_dict['has_waypoints']
             },
 
-            'ptx/home_position/yaw_deg': {
+            'home_position/yaw_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
             },
-            'ptx/home_position/pitch_deg': {
+            'home_position/pitch_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
             }, 
-            'ptx/frame_id': {
+            'frame_id': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['frame_id']
             },            
-            'ptx/yaw_joint_name': {
+            'yaw_joint_name': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['yaw_joint_name']
             },            
-            'ptx/pitch_joint_name': {
+            'pitch_joint_name': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['pitch_joint_name']
             },            
-            'ptx/reverse_yaw_control': {
+            'reverse_yaw_control': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_yaw_control']
             },            
-            'ptx/reverse_pitch_control': {
+            'reverse_pitch_control': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_pitch_control']
             },            
-            'ptx/limits/max_yaw_hardstop_deg': {
+            'max_yaw_hardstop_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_yaw_hardstop_deg']
             },            
-            'ptx/limits/min_yaw_hardstop_deg': {
+            'min_yaw_hardstop_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['min_yaw_hardstop_deg']
             },            
-            'ptx/limits/max_pitch_hardstop_deg': {
+            'max_pitch_hardstop_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_pitch_hardstop_deg']
             },            
-            'ptx/limits/min_pitch_hardstop_deg': {
+            'min_pitch_hardstop_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['min_pitch_hardstop_deg']
             },            
-            'ptx/limits/max_yaw_softstop_deg': {
+            'max_yaw_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_yaw_hardstop_deg']
+                'factory_val': self.factoryLimits['max_yaw_softstop_deg']
             },            
-            'ptx/limits/min_yaw_softstop_deg': {
+            'min_yaw_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_yaw_hardstop_deg']
+                'factory_val': self.factoryLimits['min_yaw_softstop_deg']
             },            
-            'ptx/limits/max_pitch_softstop_deg': {
+            'max_pitch_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_pitch_hardstop_deg']
+                'factory_val': self.factoryLimits['max_pitch_softstop_deg']
             },           
-            'ptx/limits/min_pitch_softstop_deg': {
+            'min_pitch_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_pitch_hardstop_deg']
-            }
+                'factory_val': self.factoryLimits['min_pitch_softstop_deg']
+            },           
+            'auto_pan_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': False
+            },           
+            'min_auto_pan_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factoryLimits['min_yaw_softstop_deg']
+            },           
+            'max_auto_pan_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factoryLimits['max_yaw_softstop_deg']
+            },           
+            'auto_tilt_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': False
+            },           
+            'min_auto_tilt_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factoryLimits['min_pitch_softstop_deg']
+            },           
+            'max_auto_tilt_deg': {
+                'namespace': self.node_namespace,
+                'factory_val': self.factoryLimits['max_pitch_softstop_deg']
+            },        
         }
         
 
@@ -466,12 +572,28 @@ class PTXActuatorIF:
                 'callback': self.stopMovingHandler, 
                 'callback_args': ()
             },
-            'jog_to_position': {
+            'goto_to_position': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/jog_to_position',
+                'topic': 'ptx/goto_to_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
-                'callback': self.jogToPositionHandler, 
+                'callback': self.gotoPositionHandler, 
+                'callback_args': ()
+            },
+            'goto_to_pan_position': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/goto_pan_to_position',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.gotoPanPositionHandler, 
+                'callback_args': ()
+            },
+            'goto_to_tilt_position': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/goto_tilt_to_position',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self.gotoTiltPositionHandler, 
                 'callback_args': ()
             },
             'jog_to_yaw_ratio': {
@@ -578,6 +700,38 @@ class PTXActuatorIF:
                 'callback': self.setWaypointHereHandler, 
                 'callback_args': ()
             },
+            'set_auto_pan': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_auto_pan_enable',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setAutoPanHandler, 
+                'callback_args': ()
+            },
+            'set_auto_pan_window': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_auto_pan_window',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self.setAutoPanWindowHandler, 
+                'callback_args': ()
+            },
+            'set_auto_tilt': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_auto_tilt_enable',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setAutoTiltHandler, 
+                'callback_args': ()
+            },
+            'set_auto_tilt_window': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_auto_tilt_window',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self.setAutoTiltWindowHandler, 
+                'callback_args': ()
+            }
         }
         
         
@@ -687,33 +841,35 @@ class PTXActuatorIF:
    
         ###############################
         # Finish Initialization
+        self.max_yaw_softstop_deg = self.node_if.get_param('max_yaw_softstop_deg')
+        self.min_yaw_softstop_deg =  self.node_if.get_param('min_yaw_softstop_deg')
+
+        self.max_pitch_softstop_deg = self.node_if.get_param('max_pitch_softstop_deg')
+        self.min_pitch_softstop_deg = self.node_if.get_param('min_pitch_softstop_deg')
+
         if self.setSoftLimitsCb is not None:
-            max_yaw = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
-            min_yaw =  self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
-            max_pitch = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
-            min_pitch = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
-            self.setSoftLimitsCb(min_yaw,max_yaw,min_pitch,max_pitch)
+            self.setSoftLimitsCb(self.max_yaw_softstop_deg,
+                                self.min_yaw_softstop_deg,
+                                self.max_pitch_softstop_deg,
+                                self.min_pitch_softstop_deg)
 
-
-
-
-
-        if self.capabilities_report.adjustable_speed is False:
-            if self.setSpeedCb is not None and self.getSpeedCb is not None:
-                speed_ratio = self.node_if.get_param('ptx/speed_ratio')
-                self.setSpeedCb(speed_ratio)
+        if self.capabilities_report.has_adjustable_speed == False:
+            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
+                speed_ratio = self.node_if.get_param('speed_ratio')
+                self.speed_ratio = speed_ratio
+                self.setSpeedRatioCb(speed_ratio)
 
                 
-        self.home_yaw_deg = self.node_if.get_param('ptx/home_position/yaw_deg')
-        self.home_pitch_deg = self.node_if.get_param('ptx/home_position/pitch_deg')
+        self.home_yaw_deg = self.node_if.get_param('home_position/yaw_deg')
+        self.home_pitch_deg = self.node_if.get_param('home_position/pitch_deg')
 
 
 
-        self.frame_id = self.node_if.get_param('ptx/frame_id')
-        self.yaw_joint_name = self.node_if.get_param('ptx/yaw_joint_name')
-        self.pitch_joint_name = self.node_if.get_param('ptx/pitch_joint_name')
-        self.reverse_yaw_control = self.node_if.get_param('ptx/reverse_yaw_control')
-        self.reverse_pitch_control = self.node_if.get_param('ptx/reverse_pitch_control')
+        self.frame_id = self.node_if.get_param('frame_id')
+        self.yaw_joint_name = self.node_if.get_param('yaw_joint_name')
+        self.pitch_joint_name = self.node_if.get_param('pitch_joint_name')
+        self.reverse_yaw_control = self.node_if.get_param('reverse_yaw_control')
+        self.reverse_pitch_control = self.node_if.get_param('reverse_pitch_control')
         self.msg_if.pub_debug("Factory Controls Dict: " + str(self.factory_controls_dict))
         self.msg_if.pub_debug("reverse_yaw_control: " + str(self.reverse_yaw_control))
         # set class reverse int values
@@ -762,6 +918,13 @@ class PTXActuatorIF:
         self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
         nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
+        '''
+        # Start Auto Pan and Tilt Processes
+        if self.gotoPanPositionCb is not None:
+            nepi_ros.start_timer_process(1.0, self.autoPanProcess, oneshot = True)
+        if self.gotoTiltPositionCb is not None:
+            nepi_ros.start_timer_process(1.0, self.autoTiltProcess, oneshot = True)
+        '''
 
         self.publish_status()
         self.ready = True
@@ -771,6 +934,115 @@ class PTXActuatorIF:
 
     ###############################
     # Class Methods
+
+    def gotoPanPositionCurTiltCb(self, pan_deg):
+        if self.gotoPositionCb is not None and self.getPositionCb is not None:
+            [cur_pan,cur_tilt] = self.getPositionCb()
+            self.gotPositionCb(pan_deg,cur_tilt)
+            
+
+    def autoPanProcess(self):
+        pass
+        '''
+        if self.auto_pan == True:
+            self.msg_if.pub_warn("Starting Pan Scan Process") 
+            self.is_auto_pan = True
+            if was_scanning == False:
+                self.start_scanning = True
+            self.publish_status()
+            scan_speed_ratio = self.status_msg.scan_speed_ratio
+            scan_tilt_offset = self.status_msg.scan_tilt_offset
+            
+
+            # Check tilt limits
+            if scan_tilt_offset < min_tilt:
+            scan_tilt_offset = min_tilt
+            if scan_tilt_offset > max_tilt:
+            scan_tilt_offset = max_tilt
+            self.node_if.set_param("scan_tilt_offset",scan_tilt_offset)
+
+
+            if self.has_adjustable_speed == True and self.cur_speed_ratio != scan_speed_ratio:
+            try:
+                self.set_pt_speed_ratio_pub.publish(scan_speed_ratio)
+            except:
+                pass
+ 
+            if self.has_position_feedback == True:
+            if (pan_cur < (min_pan + 10)):
+                pan_tilt_pos_msg = PanTiltPosition()
+                pan_tilt_pos_msg.yaw_deg = max_pan
+                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
+                self.msg_if.pub_warn("Scanning to pan tilt : " + str(pan_tilt_pos_msg))
+                self.last_scan_goal = pan_tilt_pos_msg
+                try:
+                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
+                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
+                self.current_scan_dir = 1
+                self.publish_status(do_updates = False)
+                except Exception as e:
+                self.msg_if.pub_warn("Scanning to max_pan excpetion: " + str(e))
+                #self.msg_if.pub_warn("Scanning to max_pan")
+                self.start_scanning = False
+
+            elif (pan_cur > (max_pan - 10)):
+                pan_tilt_pos_msg = PanTiltPosition()
+                pan_tilt_pos_msg.yaw_deg = min_pan
+                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
+                self.msg_if.pub_warn("Scanning to pan tilt : " + str(pan_tilt_pos_msg))
+                self.last_scan_goal = pan_tilt_pos_msg
+                try:
+                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
+                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
+                self.current_scan_dir = -1
+                self.publish_status(do_updates = False)
+                except:
+                self.msg_if.pub_warn("Scanning to min_pan excpetion: " + str(e))
+                #self.msg_if.pub_warn("Scanning to min_pan")
+                self.start_scanning = False
+
+            elif self.start_scanning == True:
+                if self.current_scan_dir > 0:
+                pan_tilt_pos_msg = PanTiltPosition()
+                pan_tilt_pos_msg.yaw_deg = max_pan
+                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
+                self.msg_if.pub_warn("Starting Scan to pan tilt : " + str(pan_tilt_pos_msg))
+                self.last_scan_goal = pan_tilt_pos_msg
+                try:
+                    self.set_pt_position_pub.publish(pan_tilt_pos_msg)
+                    self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
+                    self.publish_status(do_updates = False)
+                except:
+                    self.msg_if.pub_warn("Starting Scan to max_pan excpetion: " + str(e))
+                #self.msg_if.pub_warn("Starting to max_pan")
+                self.start_scanning = False
+                else:
+                pan_tilt_pos_msg = PanTiltPosition()
+                pan_tilt_pos_msg.yaw_deg = min_pan
+                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
+                self.msg_if.pub_warn("Starting Scan to pan tilt : " + str(pan_tilt_pos_msg))
+                self.last_scan_goal = pan_tilt_pos_msg
+                try:
+                    self.set_pt_position_pub.publish(pan_tilt_pos_msg)
+                    self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
+                    self.publish_status(do_updates = False)
+                except:
+                    self.msg_if.pub_warn("Starting Scan to min_pan excpetion: " + str(e))
+                self.msg_if.pub_warn("Starting to min_pan")
+                self.start_scanning = False
+            else:
+                self.msg_if.pub_warn("Cont Scan to pan tilt : " + str(self.last_scan_goal))
+                pan_tilt_pos_msg = self.last_scan_goal
+                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
+                try:
+                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
+                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
+                self.current_scan_dir = 1
+                self.publish_status(do_updates = False)
+                except Exception as e:
+                self.msg_if.pub_warn("Cont to max_pan excpetion: " + str(e))
+        self.msg_if.pub_warn("Ending Scan Process") 
+        '''
 
     def check_ready(self):
         return self.ready  
@@ -840,18 +1112,18 @@ class PTXActuatorIF:
         start_time = nepi_utils.get_time()
         self.status_msg.header.stamp = nepi_ros.ros_time_now()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
-        if self.capabilities_report.absolute_positioning == True and self.npx_if is not None:
+        if self.capabilities_report.has_absolute_positioning == True and self.npx_if is not None:
             navpose_dict = self.npx_if.get_navpose_dict()
             #self.msg_if.pub_info("Got Nav Pose Dict: " + str(navpose_dict) , log_name_list = self.log_name_list)
-            yaw_now_deg = navpose_dict['yaw_deg']
-            pitch_now_deg = navpose_dict['pitch_deg']
+            yaw_now_deg = navpose_dict['yaw_deg']  * self.ryi
+            pitch_now_deg = navpose_dict['pitch_deg']  * self.rpi
             got_time = nepi_utils.get_time() - start_time
             got_time = round(got_time, 3)
             #self.msg_if.pub_debug("Got PT status with time: " + str(got_time))
 
             if round(yaw_now_deg,5) != round(self.yaw_goal_deg,5) or round(pitch_now_deg,5) != round(self.pitch_goal_deg,5):
-                self.status_msg.yaw_now_deg = yaw_now_deg 
-                self.status_msg.pitch_now_deg = pitch_now_deg 
+                self.status_msg.yaw_now_deg = yaw_now_deg
+                self.status_msg.pitch_now_deg = pitch_now_deg
 
                 '''
                 if self.yaw_goal_deg == -999:
@@ -888,8 +1160,7 @@ class PTXActuatorIF:
                 elif yaw_now_ratio > 1:
                     yaw_now_ratio = 1
                 self.status_msg.yaw_now_ratio = yaw_now_ratio 
-                yaw_goal_deg = self.yaw_goal_deg * self.ryi
-                yaw_goal_ratio =  1 - (yaw_goal_deg - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
+                yaw_goal_ratio =  1 - ((self.status_msg.yaw_goal_deg) - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
                 self.msg_if.pub_debug("yaw_now, min_yaw, max_yaw, yaw_goal_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_goal_ratio]))
                 if yaw_goal_ratio < 0:
                     yaw_goal_ratio = 0
@@ -900,34 +1171,37 @@ class PTXActuatorIF:
 
                 self.status_msg.reverse_pitch_control = self.reverse_pitch_control
 
+                max_pitch_hs = self.max_pitch_hardstop_deg
+                min_pitch_hs = self.min_pitch_hardstop_deg
+                max_pitch_ss = self.max_pitch_softstop_deg
+                min_pitch_ss = self.min_pitch_softstop_deg
                 if self.reverse_pitch_control:
-                    max_pitch_hardstop_deg = -1*self.min_pitch_hardstop_deg
-                    min_pitch_hardstop_deg = -1*self.max_pitch_hardstop_deg
-                    max_pitch_softstop_deg = -1*self.min_pitch_softstop_deg
-                    min_pitch_softstop_deg = -1*self.max_pitch_softstop_deg
+                    max_pitch_hardstop_deg = -1*min_pitch_hs
+                    min_pitch_hardstop_deg = -1*max_pitch_hs
+                    max_pitch_softstop_deg = -1*min_pitch_ss
+                    min_pitch_softstop_deg = -1*max_pitch_ss
                 else:
-                    max_pitch_hardstop_deg = self.max_pitch_hardstop_deg
-                    min_pitch_hardstop_deg = self.min_pitch_hardstop_deg
-                    max_pitch_softstop_deg = self.max_pitch_softstop_deg
-                    min_pitch_softstop_deg = self.min_pitch_softstop_deg
+                    max_pitch_hardstop_deg = max_pitch_hs
+                    min_pitch_hardstop_deg = min_pitch_hs
+                    max_pitch_softstop_deg = max_pitch_ss
+                    min_pitch_softstop_deg = min_pitch_ss
 
                 self.status_msg.pitch_max_hardstop_deg = max_pitch_hardstop_deg
                 self.status_msg.pitch_min_hardstop_deg = min_pitch_hardstop_deg
                 self.status_msg.pitch_max_softstop_deg = max_pitch_softstop_deg
                 self.status_msg.pitch_min_softstop_deg = min_pitch_softstop_deg
 
-                self.status_msg.pitch_goal_deg = self.pitch_goal_deg * self.ryi
-                self.status_msg.pitch_home_pos_deg = self.home_pitch_deg * self.ryi
+                self.status_msg.pitch_goal_deg = self.pitch_goal_deg * self.rpi
+                self.status_msg.pitch_home_pos_deg = self.home_pitch_deg * self.rpi
 
-                pitch_now_ratio =  1 - (pitch_now_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
+                pitch_now_ratio =  1 - ((pitch_now_deg * self.rpi) - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
                 self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch,pitch_now_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_now_ratio]))
                 if pitch_now_ratio < 0:
                     pitch_now_ratio = 0
                 elif pitch_now_ratio > 1:
                     pitch_now_ratio = 1
                 self.status_msg.pitch_now_ratio = pitch_now_ratio 
-                pitch_goal_deg = self.pitch_goal_deg * self.ryi
-                pitch_goal_ratio =  1 - (pitch_goal_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
+                pitch_goal_ratio =  1 - (self.status_msg.pitch_goal_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
                 self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch, pitch_goal_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_goal_ratio]))
                 if pitch_goal_ratio < 0:
                     pitch_goal_ratio = 0
@@ -935,29 +1209,36 @@ class PTXActuatorIF:
                     pitch_goal_ratio = 1
                 self.status_msg.pitch_goal_ratio = pitch_goal_ratio 
 
+                self.status_msg.speed_ratio = self.speed_ratio
+
 
         if do_updates == True:
             if self.getSoftLimitsCb is not None:
                 [min_yaw,max_yaw,min_pitch,max_pitch] = self.getSoftLimitsCb()
                 if min_yaw != -999:
                     self.min_yaw_softstop_deg = min_yaw
-                    self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', self.min_yaw_softstop_deg)
+                    self.node_if.set_param('min_yaw_softstop_deg', self.min_yaw_softstop_deg)
                 if max_yaw != -999:
                     self.max_yaw_softstop_deg = max_yaw
-                    self.node_if.set_param('ptx/limits/max_yaw_softstop_deg',self.max_yaw_softstop_deg)
+                    self.node_if.set_param('max_yaw_softstop_deg',self.max_yaw_softstop_deg)
 
                 if min_pitch != -999:
                     self.min_pitch_softstop_deg = min_pitch
-                    self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', self.min_pitch_softstop_deg)
+                    self.node_if.set_param('min_pitch_softstop_deg', self.min_pitch_softstop_deg)
                 if max_pitch != -999:
                     self.max_pitch_softstop_deg = max_pitch
-                    self.node_if.set_param('ptx/limits/max_pitch_softstop_deg',self.max_pitch_softstop_deg)
+                    self.node_if.set_param('max_pitch_softstop_deg',self.max_pitch_softstop_deg)
 
-            if self.capabilities_report.adjustable_speed is True:
-                self.status_msg.speed_ratio = self.getSpeedCb()
+            if self.capabilities_report.has_adjustable_speed == True:
+                self.status_msg.speed_ratio = self.getSpeedRatioCb()
+                self.speed_ratio = self.status_msg.speed_ratio
 
         self.status_msg.has_position_feedback = self.has_position_feedback
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        self.status_msg.has_auto_pan = self.has_auto_pan
+        self.status_msg.has_auto_tilt = self.has_auto_tilt
+        self.status_msg.has_homing = self.has_homing
+        self.status_msg.has_waypoints = self.has_waypoints
 
         self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
 
@@ -1000,15 +1281,15 @@ class PTXActuatorIF:
             if min_yaw >= self.factoryLimits['min_yaw_hardstop_deg'] and max_yaw <= self.factoryLimits['max_yaw_hardstop_deg']:
                 if min_pitch >= self.factoryLimits['min_pitch_hardstop_deg'] and max_pitch <= self.factoryLimits['max_pitch_hardstop_deg']:
 
-                    self.node_if.set_param('ptx/limits/max_yaw_hardstop_deg', max_yaw)
-                    self.node_if.set_param('ptx/limits/min_yaw_hardstop_deg', min_yaw)
-                    self.node_if.set_param('ptx/limits/max_pitch_hardstop_deg', max_pitch)
-                    self.node_if.set_param('ptx/limits/min_pitch_hardstop_deg', min_pitch)
+                    self.node_if.set_param('max_yaw_hardstop_deg', max_yaw)
+                    self.node_if.set_param('min_yaw_hardstop_deg', min_yaw)
+                    self.node_if.set_param('max_pitch_hardstop_deg', max_pitch)
+                    self.node_if.set_param('min_pitch_hardstop_deg', min_pitch)
 
-                    self.node_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
-                    self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
-                    self.node_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
-                    self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
+                    self.node_if.set_param('max_yaw_softstop_deg', max_yaw)
+                    self.node_if.set_param('min_yaw_softstop_deg', min_yaw)
+                    self.node_if.set_param('max_pitch_softstop_deg', max_pitch)
+                    self.node_if.set_param('min_pitch_softstop_deg', min_pitch)
                     valid = True
 
                     self.initCb(do_updates = True)
@@ -1024,18 +1305,18 @@ class PTXActuatorIF:
         min_pitch = msg.min_pitch_deg
         max_pitch = msg.max_pitch_deg
 
-        max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
+        max_yaw_hardstop_deg = self.node_if.get_param('max_yaw_hardstop_deg')
+        min_yaw_hardstop_deg = self.node_if.get_param('min_yaw_hardstop_deg')
+        max_pitch_hardstop_deg = self.node_if.get_param('max_pitch_hardstop_deg')
+        min_pitch_hardstop_deg = self.node_if.get_param('min_pitch_hardstop_deg')
 
         valid = False
         if min_yaw < max_yaw and max_yaw <= max_yaw_hardstop_deg and min_yaw < max_yaw:  
             if min_pitch >= min_pitch_hardstop_deg and max_pitch <= max_pitch_hardstop_deg and min_pitch < max_pitch:
-                self.node_if.set_param('ptx/limits/max_yaw_softstop_deg', max_yaw)
-                self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', min_yaw)
-                self.node_if.set_param('ptx/limits/max_pitch_softstop_deg', max_pitch)
-                self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', min_pitch)
+                self.node_if.set_param('max_yaw_softstop_deg', max_yaw)
+                self.node_if.set_param('min_yaw_softstop_deg', min_yaw)
+                self.node_if.set_param('max_pitch_softstop_deg', max_pitch)
+                self.node_if.set_param('min_pitch_softstop_deg', min_pitch)
                 valid = True
 
 
@@ -1050,13 +1331,15 @@ class PTXActuatorIF:
 
    
     def setSpeedRatioHandler(self, msg):
-        if self.capabilities_report.adjustable_speed is True:
-            speed_cur = self.getSpeedCb()
+        if self.capabilities_report.has_adjustable_speed == True:
+            speed_cur = self.getSpeedRatioCb()
             speed_ratio = msg.data
             if (speed_ratio < 0.0) or (speed_ratio > 1.0):
                 self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
-            elif speed_cur != speed_ratio and self.setSpeedCb is not None:
-                self.setSpeedCb(speed_ratio)
+            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
+                self.speed_ratio = speed_ratio
+                self.publish_status()
+                self.setSpeedRatioCb(speed_ratio)
                 self.msg_if.pub_info("Updated speed ratio to " + str(speed_ratio))
         
 
@@ -1078,48 +1361,87 @@ class PTXActuatorIF:
             
 
     def goHomeHandler(self, _):
-        if self.goHomeCb is not None:
-            self.yaw_goal_deg = self.home_yaw_deg
-            self.pitch_goal_deg = self.home_pitch_deg
-            self.goHomeCb()
+        if self.auto_pan == False and self.auto_tilt == False:
+            if self.goHomeCb is not None:
+                self.yaw_goal_deg = self.home_yaw_deg
+                self.pitch_goal_deg = self.home_pitch_deg
+                self.goHomeCb()
         
 
-    def jogToPositionHandler(self, msg):
-        if self.positionWithinSoftLimits is not None:
-            if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-                self.msg_if.pub_warn("Requested jog position is invalid... ignoring", log_name_list = self.log_name_list)
-                return
-            self.yaw_goal_deg = msg.yaw_deg
-            self.pitch_goal_deg = msg.pitch_deg
-            self.msg_if.pub_info("Driving to  " + "%.2f" % self.yaw_goal_deg + " " + "%.2f" % self.pitch_goal_deg)
-            self.gotoPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))
-        
+    def gotoPositionHandler(self, msg):
+        if self.auto_pan == False and self.auto_tilt == False:
+            if self.positionWithinSoftLimits is not None:
+                if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
+                    self.msg_if.pub_warn("Requested goto position is invalid... ignoring", log_name_list = self.log_name_list)
+                    return
+                self.yaw_goal_deg = msg.yaw_deg
+                self.pitch_goal_deg = msg.pitch_deg
+                self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
+                self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))
+
+    def gotoPanPositionHandler(self, msg):
+        yaw_deg = msg.data
+        pitch_deg = self.status_msg.pitch_now_deg
+        if self.auto_pan == False:
+            if self.positionWithinSoftLimits is not None:
+                if not self.positionWithinSoftLimits(yaw_deg, pitch_deg):
+                    self.msg_if.pub_warn("Requested goto pan position is invalid... ignoring", log_name_list = self.log_name_list)
+                    return
+                self.yaw_goal_deg = msg.yaw_deg
+                self.pitch_goal_deg = msg.pitch_deg
+                if self.gotoPanPositionCb is not None:
+                    self.msg_if.pub_info("Driving to yaw " + "%.2f" % (self.yaw_goal_deg * self.ryi))
+                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi))
+                elif self.gotoPanPositionCb is not None:
+                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
+                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))                    
+
+    def gotoTiltPositionHandler(self, msg):
+        yaw_deg = self.status_msg.yaw_now_deg 
+        pitch_deg = msg.data
+        if self.auto_pan == False:
+            if self.positionWithinSoftLimits is not None:
+                if not self.positionWithinSoftLimits(yaw_deg, pitch_deg):
+                    self.msg_if.pub_warn("Requested goto tilt position is invalid... ignoring", log_name_list = self.log_name_list)
+                    return
+                self.yaw_goal_deg = msg.yaw_deg
+                self.pitch_goal_deg = msg.pitch_deg
+                if self.gotoTiltPositionCb is not None:
+                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.pitch_goal_deg * self.rpi))
+                    self.self.gotoTiltPositionCb(pitch_deg = (self.pitch_goal_deg * self.rpi))    
+                elif self.gotoPanPositionCb is not None:
+                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
+                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))      
 
     def jogToYawRatioHandler(self, msg):
-        ratio = msg.data
-        if (ratio < 0.0 or ratio > 1.0):
-            self.msg_if.pub_warn("Invalid yaw position ratio " + "%.2f" % ratio)
-            return
-        if self.gotoPositionCb is not None:
-            self.yaw_goal_deg = self.yawRatioToDeg(ratio)
-            pitch_now_deg = self.status_msg.pitch_now_deg
-            self.msg_if.pub_info("Driving to  " + "%.2f" % self.yaw_goal_deg + " " + "%.2f" % pitch_now_deg)
-            self.gotoPositionCb(yaw_deg = self.yaw_goal_deg, pitch_deg = pitch_now_deg)
+        if self.auto_pan == False:
+            ratio = msg.data
+            if (ratio < 0.0 or ratio > 1.0):
+                self.msg_if.pub_warn("Invalid yaw position ratio " + "%.2f" % ratio)
+                return
+            if self.gotoPositionCb is not None:
+                self.yaw_goal_deg = self.yawRatioToDeg(ratio)
+                pitch_now_deg = self.status_msg.pitch_now_deg
+                self.msg_if.pub_info("Driving to  " + "%.2f" % self.yaw_goal_deg + " " + "%.2f" % pitch_now_deg)
+                self.gotoPositionCb(yaw_deg = self.yaw_goal_deg, pitch_deg = pitch_now_deg)
         
 
     def jogToPitchRatioHandler(self, msg):
-        ratio = msg.data
-        if (ratio < 0.0 or ratio > 1.0):
-            self.msg_if.pub_warn("Invalid pitch position ratio " + "%.2f" % ratio)
-            return
-        if self.gotoPositionCb is not None:
-            self.pitch_goal_deg = self.pitchRatioToDeg(ratio)
-            yaw_now_deg = self.status_msg.yaw_now_deg
-            self.msg_if.pub_info("Driving to  " + "%.2f" % yaw_now_deg + " " + "%.2f" % self.pitch_goal_deg)
-            self.gotoPositionCb(yaw_deg = yaw_now_deg, pitch_deg = self.pitch_goal_deg)
+        if self.auto_tilt == False:
+            ratio = msg.data
+            if (ratio < 0.0 or ratio > 1.0):
+                self.msg_if.pub_warn("Invalid pitch position ratio " + "%.2f" % ratio)
+                return
+            if self.gotoPositionCb is not None:
+                self.pitch_goal_deg = self.pitchRatioToDeg(ratio)
+                yaw_now_deg = self.status_msg.yaw_now_deg
+                self.msg_if.pub_info("Driving to  " + "%.2f" % yaw_now_deg + " " + "%.2f" % self.pitch_goal_deg)
+                self.gotoPositionCb(yaw_deg = yaw_now_deg, pitch_deg = self.pitch_goal_deg)
         
 
     def stopMovingHandler(self, _):
+        self.auto_pan = False
+        self.auto_tilt = False
         if self.stopMovingCb is not None:
             self.stopMovingCb()
             self.yaw_goal_deg = self.status_msg.yaw_now_deg
@@ -1128,38 +1450,40 @@ class PTXActuatorIF:
         
 
     def jogTimedYawHandler(self, msg):
-        self.msg_if.pub_warn("Got job yaw msg: " + str(msg))
-        if self.moveYawCb is not None:
-            direction = msg.direction if self.reverse_yaw_control is False else (-1 * msg.direction)
-            time_s = msg.duration_s
-            self.moveYawCb(direction,  time_s)
-            self.msg_if.pub_info("Jogging yaw", log_name_list = self.log_name_list)
+        if self.auto_pan == False:
+            self.msg_if.pub_warn("Got job yaw msg: " + str(msg))
+            if self.moveYawCb is not None:
+                direction = msg.direction if self.reverse_yaw_control is False else (-1 * msg.direction)
+                time_s = msg.duration_s
+                self.moveYawCb(direction,  time_s)
+                self.msg_if.pub_info("Jogging yaw", log_name_list = self.log_name_list)
         
 
     def jogTimedPitchHandler(self, msg):
-        self.msg_if.pub_warn("Got job pitch msg: " + str(msg))
-        if self.movePitchCb is not None:
-            direction = msg.direction if self.reverse_pitch_control is False else (-1 * msg.direction)
-            time_s = msg.duration_s
-            self.movePitchCb(direction, time_s)
-            self.msg_if.pub_info("Jogging pitch", log_name_list = self.log_name_list)
+        if self.auto_tilt == False:
+            self.msg_if.pub_warn("Got job pitch msg: " + str(msg))
+            if self.movePitchCb is not None:
+                direction = msg.direction if self.reverse_pitch_control is False else (-1 * msg.direction)
+                time_s = msg.duration_s
+                self.movePitchCb(direction, time_s)
+                self.msg_if.pub_info("Jogging pitch", log_name_list = self.log_name_list)
         
 
     def setReverseYawControl(self, msg):
         self.reverse_yaw_control = msg.data
-        rpi = 1
-        if msg.data:
-            rpi = -1
-        self.rpi = rpi
+        ryi = 1
+        if msg.data == True:
+            ryi = -1
+        self.ryi = ryi
         self.msg_if.pub_info("Set yaw control to reverse=" + str(self.reverse_yaw_control))
         
 
     def setReversePitchControl(self, msg):
         self.reverse_pitch_control = msg.data
-        ryi = 1
-        if msg.data:
-            ryi = -1
-        self.ryi = ryi
+        rpi = 1
+        if msg.data == True:
+            rpi = -1
+        self.rpi = rpi
         self.msg_if.pub_info("Set pitch control to reverse=" + str(self.reverse_pitch_control))
         
 
@@ -1167,7 +1491,7 @@ class PTXActuatorIF:
         if self.setHomePositionHereCb is not None:
             # Driver supports it directly
             # Capture home position if possible
-            if self.capabilities_report.absolute_positioning and self.npx_if is not None:
+            if self.capabilities_report.has_absolute_positioning and self.npx_if is not None:
                 navpose_dict = npx_if.get_navpose_dict()
                 self.home_yaw_deg = navpose_dict['yaw_deg']
                 self.home_pitch_deg = navpose_dict['pitch_deg']
@@ -1203,6 +1527,52 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Going to waypoint by command " + str(waypoint_index))
         
     
+
+    def setAutoPanHandler(self, msg):
+        self.auto_pan = msg.data
+        if self.auto_pan == False:
+            self.is_auto_pan = False
+        self.msg_if.pub_info("Setting auto pan: " + str(self.auto_pan))
+        self.publish_status()
+        self.node_if.set_param('auto_pan_enabled', self.auto_pan)
+        
+    def setAutoPanWindowHandler(self, msg):
+        self.min_deg = msg.start_range
+        self.max_deg = msg.stop_range
+        if max_deg > min_deg:
+            if max_deg > self.max_yaw_softstop_deg:
+                max_deg = self.max_yaw_softstop_deg
+            if min_deg < self.min_yaw_softstop_deg:
+                min_deg = self.min_yaw_softstop_deg
+            self.msg_if.pub_info("Setting auto pan limits: " + str([min_deg,max_deg]))
+            self.publish_status()
+            self.node_if.set_param('min_yaw_softstop_deg', min_deg)
+            self.node_if.set_param('max_yaw_softstop_deg', max_deg)
+
+
+    def setAutoTiltHandler(self, msg):
+        self.auto_tilt = msg.data
+        if self.auto_tilt == False:
+            self.is_auto_tilt = False
+        self.msg_if.pub_info("Setting auto tilt: " + str(self.auto_tilt))
+        self.publish_status()
+        self.node_if.set_param('auto_tilt_enabled', self.auto_tilt)
+
+    def setAutoTiltWindowHandler(self, msg):
+        self.min_deg = msg.start_range
+        self.max_deg = msg.stop_range
+        if max_deg > min_deg:
+            if max_deg > self.max_pitch_softstop_deg:
+                max_deg = self.max_pitch_softstop_deg
+            if min_deg < self.min_pitch_softstop_deg:
+                min_deg = self.min_pitch_softstop_deg
+            self.msg_if.pub_info("Setting auto tilt limits: " + str([min_deg,max_deg]))
+            self.publish_status()
+            self.node_if.set_param('min_pitch_softstop_deg', min_deg)
+            self.node_if.set_param('max_pitch_softstop_deg', max_deg)
+
+
+
     def provideCapabilities(self, _):
         return self.capabilities_report
     
@@ -1218,15 +1588,15 @@ class PTXActuatorIF:
 
     def resetCb(self, do_updates = True):
         self.msg_if.pub_warn("Reseting System to Current Values")
-        self.max_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/max_yaw_hardstop_deg')
-        self.min_yaw_hardstop_deg = self.node_if.get_param('ptx/limits/min_yaw_hardstop_deg')
-        self.max_yaw_softstop_deg = self.node_if.get_param('ptx/limits/max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg = self.node_if.get_param('ptx/limits/min_yaw_softstop_deg')
+        self.max_yaw_hardstop_deg = self.node_if.get_param('max_yaw_hardstop_deg')
+        self.min_yaw_hardstop_deg = self.node_if.get_param('min_yaw_hardstop_deg')
+        self.max_yaw_softstop_deg = self.node_if.get_param('max_yaw_softstop_deg')
+        self.min_yaw_softstop_deg = self.node_if.get_param('min_yaw_softstop_deg')
 
-        self.max_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/max_pitch_hardstop_deg')
-        self.min_pitch_hardstop_deg = self.node_if.get_param('ptx/limits/min_pitch_hardstop_deg')
-        self.max_pitch_softstop_deg = self.node_if.get_param('ptx/limits/max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.node_if.get_param('ptx/limits/min_pitch_softstop_deg')
+        self.max_pitch_hardstop_deg = self.node_if.get_param('max_pitch_hardstop_deg')
+        self.min_pitch_hardstop_deg = self.node_if.get_param('min_pitch_hardstop_deg')
+        self.max_pitch_softstop_deg = self.node_if.get_param('max_pitch_softstop_deg')
+        self.min_pitch_softstop_deg = self.node_if.get_param('min_pitch_softstop_deg')
 
         #**********************
         # This one comes from the parent
@@ -1234,20 +1604,20 @@ class PTXActuatorIF:
                 [min_yaw,max_yaw,min_pitch,max_pitch] = self.getSoftLimitsCb()
                 if min_yaw != -999:
                     self.min_yaw_softstop_deg = min_yaw
-                    self.node_if.set_param('ptx/limits/min_yaw_softstop_deg', self.min_yaw_softstop_deg)
+                    self.node_if.set_param('min_yaw_softstop_deg', self.min_yaw_softstop_deg)
                 if max_yaw != -999:
                     self.max_yaw_softstop_deg = max_yaw
-                    self.node_if.set_param('ptx/limits/max_yaw_softstop_deg',self.max_yaw_softstop_deg)
+                    self.node_if.set_param('max_yaw_softstop_deg',self.max_yaw_softstop_deg)
 
                 if min_pitch != -999:
                     self.min_pitch_softstop_deg = min_pitch
-                    self.node_if.set_param('ptx/limits/min_pitch_softstop_deg', self.min_pitch_softstop_deg)
+                    self.node_if.set_param('min_pitch_softstop_deg', self.min_pitch_softstop_deg)
                 if max_pitch != -999:
                     self.max_pitch_softstop_deg = max_pitch
-                    self.node_if.set_param('ptx/limits/max_pitch_softstop_deg',self.max_pitch_softstop_deg)
+                    self.node_if.set_param('max_pitch_softstop_deg',self.max_pitch_softstop_deg)
 
-        if self.getSpeedCb is not None:
-            self.node_if.set_param('ptx/speed_ratio', self.getSpeedCb()) 
+        if self.getSpeedRatioCb is not None:
+            self.node_if.set_param('speed_ratio', self.getSpeedRatioCb()) 
         #**********************
         
 

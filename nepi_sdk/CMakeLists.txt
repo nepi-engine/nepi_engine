@@ -84,25 +84,6 @@ generate_messages(
      nepi_ros_interfaces
 )
 
-################################################
-## Declare ROS dynamic reconfigure parameters ##
-################################################
-
-## To declare and build dynamic reconfigure parameters within this
-## package, follow these steps:
-## * In the file package.xml:
-##   * add a build_depend and a run_depend tag for "dynamic_reconfigure"
-## * In this file (CMakeLists.txt):
-##   * add "dynamic_reconfigure" to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * uncomment the "generate_dynamic_reconfigure_options" section below
-##     and list every .cfg file to be processed
-
-## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
 
 ###################################
 ## catkin specific configuration ##
@@ -114,8 +95,6 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include 
-  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS image_transport nepi_ros_interfaces
 )
 
@@ -125,22 +104,6 @@ catkin_package(
 ###########
 ## Build 
 ###########
-
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
-   include
-   ${catkin_INCLUDE_DIRS}
-)
-
-## Declare a C++ library
-add_library(${PROJECT_NAME}
-    src/sdk_utils.cpp
-    src/sdk_node.cpp
-    src/sdk_interface.cpp
-    src/algorithms/approx_moving_avg.cpp
-
-)
 
 
 
@@ -158,33 +121,7 @@ catkin_install_python(PROGRAMS
   scripts/image_color_converter.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-
-
-## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-#install(FILES
-#  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#)
-
-
-# Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
-#install(DIRECTORY etc/
-#  DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
-#  USE_SOURCE_PERMISSIONS
-#)
-
-
-
-
-
-#############
+############
 ## Testing General ##
 #############
 

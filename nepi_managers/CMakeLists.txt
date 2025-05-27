@@ -116,76 +116,16 @@ catkin_install_python(PROGRAMS
   scripts/ai_model_mgr.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-#########################################
-### NavPose Mgr
 
 ###########
 ## Build NavPose
 ###########
 
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
-   include
-   ${catkin_INCLUDE_DIRS}
-)
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Nav/Pos Mgr Node
-add_executable(nav_pose_mgr
-  src/nav_pose_mgr.cpp
-)
-
-add_dependencies(nav_pose_mgr
-  ${catkin_EXPORTED_TARGETS})
-
-target_link_libraries(nav_pose_mgr
-  ${catkin_LIBRARIES})
- 
 #############
 ## Install NavPose##
 #############
 
-#catkin_install_python(PROGRAMS
-#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
-
-## Mark executables and/or libraries for installation
-install(TARGETS
-  nav_pose_mgr
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-## Mark cpp header files for installation - Msgs and Services (generated headers) are under the project name subdir
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
-)
-
-## Non-generated headers are located directly in include and get copied to the root of include in the install directory
-install(DIRECTORY include/
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
-)
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-#install(FILES
-#
-#DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#)
-
-#install(PROGRAMS
-#
-#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
 
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
 install(DIRECTORY etc/

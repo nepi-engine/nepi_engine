@@ -136,54 +136,12 @@ catkin_install_python(PROGRAMS
 ## Build 
 ###########
 
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
-   include
-   ${catkin_INCLUDE_DIRS}
-)
-
-## Declare a C++ library
-add_library(${PROJECT_NAME}
-   src/save_data_interface.cpp
-)
-
 
  
 #############
 ## Install 
 #############
 
-# all install targets should use catkin DESTINATION variables
-# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
-
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-
-## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-#install(FILES
-#  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#)
-
-
-# Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
-#install(DIRECTORY etc/
-#  DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
-#  USE_SOURCE_PERMISSIONS
-#)
 
 catkin_install_python(PROGRAMS
   scripts/nepi_ai_detector_img_pub_node.py
