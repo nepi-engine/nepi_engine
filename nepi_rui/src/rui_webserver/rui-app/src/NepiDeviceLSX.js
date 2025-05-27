@@ -75,14 +75,31 @@ class NepiControlsLights extends Component {
 
       connected: false,
 
+      currentIDXNamespace: null
+
+
     }
 
     this.createImageTopicsOptions = this.createImageTopicsOptions.bind(this)
     this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
-    this.onlxsDeviceselected = this.onlxsDeviceselected.bind(this)
+    this.onlsxDeviceselected = this.onlsxDeviceselected.bind(this)
     this.lsxStatusListener = this.lsxStatusListener.bind(this)
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createLSXOptions = this.createLSXOptions.bind(this)
+  }
+
+  clearTopicLXSSelection() {
+    this.setState({
+      lsxNamespace: null,
+      currentIDXNamespace: null,
+      connected: false,
+      disabled: true,
+      imageTopic: null,
+      imageText: null
+    })
+    if (this.state.listener) {
+      this.state.listener.unsubscribe()
+    }
   }
 
   // Function for creating image topic options.
@@ -91,6 +108,9 @@ class NepiControlsLights extends Component {
     items.push(<Option>{"None"}</Option>) 
     const { imageTopics } = this.props.ros
     var imageTopicShortnames = createShortValuesFromNamespaces(imageTopics)
+    if (!imageTopics) {
+      return items
+    }
     for (var i = 0; i < imageTopics.length; i++) {
       items.push(<Option value={imageTopics[i]}>{imageTopicShortnames[i]}</Option>)
     }
@@ -134,14 +154,14 @@ class NepiControlsLights extends Component {
       lsxPowerW: message.power_w ,
 
       lxsIdentifier: message.identifier,
-      lxsUserName: message.user_namenull,
+      lxsUserName: message.user_name,
 
       connected: true
     })
   }
 
   // Function for configuring and subscribing to lsx/status
-  onlxsDeviceselected(event) {
+  onlsxDeviceselected(event) {
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
@@ -177,6 +197,9 @@ class NepiControlsLights extends Component {
 
   // Function for creating topic Options for Select input
   createLSXOptions(caps_dictionaries, filter) {
+    if (!caps_dictionaries) {
+      return [<Option key="none">{"None"}</Option>]
+    }
     const topics = Object.keys(caps_dictionaries)
     var filteredTopics = topics
     var i
@@ -199,8 +222,8 @@ class NepiControlsLights extends Component {
       items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
     }
     // Check that our current selection hasn't disappeard as an available Option
-    const { currentIDXNamespace } = this.state
-    if ((currentIDXNamespace != null) && (! filteredTopics.includes(currentIDXNamespace))) {
+    const { lsxNamespace } = this.state
+    if ((lsxNamespace != null) && (! filteredTopics.includes(lsxNamespace))) {
       this.clearTopicLXSSelection()
     }
 
@@ -211,11 +234,11 @@ class NepiControlsLights extends Component {
   renderControlPanel() {
     const { sendTriggerMsg } = this.props.ros
     const { lsxNamespace, lsxTempC } = this.state
-    const { lxsDevices } = this.props.ros
+    const { lsxDevices } = this.props.ros
     const lsx_id = lsxNamespace? lsxNamespace.split('/').slice(-1) : "No Light Selected"
     const namespace = this.state.lsxNamespace
 
-    const lsx_caps = lxsDevices[lsxNamespace]
+    const lsx_caps = lsxDevices[lsxNamespace]
     const has_standby_mode = lsx_caps && (lsx_caps['has_standby_mode'] === true)
     const has_on_off_control = lsx_caps && (lsx_caps['has_on_off_control'] === true)
     const has_intensity_control = lsx_caps && (lsx_caps['has_intensity_control'] === true)
@@ -351,8 +374,8 @@ class NepiControlsLights extends Component {
           <div hidden={!has_hw_strobe}>    
             <Label title="Set Strobe State">
                   <Toggle
-                    checked={this.state.lsxStrobezState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_strobe_enable",!this.state.lsxStrobezState)}>
+                    checked={this.state.lsxStrobeState===true}
+                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_strobe_enable",!this.state.lsxStrobeState)}>
                   </Toggle>
             </Label>
             </div>
@@ -363,14 +386,14 @@ class NepiControlsLights extends Component {
 
   render() {
     const { sendTriggerMsg } = this.props.ros
-    const { lxsDevices } = this.props.ros
+    const { lsxDevices } = this.props.ros
     const { lsxNamespace } = this.state
     const connected = this.state.connected
     const namespace = this.state.lsxNamespace
 
     //const lsxImageViewerElement = document.getElementById("lsxImageViewer")
 
-    //const lsx_caps = lxsDevices[lsxNamespace]
+    //const lsx_caps = lsxDevices[lsxNamespace]
     return (
       <React.Fragment>
 
@@ -401,10 +424,10 @@ class NepiControlsLights extends Component {
 
             <Label title={"Device"}>
               <Select
-                onChange={this.onlxsDeviceselected}
+                onChange={this.onlsxDeviceselected}
                 value={namespace}
-              >
-                {this.createLSXOptions(lxsDevices)}
+                >
+                {this.createLSXOptions(lsxDevices)}
               </Select>
             </Label>
             <Label title={"Select Image"}>
