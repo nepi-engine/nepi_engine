@@ -198,9 +198,8 @@ class time_sync_mgr(object):
 
 
 
-        self.msg_if.pub_warn("Waiting for Node Class Ready")
-        ready = self.node_if.wait_for_ready()
-        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
             
 
         # Upddate Vars

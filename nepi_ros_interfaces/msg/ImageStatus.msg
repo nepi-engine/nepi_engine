@@ -1,5 +1,8 @@
 # This is an optional status message for image publishers
 
+# Image data type ['image','sonar','depthmap','pointcloud','laserline']
+string data_type
+
 bool publishing
 float32 last_pub_sec
 float32 fps

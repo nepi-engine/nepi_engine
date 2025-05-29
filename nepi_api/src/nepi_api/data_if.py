@@ -581,7 +581,8 @@ class NavPoseIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Start Node Processes
@@ -1077,7 +1078,8 @@ class ImageIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         self.publish_status(do_updates=True)
 
@@ -1263,7 +1265,7 @@ class ImageIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.sleep(1)
+        nepi_ros.wait()
         self.namespace = '~'
         self.status_msg = None
 
@@ -1626,7 +1628,8 @@ class DepthMapIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         self.publish_status(do_updates=True)
         
@@ -1754,7 +1757,7 @@ class DepthMapIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.sleep(1)
+        nepi_ros.wait()
         self.namespace = '~'
         self.status_msg = None
 
@@ -2146,7 +2149,9 @@ class PointcloudIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         self.publish_status(do_updates=True)
 
@@ -2283,7 +2288,7 @@ class PointcloudIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.sleep(1)
+        nepi_ros.wait()
         self.node_if = None
         self.namespace = '~'
         self.status_msg = None

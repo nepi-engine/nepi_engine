@@ -1069,6 +1069,8 @@ class NodeClassIF:
                 ready = self.pubs_if.wait_for_ready()
             if subs_dict is not None:
                 ready = self.subs_if.wait_for_ready()
+        else:
+            nepi_ros.sleep(0.1)
 
 
 

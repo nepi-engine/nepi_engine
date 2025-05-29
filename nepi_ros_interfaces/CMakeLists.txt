@@ -106,6 +106,7 @@ add_message_files(FILES
     WifiCredentials.msg
     PanTiltPosition.msg
     PanTiltLimits.msg
+    PanTiltOffsets.msg
     PTXStatus.msg
     SingleAxisTimedMove.msg
     AbsolutePanTiltWaypoint.msg

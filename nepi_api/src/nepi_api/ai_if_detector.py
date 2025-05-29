@@ -538,7 +538,8 @@ class AiDetectorIF:
                         msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.sleep(0.1)
 
         ###############################
         # Create System IFs

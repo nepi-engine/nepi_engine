@@ -126,6 +126,9 @@ class ConnectMgrSystemServicesIF:
                         msg_if = self.msg_if
         )
 
+        #ready = self.services_if.wait_for_ready()
+        nepi_ros.wait()
+
         ################################
         # Complete Initialization
 
@@ -160,7 +163,7 @@ class ConnectMgrSystemServicesIF:
         connected = False
         while connected == False and timer < timeout and not nepi_ros.is_shutdown():
             exists = nepi_ros.check_for_service('system_status_query')
-            nepi_ros.sleep(1)
+            nepi_ros.wait()
             if exists == True:
                 ret = None
                 try:

@@ -432,7 +432,8 @@ class ConnectPointcloudIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
         ##############################
@@ -757,7 +758,8 @@ class ConnectNavPoseIF:
                                             )
   
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
         ##############################

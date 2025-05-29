@@ -10,7 +10,9 @@
 import os
 import time 
 import copy 
-import copy
+import math
+import numpy as np
+
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -19,7 +21,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from nepi_ros_interfaces.msg import RangeWindow
-from nepi_ros_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, AbsolutePanTiltWaypoint
+from nepi_ros_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltOffsets, PanTiltPosition, SingleAxisTimedMove
 from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
@@ -36,19 +38,18 @@ from nepi_api.device_if_npx import NPXDeviceIF
 class PTXActuatorIF:
     MAX_STATUS_UPDATE_RATE = 3
 
-    PTX_DIRECTION_POSITIVE = 1
-    PTX_DIRECTION_NEGATIVE = -1
-    WAYPOINT_COUNT = 256
-
     # Backup Factory Control Values 
     FACTORY_CONTROLS_DICT = {
                 'frame_id' : 'ptx_frame',
-                'yaw_joint_name' : 'ptx_yaw_joint',
-                'pitch_joint_name' : 'ptx_pitch_joint',
-                'reverse_yaw_control' : False,
-                'reverse_pitch_control' : False,
+                'pan_joint_name' : 'ptx_pan_joint',
+                'tilt_joint_name' : 'ptx_tilt_joint',
+                'reverse_pan_enabled' : False,
+                'reverse_tilt_enabled' : False,
                 'speed_ratio' : 0.5
     }
+
+    AUTO_SCAN_SWITCH_DEG = 5 # If angle withing this bound, switch dir
+    AUTO_SCAN_UPDATE_INTERVAL = 1
 
     data_products_list = ['orientation']
 
@@ -56,97 +57,114 @@ class PTXActuatorIF:
         'time_orientation': nepi_utils.get_time(),
         # Orientation should be provided in Degrees ENU
         'roll_deg': 0.0,
-        'pitch_deg': 0.0,
-        'yaw_deg': 0.0,
+        'tilt_deg': 0.0,
+        'pan_deg': 0.0,
     }
 
     ready = False
 
+    status_msg = PTXStatus()
+    joint_state_msg = JointState()    
+
+    has_position_feedback = False
     has_absolute_positioning = False
     has_timed_positioning = False
+    has_seperate_pan_tilt_control = False
     has_adjustable_limits = False
-    has_speed_control = False
+    has_adjustable_speed = False
     has_auto_pan = False
     has_auto_tilt = False
     has_homing = False
-    has_waypoints = False
+    has_set_home = False
 
 
     # Define some member variables
-    yaw_now_deg = 0.0
-    yaw_goal_deg = -999
-    yaw_home_pos_deg = 0.0
-    min_yaw_softstop_deg = 0.0
-    max_yaw_softstop_deg = 0.0
-    pitch_now_deg = 0.0
-    pitch_goal_deg = -999
-    pitch_home_pos_deg = 0.0
-    min_pitch_softstop_deg = 0.0
-    max_pitch_softstop_deg = 0.0
+    pan_now_deg = 0.0
+    pan_goal_deg = 0.0
+    pan_home_pos_deg = 0.0
+    min_pan_softstop_deg = 0.0
+    max_pan_softstop_deg = 0.0
+    tilt_now_deg = 0.0
+    tilt_goal_deg = 0.0
+    tilt_home_pos_deg = 0.0
+    min_tilt_softstop_deg = 0.0
+    max_tilt_softstop_deg = 0.0
 
-    home_yaw_deg = 0.0
-    home_pitch_deg = 0.0
+    home_pan_deg = 0.0
+    home_tilt_deg = 0.0
 
-    reverse_yaw_control = False
-    ryi = 1
-    reverse_pitch_control = False
+    reverse_pan_enabled = False
     rpi = 1
+    reverse_tilt_enabled = False
+    rti = 1
 
-    last_yaw = 0
-    last_pitch = 0
+    last_pan = 0
+    last_tilt = 0
 
-    max_yaw_hardstop_deg = 0
-    min_yaw_hardstop_deg = 0
+    max_pan_hardstop_deg = 0
+    min_pan_hardstop_deg = 0
 
-    max_pitch_hardstop_deg = 0
-    min_pitch_hardstop_deg = 0
+    max_tilt_hardstop_deg = 0
+    min_tilt_hardstop_deg = 0
 
-    max_yaw_softstop_deg = 0
-    min_yaw_softstop_deg = 0
+    max_pan_softstop_deg = 0
+    min_pan_softstop_deg = 0
 
-    max_pitch_softstop_deg = 0
-    min_pitch_softstop_deg = 0
+    max_tilt_softstop_deg = 0
+    min_tilt_softstop_deg = 0
 
-    speed_ratio = 0.0
+    current_position = [0.0,0.0]
+    last_position = current_position
+    speed_ratio = 0.5
+
 
     is_auto_pan = False
-    auto_pan = False
+    start_auto_pan = False
+    auto_pan_enabled = False
     auto_pan_min = -10
     auto_pan_max = 10
+    auto_pan_sec = 5
 
     is_auto_tilt = False
-    auto_tilt = False
+    start_auto_tilt = False
+    auto_tilt_enabled = False
     auto_tilt_min = -10
     auto_tilt_max = 10
+    auto_tilt_sec = 5
 
 
+    offsets_dict = dict()
+    offsets_dict['h'] = 0
+    offsets_dict['x'] = 0
+    offsets_dict['y'] = 0
+    offsets_dict['z'] = 0
+    
+    is_moving = False
     ### IF Initialization
     def __init__(self,  device_info, 
                  capSettings, factorySettings, 
                  settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
-                 factoryLimits,
-                 capabilities_dict, # Dictionary to be supplied by parent, specific key set is required
-                 stopMovingCb, # Required; no args
-                 moveYawCb, # Required; direction and time args
-                 movePitchCb, # Required; direction and time args
+                 factoryLimits = None,
+                 factoryOffsets = None,
+                 stopMovingCb = None, # Required; no args
+                 movePanCb = None, # Required; direction and time args
+                 moveTiltCb = None, # Required; direction and time args
                  setSoftLimitsCb=None,
                  getSoftLimitsCb=None,
                  setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
                  getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
-                 gotoPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
-                 gotoPanPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
-                 gotoTiltPositionCb=None, # None ==> No absolute positioning capability (yaw_deg, pitch_deg, speed, float move_timeout_s) 
+                 getPositionCb=None,
+                 gotoPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
+                 gotoPanPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
+                 gotoTiltPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
                  goHomeCb=None, # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
                  setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
                  setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
-                 gotoWaypointCb=None, # None ==> No native driver support for waypoints, can still use if absolute positioning is supported
-                 setWaypointCb=None, # None ==> No native driver support for absolute waypoints, can still use if absolute positioning is supported
-                 setWaypointHereCb=None, # None ==> No native driver support for instant waypoints, can still use if absolute positioning is supported
                  capSettingsNavPose=None, factorySettingsNavPose=None, 
                  settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
-                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
-                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
+                 getNpHeadingCb = None, getNpPositionCb = None, getNpOrientationCb = None,
+                 getNpLocationCb = None, getNpAltitudeCb = None, getNpDepthCb = None,
                  max_navpose_update_rate = 10,
                  deviceResetCb = None,
                  log_name = None,
@@ -199,202 +217,160 @@ class PTXActuatorIF:
                 if self.factory_controls_dict.get(control) != None and factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
 
+        # update offset controls dictionary
+        if factoryOffsets is not None:
+            for key in factoryOffsets.keys():
+                if key in self.offsets_dict.keys():
+                    self.offsets_dict[key] = factoryOffsets[key]
 
 
         self.deviceResetCb = deviceResetCb
         self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
-        self.setSoftLimitsCb = setSoftLimitsCb
-        self.getSoftLimitsCb = getSoftLimitsCb
-        self.setSpeedRatioCb = setSpeedRatioCb
-        self.getSpeedRatioCb = getSpeedRatioCb
 
+       # Configure PTX Capabilities
+
+        # STOP MOVE #############
         self.stopMovingCb = stopMovingCb
 
 
-        self.moveYawCb = moveYawCb
-        self.movePitchCb = movePitchCb
-        if self.moveYawCb is not None and self.movePitchCb is not None:
-            self.has_timed_positioning = True
-        else:
-            self.has_timed_positioning = False
+        # GET POSITION #############
+        self.getPositionCb = getPositionCb
+        if self.getPositionCb is not None:
+            self.has_position_feedback = True
+            self.has_limit_controls = True
 
+        # Soft Limits are handled by PTX IF at top level, 
+        # these are for updating the hardware if required
+        self.setSoftLimitsCb = setSoftLimitsCb
+        self.getSoftLimitsCb = getSoftLimitsCb
 
+        # POSITION MOVE ############
         self.gotoPositionCb = gotoPositionCb
-        if gotoPanPositionCb is not None:
-            self.gotoPanPositionCb = gotoPanPositionCb
+        self.gotoPanPositionCb = gotoPanPositionCb
+        self.gotoTiltPositionCb = gotoTiltPositionCb
+
+
+        if self.gotoPositionCb is not None or self.gotoPanPositionCb is not None:
+            self.has_absolute_positioning = True
+    
+        if gotoPanPositionCb is not None and gotoTiltPositionCb is not None:
+            self.has_seperate_pan_tilt_control = True
+
+        # JOG MOVE ############
+        self.movePanCb = movePanCb
+        self.moveTiltCb = moveTiltCb
+        if self.movePanCb is not None and self.moveTiltCb is not None:
+            self.has_timed_positioning = True
+
+        # AUTO SCANNING ##############
+        # timed auto scanning is not supported yet
+        if self.has_absolute_positioning:
+            self.has_auto_pan = True
+            self.has_auto_tilt = True
+
+        # SPEED SETTINGS  #############
+        if setSpeedRatioCb is None:
+            self.getSpeedRatioCb = self.getZeroCb
         else:
-            if self.gotoPositionCb is not None:
-                self.gotoPanPositionCb = self.gotoPanPositionCurTiltCb
-            else:
-                self.gotoPanPositionCb = None
-
-        if gotoTiltPositionCb is not None:
-            self.gotoTiltPositionCb = gotoTiltPositionCb
-        else:
-            self.gotoTiltPositionCb = None
+            self.setSpeedRatioCb = setSpeedRatioCb
+        self.getSpeedRatioCb = getSpeedRatioCb
+        if self.getSpeedRatioCb is not None:
+            self.has_adjustable_speed = True
 
 
-
-
+        # Homing  #############
         self.goHomeCb = goHomeCb
         self.setHomePositionCb = setHomePositionCb
         self.setHomePositionHereCb = setHomePositionHereCb
-        self.gotoWaypointCb = gotoWaypointCb
-        self.setWaypointCb = setWaypointCb
-        self.setWaypointHereCb = setWaypointHereCb
+
+        if self.goHomeCb is not None:
+            self.has_homing = True
+        if self.setHomePositionHereCb is not None:
+            self.has_set_home = True
+       
+
+        # Create Capabilities Report
+        self.capabilities_report = PTXCapabilitiesQueryResponse()
+        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
+        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
+        self.capabilities_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
+        self.capabilities_report.has_position_feedback = self.has_position_feedback
+        self.capabilities_report.has_adjustable_speed = self.has_adjustable_speed
+        self.capabilities_report.has_limit_controls = self.has_limit_controls
+        self.capabilities_report.has_auto_pan = self.has_auto_pan
+        self.capabilities_report.has_auto_tilt = self.has_auto_tilt
+        self.capabilities_report.has_homing = self.has_homing
+        self.capabilities_report.has_set_home = self.has_set_home
 
 
 
-        if getOrientationCb is not None:
-            self.has_position_feedback = True
-        else:
-            self.has_position_feedback = True
-
-              
-        if (capabilities_dict['has_absolute_positioning'] == True):
-            self.has_absolute_positioning = True
-        else:
-            self.has_absolute_positioning = False
-
+        #######################################
+        # Set up factory limits
 
         if factoryLimits is not None:
             self.factoryLimits = factoryLimits  
         else:
             # Hard limits
-            self.factoryLimits['max_yaw_hardstop_deg'] = 0
-            self.factoryLimits['min_yaw_hardstop_deg'] = 0
-            self.factoryLimits['max_pitch_hardstop_deg'] = 0
-            self.factoryLimits['min_pitch_hardstop_deg'] = 0
+            self.factoryLimits['min_pan_hardstop_deg'] = 0
+            self.factoryLimits['max_pan_hardstop_deg'] = 0
+            self.factoryLimits['min_tilt_hardstop_deg'] = 0
+            self.factoryLimits['max_tilt_hardstop_deg'] = 0
   
             # Soft limits
-            self.factoryLimits['max_yaw_softstop_deg'] = 0
-            self.factoryLimits['min_yaw_softstop_deg'] = 0
-            self.factoryLimits['max_pitch_softstop_deg'] = 0
-            self.factoryLimits['min_pitch_softstop_deg'] = 0
+            self.factoryLimits['min_pan_softstop_deg'] = 0
+            self.factoryLimits['max_pan_softstop_deg'] = 0
+            self.factoryLimits['min_tilt_softstop_deg'] = 0
+            self.factoryLimits['max_tilt_softstop_deg'] = 0
+
+        self.min_pan_hardstop_deg =  self.factoryLimits['min_pan_hardstop_deg']
+        self.max_pan_hardstop_deg = self.factoryLimits['max_pan_hardstop_deg']
+
+        self.min_tilt_hardstop_deg = self.factoryLimits['min_tilt_hardstop_deg']
+        self.max_tilt_hardstop_deg = self.factoryLimits['max_tilt_hardstop_deg']
 
 
-        self.max_yaw_softstop_deg = self.factoryLimits['max_yaw_softstop_deg']
-        self.min_yaw_softstop_deg =  self.factoryLimits['min_yaw_softstop_deg']
-
-        self.max_pitch_softstop_deg = self.factoryLimits['max_pitch_softstop_deg']
-        self.min_pitch_softstop_deg = self.factoryLimits['min_pitch_softstop_deg']
+        self.min_pan_softstop_deg =  self.factoryLimits['min_pan_softstop_deg']
+        self.max_pan_softstop_deg = self.factoryLimits['max_pan_softstop_deg']
 
 
-        # Gather capabilities - Config file takes precedence over parent-supplied defaults
-
-        if capabilities_dict['has_limit_control'] == True:
-            if self.setSoftLimitsCb is not None and self.setSoftLimitsCb is not None:
-                self.has_adjustable_limits = True
-            else:
-                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
-                self.has_adjustable_limits = False
-        else:
-            self.has_adjustable_limits = False
+        self.min_tilt_softstop_deg = self.factoryLimits['min_tilt_softstop_deg']
+        self.max_tilt_softstop_deg = self.factoryLimits['max_tilt_softstop_deg']
 
 
-        # Gather capabilities - Config file takes precedence over parent-supplied defaults
-        if capabilities_dict['has_speed_control'] == True:
-            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                self.has_adjustable_speed = True
-            else:
-                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
-                self.has_adjustable_speed = False
-        else:
-            self.has_adjustable_speed = False
-            self.setSpeedRatioCb = None
-            self.getSpeedRatioCb = self.getZeroCb
+        self.auto_pan_min = self.factoryLimits['min_pan_softstop_deg']
+        self.auto_pan_max = self.factoryLimits['max_pan_softstop_deg']
 
-        
-        # Create Capabilities Report
-        self.capabilities_report = PTXCapabilitiesQueryResponse()
-
-
-        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
-        # Positioning and soft limits setup if available
-        if self.capabilities_report.has_absolute_positioning == True:
-            if (getOrientationCb is None):
-                self.msg_if.pub_warn("Inconsistent capabilities: absolute positioning reports true, but no callback provided", log_name_list = self.log_name_list)
-                # We require both command and feedback reporting to support absolute positioning
-                self.capabilities_report.has_absolute_positioning = False
-
-        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
-
-
-        if self.gotoPanPositionCb is not None and self.gotoTiltPositionCb is not None:
-            self.capabilities_report.has_seperate_pan_tilt = True
-        else:
-            self.capabilities_report.has_seperate_pan_tilt = False
+        self.auto_tilt_min = self.factoryLimits['min_tilt_softstop_deg']
+        self.auto_tilt_max = self.factoryLimits['max_tilt_softstop_deg']
 
 
 
-
-        if self.capabilities_report.has_absolute_positioning == True:
-            self.capabilities_report.has_auto_pan = True
-            if self.capabilities_report.has_seperate_pan_tilt == True:
-                self.capabilities_report.has_auto_tilt = True
-            else:
-                self.capabilities_report.has_auto_tilt = False
-
-        else:
-            self.capabilities_report.has_auto_pan =  False
-            self.capabilities_report.has_auto_tilt =  False
-
-        self.has_auto_pan = self.capabilities_report.has_auto_pan
-        self.has_auto_tilt = self.capabilities_report.has_auto_tilt
-
-        if self.gotoPanPositionCb is not None and self.gotoTiltPositionCb is not None:
-            self.capabilities_report.has_seperate_pan_tilt = True
-        else:
-            self.capabilities_report.has_seperate_pan_tilt = False
-
-
-
-
-        if self.capabilities_report.has_adjustable_speed == False:
-            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                self.capabilities_report.has_adjustable_speed = True
-            else:
-                self.msg_if.pub_warn("Inconsistent capabilities: adjustable speed reports true, but no callback provided", log_name_list = self.log_name_list)
-                self.capabilities_report.has_adjustable_speed = False
-
-
-        self.capabilities_report.has_homing = capabilities_dict['has_homing']
-        # Homing setup
-        if self.capabilities_report.has_homing == True:
-            self.goHomeCb = goHomeCb
-            self.setHomePositionCb = setHomePositionCb
-            self.setHomePositionHereCb = setHomePositionHereCb
-        
-            if self.goHomeCb is None and self.capabilities_report.has_absolute_positioning == False:
-                self.msg_if.pub_warn("Inconsistent capabilities: homing reports true, but no goHome callback provided and no absolute positioning", log_name_list = self.log_name_list)
-                self.capabilities_report.has_homing = False
-                
-            self.home_yaw_deg = 0.0
-            self.home_pitch_deg = 0.0
-
-        self.has_homing = self.capabilities_report.has_homing
-                
-
-        self.capabilities_report.has_waypoints = capabilities_dict['has_waypoints']
-        # Waypoint setup
-        if self.capabilities_report.has_waypoints == True:
-            self.gotoWaypointCb = gotoWaypointCb
-            self.setWaypointCb = setWaypointCb
-            self.setWaypointHereCb = setWaypointHereCb
-
-            if self.gotoWaypointCb is None:
-                self.msg_if.pub_warn("Inconsistent capabilities: waypoints reports true, but no gotoWaypoint callback provided", log_name_list = self.log_name_list)
-                self.capabilities_report.has_waypoints = False
-
-        self.has_waypoints = self.capabilities_report.has_waypoints
-
+        ########################
         # Set up status message static values
-        self.status_msg = PTXStatus()
         self.status_msg.serial_num = self.serial_num
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
+        self.status_msg.has_absolute_positioning = self.has_absolute_positioning
+        self.status_msg.has_timed_positioning = self.has_timed_positioning
+        self.status_msg.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
+        self.status_msg.has_position_feedback = self.has_position_feedback
+        self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        self.status_msg.has_limit_controls = self.has_limit_controls
+        self.status_msg.has_auto_pan = self.has_auto_pan
+        self.status_msg.has_auto_tilt = self.has_auto_tilt
+        self.status_msg.has_homing = self.has_homing
+        self.status_msg.has_set_home = self.has_set_home
 
+        # And joint state status static values
+        # Skip the header -- we just copy it from the status message each time
+        self.joint_state_msg.position.append(0.0) # pan
+        self.joint_state_msg.position.append(0.0) # Tilt
+
+        # And odom static values
+        self.odom_msg = Odometry()
+        self.odom_msg.header.frame_id = self.device_name + '_fixed_frame'
+        self.odom_msg.child_frame_id = self.device_name + '_rotating_frame'
 
         ##################################################
         ### Node Class Setup
@@ -413,32 +389,15 @@ class PTXActuatorIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'has_absolute_positioning': {
-                'namespace': self.node_namespace,
-                'factory_val': capabilities_dict['has_absolute_positioning']
-            },
-            'has_speed_control': {
-                'namespace': self.node_namespace,
-                'factory_val': capabilities_dict['has_speed_control']
-            },
             'speed_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
             },
-            'has_homing': {
-                'namespace': self.node_namespace,
-                'factory_val': capabilities_dict['has_homing']
-            },
-            'has_waypoints': {
-                'namespace': self.node_namespace,
-                'factory_val': capabilities_dict['has_waypoints']
-            },
-
-            'home_position/yaw_deg': {
+            'home_position/pan_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
             },
-            'home_position/pitch_deg': {
+            'home_position/tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
             }, 
@@ -446,53 +405,53 @@ class PTXActuatorIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['frame_id']
             },            
-            'yaw_joint_name': {
+            'pan_joint_name': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['yaw_joint_name']
+                'factory_val': self.factory_controls_dict['pan_joint_name']
             },            
-            'pitch_joint_name': {
+            'tilt_joint_name': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['pitch_joint_name']
+                'factory_val': self.factory_controls_dict['tilt_joint_name']
             },            
-            'reverse_yaw_control': {
+            'reverse_pan_enabled': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['reverse_yaw_control']
+                'factory_val': self.factory_controls_dict['reverse_pan_enabled']
             },            
-            'reverse_pitch_control': {
+            'reverse_tilt_enabled': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['reverse_pitch_control']
+                'factory_val': self.factory_controls_dict['reverse_tilt_enabled']
             },            
-            'max_yaw_hardstop_deg': {
+            'max_pan_hardstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_yaw_hardstop_deg']
+                'factory_val': self.factoryLimits['max_pan_hardstop_deg']
             },            
-            'min_yaw_hardstop_deg': {
+            'min_pan_hardstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_yaw_hardstop_deg']
+                'factory_val': self.factoryLimits['min_pan_hardstop_deg']
             },            
-            'max_pitch_hardstop_deg': {
+            'max_tilt_hardstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_pitch_hardstop_deg']
+                'factory_val': self.factoryLimits['max_tilt_hardstop_deg']
             },            
-            'min_pitch_hardstop_deg': {
+            'min_tilt_hardstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_pitch_hardstop_deg']
+                'factory_val': self.factoryLimits['min_tilt_hardstop_deg']
             },            
-            'max_yaw_softstop_deg': {
+            'max_pan_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_yaw_softstop_deg']
+                'factory_val': self.factoryLimits['max_pan_softstop_deg']
             },            
-            'min_yaw_softstop_deg': {
+            'min_pan_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_yaw_softstop_deg']
+                'factory_val': self.factoryLimits['min_pan_softstop_deg']
             },            
-            'max_pitch_softstop_deg': {
+            'max_tilt_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_pitch_softstop_deg']
+                'factory_val': self.factoryLimits['max_tilt_softstop_deg']
             },           
-            'min_pitch_softstop_deg': {
+            'min_tilt_softstop_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_pitch_softstop_deg']
+                'factory_val': self.factoryLimits['min_tilt_softstop_deg']
             },           
             'auto_pan_enabled': {
                 'namespace': self.node_namespace,
@@ -500,11 +459,11 @@ class PTXActuatorIF:
             },           
             'min_auto_pan_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_yaw_softstop_deg']
+                'factory_val': self.factoryLimits['min_pan_softstop_deg']
             },           
             'max_auto_pan_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_yaw_softstop_deg']
+                'factory_val': self.factoryLimits['max_pan_softstop_deg']
             },           
             'auto_tilt_enabled': {
                 'namespace': self.node_namespace,
@@ -512,12 +471,16 @@ class PTXActuatorIF:
             },           
             'min_auto_tilt_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_pitch_softstop_deg']
+                'factory_val': self.factoryLimits['min_tilt_softstop_deg']
             },           
             'max_auto_tilt_deg': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_pitch_softstop_deg']
-            },        
+                'factory_val': self.factoryLimits['max_tilt_softstop_deg']
+            },            
+            'offsets': {
+                'namespace': self.node_namespace,
+                'factory_val': self.offsets_dict
+            }
         }
         
 
@@ -574,7 +537,7 @@ class PTXActuatorIF:
             },
             'goto_to_position': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/goto_to_position',
+                'topic': 'ptx/goto_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
                 'callback': self.gotoPositionHandler, 
@@ -582,7 +545,7 @@ class PTXActuatorIF:
             },
             'goto_to_pan_position': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/goto_pan_to_position',
+                'topic': 'ptx/goto_pan_position',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoPanPositionHandler, 
@@ -590,58 +553,58 @@ class PTXActuatorIF:
             },
             'goto_to_tilt_position': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/goto_tilt_to_position',
+                'topic': 'ptx/goto_tilt_position',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoTiltPositionHandler, 
                 'callback_args': ()
             },
-            'jog_to_yaw_ratio': {
+            'goto_pan_ratio': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/jog_to_yaw_ratio',
+                'topic': 'ptx/goto_pan_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.jogToYawRatioHandler, 
+                'callback': self.gotoToPanRatioHandler, 
                 'callback_args': ()
             },
-            'jog_to_pitch_ratio': {
+            'goto_tilt_ratio': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/jog_to_pitch_ratio',
+                'topic': 'ptx/goto_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.jogToPitchRatioHandler, 
+                'callback': self.gotoToTiltRatioHandler, 
                 'callback_args': ()
             },
-            'jog_timed_yaw': {
+            'jog_timed_pan': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/jog_timed_yaw',
+                'topic': 'ptx/jog_timed_pan',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
-                'callback': self.jogTimedYawHandler, 
+                'callback': self.jogTimedPanHandler, 
                 'callback_args': ()
             },
-            'jog_timed_pitch': {
+            'jog_timed_tilt': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/jog_timed_pitch',
+                'topic': 'ptx/jog_timed_tilt',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
-                'callback': self.jogTimedPitchHandler, 
+                'callback': self.jogTimedTiltHandler, 
                 'callback_args': ()
             },
-            'reverse_yaw_control': {
+            'reverse_pan_enabled': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/reverse_yaw_control',
+                'topic': 'ptx/set_reverse_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setReverseYawControl, 
+                'callback': self.setReversePanEnable, 
                 'callback_args': ()
             },
-            'reverse_pitch_control': {
+            'reverse_tilt_enabled': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/reverse_pitch_control',
+                'topic': 'ptx/set_reverse_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setReversePitchControl, 
+                'callback': self.setReverseTiltEnable, 
                 'callback_args': ()
             },
             'set_soft_limits': {
@@ -676,30 +639,6 @@ class PTXActuatorIF:
                 'callback': self.setHomePositionHereHandler, 
                 'callback_args': ()
             },
-            'goto_waypoint': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_waypoint',
-                'msg': UInt8,
-                'qsize': 1,
-                'callback': self.gotoWaypointHandler, 
-                'callback_args': ()
-            },
-            'set_waypoint': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_waypoint',
-                'msg': AbsolutePanTiltWaypoint,
-                'qsize': 1,
-                'callback': self.setWaypointHandler, 
-                'callback_args': ()
-            },
-            'set_waypoint_here': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_waypoint_here',
-                'msg': UInt8,
-                'qsize': 1,
-                'callback': self.setWaypointHereHandler, 
-                'callback_args': ()
-            },
             'set_auto_pan': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/set_auto_pan_enable',
@@ -730,6 +669,14 @@ class PTXActuatorIF:
                 'msg': RangeWindow,
                 'qsize': 1,
                 'callback': self.setAutoTiltWindowHandler, 
+                'callback_args': ()
+            },
+            'set_pt_offsets': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_pt_offsets',
+                'msg': PanTiltOffsets,
+                'qsize': 1,
+                'callback': self.setOffsetsHandler, 
                 'callback_args': ()
             }
         }
@@ -769,7 +716,8 @@ class PTXActuatorIF:
 
 
         # Setup System IF Classes ####################
-        if getOrientationCb is not None:
+        ''' # PT saving handled by navpose IF class
+        if getNpOrientationCb is not None:
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
             for d in self.data_products_list:
@@ -792,31 +740,30 @@ class PTXActuatorIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
-
-
             time.sleep(1)
+        '''
 
-
+        if getNpOrientationCb is not None:
             # Create a NavPose Device IF
             self.capSettingsNavPose = capSettingsNavPose
             self.factorySettingsNavPose=factorySettingsNavPose
             self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
             self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
 
-            self.getHeadingCb = getHeadingCb  
-            self.getPositionCb = getPositionCb
-            self.getOrientationCb = getOrientationCb
-            self.getLocationCb = getLocationCb
-            self.getAltitudeCb = getAltitudeCb
-            self.getDepthCb = getDepthCb
+            self.getNpHeadingCb = getNpHeadingCb  
+            self.getNpPositionCb = getNpPositionCb
+            self.getNpOrientationCb = getNpOrientationCb
+            self.getNpLocationCb = getNpLocationCb
+            self.getNpAltitudeCb = getNpAltitudeCb
+            self.getNpDepthCb = getNpDepthCb
             self.max_navpose_update_rate = max_navpose_update_rate
 
-            has_navpose = ( getHeadingCb is not None or \
-            getPositionCb is not None or \
-            getOrientationCb is not None or \
-            getLocationCb is not None or \
-            getAltitudeCb is not None or \
-            getDepthCb is not None )
+            has_navpose = ( getNpHeadingCb is not None or \
+            getNpPositionCb is not None or \
+            getNpOrientationCb is not None or \
+            getNpLocationCb is not None or \
+            getNpAltitudeCb is not None or \
+            getNpDepthCb is not None )
             
             if has_navpose == True:
                 self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
@@ -825,12 +772,12 @@ class PTXActuatorIF:
                     factorySettings = self.factorySettingsNavPose,
                     settingUpdateFunction = self.settingUpdateFunctionNavPose, 
                     getSettingsFunction = self.getSettingsFunctionNavPose,
-                    getHeadingCb = self.getHeadingCb, 
-                    getPositionCb = self.getPositionCb, 
-                    getOrientationCb = self.getOrientationCb,
-                    getLocationCb = self.getLocationCb, 
-                    getAltitudeCb = self.getAltitudeCb, 
-                    getDepthCb = self.getDepthCb,
+                    getHeadingCb = self.getNpHeadingCb, 
+                    getPositionCb = self.getNpPositionAdjustedCb, 
+                    getOrientationCb = self.getNpOrientationAdjustedCb,
+                    getLocationCb = self.getNpLocationCb, 
+                    getAltitudeCb = self.getNpAltitudeCb, 
+                    getDepthCb = self.getNpDepthCb,
                     max_navpose_update_rate = self.max_navpose_update_rate,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -841,68 +788,73 @@ class PTXActuatorIF:
    
         ###############################
         # Finish Initialization
-        self.max_yaw_softstop_deg = self.node_if.get_param('max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg =  self.node_if.get_param('min_yaw_softstop_deg')
+        self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
+        self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
 
-        self.max_pitch_softstop_deg = self.node_if.get_param('max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.node_if.get_param('min_pitch_softstop_deg')
+        self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
+        self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
+
 
         if self.setSoftLimitsCb is not None:
-            self.setSoftLimitsCb(self.max_yaw_softstop_deg,
-                                self.min_yaw_softstop_deg,
-                                self.max_pitch_softstop_deg,
-                                self.min_pitch_softstop_deg)
+            self.setSoftLimitsCb(self.min_pan_softstop_deg,
+                                self.max_pan_softstop_deg,
+                                self.min_tilt_softstop_deg,
+                                self.max_tilt_softstop_deg)
 
-        if self.capabilities_report.has_adjustable_speed == False:
+        if self.has_adjustable_speed == False:
             if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
                 speed_ratio = self.node_if.get_param('speed_ratio')
-                self.speed_ratio = speed_ratio
+                self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
                 self.setSpeedRatioCb(speed_ratio)
+                nepi_ros.sleep(1)
+                self.speed_ratio = self.getSpeedRatioCb()
+                self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
 
                 
-        self.home_yaw_deg = self.node_if.get_param('home_position/yaw_deg')
-        self.home_pitch_deg = self.node_if.get_param('home_position/pitch_deg')
+        self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
+        self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
 
+        self.goHome()
 
+        # Auto Scan Settings Update
+        self.auto_pan_enabled = self.node_if.get_param('auto_pan_enabled')
+        self.auto_pan_min = self.node_if.get_param('min_pan_softstop_deg')
+        self.auto_pan_max = self.node_if.get_param('max_pan_softstop_deg')
 
-        self.frame_id = self.node_if.get_param('frame_id')
-        self.yaw_joint_name = self.node_if.get_param('yaw_joint_name')
-        self.pitch_joint_name = self.node_if.get_param('pitch_joint_name')
-        self.reverse_yaw_control = self.node_if.get_param('reverse_yaw_control')
-        self.reverse_pitch_control = self.node_if.get_param('reverse_pitch_control')
-        self.msg_if.pub_debug("Factory Controls Dict: " + str(self.factory_controls_dict))
-        self.msg_if.pub_debug("reverse_yaw_control: " + str(self.reverse_yaw_control))
-        # set class reverse int values
-        ryi = 1
-        if self.reverse_yaw_control:
-            ryi = -1
-        self.ryi = ryi
+        self.auto_tilt_enabled = self.node_if.get_param('auto_tilt_enabled')
+        self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
+        self.auto_tilt_max = self.node_if.get_param('max_tilt_softstop_deg')
+       
+        self.offsets_dict = self.node_if.get_param('offsets')
+   
+        # Set reverse int values
         rpi = 1
-        if self.reverse_pitch_control:
+        if self.reverse_pan_enabled:
             rpi = -1
         self.rpi = rpi
-        
+        rti = 1
+        if self.reverse_tilt_enabled:
+            rti = -1
+        self.rti = rti
+
+
+
+        # Setup Joint Info
+        self.frame_id = self.node_if.get_param('frame_id')
+        self.pan_joint_name = self.node_if.get_param('pan_joint_name')
+        self.tilt_joint_name = self.node_if.get_param('tilt_joint_name')
+        self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
+        self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
+        self.msg_if.pub_debug("Factory Controls Dict: " + str(self.factory_controls_dict))
+        self.msg_if.pub_debug("reverse_pan_enabled: " + str(self.reverse_pan_enabled))
 
         self.status_msg.header.frame_id = self.frame_id
 
+        self.joint_state_msg.name = (self.pan_joint_name, self.tilt_joint_name)
 
-        # And joint state status static values
-        self.joint_state_msg = JointState()
-        # Skip the header -- we just copy it from the status message each time
-        self.joint_state_msg.name = (self.yaw_joint_name, self.pitch_joint_name)
-        self.joint_state_msg.position.append(0.0) # Yaw
-        self.joint_state_msg.position.append(0.0) # Pitch
-
-        # And odom static values
-        self.odom_msg = Odometry()
-        self.odom_msg.header.frame_id = self.device_name + '_fixed_frame'
-        self.odom_msg.child_frame_id = self.device_name + '_rotating_frame'
         
-             
 
-
-
-
+        # Init everything
         self.initCb(do_updates = True)
         self.publish_status(do_updates = True)
 
@@ -918,14 +870,15 @@ class PTXActuatorIF:
         self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
         nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
-        '''
-        # Start Auto Pan and Tilt Processes
-        if self.gotoPanPositionCb is not None:
-            nepi_ros.start_timer_process(1.0, self.autoPanProcess, oneshot = True)
-        if self.gotoTiltPositionCb is not None:
-            nepi_ros.start_timer_process(1.0, self.autoTiltProcess, oneshot = True)
-        '''
+        if self.has_auto_pan:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto pan scanning process")
+            nepi_ros.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
 
+        if self.has_auto_tilt:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto tilt scanning process")
+            nepi_ros.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
         self.publish_status()
         self.ready = True
         self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
@@ -935,114 +888,174 @@ class PTXActuatorIF:
     ###############################
     # Class Methods
 
-    def gotoPanPositionCurTiltCb(self, pan_deg):
-        if self.gotoPositionCb is not None and self.getPositionCb is not None:
-            [cur_pan,cur_tilt] = self.getPositionCb()
-            self.gotPositionCb(pan_deg,cur_tilt)
+    def getPanAdj(self,pan_deg):
+        return pan_deg * self.rpi
+
+    def getPanRatioAdj(self,ratio):
+        if self.reverse_pan_enabled == True:
+            ratio = 1 - ratio
+        return ratio
+
+    def getTiltAdj(self,tilt_deg):
+        return tilt_deg * self.rti
+
+    def getPanTiltAdj(self,pan_deg,tilt_deg):
+        adj_pan = self.getPanAdj(pan_deg)
+        adj_tilt = self.getTiltAdj(tilt_deg)
+        return adj_pan,adj_tilt
+
+    def getTiltRatioAdj(self,ratio):
+        if self.reverse_tilt_enabled == True:
+            ratio = 1 - ratio
+        return ratio
+
+    def getPanMinMaxAdj(self,min_deg,max_deg):
+        if self.reverse_pan_enabled == True:
+            adj_min = copy.deepcopy(max_deg) * -1
+            adj_max = copy.deepcopy(min_deg) * -1
+        else:
+            adj_min = min_deg
+            adj_max = max_deg
+        return adj_min,adj_max
+
+    def getTiltMinMaxAdj(self,min_deg,max_deg):
+        if self.reverse_tilt_enabled == True:
+            adj_min = copy.deepcopy(max_deg) * -1
+            adj_max = copy.deepcopy(min_deg) * -1
+        else:
+            adj_min = min_deg
+            adj_max = max_deg
+        return adj_min,adj_max
+
+    def getLimitsAdj(self,pan_min,pan_max,tilt_min,tilt_max):
+        [adj_pan_min,adj_pan_max] = self.getPanMinMaxAdj(pan_min,pan_max)
+        [adj_tilt_min,adj_tilt_max] = self.getTiltMinMaxAdj(tilt_min,tilt_max)
+        return adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max
+
+    def getLimitsHardstopAdj(self):
+        pan_min = self.min_pan_hardstop_deg
+        pan_max = self.max_pan_hardstop_deg
+        [adj_pan_min,adj_pan_max] = self.getPanMinMaxAdj(pan_min,pan_max)
+
+        tilt_min = self.min_tilt_hardstop_deg
+        tilt_max = self.max_tilt_hardstop_deg
+        [adj_tilt_min,adj_tilt_max] = self.getTiltMinMaxAdj(tilt_min,tilt_max)
+
+        return adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max
+
+    def getLimitsSoftstopAdj(self):
+        pan_min = self.min_pan_softstop_deg
+        pan_max = self.max_pan_softstop_deg
+        [adj_pan_min,adj_pan_max] = self.getPanMinMaxAdj(pan_min,pan_max)
+
+        tilt_min = self.min_tilt_softstop_deg
+        tilt_max = self.max_tilt_softstop_deg
+        [adj_tilt_min,adj_tilt_max] = self.getTiltMinMaxAdj(tilt_min,tilt_max)
+
+        return adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max
+
+
+
+
+    def getPtPosition(self, orien_dict):
+        x = 0.0
+        y = 0.0
+        z = 0.0
+        if orien_dict is not None:
             
+            ho = self.offsets_dict['h']
+            xo = self.offsets_dict['x']
+            yo = self.offsets_dict['y']
+            zo = self.offsets_dict['z']
 
-    def autoPanProcess(self):
-        pass
-        '''
-        if self.auto_pan == True:
-            self.msg_if.pub_warn("Starting Pan Scan Process") 
-            self.is_auto_pan = True
-            if was_scanning == False:
-                self.start_scanning = True
-            self.publish_status()
-            scan_speed_ratio = self.status_msg.scan_speed_ratio
-            scan_tilt_offset = self.status_msg.scan_tilt_offset
-            
+            # calculate pos from tilt axis
+            tilt_rad = -1 * math.radians(orien_dict['pitch_deg'])
+            x = (xo * np.cos(tilt_rad) - zo * np.sin(tilt_rad))
+            z = (zo * np.cos(tilt_rad) + xo * np.sin(tilt_rad)) * self.rpi
 
-            # Check tilt limits
-            if scan_tilt_offset < min_tilt:
-            scan_tilt_offset = min_tilt
-            if scan_tilt_offset > max_tilt:
-            scan_tilt_offset = max_tilt
-            self.node_if.set_param("scan_tilt_offset",scan_tilt_offset)
+            # Add tilt axis height
+            z += (ho * self.rpi)
+
+            # Add left right offset
+            y += yo * self.rpi
+
+            # Rotate about center pan axis
+            pan_deg = orien_dict['yaw_deg'] * self.rpi
+            [x,y,z] = nepi_utils.rotate_3d([x,y,z], 'z', pan_deg) 
+
+        return x,y,z
 
 
-            if self.has_adjustable_speed == True and self.cur_speed_ratio != scan_speed_ratio:
-            try:
-                self.set_pt_speed_ratio_pub.publish(scan_speed_ratio)
-            except:
-                pass
- 
-            if self.has_position_feedback == True:
-            if (pan_cur < (min_pan + 10)):
-                pan_tilt_pos_msg = PanTiltPosition()
-                pan_tilt_pos_msg.yaw_deg = max_pan
-                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
-                self.msg_if.pub_warn("Scanning to pan tilt : " + str(pan_tilt_pos_msg))
-                self.last_scan_goal = pan_tilt_pos_msg
-                try:
-                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
-                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
-                self.current_scan_dir = 1
-                self.publish_status(do_updates = False)
-                except Exception as e:
-                self.msg_if.pub_warn("Scanning to max_pan excpetion: " + str(e))
-                #self.msg_if.pub_warn("Scanning to max_pan")
-                self.start_scanning = False
+    def getNpPositionAdjustedCb(self):
+        pos_dict = dict()
+        pos_dict['time_position'] = nepi_utils.get_time()
+        pos_dict['x_m'] = 0.0
+        pos_dict['y_m'] = 0.0     
+        pos_dict['z_m'] = 0.0
 
-            elif (pan_cur > (max_pan - 10)):
-                pan_tilt_pos_msg = PanTiltPosition()
-                pan_tilt_pos_msg.yaw_deg = min_pan
-                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
-                self.msg_if.pub_warn("Scanning to pan tilt : " + str(pan_tilt_pos_msg))
-                self.last_scan_goal = pan_tilt_pos_msg
-                try:
-                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
-                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
-                self.current_scan_dir = -1
-                self.publish_status(do_updates = False)
-                except:
-                self.msg_if.pub_warn("Scanning to min_pan excpetion: " + str(e))
-                #self.msg_if.pub_warn("Scanning to min_pan")
-                self.start_scanning = False
+        if self.getNpOrientationCb is not None:
+            orien_dict = self.getNpOrientationCb()
+            [x,y,z] = self.getPtPosition(orien_dict)
+            pos_dict['x_m'] = round(x,5)
+            pos_dict['y_m'] = round(y,5)   
+            pos_dict['z_m'] = round(z,5)
+            self.msg_if.pub_debug("Calculate navpose x,y,z: " + str([x,y,z]), log_name_list = self.log_name_list, throttle_s = 3.0)
+        return pos_dict
 
-            elif self.start_scanning == True:
-                if self.current_scan_dir > 0:
-                pan_tilt_pos_msg = PanTiltPosition()
-                pan_tilt_pos_msg.yaw_deg = max_pan
-                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
-                self.msg_if.pub_warn("Starting Scan to pan tilt : " + str(pan_tilt_pos_msg))
-                self.last_scan_goal = pan_tilt_pos_msg
-                try:
-                    self.set_pt_position_pub.publish(pan_tilt_pos_msg)
-                    self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
-                    self.publish_status(do_updates = False)
-                except:
-                    self.msg_if.pub_warn("Starting Scan to max_pan excpetion: " + str(e))
-                #self.msg_if.pub_warn("Starting to max_pan")
-                self.start_scanning = False
-                else:
-                pan_tilt_pos_msg = PanTiltPosition()
-                pan_tilt_pos_msg.yaw_deg = min_pan
-                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
-                self.msg_if.pub_warn("Starting Scan to pan tilt : " + str(pan_tilt_pos_msg))
-                self.last_scan_goal = pan_tilt_pos_msg
-                try:
-                    self.set_pt_position_pub.publish(pan_tilt_pos_msg)
-                    self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
-                    self.publish_status(do_updates = False)
-                except:
-                    self.msg_if.pub_warn("Starting Scan to min_pan excpetion: " + str(e))
-                self.msg_if.pub_warn("Starting to min_pan")
-                self.start_scanning = False
-            else:
-                self.msg_if.pub_warn("Cont Scan to pan tilt : " + str(self.last_scan_goal))
-                pan_tilt_pos_msg = self.last_scan_goal
-                pan_tilt_pos_msg.pitch_deg = scan_tilt_offset
-                try:
-                self.set_pt_position_pub.publish(pan_tilt_pos_msg)
-                self.pan_tilt_goal_deg = [pan_tilt_pos_msg.yaw_deg,pan_tilt_pos_msg.pitch_deg]
-                self.current_scan_dir = 1
-                self.publish_status(do_updates = False)
-                except Exception as e:
-                self.msg_if.pub_warn("Cont to max_pan excpetion: " + str(e))
-        self.msg_if.pub_warn("Ending Scan Process") 
-        '''
+    def getNpOrientationAdjustedCb(self):
+        orien_dict = dict()
+        orien_dict['time_orientation'] = nepi_utils.get_time()
+        orien_dict['yaw_deg'] = self.current_position[0]
+        orien_dict['pitch_deg'] = self.current_position[1]      
+
+        if self.getNpOrientationCb is not None:
+            orien_dict = self.getNpOrientationCb()
+            pan_deg = orien_dict['yaw_deg']
+            orien_dict['yaw_deg'] = self.getPanAdj(pan_deg)
+            tilt_deg = orien_dict['pitch_deg']
+            orien_dict['pitch_deg'] = self.getTiltAdj(tilt_deg)
+        return orien_dict
+           
+
+    def autoPanProcess(self,timer):
+        #self.msg_if.pub_warn("Starting Pan Scan Process") 
+        if self.auto_pan_enabled == False:
+            self.is_auto_pan = False
+        else:
+            if self.has_seperate_pan_tilt_control == False:
+                self.setAutoTilt(False)
+            start_auto_pan = False
+            if self.is_auto_pan == False:
+                start_auto_pan = True     
+            self.is_auto_pan = True    
+            pan_cur = self.current_position[0]
+            if start_auto_pan == True:
+                self.gotoPanPosition(self.auto_pan_min)  
+            elif (pan_cur < (self.auto_pan_min + self.AUTO_SCAN_SWITCH_DEG)):
+                self.gotoPanPosition(self.auto_pan_max)
+            elif (pan_cur > (self.auto_pan_max - self.AUTO_SCAN_SWITCH_DEG)):
+                self.gotoPanPosition(self.auto_pan_min)
+
+    def autoTiltProcess(self,timer):
+        #self.msg_if.pub_warn("Starting Tilt Scan Process") 
+        if self.auto_tilt_enabled == False:
+            self.is_auto_tilt = False
+        else:
+            if self.has_seperate_pan_tilt_control == False:
+                self.setAutoPan(False)
+            start_auto_tilt = False
+            if self.is_auto_tilt == False:
+                start_auto_tilt = True     
+            self.is_auto_tilt = True    
+            tilt_cur = self.current_position[1]
+            if start_auto_tilt == True:
+                self.gotoTiltPosition(self.auto_tilt_min)  
+            elif (tilt_cur < (self.auto_tilt_min + self.AUTO_SCAN_SWITCH_DEG)):
+                self.gotoTiltPosition(self.auto_tilt_max)
+            elif (tilt_cur > (self.auto_tilt_max - self.AUTO_SCAN_SWITCH_DEG)):
+                self.gotoTiltPosition(self.auto_tilt_min)
+
+
 
     def check_ready(self):
         return self.ready  
@@ -1063,266 +1076,80 @@ class PTXActuatorIF:
         return self.ready   
 
 
-    def yawRatioToDeg(self, ratio):
-        yaw_deg = 0
-        if self.reverse_yaw_control == False:
-           yaw_deg =  self.min_yaw_softstop_deg + (1-ratio) * (self.max_yaw_softstop_deg - self.min_yaw_softstop_deg)
+    def panRatioToDeg(self, ratio):
+        pan_deg = 0
+        if self.reverse_pan_enabled == False:
+           pan_deg =  self.min_pan_softstop_deg + (1-ratio) * (self.max_pan_softstop_deg - self.min_pan_softstop_deg)
         else:
-           yaw_deg =  self.max_yaw_softstop_deg - (1-ratio)  * (self.max_yaw_softstop_deg - self.min_yaw_softstop_deg)
-        return  yaw_deg
+           pan_deg =  self.max_pan_softstop_deg - (1-ratio)  * (self.max_pan_softstop_deg - self.min_pan_softstop_deg)
+        return  pan_deg
     
-    def yawDegToRatio(self, deg):
+    def panDegToRatio(self, deg):
         ratio = 0.5
-        if self.reverse_yaw_control == False:
-          ratio = 1 - (deg - self.min_yaw_softstop_deg) / (self.max_yaw_softstop_deg - self.min_yaw_softstop_deg)
+        if self.reverse_pan_enabled == False:
+          ratio = 1 - (deg - self.min_pan_softstop_deg) / (self.max_pan_softstop_deg - self.min_pan_softstop_deg)
         else:
-          ratio = (deg - self.min_yaw_softstop_deg) / (self.max_yaw_softstop_deg - self.min_yaw_softstop_deg)
+          ratio = (deg - self.min_pan_softstop_deg) / (self.max_pan_softstop_deg - self.min_pan_softstop_deg)
         return (ratio)
      
-    def pitchDegToRatio(self, deg):
+    def tiltDegToRatio(self, deg):
         ratio = 0.5
-        if self.reverse_pitch_control == False:
-          ratio = 1 - (deg - self.min_pitch_softstop_deg) / (self.max_pitch_softstop_deg - self.min_pitch_softstop_deg)
+        if self.reverse_tilt_enabled == False:
+          ratio = 1 - (deg - self.min_tilt_softstop_deg) / (self.max_tilt_softstop_deg - self.min_tilt_softstop_deg)
         else:
-          ratio = (deg - self.min_pitch_softstop_deg) / (self.max_pitch_softstop_deg - self.min_pitch_softstop_deg)
+          ratio = (deg - self.min_tilt_softstop_deg) / (self.max_tilt_softstop_deg - self.min_tilt_softstop_deg)
         return ratio
     
-    def pitchRatioToDeg(self, ratio):
-        pitch_deg = 0
-        if self.reverse_pitch_control == False:
-           pitch_deg =  self.min_pitch_softstop_deg + (1-ratio) * (self.max_pitch_softstop_deg - self.min_pitch_softstop_deg)
+    def tiltRatioToDeg(self, ratio):
+        tilt_deg = 0
+        if self.reverse_tilt_enabled == False:
+           tilt_deg =  self.min_tilt_softstop_deg + (1-ratio) * (self.max_tilt_softstop_deg - self.min_tilt_softstop_deg)
         else:
-           pitch_deg =  (self.max_pitch_softstop_deg) - (1-ratio) * (self.max_pitch_softstop_deg - self.min_pitch_softstop_deg)
-        return  pitch_deg
-
-    def publishJointStateAndStatus(self, Timer):
-        self.msg_if.pub_debug("Publishing status", log_name_list = self.log_name_list)
-        pub_time = self.publish_status()
-        pub_time = round(pub_time, 3)
-        self.msg_if.pub_debug("Published status with process time: " + str(pub_time))
-
-        status_pub_delay = float(1.0) / self.status_update_rate
-        if pub_time > status_pub_delay:
-            status_pub_delay = 0.01
-        else:
-            status_pub_delay = status_pub_delay - pub_time
-        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
-
-    def publish_status(self, do_updates = False):
-        start_time = nepi_utils.get_time()
-        self.status_msg.header.stamp = nepi_ros.ros_time_now()
-        #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
-        if self.capabilities_report.has_absolute_positioning == True and self.npx_if is not None:
-            navpose_dict = self.npx_if.get_navpose_dict()
-            #self.msg_if.pub_info("Got Nav Pose Dict: " + str(navpose_dict) , log_name_list = self.log_name_list)
-            yaw_now_deg = navpose_dict['yaw_deg']  * self.ryi
-            pitch_now_deg = navpose_dict['pitch_deg']  * self.rpi
-            got_time = nepi_utils.get_time() - start_time
-            got_time = round(got_time, 3)
-            #self.msg_if.pub_debug("Got PT status with time: " + str(got_time))
-
-            if round(yaw_now_deg,5) != round(self.yaw_goal_deg,5) or round(pitch_now_deg,5) != round(self.pitch_goal_deg,5):
-                self.status_msg.yaw_now_deg = yaw_now_deg
-                self.status_msg.pitch_now_deg = pitch_now_deg
-
-                '''
-                if self.yaw_goal_deg == -999:
-                    self.yaw_goal_deg = yaw_now_deg
-                if self.pitch_goal_deg == -999:
-                    self.pitch_goal_deg = pitch_now_deg
-                '''
-                self.status_msg.reverse_yaw_control = self.reverse_yaw_control
-                max_yaw_hs = self.max_yaw_hardstop_deg
-                min_yaw_hs = self.min_yaw_hardstop_deg
-                max_yaw_ss = self.max_yaw_softstop_deg
-                min_yaw_ss = self.min_yaw_softstop_deg
-                if self.reverse_yaw_control:
-                    max_yaw_hardstop_deg = -1*min_yaw_hs
-                    min_yaw_hardstop_deg = -1*max_yaw_hs
-                    max_yaw_softstop_deg = -1*min_yaw_ss
-                    min_yaw_softstop_deg = -1*max_yaw_ss
-                else:
-                    max_yaw_hardstop_deg = max_yaw_hs
-                    min_yaw_hardstop_deg = min_yaw_hs
-                    max_yaw_softstop_deg = max_yaw_ss
-                    min_yaw_softstop_deg = min_yaw_ss
-                self.status_msg.yaw_max_hardstop_deg = max_yaw_hardstop_deg
-                self.status_msg.yaw_min_hardstop_deg = min_yaw_hardstop_deg
-                self.status_msg.yaw_max_softstop_deg = max_yaw_softstop_deg
-                self.status_msg.yaw_min_softstop_deg = min_yaw_softstop_deg
-                self.status_msg.yaw_goal_deg = self.yaw_goal_deg * self.ryi
-                self.status_msg.yaw_home_pos_deg = self.home_yaw_deg * self.ryi
-
-                yaw_now_ratio =  1 - (yaw_now_deg - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
-                self.msg_if.pub_debug("yaw_now, min_yaw, max_yaw, yaw_now_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_now_ratio]))
-                if yaw_now_ratio < 0:
-                    yaw_now_ratio = 0
-                elif yaw_now_ratio > 1:
-                    yaw_now_ratio = 1
-                self.status_msg.yaw_now_ratio = yaw_now_ratio 
-                yaw_goal_ratio =  1 - ((self.status_msg.yaw_goal_deg) - min_yaw_softstop_deg) / (max_yaw_softstop_deg - min_yaw_softstop_deg) 
-                self.msg_if.pub_debug("yaw_now, min_yaw, max_yaw, yaw_goal_ratio: " + str([yaw_now_deg,min_yaw_softstop_deg,max_yaw_softstop_deg,yaw_goal_ratio]))
-                if yaw_goal_ratio < 0:
-                    yaw_goal_ratio = 0
-                elif yaw_goal_ratio > 1:
-                    yaw_goal_ratio = 1
-                self.status_msg.yaw_goal_ratio = yaw_goal_ratio 
+           tilt_deg =  (self.max_tilt_softstop_deg) - (1-ratio) * (self.max_tilt_softstop_deg - self.min_tilt_softstop_deg)
+        return  tilt_deg
 
 
-                self.status_msg.reverse_pitch_control = self.reverse_pitch_control
 
-                max_pitch_hs = self.max_pitch_hardstop_deg
-                min_pitch_hs = self.min_pitch_hardstop_deg
-                max_pitch_ss = self.max_pitch_softstop_deg
-                min_pitch_ss = self.min_pitch_softstop_deg
-                if self.reverse_pitch_control:
-                    max_pitch_hardstop_deg = -1*min_pitch_hs
-                    min_pitch_hardstop_deg = -1*max_pitch_hs
-                    max_pitch_softstop_deg = -1*min_pitch_ss
-                    min_pitch_softstop_deg = -1*max_pitch_ss
-                else:
-                    max_pitch_hardstop_deg = max_pitch_hs
-                    min_pitch_hardstop_deg = min_pitch_hs
-                    max_pitch_softstop_deg = max_pitch_ss
-                    min_pitch_softstop_deg = min_pitch_ss
-
-                self.status_msg.pitch_max_hardstop_deg = max_pitch_hardstop_deg
-                self.status_msg.pitch_min_hardstop_deg = min_pitch_hardstop_deg
-                self.status_msg.pitch_max_softstop_deg = max_pitch_softstop_deg
-                self.status_msg.pitch_min_softstop_deg = min_pitch_softstop_deg
-
-                self.status_msg.pitch_goal_deg = self.pitch_goal_deg * self.rpi
-                self.status_msg.pitch_home_pos_deg = self.home_pitch_deg * self.rpi
-
-                pitch_now_ratio =  1 - ((pitch_now_deg * self.rpi) - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
-                self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch,pitch_now_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_now_ratio]))
-                if pitch_now_ratio < 0:
-                    pitch_now_ratio = 0
-                elif pitch_now_ratio > 1:
-                    pitch_now_ratio = 1
-                self.status_msg.pitch_now_ratio = pitch_now_ratio 
-                pitch_goal_ratio =  1 - (self.status_msg.pitch_goal_deg - min_pitch_softstop_deg) / (max_pitch_softstop_deg - min_pitch_softstop_deg) 
-                self.msg_if.pub_debug("pitch_now, min_pitch, max_pitch, pitch_goal_ratio: " + str([pitch_now_deg,min_pitch_softstop_deg,max_pitch_softstop_deg,pitch_goal_ratio]))
-                if pitch_goal_ratio < 0:
-                    pitch_goal_ratio = 0
-                elif pitch_goal_ratio > 1:
-                    pitch_goal_ratio = 1
-                self.status_msg.pitch_goal_ratio = pitch_goal_ratio 
-
-                self.status_msg.speed_ratio = self.speed_ratio
-
-
-        if do_updates == True:
-            if self.getSoftLimitsCb is not None:
-                [min_yaw,max_yaw,min_pitch,max_pitch] = self.getSoftLimitsCb()
-                if min_yaw != -999:
-                    self.min_yaw_softstop_deg = min_yaw
-                    self.node_if.set_param('min_yaw_softstop_deg', self.min_yaw_softstop_deg)
-                if max_yaw != -999:
-                    self.max_yaw_softstop_deg = max_yaw
-                    self.node_if.set_param('max_yaw_softstop_deg',self.max_yaw_softstop_deg)
-
-                if min_pitch != -999:
-                    self.min_pitch_softstop_deg = min_pitch
-                    self.node_if.set_param('min_pitch_softstop_deg', self.min_pitch_softstop_deg)
-                if max_pitch != -999:
-                    self.max_pitch_softstop_deg = max_pitch
-                    self.node_if.set_param('max_pitch_softstop_deg',self.max_pitch_softstop_deg)
-
-            if self.capabilities_report.has_adjustable_speed == True:
-                self.status_msg.speed_ratio = self.getSpeedRatioCb()
-                self.speed_ratio = self.status_msg.speed_ratio
-
-        self.status_msg.has_position_feedback = self.has_position_feedback
-        self.status_msg.has_adjustable_speed = self.has_adjustable_speed
-        self.status_msg.has_auto_pan = self.has_auto_pan
-        self.status_msg.has_auto_tilt = self.has_auto_tilt
-        self.status_msg.has_homing = self.has_homing
-        self.status_msg.has_waypoints = self.has_waypoints
-
-        self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
-
-        self.node_if.publish_pub('status_pub',self.status_msg)
-
-
-        yaw_rad = 0.01745329 * self.status_msg.yaw_now_deg
-        pitch_rad = 0.01745329 * self.status_msg.pitch_now_deg
-
-        # And joint state if appropriate
-        self.joint_state_msg.header.stamp = self.status_msg.header.stamp
-        self.joint_state_msg.position[0] = yaw_rad
-        self.joint_state_msg.position[1] = pitch_rad
-        self.msg_if.pub_debug("Publishing Joint", log_name_list = self.log_name_list)
-        self.node_if.publish_pub('joint_pub',self.joint_state_msg)
-
-        pub_time = nepi_utils.get_time() - start_time
-
-
-        return pub_time
-
-
-    def positionWithinSoftLimits(self, yaw_deg, pitch_deg):
-
-        if (yaw_deg < self.min_yaw_softstop_deg) or (yaw_deg > self.max_yaw_softstop_deg) or \
-           (pitch_deg < self.min_pitch_softstop_deg) or (pitch_deg > self.max_pitch_softstop_deg):
-            return False
+    def positionWithinSoftLimits(self, pan_deg, tilt_deg):
+        valid = False
+        if (pan_deg <= self.max_pan_softstop_deg) or (pan_deg >= self.min_pan_softstop_deg) or \
+           (tilt_deg <= self.max_tilt_softstop_deg) or (tilt_deg >= self.min_tilt_softstop_deg):
+            valid = True
         
-        return True
-
-    '''
-    def setHardstopHandler(self, msg):
-        min_yaw = msg.min_yaw_deg
-        max_yaw = msg.max_yaw_deg
-        min_pitch = msg.min_pitch_deg
-        max_pitch = msg.max_pitch_deg
-
-        valid = False
-        if min_yaw < max_yaw and min_pitch < max_pitch:
-            if min_yaw >= self.factoryLimits['min_yaw_hardstop_deg'] and max_yaw <= self.factoryLimits['max_yaw_hardstop_deg']:
-                if min_pitch >= self.factoryLimits['min_pitch_hardstop_deg'] and max_pitch <= self.factoryLimits['max_pitch_hardstop_deg']:
-
-                    self.node_if.set_param('max_yaw_hardstop_deg', max_yaw)
-                    self.node_if.set_param('min_yaw_hardstop_deg', min_yaw)
-                    self.node_if.set_param('max_pitch_hardstop_deg', max_pitch)
-                    self.node_if.set_param('min_pitch_hardstop_deg', min_pitch)
-
-                    self.node_if.set_param('max_yaw_softstop_deg', max_yaw)
-                    self.node_if.set_param('min_yaw_softstop_deg', min_yaw)
-                    self.node_if.set_param('max_pitch_softstop_deg', max_pitch)
-                    self.node_if.set_param('min_pitch_softstop_deg', min_pitch)
-                    valid = True
-
-                    self.initCb(do_updates = True)
+        return valid
 
 
-        if valid == False:
-            self.msg_if.pub_warn("Invalid hardstop requested " + str(msg))
-    '''
-
+ 
     def setSoftstopHandler(self, msg):
-        min_yaw = msg.min_yaw_deg
-        max_yaw = msg.max_yaw_deg
-        min_pitch = msg.min_pitch_deg
-        max_pitch = msg.max_pitch_deg
+        min_pan = msg.min_pan_deg
+        max_pan = msg.max_pan_deg
+        min_tilt = msg.min_tilt_deg
+        max_tilt = msg.max_tilt_deg
 
-        max_yaw_hardstop_deg = self.node_if.get_param('max_yaw_hardstop_deg')
-        min_yaw_hardstop_deg = self.node_if.get_param('min_yaw_hardstop_deg')
-        max_pitch_hardstop_deg = self.node_if.get_param('max_pitch_hardstop_deg')
-        min_pitch_hardstop_deg = self.node_if.get_param('min_pitch_hardstop_deg')
+        [min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj] = self.getLimitsAdj(min_pan,max_pan,min_tilt,max_tilt)
 
         valid = False
-        if min_yaw < max_yaw and max_yaw <= max_yaw_hardstop_deg and min_yaw < max_yaw:  
-            if min_pitch >= min_pitch_hardstop_deg and max_pitch <= max_pitch_hardstop_deg and min_pitch < max_pitch:
-                self.node_if.set_param('max_yaw_softstop_deg', max_yaw)
-                self.node_if.set_param('min_yaw_softstop_deg', min_yaw)
-                self.node_if.set_param('max_pitch_softstop_deg', max_pitch)
-                self.node_if.set_param('min_pitch_softstop_deg', min_pitch)
+        if min_pan_adj >= self.min_pan_hardstop_deg and max_pan_adj <= self.max_pan_hardstop_deg and min_pan_adj < max_pan_adj:  
+            if min_tilt_adj >= self.min_tilt_hardstop_deg and max_tilt_adj <= self.max_tilt_hardstop_deg and min_tilt_adj < max_tilt_adj:
                 valid = True
 
+                self.min_pan_softstop_deg =  min_pan_adj
+                self.max_pan_softstop_deg = max_pan_adj
+                self.min_tilt_softstop_deg = min_tilt_adj
+                self.max_tilt_softstop_deg = max_tilt_adj
+
+                #self.msg_if.pub_info("Calling set auto pan limits with: " + str([min_pan_adj, max_pan_adj]))
+                self.setAutoPanWindow( min_pan_adj, max_pan_adj)
+                #self.msg_if.pub_info("Calling set auto tilt limits with: " + str([min_tilt_adj, max_tilt_adj]))
+                self.setAutoTiltWindow( min_tilt_adj, max_tilt_adj)
 
                 if self.setSoftLimitsCb is not None:
-                    self.setSoftLimitsCb(min_yaw,max_yaw,min_pitch,max_pitch)
-                self.initCb(do_updates = True)
+                    self.setSoftLimitsCb(min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj)
+
+                self.node_if.set_param('max_pan_softstop_deg', max_pan_adj)
+                self.node_if.set_param('min_pan_softstop_deg', min_pan_adj)
+                self.node_if.set_param('max_tilt_softstop_deg', max_tilt_adj)
+                self.node_if.set_param('min_tilt_softstop_deg', min_tilt_adj)
 
 
         if valid == False:
@@ -1340,236 +1167,291 @@ class PTXActuatorIF:
                 self.speed_ratio = speed_ratio
                 self.publish_status()
                 self.setSpeedRatioCb(speed_ratio)
-                self.msg_if.pub_info("Updated speed ratio to " + str(speed_ratio))
+                self.node_if.set_param('speed_ratio',speed_ratio)
+                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
         
 
     def setHomePositionHandler(self, msg):
-        if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
+        [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
+        if not self.positionWithinSoftLimits(pan_deg_adj, tilt_deg_adj):
             self.msg_if.pub_warn("Requested home position is invalid... ignoring", log_name_list = self.log_name_list)
             return
 
+        self.home_pan_deg = pan_deg_adj
+        self.home_tilt_deg = tilt_deg_adj
+        self.msg_if.pub_info("Updated home position to " + "%.2f" % self.home_pan_deg + " " + "%.2f" %  self.home_tilt_deg)
+        self.publish_status()
         if self.setHomePositionCb is not None:
             # Driver supports absolute positioning, so just let it operate
-            self.home_yaw_deg = msg.yaw_deg
-            self.home_pitch_deg = msg.pitch_deg
-            self.setHomePositionCb(self.home_yaw_deg, self.home_pitch_deg)
+            self.setHomePositionCb(self.home_pan_deg, self.home_tilt_deg)
         else:
             self.msg_if.pub_warn("Absolution position home setpoints not available... ignoring", log_name_list = self.log_name_list)
             return
         
-        self.msg_if.pub_info("Updated home position to " + "%.2f" % self.home_yaw_deg + " " + "%.2f" %  self.home_pitch_deg)
+        
             
 
     def goHomeHandler(self, _):
-        if self.auto_pan == False and self.auto_tilt == False:
-            if self.goHomeCb is not None:
-                self.yaw_goal_deg = self.home_yaw_deg
-                self.pitch_goal_deg = self.home_pitch_deg
-                self.goHomeCb()
+        self.goHome()
+
+    def goHome(self):
+        self.setAutoPan(False)
+        self.setAutoTilt(False)
+        if self.gotoPositionCb is not None:
+            self.pan_goal_deg = self.home_pan_deg
+            self.tilt_goal_deg = self.home_tilt_deg
+            self.gotoPositionCb(self.pan_goal_deg,self.tilt_goal_deg)
+            self.publish_status()
+        elif self.goHomeCb is not None:
+            self.goHomeCb()
         
 
     def gotoPositionHandler(self, msg):
-        if self.auto_pan == False and self.auto_tilt == False:
-            if self.positionWithinSoftLimits is not None:
-                if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-                    self.msg_if.pub_warn("Requested goto position is invalid... ignoring", log_name_list = self.log_name_list)
-                    return
-                self.yaw_goal_deg = msg.yaw_deg
-                self.pitch_goal_deg = msg.pitch_deg
-                self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
-                self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))
+        self.setAutoPan(False)
+        self.setAutoTilt(False)
+        if self.positionWithinSoftLimits is not None:
+            [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg,msg.tilt_deg)
+        self.gotPosition(pan_deg_adj,tilt_deg_adj)
+
+    def gotPosition(self,pan_deg,tilt_deg):
+            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
+                self.msg_if.pub_warn("Requested goto position is invalid... ignoring", log_name_list = self.log_name_list)
+                return
+            self.pan_goal_deg = pan_deg
+            self.tilt_goal_deg = tilt_deg
+            self.publish_status()
+            self.msg_if.pub_info("Driving to  " + "%.2f" % (self.pan_goal_deg * self.rpi) + " " + "%.2f" % (self.tilt_goal_deg * self.rti))
+            self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
 
     def gotoPanPositionHandler(self, msg):
-        yaw_deg = msg.data
-        pitch_deg = self.status_msg.pitch_now_deg
-        if self.auto_pan == False:
-            if self.positionWithinSoftLimits is not None:
-                if not self.positionWithinSoftLimits(yaw_deg, pitch_deg):
-                    self.msg_if.pub_warn("Requested goto pan position is invalid... ignoring", log_name_list = self.log_name_list)
-                    return
-                self.yaw_goal_deg = msg.yaw_deg
-                self.pitch_goal_deg = msg.pitch_deg
-                if self.gotoPanPositionCb is not None:
-                    self.msg_if.pub_info("Driving to yaw " + "%.2f" % (self.yaw_goal_deg * self.ryi))
-                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi))
-                elif self.gotoPanPositionCb is not None:
-                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
-                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))                    
+        self.setAutoPan(False)
+        pan_deg_adj = self.getPanAdj(msg.data)
+        self.gotoPanPosition(pan_deg_adj)
+
+    def gotoPanPosition(self,pan_deg):
+        tilt_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
+        if self.positionWithinSoftLimits is not None:
+            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
+                self.msg_if.pub_warn("Requested goto pan position is invalid... ignoring", log_name_list = self.log_name_list)
+                return
+            self.pan_goal_deg = pan_deg
+            if self.gotoPanPositionCb is not None:
+                self.msg_if.pub_info("Driving to pan " + "%.2f" % (self.pan_goal_deg * self.rpi))
+                self.gotoPanPositionCb(self.pan_goal_deg)
+            elif self.gotoPositionCb is not None:
+                self.setAutoTilt(False)
+                self.tilt_goal_deg = tilt_deg
+                self.msg_if.pub_info("Driving to  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+                self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+            self.publish_status()
+                 
 
     def gotoTiltPositionHandler(self, msg):
-        yaw_deg = self.status_msg.yaw_now_deg 
-        pitch_deg = msg.data
-        if self.auto_pan == False:
-            if self.positionWithinSoftLimits is not None:
-                if not self.positionWithinSoftLimits(yaw_deg, pitch_deg):
-                    self.msg_if.pub_warn("Requested goto tilt position is invalid... ignoring", log_name_list = self.log_name_list)
-                    return
-                self.yaw_goal_deg = msg.yaw_deg
-                self.pitch_goal_deg = msg.pitch_deg
-                if self.gotoTiltPositionCb is not None:
-                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.pitch_goal_deg * self.rpi))
-                    self.self.gotoTiltPositionCb(pitch_deg = (self.pitch_goal_deg * self.rpi))    
-                elif self.gotoPanPositionCb is not None:
-                    self.msg_if.pub_info("Driving to  " + "%.2f" % (self.yaw_goal_deg * self.ryi) + " " + "%.2f" % (self.pitch_goal_deg * self.rpi))
-                    self.self.gotoPanPositionCb(yaw_deg = (self.yaw_goal_deg * self.ryi), pitch_deg = (self.pitch_goal_deg * self.rpi))      
+        self.setAutoTilt(False)
+        tilt_deg_adj = self.getTiltAdj(msg.data)
+        self.gotoPanPosition(tilt_deg_adj)
 
-    def jogToYawRatioHandler(self, msg):
-        if self.auto_pan == False:
-            ratio = msg.data
-            if (ratio < 0.0 or ratio > 1.0):
-                self.msg_if.pub_warn("Invalid yaw position ratio " + "%.2f" % ratio)
+    def gotoTiltPosition(self,tilt_deg):
+        pan_deg = self.getPanAdj(self.status_msg.pan_now_deg)
+        if self.positionWithinSoftLimits is not None:
+            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
+                self.msg_if.pub_warn("Requested goto tilt position is invalid... ignoring", log_name_list = self.log_name_list)
                 return
-            if self.gotoPositionCb is not None:
-                self.yaw_goal_deg = self.yawRatioToDeg(ratio)
-                pitch_now_deg = self.status_msg.pitch_now_deg
-                self.msg_if.pub_info("Driving to  " + "%.2f" % self.yaw_goal_deg + " " + "%.2f" % pitch_now_deg)
-                self.gotoPositionCb(yaw_deg = self.yaw_goal_deg, pitch_deg = pitch_now_deg)
+            self.tilt_goal_deg = tilt_deg
+            if self.gotoTiltPositionCb is not None:
+                self.msg_if.pub_info("Driving to  " + "%.2f" % (self.tilt_goal_deg * self.rti))
+                self.gotoTiltPositionCb(self.tilt_goal_deg)    
+            elif self.gotoPositionCb is not None:
+                self.setAutoPan(False)
+                self.pan_goal_deg = pan_deg
+                self.msg_if.pub_info("Driving to  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+                self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+            self.publish_status()
+    
+
+    def gotoToPanRatioHandler(self, msg):
+        self.setAutoPan(False)
+        ratio = msg.data
+        if (ratio < 0.0 or ratio > 1.0):
+            self.msg_if.pub_warn("Invalid pan position ratio " + "%.2f" % ratio)
+            return
+        self.pan_goal_deg = self.panRatioToDeg(ratio) # Function takes care of reverse conversion
+        if self.gotoPanPositionCb is not None:
+            self.msg_if.pub_info("Driving to  " + "%.2f" % self.pan_goal_deg * self.rpi)
+            self.gotoPanPositionCb(self.pan_goal_deg)
+        elif self.gotoPositionCb is not None:
+            self.setAutoTilt(False)
+            self.tilt_goal_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
+            self.msg_if.pub_info("Driving to  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+            self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+        self.publish_status()
         
 
-    def jogToPitchRatioHandler(self, msg):
-        if self.auto_tilt == False:
-            ratio = msg.data
-            if (ratio < 0.0 or ratio > 1.0):
-                self.msg_if.pub_warn("Invalid pitch position ratio " + "%.2f" % ratio)
-                return
-            if self.gotoPositionCb is not None:
-                self.pitch_goal_deg = self.pitchRatioToDeg(ratio)
-                yaw_now_deg = self.status_msg.yaw_now_deg
-                self.msg_if.pub_info("Driving to  " + "%.2f" % yaw_now_deg + " " + "%.2f" % self.pitch_goal_deg)
-                self.gotoPositionCb(yaw_deg = yaw_now_deg, pitch_deg = self.pitch_goal_deg)
+    def gotoToTiltRatioHandler(self, msg):
+        self.setAutoTilt(False)
+        ratio = msg.data
+        if (ratio < 0.0 or ratio > 1.0):
+            self.msg_if.pub_warn("Invalid tilt position ratio " + "%.2f" % ratio)
+            return
+        self.tilt_goal_deg = self.tiltRatioToDeg(ratio) # Function takes care of reverse conversion
+        if self.gotoTiltPositionCb is not None:
+            self.msg_if.pub_info("Driving to  " + "%.2f" % self.tilt_goal_deg * self.rti)
+            self.gotoTiltPositionCb(self.tilt_goal_deg)
+        elif self.gotoPositionCb is not None:
+            self.setAutoPan(False)
+            self.pan_goal_deg = self.getPanAdj(self.status_msg.pan_now_deg)
+            self.msg_if.pub_info("Driving to  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+            self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+        self.publish_status()
         
 
     def stopMovingHandler(self, _):
-        self.auto_pan = False
-        self.auto_tilt = False
+        self.setAutoPan(False)
+        self.setAutoTilt(False)
+        self.pan_goal_deg = self.status_msg.pan_now_deg * self.rpi
+        self.tilt_goal_deg = self.status_msg.tilt_now_deg * self.rti
+        self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
         if self.stopMovingCb is not None:
             self.stopMovingCb()
-            self.yaw_goal_deg = self.status_msg.yaw_now_deg
-            self.pitch_goal_deg = self.status_msg.pitch_now_deg
-            self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
+        elif self.gotoPositionCb is not None:
+            self.gotoPositionCb(self.pan_goal_deg,self.tilt_goal_deg)
+        self.publish_status()
         
 
-    def jogTimedYawHandler(self, msg):
-        if self.auto_pan == False:
-            self.msg_if.pub_warn("Got job yaw msg: " + str(msg))
-            if self.moveYawCb is not None:
-                direction = msg.direction if self.reverse_yaw_control is False else (-1 * msg.direction)
-                time_s = msg.duration_s
-                self.moveYawCb(direction,  time_s)
-                self.msg_if.pub_info("Jogging yaw", log_name_list = self.log_name_list)
+    def jogTimedPanHandler(self, msg):
+        self.setAutoPan(False)
+        self.msg_if.pub_warn("Got job pan msg: " + str(msg))
+        if self.movePanCb is not None:
+            direction = msg.direction * self.rpi
+            time_s = msg.duration_s
+            self.movePanCb(direction,  time_s)
+            self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
+        self.publish_status()
         
 
-    def jogTimedPitchHandler(self, msg):
-        if self.auto_tilt == False:
-            self.msg_if.pub_warn("Got job pitch msg: " + str(msg))
-            if self.movePitchCb is not None:
-                direction = msg.direction if self.reverse_pitch_control is False else (-1 * msg.direction)
-                time_s = msg.duration_s
-                self.movePitchCb(direction, time_s)
-                self.msg_if.pub_info("Jogging pitch", log_name_list = self.log_name_list)
+    def jogTimedTiltHandler(self, msg):
+        self.setAutoTilt(False)
+        self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
+        if self.moveTiltCb is not None:
+            direction = msg.direction * self.rti
+            time_s = msg.duration_s
+            self.moveTiltCb(direction, time_s)
+            self.msg_if.pub_info("Jogging tilt", log_name_list = self.log_name_list)
+        self.publish_status()
         
 
-    def setReverseYawControl(self, msg):
-        self.reverse_yaw_control = msg.data
-        ryi = 1
-        if msg.data == True:
-            ryi = -1
-        self.ryi = ryi
-        self.msg_if.pub_info("Set yaw control to reverse=" + str(self.reverse_yaw_control))
-        
-
-    def setReversePitchControl(self, msg):
-        self.reverse_pitch_control = msg.data
+    def setReversePanEnable(self, msg):
+        self.reverse_pan_enabled = msg.data
         rpi = 1
         if msg.data == True:
             rpi = -1
         self.rpi = rpi
-        self.msg_if.pub_info("Set pitch control to reverse=" + str(self.reverse_pitch_control))
+        self.msg_if.pub_info("Set pan control to reverse=" + str(self.reverse_pan_enabled))
+        self.publish_status()
+        
+
+    def setReverseTiltEnable(self, msg):
+        self.reverse_tilt_enabled = msg.data
+        rti = 1
+        if msg.data == True:
+            rti = -1
+        self.rti = rti
+        self.msg_if.pub_info("Set tilt control to reverse=" + str(self.reverse_tilt_enabled))
+        self.publish_status()
         
 
     def setHomePositionHereHandler(self, _):
+        self.home_pan_deg = self.status_msg.pan_now_deg * self.rpi
+        self.home_tilt_deg = self.status_msg.tilt_now_deg * self.rti
+        self.msg_if.pub_info("Home positon set to: " + "%.2f" % self.home_pan_deg * self.rpi + " " + "%.2f" % self.home_tilt_deg * self.rti)
+        self.publish_status()
         if self.setHomePositionHereCb is not None:
-            # Driver supports it directly
-            # Capture home position if possible
-            if self.capabilities_report.has_absolute_positioning and self.npx_if is not None:
-                navpose_dict = npx_if.get_navpose_dict()
-                self.home_yaw_deg = navpose_dict['yaw_deg']
-                self.home_pitch_deg = navpose_dict['pitch_deg']
             self.setHomePositionHereCb()
-        else:
-            self.msg_if.pub_warn("Instant home position not available for this device", log_name_list = self.log_name_list)
-            return
-        self.msg_if.pub_info("Updated home position to current position", log_name_list = self.log_name_list)
-        
-
-    def setWaypointHandler(self, msg):
-        if self.positionWithinSoftLimits is not None:
-            yaw_deg = msg.yaw_deg
-            pitch_deg = msg.pitch_deg
-            waypoint_index = msg.waypoint_index
-            if not self.positionWithinSoftLimits(msg.yaw_deg, msg.pitch_deg):
-                self.msg_if.pub_warn("Requested waypoint position is invalid... ignoring", log_name_list = self.log_name_list)
-                return
-            if self.setWaypointCb is not None:
-                self.setWaypointCb(waypoint_index, yaw_deg, pitch_deg)
-        
-
-    def setWaypointHereHandler(self, msg):
-        waypoint_index = msg.data
-        if self.setWaypointHereCb is not None:
-            self.setWaypointHereCb(waypoint_index)
-        
-    
-    def gotoWaypointHandler(self, msg):
-        waypoint_index = msg.data
-        if self.gotoWaypointCb is not None:
-            self.gotoWaypointCb(waypoint_index)
-            self.msg_if.pub_info("Going to waypoint by command " + str(waypoint_index))
-        
-    
+          
 
     def setAutoPanHandler(self, msg):
-        self.auto_pan = msg.data
-        if self.auto_pan == False:
-            self.is_auto_pan = False
-        self.msg_if.pub_info("Setting auto pan: " + str(self.auto_pan))
+        enabled = msg.data
+        self.msg_if.pub_info("Setting auto pan: " + str(enabled))
+        self.setAutoPan(enabled)
         self.publish_status()
-        self.node_if.set_param('auto_pan_enabled', self.auto_pan)
+
+    def setAutoPan(self,enabled):
+        self.auto_pan_enabled = enabled
+        self.publish_status()
+        self.node_if.set_param('auto_pan_enabled', self.auto_pan_enabled)
         
     def setAutoPanWindowHandler(self, msg):
-        self.min_deg = msg.start_range
-        self.max_deg = msg.stop_range
+        if self.reverse_pan_enabled == True:
+            adj_min_deg = msg.stop_range * self.rpi
+            adj_max_deg = msg.start_range * self.rpi
+        else:            
+            adj_min_deg = msg.start_range
+            adj_max_deg = msg.stop_range
+        self.msg_if.pub_info("Setting auto pan limits to: " + "%.2f" % adj_min_deg * self.rpi + " " + "%.2f" % adj_max_deg * self.rpi)
+        self.setAutoPanWindow(adj_min_deg,adj_max_deg)
+
+
+    def setAutoPanWindow(self, min_deg, max_deg):
         if max_deg > min_deg:
-            if max_deg > self.max_yaw_softstop_deg:
-                max_deg = self.max_yaw_softstop_deg
-            if min_deg < self.min_yaw_softstop_deg:
-                min_deg = self.min_yaw_softstop_deg
-            self.msg_if.pub_info("Setting auto pan limits: " + str([min_deg,max_deg]))
+            if max_deg > self.max_pan_softstop_deg:
+                max_deg = self.max_pan_softstop_deg
+            if min_deg < self.min_pan_softstop_deg:
+                min_deg = self.min_pan_softstop_deg
+            self.auto_pan_min = min_deg
+            self.auto_pan_max = max_deg
+            self.msg_if.pub_info("Auto Pan limits set to: " + "%.2f" % min_deg * self.rpi + " " + "%.2f" % max_deg * self.rpi)
             self.publish_status()
-            self.node_if.set_param('min_yaw_softstop_deg', min_deg)
-            self.node_if.set_param('max_yaw_softstop_deg', max_deg)
+            self.node_if.set_param('min_pan_softstop_deg', min_deg)
+            self.node_if.set_param('max_pan_softstop_deg', max_deg)
+
 
 
     def setAutoTiltHandler(self, msg):
-        self.auto_tilt = msg.data
-        if self.auto_tilt == False:
-            self.is_auto_tilt = False
-        self.msg_if.pub_info("Setting auto tilt: " + str(self.auto_tilt))
+        enabled = msg.data
+        self.msg_if.pub_info("Setting auto tilt: " + str(enabled))
+        self.setAutoTilt(enabled)
+
+    def setAutoTilt(self,enabled):
+        self.auto_tilt_enabled = enabled
         self.publish_status()
-        self.node_if.set_param('auto_tilt_enabled', self.auto_tilt)
+        self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
+
 
     def setAutoTiltWindowHandler(self, msg):
-        self.min_deg = msg.start_range
-        self.max_deg = msg.stop_range
+        if self.reverse_tilt_enabled == True:
+            adj_min_deg = msg.stop_range * self.rti
+            adj_max_deg = msg.start_range * self.rti
+        else:            
+            adj_min_deg = msg.start_range
+            adj_max_deg = msg.stop_range
+        self.msg_if.pub_info("Setting auto pan limits to: " + "%.2f" % adj_min_deg * self.rti + " " + "%.2f" % adj_max_deg * self.rti)
+        self.setAutoTiltWindow(adj_min_deg,adj_max_deg)
+
+
+    def setOffsetsHandler(self, msg):
+        self.msg_if.pub_info("Setting offsets to: " + str(msg))
+        self.offsets_dict['h'] = msg.height_to_tilt_axis
+        self.offsets_dict['x'] = msg.x_from_tilt_axis
+        self.offsets_dict['y'] = msg.y_from_tilt_axis
+        self.offsets_dict['z'] = msg.z_from_tilt_axis
+        self.publish_status()
+        self.node_if.set_param('offsets', self.offsets_dict)
+
+
+
+    def setAutoTiltWindow(self, min_deg, max_deg):
         if max_deg > min_deg:
-            if max_deg > self.max_pitch_softstop_deg:
-                max_deg = self.max_pitch_softstop_deg
-            if min_deg < self.min_pitch_softstop_deg:
-                min_deg = self.min_pitch_softstop_deg
-            self.msg_if.pub_info("Setting auto tilt limits: " + str([min_deg,max_deg]))
+            if max_deg > self.max_tilt_softstop_deg:
+                max_deg = self.max_tilt_softstop_deg
+            if min_deg < self.min_tilt_softstop_deg:
+                min_deg = self.min_tilt_softstop_deg
+            self.auto_tilt_min = min_deg
+            self.auto_tilt_max = max_deg
+            self.msg_if.pub_info("Auto Tilt limits set to: " + "%.2f" % min_deg * self.rti + " " + "%.2f" % max_deg * self.rti)
             self.publish_status()
-            self.node_if.set_param('min_pitch_softstop_deg', min_deg)
-            self.node_if.set_param('max_pitch_softstop_deg', max_deg)
+            self.node_if.set_param('min_tilt_softstop_deg', min_deg)
+            self.node_if.set_param('max_tilt_softstop_deg', max_deg)
+
 
 
 
@@ -1588,36 +1470,38 @@ class PTXActuatorIF:
 
     def resetCb(self, do_updates = True):
         self.msg_if.pub_warn("Reseting System to Current Values")
-        self.max_yaw_hardstop_deg = self.node_if.get_param('max_yaw_hardstop_deg')
-        self.min_yaw_hardstop_deg = self.node_if.get_param('min_yaw_hardstop_deg')
-        self.max_yaw_softstop_deg = self.node_if.get_param('max_yaw_softstop_deg')
-        self.min_yaw_softstop_deg = self.node_if.get_param('min_yaw_softstop_deg')
+        self.max_pan_hardstop_deg = self.node_if.get_param('max_pan_hardstop_deg')
+        self.min_pan_hardstop_deg = self.node_if.get_param('min_pan_hardstop_deg')
+        self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
+        self.min_pan_softstop_deg = self.node_if.get_param('min_pan_softstop_deg')
 
-        self.max_pitch_hardstop_deg = self.node_if.get_param('max_pitch_hardstop_deg')
-        self.min_pitch_hardstop_deg = self.node_if.get_param('min_pitch_hardstop_deg')
-        self.max_pitch_softstop_deg = self.node_if.get_param('max_pitch_softstop_deg')
-        self.min_pitch_softstop_deg = self.node_if.get_param('min_pitch_softstop_deg')
+        self.max_tilt_hardstop_deg = self.node_if.get_param('max_tilt_hardstop_deg')
+        self.min_tilt_hardstop_deg = self.node_if.get_param('min_tilt_hardstop_deg')
+        self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
+        self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
 
         #**********************
         # This one comes from the parent
         if self.getSoftLimitsCb is not None:
-                [min_yaw,max_yaw,min_pitch,max_pitch] = self.getSoftLimitsCb()
-                if min_yaw != -999:
-                    self.min_yaw_softstop_deg = min_yaw
-                    self.node_if.set_param('min_yaw_softstop_deg', self.min_yaw_softstop_deg)
-                if max_yaw != -999:
-                    self.max_yaw_softstop_deg = max_yaw
-                    self.node_if.set_param('max_yaw_softstop_deg',self.max_yaw_softstop_deg)
+                [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
+                if min_pan != -999:
+                    self.min_pan_softstop_deg = min_pan
+                    self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
+                if max_pan != -999:
+                    self.max_pan_softstop_deg = max_pan
+                    self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
 
-                if min_pitch != -999:
-                    self.min_pitch_softstop_deg = min_pitch
-                    self.node_if.set_param('min_pitch_softstop_deg', self.min_pitch_softstop_deg)
-                if max_pitch != -999:
-                    self.max_pitch_softstop_deg = max_pitch
-                    self.node_if.set_param('max_pitch_softstop_deg',self.max_pitch_softstop_deg)
+                if min_tilt != -999:
+                    self.min_tilt_softstop_deg = min_tilt
+                    self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
+                if max_tilt != -999:
+                    self.max_tilt_softstop_deg = max_tilt
+                    self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
 
         if self.getSpeedRatioCb is not None:
-            self.node_if.set_param('speed_ratio', self.getSpeedRatioCb()) 
+            self.speed_ratio = self.getSpeedRatioCb()
+            self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
+            self.node_if.set_param('speed_ratio', self.speed_ratio) 
         #**********************
         
 
@@ -1628,6 +1512,157 @@ class PTXActuatorIF:
             self.deviceResetCb()
             nepi_ros.sleep(2)
         self.resetCb()
+
+
+    def publishJointStateAndStatus(self, Timer):
+        self.msg_if.pub_debug("Publishing status", log_name_list = self.log_name_list)
+        pub_time = self.publish_status()
+        pub_time = round(pub_time, 3)
+        self.msg_if.pub_debug("Published status with process time: " + str(pub_time))
+
+        status_pub_delay = float(1.0) / self.status_update_rate
+        if pub_time > status_pub_delay:
+            status_pub_delay = 0.01
+        else:
+            status_pub_delay = status_pub_delay - pub_time
+        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
+
+    def publish_status(self, do_updates = False):
+        start_time = nepi_utils.get_time()
+        self.status_msg.header.stamp = nepi_ros.ros_time_now()
+        #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
+        if self.has_absolute_positioning == True and self.getPositionCb is not None:
+            [pan_deg,tilt_deg] = self.getPositionCb()
+            #self.msg_if.pub_warn("Got PT position: " + str(pan_deg) + " : " + str(tilt_deg))
+
+            if pan_deg != -999 and tilt_deg != -999:
+                self.current_position = [pan_deg,tilt_deg]
+            
+        # Update Status Info
+        got_time = nepi_utils.get_time() - start_time
+        got_time = round(got_time, 3)
+        #self.msg_if.pub_debug("Got PT status with time: " + str(got_time))
+    
+        #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
+        [pan_deg,tilt_deg] = self.current_position
+
+
+        pan_now_deg_adj = self.getPanAdj(pan_deg)
+        self.status_msg.pan_now_deg = pan_now_deg_adj
+        pan_goal_deg_adj = self.getPanAdj(self.pan_goal_deg)
+        self.status_msg.pan_goal_deg = pan_goal_deg_adj
+        self.status_msg.pan_home_pos_deg = self.getPanAdj(self.home_pan_deg)
+
+        tilt_now_deg_adj = self.getTiltAdj(tilt_deg)
+        self.status_msg.tilt_now_deg = tilt_now_deg_adj
+        tilt_goal_deg_adj = self.getTiltAdj(self.tilt_goal_deg)
+        self.status_msg.tilt_goal_deg = tilt_goal_deg_adj
+        self.status_msg.tilt_home_pos_deg = self.getTiltAdj(self.home_tilt_deg)
+
+
+        [adj_pan_hs_min,adj_pan_hs_max,adj_tilt_hs_min,adj_tilt_hs_max] = self.getLimitsHardstopAdj()
+        [adj_pan_ss_min,adj_pan_ss_max,adj_tilt_ss_min,adj_tilt_ss_max] = self.getLimitsSoftstopAdj()
+
+        self.status_msg.pan_min_hardstop_deg = adj_pan_hs_min
+        self.status_msg.pan_max_hardstop_deg = adj_pan_hs_max
+        self.status_msg.pan_min_softstop_deg = adj_pan_ss_min
+        self.status_msg.pan_max_softstop_deg = adj_pan_ss_max
+
+        self.status_msg.tilt_min_hardstop_deg = adj_tilt_hs_min
+        self.status_msg.tilt_max_hardstop_deg = adj_tilt_hs_max
+        self.status_msg.tilt_min_softstop_deg = adj_tilt_ss_min
+        self.status_msg.tilt_max_softstop_deg = adj_tilt_ss_max
+        
+
+        axis_info = [pan_now_deg_adj,pan_goal_deg_adj,adj_pan_ss_min,adj_pan_ss_max]
+        #self.msg_if.pub_warn("Using Pan now,goal,min,max: " + str(axis_info), log_name_list = self.log_name_list, throttle_s = 2.0)        
+        pan_now_ratio_adj =  1 - (pan_now_deg_adj - adj_pan_ss_min) / (adj_pan_ss_max - adj_pan_ss_min) 
+        self.status_msg.pan_now_ratio = pan_now_ratio_adj
+        pan_goal_ratio_adj =  1 - (pan_goal_deg_adj - adj_pan_ss_min) / (adj_pan_ss_max - adj_pan_ss_min)
+        self.status_msg.pan_goal_ratio = pan_goal_ratio_adj
+
+        axis_info = [tilt_now_deg_adj,tilt_goal_deg_adj,adj_tilt_ss_min,adj_tilt_ss_max]
+        #self.msg_if.pub_warn("Using Tilt now,goal,min,max: " + str(axis_info), log_name_list = self.log_name_list, throttle_s = 2.0)    
+        tilt_now_ratio_adj =  1 - (tilt_now_deg_adj - adj_tilt_ss_min) / (adj_tilt_ss_max - adj_tilt_ss_min) 
+        self.status_msg.tilt_now_ratio = tilt_now_ratio_adj
+        tilt_goal_ratio_adj =  1 - (tilt_goal_deg_adj - adj_tilt_ss_min) / (adj_tilt_ss_max - adj_tilt_ss_min)
+        self.status_msg.tilt_goal_ratio = tilt_goal_ratio_adj
+
+
+        self.status_msg.reverse_pan_enabled = self.reverse_pan_enabled
+        self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
+
+        self.status_msg.speed_ratio = self.speed_ratio
+
+        self.status_msg.auto_pan_enabled = self.auto_pan_enabled
+        self.status_msg.auto_pan_range_window.start_range = self.getPanAdj(self.auto_pan_min)
+        self.status_msg.auto_pan_range_window.stop_range = self.getPanAdj(self.auto_pan_max)
+        
+
+        self.status_msg.auto_tilt_enabled = self.auto_tilt_enabled
+        self.status_msg.auto_tilt_range_window.start_range = self.getTiltAdj(self.auto_tilt_min)
+        self.status_msg.auto_tilt_range_window.stop_range = self.getTiltAdj(self.auto_tilt_max)
+
+        
+        pan_changed = self.last_position[0] != self.current_position[0]
+        tilt_changed = self.last_position[1] != self.current_position[1]
+        self.last_position = copy.deepcopy(self.current_position)
+        self.status_msg.is_moving = pan_changed or tilt_changed
+
+        offsets_msg = PanTiltOffsets()
+        offsets_msg.height_to_tilt_axis = self.offsets_dict['h']
+        offsets_msg.x_from_tilt_axis = self.offsets_dict['x']
+        offsets_msg.y_from_tilt_axis = self.offsets_dict['y']
+        offsets_msg.z_from_tilt_axis = self.offsets_dict['z']
+        self.status_msg.offsets = offsets_msg
+
+        if do_updates == True:
+            if self.getSoftLimitsCb is not None:
+                [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
+                if min_pan != -999:
+                    self.min_pan_softstop_deg = min_pan
+                    self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
+                if max_pan != -999:
+                    self.max_pan_softstop_deg = max_pan
+                    self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
+
+                if min_tilt != -999:
+                    self.min_tilt_softstop_deg = min_tilt
+                    self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
+                if max_tilt != -999:
+                    self.max_tilt_softstop_deg = max_tilt
+                    self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
+
+            if self.getSpeedRatioCb is not None:
+                self.status_msg.speed_ratio = self.getSpeedRatioCb()
+                self.speed_ratio = self.status_msg.speed_ratio
+                self.msg_if.pub_warn("Status updated speed ratio: " + str(self.speed_ratio))
+                self.node_if.set_param('speed_ratio', self.speed_ratio) 
+
+
+
+    
+        self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
+
+        self.node_if.publish_pub('status_pub',self.status_msg)
+
+
+        pan_rad = 0.01745329 * self.status_msg.pan_now_deg
+        tilt_rad = 0.01745329 * self.status_msg.tilt_now_deg
+
+        # And joint state if appropriate
+        self.joint_state_msg.header.stamp = self.status_msg.header.stamp
+        self.joint_state_msg.position[0] = pan_rad
+        self.joint_state_msg.position[1] = tilt_rad
+        self.msg_if.pub_debug("Publishing Joint", log_name_list = self.log_name_list)
+        self.node_if.publish_pub('joint_pub',self.joint_state_msg)
+
+        pub_time = nepi_utils.get_time() - start_time
+
+
+        return pub_time
+
+
 
     def passFunction(self):
         return 0

@@ -86,238 +86,237 @@ class NepiDriversMgr(object):
   ### Node Initialization
   DEFAULT_NODE_NAME = "drivers_mgr" # Can be overwitten by luanch command
   def __init__(self):
-      #### APP NODE INIT SETUP ####
-      nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-      self.base_namespace = nepi_ros.get_base_namespace()
-      self.node_name = nepi_ros.get_node_name()
-      self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+        #### APP NODE INIT SETUP ####
+        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_ros.get_node_name()
+        self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
-      ##############################  
-      # Create Msg Class
-      self.msg_if = MsgIF(log_name = None)
-      self.msg_if.pub_info("Starting IF Initialization Processes")
+        ##############################  
+        # Create Msg Class
+        self.msg_if = MsgIF(log_name = None)
+        self.msg_if.pub_info("Starting IF Initialization Processes")
 
-      ##############################
-      # Initialize Class Variables
+        ##############################
+        # Initialize Class Variables
 
-      ## Wait for NEPI core managers to start
-      # Wait for System Manager
-      self.msg_if.pub_info("Starting ConnectSystemIF processes")
-      mgr_sys_if = ConnectMgrSystemServicesIF()
-      success = mgr_sys_if.wait_for_services()
-      if success == False:
-          nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
-      self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
-      self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
-      self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
-      self.msg_if.pub_info("Using Drivers Install Folder: " + str(self.drivers_install_folder))
-      self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg/ros',USER_CFG_FOLDER)
-      self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        self.msg_if.pub_info("Starting ConnectSystemIF processes")
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_services()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+        self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
+        self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
+        self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
+        self.msg_if.pub_info("Using Drivers Install Folder: " + str(self.drivers_install_folder))
+        self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg/ros',USER_CFG_FOLDER)
+        self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
+        
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+        
+
+
+        ##############################
+        ### Setup Node
+
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
+        }
+
+
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'retry_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val':  False
+            },
+            'backup_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': True
+            },
+            'drvs_dict': {
+                'namespace': self.node_namespace,
+                'factory_val': dict()
+            },
+        }
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'driver_status_query': {
+                'namespace': self.node_namespace,
+                'topic': 'driver_status_query',
+                'srv': DriverStatusQuery,
+                'req': DriverStatusQueryRequest(),
+                'resp': DriverStatusQueryResponse(),
+                'callback': self.driverStatusService
+            }
+        }
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'status',
+                'msg': DriversStatus,
+                'qsize': 1,
+                'latch': True
+            },
+            'status_driver': {
+                'namespace': self.node_namespace,
+                'topic': 'status_driver', 
+                'msg': DriverStatus,
+                'qsize': 1,
+                'latch': True
+            },
+        }  
+
+        '''
+        nepi_ros.create_subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
+        nepi_ros.create_subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
+        nepi_ros.create_subscriber('~remove_driver', String, self.removeDriverCb)
+        '''
+
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'refresh_drivers': {
+                'namespace': self.node_namespace,
+                'topic': 'refresh_drivers',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.refreshCb, 
+                'callback_args': ()
+            },
+            'enable_all_drivers': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_all_drivers',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.enableAllCb, 
+                'callback_args': ()
+            },
+            'disable_all_drivers': {
+                'namespace': self.node_namespace,
+                'topic': 'disable_all_drivers',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.disableAllCb, 
+                'callback_args': ()
+            },
+            'select_driver': {
+                'namespace': self.node_namespace,
+                'topic': 'select_driver',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.selectDriverCb, 
+                'callback_args': ()
+            },
+            'update_state': {
+                'namespace': self.node_namespace,
+                'topic': 'update_state',
+                'msg': UpdateState,
+                'qsize': 10,
+                'callback': self.updateStateCb, 
+                'callback_args': ()
+            },
+            'update_order': {
+                'namespace': self.node_namespace,
+                'topic': 'update_order',
+                'msg': UpdateOrder,
+                'qsize': 10,
+                'callback': self.updateOrderCb, 
+                'callback_args': ()
+            },
+            'enable_retry': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_retry',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.enableRetryCb, 
+                'callback_args': ()
+            },
+            'enable_all_drivers': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_all_drivers',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.enableAllCb, 
+                'callback_args': ()
+            },
+
+        }
+
+
+
+
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                            configs_dict = self.CFGS_DICT,
+                            params_dict = self.PARAMS_DICT,
+                            services_dict = self.SRVS_DICT,
+                            pubs_dict = self.PUBS_DICT,
+                            subs_dict = self.SUBS_DICT,
+                          msg_if = self.msg_if
+        )
+
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
+
+        ###########################
+        # Initialize Params
+
+
+        drvs_dict = self.node_if.get_param("drvs_dict")
+        self.msg_if.pub_warn("Start drvs keys: " + str(drvs_dict.keys()))
+        adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Start active drvs: " + str(adrvs))
+        #self.msg_if.pub_warn("Start drvs dict: " + str(drvs_dict))
+
+        drvs_dict = self.node_if.get_param("drvs_dict")
+        drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
+        self.node_if.set_param("drvs_dict",drvs_dict)
+        drvs_dict = self.node_if.get_param("drvs_dict")
+        self.msg_if.pub_warn("End drvs keys: " + str(drvs_dict.keys()))
+        adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        self.msg_if.pub_warn("End active drvs: " + str(adrvs))
+        #self.msg_if.pub_warn("End drvs dict: " + str(drvs_dict))
+
+
+        self.initCb(do_updates = True)
+
+
+        nepi_ros.sleep(2)
+        ###########################
+        nepi_ros.start_timer_process(0.5, self.statusPublishCb)
+
+        # Setup a driver folder timed check
+        nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+        nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
+        time.sleep(1)
+        ## Publish Status
       
-      # Wait for Config Manager
-      mgr_cfg_if = ConnectMgrConfigIF()
-      success = mgr_cfg_if.wait_for_status()
-      if success == False:
-          nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-      
 
-
-      ##############################
-      ### Setup Node
-
-      # Configs Config Dict ####################
-      self.CFGS_DICT = {
-          'init_callback': self.initCb,
-          'reset_callback': self.resetCb,
-          'factory_reset_callback': self.factoryResetCb,
-          'init_configs': True,
-          'namespace': self.node_namespace
-      }
-
-
-
-      # Params Config Dict ####################
-      self.PARAMS_DICT = {
-          'retry_enabled': {
-              'namespace': self.node_namespace,
-              'factory_val':  False
-          },
-          'backup_enabled': {
-              'namespace': self.node_namespace,
-              'factory_val': True
-          },
-          'drvs_dict': {
-              'namespace': self.node_namespace,
-              'factory_val': dict()
-          },
-      }
-
-
-      # Services Config Dict ####################
-      self.SRVS_DICT = {
-          'driver_status_query': {
-              'namespace': self.node_namespace,
-              'topic': 'driver_status_query',
-              'srv': DriverStatusQuery,
-              'req': DriverStatusQueryRequest(),
-              'resp': DriverStatusQueryResponse(),
-              'callback': self.driverStatusService
-          }
-      }
-
-      # Publishers Config Dict ####################
-      self.PUBS_DICT = {
-          'status_pub': {
-              'namespace': self.node_namespace,
-              'topic': 'status',
-              'msg': DriversStatus,
-              'qsize': 1,
-              'latch': True
-          },
-          'status_driver': {
-              'namespace': self.node_namespace,
-              'topic': 'status_driver', 
-              'msg': DriverStatus,
-              'qsize': 1,
-              'latch': True
-          },
-      }  
-
-      '''
-      nepi_ros.create_subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
-      nepi_ros.create_subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
-      nepi_ros.create_subscriber('~remove_driver', String, self.removeDriverCb)
-      '''
-
-
-      # Subscribers Config Dict ####################
-      self.SUBS_DICT = {
-          'refresh_drivers': {
-              'namespace': self.node_namespace,
-              'topic': 'refresh_drivers',
-              'msg': Empty,
-              'qsize': 10,
-              'callback': self.refreshCb, 
-              'callback_args': ()
-          },
-          'enable_all_drivers': {
-              'namespace': self.node_namespace,
-              'topic': 'enable_all_drivers',
-              'msg': Empty,
-              'qsize': 10,
-              'callback': self.enableAllCb, 
-              'callback_args': ()
-          },
-          'disable_all_drivers': {
-              'namespace': self.node_namespace,
-              'topic': 'disable_all_drivers',
-              'msg': Empty,
-              'qsize': 10,
-              'callback': self.disableAllCb, 
-              'callback_args': ()
-          },
-          'select_driver': {
-              'namespace': self.node_namespace,
-              'topic': 'select_driver',
-              'msg': String,
-              'qsize': 10,
-              'callback': self.selectDriverCb, 
-              'callback_args': ()
-          },
-          'update_state': {
-              'namespace': self.node_namespace,
-              'topic': 'update_state',
-              'msg': UpdateState,
-              'qsize': 10,
-              'callback': self.updateStateCb, 
-              'callback_args': ()
-          },
-          'update_order': {
-              'namespace': self.node_namespace,
-              'topic': 'update_order',
-              'msg': UpdateOrder,
-              'qsize': 10,
-              'callback': self.updateOrderCb, 
-              'callback_args': ()
-          },
-          'enable_retry': {
-              'namespace': self.node_namespace,
-              'topic': 'enable_retry',
-              'msg': Bool,
-              'qsize': 10,
-              'callback': self.enableRetryCb, 
-              'callback_args': ()
-          },
-          'enable_all_drivers': {
-              'namespace': self.node_namespace,
-              'topic': 'enable_all_drivers',
-              'msg': String,
-              'qsize': 10,
-              'callback': self.enableAllCb, 
-              'callback_args': ()
-          },
-
-      }
-
-
-
-
-      # Create Node Class ####################
-      self.node_if = NodeClassIF(
-                          configs_dict = self.CFGS_DICT,
-                          params_dict = self.PARAMS_DICT,
-                          services_dict = self.SRVS_DICT,
-                          pubs_dict = self.PUBS_DICT,
-                          subs_dict = self.SUBS_DICT,
-                        msg_if = self.msg_if
-      )
-
-      self.msg_if.pub_warn("Waiting for Node Class Ready")
-      ready = self.node_if.wait_for_ready()
-      #self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
-
-      ###########################
-      # Initialize Params
-
-
-      drvs_dict = self.node_if.get_param("drvs_dict")
-      self.msg_if.pub_warn("Start drvs keys: " + str(drvs_dict.keys()))
-      adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-      self.msg_if.pub_warn("Start active drvs: " + str(adrvs))
-      #self.msg_if.pub_warn("Start drvs dict: " + str(drvs_dict))
-
-      drvs_dict = self.node_if.get_param("drvs_dict")
-      drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
-      self.node_if.set_param("drvs_dict",drvs_dict)
-      drvs_dict = self.node_if.get_param("drvs_dict")
-      self.msg_if.pub_warn("End drvs keys: " + str(drvs_dict.keys()))
-      adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-      self.msg_if.pub_warn("End active drvs: " + str(adrvs))
-      #self.msg_if.pub_warn("End drvs dict: " + str(drvs_dict))
-
-
-      self.initCb(do_updates = True)
-
-
-      nepi_ros.sleep(2)
-      ###########################
-      nepi_ros.start_timer_process(0.5, self.statusPublishCb)
-
-      # Setup a driver folder timed check
-      nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
-      nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
-      time.sleep(1)
-      ## Publish Status
-    
-
-      #########################################################
-      ## Initiation Complete
-      self.msg_if.pub_info("Initialization Complete")
-      #Set up node shutdown
-      nepi_ros.on_shutdown(self.cleanup_actions)
-      # Spin forever (until object is detected)
-      nepi_ros.spin()
-      #########################################################
+        #########################################################
+        ## Initiation Complete
+        self.msg_if.pub_info("Initialization Complete")
+        #Set up node shutdown
+        nepi_ros.on_shutdown(self.cleanup_actions)
+        # Spin forever (until object is detected)
+        nepi_ros.spin()
+        #########################################################
 
   #######################
   # Wait for System and Config Statuses Callbacks

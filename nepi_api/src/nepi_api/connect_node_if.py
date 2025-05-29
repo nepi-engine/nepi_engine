@@ -794,6 +794,7 @@ class ConnectNodeClassIF:
                 pubs_dict = None,
                 subs_dict = None,
                 node_name = None,
+                do_wait = False,
                 log_name_list = [],
                 msg_if = None
                 ):
@@ -840,13 +841,15 @@ class ConnectNodeClassIF:
 
         ############################## 
         # Wait for ready
-        if services_dict is not None:
-            ready = self.services_if.wait_for_ready()
-        if pubs_dict is not None:
-            ready = self.pubs_if.wait_for_ready()
-        if subs_dict is not None:
-            ready = self.subs_if.wait_for_ready()
-
+        if do_wait == True:
+            if services_dict is not None:
+                ready = self.services_if.wait_for_ready()
+            if pubs_dict is not None:
+                ready = self.pubs_if.wait_for_ready()
+            if subs_dict is not None:
+                ready = self.subs_if.wait_for_ready()
+        else:
+            nepi_ros.sleep(0.1)
 
         ###############################
         self.ready = True

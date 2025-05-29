@@ -174,7 +174,7 @@ class SaveDataIF:
 
         # Wait for Time manager to start to call timezone info
         self.mgr_time_if = ConnectMgrTimeSyncIF()
-        success = self.mgr_time_if.wait_for_services()
+        #success = self.mgr_time_if.wait_for_services()
  
  
 
@@ -405,8 +405,8 @@ class SaveDataIF:
                         msg_if = self.msg_if
                                             )
 
-        nepi_ros.sleep(1)
         #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         save_rate_dict = self.node_if.get_param('save_rate_dict')
         for data_product in self.save_rate_dict.keys():
@@ -981,7 +981,8 @@ class SettingsIF:
         )
    
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
         ##############################
@@ -1190,7 +1191,8 @@ class StatesIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Complete Initialization
@@ -1337,7 +1339,8 @@ class TriggersIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.node_if.wait_for_ready()
+        #self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Complete Initialization

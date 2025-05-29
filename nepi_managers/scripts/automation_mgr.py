@@ -86,6 +86,8 @@ class AutomationManager(object):
 
         ##############################
         # Initialize Class Variables
+        self.script_stop_timeout_s = self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
+        self.running_scripts = set()
 
 
         ##############################
@@ -207,9 +209,8 @@ class AutomationManager(object):
                         msg_if = self.msg_if
         )
 
-        self.msg_if.pub_warn("Waiting for Node Class Ready")
-        ready = self.node_if.wait_for_ready()
-        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
         ###########################
@@ -222,7 +223,6 @@ class AutomationManager(object):
             self.script_counters[script] = {'started': 0, 'completed': 0, 'stopped_manually': 0, 'errored_out': 0, 'cumulative_run_time': 0.0}
 
         self.setupScriptConfigs()
-        self.running_scripts = set()
 
         self.monitor_thread = threading.Thread(target=self.monitor_scripts)
         self.monitor_thread.daemon = True
@@ -503,7 +503,7 @@ class AutomationManager(object):
                         # Update the cumulative run time whether exited on success or error
                         self.script_counters[script]['cumulative_run_time'] += (nepi_ros.ros_time_now() - nepi_ros.ros_time_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
-                        nepi_ros.sleep(1)
+                        nepi_ros.wait()
         
 
     def handle_get_system_stats(self, req):

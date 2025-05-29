@@ -68,212 +68,205 @@ class NepiAppsMgr(object):
   ### Node Initialization
   DEFAULT_NODE_NAME = "apps_mgr" # Can be overwitten by luanch command
   def __init__(self):
-    #### APP NODE INIT SETUP ####
-    nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-    self.class_name = type(self).__name__
-    self.base_namespace = nepi_ros.get_base_namespace()
-    self.node_name = nepi_ros.get_node_name()
-    self.node_namespace = os.path.join(self.base_namespace,self.node_name)
+      #### APP NODE INIT SETUP ####
+      nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+      self.class_name = type(self).__name__
+      self.base_namespace = nepi_ros.get_base_namespace()
+      self.node_name = nepi_ros.get_node_name()
+      self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
-    ##############################  
-    # Create Msg Class
-    self.msg_if = MsgIF(log_name = None)
-    self.msg_if.pub_info("Starting IF Initialization Processes")
-
-
-    ##############################
-    # Initialize Params
-    self.initCb(do_updates = False)
-
-    ##############################
-    ## Wait for NEPI core managers to start
-    # Wait for System Manager
-    mgr_sys_if = ConnectMgrSystemIF()
-    success = mgr_sys_if.wait_for_status()
-    if success == False:
-        nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
-
-    # NEED TO CHANGE TO SYSTEM SERVICE CALLS
-    self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
-    self.apps_config_folder = APPS_CONFIG_FOLDER
-    self.apps_install_folder = APPS_INSTALL_FOLDER
-  
-
-    self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
-    self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-    self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
-
-    # Wait for Config Manager
-    mgr_cfg_if = ConnectMgrConfigIF()
-    success = mgr_cfg_if.wait_for_status()
-    if success == False:
-        nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+      ##############################  
+      # Create Msg Class
+      self.msg_if = MsgIF(log_name = None)
+      self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
+      ##############################
+      # Initialize Params
+      self.initCb(do_updates = False)
 
-    # Configs Config Dict ####################
-    self.CFGS_DICT = {
-        'init_callback': self.initCb,
-        'reset_callback': self.resetCb,
-        'factory_reset_callback': self.factoryResetCb,
-        'init_configs': True,
-        'namespace': self.node_namespace
-    }
+      ##############################
+      ## Wait for NEPI core managers to start
+      # Wait for System Manager
+      mgr_sys_if = ConnectMgrSystemIF()
+      success = mgr_sys_if.wait_for_status()
+      if success == False:
+          nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
-
-    # Params Config Dict ####################
-    self.PARAMS_DICT = {
-        'backup_enabled': {
-            'namespace': self.node_namespace,
-            'factory_val': True
-        },
-        'apps_dict': {
-            'namespace': self.node_namespace,
-            'factory_val': dict()
-        },
-        'restart_enabled': {
-            'namespace': self.node_namespace,
-            'factory_val': False
-        },
-    }
-
-
-    # Services Config Dict ####################
-    self.SRVS_DICT = {
-        'app_status_query': {
-            'namespace': self.node_namespace,
-            'topic': 'app_status_query',
-            'srv': AppStatusQuery,
-            'req': AppStatusQueryRequest(),
-            'resp': AppStatusQueryResponse(),
-            'callback': self.appStatusService
-        }
-    }
-
-
-    # Publishers Config Dict ####################
-    self.PUBS_DICT = {
-        'status_pub': {
-            'namespace': self.node_namespace,
-            'topic': 'status', #self.all_namespace + '/all_detectors/detection_image
-            'msg': AppsStatus,
-            'qsize': 1,
-            'latch': True
-        },
-        'status_app': {
-            'namespace': self.node_namespace,
-            'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
-            'msg': AppStatus,
-            'qsize': 1,
-            'latch': True
-        },
-    }  
-
-    # Subscribers Config Dict ####################
-    self.SUBS_DICT = {
-        'enable_all_apps': {
-            'namespace': self.node_namespace,
-            'topic': 'enable_all_apps',
-            'msg': Empty,
-            'qsize': 10,
-            'callback': self.enableAllCb, 
-            'callback_args': ()
-        },
-        'disable_all_apps': {
-            'namespace': self.node_namespace,
-            'topic': 'disable_all_apps',
-            'msg': Empty,
-            'qsize': 10,
-            'callback': self.disableAllCb, 
-            'callback_args': ()
-        },
-        'select_app': {
-            'namespace': self.node_namespace,
-            'topic': 'select_app',
-            'msg': String,
-            'qsize': 10,
-            'callback': self.selectAppCb, 
-            'callback_args': ()
-        },
-        'update_state': {
-            'namespace': self.node_namespace,
-            'topic': 'update_state',
-            'msg': UpdateState,
-            'qsize': 10,
-            'callback': self.updateStateCb, 
-            'callback_args': ()
-        },
-        'update_order': {
-            'namespace': self.node_namespace,
-            'topic': 'update_order',
-            'msg': UpdateOrder,
-            'qsize': 10,
-            'callback': self.updateOrderCb, 
-            'callback_args': ()
-        }
-    }
+      # NEED TO CHANGE TO SYSTEM SERVICE CALLS
+      self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
+      self.apps_config_folder = APPS_CONFIG_FOLDER
+      self.apps_install_folder = APPS_INSTALL_FOLDER
     
 
-    # Create Node Class ####################
-    self.node_if = NodeClassIF(
-                        configs_dict = self.CFGS_DICT,
-                        params_dict = self.PARAMS_DICT,
-                        services_dict = self.SRVS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        msg_if = self.msg_if
-    )
+      self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
+      self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
+      self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
 
-    self.msg_if.pub_warn("Waiting for Node Class Ready")
-    ready = self.node_if.wait_for_ready()
-    self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
-
-  
+      # Wait for Config Manager
+      mgr_cfg_if = ConnectMgrConfigIF()
+      success = mgr_cfg_if.wait_for_status()
+      if success == False:
+          nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
 
 
+      # Configs Config Dict ####################
+      self.CFGS_DICT = {
+          'init_callback': self.initCb,
+          'reset_callback': self.resetCb,
+          'factory_reset_callback': self.factoryResetCb,
+          'init_configs': True,
+          'namespace': self.node_namespace
+      }
 
 
-    # Setup message publisher and init param server
-    self.msg_if.pub_info("Starting Initialization Processes")
-    ## Mgr ROS Setup 
+      # Params Config Dict ####################
+      self.PARAMS_DICT = {
+          'backup_enabled': {
+              'namespace': self.node_namespace,
+              'factory_val': True
+          },
+          'apps_dict': {
+              'namespace': self.node_namespace,
+              'factory_val': dict()
+          },
+          'restart_enabled': {
+              'namespace': self.node_namespace,
+              'factory_val': False
+          },
+      }
 
 
-    ##############################
-    self.initCb(do_updates = True)
-
-    #self.msg_if.pub_info("App folder set to " + self.apps_param_folder)
-    self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-    #self.msg_if.pub_info("App folder files " + str(self.apps_files))
-
-    apps_dict = self.node_if.get_param("apps_dict")
-    apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-    
-    app_dict = dict()
-    #self.msg_if.pub_warn("Got init apps dict: " + str(apps_dict))
-    for app_name in apps_dict:
-      app_dict[app_name] = apps_dict[app_name]['active']
-    self.msg_if.pub_info("Got init app dict active list: " + str(app_dict))
+      # Services Config Dict ####################
+      self.SRVS_DICT = {
+          'app_status_query': {
+              'namespace': self.node_namespace,
+              'topic': 'app_status_query',
+              'srv': AppStatusQuery,
+              'req': AppStatusQueryRequest(),
+              'resp': AppStatusQueryResponse(),
+              'callback': self.appStatusService
+          }
+      }
 
 
-    ###########################
-    nepi_ros.start_timer_process(0.5, self.statusPublishCb)
+      # Publishers Config Dict ####################
+      self.PUBS_DICT = {
+          'status_pub': {
+              'namespace': self.node_namespace,
+              'topic': 'status', #self.all_namespace + '/all_detectors/detection_image
+              'msg': AppsStatus,
+              'qsize': 1,
+              'latch': True
+          },
+          'status_app': {
+              'namespace': self.node_namespace,
+              'topic': 'status_app', #self.all_namespace + '/all_detectors/detection_image
+              'msg': AppStatus,
+              'qsize': 1,
+              'latch': True
+          },
+      }  
 
-    # Setup a app folder timed check
-    nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
-    nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
-    time.sleep(1)
-    ## Publish Status
-    self.publish_status()
+      # Subscribers Config Dict ####################
+      self.SUBS_DICT = {
+          'enable_all_apps': {
+              'namespace': self.node_namespace,
+              'topic': 'enable_all_apps',
+              'msg': Empty,
+              'qsize': 10,
+              'callback': self.enableAllCb, 
+              'callback_args': ()
+          },
+          'disable_all_apps': {
+              'namespace': self.node_namespace,
+              'topic': 'disable_all_apps',
+              'msg': Empty,
+              'qsize': 10,
+              'callback': self.disableAllCb, 
+              'callback_args': ()
+          },
+          'select_app': {
+              'namespace': self.node_namespace,
+              'topic': 'select_app',
+              'msg': String,
+              'qsize': 10,
+              'callback': self.selectAppCb, 
+              'callback_args': ()
+          },
+          'update_state': {
+              'namespace': self.node_namespace,
+              'topic': 'update_state',
+              'msg': UpdateState,
+              'qsize': 10,
+              'callback': self.updateStateCb, 
+              'callback_args': ()
+          },
+          'update_order': {
+              'namespace': self.node_namespace,
+              'topic': 'update_order',
+              'msg': UpdateOrder,
+              'qsize': 10,
+              'callback': self.updateOrderCb, 
+              'callback_args': ()
+          }
+      }
+      
 
-    #########################################################
-    ## Initiation Complete
-    self.msg_if.pub_info("Initialization Complete")
-    #Set up node shutdown
-    nepi_ros.on_shutdown(self.cleanup_actions)
-    # Spin forever (until object is detected)
-    nepi_ros.spin()
-    #########################################################
+      # Create Node Class ####################
+      self.node_if = NodeClassIF(
+                          configs_dict = self.CFGS_DICT,
+                          params_dict = self.PARAMS_DICT,
+                          services_dict = self.SRVS_DICT,
+                          pubs_dict = self.PUBS_DICT,
+                          subs_dict = self.SUBS_DICT,
+                          msg_if = self.msg_if
+      )
+
+      #ready = self.node_if.wait_for_ready()
+      nepi_ros.wait()
+
+      # Setup message publisher and init param server
+      self.msg_if.pub_info("Starting Initialization Processes")
+      ## Mgr ROS Setup 
+
+
+      ##############################
+      self.initCb(do_updates = True)
+
+      #self.msg_if.pub_info("App folder set to " + self.apps_param_folder)
+      self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
+      #self.msg_if.pub_info("App folder files " + str(self.apps_files))
+
+      apps_dict = self.node_if.get_param("apps_dict")
+      apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
+      
+      app_dict = dict()
+      #self.msg_if.pub_warn("Got init apps dict: " + str(apps_dict))
+      for app_name in apps_dict:
+        app_dict[app_name] = apps_dict[app_name]['active']
+      self.msg_if.pub_info("Got init app dict active list: " + str(app_dict))
+
+
+      ###########################
+      nepi_ros.start_timer_process(0.5, self.statusPublishCb)
+
+      # Setup a app folder timed check
+      nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+      nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
+      time.sleep(1)
+      ## Publish Status
+      self.publish_status()
+
+      #########################################################
+      ## Initiation Complete
+      self.msg_if.pub_info("Initialization Complete")
+      #Set up node shutdown
+      nepi_ros.on_shutdown(self.cleanup_actions)
+      # Spin forever (until object is detected)
+      nepi_ros.spin()
+      #########################################################
 
 
 

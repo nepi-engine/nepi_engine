@@ -84,6 +84,7 @@ class SystemMgrNode():
                             "install/drivers",
                             "license", 
                             "logs", 
+                            "logs/ros_log",
                             "logs/automation_script_logs", 
                             "nepi_full_img", 
                             "nepi_full_img_archive", 
@@ -104,6 +105,7 @@ class SystemMgrNode():
                             "install/drivers",
                             "license", 
                             "logs", 
+                            "logs/ros_log",
                             "logs/automation_script_logs", 
                             "nepi_src",
                             "user_cfg",
@@ -176,13 +178,20 @@ class SystemMgrNode():
             self.in_container = True
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
+        
 
         if self.in_container == False:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         else:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS_CN
         
-     
+        self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
+        '''
+        self.msg_if.pub_warn("Deleting old log files")
+        logs_path_subdir = os.path.join(self.storage_mountpoint, 'logs/ros_log')
+        os.system('rm -r ' + logs_path_subdir + '/*')
+        '''
+
         self.msg_if.pub_warn("Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
         self.storage_mountpoint = nepi_ros.get_param(
@@ -520,9 +529,8 @@ class SystemMgrNode():
                         msg_if = self.msg_if
         )
 
-        self.msg_if.pub_warn("Waiting for Node Class Ready")
-        ready = self.node_if.wait_for_ready()
-        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -1084,7 +1092,13 @@ class SystemMgrNode():
         if self.archiving_inactive_image is True:
             self.msg_if.pub_warn("Already in the process of archiving image")
             return
-        backup_file_basename = 'nepi_rootfs_archive_' + now.strftime("%Y_%m_%d_%H%M%S") + '.img.raw'
+        fw_str = self.system_defs_msg.inactive_rootfs_fw_version
+        fw_str = fw_str.replace('.','_')
+        fw_str = fw_str.replace(' ','_')
+        fw_str = fw_str.replace('/','_')
+        now = datetime.datetime.now()
+        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m_%d_%H%M%S") + '.img.raw'
+        self.msg_if.pub_warn("Archiving inactive rootfs to filename: " + backup_file_basename)
         self.status_msg.sys_img_archive_status = 'archiving'
         self.status_msg.sys_img_archive_filename = backup_file_basename
 

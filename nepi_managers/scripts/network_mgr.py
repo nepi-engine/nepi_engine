@@ -122,11 +122,6 @@ class NetworkMgr:
         if success == False:
             nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
-        '''
-        # Wait for Time manager to start to call timezone info
-        self.mgr_time_if = ConnectMgrTimeSyncIF()
-        success = self.mgr_time_if.wait_for_status()
-        '''
 
         self.dhcp_enabled = False # initialize to false -- will be updated in set_dhcp_from_params
         self.tx_byte_cnt_deque = collections.deque(maxlen=2)
@@ -354,10 +349,8 @@ class NetworkMgr:
                         msg_if = self.msg_if
         )
 
-        self.msg_if.pub_warn("Waiting for Node Class Ready")
-        ready = self.node_if.wait_for_ready()
-        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
-
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ###########################
         # Complete Initialization
@@ -555,7 +548,7 @@ class NetworkMgr:
                                 self.msg_if.pub_warn("Calling dhclient -r subprocess")
                                 subprocess.check_call(['dhclient', '-r', self.NET_IFACE])
                                 restart_network = True
-                                nepi_ros.sleep(1)
+                                nepi_ros.wait()
                             self.dhcp_enabled = False
                             self.msg_if.pub_warn("DHCP disabled")
                         except Exception as e:
@@ -566,7 +559,7 @@ class NetworkMgr:
                                 self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
                                 # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
                                 subprocess.call(['ifdown', self.NET_IFACE])
-                                nepi_ros.sleep(1)
+                                nepi_ros.wait()
                                 subprocess.call(['ifup', self.NET_IFACE])
                                 self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
                         except Exception as e:
@@ -634,7 +627,7 @@ class NetworkMgr:
         elif Reset.HARDWARE_RESET:
             # Reset the interface
             subprocess.call(['ifdown', self.NET_IFACE])
-            nepi_ros.sleep(1)
+            nepi_ros.wait()
             subprocess.call(['ifup', self.NET_IFACE])
         success = self.save_config()
 
@@ -831,7 +824,7 @@ class NetworkMgr:
             try:
                 # Kill any current access point -- no problem if one isn't already running; just returns immediately
                 subprocess.call([self.CREATE_AP_CALL, '--stop', self.wifi_iface])
-                nepi_ros.sleep(1)
+                nepi_ros.wait()
 
                 # Use the create_ap command line
                 subprocess.check_call([self.CREATE_AP_CALL, '-n', '--redirect-to-localhost', '--isolate-clients', '--daemon',
@@ -906,7 +899,7 @@ class NetworkMgr:
                     
                         subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
                         self.wifi_client_connected = False
-                        nepi_ros.sleep(1)
+                        nepi_ros.wait()
                         subprocess.check_call(start_supplicant_cmd)
                         # Wait a few seconds for it to connect
                         nepi_ros.sleep(5)
@@ -936,7 +929,7 @@ class NetworkMgr:
         else:
             # Stop the supplicant
             subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
-            nepi_ros.sleep(1)
+            nepi_ros.wait()
             # Bring down the interface
             link_down_cmd = self.ENABLE_DISABLE_WIFI_ADAPTER_PRE + [self.wifi_iface] + self.DISABLE_WIFI_ADAPTER_POST
             subprocess.call(link_down_cmd)
@@ -1026,9 +1019,7 @@ class NetworkMgr:
         with self.internet_connected_lock:
             self.internet_connected = connected
 
-        # Check for system clock skewed
-        #time_status_dict = self.mgr_time_if.get_time_status()
-        #cur_year = int(time_status_dict.date_str[0:5])
+ 
         cur_year = datetime.now().year
         self.clock_skewed = cur_year < 2024
             

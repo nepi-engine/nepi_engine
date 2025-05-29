@@ -196,7 +196,8 @@ class ConnectSaveDataIF:
                                             )
 
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Complete Initialization
@@ -401,7 +402,8 @@ class ConnectSettingsIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Run Initialization Processes
@@ -556,7 +558,8 @@ class ConnectStatesIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Complete Initialization
@@ -706,7 +709,8 @@ class ConnectTriggersIF:
                                             msg_if = self.msg_if
                                             )
 
-        self.con_node_if.wait_for_ready()
+        #self.con_node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ##############################
         # Complete Initialization

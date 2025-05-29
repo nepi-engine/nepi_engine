@@ -47,65 +47,67 @@ class NepiDevicePTX extends Component {
       ptHwVersion: null,
       ptSwVersion: null,
       
-      yawPositionDeg: null,
-      pitchPositionDeg: null,
+      panPositionDeg: null,
+      tiltPositionDeg: null,
 
-      yawGotoDeg: null,
-      pitchGotoDeg: null,
+      panGotoDeg: 0.0,
+      tiltGotoDeg: 0.0,
 
-      yawHomePosEdited: null,
-      yawHomePosDeg: null,
-      pitchHomePosEdited: null,
-      pitchHomePosDeg: null,
+      panHomePosEdited: null,
+      panHomePosDeg: null,
+      tiltHomePosEdited: null,
+      tiltHomePosDeg: null,
 
 
 
       showLimits: false,
 
-      yawMaxHardstopDeg: null,
-      yawMaxHardstopEdited: null,
-      pitchMaxHardstopDeg: null,
-      pitchMaxHardstopEdited: null,
+      panMaxHardstopDeg: null,
+      panMaxHardstopEdited: null,
+      tiltMaxHardstopDeg: null,
+      tiltMaxHardstopEdited: null,
 
-      yawMinHardstopDeg: null,
-      yawMinHardstopEdited: null,
-      pitchMinHardstopDeg: null,
-      pitchMinHardstopEdited: null,
+      panMinHardstopDeg: null,
+      panMinHardstopEdited: null,
+      tiltMinHardstopDeg: null,
+      tiltMinHardstopEdited: null,
       
-      yawMaxSoftstopDeg: null,
-      yawMaxSoftstopEdited: null,
-      pitchMaxSoftstopDeg: null,
-      pitchMaxSoftstopEdited: null,
+      panMaxSoftstopDeg: null,
+      panMaxSoftstopEdited: null,
+      tiltMaxSoftstopDeg: null,
+      tiltMaxSoftstopEdited: null,
 
-      yawMinSoftstopDeg: null,
-      yawMinSoftstopEdited: null,
-      pitchMinSoftstopDeg: null,
-      pitchMinSoftstopEdited: null,
-
-
+      panMinSoftstopDeg: null,
+      panMinSoftstopEdited: null,
+      tiltMinSoftstopDeg: null,
+      tiltMinSoftstopEdited: null,
 
 
-      yawNowRatio: null,
-      pitchNowRatio: null,
-      yawGoalRatio: null,
-      pitchGoalRatio: null,
-      yawGoalRatioLast: null,
-      pitchGoalRatioLast: null,
-      yawRatio: null,
-      pitchRatio: null,
+
+      panNowRatio: null,
+      tiltNowRatio: null,
+      panGoalRatio: null,
+      tiltGoalRatio: null,
+      panGoalRatioLast: null,
+      tiltGoalRatioLast: null,
+      panRatio: null,
+      tiltRatio: null,
       speedRatio: null,
 
-      reverseYawControl: false,
-      reversePitchControl: false,
+      reversePanEnabled: false,
+      reverseTiltEnabled: false,
 
-      auto_pan: false,
-      auto_pan_min: -1,
-      auto_pan_max: 1,
-      auto_tilt: false,
-      auto_tilt_min: -1,
-      auto_tilt_max: 1,
+      autoPanEnabled: false,
+      autoPanMin: -1,
+      autoPanMax: 1,
+      autoTiltEnabled: false,
+      autoTiltMin: -1,
+      autoTiltMax: 1,
 
-      selectedWaypoint: 0,
+      panScanMin: null,
+      panScanMax: null,
+      tiltScanMin: null,
+      tiltScanMax: null,
 
       listener: null,
       disabled: true
@@ -119,106 +121,137 @@ class NepiDevicePTX extends Component {
     this.ptxStatusListener = this.ptxStatusListener.bind(this)
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createPTXOptions = this.createPTXOptions.bind(this)
-    this.createWaypointOptions = this.createWaypointOptions.bind(this)
-    this.onWaypointSelected = this.onWaypointSelected.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
 
     this.onEnterSendInputBoxRangeWindowValue = this.onEnterSendInputBoxRangeWindowValue.bind(this)
   }
 
   onUpdateText(e) {
-    var yawElement = null
-    var pitchElement = null
-    var yawMinElement = null
-    var yawMaxElement = null
-    var pitchMinElement = null
-    var pitchMaxElement = null
-    if ((e.target.id === "PTXYawHomePos") || (e.target.id === "PTXPitchHomePos"))
+    var panElement = null
+    var tiltElement = null
+    var panMinElement = null
+    var panMaxElement = null
+    var tiltMinElement = null
+    var tiltMaxElement = null
+    if ((e.target.id === "PTXPanHomePos") || (e.target.id === "PTXTiltHomePos"))
     {
-      yawElement = document.getElementById("PTXYawHomePos")
-      setElementStyleModified(yawElement)
+      panElement = document.getElementById("PTXPanHomePos")
+      setElementStyleModified(panElement)
       
-      pitchElement = document.getElementById("PTXPitchHomePos")
-      setElementStyleModified(pitchElement)
+      tiltElement = document.getElementById("PTXTiltHomePos")
+      setElementStyleModified(tiltElement)
       
-      this.setState({yawHomePosEdited: yawElement.value,
-                     pitchHomePosEdited: pitchElement.value})
+      this.setState({panHomePosEdited: panElement.value,
+                     tiltHomePosEdited: tiltElement.value})
     }
-    else if ((e.target.id === "PTXYawSoftStopMin") || (e.target.id === "PTXYawSoftStopMax") ||
-             (e.target.id === "PTXPitchSoftStopMin") || (e.target.id === "PTXPitchSoftStopMax"))
+    else if ((e.target.id === "PTXPanSoftStopMin") || (e.target.id === "PTXPanSoftStopMax") ||
+             (e.target.id === "PTXTiltSoftStopMin") || (e.target.id === "PTXTiltSoftStopMax"))
     {
-      yawMinElement = document.getElementById("PTXYawSoftStopMin")
-      setElementStyleModified(yawMinElement)
+      panMinElement = document.getElementById("PTXPanSoftStopMin")
+      setElementStyleModified(panMinElement)
 
-      yawMaxElement = document.getElementById("PTXYawSoftStopMax")
-      setElementStyleModified(yawMaxElement)
+      panMaxElement = document.getElementById("PTXPanSoftStopMax")
+      setElementStyleModified(panMaxElement)
 
-      pitchMinElement = document.getElementById("PTXPitchSoftStopMin")
-      setElementStyleModified(pitchMinElement)
+      tiltMinElement = document.getElementById("PTXTiltSoftStopMin")
+      setElementStyleModified(tiltMinElement)
 
-      pitchMaxElement = document.getElementById("PTXPitchSoftStopMax")
-      setElementStyleModified(pitchMaxElement)
+      tiltMaxElement = document.getElementById("PTXTiltSoftStopMax")
+      setElementStyleModified(tiltMaxElement)
 
-      this.setState({yawMinSoftstopEdited: yawMinElement.value, yawMaxSoftstopEdited: yawMaxElement.value, 
-                     pitchMinSoftstopEdited: pitchMinElement.value, pitchMaxSoftstopEdited: pitchMaxElement.value})
+      this.setState({panMinSoftstopEdited: panMinElement.value, panMaxSoftstopEdited: panMaxElement.value, 
+                     tiltMinSoftstopEdited: tiltMinElement.value, tiltMaxSoftstopEdited: tiltMaxElement.value})
     }
+    else if (e.target.id === "PTXPanGoto") 
+      {
+        panElement = document.getElementById("PTXPanGoto")
+        setElementStyleModified(panElement)
+             
+        this.setState({panGotoDeg: panElement.value})
+      }
+        
+    else if  (e.target.id === "PTXTiltGoto")
+        {
+          tiltElement = document.getElementById("PTXTiltGoto")
+          setElementStyleModified(tiltElement)
+               
+          this.setState({tiltGotoDeg: tiltElement.value})                 
+          
+        }
 
   }
 
   onKeyText(e) {
-    const {onSetPTXGotoPos, onSetPTXGotoPanPos, onSetPTXGotoTiltPos, onSetPTXHomePos, onSetPTXSoftStopPos, onSetPTXHardStopPos} = this.props.ros
-    var yawElement = null
-    var pitchElement = null
-    var yawMinElement = null
-    var yawMaxElement = null
-    var pitchMinElement = null
-    var pitchMaxElement = null
+    const {ptxDevices, onSetPTXGotoPos, onSetPTXGotoPanPos, onSetPTXGotoTiltPos, onSetPTXHomePos, onSetPTXSoftStopPos, onSetPTXHardStopPos} = this.props.ros
+    const ptxNamespace = this.state.ptxNamespace
+    const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
+    const ptx_caps = ptxDevices[ptxNamespace]
+    const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt_control)
+    var panElement = null
+    var tiltElement = null
+    var panMinElement = null
+    var panMaxElement = null
+    var tiltMinElement = null
+    var tiltMaxElement = null
     const namespace = this.state.ptxNamespace
     if(e.key === 'Enter'){
-      if ((e.target.id === "PTXYawHomePos") || (e.target.id === "PTXPitchHomePos"))
+      if ((e.target.id === "PTXPanHomePos") || (e.target.id === "PTXTiltHomePos"))
       {
-        yawElement = document.getElementById("PTXYawHomePos")
-        clearElementStyleModified(yawElement)
+        panElement = document.getElementById("PTXPanHomePos")
+        clearElementStyleModified(panElement)
         
-        pitchElement = document.getElementById("PTXPitchHomePos")
-        clearElementStyleModified(pitchElement)
+        tiltElement = document.getElementById("PTXTiltHomePos")
+        clearElementStyleModified(tiltElement)
                 
-        onSetPTXHomePos(namespace, Number(yawElement.value), Number(pitchElement.value))
-        this.setState({yawHomePosEdited:null, pitchHomePosEdited:null})
+        onSetPTXHomePos(namespace, Number(panElement.value), Number(tiltElement.value))
+        this.setState({panHomePosEdited:null, tiltHomePosEdited:null})
       }
-      else if ((e.target.id === "PTXYawSoftStopMin") || (e.target.id === "PTXYawSoftStopMax") ||
-               (e.target.id === "PTXPitchSoftStopMin") || (e.target.id === "PTXPitchSoftStopMax"))
+      else if ((e.target.id === "PTXPanSoftStopMin") || (e.target.id === "PTXPanSoftStopMax") ||
+               (e.target.id === "PTXTiltSoftStopMin") || (e.target.id === "PTXTiltSoftStopMax"))
       {
-        yawMinElement = document.getElementById("PTXYawSoftStopMin")
-        clearElementStyleModified(yawMinElement)
+        panMinElement = document.getElementById("PTXPanSoftStopMin")
+        clearElementStyleModified(panMinElement)
 
-        yawMaxElement = document.getElementById("PTXYawSoftStopMax")
-        clearElementStyleModified(yawMaxElement)
+        panMaxElement = document.getElementById("PTXPanSoftStopMax")
+        clearElementStyleModified(panMaxElement)
 
-        pitchMinElement = document.getElementById("PTXPitchSoftStopMin")
-        clearElementStyleModified(pitchMinElement)
+        tiltMinElement = document.getElementById("PTXTiltSoftStopMin")
+        clearElementStyleModified(tiltMinElement)
 
-        pitchMaxElement = document.getElementById("PTXPitchSoftStopMax")
-        clearElementStyleModified(pitchMaxElement)
+        tiltMaxElement = document.getElementById("PTXTiltSoftStopMax")
+        clearElementStyleModified(tiltMaxElement)
 
-        onSetPTXSoftStopPos(namespace, Number(yawMinElement.value), Number(yawMaxElement.value), 
-                            Number(pitchMinElement.value), Number(pitchMaxElement.value))
-        this.setState({yawMaxSoftstopEdited: null, yawMinSoftstopEdited: null, pitchMaxSoftstopEdited: null, pitchMinSoftstopEdited: null})
+        onSetPTXSoftStopPos(namespace, Number(panMinElement.value), Number(panMaxElement.value), 
+                            Number(tiltMinElement.value), Number(tiltMaxElement.value))
+        this.setState({panMaxSoftstopEdited: null, panMinSoftstopEdited: null, tiltMaxSoftstopEdited: null, tiltMinSoftstopEdited: null})
       }
-      else if (e.target.id === "PTXYawGoto") 
+      else if (e.target.id === "PTXPanGoto") 
         {
-          yawElement = document.getElementById("PTXYawGoto")
-          clearElementStyleModified(yawElement)
-                            
-          onSetPTXGotoPanPos(namespace, Number(yawElement.value))
+          panElement = document.getElementById("PTXPanGoto")
+          tiltElement = document.getElementById("PTXTiltGoto")
+          clearElementStyleModified(panElement)
+                        
+          if (has_sep_pan_tilt === true){
+            onSetPTXGotoPanPos(namespace, Number(panElement.value))
+          }
+          else {
+            onSetPTXGotoPos(namespace, Number(panElement.value),Number(tiltElement.value))
+          }
+          
         }
-        else if  (e.target.id === "PTXPitchGoto")
+        else if  (e.target.id === "PTXTiltGoto")
           {
             
-            pitchElement = document.getElementById("PTXPitchGoto")
-            clearElementStyleModified(pitchElement)
-                    
-            onSetPTXGotoTiltPos(namespace, Number(pitchElement.value))
+            panElement = document.getElementById("PTXPanGoto")
+            tiltElement = document.getElementById("PTXTiltGoto")
+            clearElementStyleModified(tiltElement)
+            if (has_sep_pan_tilt === true){
+              onSetPTXGotoTiltPos(namespace, Number(tiltElement.value))
+            }
+            else {
+              onSetPTXGotoPos(namespace, Number(panElement.value),Number(tiltElement.value))
+            }                    
+            
           }
 
     }
@@ -252,37 +285,53 @@ class NepiDevicePTX extends Component {
   
   // Callback for handling ROS Status3DX messages
   ptxStatusListener(message) {
+    const pan_min_ss = this.state.autoPanMin
+    const pan_max_ss = this.state.autoPanMax
+    const tilt_min_ss = this.state.autoTiltMin
+    const tilt_max_ss = this.state.autoTiltMax
     this.setState({
       ptSerialNum: message.serial_num,
       ptHwVersion: message.hw_version,
       ptSwVersion: message.sw_version,
-      yawNowRatio: message.yaw_now_ratio,
-      pitchNowRatio: message.pitch_now_ratio,
-      yawGoalRatio: message.yaw_goal_ratio,
-      pitchGoalRatio: message.pitch_goal_ratio,
+      panNowRatio: message.pan_now_ratio,
+      tiltNowRatio: message.tilt_now_ratio,
+      panGoalRatio: message.pan_goal_ratio,
+      tiltGoalRatio: message.tilt_goal_ratio,
       speedRatio: message.speed_ratio,
-      yawPositionDeg: message.yaw_now_deg,
-      pitchPositionDeg: message.pitch_now_deg,
-      yawHomePosDeg: message.yaw_home_pos_deg,
-      pitchHomePosDeg: message.pitch_home_pos_deg,
-      yawMaxHardstopDeg: message.yaw_max_hardstop_deg,
-      pitchMaxHardstopDeg: message.pitch_max_hardstop_deg,
-      yawMinHardstopDeg: message.yaw_min_hardstop_deg,
-      pitchMinHardstopDeg: message.pitch_min_hardstop_deg,
-      yawMaxSoftstopDeg: message.yaw_max_softstop_deg,
-      pitchMaxSoftstopDeg: message.pitch_max_softstop_deg,
-      yawMinSoftstopDeg: message.yaw_min_softstop_deg,
-      pitchMinSoftstopDeg: message.pitch_min_softstop_deg,
-      reverseYawControl: message.reverse_yaw_control,
-      reversePitchControl: message.reverse_pitch_control,
-      auto_pan: message.auto_pan,
-      auto_pan_min: message.auto_pan_range_window.start,
-      auto_pan_max: message.auto_pan_range_window.stop,
-      auto_tilt: message.auto_tilt,
-      auto_tilt_min: message.auto_tilt_range_window.start,
-      auto_tilt_max: message.auto_tilt_range_window.stop
+      panPositionDeg: message.pan_now_deg,
+      tiltPositionDeg: message.tilt_now_deg,
+      panHomePosDeg: message.pan_home_pos_deg,
+      tiltHomePosDeg: message.tilt_home_pos_deg,
+      panMaxHardstopDeg: message.pan_max_hardstop_deg,
+      tiltMaxHardstopDeg: message.tilt_max_hardstop_deg,
+      panMinHardstopDeg: message.pan_min_hardstop_deg,
+      tiltMinHardstopDeg: message.tilt_min_hardstop_deg,
+      panMinSoftstopDeg: message.pan_min_softstop_deg,
+      panMaxSoftstopDeg: message.pan_max_softstop_deg,
+      tiltMinSoftstopDeg: message.tilt_min_softstop_deg,
+      tiltMaxSoftstopDeg: message.tilt_max_softstop_deg,
+      reversePanEnabled: message.reverse_pan_enabled,
+      reverseTiltEnabled: message.reverse_tilt_enabled,
+      autoPanEnabled: message.auto_pan_enabled,
+      autoPanMin: message.auto_pan_range_window.start_range,
+      autoPanMax: message.auto_pan_range_window.stop_range,
+      autoTiltEnabled: message.auto_tilt_enabled,
+      autoTiltMin: message.auto_tilt_range_window.start_range,
+      autoTiltMax: message.auto_tilt_range_window.stop_range
     })
-  
+
+    const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
+                              tilt_min_ss !== this.state.autoTiltMin || tilt_max_ss !== this.state.autoTiltMax)
+    if (scan_limits_changed === true){
+      this.setState({panScanMin: message.auto_pan_range_window.start_range,
+                     panScanMax: message.auto_pan_range_window.stop_range
+      })
+    }
+    if (scan_limits_changed === true){
+      this.setState({tiltScanMin: message.auto_tilt_range_window.start_range,
+                     tiltScanMax: message.auto_tilt_range_window.stop_range
+      })
+    }
 
     
   }
@@ -348,19 +397,6 @@ class NepiDevicePTX extends Component {
     return items
   }
 
-  createWaypointOptions(waypoint_count) {
-    var items = []
-    for (var i = 0; i < waypoint_count; ++i) {
-      items.push(<Option value={i}>{i.toString()}</Option>)
-    }
-    return items
-  }
-
-  onWaypointSelected(event)
-  {
-    const ind = event.nativeEvent.target.selectedIndex
-    this.setState({selectedWaypoint: ind})
-  }
 
   onClickToggleShowLimits(){
     const currentVal = this.state.showLimits 
@@ -396,50 +432,54 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
   renderControlPanel() {
     const { ptxNamespace, ptSerialNum, ptHwVersion, ptSwVersion,
-            yawPositionDeg, pitchPositionDeg, yawHomePosDeg, pitchHomePosDeg,
-            yawMaxHardstopDeg, pitchMaxHardstopDeg, yawMinHardstopDeg, pitchMinHardstopDeg,
-            yawMinHardstopEdited, pitchMinHardstopEdited, yawMaxHardstopEdited, pitchMaxHardstopEdited,
-            yawMaxSoftstopDeg, pitchMaxSoftstopDeg, yawMinSoftstopDeg, pitchMinSoftstopDeg,
-            yawMinSoftstopEdited, pitchMinSoftstopEdited, yawMaxSoftstopEdited, pitchMaxSoftstopEdited,
-            speedRatio, yawHomePosEdited, pitchHomePosEdited,
-            reverseYawControl, reversePitchControl, selectedWaypoint } = this.state
-    const { ptxDevices, onPTXGoHome, onPTXSetHomeHere, onPTXGotoWaypoint, onPTXSetWaypointHere,
-            onSetReverseYawControl, onSetReversePitchControl } = this.props.ros
+            panPositionDeg, tiltPositionDeg, panHomePosDeg, tiltHomePosDeg,
+            panMaxHardstopDeg, tiltMaxHardstopDeg, panMinHardstopDeg, tiltMinHardstopDeg,
+            panMinHardstopEdited, tiltMinHardstopEdited, panMaxHardstopEdited, tiltMaxHardstopEdited,
+            panMaxSoftstopDeg, tiltMaxSoftstopDeg, panMinSoftstopDeg, tiltMinSoftstopDeg,
+            panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
+            speedRatio, panHomePosEdited, tiltHomePosEdited,
+            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled } = this.state
+    const { ptxDevices, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
     const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
 
-    const yawPositionDegClean = yawPositionDeg + .001
-    const pitchPositionDegClean = pitchPositionDeg + .001
+    const panPositionDegClean = panPositionDeg + .001
+    const tiltPositionDegClean = tiltPositionDeg + .001
 
     const ptx_caps = ptxDevices[ptxNamespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning)
-    const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt)
+    const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt_control)
     const has_auto_pan = ptx_caps && (ptx_caps.has_auto_pan)
     const has_auto_tilt = ptx_caps && (ptx_caps.has_auto_tilt)
-    const has_speed_control = ptx_caps && (ptx_caps.adjustable_speed)
+    const has_speed_control = ptx_caps && (ptx_caps.has_adjustable_speed)
     const has_homing = ptx_caps && (ptx_caps.has_homing)
-    const has_waypoints = ptx_caps && (ptx_caps.has_waypoints)
+    const has_set_home = ptx_caps && (ptx_caps.has_set_home)
     
-    const yawHomePos = (yawHomePosEdited === null)? round(yawHomePosDeg, 1) : yawHomePosEdited
-    const pitchHomePos = (pitchHomePosEdited === null)? round(pitchHomePosDeg, 1) : pitchHomePosEdited
+    const panHomePos = (panHomePosEdited === null)? round(panHomePosDeg, 1) : panHomePosEdited
+    const tiltHomePos = (tiltHomePosEdited === null)? round(tiltHomePosDeg, 1) : tiltHomePosEdited
 
-    const yawHardStopMin = (yawMinHardstopEdited === null)? round(yawMinHardstopDeg, 1) : yawMinHardstopEdited
-    const pitchHardStopMin = (pitchMinHardstopEdited === null)? round(pitchMinHardstopDeg, 1) : pitchMinHardstopEdited
-    const yawHardStopMax = (yawMaxHardstopEdited === null)? round(yawMaxHardstopDeg, 1) : yawMaxHardstopEdited
-    const pitchHardStopMax = (pitchMaxHardstopEdited === null)? round(pitchMaxHardstopDeg, 1) : pitchMaxHardstopEdited
+    const panHardStopMin = (panMinHardstopEdited === null)? round(panMinHardstopDeg, 1) : panMinHardstopEdited
+    const tiltHardStopMin = (tiltMinHardstopEdited === null)? round(tiltMinHardstopDeg, 1) : tiltMinHardstopEdited
+    const panHardStopMax = (panMaxHardstopEdited === null)? round(panMaxHardstopDeg, 1) : panMaxHardstopEdited
+    const tiltHardStopMax = (tiltMaxHardstopEdited === null)? round(tiltMaxHardstopDeg, 1) : tiltMaxHardstopEdited
 
 
-    const yawSoftStopMin = (yawMinSoftstopEdited === null)? round(yawMinSoftstopDeg, 1) : yawMinSoftstopEdited
-    const pitchSoftStopMin = (pitchMinSoftstopEdited === null)? round(pitchMinSoftstopDeg, 1) : pitchMinSoftstopEdited
-    const yawSoftStopMax = (yawMaxSoftstopEdited === null)? round(yawMaxSoftstopDeg, 1) : yawMaxSoftstopEdited
-    const pitchSoftStopMax = (pitchMaxSoftstopEdited === null)? round(pitchMaxSoftstopDeg, 1) : pitchMaxSoftstopEdited
+    const panSoftStopMin = (panMinSoftstopEdited === null)? round(panMinSoftstopDeg, 1) : panMinSoftstopEdited
+    const tiltSoftStopMin = (tiltMinSoftstopEdited === null)? round(tiltMinSoftstopDeg, 1) : tiltMinSoftstopEdited
+    const panSoftStopMax = (panMaxSoftstopEdited === null)? round(panMaxSoftstopDeg, 1) : panMaxSoftstopEdited
+    const tiltSoftStopMax = (tiltMaxSoftstopEdited === null)? round(tiltMaxSoftstopDeg, 1) : tiltMaxSoftstopEdited
 
     const namespace = this.state.ptxNamespace
+
+    const hide_auto_pan = ((has_auto_pan === false || has_abs_pos === false) || (has_sep_pan_tilt === false && autoTiltEnabled == true))
+    const hide_auto_tilt = ((has_auto_tilt === false || has_abs_pos === false) || (has_sep_pan_tilt === false && autoPanEnabled == true))
     
     return (
       <Section title={ptx_id} >
+
+
         <Label title={"Serial Number"}>
-          <Input disabled={true} value={ptSerialNum}/>
+          <Input disabled={true} value={ptSerialNum}/>)
         </Label>
         <Label title={"H/W Rev."}>
           <Input disabled={true} value={ptHwVersion}/>
@@ -447,6 +487,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
         <Label title={"S/W Rev."}>
           <Input disabled={true} value={ptSwVersion}/>
         </Label>
+        
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
@@ -454,87 +495,20 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
          </label>
 
 
-         <Columns>
-                  <Column>
-
-                  <div hidden={has_auto_pan === false}>
-
-                  <Label title="Enable Auto Pan">
-                    <Toggle
-                      checked={this.state.auto_pan===true}
-                      onClick={() => this.onChangeSwitchSendBoolValue("/set_auto_pan_enable",!this.state_auto_pan)}>
-                    </Toggle>
-                  </Label>
-
-
-
-                <Label title={"Set Pan Min"}>
-                    <Input id="set_pan_min" 
-                      value={this.state.set_pan_min} 
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_pan_min")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",this.state.set_pan_max)} />
-              </Label>
-            
-
-                  <Label title={"Set Pan Max"}>
-                    <Input id="set_pan_max" 
-                     value={this.state.set_pan_max} 
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_pan_max")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",this.state.set_pan_min)} />                      
-                  </Label>  
-
-                  </div>
-
-                </Column>
-                <Column>
-
-                <div hidden={has_auto_tilt === false}>
-
-                <Label title="Enable Auto Tilt">
-                    <Toggle
-                      checked={this.state.auto_pan===true}
-                      onClick={() => this.onChangeSwitchSendBoolValue("/set_auto_tilt_enable",!this.state_auto_pan)}>
-                    </Toggle>
-                  </Label>
-
-
-                  <Label title={"Set Tilt Min"}>
-                    <Input id="set_tilt_min" 
-                      value={this.state.set_tilt_min} 
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_tilt_min")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",this.state.set_tilt_max)} />
-              </Label>
-            
-
-                  <Label title={"Set Tilt Max"}>
-                    <Input id="set_tilt_max" 
-                     value={this.state.set_tilt_max} 
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"set_tilt_max")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",this.state.set_tilt_min)} />                      
-                  </Label>  
-
-                  </div>
-
-                  </Column>
-                </Columns>
-
-
 
         <Label title={""}>
-        <div style={{ display: "inline-block", width: "45%", float: "left" }}>
-          {"Pan"}
-        </div>
-        <div style={{ display: "inline-block", width: "45%" }}>{"Tilt"}</div>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>{"Pan"}</div>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>{"Tilt"}</div>
         </Label>
 
-        <Label title={"Reverse Control"}>
-          <div style={{ display: "inline-block", width: "45%", float: "left" }}>
-            <Toggle style={{justifyContent: "flex-left"}} checked={reverseYawControl} onClick={() => onSetReverseYawControl(ptxNamespace, reverseYawControl===false)} />
-          </div>
-          <div style={{ display: "inline-block", width: "45%", float: "right" }}>
-            <Toggle style={{justifyContent: "flex-right"}} checked={reversePitchControl} onClick={() => onSetReversePitchControl(ptxNamespace, reversePitchControl===false)} />
-          </div>
-        </Label>
+          <Label title={"Reverse Control"}>
+            <div style={{ display: "inline-block", width: "45%", float: "left" }}>
+              <Toggle style={{justifyContent: "flex-left"}} checked={reversePanEnabled} onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_reverse_pan_enable",!reversePanEnabled)} />
+            </div>
+            <div style={{ display: "inline-block", width: "45%", float: "right" }}>
+              <Toggle style={{justifyContent: "flex-right"}} checked={reverseTiltEnabled} onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_reverse_tilt_enable",!reverseTiltEnabled)} />
+            </div>
+          </Label>
 
 
 
@@ -561,12 +535,12 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
           <Input
             disabled
             style={{ width: "45%", float: "left" }}
-            value={round(yawPositionDegClean, 2)}
+            value={round(panPositionDegClean, 2)}
           />
           <Input
             disabled
             style={{ width: "45%" }}
-            value={round(pitchPositionDegClean, 2)}
+            value={round(tiltPositionDegClean, 2)}
           />
         </Label>
 
@@ -574,22 +548,138 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
         <Label title={"GoTo Position"}>
           <Input
             disabled={!has_abs_pos}
-            id={"PTXYawGoto"}
+            id={"PTXPanGoto"}
             style={{ width: "45%", float: "left" }}
-            value={this.state.yawGotoDeg}
+            value={this.state.panGotoDeg}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
           <Input
             disabled={!has_abs_pos}
-            id={"PTXPitchGoto"}
+            id={"PTXTiltGoto"}
             style={{ width: "45%" }}
-            value={this.state.pitchGotoDeg}
+            value={this.state.tiltGotoDeg}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
         </Label>
 
+        </div>
+
+        <div hidden={(has_homing === false)}>
+
+        <Label title={"Home Position"}>
+          <Input
+            disabled={!has_homing}
+            id={"PTXPanHomePos"}
+            style={{ width: "45%", float: "left" }}
+            value={panHomePos}
+            onChange= {this.onUpdateText}
+            onKeyDown= {this.onKeyText}
+          />
+          <Input
+            disabled={!has_homing}
+            id={"PTXTiltHomePos"}
+            style={{ width: "45%" }}
+            value={tiltHomePos}
+            onChange= {this.onUpdateText}
+            onKeyDown= {this.onKeyText}
+          />
+        </Label>
+
+
+        <ButtonMenu>
+          <Button disabled={!has_homing} onClick={() => onPTXGoHome(ptxNamespace)}>{"Go Home"}</Button>
+          <Button disabled={!has_homing} onClick={() => onPTXSetHomeHere(ptxNamespace)}>{"Set Home Here"}</Button>
+        </ButtonMenu>
+
+      </div>
+
+        <div hidden={(hide_auto_pan === true)}>
+          
+              <Columns>
+                <Column>
+
+                  <Label title="Enable Auto Pan">
+                    <Toggle
+                      checked={autoPanEnabled===true}
+                      style={{ width: "45%", float: "left" }}
+                      onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_auto_pan_enable",!autoPanEnabled)}>
+                    </Toggle>
+                  </Label>
+
+                  </Column>
+                  <Column>
+               
+                  </Column>
+                </Columns>
+
+
+                <Label title={"Pan Scan Limits"}>
+
+                   <Input id="scan_pan_min" 
+                      value={this.state.panScanMin} 
+                      style={{ width: "45%", float: "left" }}
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
+
+
+
+                    <Input id="scan_pan_max" 
+                    value={this.state.panScanMax} 
+                    style={{ width: "45%" }}
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />                      
+                </Label>
+
+                </div>
+
+
+
+                <div hidden={(hide_auto_tilt === true)}>
+
+
+                <Columns>
+               <Column>
+
+                <Label title="Enable Auto Tilt">
+                    <Toggle
+                      checked={autoTiltEnabled===true}
+                      style={{ width: "45%", float: "left" }}
+                      onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_auto_tilt_enable",!autoTiltEnabled)}>
+                    </Toggle>
+                  </Label>
+
+
+                  </Column>
+                  <Column>
+               
+
+                  </Column>
+                </Columns>
+
+
+
+                <Label title={"Tilt Scan Limits"}>
+
+
+                    <Input id="scan_tilt_min" 
+                      value={this.state.tiltScanMin} 
+                      style={{ width: "45%", float: "left" }}
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
+
+          
+
+
+                    <Input id="scan_tilt_max" 
+                     value={this.state.tiltScanMax} 
+                     style={{ width: "45%" }}
+                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
+                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
+                </Label>
+
+                </div>
 
 
 
@@ -608,44 +698,43 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
           </Column>
           <Column>
  
-          </Column>
-          <Column>
 
           </Column>
         </Columns>
 
 
-        <div hidden={(this.state.showLimits === false)}>
+        <div hidden={(this.state.showLimits === false  || has_abs_pos === false)}>
 
         <Label title={"Hard Limit Min"}>
           <Input
             disabled={!has_abs_pos}
-            id={"PTXYawHardStopMin"}
+            id={"PTXPanHardStopMin"}
             style={{ width: "45%", float: "left" }}
-            value={yawHardStopMin}
+            value={panHardStopMin}
             disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
-            id={"PTXPitchHardStopMin"}
+            id={"PTXTiltHardStopMin"}
             style={{ width: "45%" }}
-            value={pitchHardStopMin}
+            value={tiltHardStopMin}
             disabled={true}
           />
         </Label>
+
         <Label title={"Hard Limit Max"}>
           <Input
             disabled={!has_abs_pos}
-            id={"PTXYawHardStopMax"}
+            id={"PTXPanHardStopMax"}
             style={{ width: "45%", float: "left" }}
-            value={yawHardStopMax}
+            value={panHardStopMax}
             disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
-            id={"PTXPitchHardStopMax"}
+            id={"PTXTiltHardStopMax"}
             style={{ width: "45%" }}
-            value={pitchHardStopMax}
+            value={tiltHardStopMax}
             disabled={true}
           />
         </Label>
@@ -654,17 +743,17 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
         <Label title={"Soft Limit Min"}>
           <Input
             disabled={!has_abs_pos}
-            id={"PTXYawSoftStopMin"}
+            id={"PTXPanSoftStopMin"}
             style={{ width: "45%", float: "left" }}
-            value={yawSoftStopMin}
+            value={panSoftStopMin}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
           <Input
             disabled={!has_abs_pos}
-            id={"PTXPitchSoftStopMin"}
+            id={"PTXTiltSoftStopMin"}
             style={{ width: "45%" }}
-            value={pitchSoftStopMin}
+            value={tiltSoftStopMin}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
@@ -672,17 +761,17 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
         <Label title={"Soft Limit Max"}>
           <Input
             disabled={!has_abs_pos}
-            id={"PTXYawSoftStopMax"}
+            id={"PTXPanSoftStopMax"}
             style={{ width: "45%", float: "left" }}
-            value={yawSoftStopMax}
+            value={panSoftStopMax}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
           <Input
             disabled={!has_abs_pos}
-            id={"PTXPitchSoftStopMax"}
+            id={"PTXTiltSoftStopMax"}
             style={{ width: "45%" }}
-            value={pitchSoftStopMax}
+            value={tiltSoftStopMax}
             onChange= {this.onUpdateText}
             onKeyDown= {this.onKeyText}
           />
@@ -690,52 +779,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
         </div>
 
-        <Label title={"Home Position"}>
-          <Input
-            disabled={!has_homing}
-            id={"PTXYawHomePos"}
-            style={{ width: "45%", float: "left" }}
-            value={yawHomePos}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
-          />
-          <Input
-            disabled={!has_homing}
-            id={"PTXPitchHomePos"}
-            style={{ width: "45%" }}
-            value={pitchHomePos}
-            onChange= {this.onUpdateText}
-            onKeyDown= {this.onKeyText}
-          />
-        </Label>
 
-        </div>
-
-        <div hidden={(has_homing === false)}>
-
-        <ButtonMenu>
-          <Button disabled={!has_homing} onClick={() => onPTXGoHome(ptxNamespace)}>{"Go Home"}</Button>
-          <Button disabled={!has_homing} onClick={() => onPTXSetHomeHere(ptxNamespace)}>{"Set Home Here"}</Button>
-        </ButtonMenu>
-
-        </div>
-
-        <div hidden={(has_waypoints === false)}>
-
-        <Label title={"Waypoint Selection"}>
-          <Select
-            disabled={!has_waypoints}
-            onChange={this.onWaypointSelected}
-            value={selectedWaypoint}>
-            {this.createWaypointOptions(has_waypoints? 256 : 0)}
-          </Select>
-        </Label>
-        <ButtonMenu>
-          <Button disabled={!has_waypoints} onClick={() => onPTXGotoWaypoint(ptxNamespace, selectedWaypoint)}>{"Goto Waypoint"}</Button>
-          <Button disabled={!has_waypoints} onClick={() => onPTXSetWaypointHere(ptxNamespace, selectedWaypoint)}>{"Set Waypoint"}</Button>
-        </ButtonMenu>
-
-        </div>
 
 
       </Section>
@@ -743,11 +787,11 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
   }
 
   render() {
-    const { ptxDevices, onPTXJogYaw, onPTXJogPitch, onPTXStop, sendTriggerMsg } = this.props.ros
-    const { ptxNamespace, yawNowRatio, pitchNowRatio} = this.state
+    const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
+    const { ptxNamespace, panNowRatio, panGoalRatio, tiltNowRatio, tiltGoalRatio} = this.state
 
     const ptxImageViewerElement = document.getElementById("ptxImageViewer")
-    const pitchSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"
+    const tiltSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"
 
     const ptx_caps = ptxDevices[ptxNamespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
@@ -783,14 +827,14 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                 </div>
                 <SliderAdjustment
                   disabled={!has_abs_pos}
-                  title={"Yaw"}
+                  title={"Pan"}
                   msgType={"std_msgs/Float32"}
-                  adjustment={yawNowRatio}
-                  topic={ptxNamespace + "/jog_to_yaw_ratio"}
+                  adjustment={panGoalRatio}
+                  topic={ptxNamespace + "/goto_pan_ratio"}
                   scaled={0.01}
                   min={0}
                   max={100}
-                  tooltip={"Yaw as a percentage (0%=min, 100%=max)"}
+                  tooltip={"Pan as a percentage (0%=min, 100%=max)"}
                   unit={"%"}
                   noTextBox={true}
                   noLabel={true}
@@ -801,26 +845,26 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
               <ButtonMenu>
 
                   <Button 
-                    buttonDownAction={() => onPTXJogYaw(ptxNamespace, - 1)}
+                    buttonDownAction={() => onPTXJogPan(ptxNamespace, - 1)}
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
                     {'\u25C0'}
                     </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogYaw(ptxNamespace, 1)}
+                    buttonDownAction={() => onPTXJogPan(ptxNamespace, 1)}
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
                     {'\u25B6'}
                   </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogPitch(ptxNamespace, 1)}
+                    buttonDownAction={() => onPTXJogTilt(ptxNamespace, 1)}
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
                     {'\u25B2'}
                   </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogPitch(ptxNamespace, -1)}
+                    buttonDownAction={() => onPTXJogTilt(ptxNamespace, -1)}
                     buttonUpAction={() => onPTXStop(ptxNamespace)}>
                     {'\u25BC'}
                   </Button>
-                  
+
                 </ButtonMenu>
 
 
@@ -839,17 +883,17 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
           <Column style={{flex: 0.05}}>
             <SliderAdjustment
               disabled={!has_abs_pos}
-              title={"Pitch"}
+              title={"Tilt"}
               msgType={"std_msgs/Float32"}
-              adjustment={pitchNowRatio}
-              topic={ptxNamespace + "/jog_to_pitch_ratio"}
+              adjustment={tiltGoalRatio}
+              topic={ptxNamespace + "/goto_tilt_ratio"}
               scaled={0.01}
               min={0}
               max={100}
-              tooltip={"Pitch as a percentage (0%=min, 100%=max)"}
+              tooltip={"Tilt as a percentage (0%=min, 100%=max)"}
               unit={"%"}
               vertical={true}
-              verticalHeight={pitchSliderHeight}
+              verticalHeight={tiltSliderHeight}
               noTextBox={true}
               noLabel={true}
             />

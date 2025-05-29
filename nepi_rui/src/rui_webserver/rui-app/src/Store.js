@@ -2695,25 +2695,6 @@ class ROSConnectionStore {
     })    
   }  
 
-  @action.bound
-  onPTXGotoWaypoint(ptxNamespace, waypoint_index) {
-    this.publishMessage({
-      name: ptxNamespace + "/goto_waypoint",
-      messageType: "std_msgs/UInt8",
-      data: { data: waypoint_index },
-      noPrefix: true
-    })    
-  }
-
-  @action.bound
-  onPTXSetWaypointHere(ptxNamespace, waypoint_index) {
-    this.publishMessage({
-      name: ptxNamespace + "/set_waypoint_here",
-      messageType: "std_msgs/UInt8",
-      data: { data: waypoint_index },
-      noPrefix: true
-    })    
-  }
 
   @action.bound
   onPTXStop(ptxNamespace) {
@@ -2726,75 +2707,75 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  onSetPTXHomePos(ptxNamespace, yawHomePos, pitchHomePos) {
+  onSetPTXHomePos(ptxNamespace, panHomePos, tiltHomePos) {
     this.publishMessage({
       name: ptxNamespace + "/set_home_position",
       messageType: "nepi_ros_interfaces/PanTiltPosition",
-      data: {"yaw_deg": yawHomePos, "pitch_deg": pitchHomePos},
+      data: {"pan_deg": panHomePos, "tilt_deg": tiltHomePos},
       noPrefix: true
     })
   }
 
   @action.bound
-  onSetPTXGotoPos(ptxNamespace, yawHomePos, pitchHomePos) {
+  onSetPTXGotoPos(ptxNamespace, panPos, tiltPos) {
     this.publishMessage({
-      name: ptxNamespace + "/goto_to_position",
+      name: ptxNamespace + "/goto_position",
       messageType: "nepi_ros_interfaces/PanTiltPosition",
-      data: {"yaw_deg": yawHomePos, "pitch_deg": pitchHomePos},
+      data: {"pan_deg": panPos, "tilt_deg": tiltPos},
       noPrefix: true
     })
   }
 
   @action.bound
-  onSetPTXGotoPanPos(ptxNamespace, yawHomePos) {
+  onSetPTXGotoPanPos(ptxNamespace, panPos) {
     this.publishMessage({
-      name: ptxNamespace + "/goto_to_pan_position",
+      name: ptxNamespace + "/goto_pan_position",
       messageType: "std_msgs/Float32",
-      data: {"data": yawHomePos},
+      data: {"data": panPos},
       noPrefix: true
     })
   }
 
   @action.bound
-  onSetPTXGotoTiltPos(ptxNamespace, pitchHomePos) {
+  onSetPTXGotoTiltPos(ptxNamespace, tiltPos) {
     this.publishMessage({
-      name: ptxNamespace + "/jog_to_tilt_position",
+      name: ptxNamespace + "/goto_tilt_position",
       messageType: "std_msgs/Float32",
-      data: {"data": pitchHomePos},
+      data: {"data": tiltPos},
       noPrefix: true
     })
   }
 
   @action.bound
-  onSetPTXSoftStopPos(ptxNamespace, yawMin, yawMax, pitchMin, pitchMax) {
+  onSetPTXSoftStopPos(ptxNamespace, panMin, panMax, tiltMin, tiltMax) {
     this.publishMessage({
       name: ptxNamespace + "/set_soft_limits",
       messageType: "nepi_ros_interfaces/PanTiltLimits",
-      data: {"min_yaw_deg": yawMin,
-             "max_yaw_deg": yawMax,
-             "min_pitch_deg": pitchMin,
-             "max_pitch_deg": pitchMax},
+      data: {"min_pan_deg": panMin,
+             "max_pan_deg": panMax,
+             "min_tilt_deg": tiltMin,
+             "max_tilt_deg": tiltMax},
       noPrefix: true
     })
   }
 
   @action.bound
-  onSetPTXHardStopPos(ptxNamespace, yawMin, yawMax, pitchMin, pitchMax) {
+  onSetPTXHardStopPos(ptxNamespace, panMin, panMax, tiltMin, tiltMax) {
     this.publishMessage({
       name: ptxNamespace + "/set_hard_limits",
       messageType: "nepi_ros_interfaces/PanTiltLimits",
-      data: {"min_yaw_deg": yawMin,
-             "max_yaw_deg": yawMax,
-             "min_pitch_deg": pitchMin,
-             "max_pitch_deg": pitchMax},
+      data: {"min_pan_deg": panMin,
+             "max_pan_deg": panMax,
+             "min_tilt_deg": tiltMin,
+             "max_tilt_deg": tiltMax},
       noPrefix: true
     })
   }
 
   @action.bound
-  onPTXJogYaw(ptxNamespace, direction) {
+  onPTXJogPan(ptxNamespace, direction) {
     this.publishMessage({
-      name: ptxNamespace + "/jog_timed_yaw",
+      name: ptxNamespace + "/jog_timed_pan",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
@@ -2803,9 +2784,9 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  onPTXJogPitch(ptxNamespace, direction) {
+  onPTXJogTilt(ptxNamespace, direction) {
     this.publishMessage({
-      name: ptxNamespace + "/jog_timed_pitch",
+      name: ptxNamespace + "/jog_timed_tilt",
       messageType: "nepi_ros_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
@@ -2813,25 +2794,6 @@ class ROSConnectionStore {
     })
   }
 
-  @action.bound
-  onSetReverseYawControl(ptxNamespace, reverse) {
-    this.publishMessage({
-      name: ptxNamespace + "/reverse_yaw_control",
-      messageType: "std_msgs/Bool",
-      data: {"data" : reverse},
-      noPrefix: true
-    })
-  }
-
-  @action.bound
-  onSetReversePitchControl(ptxNamespace, reverse) {
-    this.publishMessage({
-      name: ptxNamespace + "/reverse_pitch_control",
-      messageType: "std_msgs/Bool",
-      data: {"data" : reverse},
-      noPrefix: true
-    })
-  }
   
   @action.bound
   onLSXSetStandby(lsxNamespace, enable) {

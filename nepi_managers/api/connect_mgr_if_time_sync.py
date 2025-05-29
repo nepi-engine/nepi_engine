@@ -141,7 +141,8 @@ class ConnectMgrTimeSyncIF:
                         msg_if = self.msg_if
                                             )
 
-        ready = self.node_if.wait_for_ready()
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
         ################################
         # Complete Initialization
@@ -179,7 +180,7 @@ class ConnectMgrTimeSyncIF:
         connected = False
         while connected == False and timer < timeout and not nepi_ros.is_shutdown():
             exists = nepi_ros.check_for_service('time_status_query')
-            nepi_ros.sleep(1)
+            nepi_ros.wait()
             if exists == True:
                 ret = None
                 try:

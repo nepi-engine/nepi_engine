@@ -819,6 +819,11 @@ def sleep(sleep_sec,sleep_steps = None):
         time.sleep(sleep_sec)
   return True
 
+  # Sleep process that breaks sleep into smaller times for better shutdown
+def wait(wait_time = 0.1):
+  sleep(wait_time)
+  return True
+
 
 
 def get_datetime_str_from_stamp(ros_stamp_msg):

@@ -265,9 +265,9 @@ class AIDetectorManager:
                         msg_if = self.msg_if
         )
 
-        self.msg_if.pub_warn("Waiting for Node Class Ready")
-        ready = self.node_if.wait_for_ready()
-        self.msg_if.pub_warn("Got Node Class Ready: " + str(ready))
+
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
 
 
 
@@ -455,7 +455,7 @@ class AIDetectorManager:
                 models_dict[model_name]['active'] = False
                 self.running_models_list.remove(model_name)
                 self.killModel(model_name)
-                nepi_ros.sleep(1)
+                nepi_ros.wait()
 
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
         for model_name in active_models_list:
@@ -469,7 +469,7 @@ class AIDetectorManager:
                 if success == True:
                     self.msg_if.pub_warn("Model loaded successfully, adding to running models list: " + model_name)
                     self.running_models_list.append(model_name)
-                    nepi_ros.sleep(1)
+                    nepi_ros.wait()
                     model_type = models_dict[model_name]['type']
                     if model_type == "detection":
                         self.detector_info_dict[model_name] = None # Gets updated in modelsInfoUpdateCb
@@ -555,7 +555,7 @@ class AIDetectorManager:
                 # Just Assume Running for now
                 self.msg_if.pub_warn("Node Found: " + model_name)
                 self.model_namespace_dict[model_name] = node_namespace
-                nepi_ros.sleep(1)
+                nepi_ros.wait()
 
                 ''' Future check
                 # Try and Wait for model status message

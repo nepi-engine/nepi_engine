@@ -141,6 +141,8 @@ class ConnectMgrAiModelIF:
                         msg_if = self.msg_if
                                             )
 
+        #ready = self.node_if.wait_for_ready()
+        nepi_ros.wait()
         ################################
         # Complete Initialization
 
