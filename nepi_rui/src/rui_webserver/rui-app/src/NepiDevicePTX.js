@@ -109,6 +109,11 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
+      offset_h: null,
+      offset_x: null,
+      offset_y: null,
+      offset_z: null,
+
       listener: null,
       disabled: true
     }
@@ -317,7 +322,11 @@ class NepiDevicePTX extends Component {
       autoPanMax: message.auto_pan_range_window.stop_range,
       autoTiltEnabled: message.auto_tilt_enabled,
       autoTiltMin: message.auto_tilt_range_window.start_range,
-      autoTiltMax: message.auto_tilt_range_window.stop_range
+      autoTiltMax: message.auto_tilt_range_window.stop_range,
+      offset_h: message.offsets.height_to_tilt_axis,
+      offset_x: message.offsets.x_from_tilt_axis,
+      offset_y: message.offsets.y_from_tilt_axis,
+      offset_z: message.offsets.z_from_tilt_axis
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
