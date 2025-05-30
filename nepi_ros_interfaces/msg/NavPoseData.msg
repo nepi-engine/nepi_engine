@@ -1,6 +1,7 @@
 # This message contains status information for the navpose publisher 
 
 std_msgs/Header header
+string frame_id
 string frame_3d
 string frame_altitude
 

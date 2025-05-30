@@ -27,6 +27,10 @@ import yaml
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from geographic_msgs.msg import GeoPoint
 
+from nepi_ros_interfaces.msg import Frame3DTransform
+
+from geometry_msgs.msg import Vector3
+
 from nepi_ros_interfaces.msg import NPXStatus
 from nepi_ros_interfaces.msg import NavPose, NavPoseData
 from nepi_ros_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
@@ -41,6 +45,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import NavPoseIF
+from nepi_api.connect_mgr_if_nav_pose import ConnectMgrNavPoseIF
 
 EXAMPLE_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),
@@ -84,6 +89,8 @@ EXAMPLE_DEPTH_DATA_DICT = {
 }
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
+    'frame_id': 'nepi_base_frame',
+    'frame_3d': 'ENU',
     'frame_3d': 'ENU',
     'frame_altitude': 'WGS84',
 
@@ -133,20 +140,27 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 class NPXDeviceIF:
 
   MIN_PUB_RATE = 1.0
-  NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
-  NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
+  NAVPOSE_FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
+  NAVPOSE_FRAME_3D_OPTIONS = ['ENU','NED']
+  NAVPOSE_FRAME_ALT_OPTIONS = ['AMSL','WGS84','DEPTH']
 
   DEFAULT_UPDATE_RATE = 10
+  DEFAULT_ID_FRAME = 'sensor_frame'
   DEFAULT_3D_FRAME = 'ENU'
   DEFAULT_ALT_FRAME = 'WGS84'
+
+  ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
   data_products_list = ['navpose']
 
   node_if = None
 
   update_rate = DEFAULT_UPDATE_RATE
+  frame_id = DEAULT_ID_FRAME
   frame_3d = DEFAULT_3D_FRAME
   frame_altitude = DEFAULT_ALT_FRAME
+
+  frame_transform = ZERO_TRANSFORM
 
   has_heading = False
   has_position = False
@@ -162,6 +176,18 @@ class NPXDeviceIF:
   settings_if = None
 
   has_updated = False
+
+  has_gps_pub = False
+  has_elevation_pub = False
+  has_pose_pub = False
+  has_heading_pub = False
+
+  set_gps_source = False
+  set_elevation_source = False
+  set_pose_source = False
+  set_heading_source = False
+
+  navpose_mgr_if = None
   #######################
   ### IF Initialization
   def __init__(self, 
@@ -194,9 +220,18 @@ class NPXDeviceIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting NPX Device IF Initialization Processes", log_name_list = self.log_name_list)  
 
+
+
+
+
         ##############################
         # Initialize Class Variables
-      
+        self.gps_pub_ns = nepi_ros.create_namespace(self.node_namespace,'npx/gps')
+        self.elevation_pub_ns = nepi_ros.create_namespace(self.node_namespace,'npx/elevation')
+        self.pose_pub_ns = nepi_ros.create_namespace(self.node_namespace,'npx/pose')
+        self.heading_pub_ns = nepi_ros.create_namespace(self.node_namespace,'npx/heading')
+
+    
         self.update_rate = max_navpose_update_rate
 
         self.initCb(do_updates = False)
@@ -234,6 +269,18 @@ class NPXDeviceIF:
         if self.getDepthCb is not None:
           self.has_depth = True
 
+      if self.has_location == True:
+          self.has_gps_pub = True
+          
+      if self.has_altitude == True or self.has_depth == True:
+          self.has_elevation_pub = True
+
+      if self.has_position == True or self.has_orientation == True:
+          self.has_pose_pub = True
+
+      if self.has_heading == True:
+          self.has_heading_pub = True
+
 
         # Create capabilities report
         self.navpose_capabilities_report = NPXCapabilitiesQueryResponse()
@@ -244,15 +291,31 @@ class NPXDeviceIF:
         self.navpose_capabilities_report.has_altitude = self.has_altitude
         self.navpose_capabilities_report.has_depth =  self.has_depth
 
+        self.navpose_capabilities_report.has_gps_pub =  self.has_gps_pub
+        self.navpose_capabilities_report.has_elevation_pub =  self.has_elevation_pub
+        self.navpose_capabilities_report.has_pose_pub =  self.has_pose_pub
+        self.navpose_capabilities_report.has_heading_pub =  self.has_heading_pub
+
+
         self.navpose_capabilities_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
-        self.navpose_capabilities_report.frame_3d_options = self.NAVPOSE_3D_FRAME_OPTIONS
-        self.navpose_capabilities_report.frame_altitude_options = self.NAVPOSE_ALT_FRAME_OPTIONS
+        self.navpose_capabilities_report.frame_id_options = self.NAVPOSE_FRAME_ID_OPTIONS
+        self.navpose_capabilities_report.frame_3d_options = self.NAVPOSE_FRAME_3D_OPTIONS
+        self.navpose_capabilities_report.frame_altitude_options = self.NAVPOSE_FRAME_ALT_OPTIONS
+
+
+        #  Connect to navpose manager
+
+        self.navpose_mgr_if = ConnectMgrNavPoseIF()
+      
 
         # All Good
 
         npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx')
         self.navpose_if = NavPoseIF(namespace = npx_namespace,
-                enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
+                            enable_gps_pub = self.has_gps_pub,
+                            enable_elevation_pub = self.has_elevation_pub,
+                            enable_pose_pub =  self.has_pose_pub,
+                            enable_heading_pub = self.has_heading_pub,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -282,6 +345,26 @@ class NPXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.update_rate
             },
+            'set_gps_source': {
+                'namespace': self.node_namespace,
+                'factory_val': self.set_gps_source
+            },
+            'set_elevation_source': {
+                'namespace': self.node_namespace,
+                'factory_val': self.set_elevation_source
+            },
+            'set_pose_source': {
+                'namespace': self.node_namespace,
+                'factory_val': self.set_pose_source
+            },
+            'set_heading_source': {
+                'namespace': self.node_namespace,
+                'factory_val': self.set_heading_source
+            },
+            'frame_id': {
+                'namespace': self.node_namespace,
+                'factory_val': self.frame_id
+            },
             'frame_3d': {
                 'namespace': self.node_namespace,
                 'factory_val': self.frame_3d
@@ -289,7 +372,11 @@ class NPXDeviceIF:
             'frame_altitude': {
                 'namespace': self.node_namespace,
                 'factory_val': self.frame_altitude
-            }        
+            },
+            'frame_transform': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ZERO_TRANSFORM
+            },
         }
 
         # Services Config Dict ####################
@@ -326,22 +413,79 @@ class NPXDeviceIF:
                 'callback': self._setUpdateRateCb, 
                 'callback_args': ()
             },
-            'set_3d_frame': {
+            'set_frame_id': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/set_3d_frame',
+                'topic': 'npx/set_frame_id',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setIdFrameCb, 
+                'callback_args': ()
+            },
+            'set_frame_3d': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_frame_3d',
                 'msg': String,
                 'qsize': 1,
                 'callback': self._set3dFrameCb, 
                 'callback_args': ()
             },
-            'set_altitude_frame': {
+            'set_frame_altitude': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/set_altitude_frame',
+                'topic': 'npx/set_frame_altitude',
                 'msg': String,
                 'qsize': 1,
                 'callback': self._setAltFrameCb, 
                 'callback_args': ()
-            }
+            },
+            'clear_frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/clear_frame_transform',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._clearFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'set_frame_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_frame_transform',
+                'msg': Frame3DTransform,
+                'qsize': 1,
+                'callback': self._setFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'set_as_gps_source': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_as_gps_source',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setGpsSourceCb, 
+                'callback_args': ()
+            },
+            'set_as_elevation_source': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_as_elevation_source',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setElevationSourceCb, 
+                'callback_args': ()
+            },
+            'set_as_pose_source': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_as_pose_source',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setPoseSourceCb, 
+                'callback_args': ()
+            },
+            'set_as_heading_source': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_as_heading_source',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setHeadingSourceCb, 
+                'callback_args': ()
+            },
+            
 
 
         }
@@ -407,6 +551,14 @@ class NPXDeviceIF:
 
 
         time.sleep(1)
+
+
+        self.set_gps_source = self.node_if.get_param('set_gps_source')
+        self.set_elevation_source = self.node_if.get_param('set_elevation_source')
+        self.set_pose_source = self.node_if.get_param('set_pose_source')
+        self.set_heading_source = Fself.node_if.get_param('set_heading_source')alse
+        self.frame_transform = self.node_if.get_param('frame_transform')
+
         self.initCb(do_updates = True)
 
         nepi_ros.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
@@ -464,15 +616,86 @@ class NPXDeviceIF:
 
   def _set3dFrameCb(self,msg):
     frame = msg.data
-    if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
+    if frame in self.NAVPOSE_FRAME_3D_OPTIONS:
       self.frame_3d = frame
       self.node_if.set_param('frame_3d',frame)
 
+  def _setIdFrameCb(self,msg):
+    frame = msg.data
+    if frame in self.NAVPOSE_FRAME_ID_OPTIONS:
+      self.frame_3d = frame
+      self.node_if.set_param('frame_id',frame)
+
   def _setAltFrameCb(self,msg):
     frame = msg.data
-    if frame in self.NAVPOSE_ALT_FRAME_OPTIONS:
+    if frame in self.NAVPOSE_FRAME_ALT_OPTIONS:
       self.frame_altitude = frame
       self.node_if.set_param('frame_altitude',frame)
+
+
+  def _setFrame3dTransformCb(self, msg):
+      self.msg_if.pub_info("Recived 3D frame_transform update message: " + str(msg))
+      new_transform_msg = msg
+      self.setFrame3dTransform(new_transform_msg)
+
+  def setFrame3dTransform(self, transform_msg):
+      x = transform_msg.translate_vector.x
+      y = transform_msg.translate_vector.y
+      z = transform_msg.translate_vector.z
+      roll = transform_msg.rotate_vector.x
+      pitch = transform_msg.rotate_vector.y
+      yaw = transform_msg.rotate_vector.z
+      heading = transform_msg.heading_offset
+      self.frame_transform = [x,y,z,roll,pitch,yaw,heading]
+      self.status_msg.frame_3d_transform = transform_msg
+      self.publishStatus(do_updates=False) # Updated inline here 
+
+      self.node_if.set_param('frame_3d_transform',  self.frame_transform)
+
+
+  def _clearFrame3dTransformCb(self, msg):
+      self.msg_if.pub_info("Recived Clear 3D frame_transform update message: " + str(msg))
+      new_transform_msg = msg
+      self.clearFrame3dTransform()
+
+  def clearFrame3dTransform(self, transform_msg):
+        self.frame_transform = self.ZERO_TRANSFORM
+        self.status_msg.frame_3d_transform = transform_msg
+        self.publishStatus(do_updates=False) # Updated inline here 
+        self.init_frame_3d_transform = self.node_if.set_param('frame_3d_transform',  self.frame_transform)
+
+  def _setGpsSourceCb(self, msg):
+      self.msg_if.pub_info("Recived set gps source update message: " + str(msg))
+      enabled = msg.data
+      self.set_gps_source = enabled
+      self.status_msg.set_as_gps_source = enabled
+      self.publishStatus(do_updates=False) # Updated inline here 
+      self.node_if.set_param('set_gps_source',  enabled)
+
+  def _setElevationSourceCb(self, msg):
+      self.msg_if.pub_info("Recived set elevation source update message: " + str(msg))
+      enabled = msg.data
+      self.set_elevation_source = enabled
+      self.status_msg.set_as_elevation_source = enabled
+      self.publishStatus(do_updates=False) # Updated inline here 
+      self.node_if.set_param('set_elevation_source',  enabled)
+
+  def _setPoseSourceCb(self, msg):
+      self.msg_if.pub_info("Recived set pose source update message: " + str(msg))
+      enabled = msg.data
+      self.set_pose_source = enabled
+      self.status_msg.set_as_pose_source = enabled
+      self.publishStatus(do_updates=False) # Updated inline here 
+      self.node_if.set_param('set_pose_source',  enabled)
+
+  def _setHeadingSourceCb(self, msg):
+      self.msg_if.pub_info("Recived set heading source update message: " + str(msg))
+      enabled = msg.data
+      self.set_heading_source = enabled
+      self.status_msg.set_as_heading_source = enabled
+      self.publishStatus(do_updates=False) # Updated inline here 
+      self.node_if.set_param('set_heading_source',  enabled)
+
 
 
   def initCb(self,do_updates = False):
@@ -502,7 +725,7 @@ class NPXDeviceIF:
   def _updateNavPoseDictCb(self,timer):
 
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    
+    navpose_dict['frame_id'] = self.frame_id
     navpose_dict['frame_3d'] = self.frame_3d
     navpose_dict['altitude_frame'] = self.frame_altitude
        
@@ -585,12 +808,15 @@ class NPXDeviceIF:
 
     # Do Conversions if Needed
     if self.frame_3d == 'NED':
-        np_dict = nepi_nav.convert_navposedata_edu2ned(np_dict)
+        navpose_dict = nepi_nav.convert_navposedata_edu2ned(navpose_dict)
     if self.frame_altitude == 'AMSL':
-        np_dict = nepi_nav.convert_navposedata_wgs842amsl(np_dict)
+        navpose_dict = nepi_nav.convert_navposedata_wgs842amsl(navpose_dict)
 
     if self.has_updated == False:
         self.msg_if.pub_warn("Returning navpose dict: " + str(navpose_dict))
+
+    if self.frame_id == 'nepi_base_frame':
+      navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,self.frame_transform)
 
     self.has_updated = True
     self.navpose_dict =  navpose_dict
@@ -602,12 +828,59 @@ class NPXDeviceIF:
     self.save_data_if.save('navpose',self.navpose_dict,timestamp)
 
     delay = float(1) / self.update_rate
+
+
+    # Set navpose manager source topics if required
+    if self.set_gps_source == True and self.navpose_mgr_if is not None:
+      self.navpose_mgr_if.set_gps_source_topic(self.gps_pub_ns)
+v
+    if self.set_elevation_source == True and self.navpose_mgr_if is not None:
+      self.navpose_mgr_if.set_elevation_source_topic(self.elevation_pub_ns)
+
+    if self.set_pose_source == True and self.navpose_mgr_if is not None:
+      self.navpose_mgr_if.set_pose_source_topic(self.pose_pub_ns)
+
+    if self.set_heading_source == True and self.navpose_mgr_if is not None:
+      self.navpose_mgr_if.set_heading_source_topic(self.heading_pub_ns)
+
     nepi_ros.start_timer_process(delay, self._updateNavPoseDictCb, oneshot = True)
+
+
 
   def _publishStatusCb(self,timer):
       self.status_msg.update_rate = self.update_rate
+      self.status_msg.frame_id = self.frame_id
       self.status_msg.frame_3d = self.frame_3d
       self.status_msg.frame_altitude = self.frame_altitude
+
+      self.status_msg.has_heading = self.has_heading
+      self.status_msg.has_position = self.has_position
+      self.status_msg.has_orientation = self.has_orientation
+      self.status_msg.has_location = self.has_location      
+      self.status_msg.has_altitude = self.has_altitude
+      self.status_msg.has_depth =  self.has_depth
+
+      self.status_msg.has_gps_pub =  self.has_gps_pub
+      self.status_msg.has_elevation_pub =  self.has_elevation_pub
+      self.status_msg.has_pose_pub =  self.has_pose_pub
+      self.status_msg.has_heading_pub =  self.has_heading_pub
+
+      self.status_msg.set_as_gps_source = self.set_gps_source
+      self.status_msg.set_as_elevation_source = self.set_elevation_source
+      self.status_msg.set_as_pose_source = self.set_pose_source
+      self.status_msg.set_as_heading_source = self.set_heading_source
+
+      transform = self.frame_transform
+      transform_msg = Frame3DTransform()
+      transform_msg.translate_vector.x = transform[0]
+      transform_msg.translate_vector.y = transform[1]
+      transform_msg.translate_vector.z = transform[2]
+      transform_msg.rotate_vector.x = transform[3]
+      transform_msg.rotate_vector.y = transform[4]
+      transform_msg.rotate_vector.z = transform[5]
+      transform_msg.heading_offset = transform[6]
+      self.status_msg.frame_transform = transform_msg
+
       self.node_if.publish_pub('status_pub',self.status_msg)
 
 

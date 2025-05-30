@@ -192,11 +192,11 @@ void NavPoseMgr::initSubscribers()
 	// Call the base method
 	SDKNode::initSubscribers();
 
-	subscribers.push_back(n_priv.subscribe("set_gps_fix_topic", 3, &NavPoseMgr::setGPSFixTopicHandler, this));
-	subscribers.push_back(n_priv.subscribe("set_init_gps_fix", 3, &NavPoseMgr::setInitGPSFixHandler, this));
+	subscribers.push_back(n_priv.subscribe("set_gps_topic", 3, &NavPoseMgr::setGPSFixTopicHandler, this));
+	subscribers.push_back(n_priv.subscribe("set_init_gps", 3, &NavPoseMgr::setInitGPSFixHandler, this));
 		
-	subscribers.push_back(n_priv.subscribe("set_orientation_topic", 3, &NavPoseMgr::setOrientationTopicHandler, this));
-	subscribers.push_back(n_priv.subscribe("set_init_orientation", 3, &NavPoseMgr::setInitOrientationHandler, this));
+	subscribers.push_back(n_priv.subscribe("set_pose_topic", 3, &NavPoseMgr::setOrientationTopicHandler, this));
+	subscribers.push_back(n_priv.subscribe("set_init_pose", 3, &NavPoseMgr::setInitOrientationHandler, this));
 	
 	subscribers.push_back(n_priv.subscribe("set_heading_topic", 3, &NavPoseMgr::setHeadingTopicHandler, this));
 	subscribers.push_back(n_priv.subscribe("set_init_heading", 3, &NavPoseMgr::setInitHeadingHandler, this));

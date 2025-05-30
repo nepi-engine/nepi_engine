@@ -91,7 +91,7 @@ def get_heading_publisher_namespaces():
 #######################
 # Create NavPose Messages
 
-
+NAVPOSE_FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
 NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
@@ -139,6 +139,7 @@ BLANK_DEPTH_DATA_DICT = {
 
 
 BLANK_NAVPOSE_DICT = {
+    'frame_id': 'nepi_base_frame',
     'frame_3d': 'ENU',
     'frame_altitude': 'WGS84',
 
@@ -181,6 +182,52 @@ BLANK_NAVPOSE_DICT = {
 }
 
 
+ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+
+def transform_navpose_dict(npdata_dict, transform):
+  if npdata_dict is None:
+    logger.log_info("Got None navpose dict")
+  else:
+    if transform != ZERO_TRANSFORM:
+      x = transform[0]
+      y = transform[1]
+      z = transform[2]
+      translation_vector = [x, y, z]
+      roll = transform[3]
+      pitch = transform[4]
+      yaw = transform[5]
+      rotate_vector = [roll, pitch, yaw]
+      try:
+        npdata_dict['frame_id'] = 'nepi_base_frame', 
+        
+        if npdata_dict['has_heading'] == True:
+          npdata_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
+
+        if npdata_dict['has_orientation'] == True:
+          npdata_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
+          npdata_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
+          npdata_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
+
+        if npdata_dict['has_position'] == True:
+          npdata_dict['x_m'] = npdata_dict['x_m'] - x
+          npdata_dict['y_m'] = npdata_dict['y_m'] - y
+          npdata_dict['z_m'] = npdata_dict['z_m'] - z
+
+        if npdata_dict['has_location'] == True:
+          npdata_dict['lat'] = npdata_dict['lat']
+          npdata_dict['long'] = npdata_dict['long']
+
+        if npdata_dict['has_altitude'] == True:
+          npdata_dict['altitude_m'] = npdata_dict['altitude_m'] - z
+
+        if npdata_dict['has_depth'] == True:
+          npdata_dict['depth_m'] = npdata_dict['depth_m'] - z
+
+      except Exception as e:
+        npdata_msg = None
+        logger.log_info("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
+  return npdata_msg
+
 
 def convert_navposedata_dict2msg(npdata_dict):
   npdata_msg = None
@@ -190,6 +237,7 @@ def convert_navposedata_dict2msg(npdata_dict):
     try:
       npdata_msg = NavPoseData()
       npdata_msg.header.stamp = nepi_ros.ros_stamp_now()
+      npdata_msg.frame_id = npdata_dict['frame_id']
       npdata_msg.frame_3d = npdata_dict['frame_3d']
       npdata_msg.frame_altitude = npdata_dict['frame_altitude']
       npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
@@ -236,7 +284,7 @@ def convert_navposedata_msg2dict(npdata_msg):
     logger.log_info("Failed to convert NavPoseData msg: " + str(e))
   return npdata_dict
 
-def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_altitude = 'WGS84'):
+def convert_navpose_resp2data_msg(np_response, frame_id = 'nepi_base_frame', frame_3d = 'ENU', frame_altitude = 'WGS84'):
   time_ns = nepi_ros.time_ns_from_timestamp(navpose_msg.header.stamp)
   npdata_msg = None
   navpose_msg = np_reponse.nav_pose
@@ -268,6 +316,7 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_altitude 
       # Publish new current navpose data
       npdata_msg = NavPoseData()
       npdata_msg.header.stamp = navpose_msg.header.stamp
+      npdata_msg.frame_id = frame_id
       npdata_msg.frame_3d = frame_3d
       npdata_msg.frame_altitude = frame_altitude
       npdata_msg.geoid_height_meters = geoid_height
@@ -306,9 +355,9 @@ def convert_navpose_resp2data_msg(np_response, frame_3d = 'ENU', frame_altitude 
     npdata_msg = None
   return npdata_msg
 
-def convert_navpose_resp2data_dict(np_response, frame_3d = 'ENU', frame_altitude = 'WGS84'):
+def convert_navpose_resp2data_dict(np_response, frame_id = 'nepi_base_frame', frame_3d = 'ENU', frame_altitude = 'WGS84'):
   navpose_msg = np_response.nav_pose
-  npdata_msg = convert_navpose_resp2data_msg(navpose_msg, frame_3d, frame_altitude)
+  npdata_msg = convert_navpose_resp2data_msg(navpose_msg, frame_id, frame_3d, frame_altitude)
   npdata_dict = None
   try:
     npdata_dict = nepi_ros.convdert_msg2dict(npdata_msg)
@@ -320,9 +369,9 @@ def convert_navpose_resp2data_dict(np_response, frame_3d = 'ENU', frame_altitude
 #######################
 # NavPose Request Functions
 
-def get_navpose_response():
+def get_navpose_response(namespace):
   try:
-    get_navpose_service = nepi_ros.create_service(self.NAVPOSE_SERVICE_NAME, NavPoseQuery)
+    get_navpose_service = nepi_ros.create_service(namespace, NavPoseQuery)
     navpose_response = get_navpose_service(NavPoseQueryRequest())
   except Exception as e:
     logger.log_info("Service call failed: " + str(e))

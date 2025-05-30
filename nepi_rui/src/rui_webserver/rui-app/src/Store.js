@@ -2527,7 +2527,7 @@ class ROSConnectionStore {
   @action.bound
   onSetInitGPS(latitude_deg, longitude_deg, altitude_m) {
     this.publishMessage({
-      name: "nav_pose_mgr/set_init_gps_fix",
+      name: "nav_pose_mgr/set_init_gps",
       messageType: "sensor_msgs/NavSatFix",
       data: {
         header: {
@@ -2601,7 +2601,7 @@ class ROSConnectionStore {
   @action.bound
   onSetGPSFixTopic(topic) {
     this.publishMessage({
-      name: "nav_pose_mgr/set_gps_fix_topic",
+      name: "nav_pose_mgr/set_gps_topic",
       messageType: "std_msgs/String",
       data: {
         data: topic

@@ -3,6 +3,7 @@
 
 bool publishing
 
+string frame_id
 string frame_3d
 string frame_altitude
 

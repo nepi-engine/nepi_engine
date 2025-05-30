@@ -14,8 +14,14 @@ import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import TimeStatus, TimeUpdate
-from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
+from geographic_msgs.msg import GeoPoint
+from sensor_msgs.msg import NavSatFix
+from geometry_msgs.msg import Point, Pose, Quaternion
+
+
+from nepi_ros_interfaces.msg import NavPose, NavPoseData
+from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_ros_interfaces.srv import NavPoseStatusQuery, NavPoseStatusQueryRequest, NavPoseStatusQueryResponse
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -25,9 +31,9 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.messages_if import MsgIF
 
 
-class ConnectMgrTimeSyncIF:
+class ConnectMgrNavPoseIF:
  
-    MGR_NODE_NAME = 'time_sync_mgr'
+    MGR_NODE_NAME = 'nav_pose_mgr'
 
     ready = False
 
@@ -76,36 +82,65 @@ class ConnectMgrTimeSyncIF:
 
         # Services Config Dict ####################     
         self.SRVS_DICT = {
-            'time_status_query': {
+            'nav_pose_query': {
                 'namespace': self.base_namespace,
-                'topic': 'time_status_query',
-                'srv': TimeStatusQuery,
-                'req': TimeStatusQueryRequest(),
-                'resp': TimeStatusQueryResponse()
-            }
+                'topic': 'nav_pose_query',
+                'srv': NavPoseQuery,
+                'req': NavPoseQueryRequest(),
+                'resp': NavPoseQueryResponse()
+            },
+            'nav_pose_status_query': {
+                'namespace': self.base_namespace,
+                'topic': 'nav_pose_status_query',
+                'srv': NavPoseStatusQuery,
+                'req': NavPoseStatusQueryRequest(),
+                'resp': NavPoseStatusQueryResponse()
+            },
         }
 
+    
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'add_ntp_server': {
+            'set_gps_topic': {
                 'namespace': self.base_namespace,
-                'topic': 'add_ntp_server',
+                'topic': 'set_gps_topic',
                 'msg': String,
                 'latch': False,
                 'qsize': None
             },
-            'remove_ntp_server': {
+            'set_pose_topic': {
                 'namespace': self.base_namespace,
-                'topic': 'remove_ntp_server',
+                'topic': 'set_pose_topic',
                 'msg': String,
                 'latch': False,
                 'qsize': None
             },
-            'set_time': {
+            'set_elevation_topic': {
                 'namespace': self.base_namespace,
-                'topic': 'set_time',
-                'msg': TimeUpdate,
+                'topic': 'set_elevation_topic',
+                'msg': String,
+                'latch': False,
+                'qsize': 10
+            },
+            'set_heading_topic': {
+                'namespace': self.base_namespace,
+                'topic': 'set_heading_topic',
+                'msg': String,
+                'latch': False,
+                'qsize': 10
+            },
+            'enable_gps_clock_sync': {
+                'namespace': self.base_namespace,
+                'topic': 'enable_gps_clock_sync',
+                'msg': Bool,
+                'latch': False,
+                'qsize': 10
+            },
+            'reinit_navpose_solution': {
+                'namespace': self.base_namespace,
+                'topic': 'reinit_navpose_solution',
+                'msg': Empty,
                 'latch': False,
                 'qsize': 10
             }
@@ -114,19 +149,7 @@ class ConnectMgrTimeSyncIF:
 
 
         # Subscribers Config Dict ####################
-        if self.time_updated_callback is not None:
-            self.SUBS_DICT = {
-                'sys_time_updated': {
-                    'namespace': self.base_namespace,
-                    'topic': 'sys_time_updated',
-                    'msg': Empty,
-                    'qsize': 3,
-                    'callback': self._time_updated_callback, 
-                    'callback_args': ()
-                }
-            }
-        else:
-            self.SUBS_DICT = None
+        self.SUBS_DICT = None
 
 
 
@@ -179,7 +202,7 @@ class ConnectMgrTimeSyncIF:
         time_start = nepi_ros.get_time()
         connected = False
         while connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            exists = nepi_ros.check_for_service('time_status_query')
+            exists = nepi_ros.check_for_service('nav_pose_status_query')
             nepi_ros.wait()
             if exists == True:
                 ret = None
@@ -196,11 +219,10 @@ class ConnectMgrTimeSyncIF:
         return connected
 
 
-
-    def get_time_status(self, verbose = True):
-        service_name = 'time_status_query'
+    def get_navpose_solution(self, verbose = True):
+        service_name = 'nav_pose_query'
         response = None
-        time_dict = None
+        navpose_dict = None
         try:
             request = self.node_if.create_request_msg(service_name)
         except Exception as e:
@@ -208,21 +230,63 @@ class ConnectMgrTimeSyncIF:
         try:
             response = self.node_if.call_service(service_name, request, verbose = verbose)
             #self.msg_if.pub_info("Got time status response: " + str(response))
-            self.status_msg = response.time_status
-            time_status = response.time_status
-            time_dict = nepi_ros.convert_msg2dict(time_status)
-            #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
         except Exception as e:
             if verbose == True:
                 self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
             else:
                 pass
+        try:
+            navpose_dict = nepi_nav.convert_navpose_resp2data_dict(response)
+        except Exception as e:
+            if verbose == True:
+                self.msg_if.pub_warn("Failed to convdert navpose query response to dict: " + service_name + " " + str(e))
+            else:
+                pass
+        return navpose_dict    
 
-        return time_dict    
+
+    def get_navpose_status(self, verbose = True):
+        service_name = 'nav_pose_status_query'
+        response = None
+        status_dict = None
+        try:
+            request = self.node_if.create_request_msg(service_name)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to create service request: " + " " + str(e))
+        try:
+            response = self.node_if.call_service(service_name, request, verbose = verbose)
+            #self.msg_if.pub_info("Got time status response: " + str(response))
+            navpose_status = response.status
+            status_dict = nepi_ros.convert_msg2dict(time_status)
+            #self.msg_if.pub_info("Got time status dict: " + str(navpose_status))
+        except Exception as e:
+            if verbose == True:
+                self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
+            else:
+                pass
+        return status_dict    
+
+
+    def set_gps_source_topic(self,topic):
+        self.node_if.publish_pub('set_gps_topic',topic)
+
+    def set_elevation_source_topic(self,topic):
+        self.node_if.publish_pub('set_elevation_topic',topic)
+
+    def set_pose_source_topic(self,topic):
+        self.node_if.publish_pub('set_pose_topic',topic)
+
+    def set_heading_source_topic(self,topic):
+        self.node_if.publish_pub('set_heading_topic',topic)
+
+    def set_enable_gps_clock_sync(self,enable):
+        self.node_if.publish_pub('enable_gps_clock_sync',enable)
+
+    def reinit_navpose_solution(self):
+        self.node_if.publish_pub('reinit_navpose_solution',Empty())
+
 
     #######################
     # Class Private Methods
     #######################
 
-    def _time_updated_callback(self,msg):
-        pass
