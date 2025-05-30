@@ -99,6 +99,8 @@ add_message_files(FILES
     Offset.msg
     RUISettings.msg
     SonarFieldOfView.msg
+    TargetData.msg
+    TargetsData.msg
     TargetLocalization.msg
     TargetLocalizations.msg
     ImageSize.msg
@@ -154,6 +156,7 @@ add_message_files(FILES
     DepthMapStatus.msg
     PointcloudStatus.msg
     SonarStatus.msg
+    Elevation.msg
 )
 
 ## Generate services in the 'srv' folder

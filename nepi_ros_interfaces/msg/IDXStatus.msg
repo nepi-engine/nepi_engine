@@ -30,11 +30,6 @@ string[] data_products
 string[] data_product_types
 float32[] framerates
 
-# Enable or Disable IDX controls
-bool controls_enable
-
-# Enable or Disable IDX auto adjusting brightness, contrast, and threshold control
-bool auto_adjust
 
 # The contrast field indicates the 0.0 - 1.0 contrast setting of the device
 float32 contrast
@@ -54,20 +49,10 @@ float32 max_range_m
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
 RangeWindow range_window
 
-
-# The zoom field indicates the 0.0 - 1.0 zoom ratio for pointcloud image setting of the device
-float32 zoom
-
-# The rotate field indicates the 0.0 - 1.0 rotate ratio for pointcloud image setting of the device
-float32 rotate
-
-# The tilt field indicates the 0.0 - 1.0 tilt ratio for pointcloud image setting of the device
-float32 tilt
-
 # Input Transform for data from sensor's native sensor frame to the nepi_center_frame 
 nepi_ros_interfaces/Frame3DTransform frame_3d_transform
 
-# Output transform into which 3D data (pointclouds) are published
+# Output transform into which 3D data (navpose,pointclouds...) are published
 string frame_3d
 
 

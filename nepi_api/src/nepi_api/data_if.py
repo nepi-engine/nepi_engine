@@ -30,7 +30,7 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
-from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading
+from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading, Elevation
 
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import StringArray, ImageStatus
@@ -421,11 +421,13 @@ class ReadWriteIF:
                 
 
 
-
+NAVPOSE_FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
 NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
-NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
+NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84','DEPTH']
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
+    'frame_id': 'nepi_base_frame',
+    'frame_3d': 'ENU',
     'frame_3d': 'ENU',
     'frame_altitude': 'WGS84',
 
@@ -487,7 +489,7 @@ class NavPoseIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
     def __init__(self, namespace = None,
-                enable_gps_pub = True, enable_pose_pub = True, enable_heading_pub = True,
+                enable_gps_pub = False, enable_elevation_pub = False, enable_pose_pub = False, enable_heading_pub = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -517,6 +519,7 @@ class NavPoseIF:
         self.namespace = nepi_ros.get_full_namespace(self.namespace)
 
         self.enable_gps_pub = enable_gps_pub
+        self.enable_elevation_pub = enable_elevation_pub
         self.enable_pose_pub = enable_pose_pub
         self.enable_heading_pub = enable_heading_pub
 
@@ -549,7 +552,16 @@ class NavPoseIF:
             self.PUBS_DICT['gps_pub'] = {
                 'msg': NavSatFix,
                 'namespace': self.namespace,
-                'topic': 'gps_fix',
+                'topic': 'gps',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.enable_elevation_pub == True:
+            self.PUBS_DICT['elevation_pub'] = {
+                'msg': Elevation,
+                'namespace': self.namespace,
+                'topic': 'elevation',
                 'qsize': 1,
                 'latch': False
             }
@@ -558,7 +570,7 @@ class NavPoseIF:
             self.PUBS_DICT['pose_pub'] = {
                 'msg': Odometry,
                 'namespace': self.namespace,
-                'topic': 'odom',
+                'topic': 'pose',
                 'qsize': 1,
                 'latch': False
             }
@@ -721,7 +733,28 @@ class NavPoseIF:
                             msg.latitude = np_dict['altitude']
                         self.node_if.publish_pub('gps_pub',msg)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish location data msg: " + str(e))
+                        self.msg_if.pub_warn("Failed to publish gps data msg: " + str(e))
+                        success = False
+
+                if self.enable_gps_pub == True:
+                    msg = self.PUBS_DICT['elevation_pub']['msg']()
+                    # gps_fix pub
+                    try:
+
+                                
+                        if  np_dict['frame_altitude'] == 'Depth':
+                            depth = np_dict['depth']
+                            if depth > 0:
+                                depth = -1 * depth
+                            msg.elevation = depth
+                        else:
+                            if np_dict['has_location'] == True:
+                                if np_dict['has_altitude'] and np_dict['frame_altitude'] == 'AMSL':
+                                    np_dict = nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
+                            msg.elevation = np_dict['altitude']
+                        self.node_if.publish_pub('elevation_pub',msg)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to publish elevation data msg: " + str(e))
                         success = False
 
 

@@ -591,6 +591,135 @@ def write_image_file(cv2_img,file_path):
     return success
 
 
+    #########################
+    # Image Analysis Functions
+
+    '''
+  def getShapeDistribution(cv2_img,x_px = None, y_px = None, w_px = None, h_px = None):
+    https://www.geeksforgeeks.org/how-to-detect-shapes-in-images-in-python-using-opencv/
+    # converting image into grayscale image
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # setting threshold of gray image
+    _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+
+    # using a findContours() function
+    contours, _ = cv2.findContours(
+        threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    i = 0
+
+    # list for storing names of shapes
+    for contour in contours:
+
+        # here we are ignoring first counter because 
+        # findcontour function detects whole image as shape
+        if i == 0:
+            i = 1
+            continue
+
+        # cv2.approxPloyDP() function to approximate the shape
+        approx = cv2.approxPolyDP(
+            contour, 0.01 * cv2.arcLength(contour, True), True)
+        
+        # using drawContours() function
+        cv2.drawContours(img, [contour], 0, (0, 0, 255), 5)
+
+        # finding center point of shape
+        M = cv2.moments(contour)
+        if M['m00'] != 0.0:
+            x = int(M['m10']/M['m00'])
+            y = int(M['m01']/M['m00'])
+
+        # putting shape name at center of each shape
+        if len(approx) == 3:
+            cv2.putText(img, 'Triangle', (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+        elif len(approx) == 4:
+            cv2.putText(img, 'Quadrilateral', (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+        elif len(approx) == 5:
+            cv2.putText(img, 'Pentagon', (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+        elif len(approx) == 6:
+            cv2.putText(img, 'Hexagon', (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+        else:
+            cv2.putText(img, 'circle', (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        
+    '''
+
+    '''
+    def getColorDistribution(cv2_img,x_px = None, y_px = None, w_px = None, h_px = None):
+      https://www.kaggle.com/code/caralosal/distribution-of-color-names-in-an-image
+      # We specify each color name along with its values in the RGB channels.
+      colors = ['black', 'white', 'red', 'green', 'blue', 'yellow', 'magenta', 'cyan']
+      rgb_color = [[0,0,0], [255,255,255],[255,0,0], [0,255,0], [0,0,255],[255,255,0],[255,0,255],[0,255,255]]
+
+      # CV2 reads the image as BGR instead of RGB, that's why we need to convert it after
+      image = cv2.imread('/kaggle/input/color-example/image_example.jpg')
+
+      # Convert from BGR to RGB
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+      # Matplotlib uses the RGB channel
+      plt.imshow(image)
+      plt.axis('off')
+      plt.show()
+
+    def distance(x,y):
+        
+        """Computes the distance between two points in a 3d space"""
+        
+        return np.sqrt(np.sum(np.square(np.array(x) - np.array(y))))
+
+    def get_color_name_rgb(rgb, colors = colors, rgb_color = rgb_color):
+        
+        """Receives a pixel in RGB format and returns the name of the color of that pixel"""
+        
+        # Computes the distance between the pixel and each corner of the 3d cube
+        each_distance = [distance(rgb, channel) for channel in rgb_color]
+        
+        # We get the index of the nearest color name to that pixel
+        near_color = np.argmin(each_distance)
+        
+        # Return the color
+        return colors[near_color]
+
+    # Example of an specific pixel (Yellow is (255, 255,0) so (220, 220,0) is yellow)
+    r = 220
+    g = 220
+    b = 0
+    print(get_color_name_rgb((r, g, b)))
+
+
+
+    def get_color_proportions_rgb(image):
+        
+        """Receieves an image in RGB format and returns the color proportions of the image"""
+        
+        red = image[:,:,0].ravel()
+        green = image[:,:,1].ravel()
+        blue = image[:,:,2].ravel()
+        
+        list_colors = [get_color_name_rgb((r, g, b)) for r, g, b in zip(red, green, blue)]
+        
+        # Show the image:
+        plt.imshow(image)
+        plt.axis('off')
+        plt.show()
+
+        return pd.DataFrame({'Percentage': round(pd.DataFrame(list_colors).value_counts() / len(list_colors) * 100,2)})
+
+    get_color_proportions_rgb(image)
+
+
     
+    '''
 
 

@@ -42,6 +42,8 @@ from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
 
+SUPPORTED_DATA_PRODUCTS = ['2d_color_image','2d_sonar','2d_sonar_image','depth_map','depth_image','pointcloud','pointcloud_image']
+
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     auto_adjust = False,
@@ -153,6 +155,8 @@ class IDXDeviceIF:
 
     factory_device_name = None
 
+
+
     ctl_enabled = True
     ctl_auto = False
     ctl_brightness = 0.5
@@ -203,6 +207,7 @@ class IDXDeviceIF:
     depth_map_thread = None
     pointcloud_thread = None
 
+    frame_transform = ZERO_TRANSFORM
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -224,7 +229,7 @@ class IDXDeviceIF:
                  getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
                  getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
                  navpose_update_rate = 10,
-                 data_products =  ['image','depth_map','pointcloud'],
+                 data_products =  [],
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -257,7 +262,12 @@ class IDXDeviceIF:
 
         self.factory_device_name = device_info["sensor_name"] + "_" + device_info["identifier"]
 
-        self.data_products = data_products
+
+        data_products_list = []
+        for data_product in data_products:
+            if data_product in SUPPORTED_DATA_PRODUCTS:
+                data_products_list.append(data_product)
+        self.data_products = data_products_list
         self.msg_if.pub_warn("Enabled data products: " + str(self.data_products))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
@@ -645,13 +655,14 @@ class IDXDeviceIF:
         self.ctl_threshold = self.node_if.get_param('thresholding')
         self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
+        self.self.frame_transform = self.node_if.get_param('frame_3d_transform')  
 
         # Start the data producers
-        if (getImage is not None and 'image' in self.data_products):
+        if (getImage is not None and '2d_color_image' in self.data_products):
             self.getImage = getImage
             self.stopImageAcquisition = stopImageAcquisition
-            data_product = 'image'
-            data_type = 'image'
+            data_product = '2d_color_image'
+            data_type = '2d_color_image'
 
             start_data_function = self.getImage
             stop_data_function = self.stopImageAcquisition
@@ -1154,7 +1165,7 @@ class IDXDeviceIF:
         self.publishStatus(do_updates=False) # Updated inline here  
 
     def setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived 3D Transform update message: " + str(msg))
+        self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
         new_transform_msg = msg
         self.setFrame3dTransform(new_transform_msg)
 
@@ -1166,11 +1177,11 @@ class IDXDeviceIF:
         pitch = transform_msg.rotate_vector.y
         yaw = transform_msg.rotate_vector.z
         heading = transform_msg.heading_offset
-        transform = [x,y,z,roll,pitch,yaw,heading]
+        self.frame_transform = [x,y,z,roll,pitch,yaw,heading]
         self.status_msg.frame_3d_transform = transform_msg
         self.publishStatus(do_updates=False) # Updated inline here 
 
-        self.node_if.set_param('frame_3d_transform',  transform)
+        self.node_if.set_param('frame_3d_transform',  self.frame_transform)
 
 
     def clearFrame3dTransformCb(self, msg):
@@ -1179,10 +1190,10 @@ class IDXDeviceIF:
         self.clearFrame3dTransform()
 
     def clearFrame3dTransform(self, transform_msg):
-        transform = self.ZERO_TRANSFORM
+        self.frame_transform = self.ZERO_TRANSFORM
         self.status_msg.frame_3d_transform = transform_msg
         self.publishStatus(do_updates=False) # Updated inline here 
-        self.init_frame_3d_transform = self.node_if.set_param('frame_3d_transform',  transform)
+        self.init_frame_3d_transform = self.node_if.set_param('frame_3d_transform',  self.frame_transform)
 
 
     def setFrame3dCb(self, msg):
@@ -1497,7 +1508,7 @@ class IDXDeviceIF:
                         else:
                             frame_id = 'base_frame'
 
-                        transform = self.status_msg.frame_3d_transform
+                        transform = self.frame_transform
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
