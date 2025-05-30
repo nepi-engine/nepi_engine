@@ -156,7 +156,7 @@ class NPXDeviceIF:
   node_if = None
 
   update_rate = DEFAULT_UPDATE_RATE
-  frame_id = DEAULT_ID_FRAME
+  frame_id = DEFAULT_ID_FRAME
   frame_3d = DEFAULT_3D_FRAME
   frame_altitude = DEFAULT_ALT_FRAME
 
@@ -269,17 +269,17 @@ class NPXDeviceIF:
         if self.getDepthCb is not None:
           self.has_depth = True
 
-      if self.has_location == True:
-          self.has_gps_pub = True
-          
-      if self.has_altitude == True or self.has_depth == True:
-          self.has_elevation_pub = True
+        if self.has_location == True:
+            self.has_gps_pub = True
+            
+        if self.has_altitude == True or self.has_depth == True:
+            self.has_elevation_pub = True
 
-      if self.has_position == True or self.has_orientation == True:
-          self.has_pose_pub = True
+        if self.has_position == True or self.has_orientation == True:
+            self.has_pose_pub = True
 
-      if self.has_heading == True:
-          self.has_heading_pub = True
+        if self.has_heading == True:
+            self.has_heading_pub = True
 
 
         # Create capabilities report
@@ -556,7 +556,7 @@ class NPXDeviceIF:
         self.set_gps_source = self.node_if.get_param('set_gps_source')
         self.set_elevation_source = self.node_if.get_param('set_elevation_source')
         self.set_pose_source = self.node_if.get_param('set_pose_source')
-        self.set_heading_source = Fself.node_if.get_param('set_heading_source')alse
+        self.set_heading_source = self.node_if.get_param('set_heading_source')
         self.frame_transform = self.node_if.get_param('frame_transform')
 
         self.initCb(do_updates = True)
@@ -833,7 +833,7 @@ class NPXDeviceIF:
     # Set navpose manager source topics if required
     if self.set_gps_source == True and self.navpose_mgr_if is not None:
       self.navpose_mgr_if.set_gps_source_topic(self.gps_pub_ns)
-v
+
     if self.set_elevation_source == True and self.navpose_mgr_if is not None:
       self.navpose_mgr_if.set_elevation_source_topic(self.elevation_pub_ns)
 

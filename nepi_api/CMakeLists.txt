@@ -114,23 +114,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include 
-  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS image_transport nepi_ros_interfaces
 )
 
 
-#catkin_install_python(PROGRAMS
-#  scripts/nepi_ai_detector_img_pub_node.py
-#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
-
-catkin_install_python(PROGRAMS
-  scripts/nepi_ai_detector_img_pub_node.py
-  scripts/nepi_depth_map_img_pub_node.py
-  scripts/nepi_pointcloud_img_pub_node.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
 
 ###########
 ## Build 
@@ -145,8 +132,11 @@ catkin_install_python(PROGRAMS
 
 catkin_install_python(PROGRAMS
   scripts/nepi_ai_detector_img_pub_node.py
+  scripts/nepi_depth_map_img_pub_node.py
+  scripts/nepi_pointcloud_img_pub_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
 
 #############
 ## Testing General ##
