@@ -15,7 +15,7 @@ bool has_depth
 bool has_gps_pub
 bool set_as_gps_source
 
-bool has_elavation_pub
+bool has_elevation_pub
 bool set_as_elevation_source
 
 bool has_pose_pub

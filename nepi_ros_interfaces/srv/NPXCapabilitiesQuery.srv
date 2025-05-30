@@ -9,7 +9,7 @@ bool has_altitude
 bool has_depth
 
 bool has_gps_pub
-bool has_elavation_pub
+bool has_elevation_pub
 bool has_pose_pub
 bool has_heading_pub
 
