@@ -1325,31 +1325,6 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  sendClearFrame3DTransformMsg(namespace, transformFloatList) {
-    if (transformFloatList.length === 7){
-      this.publishMessage({
-        name: namespace,
-        messageType: "nepi_ros_interfaces/Frame3DTransform",
-        data: { 
-            translate_vector: {
-              x: transformFloatList[0],
-              y: transformFloatList[1],
-              z: transformFloatList[2]
-            },
-            rotate_vector: {
-              x: transformFloatList[3],
-              y: transformFloatList[4],
-              z: transformFloatList[5]
-            },
-            heading_offset: transformFloatList[6]
-
-        },
-        noPrefix: true
-      })
-    }
-  }
-
-  @action.bound
   sendFloatVector3Msg(namespace, float1_str,float2_str,float3_str) {
     let float1Val = parseFloat(float1_str)
     let float2Val = parseFloat(float2_str)

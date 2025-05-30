@@ -19,6 +19,7 @@ import IDX from "./NepiDeviceIDX"
 import PTX from "./NepiDevicePTX"
 import LSX from "./NepiDeviceLSX"
 import RBX from "./NepiDeviceRBX"
+import NDX from "./NepiDeviceNDX"
 
 
 
@@ -245,6 +246,19 @@ class DevicesSelector extends Component {
     )
   }
 
+  renderNdxDev() {
+    return (
+      <Columns>
+        <Column>
+
+        <NDX
+         title={"NdxDevice"}
+         />
+
+      </Column>
+      </Columns>
+    )
+  }
 
   
 
@@ -282,6 +296,9 @@ class DevicesSelector extends Component {
             }
             if (typeList.indexOf("RBX") !== -1){
               items.push(<Option value={"Robots"}>{"Robots"}</Option>)
+            }
+            if (typeList.indexOf("NDX") !== -1){
+              items.push(<Option value={"NavPose"}>{"NavPose"}</Option>)
             }
         }
       }
@@ -384,6 +401,16 @@ class DevicesSelector extends Component {
             {this.state.selected_app}
           </label>
           {this.renderRbxDev()}    
+        </React.Fragment>
+      )
+    }
+    else if (sel_app === "NavPose"){
+      return (
+        <React.Fragment>
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+            {this.state.selected_app}
+          </label>
+          {this.renderNpxDev()}    
         </React.Fragment>
       )
     }

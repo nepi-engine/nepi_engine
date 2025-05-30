@@ -566,9 +566,9 @@ class NepiDeviceIDXControls extends Component {
               </Label>
 
 
-              <ButtonMenu>
-            <Button onClick={() => this.sendClearTransformUpdateMessage()}>{"Clear Transform"}</Button>
-          </ButtonMenu>
+                  <ButtonMenu>
+                      <Button onClick={() => sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
+                  </ButtonMenu>
 
 
             </Column>

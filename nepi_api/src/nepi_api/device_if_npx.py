@@ -440,7 +440,7 @@ class NPXDeviceIF:
             'clear_frame_3d_transform': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/clear_frame_transform',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._clearFrame3dTransformCb, 
                 'callback_args': ()
@@ -653,16 +653,15 @@ class NPXDeviceIF:
       self.node_if.set_param('frame_3d_transform',  self.frame_transform)
 
 
-  def _clearFrame3dTransformCb(self, msg):
-      self.msg_if.pub_info("Recived Clear 3D frame_transform update message: " + str(msg))
-      new_transform_msg = msg
-      self.clearFrame3dTransform()
+    def clearFrame3dTransformCb(self, msg):
+        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
+        self.clearFrame3dTransform()
 
-  def clearFrame3dTransform(self, transform_msg):
+    def clearFrame3dTransform(self):
         self.frame_transform = self.ZERO_TRANSFORM
-        self.status_msg.frame_3d_transform = transform_msg
+        self.status_msg.frame_3d_transform = Frame3DTransform()
         self.publishStatus(do_updates=False) # Updated inline here 
-        self.init_frame_3d_transform = self.node_if.set_param('frame_3d_transform',  self.frame_transform)
+        self.node_if.set_param('frame_3d_transform',  self.frame_transform)
 
   def _setGpsSourceCb(self, msg):
       self.msg_if.pub_info("Recived set gps source update message: " + str(msg))
