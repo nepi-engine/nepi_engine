@@ -37,6 +37,7 @@ class NepiDeviceNPXControls extends Component {
       showTransforms: false,
       transforms_topic_list: [],
       transforms_list: [],
+      transforms_msg: null,
       transformTX: 0,
       transformTY: 0,
       transformTZ: 0,
@@ -66,18 +67,44 @@ class NepiDeviceNPXControls extends Component {
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
+    const transforms = this.state.transforms_msg
+
     this.setState({
-
+      update_rate: message.update_rate,
+      frame_id: message.frame_id,
       frame_3d: message.frame_3d,
-      transformTX: message.frame_3d_transform.translate_vector.x,
-      transformTY: message.frame_3d_transform.translate_vector.y,
-      transformTZ: message.frame_3d_transform.translate_vector.z,
-      transformRX: message.frame_3d_transform.rotate_vector.x,
-      transformRY: message.frame_3d_transform.rotate_vector.y,
-      transformRZ: message.frame_3d_transform.rotate_vector.z,
-      transformHO: message.frame_3d_transform.heading_offset
+      frame_altitude: message.frame_altitude,
 
+      has_heading: message.has_heading,
+      has_position: message.has_position,
+      has_orientation: message.has_orientation,
+      has_location: message.has_location,
+      has_altitude: message.has_altitude,
+      has_depth: message.has_depth,
+      has_gps_pub: message.has_gps_pub,
+      set_as_gps_source: message.set_as_gps_source,
+      has_elevation_pub: message.has_elevation_pub,
+      set_as_elevation_source: message.set_as_elevation_source,
+      has_pose_pub: message.has_pose_pub,
+      set_as_pose_source: message.set_as_pose_source,
+      has_heading_pub: message.has_heading_pub,
+      set_as_heading_source: message.set_as_heading_source,
+
+      transforms_msg: message.frame_transform
     })
+
+    if (transforms !== message.frame_transform){
+      this.setState({
+        transformTX: message.frame_transform.translate_vector.x,
+        transformTY: message.frame_transform.translate_vector.y,
+        transformTZ: message.frame_transform.translate_vector.z,
+        transformRX: message.frame_transform.rotate_vector.x,
+        transformRY: message.frame_transform.rotate_vector.y,
+        transformRZ: message.frame_transform.rotate_vector.z,
+        transformHO: message.frame_transform.heading_offset
+      })
+    }
+
   }
 
   // Function for configuring and subscribing to StatusNPX
@@ -124,7 +151,7 @@ class NepiDeviceNPXControls extends Component {
   settransform(event){
     const transforms = this.state.transforms_list
 
-      const transform = transforms[tf_index]
+      const transform = transforms
       this.setState({
         transformTX: round(transform[0]),
         transformTY: round(transform[1]),
@@ -134,8 +161,6 @@ class NepiDeviceNPXControls extends Component {
         transformRZ: round(transform[5]),
         transformHO: round(transform[6])
       })
-      
-    }
   }
 
   sendTransformUpdateMessage(){
@@ -174,23 +199,86 @@ class NepiDeviceNPXControls extends Component {
   renderControls() {
     const { npxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
     const capabilities = npxDevices[this.props.npxNamespace]
-    
+    const has_gps_pub = capabilities ? capabilities.has_gps_pub : false
+    const has_elevation_pub = capabilities ? capabilities.has_elevation_pub : false
+    const has_pose_pub = capabilities ? capabilities.has_pose_pub : false
+    const has_heading_pub = capabilities ? capabilities.has_heading_pub : false
+
+    const namespace = this.props.npxNamespace
 
     return (
 
       <Section title={"NavPose Controls"}>
-
-    <div hidden={!has_on_off_control}>    
-          <Label title="Set On_Off State">
-                  <Toggle
-                    checked={this.state.lsxOnOffState===true}
-                    onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.lsxOnOffState)}>
-                  </Toggle>
-            </Label>
-            </div>
-
+      <Columns>
+      <Column>
+    <div hidden={!has_gps_pub}>    
+          <Label title="Set as GPS Source">
+            <Toggle
+              checked={this.state.set_as_gps_source===true}
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_gps_source)}>
+            </Toggle>
+          </Label>
+    </div>
+    <div hidden={!has_elevation_pub}>    
+          <Label title="Enable Elevation">
+            <Toggle
+              checked={this.state.set_as_elevation_source===true}
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_elevation_source)}>
+            </Toggle>
+          </Label>
+    </div>
+    <div hidden={!has_pose_pub}>    
+          <Label title="Enable Pose">
+            <Toggle
+              checked={this.state.set_as_pose_source===true}
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_pose_source)}>
+            </Toggle>
+          </Label>
+    </div>
+    <div hidden={!has_heading_pub}>    
+          <Label title="Enable Heading">
+            <Toggle
+              checked={this.state.set_as_heading_source===true}
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_heading_source)}>
+            </Toggle>
+          </Label>
+    </div>
+    </Column>
+    </Columns>
 
                        
+      <Columns>
+          <Column>
+
+              <div align={"left"} textAlign={"left"}>
+                <Label title={"Output Frame"}>
+                </Label>
+              </div>
+              </Column>
+              <Column>
+                <div align={"left"} textAlign={"left"}>
+                  <Label title={"Current Frame"}>
+                  <Input value = {this.state.frame_id} />
+                  </Label>
+                </div>
+              </Column>
+            </Columns>
+            <Columns>
+              <Column>
+              <div align={"center"} textAlign={"center"}>
+                <Label title={"NEPI"} align={"center"}>
+                </Label>
+                <Toggle 
+                  checked={this.state.frame_id === "nepi_center_frame"} 
+                  disabled={(!this.state.disabled)? false : true}
+                  onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
+                />
+          </div>
+
+  
+
+      </Column>
+      <Column>
       <Columns>
           <Column>
 
@@ -215,7 +303,7 @@ class NepiDeviceNPXControls extends Component {
                 <Toggle 
                   checked={this.state.frame_3d === "nepi_center_frame"} 
                   disabled={(!this.state.disabled)? false : true}
-                  onClick={() => setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
+                  onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
                 />
           </div>
 
@@ -223,23 +311,18 @@ class NepiDeviceNPXControls extends Component {
 
       </Column>
       <Column>
-
       </Column>
     </Columns>
-
-
-
-
-
-
+    </Column> 
+    </Columns> 
   <Columns>
     <Column>
     <Label title="Show 3D Transforms">
-                    <Toggle
-                      checked={this.state.showTransforms}
-                      onClick={this.onClickToggleShowTransforms}>
-                    </Toggle>
-                  </Label>
+      <Toggle
+        checked={this.state.showTransforms}
+        onClick={this.onClickToggleShowTransforms}>
+      </Toggle>
+    </Label>
 
     </Column>
     <Column>
@@ -336,8 +419,7 @@ class NepiDeviceNPXControls extends Component {
  
   
         </div>
-
-      </Section>
+        </Section>
     )
   }
 

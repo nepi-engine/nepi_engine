@@ -56,6 +56,7 @@ class NepiDeviceIDXControls extends Component {
       showTransforms: false,
       transforms_topic_list: [],
       transforms_list: [],
+      transfroms_msg: null,
       transformTX: 0,
       transformTY: 0,
       transformTZ: 0,
@@ -86,6 +87,7 @@ class NepiDeviceIDXControls extends Component {
 
   // Callback for handling ROS StatusIDX messages
   statusListener(message) {
+    const transforms = this.state.transforms_msg
     this.setState({
       rtsp_url: message.rtsp_url,
       rtsp_username: message.rtsp_username,
@@ -108,15 +110,20 @@ class NepiDeviceIDXControls extends Component {
       rotateAdjustment: message.rotate,
       tiltAdjustment: message.tilt,
       frame_3d: message.frame_3d,
-      transformTX: message.frame_3d_transform.translate_vector.x,
-      transformTY: message.frame_3d_transform.translate_vector.y,
-      transformTZ: message.frame_3d_transform.translate_vector.z,
-      transformRX: message.frame_3d_transform.rotate_vector.x,
-      transformRY: message.frame_3d_transform.rotate_vector.y,
-      transformRZ: message.frame_3d_transform.rotate_vector.z,
-      transformHO: message.frame_3d_transform.heading_offset
-
+      transforms_msg: message.frame_transform
     })
+
+    if (transforms !== message.frame_transform){
+      this.setState({
+        transformTX: message.frame_transform.translate_vector.x,
+        transformTY: message.frame_transform.translate_vector.y,
+        transformTZ: message.frame_transform.translate_vector.z,
+        transformRX: message.frame_transform.rotate_vector.x,
+        transformRY: message.frame_transform.rotate_vector.y,
+        transformRZ: message.frame_transform.rotate_vector.z,
+        transformHO: message.frame_transform.heading_offset
+      })
+    }
   }
 
   // Function for configuring and subscribing to StatusIDX
@@ -264,6 +271,7 @@ class NepiDeviceIDXControls extends Component {
     const resetControlsNamespace = this.props.idxNamespace + "/reset_controls"
     const imageName = this.props.idxImageName 
     const framerates = this.state.frameratesCurrent
+    const namespace = this.props.idxNamespace
     const dp_index = framerates ? this.state.dataProducts.indexOf(imageName) : -1
     var framerate_str = "0"
     if (dp_index !== -1) {
