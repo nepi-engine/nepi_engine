@@ -183,7 +183,7 @@ class IDXDeviceIF:
 
     
     data_products_list = []
-    data_types_list = []
+
 
 
     settings_if = None
@@ -666,15 +666,14 @@ class IDXDeviceIF:
         if (getColorImage is not None and '2d_color_image' in self.data_products):
             self.getColorImage = getColorImage
             self.stopColorImageAcquisition = stopColorImageAcquisition
-            data_product = '2d_color_image'
-            data_type = '2d_color_image'
+            data_product = 'color_image'
 
             start_data_function = self.getColorImage
             stop_data_function = self.stopColorImageAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -688,14 +687,13 @@ class IDXDeviceIF:
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
             data_product = 'depth_map'
-            data_type = 'depth_map'
             
             start_data_function = self.getDepthMap
             stop_data_function = self.stopDepthMapAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -709,14 +707,13 @@ class IDXDeviceIF:
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
             data_product = 'pointcloud'
-            data_type = 'pointcloud'
 
             start_data_function = self.getPointcloud
             stop_data_function = self.stopPointcloudAcquisition
             data_msg = PointCloud2
             data_status_msg = PointcloudStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -730,14 +727,13 @@ class IDXDeviceIF:
             self.getPointcloudImg = getPointcloudImg
             self.stopPointcloudImgAcquisition = stopPointcloudImgAcquisition
             data_product = 'pointcloud_image'
-            data_type = 'pointcloud'
 
             start_data_function = self.getPointcloudImg
             stop_data_function = self.stopPointcloudImgAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_img_thread = threading.Thread(target=self.runPointcloudImgThread)
             self.pointcloud_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
@@ -750,10 +746,8 @@ class IDXDeviceIF:
 
 
         self.caps_report.data_products = str(self.data_products_list)
-        #self.caps_report.data_product_types = str(self.data_types_list)
 
         self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
-        self.msg_if.pub_debug("Starting data types list: " + str(self.data_types_list))
 
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
@@ -901,26 +895,28 @@ class IDXDeviceIF:
 
 
 
-    def addDataProduct2Dict(self,data_product,data_type, start_data_function,stop_data_function,data_msg,data_status_msg):
+    def addDataProduct2Dict(self,data_product, start_data_function,stop_data_function,data_msg,data_status_msg):
         success = False
         data_product = data_product
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['data_type'] = data_type
         dp_dict['namespace'] = namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
         self.data_products_list.append(data_product)
-        self.data_types_list.append(data_type)
-        if data_type == 'depth_map':
+        if data_product == 'color_image':
+            self.data_products_list.append(data_product + '_raw')
+        elif data_product == 'bw_image':
+            self.data_products_list.append(data_product + '_raw')
+        elif data_product == 'intensity_map':
             self.data_products_list.append(data_product + '_image')
-            self.data_types_list.append('image')
-        if data_type == 'pointcloud':
+        elif data_product == 'depth_map':
             self.data_products_list.append(data_product + '_image')
-            self.data_types_list.append('image')
+        elif data_product == 'pointcloud':
+            self.data_products_list.append(data_product + '_image')
         self.data_product_dict[data_product] = dp_dict
 
         # do wait here for all
@@ -1563,7 +1559,6 @@ class IDXDeviceIF:
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.data_products = self.data_products_list
-            self.status_msg.data_product_types = self.data_types_list
             framerates = []
             for dp in self.current_fps.keys():
                 framerates.append(self.current_fps[dp])

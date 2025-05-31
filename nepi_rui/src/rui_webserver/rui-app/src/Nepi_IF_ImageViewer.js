@@ -334,6 +334,8 @@ class ImageViewer extends Component {
       const rotate_ratio = message.rotate_ratio
       const tilt_ratio = message.tilt_ratio
 
+      const show_controls = this.state.show_controls
+
 
 
       return (

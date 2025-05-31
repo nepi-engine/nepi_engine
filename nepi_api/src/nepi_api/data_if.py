@@ -632,6 +632,7 @@ class NavPoseIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+
     def get_data_products(self):
         return self.data_products_list
 
@@ -1451,6 +1452,10 @@ class ImageIF:
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
+
+
+    def get_data_source_type(self):
+        return self.data_source_type
 
     def get_data_products(self):
         return self.data_products_list
@@ -2331,6 +2336,10 @@ class DepthMapIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def get_data_source_type(self):
+        return self.data_source_type
+
+
     def get_data_products(self):
         return self.data_products_list
 
@@ -2835,6 +2844,10 @@ class PointcloudIF:
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
+
+    def get_data_source_type(self):
+        return self.data_source_type
+
 
     def get_data_products(self):
         return self.data_products_list
