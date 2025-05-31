@@ -205,6 +205,7 @@ add_service_files(
     SystemTriggersQuery.srv
     SystemStatusQuery.srv
     DebugQuery.srv
+    ImageCapabilitiesQuery.srv
     
 )
 

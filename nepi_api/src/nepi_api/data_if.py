@@ -1524,7 +1524,7 @@ class ImageIF:
                 self.msg_if.pub_warn("Image has subscribers, will publish", log_name_list = self.log_name_list)
             self.status_msg.publishing = True
 
-            proc_cv2_img = self._process_image(self,cv2_img):
+            cv2_img = self._process_image(self,cv2_img)
 
 
             # Apply Overlays
@@ -1553,11 +1553,11 @@ class ImageIF:
  
             overlay_list = overlay_list + self.init_overlay_list + add_overlay_list
 
-            frame_id = nepi_img.overlay_text_list(frame_id, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
+            cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
 
 
             #Convert to ros Image message
-            ros_img = nepi_img.cv2img_to_rosimg(frame_id, encoding=encoding)
+            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
             ros_img.header.frame_id = frame_id
             #self.msg_if.pub_warn("Publishing Image with header: " + str(ros_img.header))
@@ -1663,7 +1663,7 @@ class ImageIF:
         self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('threshold_ratio', ratio)
 
-   def set_range(self, start_ratio,stop_ratio):
+    def set_range(self, start_ratio, stop_ratio):
         if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
             self.msg_if.pub_error("Range values out of bounds")
             self.publishStatus(do_updates=False) # No change
@@ -1894,7 +1894,7 @@ class ImageIF:
         ratio = msg.data
         self.set_threshold_ratio(ratio)
 
-   def _setRangeCb(self, msg):
+    def _setRangeCb(self, msg):
         self.msg_if.pub_info("Recived Range update message: " + str(msg))
         start_ratio = msg.start_range
         stop_ratio = msg.stop_range
@@ -2054,7 +2054,7 @@ class ColorImageIF(Image):
                 log_name = log_name,
                 log_name_list = log_name_list,
                 msg_if = None
-                ):
+                )
 
         ###############################
 
