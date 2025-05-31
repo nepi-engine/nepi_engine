@@ -258,6 +258,7 @@ class NepiDeviceIDXControls extends Component {
     const resetControlsNamespace = this.props.idxNamespace + "/reset_controls"
     const imageName = this.props.idxImageName 
     const framerates = this.state.frameratesCurrent
+    const namespace = this.props.idxNamespace
     const dp_index = framerates ? this.state.dataProducts.indexOf(imageName) : -1
     var framerate_str = "0"
     if (dp_index !== -1) {

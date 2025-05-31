@@ -19,7 +19,7 @@ import IDX from "./NepiDeviceIDX"
 import PTX from "./NepiDevicePTX"
 import LSX from "./NepiDeviceLSX"
 import RBX from "./NepiDeviceRBX"
-import NDX from "./NepiDeviceNDX"
+import NPX from "./NepiDeviceNPX"
 
 
 
@@ -241,20 +241,20 @@ class DevicesSelector extends Component {
          title={"RbxDevice"}
          />
 
-      </Column>
-      </Columns>
-    )
-  }
+         </Column>
+         </Columns>
+       )
+     }
 
-  renderNdxDev() {
+  renderNpxDev() {
     return (
       <Columns>
         <Column>
 
-        <NDX
-         title={"NdxDevice"}
+        <NPX
+         title={"NpxDevice"}
          />
-
+set_as_gps_source
       </Column>
       </Columns>
     )
@@ -276,6 +276,7 @@ class DevicesSelector extends Component {
 
   // Function for creating image topic options.
   getdrvOptions() {
+    const {idxDevices,lsxDevices,ptxDevices,rbxDevices,npxDevices} = this.props.ros
     const typeList = this.state.drvs_active_type_list
     var items = []
     const connected = this.state.connected
@@ -285,19 +286,19 @@ class DevicesSelector extends Component {
     else{
       if (typeList) {
         if (typeList.length > 0){
-            if (typeList.indexOf("IDX") !== -1){
+            if (idxDevices.length > 0){
               items.push(<Option value={"Imaging"}>{"Imaging"}</Option>)
             }
-            if (typeList.indexOf("PTX") !== -1){
+            if (ptxDevices.length > 0){
               items.push(<Option value={"PanTilts"}>{"PanTilts"}</Option>)
             }
-            if (typeList.indexOf("LSX") !== -1){
+            if (lsxDevices.length > 0){
               items.push(<Option value={"Lights"}>{"Lights"}</Option>)
             }
-            if (typeList.indexOf("RBX") !== -1){
+            if (rbxDevices.length > 0){
               items.push(<Option value={"Robots"}>{"Robots"}</Option>)
             }
-            if (typeList.indexOf("NDX") !== -1){
+            if (npxDevices.length > 0){
               items.push(<Option value={"NavPose"}>{"NavPose"}</Option>)
             }
         }
