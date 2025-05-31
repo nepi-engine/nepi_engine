@@ -43,7 +43,7 @@ class NepiDeviceIDXControls extends Component {
       frameratesCurrent: [],
       contrastAdjustment: null,
       brightnessAdjustment: null,
-      thresholdingAdjustment: null,
+      thresholdAdjustment: null,
       rangeMax: null,
       rangeMin: null,
       rangeLimitMinM: null,
@@ -101,7 +101,7 @@ class NepiDeviceIDXControls extends Component {
       frameratesCurrent: message.framerates,
       contrastAdjustment: message.contrast,
       brightnessAdjustment: message.brightness,
-      thresholdingAdjustment: message.thresholding,
+      thresholdAdjustment: message.threshold,
       rangeMax: message.range_window.stop_range,
       rangeMin: message.range_window.start_range,
       rangeLimitMinM: message.min_range_m,
@@ -147,7 +147,7 @@ class NepiDeviceIDXControls extends Component {
     if (prevProps.idxNamespace !== idxNamespace){
       if (idxNamespace != null) {
         this.updateListener()
-      } else if (idxNamespace == null){
+      } else if (idxNamespace === null){
         this.setState({ disabled: true })
       }
     }
@@ -260,8 +260,14 @@ class NepiDeviceIDXControls extends Component {
   renderControls() {
     const { idxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
     const capabilities = idxDevices[this.props.idxNamespace]
-    const has_auto_adjust = (capabilities && capabilities.auto_adjustment && !this.state.disabled)
-    const has_range_adjust = (capabilities && capabilities.adjustable_range && !this.state.disabled)
+    const has_resolution = (capabilities && capabilities.has_resolution && !this.state.disabled)
+    const has_framerate = (capabilities && capabilities.has_framerate && !this.state.disabled)
+    const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
+    const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
+    const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
+    const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
+    const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
+
     const resetControlsNamespace = this.props.idxNamespace + "/reset_controls"
     const imageName = this.props.idxImageName 
     const framerates = this.state.frameratesCurrent
@@ -278,9 +284,7 @@ class NepiDeviceIDXControls extends Component {
 
 
 
-      <div hidden={!this.state.controlsEnable }>
-
-
+                <div hidden={(has_framerate === false)}>
 
                 <SliderAdjustment
                               title={"Framerate"}
@@ -297,9 +301,7 @@ class NepiDeviceIDXControls extends Component {
 
                   <Columns>
                     <Column>
-
-
-        
+      
                       </Column>
                       <Column>
                       <Label title={"Current Framerate"}>
@@ -314,172 +316,138 @@ class NepiDeviceIDXControls extends Component {
                       </Column>
                     </Columns>
 
+              </div>
+
+
+              <div hidden={(has_resolution === false)}>
+
+                <SliderAdjustment
+                                title={"Resolution"}
+                                msgType={"std_msgs/Float32"}
+                                adjustment={this.state.resolutionAdjustment}
+                                topic={this.props.idxNamespace + '/set_resolution_ratio'}
+                                scaled={0.01}
+                                min={0}
+                                max={100}
+                                disabled={(capabilities && !this.state.disabled)? false : true}
+                                tooltip={"Adjustable Resolution"}
+                                unit={"%"}
+                            />
+
+                    <Columns>
+                    <Column>
 
 
 
-              <div hidden={(imageName !== 'bw_2d_image' && imageName !== 'color_2d_image')}>
+                        </Column>
+                        <Column>
+
+                        <Label title={"Current Resolution"}>
+                      <Input
+                        value={this.state.resolutionString}
+                        id="framerate"
+                        style={{ width: "100%" }}
+                        disabled={true}
+                      />
+                    </Label>
+
+                        </Column>
+                      </Columns>             
+
+                </div>
 
 
-              <SliderAdjustment
-                              title={"Resolution"}
-                              msgType={"std_msgs/Float32"}
-                              adjustment={this.state.resolutionAdjustment}
-                              topic={this.props.idxNamespace + '/set_resolution_ratio'}
-                              scaled={0.01}
-                              min={0}
-                              max={100}
-                              disabled={(capabilities && !this.state.disabled)? false : true}
-                              tooltip={"Adjustable Resolution"}
-                              unit={"%"}
-                          />
+
+                <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
+
 
                   <Columns>
-                  <Column>
+                    <Column>
+
+                          <Label title={"Auto Adjust"}>
+                              <Toggle
+                                checked={this.state.autoAdjust}
+                                onClick={() => setIdxAutoAdjust(this.props.idxNamespace,!this.state.autoAdjust)}
+                              /> 
+                            </Label>
+                  
+
+                        </Column>
+                        <Column>
+
+                        </Column>
+                      </Columns>
+
+                  </div>
 
 
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Current Resolution"}>
-                    <Input
-                      value={this.state.resolutionString}
-                      id="framerate"
-                      style={{ width: "100%" }}
-                      disabled={true}
-                    />
-                  </Label>
-
-                      </Column>
-                    </Columns>             
-
-
-        
-
-
-
-                      <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
-                        <Columns>
-                          <Column>
-
-                                <Label title={"Auto Adjust"}>
-                                    <Toggle
-                                      checked={this.state.autoAdjust}
-                                      onClick={() => setIdxAutoAdjust(this.props.idxNamespace,!this.state.autoAdjust)}
-                                    /> 
-                                  </Label>
-                        
-
-                              </Column>
-                              <Column>
-
-                              </Column>
-                            </Columns>
-
-                      </div>
-
-
-                        <div hidden={this.state.autoAdjust}>
-                          <SliderAdjustment
-                              title={"Brightness"}
-                              msgType={"std_msgs/Float32"}
-                              adjustment={this.state.brightnessAdjustment}
-                              topic={this.props.idxNamespace + "/set_brightness"}
-                              scaled={0.01}
-                              min={0}
-                              max={100}
-                              disabled={(capabilities && capabilities.adjustable_brightness && !this.state.disabled)? false : true}
-                              tooltip={"Adjustable brightness"}
-                              unit={"%"}
-                          />
-                          <SliderAdjustment
-                            title={"Contrast"}
-                            msgType={"std_msgs/Float32"}
-                            adjustment={this.state.contrastAdjustment}
-                            topic={this.props.idxNamespace + "/set_contrast"}
-                            scaled={0.01}
-                            min={0}
-                            max={100}
-                            disabled={(capabilities && capabilities.adjustable_contrast && !this.state.disabled)? false : true}
-                            tooltip={"Adjustable contrast"}
-                            unit={"%"}
-                          />
-                          <SliderAdjustment
-                              title={"Thresholding"}
-                              msgType={"std_msgs/Float32"}
-                              adjustment={this.state.thresholdingAdjustment}
-                              topic={this.props.idxNamespace + "/set_thresholding"}
-                              scaled={0.01}
-                              min={0}
-                              max={100}
-                              disabled={(capabilities && capabilities.adjustable_thresholding && !this.state.disabled)? false : true}
-                              tooltip={"Adjustable thresholding"}
-                              unit={"%"}
-                          />
-                        </div>
-           
-
-
-              </div>
-
-              <div hidden={!has_range_adjust || (imageName !== 'depth_image' && imageName !== 'depth_map' && imageName !== 'pointcloud_image')}>
-                <RangeAdjustment
-                  title="Range Clip"
-                  min={this.state.rangeMin}
-                  max={this.state.rangeMax}
-                  min_limit_m={this.state.rangeLimitMinM}
-                  max_limit_m={this.state.rangeLimitMaxM}
-                  topic={this.props.idxNamespace + "/set_range_window"}
-                  disabled={(capabilities && capabilities.adjustable_range && !this.state.disabled)? false : true}
-                  tooltip={"Adjustable range"}
-                  unit={"m"}
-                />
-              </div>
-
-
-              <div hidden={ imageName !== 'pointcloud_image'}>
-
-                  <SliderAdjustment
-                        title={"Zoom"}
-                        msgType={"std_msgs/Float32"}
-                        adjustment={this.state.zoomAdjustment}
-                        topic={this.props.idxNamespace + "/set_zoom_ratio"}
-                        scaled={0.01}
-                        min={0}
-                        max={100}
-                        disabled={false}
-                        tooltip={"Zoom controls for pointcloud image rendering"}
-                        unit={"%"}
-                    />
-
-
-                  <SliderAdjustment
-                        title={"Rotate"}
-                        msgType={"std_msgs/Float32"}
-                        adjustment={this.state.rotateAdjustment}
-                        topic={this.props.idxNamespace + "/set_rotate_ratio"}
-                        scaled={0.01}
-                        min={0}
-                        max={100}
-                        disabled={false}
-                        tooltip={"Rotate controls for pointcloud image rendering"}
-                        unit={"%"}
-                    />
-
+                  <div hidden={this.state.autoAdjust === true && has_brightness === false}>
                     <SliderAdjustment
-                        title={"Tilt"}
+                        title={"Brightness"}
                         msgType={"std_msgs/Float32"}
-                        adjustment={this.state.tiltAdjustment}
-                        topic={this.props.idxNamespace + "/set_tilt_ratio"}
+                        adjustment={this.state.brightnessAdjustment}
+                        topic={this.props.idxNamespace + "/set_brightness"}
                         scaled={0.01}
                         min={0}
                         max={100}
-                        disabled={false}
-                        tooltip={"Tilt controls for pointcloud image rendering"}
+                        disabled={(capabilities && capabilities.has_brightness && !this.state.disabled)? false : true}
+                        tooltip={"Adjustable brightness"}
                         unit={"%"}
                     />
-              </div>
-      </div>
+
+                  </div>
+
+
+                  <div hidden={this.state.autoAdjust === true && has_contrast === false}>
+                    <SliderAdjustment
+                      title={"Contrast"}
+                      msgType={"std_msgs/Float32"}
+                      adjustment={this.state.contrastAdjustment}
+                      topic={this.props.idxNamespace + "/set_contrast"}
+                      scaled={0.01}
+                      min={0}
+                      max={100}
+                      disabled={(capabilities && capabilities.has_contrast && !this.state.disabled)? false : true}
+                      tooltip={"Adjustable contrast"}
+                      unit={"%"}
+                    />
+
+                  </div>
+
+                  <div hidden={this.state.autoAdjust === true && has_threshold === false}>
+                    <SliderAdjustment
+                        title={"Thresholding"}
+                        msgType={"std_msgs/Float32"}
+                        adjustment={this.state.thresholdAdjustment}
+                        topic={this.props.idxNamespace + "/set_threshold"}
+                        scaled={0.01}
+                        min={0}
+                        max={100}
+                        disabled={(capabilities && capabilities.has_threshold && !this.state.disabled)? false : true}
+                        tooltip={"Adjustable threshold"}
+                        unit={"%"}
+                    />
+                  </div>
+
+
+
+
+
+
+                <div hidden={(has_range === false)}>
+                  <RangeAdjustment
+                    title="Range Clip"
+                    min={this.state.rangeMin}
+                    max={this.state.rangeMax}
+                    min_limit_m={this.state.rangeLimitMinM}
+                    max_limit_m={this.state.rangeLimitMaxM}
+                    topic={this.props.idxNamespace + "/set_range_window"}
+                    tooltip={"Adjustable range"}
+                    unit={"m"}
+                  />
+                </div>
+
+
 
   <Columns>
     <Column>

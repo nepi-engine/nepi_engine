@@ -157,6 +157,7 @@ add_message_files(FILES
     PointcloudStatus.msg
     SonarStatus.msg
     Elevation.msg
+    ImageWindow.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -204,6 +205,7 @@ add_service_files(
     SystemTriggersQuery.srv
     SystemStatusQuery.srv
     DebugQuery.srv
+    ImageCapabilitiesQuery.srv
     
 )
 

@@ -33,7 +33,8 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading, Elevation
 
 from sensor_msgs.msg import Image
-from nepi_ros_interfaces.msg import StringArray, ImageStatus
+from nepi_ros_interfaces.msg import StringArray, ImageWindow, ImageStatus
+from nepi_ros_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_ros_interfaces.msg import DepthMapStatus, RangeWindow
 
@@ -428,7 +429,6 @@ NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84','DEPTH']
 EXAMPLE_NAVPOSE_DATA_DICT = {
     'frame_id': 'nepi_base_frame',
     'frame_3d': 'ENU',
-    'frame_3d': 'ENU',
     'frame_altitude': 'WGS84',
 
     'geoid_height_meters': 0,
@@ -484,9 +484,10 @@ class NavPoseIF:
     last_pub_time = None
 
     has_subs = False
-    has_subs_lock = threading.Lock()
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
+
+    data_products_list = ['navpose']
 
     def __init__(self, namespace = None,
                 enable_gps_pub = False, enable_elevation_pub = False, enable_pose_pub = False, enable_heading_pub = False,
@@ -631,6 +632,10 @@ class NavPoseIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+
+    def get_data_products(self):
+        return self.data_products_list
+
     def get_blank_navpose_dict(self):
         return nepi_nav.BLANK_NAVPOSE_DICT
 
@@ -642,9 +647,7 @@ class NavPoseIF:
 
 
     def has_subscribers_check(self):
-        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
         return has_subs
 
@@ -704,6 +707,7 @@ class NavPoseIF:
 
                 # Update Status Info
                 self.status_msg.publishing = True
+                self.status_msg.frame_id = np_dict['frame_id']
                 self.status_msg.frame_3d = np_dict['frame_3d']
                 self.status_msg.frame_altitude = np_dict['frame_altitude']
 
@@ -796,7 +800,7 @@ class NavPoseIF:
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish heading data msg: " + str(e))
                         success = False
-        return success
+        return np_dict
 
 
     def unsubsribe(self):
@@ -815,9 +819,7 @@ class NavPoseIF:
         has_subs = self.node_if.pub_has_subscribers('navpose_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
@@ -835,15 +837,87 @@ class NavPoseIF:
 
 
 
+def get_image_data_product(source_data_type):
+    if data_source_type is None:
+        data_name = 'image'
+    elif data_source_type.find('image') == -1:
+        data_name = data_source_type + '_image'
+    return data_name
 
 
-
+SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+                            'intensity_map','depth_map','pointcloud']
+SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
+                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
+FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
+
+
+EXAMPLE_CAPS_DICT = dict( 
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_thresholding = False,
+        has_range = False,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate = False,
+        has_tilt = False
+    )
+
+EXAMPLE_CONTROLS_DICT = dict( 
+    resolution_ratio = 1.0,
+    auto_adjust = False,
+    brightness_ratio = 0.5,
+    contrast_ratio =  0.5,
+    threshold_ratio =  0.0,
+    start_range_ratio = 0.0,
+    stop_range_ratio = 1.0,
+    zoom_ratio = 0.5, 
+    pan_left_right_ratio = 0.5,
+    pan_up_down_ratio = 0.5,
+    window_ratios = [0.0,1.0,0.0,1.0],
+    rotate_ratio = 0.5
+    )
 
 DEFUALT_IMG_WIDTH = 700
 DEFUALT_IMG_HEIGHT = 400
 
 class ImageIF:
+
+    #Default Control Values 
+    DEFAULT_CAPS_DICT = dict( 
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_thresholding = False,
+        has_range = False,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate = False,
+        has_tilt = False
+        )
+
+
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust = False,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
+        zoom_ratio = 0.5, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_ratio = 0.5
+        )
 
     ready = False
     namespace = '~'
@@ -862,20 +936,40 @@ class ImageIF:
     nav_mgr_if = None
     nav_mgr_ready = False
 
+    raw_has_subs = False
     has_subs = False
-    has_subs_lock = threading.Lock()
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
+    caps_dict = DEFAULT_CAPS_DICT
+    controls_dict = DEFAULT_CONTROLS_DICT
+    init_controls_dict = controls_dict
 
-    ctl_enabled = True
-    ctl_auto = False
-    ctl_brightness = 0.5
-    ctl_contrast = 0.5
-    ctl_threshold = 0.0
-    ctl_res_ratio = 1.0  
+    data_products_list = []
 
-    def __init__(self, namespace = None ,  
+    caps_report = ImageCapabilitiesQueryResponse()
+
+    data_source_type = 'image'
+
+    overlays_dict = dict(
+            overlay_img_name = False,
+            overlay_date_time = False,
+            overlay_nav = False,
+            overlay_pose = False, 
+            init_overlay_list = [],
+            add_overlay_list = []
+    )
+
+    def __init__(self, namespace = None , 
+                data_name = self.data_type,
+                data_source_type = self.data_type,
+                caps_dict = None,
+                controls_dict = None, 
+                pub_raw_image = False,
+                params_dict = None,
+                services_dict = None,
+                pubs_dict = None,
+                subs_dict = None,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -901,14 +995,75 @@ class ImageIF:
 
         ##############################    
         # Initialize Class Variables
-        self.msg_if.pub_warn("Got data product namespace: " + str(namespace), log_name_list = self.log_name_list)
-        if namespace is not None:
-            self.namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+
+        if data_name is None:
+            data_name = self.data_type
+        data_products_list = [get_image_data_products(data_name)]
+        self.pub_raw_image = pub_raw_image
+        if self.pub_raw_image == True:
+            data_products_list.append(data_name + '_raw')
+        self.data_products_list = data_products_list
+        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
+        if namespace is None:
+            namespace = copy.deepcopy(self.namespace)
+        namespace = nepi_ros.get_full_namespace(namespace)
+        self.namespace = nepi_ros.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
+        # Create and update capabilities dictionary
+        if caps_dict is not None:
+            for cap in self.caps_dict.keys():
+                if caps_dict.get(cap) != None:
+                    self.caps_dict[cap] = caps_dict[cap]
+
+        if data_source_type is None:
+            data_source_type = self.data_type
+        self.data_source_type = data_source_type
+
+
+        self.caps_report.data_source_type = self.data_type
+        self.caps_report.data_products = self.data_products_list
+        self.caps_report.frame_id_options = FRAME_ID_OPTIONS
+
+        self.caps_report.has_resolution = self.caps_dict['has_resolution']
+        self.caps_report.has_contrast = self.caps_dict['has_contrast']
+        self.caps_report.has_brightness = self.caps_dict['']
+        self.caps_report.has_thresholding = self.caps_dict['has_brightness']
+        self.caps_report.has_range = self.caps_dict['has_range']
+        self.caps_report.has_auto_adjust = self.caps_dict['has_auto_adjust']
+        self.caps_report.has_zoom = self.caps_dict['has_zoom']
+        self.caps_report.has_pan = self.caps_dict['has_pan']
+        self.caps_report.has_window = self.caps_dict['has_window']
+        self.caps_report.has_rotate = self.caps_dict['has_rotate']
+        self.caps_report.has_tilt = self.caps_dict['has_tilt']
+
+
+        dm_ns = nepi_ros.create_namespace(os.path.dirname(self.namespace),'depth_map')
+        dm_topic = nepi_ros.find_topic(dm_ns)
+        has_dm = dm_topic != ""
+        pc_ns = nepi_ros.create_namespace(os.path.dirname(self.namespace),'pointcloud')
+        pc_topic = nepi_ros.find_topic(pc_ns)
+        has_pc = pc_topic != ""
+
+        self.caps_report.has_depth_map = has_depth_map
+        self.caps_report.depth_map_topic = dm_topic
+        self.caps_report.has_pointcloud = has_pc
+        self.caps_report.pointcloud_topic = pc_topic
+
+
+
+        # Create and update controls dictionary
+        if controls_dict is not None:
+            for control in self.controls_dict.keys():
+                if controls_dict.get(control) != None:
+                    self.controls_dict[control] = controls_dict[control]
+        self.init_controls_dict = self.controls_dict
+
  
-        self.init_overlay_list = init_overlay_list
+        self.overlays_dict['init_overlay_list'] = init_overlay_list
+
+        # Create capabilities report
+        caps_report
 
         # Initialize Status Msg.  Updated on each publish
         status_msg = ImageStatus()
@@ -916,43 +1071,45 @@ class ImageIF:
         status_msg.encoding = 'bgr8'
         status_msg.width = 0
         status_msg.height = 0
-        status_msg.frame_id = "sensor_frame"
-        status_msg.depth_map_topic = nepi_img.get_img_depth_map_topic(self.namespace)
-        status_msg.pointcloud_topic = nepi_img.get_img_pointcloud_topic(self.namespace)
+        status_msg.frame_id = 'sensor_frame'
         status_msg.get_latency_time = 0
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
         self.status_msg = status_msg
-        '''
-        ##############################
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        self.nav_mgr_ready = self.nav_mgr_if.wait_for_ready()
-        '''
+
         ##############################   
         ## Node Setup
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'controls_enabled': {
-                'namespace': self.namespace,
-                'factory_val': self.ctl_enabled
+        PARAMS_DICT = {
+
+            'resolution_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["resolution_ratio"]
             },
             'auto_adjust': {
-                'namespace': self.namespace,
-                'factory_val': self.ctl_auto
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["auto_adjust"]
             },
             'brightness': {
-                'namespace': self.namespace,
-                'factory_val': self.ctl_brightness
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["brightness_ratio"]
             },
             'contrast': {
-                'namespace': self.namespace,
-                'factory_val': self.ctl_contrast
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["contrast_ratio"]
             },
-            'threshold': {
-                'namespace': self.namespace,
-                'factory_val': self.ctl_threshold
+            'thresholding': {
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["threshold_ratio"]
+            },
+            'start_range_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["start_range_ratio"]
+            },
+            'stop_range_ratio': {
+                'namespace': self.node_namespace,
+                'factory_val': self.controls_dict["stop_range_ratio"]
             },
             'overlay_img_name': {
                 'namespace': self.namespace,
@@ -970,15 +1127,38 @@ class ImageIF:
                 'namespace': self.namespace,
                 'factory_val': False
             },
-            'overlay_list': {
+            'add_overlay_list': {
                 'namespace': self.namespace,
                 'factory_val': []
             },
         }
 
+        if params_dict is not None:
+            self.PARAMS_DICT = params_dict | PARAMS_DICT
+        else:
+            self.PARAMS_DICT = PARAMS_DICT
+
+        # Services Config Dict ####################     
+        SRVS_DICT = {
+            'image_caps_query': {
+                'namespace': self.base_namespace,
+                'topic': 'image_capabilities_query',
+                'srv': ImageCapabilitiesQuery,
+                'req': ImageCapabilitiesQueryRequest(),
+                'resp': ImageCapabilitiesQueryResponse(),
+                'callback': self.provide_capabilities
+            }
+        }
+
+        if services_dict is not None:
+            self.SRVS_DICT = services_dict | SRVS_DICT
+        else:
+            self.SRVS_DICT = SRVS_DICT
+        
+
         # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            'image_pub': {
+        PUBS_DICT = {
+            'proc_image_pub': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
@@ -1001,48 +1181,32 @@ class ImageIF:
             }
         }
 
+        # Create a raw image publisher if required
+        if self.pub_raw_image == True:
+            PUBS_DICT['raw_image_pub'] = {
+                'msg': Image,
+                'namespace': self.namespace_raw,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+
+        if pubs_dict is not None:
+            self.PUBS_DICT = pubs_dict | PUBS_DICT
+        else:
+            self.PUBS_DICT = PUBS_DICT        
+
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'set_controls_enable': {
-                'namespace': self.namespace,
-                'topic': 'set_controls_enable',
-                'msg': Bool,
+            'reset_controls': {
+                'namespace': self.node_namespace,
+                'topic': 'reset_controls',
+                'msg': Empty,
                 'qsize': 1,
-                'callback': self._setControlsEnableCb, 
+                'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
-            'set_auto_adjust': {
-                'namespace': self.namespace,
-                'topic': 'set_auto_adjust',
-                'msg': Bool,
-                'qsize': 1,
-                'callback': self._setAutoAdjustCb, 
-                'callback_args': ()
-            },
-            'set_brightness': {
-                'namespace': self.namespace,
-                'topic': 'set_brightness_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setBrightnessCb, 
-                'callback_args': ()
-            },
-            'set_contrast': {
-                'namespace': self.namespace,
-                'topic': 'set_contrast_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setContrastCb, 
-                'callback_args': ()
-            },
-            'set_threshold': {
-                'namespace': self.namespace,
-                'topic': 'set_threshold_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setThresholdingCb, 
-                'callback_args': ()
-            },
+            
             'overlay_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
@@ -1092,31 +1256,169 @@ class ImageIF:
                 'qsize': 1,
                 'callback': self._clearOverlayListCb
             },
-            'reset_controls': {
+            'reset_overlays': {
                 'namespace': self.namespace,
-                'topic': 'idx/reset_controls',
+                'topic': 'reset_overlays',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self._resetControlsCb, 
+                'callback': self._resetOverlaysCb, 
                 'callback_args': ()
             }
         }
+        # Create subs if required
+        if caps_dict['has_resolution'] == True:
+            self.SUBS_DICT['set_resolution'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_resolution_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setResolutionRatioCb, 
+                'callback_args': ()
+            }
+
+        if caps_dict['has_auto_adjust'] == True:
+            self.SUBS_DICT['set_auto_adjust'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_auto_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setAutoAdjustCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_brightness'] == True:
+            self.SUBS_DICT['set_brightness'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_brightness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setBrightnessCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_contrast'] == True:
+            self.SUBS_DICT['set_contrast'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_contrast_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setContrastCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_thresholding'] == True:
+            self.SUBS_DICT['set_thresholding'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_threshold_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setThresholdingCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_range'] == True:
+            self.SUBS_DICT['set_range'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_range_window',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self._setRangeCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_zoom'] == True:
+            self.SUBS_DICT['set_zoom'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_zoom_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setZoomCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_pan'] == True:
+            self.SUBS_DICT['set_pan_left_right'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_pan_left_right_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setPanLrCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_pan'] == True:
+            self.SUBS_DICT['set_pan_up_down'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_pan_up_down_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setPanUdCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_window'] == True:
+            self.SUBS_DICT['set_window'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_window_ratios',
+                'msg': ImageWindow,
+                'qsize': 1,
+                'callback': self._setWindowCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_rotate'] == True:
+            self.SUBS_DICT['set_rotate'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_rotate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setRotateCb, 
+                'callback_args': ()
+            }
+
+        if caps_dict['has_tilt'] == True:
+            self.SUBS_DICT['set_tilt'] = {
+                'namespace': self.node_namespace,
+                'topic': 'set_tilt_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setTiltCb, 
+                'callback_args': ()
+            }
+
+
+        if subs_dict is not None:
+            self.SUBS_DICT = subs_dict | SUBS_DICT
+        else:
+            self.SUBS_DICT = SUBS_DICT     
+
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
+                        services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
-                                            )
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         #self.node_if.wait_for_ready()
         nepi_ros.wait()
 
         self.publish_status(do_updates=True)
 
-        
+        #############################
+        # Set variables to param values
+        self.controls_dict['resolution_ratio'] = node_if.get_param('resolution_ratio')
+        self.controls_dict['auto_adjust'] = node_if.get_param('auto_adjust')
+        self.controls_dict['brightness_ratio'] = node_if.get_param('brightness_ratio')
+        self.controls_dict['contrast_ratio'] = node_if.get_param('contrast_ratio')
+        self.controls_dict['threshold_ratio'] = node_if.get_param('threshold_ratio')
+
+        self.controls_dict['start_range_ratio'] = node_if.get_param('start_range_ratio')
+        self.controls_dict['stop_range_ratio'] = node_if.get_param('stop_range_ratio')
+
+
+        self.overlays_dict['overlay_img_name'] = node_if.get_param('overlay_img_name')
+        self.overlays_dict['overlay_date_time'] = node_if.get_param('overlay_date_time')
+        self.overlays_dict['overlay_nav'] = node_if.get_param('overlay_nav')
+        self.overlays_dict['overlay_pose'] = node_if.get_param('overlay_pose')
+        self.overlays_dict['add_overlay_list'] = node_if.get_param('add_overlay_list')
+    
+
+
         ##############################
         # Start Node Processes
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -1152,6 +1454,12 @@ class ImageIF:
         return self.ready  
 
 
+    def get_data_source_type(self):
+        return self.data_source_type
+
+    def get_data_products(self):
+        return self.data_products_list
+
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
@@ -1163,15 +1471,24 @@ class ImageIF:
         return self.has_subs
 
 
-    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'nepi_base', add_overlay_list = []):
+    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
         #self.msg_if.pub_warn("Got Image to Publish", log_name_list = self.log_name_list)
         success = False
         if cv2_img is None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
 
-        self.status_msg.encoding = encoding
+        # Publish the raw image if required
+        if self.pub_raw_image == True and self.raw_has_subs == True:
+            ros_img = nepi_img.cv2img_to_rosimg(frame_id, encoding=encoding)
+            ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
+            ros_img.header.frame_id = frame_id
+            #self.msg_if.pub_warn("Publishing Image with header: " + str(ros_img.header))
+            self.node_if.publish_pub('raw_image_pub', ros_img)
 
+        # Process 
+        self.status_msg.encoding = encoding
+        self.status_msg.frame_id = frame_id
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
@@ -1207,21 +1524,7 @@ class ImageIF:
                 self.msg_if.pub_warn("Image has subscribers, will publish", log_name_list = self.log_name_list)
             self.status_msg.publishing = True
 
-            # Apply Controls
-            enabled = self.status_msg.controls_enabled
-            auto = self.status_msg.auto_adjust_enabled
-            brightness = self.status_msg.contrast_ratio
-            contrast = self.status_msg.brightness_ratio
-            threshold = self.status_msg.threshold_ratio
-            if enabled == True: 
-                #if res_ratio < 0.9:
-                #    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-                if auto is False:
-                    cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-                    cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                    cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-                else:
-                    cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+            cv2_img = self._process_image(self,cv2_img)
 
 
             # Apply Overlays
@@ -1259,23 +1562,24 @@ class ImageIF:
             ros_img.header.frame_id = frame_id
             #self.msg_if.pub_warn("Publishing Image with header: " + str(ros_img.header))
             self.node_if.publish_pub('image_pub', ros_img)
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-            
+        
+        # Update stats
+        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+        self.status_msg.process_time = process_time
+        latency = (current_time - timestamp)
+        self.status_msg.pub_latency_time = latency
+        
 
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
+        if self.last_pub_time is None:
+            self.last_pub_time = nepi_utils.get_time()
+        else:
+            cur_time = nepi_utils.get_time()
+            pub_time_sec = cur_time - self.last_pub_time
+            self.last_pub_time = cur_time
+            self.status_msg.last_pub_sec = pub_time_sec
 
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
-                self.last_detect_time = nepi_utils.get_time()
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
 
         # Update blank image if needed
         if last_width != self.status_msg.width or last_height != self.status_msg.height:
@@ -1303,23 +1607,229 @@ class ImageIF:
         self.status_msg = None
 
 
+    def set_resolution_ratio(self, ratio):
+        if (ratio < 0.0 or ratio > 1.0):
+            self.msg_if.pub_error("Resolution value out of bounds", log_name_list = self.log_name_list)
+            self.publishStatus(do_updates=False) # No change
+            return
+        self.controls_dict['resolution_ratio'] = ratio
+        self.status_msg.resolution_ratio = ratio
+        self.publishStatus(do_updates=False) # Updated inline here
+        self.node_if.set_param('resolution_ratio', ratio)
+
+
+    def set_auto_adjust(self, enabled):
+        enabled = msg.data
+        if enabled:
+            self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_info("Disabling Auto Adjust", log_name_list = self.log_name_list)
+        self.controls_dict['auto_adjust'] = enabled
+        self.status_msg.auto_adjust_enabled = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('auto_adjust', enabled)
+
+
+    def set_brightness_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['brightness_ratio'] = enabled
+        self.status_msg.brightness_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('brightness_ratio', ratio)
+
+
+    def set_contrast_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['contrast_ratio'] = enabled
+        self.status_msg.contrast_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('contrast_ratio', ratio)
+        
+
+
+    def set_threshold_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['threshold_ratio'] = enabled
+        self.status_msg.threshold_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('threshold_ratio', ratio)
+
+    def set_range(self, start_ratio, stop_ratio):
+        if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
+            self.msg_if.pub_error("Range values out of bounds")
+            self.publishStatus(do_updates=False) # No change
+            return
+
+        self.controls_dict['start_range_ratio'] = start_ratio
+        self.status_msg.range_window.start_range = start_ratio
+        self.controls_dict['stop_range_ratio'] = stop_ratio
+        self.status_msg.range_window.stop_range = stop_ratio
+
+        self.publishStatus(do_updates=False) # Updated inline here 
+
+        self.node_if.set_param('start_range_ratio', start_ratio)
+        self.node_if.set_param('stop_range_ratio', stop_ratio)
+      
+
+    def set_zoom_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['zoom_ratio'] = enabled
+        self.status_msg.zoom_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+
+
+    def set_pan_left_right_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['pan_left_right_ratio'] = enabled
+        self.status_msg.pan_left_right_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+
+
+    def set_pan_up_down_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['pan_up_down_ratio'] = enabled
+        self.status_msg.pan_up_down_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+
+    def set_window_ratios(self, x_min, x_max, y_min, y_max):
+        if x_min >= 0 and x_max <= 1.0 and x_max > x_min \
+            and y_min >= 0 and y_max <= 1.0 and y_max > y_min:
+            self.controls_dict['window'] = [x_min,x_max,y_min,y_max]
+            self.publishStatus(do_updates=False) # Updated inline here  
+
+    def set_rotate_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['rotate_ratio'] = enabled
+        self.status_msg.rotate_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+
+    def set_tilt_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['tilt_ratio'] = enabled
+        self.status_msg.tilt_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+
+
+    def set_overlay_image_name(self,enabled):
+        self.overlays_dict['overlay_img_name'] = enabled
+        self.status_msg.overlay_img_name = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('overlay_img_name', enabled)
+
+    def set_overlay_date_time(self,enabled):
+        self.overlays_dict['overlay_date_time'] = enabled
+        self.status_msg.overlay_date_time =  enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('overlay_date_time', enabled)
+
+    def set_overlay_nav(self,enabled):
+        self.overlays_dict['overlay_nav'] = enabled
+        self.status_msg.overlay_nav = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('overlay_nav', enabled)
+
+    def set_overlay_pose(self,enabled):
+        self.overlays_dict['overlay_pose'] = enabled
+        self.status_msg.overlay_pose = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('overlay_pose', enabled)
+
+
+    def set_overlay_list(self,overlay_list):
+        self.overlays_dict['add_overlay_list'] = overlay_list
+        self.status_msg.add_overlay_list = overlay_list  
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('add_overlay_list', overlay_list)
+
+
+    def set_overlay_text(self,overlay_text):
+        overlay_list = self.overlays_dict['add_overlay_list']
+        overlay_list.append(text)
+        self.overlays_dict['add_overlay_list'] = overlay_list
+        self.status_msg.add_overlay_list = overlay_list
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('add_overlay_list', overlay_list)
+
+
+    def clear_overlay_list(self):
+        self.overlays_dict['add_overlay_list'] = []
+        self.status_msg.add_overlay_list = []
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('add_overlay_list', [])
+
+
+    def reset_controls(self):
+        self.node_if.reset_params()
+        self.controls_dict = self.init_controls_dict # Resets non param managed values
+        self.controls_dict['resolution_ratio'] = node_if.get_param('resolution_ratio')
+        self.controls_dict['auto_adjust'] = node_if.get_param('auto_adjust')
+        self.controls_dict['brightness_ratio'] = node_if.get_param('brightness_ratio')
+        self.controls_dict['contrast_ratio'] = node_if.get_param('contrast_ratio')
+        self.controls_dict['threshold_ratio'] = node_if.get_param('threshold_ratio')
+
+        self.controls_dict['start_range_ratio'] = node_if.get_param('start_range_ratio')
+        self.controls_dict['stop_range_ratio'] = node_if.get_param('stop_range_ratio')
+
+
+        self.overlays_dict['overlay_img_name'] = node_if.get_param('overlay_img_name')
+        self.overlays_dict['overlay_date_time'] = node_if.get_param('overlay_date_time')
+        self.overlays_dict['overlay_nav'] = node_if.get_param('overlay_nav')
+        self.overlays_dict['overlay_pose'] = node_if.get_param('overlay_pose')
+        self.overlays_dict['add_overlay_list'] = node_if.get_param('add_overlay_list')
+        
+        self.publish_status(do_updates=True)
+
+
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
-            if self.status_msg is None:
-                self.status_msg = ImageStatus()
-            if do_updates == True:
-                self.status_msg.controls_enabled= self.node_if.get_param('controls_enabled')
-                self.status_msg.auto_adjust_enabled = self.node_if.get_param('auto_adjust')
-                self.status_msg.contrast_ratio = self.node_if.get_param('contrast')
-                self.status_msg.brightness_ratio = self.node_if.get_param('brightness')
-                self.status_msg.threshold_ratio = self.node_if.get_param('threshold')
+            self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
+            self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust']
+            self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
+            self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
+            self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
+            self.status_msg.range_ratio.start_range = self.controls_dict['start_range_ratio']
+            self.status_msg.range_ratio.stop_range = self.controls_dict['stop_range_ratio']
+            self.status_msg.zoom_ratio = self.controls_dict['zoom_ratio']
+            self.status_msg.pan_left_right_ratio = self.controls_dict['pan_left_right_ratio']
+            self.status_msg.pan_up_down_ratio = self.controls_dict['pan_up_down_ratio']
+            self.status_msg.window_ratios.x_min = self.controls_dict['window_ratios'][0]
+            self.status_msg.window_ratios.x_max = self.controls_dict['window_ratios'][1]
+            self.status_msg.window_ratios.y_min = self.controls_dict['window_ratios'][2]
+            self.status_msg.window_ratios.y_max = self.controls_dict['window_ratios'][3]
+            self.status_msg.rotate_ratio = self.controls_dict['rotate_ratio']
+            self.status_msg.tilt_ratio = self.controls_dict['tilt_ratio']
 
-                self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-                self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
-                self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
-                self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
-                self.status_msg.base_overlay_list = self.init_overlay_list
-                self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+
+            self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
+            self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
+            self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
+            self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+            self.status_msg.base_overlay_list = self.init_overlay_list
+            self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
 
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
@@ -1332,13 +1842,19 @@ class ImageIF:
     # Class Private Methods
     ###############################
 
+    def _provide_capabilities(self, _):
+        return self.caps_report
+
     def _subscribersCheckCb(self,timer):
+        if self.pub_raw == True:
+            raw_has_subs = self.node_if.pub_has_subscribers('image_pub_raw')
+            if raw_has_subs == False:
+                self.status_msg.publishing = False
+            self.raw_has_subs = raw_has_subs
         has_subs = self.node_if.pub_has_subscribers('image_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
@@ -1347,121 +1863,232 @@ class ImageIF:
 
 
 
-    # Define local IDX Control callbacks
-    def _setControlsEnableCb(self, msg):
-        self.msg_if.pub_info("Recived IDX Controls enable update message: " + str(msg), log_name_list = self.log_name_list)
-        new_controls_enable = msg.data
-        if self.setControlsEnable is not None:
-            # Call the parent's method and update ROS param as necessary
-            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setControlsEnable(new_controls_enable)
-        self.status_msg.controls_enabled= new_controls_enable
-        self.publish_status(do_updates=False) # Updated inline here        
-        self.node_if.set_param('controls_enabled', new_controls_enable)
+    def _setResolutionRatioCb(self, msg):
+        self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
+        ratio = msg.data
+        self.set_resolution_ratio(ratio)
 
- 
+
+
     def _setAutoAdjustCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg), log_name_list = self.log_name_list)
-        new_auto_adjust = msg.data
-        if new_auto_adjust:
-            self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
-        else:
-            self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
-
-        self.status_msg.auto_adjust_enabled = new_auto_adjust
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust', new_auto_adjust)
+        enabled = msg.data
+        self.set_auto_adjust(enabled)
 
 
     def _setBrightnessCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg), log_name_list = self.log_name_list)
-        new_ratio = msg.data
-        if new_ratio < 0:
-            new_ratio = 0
-        if new_ratio > 1.0:
-            new_ratio = 1.0
-        self.status_msg.brightness_ratio = new_ratio
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('brightness', new_ratio)
+        ratio = msg.data
+        self.set_brightness_ratio(ratio)
 
 
     def _setContrastCb(self, msg):
         self.msg_if.pub_info("Recived Contrast update message: " + str(msg), log_name_list = self.log_name_list)
-        new_ratio = msg.data
-        if new_ratio < 0:
-            new_ratio = 0
-        if new_ratio > 1.0:
-            new_ratio = 1.0   
-        self.status_msg.contrast_ratio = new_ratio
-        self.publish_status(do_updates=False) # Updated inline here   
-        self.node_if.set_param('contrast', new_ratio)
+        ratio = msg.data
+        self.set_contrast_ratio(ratio)
         
 
 
     def _setThresholdingCb(self, msg):
         self.msg_if.pub_info("Received Threshold update message: " + str(msg), log_name_list = self.log_name_list)
-        new_ratio = msg.data
-        if new_ratio < 0:
-            new_ratio = 0
-        if new_ratio > 1.0:
-            new_ratio = 1.0
-        self.status_msg.threshold_ratio = new_ratio
-        self.publish_status(do_updates=False) # Updated inline here   
-        self.node_if.set_param('threshold', new_ratio)
-                
+        ratio = msg.data
+        self.set_threshold_ratio(ratio)
+
+    def _setRangeCb(self, msg):
+        self.msg_if.pub_info("Recived Range update message: " + str(msg))
+        start_ratio = msg.start_range
+        stop_ratio = msg.stop_range
+        self.set_range(start_ratio,stop_ratio)
+      
+
+    def _setZoomCb(self, msg):
+        self.msg_if.pub_info("Recived Zoom update message: " + str(msg))
+        ratio = msg.data
+        self.set_zoom_ratio(ratio)
+
+    def _setPanLrCb(self, msg):
+        self.msg_if.pub_info("Recived Pan Left Right update message: " + str(msg))
+        ratio = msg.data
+        self.set_pan_left_right_ratio(ratio)
+
+
+    def _setPanUdCb(self, msg):
+        self.msg_if.pub_info("Recived Pan Up Down update message: " + str(msg))
+        ratio = msg.data
+        self.set_pan_up_down_ratio(ratio)
+
+    def _setWindowCb(self, msg):
+        self.msg_if.pub_info("Recived window update message: " + str(msg))
+        x_min = msg.x_min
+        x_max = msg.x_max
+        y_min = msg.y_min
+        y_max = msg.y_max
+        self.set_window_ratios(x_min,x_max,y_min,y_max)
+
+
+    def _setRotateCb(self, msg):
+        self.msg_if.pub_info("Recived Rotate update message: " + str(msg))
+        ratio = msg.data
+        self.set_rotate_ratio(ratio) 
+
+    def _setTiltCb(self, msg):
+        ratio = msg.data
+        self.set_tilt_ratio(ratio) 
+
 
     def _setOverlayImgNameCb(self,msg):
-        self.status_msg.overlay_img_name = msg.data
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('overlay_img_name', msg.data)
+        enabled = msg.data
+        self.set_overlay_image_name(enabled)
 
     def _setOverlayDateTimeCb(self,msg):
-        self.status_msg.overlay_date_time =  msg.data
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('overlay_date_time', msg.data)
+        enabled = msg.data
+        self.set_overlay_date_time(enabled)
 
     def _setOverlayNavCb(self,msg):
-        self.status_msg.overlay_nav = msg.data
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('overlay_nav', msg.data)
+        enabled = msg.data
+        self.set_overlay_nav(enabled)
 
     def _setOverlayPoseCb(self,msg):
-        self.status_msg.overlay_pose = msg.data
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('overlay_pose', msg.data)
-
+        enabled = msg.data
+        self.set_overlay_pose(enabled)
 
     def _setOverlayListCb(self,msg):
-        self.status_msg.overlay_pose = msg.data  
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('add_overlay_list', msg.data)
+        overlay_list = msg.data
+        self.set_overlay_list(overlay_list)
 
 
     def _setOverlayTextCb(self,msg):
-        text = msg.data
-        overlay_list = self.status_msg.add_overlay_list
-        overlay_list.append(text)
-        self.status_msg.add_overlay_list = overlay_list
-        self.publish_status(do_updates=False) # Updated inline here
-
-        self.node_if.set_param('add_overlay_list', overlay_list)
+        overlay_text = msg.data
+        self.set_overlay_text(overlay_list)
 
 
     def _clearOverlayListCb(self,msg):
-        self.status_msg.add_overlay_list = []
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('add_overlay_list', [])
+        self.clear_overlay_list()
 
 
     def _resetControlsCb(self,msg):
-        self.node_if.reset_params()
-        self.publish_status(do_updates=True)
+        self.reset_controls()
+
+    def _process_image(self, cv2_img):
+        return cv2_img
+        '''
+        # Apply Controls
+        enabled = self.status_msg.controls_enabled
+        auto = self.status_msg.auto_adjust_enabled
+        brightness = self.status_msg.contrast_ratio
+        contrast = self.status_msg.brightness_ratio
+        threshold = self.status_msg.threshold_ratio
+        if enabled == True: 
+            #if res_ratio < 0.9:
+            #    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+            if auto is False:
+                cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+                cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+                cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+            else:
+                cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+        return cv2_img
+        '''
+
+
+
+##################################################
+class ColorImageIF(Image):
+
+    #Default Control Values 
+    DEFAULT_CAPS_DICT = dict( 
+        has_resolution = True,
+        has_auto_adjust = True,
+        has_contrast = True,
+        has_brightness = True,
+        has_thresholding = True,
+        has_range = False,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate = False,
+        has_tilt = False
+        )
+
+
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust = False,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
+        zoom_ratio = 0.5, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_ratio = 0.5
+        )
+
+
+
+    
+
+    def __init__(self, namespace = None , 
+                data_name = self.data_type,
+                init_overlay_list = [],
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+
+        data_source_type = 'color_image'
+
+        # Call the parent class constructor
+        super().__init__(self, namespace = namespace , 
+                data_name = data_type,
+                data_source_type = data_type,
+                caps_dict = self.DEFAULT_CAPS_DICT,
+                controls_dict = self.DEFAULT_CONTROLS_DICT, 
+                pub_raw_image = True,
+                init_overlay_list = init_overlay_list,
+                log_name = log_name,
+                log_name_list = log_name_list,
+                msg_if = None
+                )
+
+        ###############################
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+    def _process_image(self, cv2_img):
+        # Apply Controls
+        res_ratio = self.controls_dict['resolution_ratio']
+        auto = self.controls_dict['auto_adjust']
+        brightness = self.controls_dict['contrast_ratio']
+        contrast = self.controls_dict['brightness_ratio']
+        threshold = self.controls_dict['threshold_ratio']
+        if res_ratio < 0.9:
+            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+        if auto is False:
+            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+        else:
+            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+        return cv2_img
 
 
 
 
 ENCODING_OPTIONS = ['32FC1']
-
+FRAME_IDS = ['nepi_base_frame','sensor_frame']
 DEFUALT_IMG_WIDTH = 700
 DEFUALT_IMG_HEIGHT = 400
 
@@ -1485,7 +2112,6 @@ class DepthMapIF:
     nav_mgr_ready = False
 
     has_subs = False
-    has_subs_lock = threading.Lock()
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
@@ -1494,8 +2120,12 @@ class DepthMapIF:
     min_range_m = 0.0
     max_range_m = 20.0
 
+    data_products_list = []
+
+    data_source_type = 'depth_map'
 
     def __init__(self, namespace = None,
+                data_name = self.data_type,
                 enable_image_pub = True,
                 default_min_meters = 0.0,
                 default_max_meters = 20.0,
@@ -1525,10 +2155,16 @@ class DepthMapIF:
 
         ##############################    
         # Initialize Class Variables
-        self.msg_if.pub_warn("Got data product namespace: " + str(namespace), log_name_list = self.log_name_list)
-        if namespace is not None:
-            self.namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+        if data_name is None:
+            data_name = self.data_type
+        self.data_products_list = [data_name] + [get_image_data_products(data_name)]
+
+
+        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
+        if namespace is None:
+            namespace = self.namespace
+        namespace = nepi_ros.get_full_namespace(namespace)
+        self.namespace = nepi_ros.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ###############################
@@ -1700,6 +2336,12 @@ class DepthMapIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def get_data_source_type(self):
+        return self.data_source_type
+
+
+    def get_data_products(self):
+        return self.data_products_list
 
     def get_status_dict(self):
         status_dict = None
@@ -1823,9 +2465,7 @@ class DepthMapIF:
         has_subs = self.node_if.pub_has_subscribers('depth_map_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
@@ -1842,37 +2482,6 @@ class DepthMapIF:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]))
 
 
-    # Define local IDX Control callbacks
-    def _setControlsEnableCb(self, msg):
-        self.msg_if.pub_info("Recived IDX Controls enable update message: " + str(msg), log_name_list = self.log_name_list)
-        new_controls_enable = msg.data
-        self.ctl_enabled = new_controls_enable
-        self.status_msg.controls_enabled= new_controls_enable
-        self.publish_status(do_updates=False) # Updated inline here        
-        self.node_if.set_param('controls_enabled', new_controls_enable)
-
- 
-    def _setRenderRangeCb(self, msg):
-        self.msg_if.pub_info("Recived Range update message: " + str(msg), log_name_list = self.log_name_list)
-        self.msg_if.pub_info("Recived update message: " + str(msg), log_name_list = self.log_name_list)
-        new_start_range_ratio = msg.start_range
-        new_stop_range_ratio = msg.stop_range
-        if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
-            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
-        else:
-            self.status_msg.range_ratios.start_range = new_start_range_ratio
-            self.status_msg.range_ratios.stop_range = new_stop_range_ratio
-            self.publishStatus(do_updates=False) # Updated inline here  
-
-            self.node_if.set_param('render_start_range_ratio', new_start_range_ratio)
-            self.node_if.set_param('render_stop_range_ratio', new_stop_range_ratio)
-
-
-    def _resetRenderControlsCb(self,msg):
-        self.node_if.reset_params()
-        self.publish_status(do_updates=True)
 
 
 
@@ -1883,7 +2492,7 @@ ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
-
+FRAME_IDS = ['nepi_base_frame','sensor_frame']
 
 
 class PointcloudIF:
@@ -1910,13 +2519,17 @@ class PointcloudIF:
     last_pub_time = None
 
     has_subs = False
-    has_subs_lock = threading.Lock()
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
     img_pub_file = 'nepi_pointcloud_img_pub_node.py'
 
+    data_products_list = []
+
+    data_source_type = 'pointcloud'
+
     def __init__(self, namespace = None,
+                data_name = self.data_type,
                 enable_image_pub = True,
                 max_image_pub_rate = 5,
                 log_name = None,
@@ -1943,9 +2556,18 @@ class PointcloudIF:
 
         ##############################    
         # Initialize Class Variables
-        if namespace is not None:
-            self.namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+
+        if data_name is None:
+            data_name = self.data_type
+        self.data_products_list = [data_name] + [get_image_data_products(data_name)]
+
+
+        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
+        if namespace is None:
+            namespace = self.namespace
+        namespace = nepi_ros.get_full_namespace(namespace)
+        self.namespace = nepi_ros.create_namespace(namespace,data_name)
+        self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ###############################
         '''
@@ -2223,6 +2845,13 @@ class PointcloudIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def get_data_source_type(self):
+        return self.data_source_type
+
+
+    def get_data_products(self):
+        return self.data_products_list
+
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
@@ -2231,9 +2860,7 @@ class PointcloudIF:
 
 
     def has_subscribers_check(self):
-        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs))
         return has_subs
 
@@ -2265,19 +2892,9 @@ class PointcloudIF:
         self.status_msg.has_intensity = False # Need to add
 
 
-        ''' # Need to add  
-        [height,width,depth] = nepi_pc.shape(o3d_pc)
-        self.status_msg.width = width
-        self.status_msg.height = height
-        self.status_msg.depth = depth
-        '''
-
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        #self.has_subs_lock.acquire()
         has_subs = copy.deepcopy(self.has_subs)
-        #self.has_subs_lock.release()
-
 
         if self.has_subs == False:
             if self.status_msg.publishing == True:
@@ -2388,9 +3005,7 @@ class PointcloudIF:
         has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
         if has_subs == False:
             self.status_msg.publishing = False
-        #self.has_subs_lock.acquire()
         self.has_subs = has_subs
-        #self.has_subs_lock.release()
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs))
         nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 

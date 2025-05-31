@@ -1,0 +1,34 @@
+# This service definition provides the capabilities report for a NEPI IDX sensor
+
+---
+# DATA_SOURCE_TYPES = ['image','2d_image','3d_image','2d_sonar','3d_sonar','depth_map','pointcloud','laser_line','2d_lidar','3d_lidar']
+string data_source_type
+
+# List of data product names provided by class
+string[] data_products
+
+string[] frame_id_options
+
+bool has_resolution
+bool has_contrast
+bool has_brightness
+bool has_thresholding
+bool has_range
+bool has_auto_adjust
+bool has_zoom
+bool has_pan
+bool has_window
+bool has_rotate
+bool has_tilt
+
+# If supported
+
+bool has_depth_map
+string depth_map_topic
+
+bool has_point_cloud
+string pointcloud_topic
+
+
+
+

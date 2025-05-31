@@ -36,13 +36,20 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF
 
-from nepi_api.data_if import ImageIF
+from nepi_api.data_if import ColorImageIF
 from nepi_api.data_if import DepthMapIF
 from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
 
-SUPPORTED_DATA_PRODUCTS = ['2d_color_image','2d_sonar','2d_sonar_image','depth_map','depth_image','pointcloud','pointcloud_image']
+
+
+SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+                            'intensity_map','depth_map','pointcloud']
+SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
+                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
+
+FRAME_ID_OPTIONS ['nepi_base_frame','sensor_frame','map']
 
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
@@ -58,7 +65,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     max_range_m = 1.0,
     zoom_ratio = 0.5, 
     rotate_ratio = 0.5,
-    frame_3d = 'nepi_center_frame'
+    frame_id = 'nepi_center_frame'
     )
 EXAMPLE_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),
@@ -102,7 +109,7 @@ EXAMPLE_ALTITUDE_DATA_DICT = {
 }
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
-    'frame_3d': 'ENU',
+    'frame_id': 'ENU',
     'frame_altitude': 'WGS84',
 
     'geoid_height_meters': 0,
@@ -176,7 +183,7 @@ class IDXDeviceIF:
 
     
     data_products_list = []
-    data_types_list = []
+
 
 
     settings_if = None
@@ -218,12 +225,9 @@ class IDXDeviceIF:
                  setContrast=None, setBrightness=None, setThresholding=None,
                  setResolutionRatio=None, setFramerateRatio=None, 
                  setRange=None, getFramerate=None,
-                 getImage=None, stopImageAcquisition=None, 
-                 getBW2DImg=None, stopBW2DImgAcquisition=None,
+                 getColorImage=None, stopColorImageAcquisition=None, 
                  getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getDepthImg=None, stopDepthImgAcquisition=None,
                  getPointcloud=None, stopPointcloudAcquisition=None, 
-                 getPointcloudImg=None, stopPointcloudImgAcquisition=None,
                  capSettingsNavPose=None, factorySettingsNavPose=None, 
                  settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
                  getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
@@ -272,7 +276,7 @@ class IDXDeviceIF:
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
 
-        self.capabilities_report = IDXCapabilitiesQueryResponse()
+        self.caps_report = IDXCapabilitiesQueryResponse()
 
         # Create and update factory controls dictionary
         self.factory_controls_dict = DEFAULT_CONTROLS_DICT
@@ -293,27 +297,28 @@ class IDXDeviceIF:
         self.setControlsEnable = setControlsEnable
 
         self.setAutoAdjust = setAutoAdjust
-        self.capabilities_report.auto_adjustment = True
+        self.caps_report.has_auto_adjustment = True
 
         self.setBrightness = setBrightness
-        self.capabilities_report.adjustable_brightness = True
+        self.caps_report.has_brightness = True
 
         self.setContrast = setContrast
-        self.capabilities_report.adjustable_contrast = True
+        self.caps_report.has_contrast = True
 
         self.setThresholding = setThresholding       
-        self.capabilities_report.adjustable_thresholding = True
+        self.caps_report.has_threshold = True
 
         self.setResolutionRatio = setResolutionRatio
-        self.capabilities_report.adjustable_resolution = True
+        self.caps_report.has_resolution = True
 
         self.setFramerateRatio = setFramerateRatio
         self.getFramerate = getFramerate
-        self.capabilities_report.adjustable_framerate = True
+        self.caps_report.has_framerate = True
 
         self.setRange = setRange
-        self.capabilities_report.adjustable_range = True
+        self.caps_report.has_range = True
 
+        self.caps_report.frame_id_options = FRAME_ID_OPTIONS
 
         self.status_msg = IDXStatus()
 
@@ -386,7 +391,7 @@ class IDXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
             },
-            'frame_3d': {
+            'frame_id': {
                 'namespace': self.node_namespace,
                 'factory_val': "sensor_frame"
             }
@@ -658,97 +663,91 @@ class IDXDeviceIF:
         self.self.frame_transform = self.node_if.get_param('frame_3d_transform')  
 
         # Start the data producers
-        if (getImage is not None and '2d_color_image' in self.data_products):
-            self.getImage = getImage
-            self.stopImageAcquisition = stopImageAcquisition
-            data_product = '2d_color_image'
-            data_type = '2d_color_image'
+        if (getColorImage is not None and '2d_color_image' in self.data_products):
+            self.getColorImage = getColorImage
+            self.stopColorImageAcquisition = stopColorImageAcquisition
+            data_product = 'color_image'
 
-            start_data_function = self.getImage
-            stop_data_function = self.stopImageAcquisition
+            start_data_function = self.getColorImage
+            stop_data_function = self.stopColorImageAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.capabilities_report.has_image = True
+            self.caps_report.has_color_image = True
         else:
-            self.capabilities_report.has_image = False
+            self.caps_report.has_color_image = False
         
 
         if (getDepthMap is not None and 'depth_map' in self.data_products):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
             data_product = 'depth_map'
-            data_type = 'depth_map'
             
             start_data_function = self.getDepthMap
             stop_data_function = self.stopDepthMapAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.capabilities_report.has_depth_map = True
+            self.caps_report.has_depth_map = True
         else:
-            self.capabilities_report.has_depth_map = False
+            self.caps_report.has_depth_map = False
           
 
         if (getPointcloud is not None and 'pointcloud' in self.data_products):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
             data_product = 'pointcloud'
-            data_type = 'pointcloud'
 
             start_data_function = self.getPointcloud
             stop_data_function = self.stopPointcloudAcquisition
             data_msg = PointCloud2
             data_status_msg = PointcloudStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.capabilities_report.has_pointcloud = True
+            self.caps_report.has_pointcloud = True
         else:
-            self.capabilities_report.has_pointcloud = False
+            self.caps_report.has_pointcloud = False
 
-        '''
+
         if (getPointcloudImg is not None and 'pointcloud' in self.data_products):
             self.getPointcloudImg = getPointcloudImg
             self.stopPointcloudImgAcquisition = stopPointcloudImgAcquisition
             data_product = 'pointcloud_image'
-            data_type = 'pointcloud'
 
             start_data_function = self.getPointcloudImg
             stop_data_function = self.stopPointcloudImgAcquisition
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,data_type,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
             self.pointcloud_img_thread = threading.Thread(target=self.runPointcloudImgThread)
             self.pointcloud_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.capabilities_report.has_pointcloud_image = True
+            self.caps_report.has_pointcloud_image = True
 
         else:
             pass
-            self.capabilities_report.has_pointcloud_image = False
-        '''
+            self.caps_report.has_pointcloud_image = False
 
-        self.capabilities_report.data_products = str(self.data_products_list)
-        self.capabilities_report.data_product_types = str(self.data_types_list)
+
+        self.caps_report.data_products = str(self.data_products_list)
 
         self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
-        self.msg_if.pub_debug("Starting data types list: " + str(self.data_types_list))
 
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
@@ -896,26 +895,28 @@ class IDXDeviceIF:
 
 
 
-    def addDataProduct2Dict(self,data_product,data_type, start_data_function,stop_data_function,data_msg,data_status_msg):
+    def addDataProduct2Dict(self,data_product, start_data_function,stop_data_function,data_msg,data_status_msg):
         success = False
         data_product = data_product
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['data_type'] = data_type
         dp_dict['namespace'] = namespace
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
         self.data_products_list.append(data_product)
-        self.data_types_list.append(data_type)
-        if data_type == 'depth_map':
+        if data_product == 'color_image':
+            self.data_products_list.append(data_product + '_raw')
+        elif data_product == 'bw_image':
+            self.data_products_list.append(data_product + '_raw')
+        elif data_product == 'intensity_map':
             self.data_products_list.append(data_product + '_image')
-            self.data_types_list.append('image')
-        if data_type == 'pointcloud':
+        elif data_product == 'depth_map':
             self.data_products_list.append(data_product + '_image')
-            self.data_types_list.append('image')
+        elif data_product == 'pointcloud':
+            self.data_products_list.append(data_product + '_image')
         self.data_product_dict[data_product] = dp_dict
 
         # do wait here for all
@@ -1042,9 +1043,9 @@ class IDXDeviceIF:
 
     def setThresholdingCb(self, msg):
         self.msg_if.pub_info("Received Threshold update message: " + str(msg))
-        new_thresholding = msg.data
+        new_threshold = msg.data
 
-        if (new_thresholding < 0.0 or new_thresholding > 1.0):
+        if (new_threshold < 0.0 or new_threshold > 1.0):
             self.msg_if.pub_error("Thresholding value out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
             return
@@ -1052,12 +1053,12 @@ class IDXDeviceIF:
         if self.setThresholding is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setThresholding(new_thresholding)
+            status, err_str = self.setThresholding(new_threshold)
 
-        self.ctl_threshold = new_thresholding
-        self.status_msg.thresholding = new_thresholding
+        self.ctl_threshold = new_threshold
+        self.status_msg.threshold = new_threshold
         self.publishStatus(do_updates=False) # Updated inline here
-        self.node_if.set_param('thresholding', new_thresholding)
+        self.node_if.set_param('thresholding', new_threshold)
         
 
     def setResolutionRatioCb(self, msg):
@@ -1126,44 +1127,6 @@ class IDXDeviceIF:
         self.node_if.set_param('range_window/stop_range_ratio', new_stop_range_ratio)
      
 
-    def setZoomCb(self, msg):
-        self.msg_if.pub_info("Recived Zoom update message: " + str(msg))
-        new_zoom = msg.data
-        if (new_zoom < 0.0 and new_zoom != -1.0) or (new_zoom > 1.0):
-            self.msg_if.pub_error("Zoom value out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
-        else:
-            self.zoom_ratio = new_zoom
-            self.status_msg.zoom = new_zoom
-            self.render_controls[0] = new_zoom
-        self.publishStatus(do_updates=False) # Updated inline here
-
-    def setRotateCb(self, msg):
-        self.msg_if.pub_info("Recived Rotate update message: " + str(msg))
-        new_rotate = msg.data
-        if (new_rotate < 0.0 and new_rotate != -1.0) or (new_rotate > 1.0):
-            self.msg_if.pub_error("rotate value out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
-        else:
-            self.rotate_ratio = new_rotate
-            self.status_msg.rotate = new_rotate
-            self.render_controls[1] = new_rotate
-        self.publishStatus(do_updates=False) # Updated inline here  
-
-    def setTiltCb(self, msg):
-        new_tilt = msg.data
-        if (new_tilt < 0.0 and new_tilt != -1.0) or (new_tilt > 1.0):
-            self.msg_if.pub_error("tilt value out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
-        else:
-            self.tilt_ratio = new_tilt
-            self.status_msg.tilt = new_tilt
-            self.render_controls[2] = new_tilt
-        self.publishStatus(do_updates=False) # Updated inline here  
-
     def setFrame3dTransformCb(self, msg):
         self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
         new_transform_msg = msg
@@ -1201,9 +1164,9 @@ class IDXDeviceIF:
         self.setFrame3d(new_frame_3d)
 
     def setFrame3d(self, new_frame_3d):
-        self.status_msg.frame_3d = new_frame_3d
+        self.status_msg.frame_id = new_frame_3d
         self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_3d', new_frame_3d)
+        self.node_if.set_param('frame_id', new_frame_3d)
 
    
     def initConfig(self):
@@ -1222,7 +1185,7 @@ class IDXDeviceIF:
         self.node_if.reset_param('range_window/start_range_ratio')
         self.node_if.reset_param('range_window/stop_range_ratio')
         self.node_if.reset_param('frame_3d_transform')
-        self.node_if.reset_param('frame_3d')
+        self.node_if.reset_param('frame_id')
         self.resetCb(do_updates = True)
 
 
@@ -1239,14 +1202,14 @@ class IDXDeviceIF:
         self.node_if.factory_reset_param('range_window/start_range_ratio')
         self.node_if.factory_reset_param('range_window/stop_range_ratio')
         self.node_if.factory_reset_param('frame_3d_transform')
-        self.node_if.factory_reset_param('frame_3d')
+        self.node_if.factory_reset_param('frame_id')
         self.factoryResetCb(do_updates = True)
 
 
 
 
     def provide_capabilities(self, _):
-        return self.capabilities_report
+        return self.caps_report
     
     def update_fps(self,data_product):
         last_data_time = copy.deepcopy(self.last_data_time[data_product])
@@ -1283,7 +1246,7 @@ class IDXDeviceIF:
             pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
             #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
 
-            dp_if = ImageIF(namespace = pub_namespace,log_name = data_product,
+            dp_if = ColorImageIF(namespace = pub_namespace,log_name = data_product,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -1345,7 +1308,7 @@ class IDXDeviceIF:
 
                         if (dp_has_subs == True):
                             #Publish Ros Image
-                            frame_id = self.node_if.get_param('frame_3d')
+                            frame_id = self.node_if.get_param('frame_id')
                             dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
@@ -1433,7 +1396,7 @@ class IDXDeviceIF:
                             #Publish Ros Image
                             min_range_m = self.status_msg.range_window.start_range
                             max_range_m = self.status_msg.range_window.stop_range
-                            frame_id = self.node_if.get_param('frame_3d')
+                            frame_id = self.node_if.get_param('frame_id')
                             dp_if.publish_cv2_depth_map(cv2_img,min_range_m = min_range_m, max_range_m = max_range_m, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
@@ -1501,7 +1464,7 @@ class IDXDeviceIF:
 
 
                         #********************
-                        set_frame = self.status_msg.frame_3d
+                        set_frame = self.status_msg.frame_id
                         if set_frame == 'sensor_frame':
                             frame_id = set_frame # else pass through sensor frame
                         else:
@@ -1596,7 +1559,6 @@ class IDXDeviceIF:
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
             self.status_msg.data_products = self.data_products_list
-            self.status_msg.data_product_types = self.data_types_list
             framerates = []
             for dp in self.current_fps.keys():
                 framerates.append(self.current_fps[dp])
@@ -1607,7 +1569,7 @@ class IDXDeviceIF:
             self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
             self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
             self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
-            self.status_msg.thresholding = param_dict['thresholding'] if 'thresholding' in param_dict else 0
+            self.status_msg.threshold = param_dict['thresholding'] if 'thresholding' in param_dict else 0
             
             self.status_msg.range_window.start_range = self.node_if.get_param('range_window/start_range_ratio')
             self.status_msg.range_window.stop_range =  self.node_if.get_param('range_window/stop_range_ratio')
@@ -1625,7 +1587,7 @@ class IDXDeviceIF:
             transform_msg.heading_offset = transform[6]
             self.status_msg.frame_3d_transform = transform_msg
             
-            self.status_msg.frame_3d = param_dict['frame_3d'] if 'frame_3d' in param_dict else "nepi_center_frame"
+            self.status_msg.frame_id = param_dict['frame_id'] if 'frame_id' in param_dict else "nepi_center_frame"
             self.status_msg.zoom = self.zoom_ratio
             self.status_msg.rotate = self.rotate_ratio
             self.status_msg.tilt = self.tilt_ratio
