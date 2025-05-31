@@ -1468,7 +1468,7 @@ class ImageIF:
 
 
     def has_subscribers_check(self):
-        return self.has_subs
+        return self.has_subs or self.raw_has_subs
 
 
     def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
@@ -1476,7 +1476,7 @@ class ImageIF:
         success = False
         if cv2_img is None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
-            return False
+            return cv2_img
 
         # Publish the raw image if required
         if self.pub_raw_image == True and self.raw_has_subs == True:
@@ -1584,7 +1584,7 @@ class ImageIF:
         # Update blank image if needed
         if last_width != self.status_msg.width or last_height != self.status_msg.height:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-        return True
+        return cv2_img
 
     def publish_msg_img(self, msg_text, timestamp = None, frame_id = 'nepi_base'):
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
