@@ -1,10 +1,10 @@
 # This is an optional status message for image publishers
 
 
-# Image data source type 
-#SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
-#                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
-string data_source_type
+# Image data product type
+# SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+                            'intensity_map','depth_map','pointcloud']
+string data_product_type
 
 bool publishing
 float32 last_pub_sec

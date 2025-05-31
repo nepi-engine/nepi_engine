@@ -838,10 +838,10 @@ class NavPoseIF:
 
 
 def get_image_data_product(source_data_type):
-    if data_source_type is None:
+    if data_type is None:
         data_name = 'image'
-    elif data_source_type.find('image') == -1:
-        data_name = data_source_type + '_image'
+    elif data_type.find('image') == -1:
+        data_name = data_type + '_image'
     return data_name
 
 
@@ -949,7 +949,7 @@ class ImageIF:
 
     caps_report = ImageCapabilitiesQueryResponse()
 
-    data_source_type = 'image'
+    data_type = 'image'
 
     overlays_dict = dict(
             overlay_img_name = False,
@@ -961,8 +961,8 @@ class ImageIF:
     )
 
     def __init__(self, namespace = None , 
-                data_name = self.data_type,
-                data_source_type = self.data_type,
+                data_name = 'image',
+                data_type = 'image',
                 caps_dict = None,
                 controls_dict = None, 
                 pub_raw_image = False,
@@ -1016,12 +1016,12 @@ class ImageIF:
                 if caps_dict.get(cap) != None:
                     self.caps_dict[cap] = caps_dict[cap]
 
-        if data_source_type is None:
-            data_source_type = self.data_type
-        self.data_source_type = data_source_type
+        if data_type is None:
+            data_type = self.data_type
+        self.data_type = data_type
 
 
-        self.caps_report.data_source_type = self.data_type
+        self.caps_report.data_type = self.data_type
         self.caps_report.data_products = self.data_products_list
         self.caps_report.frame_id_options = FRAME_ID_OPTIONS
 
@@ -1455,7 +1455,7 @@ class ImageIF:
 
 
     def get_data_source_type(self):
-        return self.data_source_type
+        return self.data_type
 
     def get_data_products(self):
         return self.data_products_list
@@ -2027,12 +2027,10 @@ class ColorImageIF(Image):
         rotate_ratio = 0.5
         )
 
-
-
-    
+    data_type = 'color_image'
 
     def __init__(self, namespace = None , 
-                data_name = self.data_type,
+                data_name = 'color_image',
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -2040,13 +2038,12 @@ class ColorImageIF(Image):
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-
-        data_source_type = 'color_image'
+        
 
         # Call the parent class constructor
         super().__init__(self, namespace = namespace , 
-                data_name = data_type,
-                data_source_type = data_type,
+                data_name = data_name,
+                data_type = 'color_image',
                 caps_dict = self.DEFAULT_CAPS_DICT,
                 controls_dict = self.DEFAULT_CONTROLS_DICT, 
                 pub_raw_image = True,
@@ -2122,10 +2119,10 @@ class DepthMapIF:
 
     data_products_list = []
 
-    data_source_type = 'depth_map'
+    data_type = 'depth_map'
 
     def __init__(self, namespace = None,
-                data_name = self.data_type,
+                data_name = 'depth_map',
                 enable_image_pub = True,
                 default_min_meters = 0.0,
                 default_max_meters = 20.0,
@@ -2337,7 +2334,7 @@ class DepthMapIF:
         return self.ready  
 
     def get_data_source_type(self):
-        return self.data_source_type
+        return self.data_type
 
 
     def get_data_products(self):
@@ -2526,10 +2523,10 @@ class PointcloudIF:
 
     data_products_list = []
 
-    data_source_type = 'pointcloud'
+    data_type = 'pointcloud'
 
     def __init__(self, namespace = None,
-                data_name = self.data_type,
+                data_name = 'pointcloud',
                 enable_image_pub = True,
                 max_image_pub_rate = 5,
                 log_name = None,
@@ -2846,7 +2843,7 @@ class PointcloudIF:
         return self.ready  
 
     def get_data_source_type(self):
-        return self.data_source_type
+        return self.data_type
 
 
     def get_data_products(self):

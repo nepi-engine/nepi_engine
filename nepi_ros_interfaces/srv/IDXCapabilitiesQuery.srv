@@ -21,8 +21,8 @@ bool has_pointcloud
 string[] frame_id_options
 
 # Data products supported by IDX node is a string of supported data products that can be subscribed to or saved
-# SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
-#                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
+#SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+#                            'intensity_map','depth_map','pointcloud']
 string[] data_products
 
 

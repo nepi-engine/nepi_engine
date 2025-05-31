@@ -1,8 +1,10 @@
 # This service definition provides the capabilities report for a NEPI IDX sensor
 
 ---
-# DATA_SOURCE_TYPES = ['image','2d_image','3d_image','2d_sonar','3d_sonar','depth_map','pointcloud','laser_line','2d_lidar','3d_lidar']
-string data_source_type
+# Image data product type
+# SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+                            'intensity_map','depth_map','pointcloud']
+string data_product_type
 
 # List of data product names provided by class
 string[] data_products
