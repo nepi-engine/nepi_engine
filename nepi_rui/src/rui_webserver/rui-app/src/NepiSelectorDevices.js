@@ -286,19 +286,19 @@ set_as_gps_source
     else{
       if (typeList) {
         if (typeList.length > 0){
-            if (idxDevices.length > 0){
+            if (Object.keys(idxDevices).length > 0){
               items.push(<Option value={"Imaging"}>{"Imaging"}</Option>)
             }
-            if (ptxDevices.length > 0){
+            if (Object.keys(ptxDevices).length > 0){
               items.push(<Option value={"PanTilts"}>{"PanTilts"}</Option>)
             }
-            if (lsxDevices.length > 0){
+            if (Object.keys(lsxDevices).length > 0){
               items.push(<Option value={"Lights"}>{"Lights"}</Option>)
             }
-            if (rbxDevices.length > 0){
+            if (Object.keys(rbxDevices).length > 0){
               items.push(<Option value={"Robots"}>{"Robots"}</Option>)
             }
-            if (npxDevices.length > 0){
+            if (Object.keys(npxDevices).length > 0){
               items.push(<Option value={"NavPose"}>{"NavPose"}</Option>)
             }
         }

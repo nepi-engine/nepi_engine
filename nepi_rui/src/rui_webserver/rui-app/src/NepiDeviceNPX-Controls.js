@@ -174,7 +174,7 @@ class NepiDeviceNPXControls extends Component {
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.npxNamespace + "/set_frame_transform"
+    const namespace = this.props.npxNamespace + "/npx/set_frame_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -198,7 +198,7 @@ class NepiDeviceNPXControls extends Component {
       transformHO: 0,      
     })
     const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.npxNamespace + "/set_frame_transform"
+    const namespace = this.props.npxNamespace + "/npx/set_frame_transform"
     const transformList = [0,0,0,0,0,0,0]
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
@@ -224,7 +224,7 @@ class NepiDeviceNPXControls extends Component {
           <Label title="Set as GPS Source">
             <Toggle
               checked={this.state.set_as_gps_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_gps_source)}>
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_gps_source",!this.state.set_as_gps_source)}>
             </Toggle>
           </Label>
     </div>
@@ -232,7 +232,7 @@ class NepiDeviceNPXControls extends Component {
           <Label title="Enable Elevation">
             <Toggle
               checked={this.state.set_as_elevation_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_elevation_source)}>
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_elevation_source",!this.state.set_as_elevation_source)}>
             </Toggle>
           </Label>
     </div>
@@ -240,7 +240,7 @@ class NepiDeviceNPXControls extends Component {
           <Label title="Enable Pose">
             <Toggle
               checked={this.state.set_as_pose_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_pose_source)}>
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_pose_source",!this.state.set_as_pose_source)}>
             </Toggle>
           </Label>
     </div>
@@ -248,7 +248,7 @@ class NepiDeviceNPXControls extends Component {
           <Label title="Enable Heading">
             <Toggle
               checked={this.state.set_as_heading_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/turn_on_off",!this.state.set_as_heading_source)}>
+              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_heading_source",!this.state.set_as_heading_source)}>
             </Toggle>
           </Label>
     </div>
@@ -418,7 +418,7 @@ class NepiDeviceNPXControls extends Component {
 
 
               <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
+                      <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/npx/clear_frame_transform")}>{"Clear Transform"}</Button>
               </ButtonMenu>
 
 
