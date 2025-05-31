@@ -3,7 +3,7 @@
 ---
 # Image data product type
 # SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
-                            'intensity_map','depth_map','pointcloud']
+#                            'intensity_map','depth_map','pointcloud']
 string data_product_type
 
 # List of data product names provided by class
