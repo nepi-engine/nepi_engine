@@ -147,7 +147,7 @@ class NepiDeviceIDXControls extends Component {
     if (prevProps.idxNamespace !== idxNamespace){
       if (idxNamespace != null) {
         this.updateListener()
-      } else if (idxNamespace == null){
+      } else if (idxNamespace === null){
         this.setState({ disabled: true })
       }
     }
@@ -381,7 +381,7 @@ class NepiDeviceIDXControls extends Component {
                   </div>
 
 
-                  <div hidden={this.state.autoAdjust == true && has_brightness == false}>
+                  <div hidden={this.state.autoAdjust === true && has_brightness === false}>
                     <SliderAdjustment
                         title={"Brightness"}
                         msgType={"std_msgs/Float32"}
@@ -398,7 +398,7 @@ class NepiDeviceIDXControls extends Component {
                   </div>
 
 
-                  <div hidden={this.state.autoAdjust == true && has_contrast == false}>
+                  <div hidden={this.state.autoAdjust === true && has_contrast === false}>
                     <SliderAdjustment
                       title={"Contrast"}
                       msgType={"std_msgs/Float32"}
@@ -414,7 +414,7 @@ class NepiDeviceIDXControls extends Component {
 
                   </div>
 
-                  <div hidden={this.state.autoAdjust == true && has_threshold == false}>
+                  <div hidden={this.state.autoAdjust === true && has_threshold === false}>
                     <SliderAdjustment
                         title={"Thresholding"}
                         msgType={"std_msgs/Float32"}
