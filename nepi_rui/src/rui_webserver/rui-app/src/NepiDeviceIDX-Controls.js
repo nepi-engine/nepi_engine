@@ -263,7 +263,7 @@ class NepiDeviceIDXControls extends Component {
     const has_resolution = (capabilities && capabilities.has_resolution && !this.state.disabled)
     const has_framerate = (capabilities && capabilities.has_framerate && !this.state.disabled)
     const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
-    const has_constrast = (capabilities && capabilities.has_constrast && !this.state.disabled)
+    const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
     const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
     const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
     const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
