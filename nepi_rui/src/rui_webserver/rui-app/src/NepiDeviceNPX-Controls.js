@@ -149,9 +149,16 @@ class NepiDeviceNPXControls extends Component {
   }
 
   settransform(event){
+    const pointcloud = event.target.value
+    const pointclouds = this.state.transforms_topic_list
     const transforms = this.state.transforms_list
-
-      const transform = transforms
+    const tf_index = pointclouds.indexOf(pointcloud)
+    if (tf_index !== -1){
+      this.setState({
+        transformPointcloud: pointcloud,
+        transformInd: tf_index
+      })
+      const transform = transforms[tf_index]
       this.setState({
         transformTX: round(transform[0]),
         transformTY: round(transform[1]),
@@ -161,6 +168,8 @@ class NepiDeviceNPXControls extends Component {
         transformRZ: round(transform[5]),
         transformHO: round(transform[6])
       })
+      
+    }
   }
 
   sendTransformUpdateMessage(){

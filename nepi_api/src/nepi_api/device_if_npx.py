@@ -623,7 +623,7 @@ class NPXDeviceIF:
   def _setIdFrameCb(self,msg):
     frame = msg.data
     if frame in self.NAVPOSE_FRAME_ID_OPTIONS:
-      self.frame_3d = frame
+      self.frame_id = frame
       self.node_if.set_param('frame_id',frame)
 
   def _setAltFrameCb(self,msg):
@@ -653,11 +653,11 @@ class NPXDeviceIF:
       self.node_if.set_param('frame_3d_transform',  self.frame_transform)
 
 
-    def clearFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
-        self.clearFrame3dTransform()
+  def _clearFrame3dTransformCb(self, msg):
+      self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
+      self.clearFrame3dTransform()
 
-    def clearFrame3dTransform(self):
+  def clearFrame3dTransform(self):
         self.frame_transform = self.ZERO_TRANSFORM
         self.status_msg.frame_3d_transform = Frame3DTransform()
         self.publishStatus(do_updates=False) # Updated inline here 
