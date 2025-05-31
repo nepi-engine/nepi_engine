@@ -22,6 +22,11 @@ string user_name
 # In standby or not
 bool standby
 
+# Following provide the range limits in meters for the device (if available)
+float32 min_range_m
+float32 max_range_m
+
+# Data Controls
 float32 resolution_ratio
 string resolution_current
 
@@ -30,6 +35,7 @@ string[] data_products
 string[] data_product_types
 float32[] framerates
 
+bool auto_adjust_enabled
 
 # The contrast field indicates the 0.0 - 1.0 contrast setting of the device
 float32 contrast
@@ -38,12 +44,7 @@ float32 contrast
 float32 brightness
 
 # The thresholding field indicates the 0.0 - 1.0 thresholding setting of the device
-float32 thresholding
-
-
-# Following provide the range limits in meters for the device (if available)
-float32 min_range_m
-float32 max_range_m
+float32 threshold
 
 # The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
@@ -53,8 +54,8 @@ RangeWindow range_window
 nepi_ros_interfaces/Frame3DTransform frame_3d_transform
 
 # Output transform into which 3D data (navpose,pointclouds...) are published
-string frame_3d
-
+# Options ['nepi_base_frame','sensor_frame','map']
+string frame_id
 
 
 

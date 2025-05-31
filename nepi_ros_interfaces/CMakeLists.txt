@@ -157,6 +157,7 @@ add_message_files(FILES
     PointcloudStatus.msg
     SonarStatus.msg
     Elevation.msg
+    ImageWindow.msg
 )
 
 ## Generate services in the 'srv' folder

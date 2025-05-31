@@ -298,15 +298,42 @@ class ImageViewer extends Component {
   renderControls() {
 
     const namespace = this.props.imageTopic
+
+    const { imageDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
+    const capabilities = imageDevices[namespace]
+
    
     if (this.state.status_msg != null && namespace != null){
-      const show_controls = this.state.show_controls
+
+      const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
+      const has_constrast = (capabilities && capabilities.has_constrast && !this.state.disabled)
+      const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
+      const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
+      const has_resolution = (capabilities && capabilities.has_resolution && !this.state.disabled)
+      const has_framerate = (capabilities && capabilities.has_framerate && !this.state.disabled)
+      const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
+      const has_zoom = (capabilities && capabilities.has_zoom && !this.state.disabled)
+      const has_pan = (capabilities && capabilities.has_pan && !this.state.disabled)
+      const has_window = (capabilities && capabilities.has_window && !this.state.disabled)
+      const has_rotate = (capabilities && capabilities.has_rotate && !this.state.disabled)
+      const has_tilt = (capabilities && capabilities.has_tilt && !this.state.disabled)
+
+
       const message = this.state.status_msg
-      const controls_enabled = message.controls_enabled
+      const resolution_ratio = message.resolution_ratio
       const auto_adjust_enabled = message.auto_adjust_enabled
       const brightness_ratio = message.brightness_ratio
       const contrast_ratio = message.contrast_ratio
       const threshold_ratio = message.threshold_ratio
+      const range_start_ratio = message.range_window.start_range
+      const range_stop_ratio = message.range_window.stop_range
+      const zoom_ratio = message.zoom_ratio
+      const pan_lr_ratio = message.pan_left_right_ratio
+      const pan_ud_ratio = message.pan_up_down_ratio
+      const window_ratios = message.window_ratios
+      const rotate_ratio = message.rotate_ratio
+      const tilt_ratio = message.tilt_ratio
+
 
 
       return (
@@ -315,83 +342,232 @@ class ImageViewer extends Component {
         <Column>
 
 
-        <Columns>
-          <Column>
+                <Columns>
+                  <Column>
+              
+                  <Label title="Show Controls">
+                  <Toggle
+                  checked={show_controls===true}
+                  onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                  </Toggle>
+                  </Label>
+
+                  </Column>
+                  <Column>
+
+                </Column>
+              </Columns>
+
       
-          <Label title="Show Controls">
-          <Toggle
-          checked={show_controls===true}
-          onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
-          </Toggle>
-          </Label>
+ 
 
-          </Column>
-          <Column>
+              <div hidden={(has_resolution !== true  || show_controls == false)}>
 
-        </Column>
-      </Columns>
+                            <SliderAdjustment
+                                  title={"Resolution"}
+                                  msgType={"std_msgs/Float32"}
+                                  adjustment={this.state.resolutionAdjustment}
+                                  topic={this.props.idxNamespace + '/set_resolution_ratio'}
+                                  scaled={0.01}
+                                  min={0}
+                                  max={100}
+                                  disabled={(capabilities && !this.state.disabled)? false : true}
+                                  tooltip={"Adjustable Resolution"}
+                                  unit={"%"}
+                              />
 
-      
-      <div hidden={show_controls == false}>
-    <Columns>
-    <Column>
+                          <Columns>
+                          <Column>
 
-          <Label title={"Auto Adjust"}>
-              <Toggle
-                checked={auto_adjust_enabled}
-                onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_auto_adjust',!auto_adjust_enabled)}
-              /> 
-            </Label>
+                          </Column>
+                          <Column>
 
-        </Column>
-        <Column>
+                          <Label title={"Current Resolution"}>
+                        <Input
+                          value={this.state.resolutionString}
+                          id="framerate"
+                          style={{ width: "100%" }}
+                          disabled={true}
+                        />
+                      </Label>
 
-        </Column>
-      </Columns>
+                          </Column>
+                        </Columns>             
+
+            </div>
 
 
 
-      <Columns>
-      <Column>
-          <div hidden={this.state.auto_adjust_enabled == true}>
-          <SliderAdjustment
-              title={"Brightness"}
-              msgType={"std_msgs/Float32"}
-              adjustment={brightness_ratio}
-              topic={namespace + "/set_brightness_ratio"}
-              scaled={0.01}
-              min={0}
-              max={100}
-              tooltip={"Adjustable brightness"}
-              unit={"%"}
-          />
-          <SliderAdjustment
-            title={"Contrast"}
-            msgType={"std_msgs/Float32"}
-            adjustment={contrast_ratio}
-            topic={namespace + "/set_contrast_ratio"}
-            scaled={0.01}
-            min={0}
-            max={100}
-            tooltip={"Adjustable contrast"}
-            unit={"%"}
-          />
-          <SliderAdjustment
-              title={"Threshold"}
-              msgType={"std_msgs/Float32"}
-              adjustment={threshold_ratio}
-              topic={namespace + "/set_threshold_ratio"}
-              scaled={0.01}
-              min={0}
-              max={100}
-              tooltip={"Adjustable threshold"}
-              unit={"%"}
-          />
+
+            <div hidden={(has_auto_adjust !== true  || show_controls == false)}>
+            
+                    <Columns>
+                    <Column>
+
+
+
+                            <Label title={"Auto Adjust"}>
+                                <Toggle
+                                  checked={this.state.autoAdjust}
+                                  onClick={() => setIdxAutoAdjust(this.props.idxNamespace,!this.state.autoAdjust)}
+                                /> 
+                              </Label>
+
+
+                        </Column>
+                        <Column>
+
+                        </Column>
+                      </Columns>
+
+                </div>
+
+
+          <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+                      <SliderAdjustment
+                          title={"Brightness"}
+                          msgType={"std_msgs/Float32"}
+                          adjustment={this.state.brightnessAdjustment}
+                          topic={this.props.idxNamespace + "/set_brightness"}
+                          scaled={0.01}
+                          min={0}
+                          max={100}
+                          disabled={(capabilities && capabilities.has_brightness && !this.state.disabled)? false : true}
+                          tooltip={"Adjustable brightness"}
+                          unit={"%"}
+                      />
+
+            </div>
+
+
+            <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+                      <SliderAdjustment
+                        title={"Contrast"}
+                        msgType={"std_msgs/Float32"}
+                        adjustment={this.state.contrastAdjustment}
+                        topic={this.props.idxNamespace + "/set_contrast"}
+                        scaled={0.01}
+                        min={0}
+                        max={100}
+                        disabled={(capabilities && capabilities.has_contrast && !this.state.disabled)? false : true}
+                        tooltip={"Adjustable contrast"}
+                        unit={"%"}
+                      />
+
+            </div>
+
+            <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+                      <SliderAdjustment
+                          title={"Thresholding"}
+                          msgType={"std_msgs/Float32"}
+                          adjustment={this.state.thresholdAdjustment}
+                          topic={this.props.idxNamespace + "/set_threshold"}
+                          scaled={0.01}
+                          min={0}
+                          max={100}
+                          disabled={(capabilities && capabilities.has_threshold && !this.state.disabled)? false : true}
+                          tooltip={"Adjustable threshold"}
+                          unit={"%"}
+                      />
+              </div>
+
+
+
+
+            <div hidden={(has_range !== true  || show_controls == false)}>
+                    <RangeAdjustment
+                      title="Range Clip"
+                      min={this.state.rangeMin}
+                      max={this.state.rangeMax}
+                      min_limit_m={this.state.rangeLimitMinM}
+                      max_limit_m={this.state.rangeLimitMaxM}
+                      topic={this.props.idxNamespace + "/set_range_window"}
+                      tooltip={"Adjustable range"}
+                      unit={"m"}
+                    />
+          </div>
+
+
+          <div hidden={(has_zoom !== true  || show_controls == false)}>
+
+                      <SliderAdjustment
+                            title={"Zoom"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.zoomAdjustment}
+                            topic={this.props.idxNamespace + "/set_zoom_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Zoom controls"}
+                            unit={"%"}
+                        />
+          </div>
+
+          <div hidden={(has_pan !== true  || show_controls == false)}>
+
+                      <SliderAdjustment
+                            title={"Pan Left-Right"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.rotateAdjustment}
+                            topic={this.props.idxNamespace + "/set_pan_lr_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Pan left-right controls"}
+                            unit={"%"}
+                        />
+
+                      <SliderAdjustment
+                            title={"Pan Up-Down"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.rotateAdjustment}
+                            topic={this.props.idxNamespace + "/set_pan_up_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Pan up-down controls"}
+                            unit={"%"}
+                        />
 
           </div>
-          </Column>
-            </Columns>
-        </div>
+
+          <div hidden={(has_rotate !== true  || show_controls == false)}>
+
+                      <SliderAdjustment
+                            title={"Rotate"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.rotateAdjustment}
+                            topic={this.props.idxNamespace + "/set_rotate_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Rotate controls"}
+                            unit={"%"}
+                        />
+
+          </div>
+
+          <div hidden={(has_tilt !== true  || show_controls == false)}>
+
+                        <SliderAdjustment
+                            title={"Tilt"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.tiltAdjustment}
+                            topic={this.props.idxNamespace + "/set_tilt_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Tilt controls"}
+                            unit={"%"}
+                        />
+          </div>
+
+
 
 
       </Column>

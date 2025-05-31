@@ -1,28 +1,29 @@
 # This service definition provides the capabilities report for a NEPI IDX sensor
 
 ---
-# NEX Generic Parameters
 bool has_standby_mode
 
-# IDX Generic Parameters
-bool adjustable_resolution
-bool adjustable_framerate
-bool adjustable_contrast
-bool adjustable_brightness
-bool adjustable_thresholding
-bool adjustable_range
-bool auto_adjustment
 
-# IDX Generic Data Outputs
-bool has_image
+bool has_resolution
+bool has_framerate
+bool has_contrast
+bool has_brightness
+bool has_threshold
+bool has_range
+bool has_auto_adjustment
+
+bool has_color_image
+bool has_bw_image
+bool has_intensity_map
 bool has_depth_map
 bool has_pointcloud
 
+string[] frame_id_options
+
 # Data products supported by IDX node is a string of supported data products that can be subscribed to or saved
-# DATA_PRODUCTS = ["image","depth_map","pointcloud","pointcloud_image]
+# SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
+#                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
 string[] data_products
-# Then the actual types for each data product name
-# DATA_PRODUCT_TYPES = ["image","depth_map","pointcloud","image"]
-string[] data_product_types
+
 
 

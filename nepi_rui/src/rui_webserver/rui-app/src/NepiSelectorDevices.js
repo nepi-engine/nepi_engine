@@ -19,7 +19,7 @@ import IDX from "./NepiDeviceIDX"
 import PTX from "./NepiDevicePTX"
 import LSX from "./NepiDeviceLSX"
 import RBX from "./NepiDeviceRBX"
-import NDX from "./NepiDeviceNDX"
+import NPX from "./NepiDeviceNPX"
 
 
 
@@ -246,13 +246,14 @@ class DevicesSelector extends Component {
     )
   }
 
-  renderNdxDev() {
+  
+  renderNpxDev() {
     return (
       <Columns>
         <Column>
 
-        <NDX
-         title={"NdxDevice"}
+        <NPX
+         title={"NpxDevice"}
          />
 
       </Column>
@@ -297,7 +298,7 @@ class DevicesSelector extends Component {
             if (typeList.indexOf("RBX") !== -1){
               items.push(<Option value={"Robots"}>{"Robots"}</Option>)
             }
-            if (typeList.indexOf("NDX") !== -1){
+            if (typeList.indexOf("NPX") !== -1){
               items.push(<Option value={"NavPose"}>{"NavPose"}</Option>)
             }
         }
