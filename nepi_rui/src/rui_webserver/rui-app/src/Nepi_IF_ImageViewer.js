@@ -23,7 +23,7 @@ import Select from "./Select"
 import Input from "./Input"
 
 
-import { createMenuListFromStrList, onChangeSwitchStateValue, onChangeSwitchSendBoolValue, onEnterSendFloatValue } from "./Utilities"
+import { createMenuListFromStrList, onChangeSwitchStateValue, onEnterSendFloatValue } from "./Utilities"
 
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
@@ -452,7 +452,7 @@ class ImageViewer extends Component {
                             <Label title={"Auto Adjust"}>
                               <Toggle
                                 checked={auto_adjust_enabled===true}
-                                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_auto_adjust_enable",!auto_adjust_enabled)}>
+                                onClick={() => sendBoolMsg(namespace + "/set_auto_adjust_enable",!auto_adjust_enabled)}>
                               </Toggle>
                             </Label>
 
@@ -643,7 +643,7 @@ class ImageViewer extends Component {
   }
 
   renderOverlays() {
-
+    const { sendTrigMsg, sendBoolMsg } = this.props.ros
     const namespace = this.props.imageTopic
    
     if (this.state.status_msg != null && namespace != null){
@@ -664,28 +664,28 @@ class ImageViewer extends Component {
                   <Label title={"Source Name"}>
                       <Toggle
                         checked={name}
-                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_source_name',!name)}
+                        onClick={() => sendBoolMsg(namespace + '/set_overlay_source_name',!name)}
                       /> 
                     </Label>
 
                     <Label title={"Date Time"}>
                       <Toggle
                         checked={date}
-                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_date_time',!date)}
+                        onClick={() => sendBoolMsg(namespace + '/set_overlay_date_time',!date)}
                       /> 
                     </Label>
 
                     <Label title={"Location"}>
                       <Toggle
                         checked={nav}
-                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_nav',!nav)}
+                        onClick={() => sendBoolMsg(namespace + '/set_overlay_nav',!nav)}
                       /> 
                     </Label>
 
                     <Label title={"Pose"}>
                       <Toggle
                         checked={pose}
-                        onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + '/set_overlay_pose',!pose)}
+                        onClick={() => sendBoolMsg(namespace + '/set_overlay_pose',!pose)}
                       /> 
                     </Label>
 
