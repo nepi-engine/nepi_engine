@@ -45,11 +45,9 @@ class NepiDeviceNPXControls extends Component {
       transformRY: 0,
       transformRZ: 0,
       transformHO: 0,
-      age_filter_s: null,
+      age_filter_s: null
 
-      listener: null,
 
-      disabled: false,
 
     }
 
@@ -63,83 +61,6 @@ class NepiDeviceNPXControls extends Component {
 
     
     
-  }
-
-  // Callback for handling ROS StatusNPX messages
-  statusListener(message) {
-    const transforms = this.state.transforms_msg
-
-    this.setState({
-      update_rate: message.update_rate,
-      frame_id: message.frame_id,
-      frame_3d: message.frame_3d,
-      frame_altitude: message.frame_altitude,
-
-      has_heading: message.has_heading,
-      has_position: message.has_position,
-      has_orientation: message.has_orientation,
-      has_location: message.has_location,
-      has_altitude: message.has_altitude,
-      has_depth: message.has_depth,
-      has_gps_pub: message.has_gps_pub,
-      set_as_gps_source: message.set_as_gps_source,
-      has_elevation_pub: message.has_elevation_pub,
-      set_as_elevation_source: message.set_as_elevation_source,
-      has_pose_pub: message.has_pose_pub,
-      set_as_pose_source: message.set_as_pose_source,
-      has_heading_pub: message.has_heading_pub,
-      set_as_heading_source: message.set_as_heading_source,
-
-      transforms_msg: message.frame_transform
-    })
-
-    if (transforms !== message.frame_transform){
-      this.setState({
-        transformTX: message.frame_transform.translate_vector.x,
-        transformTY: message.frame_transform.translate_vector.y,
-        transformTZ: message.frame_transform.translate_vector.z,
-        transformRX: message.frame_transform.rotate_vector.x,
-        transformRY: message.frame_transform.rotate_vector.y,
-        transformRZ: message.frame_transform.rotate_vector.z,
-        transformHO: message.frame_transform.heading_offset
-      })
-    }
-
-  }
-
-  // Function for configuring and subscribing to StatusNPX
-  updateListener() {
-    const { npxNamespace } = this.props
-    if (this.state.listener) {
-      this.state.listener.unsubscribe()
-    }
-    var listener = this.props.ros.setupNPXStatusListener(
-      npxNamespace,
-      this.statusListener
-    )
-    this.setState({ listener: listener, disabled: false })
-
-  }
-
-  // Lifecycle method called when compnent updates.
-  // Used to track changes in the topic
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    const { npxNamespace } = this.props
-    if (prevProps.npxNamespace !== npxNamespace){
-      if (npxNamespace != null) {
-        this.updateListener()
-      } else if (npxNamespace == null){
-        this.setState({ disabled: true })
-      }
-    }
-  }
-
-  // Lifecycle method called just before the component umounts.
-  // Used to unsubscribe to StatusNPX message
-  componentWillUnmount() {
-    if (this.state.listener) {
-      this.state.listener.unsubscribe()
-    }
   }
 
   onClickToggleShowTransforms(){
@@ -174,7 +95,7 @@ class NepiDeviceNPXControls extends Component {
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.npxNamespace + "/npx/set_frame_transform"
+    const namespace = this.props.namespace + "/set_frame_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -198,7 +119,7 @@ class NepiDeviceNPXControls extends Component {
       transformHO: 0,      
     })
     const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.npxNamespace + "/npx/set_frame_transform"
+    const namespace = this.props.namespace + "/set_frame_transform"
     const transformList = [0,0,0,0,0,0,0]
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
@@ -207,229 +128,264 @@ class NepiDeviceNPXControls extends Component {
 
   renderControls() {
     const { npxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
-    const capabilities = npxDevices[this.props.npxNamespace]
-    const has_gps_pub = capabilities ? capabilities.has_gps_pub : false
-    const has_elevation_pub = capabilities ? capabilities.has_elevation_pub : false
-    const has_pose_pub = capabilities ? capabilities.has_pose_pub : false
-    const has_heading_pub = capabilities ? capabilities.has_heading_pub : false
+    const namespace = this.props.namespace ? this.props.namespace : null
+    const message = this.props.navposeData ? this.props.navposeData : null
+    const capabilities = npxDevices[namespace] ? npxDevices[namespace] : null
 
-    const namespace = this.props.npxNamespace
+    if (namespace != null && capabilities != null && message != null){
+      const transforms = this.state.transforms_msg
+      
+      const has_gps_pub = capabilities ? capabilities.has_gps_pub : false
+      const has_elevation_pub = capabilities ? capabilities.has_elevation_pub : false
+      const has_pose_pub = capabilities ? capabilities.has_pose_pub : false
+      const has_heading_pub = capabilities ? capabilities.has_heading_pub : false
 
-    return (
+      const update_rate = message.update_rate
+      const frame_id = message.frame_id
+      const frame_3d = message.frame_3d
+      const frame_altitude = message.frame_altitude
 
-      <Section title={"NavPose Controls"}>
-      <Columns>
-      <Column>
-    <div hidden={!has_gps_pub}>    
-          <Label title="Set as GPS Source">
-            <Toggle
-              checked={this.state.set_as_gps_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_gps_source",!this.state.set_as_gps_source)}>
-            </Toggle>
-          </Label>
-    </div>
-    <div hidden={!has_elevation_pub}>    
-          <Label title="Enable Elevation">
-            <Toggle
-              checked={this.state.set_as_elevation_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_elevation_source",!this.state.set_as_elevation_source)}>
-            </Toggle>
-          </Label>
-    </div>
-    <div hidden={!has_pose_pub}>    
-          <Label title="Enable Pose">
-            <Toggle
-              checked={this.state.set_as_pose_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_pose_source",!this.state.set_as_pose_source)}>
-            </Toggle>
-          </Label>
-    </div>
-    <div hidden={!has_heading_pub}>    
-          <Label title="Enable Heading">
-            <Toggle
-              checked={this.state.set_as_heading_source===true}
-              onClick={() => this.props.ros.sendBoolMsg(namespace + "/npx/set_as_heading_source",!this.state.set_as_heading_source)}>
-            </Toggle>
-          </Label>
-    </div>
-    </Column>
-    </Columns>
+      const has_heading = message.has_heading
+      const has_position = message.has_position
+      const has_orientation = message.has_orientation
+      const has_location = message.has_location
+      const has_altitude = message.has_altitude
+      const has_depth = message.has_depth
+      const set_as_gps_source = message.set_as_gps_source
+      const set_as_elevation_source = message.set_as_elevation_source
+      const set_as_pose_source = message.set_as_pose_source
+      const set_as_heading_source = message.set_as_heading_source
 
-                       
-      <Columns>
-          <Column>
+      const transforms_msg = message.frame_transform
 
-              <div align={"left"} textAlign={"left"}>
-                <Label title={"Output Frame"}>
-                </Label>
-              </div>
-              </Column>
-              <Column>
+    if (transforms !== message.frame_transform){
+      this.setState({
+        transforms_msg: transforms_msg,
+        transformTX: message.frame_transform.translate_vector.x,
+        transformTY: message.frame_transform.translate_vector.y,
+        transformTZ: message.frame_transform.translate_vector.z,
+        transformRX: message.frame_transform.rotate_vector.x,
+        transformRY: message.frame_transform.rotate_vector.y,
+        transformRZ: message.frame_transform.rotate_vector.z,
+        transformHO: message.frame_transform.heading_offset
+      })
+    }
+      return (
+
+        <Section title={"NavPose Controls"}>
+        <Columns>
+        <Column>
+      <div hidden={!has_gps_pub}>    
+            <Label title="Set as GPS Source">
+              <Toggle
+                checked={this.state.set_as_gps_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_gps_source",!this.state.set_as_gps_source)}>
+              </Toggle>
+            </Label>
+      </div>
+      <div hidden={!has_elevation_pub}>    
+            <Label title="Enable Elevation">
+              <Toggle
+                checked={this.state.set_as_elevation_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_elevation_source",!this.state.set_as_elevation_source)}>
+              </Toggle>
+            </Label>
+      </div>
+      <div hidden={!has_pose_pub}>    
+            <Label title="Enable Pose">
+              <Toggle
+                checked={this.state.set_as_pose_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_pose_source",!this.state.set_as_pose_source)}>
+              </Toggle>
+            </Label>
+      </div>
+      <div hidden={!has_heading_pub}>    
+            <Label title="Enable Heading">
+              <Toggle
+                checked={this.state.set_as_heading_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!this.state.set_as_heading_source)}>
+              </Toggle>
+            </Label>
+      </div>
+      </Column>
+      </Columns>
+
+                        
+        <Columns>
+            <Column>
+
                 <div align={"left"} textAlign={"left"}>
-                  <Label title={"Current Frame"}>
-                  <Input value = {this.state.frame_id} />
+                  <Label title={"Output Frame"}>
                   </Label>
                 </div>
-              </Column>
-            </Columns>
-            <Columns>
-              <Column>
-              <div align={"center"} textAlign={"center"}>
-                <Label title={"NEPI"} align={"center"}>
-                </Label>
-                <Toggle 
-                  checked={this.state.frame_id === "nepi_center_frame"} 
-                  disabled={(!this.state.disabled)? false : true}
-                  onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
-                />
-          </div>
-
-  
-
-      </Column>
-      <Column>
-      <Columns>
-          <Column>
-
-              <div align={"left"} textAlign={"left"}>
-                <Label title={"Output Frame"}>
-                </Label>
-              </div>
-              </Column>
-              <Column>
-                <div align={"left"} textAlign={"left"}>
-                  <Label title={"Current Frame"}>
-                  <Input value = {this.state.frame_3d} />
+                </Column>
+                <Column>
+                  <div align={"left"} textAlign={"left"}>
+                    <Label title={"Current Frame"}>
+                    <Input value = {this.state.frame_id} />
+                    </Label>
+                  </div>
+                </Column>
+              </Columns>
+              <Columns>
+                <Column>
+                <div align={"center"} textAlign={"center"}>
+                  <Label title={"NEPI"} align={"center"}>
                   </Label>
-                </div>
-              </Column>
-            </Columns>
-            <Columns>
-              <Column>
-              <div align={"center"} textAlign={"center"}>
-                <Label title={"NEPI"} align={"center"}>
-                </Label>
-                <Toggle 
-                  checked={this.state.frame_3d === "nepi_center_frame"} 
-                  disabled={(!this.state.disabled)? false : true}
-                  onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
-                />
-          </div>
+                  <Toggle 
+                    checked={this.state.frame_id === "nepi_center_frame"} 
+                    disabled={(!this.state.disabled)? false : true}
+                    onClick={() => this.props.ros.setFrame3D(namespace + '',"nepi_center_frame")}
+                  />
+            </div>
 
-  
-
-      </Column>
-      <Column>
-      </Column>
-    </Columns>
-    </Column> 
-    </Columns> 
-  <Columns>
-    <Column>
-    <Label title="Show 3D Transforms">
-      <Toggle
-        checked={this.state.showTransforms}
-        onClick={this.onClickToggleShowTransforms}>
-      </Toggle>
-    </Label>
-
-    </Column>
-    <Column>
-    </Column>
-    </Columns>
-
-
-
-    <div hidden={ this.state.showTransforms === false}>
-
-          <Columns>
-          <Column>
-
-          <Label title={"X (m)"}>
-            <Input
-              value={this.state.transformTX}
-              id="XTranslation"
-              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
-              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
-              style={{ width: "80%" }}
-            />
-          </Label>
-
-          <Label title={"Y (m)"}>
-            <Input
-              value={this.state.transformTY}
-              id="YTranslation"
-              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
-              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
-              style={{ width: "80%" }}
-            />
-          </Label>
-
-          <Label title={"Z (m)"}>
-            <Input
-              value={this.state.transformTZ}
-              id="ZTranslation"
-              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
-              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
-              style={{ width: "80%" }}
-            />
-          </Label>
-
-
-          <ButtonMenu>
-            <Button onClick={() => this.sendTransformUpdateMessage()}>{"Update Transform"}</Button>
-          </ButtonMenu>
-
-
-
+    
 
         </Column>
         <Column>
+        <Columns>
+            <Column>
 
-          <Label title={"Roll (deg)"}>
-            <Input
-              value={this.state.transformRX}
-              id="XRotation"
-              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
-              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
-              style={{ width: "80%" }}
-            />
-          </Label>
+                <div align={"left"} textAlign={"left"}>
+                  <Label title={"Output Frame"}>
+                  </Label>
+                </div>
+                </Column>
+                <Column>
+                  <div align={"left"} textAlign={"left"}>
+                    <Label title={"Current Frame"}>
+                    <Input value = {this.state.frame_3d} />
+                    </Label>
+                  </div>
+                </Column>
+              </Columns>
+              <Columns>
+                <Column>
+                <div align={"center"} textAlign={"center"}>
+                  <Label title={"NEPI"} align={"center"}>
+                  </Label>
+                  <Toggle 
+                    checked={this.state.frame_3d === "nepi_center_frame"} 
+                    disabled={(!this.state.disabled)? false : true}
+                    onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
+                  />
+            </div>
 
-          <Label title={"Pitch (deg)"}>
-            <Input
-              value={this.state.transformRY}
-              id="YRotation"
-              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
-              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
-              style={{ width: "80%" }}
-            />
-          </Label>
+    
 
-              <Label title={"Yaw (deg)"}>
-                <Input
-                  value={this.state.transformRZ}
-                  id="ZRotation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
+        </Column>
+        <Column>
+        </Column>
+      </Columns>
+      </Column> 
+      </Columns> 
+    <Columns>
+      <Column>
+      <Label title="Show 3D Transforms">
+        <Toggle
+          checked={this.state.showTransforms}
+          onClick={this.onClickToggleShowTransforms}>
+        </Toggle>
+      </Label>
 
-
-              <ButtonMenu>
-                      <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/npx/clear_frame_transform")}>{"Clear Transform"}</Button>
-              </ButtonMenu>
+      </Column>
+      <Column>
+      </Column>
+      </Columns>
 
 
-            </Column>
-          </Columns>
 
- 
+      <div hidden={ this.state.showTransforms === false}>
+
+            <Columns>
+            <Column>
+
+            <Label title={"X (m)"}>
+              <Input
+                value={this.state.transformTX}
+                id="XTranslation"
+                onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
+                onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
+                style={{ width: "80%" }}
+              />
+            </Label>
+
+            <Label title={"Y (m)"}>
+              <Input
+                value={this.state.transformTY}
+                id="YTranslation"
+                onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
+                onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
+                style={{ width: "80%" }}
+              />
+            </Label>
+
+            <Label title={"Z (m)"}>
+              <Input
+                value={this.state.transformTZ}
+                id="ZTranslation"
+                onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
+                onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
+                style={{ width: "80%" }}
+              />
+            </Label>
+
+
+            <ButtonMenu>
+              <Button onClick={() => this.sendTransformUpdateMessage()}>{"Update Transform"}</Button>
+            </ButtonMenu>
+
+
+
+
+          </Column>
+          <Column>
+
+            <Label title={"Roll (deg)"}>
+              <Input
+                value={this.state.transformRX}
+                id="XRotation"
+                onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
+                onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
+                style={{ width: "80%" }}
+              />
+            </Label>
+
+            <Label title={"Pitch (deg)"}>
+              <Input
+                value={this.state.transformRY}
+                id="YRotation"
+                onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
+                onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
+                style={{ width: "80%" }}
+              />
+            </Label>
+
+                <Label title={"Yaw (deg)"}>
+                  <Input
+                    value={this.state.transformRZ}
+                    id="ZRotation"
+                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
+                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
+                    style={{ width: "80%" }}
+                  />
+                </Label>
+
+
+                <ButtonMenu>
+                        <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/clear_frame_transform")}>{"Clear Transform"}</Button>
+                </ButtonMenu>
+
+
+              </Column>
+            </Columns>
+
   
-        </div>
-        </Section>
-    )
+    
+          </div>
+          </Section>
+      )
+    }
   }
 
   render() {

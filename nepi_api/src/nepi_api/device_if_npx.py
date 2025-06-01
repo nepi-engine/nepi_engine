@@ -819,6 +819,7 @@ class NPXDeviceIF:
 
     self.has_updated = True
     self.navpose_dict =  navpose_dict
+    #self.msg_if.pub_warn("Will publish navpose data dict: " + str(navpose_dict))
     try:
       self.navpose_if.publish_navpose(self.navpose_dict)
     except Exception as e:

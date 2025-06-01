@@ -34,7 +34,7 @@ class NavPoseDataViewer extends Component {
 
 
   render() {
-    const navpose_data = this.props.navpose_data ? this.props.navpose_data : null
+    const navpose_data = this.props.navposeData ? this.props.navposeData : null
     const frame_id = navpose_data ? navpose_data.frame_id : null
     const frame_3d = navpose_data ? navpose_data.frame_3d : null
     const frame_alt = navpose_data ? navpose_data.frame_alt : null
