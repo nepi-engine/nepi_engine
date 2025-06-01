@@ -362,7 +362,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   }
 
   renderDriverConfigure() {
-    const { sendStringMsg, sendUpdateOrderMsg, sendUpdateActiveStateMsg, } = this.props.ros
+    const { sendStringMsg, sendUpdateOrderMsg, sendUpdateStateMsg, } = this.props.ros
     const NoneOption = <Option>None</Option>
     const namespace = this.getSettingsNamespace()
     const check_topic = namespace + "/settings_status"
@@ -396,7 +396,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         <Label title="Enable/Disable Driver">
           <Toggle
             checked={this.state.driver_active_state===true}
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_state", this.state.driver_pkg, !this.state.driver_active_state)}>
+            onClick={() => sendUpdateStateMsg(this.state.mgrNamespace + "/update_state", this.state.driver_pkg, !this.state.driver_active_state)}>
           </Toggle>
           </Label>
 

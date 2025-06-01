@@ -65,7 +65,7 @@ class AIDetectorManager:
 
     detector_info_dict = dict()
     
-    all_namespace = "None"
+    all_namespace = 'ai'
     #######################
     ### Node Initialization
 

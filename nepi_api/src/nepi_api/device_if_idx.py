@@ -179,8 +179,8 @@ class IDXDeviceIF:
     tilt_ratio = init_rotate_ratio
     render_controls = [zoom_ratio,rotate_ratio,tilt_ratio]
 
-    
-    data_products_list = []
+    data_products_base_list = []
+    data_products_save_list = []
 
 
 
@@ -269,7 +269,7 @@ class IDXDeviceIF:
         for data_product in data_products:
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
-        self.data_products = data_products_list
+        self.data_products_base_list = data_products_list
         self.msg_if.pub_warn("Enabled data products: " + str(self.data_products))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
@@ -295,7 +295,7 @@ class IDXDeviceIF:
         self.setControlsEnable = setControlsEnable
 
         self.setAutoAdjust = setAutoAdjust
-        self.caps_report.has_auto_adjustment = True
+        self.caps_report.has_auto_adjust = True
 
         self.setBrightness = setBrightness
         self.caps_report.has_brightness = True
@@ -696,40 +696,17 @@ class IDXDeviceIF:
         else:
             self.caps_report.has_pointcloud = False
 
+        self.caps_report.data_products = self.data_products_base_list
 
-        if (getPointcloudImg is not None and 'pointcloud' in self.data_products):
-            self.getPointcloudImg = getPointcloudImg
-            self.stopPointcloudImgAcquisition = stopPointcloudImgAcquisition
-            data_product = 'pointcloud_image'
-
-            start_data_function = self.getPointcloudImg
-            stop_data_function = self.stopPointcloudImgAcquisition
-            data_msg = Image
-            data_status_msg = ImageStatus
-
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
-            self.pointcloud_img_thread = threading.Thread(target=self.runPointcloudImgThread)
-            self.pointcloud_img_thread.daemon = True # Daemon threads are automatically killed on shutdown
-
-            self.caps_report.has_pointcloud_image = True
-
-        else:
-            pass
-            self.caps_report.has_pointcloud_image = False
-
-
-        self.caps_report.data_products = str(self.data_products_list)
-
-        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_list))
+        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_base_list))
 
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates= {}
-        for d in self.data_products_list:
+        for d in self.data_products_save_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'image' in self.data_products_list:
-            factory_data_rates['image'] = [1.0, 0.0, 100.0] 
+        if 'color_image' in self.data_products_save_list:
+            factory_data_rates['color_image'] = [1.0, 0.0, 100.0] 
         
 
         factory_filename_dict = {
@@ -743,7 +720,7 @@ class IDXDeviceIF:
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
         sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
-        self.save_data_if = SaveDataIF(data_products = self.data_products_list,
+        self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
@@ -751,7 +728,7 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
 
-        for data_product in self.data_products_list:
+        for data_product in self.data_products_base_list:
             self.last_data_time[data_product] = nepi_utils.get_time()
             self.current_fps[data_product] = 0
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
@@ -880,17 +857,17 @@ class IDXDeviceIF:
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
-        self.data_products_list.append(data_product)
+        self.data_products_save_list.append(data_product)
         if data_product == 'color_image':
-            self.data_products_list.append(data_product + '_raw')
+            pass
         elif data_product == 'bw_image':
-            self.data_products_list.append(data_product + '_raw')
+            pass
         elif data_product == 'intensity_map':
-            self.data_products_list.append(data_product + '_image')
+            self.data_products_save_list.append(data_product + '_image')
         elif data_product == 'depth_map':
-            self.data_products_list.append(data_product + '_image')
+            self.data_products_save_list.append(data_product + '_image')
         elif data_product == 'pointcloud':
-            self.data_products_list.append(data_product + '_image')
+            self.data_products_save_list.append(data_product + '_image')
         self.data_product_dict[data_product] = dp_dict
 
         # do wait here for all
@@ -1072,7 +1049,7 @@ class IDXDeviceIF:
             status, err_str = self.setFramerateRatio(new_framerate)
         self.status_msg.framerate_ratio = new_framerate
         self.publishStatus(do_updates=False) # Updated inline here
-        for data_product in self.data_products_list:
+        for data_product in self.data_products_base_list:
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
         self.node_if.set_param('framerate_ratio', new_framerate)
 
@@ -1255,10 +1232,7 @@ class IDXDeviceIF:
                         self.img_height = cv2_shape[0]             
                         
 
-                        # Save the raw image is time
-                        raw_data_product = data_product + '_raw'
-                        self.save_data_if.save(raw_data_product,cv2_img,timestamp = timestamp,save_check=False)
-                        # Now process the imageIF data
+                        # Now process and publish image
                         if (dp_has_subs == True or dp_should_save == True):
                             #Publish Ros Image
                             frame_id = self.node_if.get_param('frame_id')
@@ -1511,21 +1485,19 @@ class IDXDeviceIF:
             self.status_msg.resolution_current = res_str
 
             self.status_msg.framerate_ratio = param_dict['framerate_ratio'] if 'framerate_ratio' in param_dict else 0
-            self.status_msg.data_products = self.data_products_list
+            self.status_msg.data_products = self.data_products_base_list
             framerates = []
             for dp in self.current_fps.keys():
                 framerates.append(self.current_fps[dp])
             self.status_msg.framerates = framerates
 
-
-            self.status_msg.controls_enable = param_dict['controls_enable'] if 'controls_enable' in param_dict else True
-            self.status_msg.auto_adjust = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
-            self.status_msg.contrast = param_dict['contrast'] if 'contrast' in param_dict else 0
-            self.status_msg.brightness = param_dict['brightness'] if 'brightness' in param_dict else 0
-            self.status_msg.threshold = param_dict['thresholding'] if 'thresholding' in param_dict else 0
+            self.status_msg.auto_adjust_enabled = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
+            self.status_msg.contrast_ratio = param_dict['contrast'] if 'contrast' in param_dict else 0
+            self.status_msg.brightness_ratio = param_dict['brightness'] if 'brightness' in param_dict else 0
+            self.status_msg.threshold_ratio = param_dict['thresholding'] if 'thresholding' in param_dict else 0
             
-            self.status_msg.range_window.start_range = self.node_if.get_param('range_window/start_range_ratio')
-            self.status_msg.range_window.stop_range =  self.node_if.get_param('range_window/stop_range_ratio')
+            self.status_msg.range_window_ratios.start_range = self.node_if.get_param('range_window/start_range_ratio')
+            self.status_msg.range_window_ratios.stop_range =  self.node_if.get_param('range_window/stop_range_ratio')
             self.status_msg.min_range_m = self.node_if.get_param('range_limits/min_range_m')
             self.status_msg.max_range_m = self.node_if.get_param('range_limits/max_range_m')
             # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
@@ -1541,9 +1513,6 @@ class IDXDeviceIF:
             self.status_msg.frame_3d_transform = transform_msg
             
             self.status_msg.frame_id = param_dict['frame_id'] if 'frame_id' in param_dict else "nepi_center_frame"
-            self.status_msg.zoom = self.zoom_ratio
-            self.status_msg.rotate = self.rotate_ratio
-            self.status_msg.tilt = self.tilt_ratio
             self.msg_if.pub_debug("Got status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
     

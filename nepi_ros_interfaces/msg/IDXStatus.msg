@@ -32,23 +32,22 @@ string resolution_current
 
 float32 framerate_ratio
 string[] data_products
-string[] data_product_types
 float32[] framerates
 
 bool auto_adjust_enabled
 
 # The contrast field indicates the 0.0 - 1.0 contrast setting of the device
-float32 contrast
+float32 contrast_ratio
 
 # The brightness field indicates the 0.0 - 1.0 brightness setting of the device
-float32 brightness
+float32 brightness_ratio
 
 # The thresholding field indicates the 0.0 - 1.0 thresholding setting of the device
-float32 threshold
+float32 threshold_ratio
 
 # The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-RangeWindow range_window
+RangeWindow range_window_ratios
 
 # Input Transform for data from sensor's native sensor frame to the nepi_center_frame 
 nepi_ros_interfaces/Frame3DTransform frame_3d_transform

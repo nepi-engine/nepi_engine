@@ -33,13 +33,14 @@ class NepiDeviceIDX extends Component {
   constructor(props) {
     super(props)
 
-    this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
-    this.onTopicIDXSelected = this.onTopicIDXSelected.bind(this)
-    this.clearTopicIDXSelection = this.clearTopicIDXSelection.bind(this)
-    this.createTopicOptions = this.createTopicOptions.bind(this)
-    this.createImageOptions = this.createImageOptions.bind(this)
+    this.onDeviceSelected = this.onDeviceSelected.bind(this)
+    this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
+    this.createDeviceOptions = this.createDeviceOptions.bind(this)
 
-    //const idxNamespaces = Object.keys(props.ros.idxDevices)
+    this.createDataProductOptions = this.createDataProductOptions.bind(this)
+    this.onDataProductSelected = this.onDataProductSelected.bind(this)
+
+    //const namespaces = Object.keys(props.ros.idxDevices)
 
 
     
@@ -48,123 +49,127 @@ class NepiDeviceIDX extends Component {
       show_controls: true,
       show_settings: true,
       show_save_data: true,
+
+      data_topic: null,
+      data_product: 'None',
+      imageTopic: null,
+      imageText: 'None',      
       
       // IDX Sensor topic to subscribe to and update
-      currentIDXNamespace: null,
-      currentIDXNamespaceText: "No sensor selected"
+      namespace: null,
+      namespaceText: "No sensor selected"
     }
   }
 
 
   // Function for creating topic options for Select input
-  createTopicOptions(topics, filter) {
-    var filteredTopics = topics
-    var i
-    if (filter) {
-      filteredTopics = []
-      for (i = 0; i < topics.length; i++) {
-        // includes does a substring search
-        if (topics[i].includes(filter)) {
-          filteredTopics.push(topics[i])
-        }
-      }
-    }
+  createDeviceOptions(topics) {
 
     var items = []
     items.push(<Option>{"None"}</Option>)
-    //var unique_names = createShortUniqueValues(filteredTopics)
+    //var unique_names = createShortUniqueValues(topics)
     var device_name = ""
-    for (i = 0; i < filteredTopics.length; i++) {
-      device_name = filteredTopics[i].split('/idx')[0].split('/').pop()
-      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
+    for (var i = 0; i < topics.length; i++) {
+      device_name = topics[i].split('/idx')[0].split('/').pop()
+      items.push(<Option value={topics[i]}>{device_name}</Option>)
     }
     // Check that our current selection hasn't disappeard as an available option
-    const { currentIDXNamespace } = this.state
-    if ((currentIDXNamespace != null) && (! filteredTopics.includes(currentIDXNamespace))) {
-      this.clearTopicIDXSelection()
+    const { namespace } = this.state
+    if ((namespace != null) && (! topics.includes(namespace))) {
+      this.clearDeviceSelection()
     }
 
     return items
   }
 
-  createImageOptions(idxNamespace) {
-    var items = []
-    items.push(<Option>{"None"}</Option>)
 
-    const image_topics = this.props.ros.imageTopics
-    var sensor_img_topics = []
-
-    for (var i = 0; i < image_topics.length; i++) {
-      const topic = image_topics[i]
-      if (topic.startsWith(idxNamespace) === false || image_topics[i].includes("idx") === false || image_topics[i].includes("depth_map")) {
-        continue
-      }
-      sensor_img_topics.push(topic)
-    }
-
-    const sensor_img_topics_short = createShortUniqueValues(sensor_img_topics)
-    for (i = 0; i < sensor_img_topics.length; i++) {
-      const dp_name = sensor_img_topics_short[i].replace('_image','')
-      items.push(<Option value={sensor_img_topics[i]}>{dp_name}</Option>)
-    }
-    return items    
-  }
-
-  clearTopicIDXSelection() {
+  clearDeviceSelection() {
     this.setState({
-      currentIDXNamespace: null,
-      currentIDXNamespaceText: "No sensor selected",
-      imageTopic_0: "None",
-      imageText_0: "None"        
+      namespace: null,
+      namespaceText: "No sensor selected",
+      imageTopic: "None",
+      imageText: "None"        
     })
   }
 
   // Handler for IDX Sensor topic selection
-  onTopicIDXSelected(event) {
-    var idx = event.nativeEvent.target.selectedIndex
-    var text = event.nativeEvent.target[idx].text
+  onDeviceSelected(event) {
+    var index = event.nativeEvent.target.selectedIndex
+    var text = event.nativeEvent.target[index].text
     var value = event.target.value
 
     // Handle the "None" option -- always index 0
-    if (idx === 0) {
-      this.clearTopicIDXSelection()
+    if (index === 0) {
+      this.clearDeviceSelection()
       return
     }
     else{
       var autoSelectedImgTopic = null
       var autoSelectedImgTopicText = null
       const capabilities = this.props.ros.idxDevices[value]
-      if (capabilities.has_image) {
-        autoSelectedImgTopic = value.concat("/image")
-        autoSelectedImgTopicText = 'image'
+      if (capabilities.has_color_image) {
+        autoSelectedImgTopic = value + '/color_image'
+        autoSelectedImgTopicText = 'color_image'
       }
 
       this.setState({
-        currentIDXNamespace: value,
-        currentIDXNamespaceText: text,
-        imageTopic_0: autoSelectedImgTopic,
-        imageText_0: autoSelectedImgTopicText
+        namespace: value,
+        namespaceText: text,
+        imageTopic: autoSelectedImgTopic,
+        imageText: autoSelectedImgTopicText
       })
     }
   }
 
+
+  createDataProductOptions(namespace) {
+    const capabilities = this.props.ros.idxDevices[namespace]
+    const data_products = capabilities ? capabilities.data_products : []
+
+    var items = []
+    items.push(<Option value={"None"}>{"None"}</Option>)
+    var data_product
+    var data_topic
+
+    for (var i = 0; i < data_products.length; i++) {
+      data_product = data_products[i]
+      data_topic = namespace + '/' + data_product
+      items.push(<Option value={data_topic}>{data_product}</Option>)
+    }
+    return items    
+  }
+
+
   // Handler for Image topic selection
-  onImageTopicSelected(event) {
-    var idx = event.nativeEvent.target.selectedIndex
-    var text = event.nativeEvent.target[idx].text
+  onDataProductSelected(event) {
+    var index = event.nativeEvent.target.selectedIndex
+    var text = event.nativeEvent.target[index].text
     var value = event.target.value
 
+    var img_topic = null
+    var img_text = 'None'
+    if (text !== 'None') {
+      img_topic = value
+      img_text = text
+    }
+
+    if (img_topic != null && text.indexOf('image') === -1){
+      img_topic = img_topic + '_image'
+    }
+
     this.setState({
-      imageTopic_0: value,
-      imageText_0: text === "None" ? null : text
+      data_topic: value,
+      data_product: text,
+      imageTopic: img_topic,
+      imageText: img_text
     })
   }
 
   renderDeviceSelection() {
     const { idxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
-    const SensorSelected = (this.state.currentIDXNamespace != null)
-    const namespace = this.state.currentIDXNamespace
+    const device_selected = (this.state.namespace != null)
+    const namespace = this.state.namespace
 
     return (
       <React.Fragment>
@@ -175,24 +180,24 @@ class NepiDeviceIDX extends Component {
               <Columns>
               <Column>
               
-                <Label title={"Sensor"}>
+                <Label title={"Device"}>
                   <Select
-                    onChange={this.onTopicIDXSelected}
+                    onChange={this.onDeviceSelected}
                     value={namespace}
                   >
-                    {this.createTopicOptions(Object.keys(idxDevices))}
+                    {this.createDeviceOptions(Object.keys(idxDevices))}
                   </Select>
                 </Label>
                
-                <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
-                  <Label title={"Image"}>
+                <div align={"left"} textAlign={"left"} hidden={!device_selected}>
+                  <Label title={"Data Product"}>
                     <Select
-                      id="topicSelect_0"
-                      onChange={this.onImageTopicSelected}
-                      value={this.state.imageTopic_0}
+                      id="topicSelect"
+                      onChange={this.onDataProductSelected}
+                      value={this.state.imageTopic}
                     >
                       {namespace
-                        ? this.createImageOptions(namespace)
+                        ? this.createDataProductOptions(namespace)
                         : NoneOption}
                     </Select>
                   </Label>
@@ -204,7 +209,7 @@ class NepiDeviceIDX extends Component {
               </Column>
             </Columns>
 
-            <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
+            <div align={"left"} textAlign={"left"} hidden={!device_selected}>
 
               <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -246,13 +251,15 @@ class NepiDeviceIDX extends Component {
   }
 
   renderImageViewer() {
+    const image_topic = this.state.image_topic
+    const image_text = this.state.image_text
     return (
       <React.Fragment>
         <Columns>
           <Column equalWidth={false}>
             <ImageViewer
-              imageTopic={this.state.imageTopic_0}
-              title={this.state.imageText_0}
+              imageTopic={image_topic}
+              title={image_text}
               hideQualitySelector={false}
             />
           </Column>
@@ -263,9 +270,10 @@ class NepiDeviceIDX extends Component {
 
 
   render() {
-    const SensorSelected = (this.state.currentIDXNamespace != null)
-    const ImageName = this.state.imageText_0
-    const namespace = this.state.currentIDXNamespace
+    const device_selected = (this.state.namespace != null)
+    const namespace = this.state.namespace
+    const data_product = this.state.data_product
+
     
     return (
 
@@ -275,7 +283,7 @@ class NepiDeviceIDX extends Component {
 
           <div style={{ width: "65%" }}>
 
-                    <div hidden={(!SensorSelected)}>
+                    <div hidden={(!device_selected)}>
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"/status"}
@@ -289,7 +297,7 @@ class NepiDeviceIDX extends Component {
 
                     {this.renderImageViewer()}
 
-                    <div hidden={(!SensorSelected)}>
+                    <div hidden={(!device_selected)}>
 
                       <NepiIFSaveData
                           saveNamespace={namespace + ''}
@@ -315,16 +323,16 @@ class NepiDeviceIDX extends Component {
                     {this.renderDeviceSelection()}
 
 
-                    <div hidden={(!SensorSelected && this.state.show_controls)}>
+                    <div hidden={(!device_selected && this.state.show_controls)}>
                       <NepiDeviceIDXControls
-                          idxNamespace={namespace}
-                          idxImageName = {ImageName}
+                          namespace={namespace}
+                          dataProduct={data_product}
                           title={"NepiDeviceIDXControls"}
                       />
                     </div>
 
 
-                    <div hidden={(!SensorSelected && this.state.show_settings)}>
+                    <div hidden={(!device_selected && this.state.show_settings)}>
                       <NepiIFSettings
                         settingsNamespace={namespace + ''}
                         title={"Nepi_IF_Settings"}

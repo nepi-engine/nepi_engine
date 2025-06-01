@@ -63,9 +63,9 @@ class ImageViewer extends Component {
       currentStreamingImageQuality: COMPRESSION_HIGH_QUALITY,
       status_listenter: null,
       status_msg: null,
-      show_stats: false,
-      show_controls: false,
-      show_overlays: false,
+
+      enhance_list_viewable: false,
+
       connected: false
     }
     this.updateFrame = this.updateFrame.bind(this)
@@ -76,6 +76,7 @@ class ImageViewer extends Component {
     this.renderOverlays = this.renderOverlays.bind(this)
     this.renderStats = this.renderStats.bind(this)
     this.getImgStatsText = this.getImgStatsText.bind(this)
+
 
     this.statusListener = this.statusListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
@@ -240,10 +241,11 @@ class ImageViewer extends Component {
     var msg = ""
     if (status_msg != null){
       const get_lat = round(status_msg.get_latency_time, 3)
-      const pup_lat = round(status_msg.pub_latency_time, 3)
+      const pub_lat = round(status_msg.pub_latency_time, 3)
       const proc_time = round(status_msg.process_time, 3)
-      msg = ("\n Get Latency: " + get_lat + "  Publish Latency: " + pup_lat + 
-      "\n Process Times (Image): " + proc_time)
+      msg = ("\n\nGet Latency: " + get_lat + 
+      "\n\nPublish Latency: " + pub_lat + 
+      "\n\nProcess Times (Image): " + proc_time)
     }
     else {
       msg = "No Stats Available"
@@ -255,26 +257,14 @@ class ImageViewer extends Component {
   renderStats() {
    
     if (this.state.status_msg != null){
-      const show_stats = this.state.show_stats
       const img_stats_text = this.getImgStatsText()
       return (
         <Columns>
         <Column>
-    
-        <Label title="Show Stats">
-        <Toggle
-        checked={show_stats===true}
-        onClick={() => onChangeSwitchStateValue.bind(this)("show_stats",this.state.show_stats)}>
-        </Toggle>
-        </Label>
-
-        <div hidden={show_stats == false}>
-
-        <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+         <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
                   {img_stats_text}
                   </pre>
     
-        </div>
         </Column>
         </Columns>
 
@@ -293,18 +283,86 @@ class ImageViewer extends Component {
 
   }
 
+  renderEnhances(namespace, enhance_options, enhance_states, enhance_ratios) {
+    if (enhance_options.length > 0){
+      var enhance_name = ""
+      var enhance_enabled = false
+      var enhance_ratio = 0.0
 
+      for (var i = 0; i < enhance_options.length; i++) {
+        enhance_name = enhance_options[i]
+        enhance_enabled = enhance_states[i]
+        enhance_ratio = enhance_ratios[i]
+        return (
+           
+          <Columns>
+          <Column>
+
+          <Label title={enhance_name.toUpperCase()}/>
+
+                      <Columns>
+                        <Column>
+
+                          <Label title={"Enabled"}>
+                            <Toggle
+                              checked={enhance_enabled === true}
+                              onClick={() => this.props.ros.sendUpdateStateMsg(namespace + "/set_enhance_enable",enhance_name,!enhance_enabled)}>
+                            </Toggle>
+                          </Label>
+
+
+                          </Column>
+                          <Column>
+
+                          </Column>
+                        </Columns>
+
+
+
+                  <div hidden={(enhance_enabled !== true)}>
+                            <SliderAdjustment
+                                title={"Enhance Sensitivity"}
+                                msgType={"std_msgs/Float32"}
+                                adjustment={enhance_ratio}
+                                comp_name={enhance_name}
+                                topic={namespace + "/set_enhance_ratio"}
+                                scaled={0.01}
+                                min={0}
+                                max={100}
+                                tooltip={"Adjustable enhancement sensitivity"}
+                                unit={"%"}
+                            />
+
+                  </div>
+
+
+
+                </Column>
+                </Columns>
+
+                )
+      }
+    }
+    else {
+      return (
+        <Columns>
+        <Column>
+
+        </Column>
+        </Columns>
+      )
+    }
+  }
 
   renderControls() {
 
     const namespace = this.props.imageTopic
 
-    const { imageDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
-    const capabilities = imageDevices[namespace]
+    const { imageCaps, sendTriggerMsg, sendBoolMsg, sendUpdateStateMsg, sendUpdateRatioMsg, setFrame3D } = this.props.ros
+    const capabilities = (imageCaps != null) ? (imageCaps.indexOf(namespace) !== -1 ? imageCaps[namespace] : null) : null
 
    
-    if (this.state.status_msg != null && namespace != null){
-
+    if (this.state.status_msg != null && namespace != null && capabilities != null){
       const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
       const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
       const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
@@ -317,11 +375,14 @@ class ImageViewer extends Component {
       const has_window = (capabilities && capabilities.has_window && !this.state.disabled)
       const has_rotate = (capabilities && capabilities.has_rotate && !this.state.disabled)
       const has_tilt = (capabilities && capabilities.has_tilt && !this.state.disabled)
+      const has_enhances = (capabilities && capabilities.has_enhances && !this.state.disabled)
 
 
       const message = this.state.status_msg
       const resolution_ratio = message.resolution_ratio
+      const resolution_str = message.resolution_current
       const auto_adjust_enabled = message.auto_adjust_enabled
+      const auto_adjust_ratio = message.auto_adjust_ratio
       const brightness_ratio = message.brightness_ratio
       const contrast_ratio = message.contrast_ratio
       const threshold_ratio = message.threshold_ratio
@@ -334,46 +395,27 @@ class ImageViewer extends Component {
       const rotate_ratio = message.rotate_ratio
       const tilt_ratio = message.tilt_ratio
 
-      const show_controls = this.state.show_controls
-
-
+      const enhance_options = message.enhance_options
+      const enhance_states = message.enhance_states
+      const enhance_ratios = message.enhance_ratios
 
       return (
 
         <Columns>
         <Column>
-
-
-                <Columns>
-                  <Column>
-              
-                  <Label title="Show Controls">
-                  <Toggle
-                  checked={show_controls===true}
-                  onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
-                  </Toggle>
-                  </Label>
-
-                  </Column>
-                  <Column>
-
-                </Column>
-              </Columns>
-
-      
+ 
  
 
-              <div hidden={(has_resolution !== true  || show_controls == false)}>
+              <div hidden={(has_resolution !== true )}>
 
                             <SliderAdjustment
                                   title={"Resolution"}
                                   msgType={"std_msgs/Float32"}
-                                  adjustment={this.state.resolutionAdjustment}
-                                  topic={this.props.idxNamespace + '/set_resolution_ratio'}
+                                  adjustment={resolution_ratio}
+                                  topic={namespace + '/set_resolution_ratio'}
                                   scaled={0.01}
                                   min={0}
                                   max={100}
-                                  disabled={(capabilities && !this.state.disabled)? false : true}
                                   tooltip={"Adjustable Resolution"}
                                   unit={"%"}
                               />
@@ -386,8 +428,8 @@ class ImageViewer extends Component {
 
                           <Label title={"Current Resolution"}>
                         <Input
-                          value={this.state.resolutionString}
-                          id="framerate"
+                          value={resolution_str}
+                          id="cur_res"
                           style={{ width: "100%" }}
                           disabled={true}
                         />
@@ -399,21 +441,20 @@ class ImageViewer extends Component {
             </div>
 
 
+            {this.renderEnhances(namespace, enhance_options, enhance_states, enhance_ratios)}
 
 
-            <div hidden={(has_auto_adjust !== true  || show_controls == false)}>
+            <div hidden={(has_auto_adjust !== true )}>
             
                     <Columns>
                     <Column>
 
-
-
                             <Label title={"Auto Adjust"}>
-                                <Toggle
-                                  checked={this.state.autoAdjust}
-                                  onClick={() => setIdxAutoAdjust(this.props.idxNamespace,!this.state.autoAdjust)}
-                                /> 
-                              </Label>
+                              <Toggle
+                                checked={auto_adjust_enabled===true}
+                                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_auto_adjust_enable",!auto_adjust_enabled)}>
+                              </Toggle>
+                            </Label>
 
 
                         </Column>
@@ -425,16 +466,30 @@ class ImageViewer extends Component {
                 </div>
 
 
-          <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+            <div hidden={(has_auto_adjust !== true || auto_adjust_enabled !== true )}>
+                      <SliderAdjustment
+                          title={"Auto Adjust Sensitivity"}
+                          msgType={"std_msgs/Float32"}
+                          adjustment={auto_adjust_ratio}
+                          topic={namespace + "/set_auto_adjust_ratio"}
+                          scaled={0.01}
+                          min={0}
+                          max={100}
+                          tooltip={"Adjustable Adjust"}
+                          unit={"%"}
+                      />
+
+            </div>
+
+          <div hidden={(auto_adjust_enabled !== false )}>
                       <SliderAdjustment
                           title={"Brightness"}
                           msgType={"std_msgs/Float32"}
                           adjustment={this.state.brightnessAdjustment}
-                          topic={this.props.idxNamespace + "/set_brightness"}
+                          topic={namespace + "/set_brightness"}
                           scaled={0.01}
                           min={0}
                           max={100}
-                          disabled={(capabilities && capabilities.has_brightness && !this.state.disabled)? false : true}
                           tooltip={"Adjustable brightness"}
                           unit={"%"}
                       />
@@ -442,32 +497,30 @@ class ImageViewer extends Component {
             </div>
 
 
-            <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+            <div hidden={(auto_adjust_enabled !== false )}>
                       <SliderAdjustment
                         title={"Contrast"}
                         msgType={"std_msgs/Float32"}
-                        adjustment={this.state.contrastAdjustment}
-                        topic={this.props.idxNamespace + "/set_contrast"}
+                        adjustment={contrast_ratio}
+                        topic={namespace + "/set_contrast"}
                         scaled={0.01}
                         min={0}
                         max={100}
-                        disabled={(capabilities && capabilities.has_contrast && !this.state.disabled)? false : true}
                         tooltip={"Adjustable contrast"}
                         unit={"%"}
                       />
 
             </div>
 
-            <div hidden={(this.state.autoAdjust !== true  || show_controls == false)}>
+            <div hidden={(auto_adjust_enabled !== false )}>
                       <SliderAdjustment
                           title={"Thresholding"}
                           msgType={"std_msgs/Float32"}
-                          adjustment={this.state.thresholdAdjustment}
-                          topic={this.props.idxNamespace + "/set_threshold"}
+                          adjustment={threshold_ratio}
+                          topic={namespace + "/set_threshold"}
                           scaled={0.01}
                           min={0}
                           max={100}
-                          disabled={(capabilities && capabilities.has_threshold && !this.state.disabled)? false : true}
                           tooltip={"Adjustable threshold"}
                           unit={"%"}
                       />
@@ -476,27 +529,27 @@ class ImageViewer extends Component {
 
 
 
-            <div hidden={(has_range !== true  || show_controls == false)}>
+            <div hidden={(has_range !== true )}>
                     <RangeAdjustment
                       title="Range Clip"
-                      min={this.state.rangeMin}
-                      max={this.state.rangeMax}
-                      min_limit_m={this.state.rangeLimitMinM}
-                      max_limit_m={this.state.rangeLimitMaxM}
-                      topic={this.props.idxNamespace + "/set_range_window"}
-                      tooltip={"Adjustable range"}
-                      unit={"m"}
+                      min={range_start_ratio}
+                      max={range_stop_ratio}
+                      min_limit_m={0.2}
+                      max_limit_m={1.0}
+                      topic={namespace + "/set_range_window"}
+                      tooltip={"Adjustable range raio"}
+                      unit={"%"}
                     />
           </div>
 
 
-          <div hidden={(has_zoom !== true  || show_controls == false)}>
+          <div hidden={(has_zoom !== true )}>
 
                       <SliderAdjustment
                             title={"Zoom"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.zoomAdjustment}
-                            topic={this.props.idxNamespace + "/set_zoom_ratio"}
+                            adjustment={zoom_ratio}
+                            topic={namespace + "/set_zoom_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -506,13 +559,13 @@ class ImageViewer extends Component {
                         />
           </div>
 
-          <div hidden={(has_pan !== true  || show_controls == false)}>
+          <div hidden={(has_pan !== true )}>
 
                       <SliderAdjustment
                             title={"Pan Left-Right"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.rotateAdjustment}
-                            topic={this.props.idxNamespace + "/set_pan_lr_ratio"}
+                            adjustment={pan_lr_ratio}
+                            topic={namespace + "/set_pan_lr_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -524,8 +577,8 @@ class ImageViewer extends Component {
                       <SliderAdjustment
                             title={"Pan Up-Down"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.rotateAdjustment}
-                            topic={this.props.idxNamespace + "/set_pan_up_ratio"}
+                            adjustment={pan_ud_ratio}
+                            topic={namespace + "/set_pan_up_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -536,13 +589,13 @@ class ImageViewer extends Component {
 
           </div>
 
-          <div hidden={(has_rotate !== true  || show_controls == false)}>
+          <div hidden={(has_rotate !== true )}>
 
                       <SliderAdjustment
                             title={"Rotate"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.rotateAdjustment}
-                            topic={this.props.idxNamespace + "/set_rotate_ratio"}
+                            adjustment={rotate_ratio}
+                            topic={namespace + "/set_rotate_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -553,13 +606,13 @@ class ImageViewer extends Component {
 
           </div>
 
-          <div hidden={(has_tilt !== true  || show_controls == false)}>
+          <div hidden={(has_tilt !== true )}>
 
                         <SliderAdjustment
                             title={"Tilt"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.tiltAdjustment}
-                            topic={this.props.idxNamespace + "/set_tilt_ratio"}
+                            adjustment={tilt_ratio}
+                            topic={namespace + "/set_tilt_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
@@ -589,14 +642,11 @@ class ImageViewer extends Component {
 
   }
 
-
-
   renderOverlays() {
 
     const namespace = this.props.imageTopic
    
     if (this.state.status_msg != null && namespace != null){
-      const show_overlays = this.state.show_overlays
       const message = this.state.status_msg
       const name = message.overlay_img_name
       const date = message.overlay_date_time
@@ -608,26 +658,6 @@ class ImageViewer extends Component {
 
         <Columns>
         <Column>
-
-
-              <Columns>
-              <Column>
-          
-              <Label title="Show Overlays">
-              <Toggle
-              checked={show_overlays===true}
-              onClick={() => onChangeSwitchStateValue.bind(this)("show_overlays",this.state.show_overlays)}>
-              </Toggle>
-              </Label>
-
-              </Column>
-              <Column>
-
-              </Column>
-            </Columns>
-
-        <div hidden={show_overlays == false}>
-
             <Columns>
             <Column>
 
@@ -666,7 +696,6 @@ class ImageViewer extends Component {
                 </Column>
               </Columns>
 
-       </div>
 
       </Column>
       </Columns>
@@ -701,10 +730,14 @@ class ImageViewer extends Component {
       this.setState({currentStreamingImageQuality: streamingImageQuality})
     }
 
+    const show_controls = this.props.show_controls ? this.props.show_controls : true
+
     return (
       <Section title={this.props.title}>
 
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
+
+        <div hidden={(show_controls !== true )}>
 
         <Columns>
           <Column>
@@ -724,6 +757,8 @@ class ImageViewer extends Component {
 
           </Column>
         </Columns>
+
+        </div>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
 

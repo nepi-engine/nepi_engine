@@ -23,6 +23,9 @@ bool has_window
 bool has_rotate
 bool has_tilt
 
+bool has_enhances
+string[] enhance_options
+
 # If supported
 
 bool has_depth_map

@@ -20,9 +20,11 @@ string frame_id
 
 # The resolution field indicates the 0.0 - 1.0 brightness setting of the device
 float32 resolution_ratio
+string resolution_current
 
-# Enable or Disable IDX auto adjusting brightness, contrast, and threshold control
+# Enable or Disable auto adjusting brightness, contrast, and threshold control
 bool auto_adjust_enabled
+float32 auto_adjust_ratio
 
 # The contrast field indicates the 0.0 - 1.0 contrast setting of the device
 float32 contrast_ratio
@@ -53,6 +55,9 @@ float32 rotate_ratio
 # The tilt field 0.0 - 1.0 
 float32 tilt_ratio
 
+string[] enhance_names
+bool[] enhance_states
+float32[] enhance_ratios
 
 # Overlay Controls
 bool overlay_img_name

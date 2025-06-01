@@ -10,7 +10,7 @@ bool has_contrast
 bool has_brightness
 bool has_threshold
 bool has_range
-bool has_auto_adjustment
+bool has_auto_adjust
 
 bool has_color_image
 bool has_bw_image
@@ -20,7 +20,9 @@ bool has_pointcloud
 
 string[] frame_id_options
 
-# Data products supported by IDX node is a string of supported data products that can be subscribed to or saved
+
+
+# Data products supported by is a string of supported data products managed by node
 #SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
 #                            'intensity_map','depth_map','pointcloud']
 string[] data_products

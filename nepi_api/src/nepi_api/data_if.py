@@ -33,7 +33,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseStatus, Heading, Elevation
 
 from sensor_msgs.msg import Image
-from nepi_ros_interfaces.msg import StringArray, ImageWindow, ImageStatus
+from nepi_ros_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindow, ImageStatus
 from nepi_ros_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_ros_interfaces.msg import DepthMapStatus, RangeWindow
@@ -855,7 +855,7 @@ FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
 
 EXAMPLE_CAPS_DICT = dict( 
         has_resolution = False,
-        has_auto_adjust = False,
+        has_auto_adjust_enabed = False,
         has_contrast = False,
         has_brightness = False,
         has_thresholding = False,
@@ -867,9 +867,16 @@ EXAMPLE_CAPS_DICT = dict(
         has_tilt = False
     )
 
+EXAMPLE_ENHANCEMENTS_DICT = dict(
+    low_light = {
+        'enabled': False,
+        'ratio': 0.0
+    }
+)
+
 EXAMPLE_CONTROLS_DICT = dict( 
     resolution_ratio = 1.0,
-    auto_adjust = False,
+    auto_adjust_enabed = False,
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
@@ -890,7 +897,8 @@ class ImageIF:
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
         has_resolution = False,
-        has_auto_adjust = False,
+        has_auto_adjust_enabed = False,
+        auto_adjust_ration = 0.3,
         has_contrast = False,
         has_brightness = False,
         has_thresholding = False,
@@ -902,11 +910,13 @@ class ImageIF:
         has_tilt = False
         )
 
+    DEFAULT_ENHANCEMENTS_DICT = dict()
 
     #Default Control Values 
     DEFAULT_CONTROLS_DICT = dict( 
         resolution_ratio = 1.0,
-        auto_adjust = False,
+        auto_adjust_enabed = False,
+        auto_adjust_ration = 0.3,
         brightness_ratio = 0.5,
         contrast_ratio =  0.5,
         threshold_ratio =  0.0,
@@ -936,7 +946,6 @@ class ImageIF:
     nav_mgr_if = None
     nav_mgr_ready = False
 
-    raw_has_subs = False
     has_subs = False
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
@@ -960,12 +969,18 @@ class ImageIF:
             add_overlay_list = []
     )
 
+    enhance_dict = dict()
+    has_enhance = False
+    enhance_options = []
+    sel_ehnances = []
+
+
     def __init__(self, namespace = None , 
                 data_name = 'image',
                 data_type = 'image',
                 caps_dict = None,
                 controls_dict = None, 
-                pub_raw_image = False,
+                enhance_dict = None,
                 params_dict = None,
                 services_dict = None,
                 pubs_dict = None,
@@ -998,11 +1013,17 @@ class ImageIF:
 
         if data_name is None:
             data_name = self.data_type
+        self.data_name = data_name
+
         data_products_list = [get_image_data_products(data_name)]
-        self.pub_raw_image = pub_raw_image
-        if self.pub_raw_image == True:
-            data_products_list.append(data_name + '_raw')
         self.data_products_list = data_products_list
+
+        if data_type is None:
+            data_type = self.data_type
+        self.data_type = data_type
+
+
+
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = copy.deepcopy(self.namespace)
@@ -1010,15 +1031,22 @@ class ImageIF:
         self.namespace = nepi_ros.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
+
+        # Setup enhance dict
+        if enhance_dict is not None:
+            self.enhance_dict = enhance_dict
+            self.enhance_options = list(self.enhance_dict.keys())
+            if len(self.enhance_options) > 0:
+                self.has_enhance = True
+
+
+
         # Create and update capabilities dictionary
         if caps_dict is not None:
             for cap in self.caps_dict.keys():
                 if caps_dict.get(cap) != None:
                     self.caps_dict[cap] = caps_dict[cap]
 
-        if data_type is None:
-            data_type = self.data_type
-        self.data_type = data_type
 
 
         self.caps_report.data_type = self.data_type
@@ -1037,6 +1065,8 @@ class ImageIF:
         self.caps_report.has_rotate = self.caps_dict['has_rotate']
         self.caps_report.has_tilt = self.caps_dict['has_tilt']
 
+        self.caps_report.has_enhances = self.has_enhance
+        self.caps_report.enhance_options = self.enhance_options
 
         dm_ns = nepi_ros.create_namespace(os.path.dirname(self.namespace),'depth_map')
         dm_topic = nepi_ros.find_topic(dm_ns)
@@ -1084,32 +1114,36 @@ class ImageIF:
         PARAMS_DICT = {
 
             'resolution_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["resolution_ratio"]
             },
-            'auto_adjust': {
-                'namespace': self.node_namespace,
+            'auto_adjust_enabled': {
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["auto_adjust"]
             },
-            'brightness': {
-                'namespace': self.node_namespace,
+            'brightness_ratio': {
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["brightness_ratio"]
             },
-            'contrast': {
-                'namespace': self.node_namespace,
+            'contrast_ratio': {
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["contrast_ratio"]
             },
-            'thresholding': {
-                'namespace': self.node_namespace,
+            'threshold_ratio': {
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["threshold_ratio"]
             },
             'start_range_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["start_range_ratio"]
             },
             'stop_range_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
+            },
+            'enhance_dict': {
+                'namespace': self.namespace,
+                'factory_val': self.enhance_dict
             },
             'overlay_img_name': {
                 'namespace': self.namespace,
@@ -1142,7 +1176,7 @@ class ImageIF:
         SRVS_DICT = {
             'image_caps_query': {
                 'namespace': self.base_namespace,
-                'topic': 'image_capabilities_query',
+                'topic': 'capabilities_query',
                 'srv': ImageCapabilitiesQuery,
                 'req': ImageCapabilitiesQueryRequest(),
                 'resp': ImageCapabilitiesQueryResponse(),
@@ -1158,19 +1192,12 @@ class ImageIF:
 
         # Pubs Config Dict ####################
         PUBS_DICT = {
-            'proc_image_pub': {
+            'image_pub_': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
-            },
-            'image_msg_pub': {
-                'msg': Image,
-                'namespace': self.namespace,
-                'topic': '',
-                'qsize': 1,
-                'latch': True
             },
             'status_pub': {
                 'msg': ImageStatus,
@@ -1181,15 +1208,6 @@ class ImageIF:
             }
         }
 
-        # Create a raw image publisher if required
-        if self.pub_raw_image == True:
-            PUBS_DICT['raw_image_pub'] = {
-                'msg': Image,
-                'namespace': self.namespace_raw,
-                'topic': '',
-                'qsize': 1,
-                'latch': False
-            },
 
         if pubs_dict is not None:
             self.PUBS_DICT = pubs_dict | PUBS_DICT
@@ -1199,7 +1217,7 @@ class ImageIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'reset_controls': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 1,
@@ -1268,7 +1286,7 @@ class ImageIF:
         # Create subs if required
         if caps_dict['has_resolution'] == True:
             self.SUBS_DICT['set_resolution'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_resolution_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1278,16 +1296,24 @@ class ImageIF:
 
         if caps_dict['has_auto_adjust'] == True:
             self.SUBS_DICT['set_auto_adjust'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self._setAutoAdjustCb, 
                 'callback_args': ()
             }
+            self.SUBS_DICT['set_auto_adjust_ratio'] = {
+                'namespace': self.namespace,
+                'topic': 'set_auto_adjust_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setAutoAdjustRatioCb, 
+                'callback_args': ()
+            }
         if caps_dict['has_brightness'] == True:
             self.SUBS_DICT['set_brightness'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1296,7 +1322,7 @@ class ImageIF:
             }
         if caps_dict['has_contrast'] == True:
             self.SUBS_DICT['set_contrast'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1305,7 +1331,7 @@ class ImageIF:
             }
         if caps_dict['has_thresholding'] == True:
             self.SUBS_DICT['set_thresholding'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1314,7 +1340,7 @@ class ImageIF:
             }
         if caps_dict['has_range'] == True:
             self.SUBS_DICT['set_range'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_range_window',
                 'msg': RangeWindow,
                 'qsize': 1,
@@ -1323,7 +1349,7 @@ class ImageIF:
             }
         if caps_dict['has_zoom'] == True:
             self.SUBS_DICT['set_zoom'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_zoom_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1332,25 +1358,25 @@ class ImageIF:
             }
         if caps_dict['has_pan'] == True:
             self.SUBS_DICT['set_pan_left_right'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_pan_left_right_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setPanLrCb, 
                 'callback_args': ()
             }
-        if caps_dict['has_pan'] == True:
             self.SUBS_DICT['set_pan_up_down'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_pan_up_down_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setPanUdCb, 
                 'callback_args': ()
             }
+
         if caps_dict['has_window'] == True:
             self.SUBS_DICT['set_window'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_window_ratios',
                 'msg': ImageWindow,
                 'qsize': 1,
@@ -1359,7 +1385,7 @@ class ImageIF:
             }
         if caps_dict['has_rotate'] == True:
             self.SUBS_DICT['set_rotate'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_rotate_ratio',
                 'msg': Float32,
                 'qsize': 1,
@@ -1369,11 +1395,29 @@ class ImageIF:
 
         if caps_dict['has_tilt'] == True:
             self.SUBS_DICT['set_tilt'] = {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setTiltCb, 
+                'callback_args': ()
+            }
+
+        if self.has_enhance == True:
+            self.SUBS_DICT['set_enhance_enable'] = {
+                'namespace': self.namespace,
+                'topic': 'set_tilt_ratio',
+                'msg': UpdateState,
+                'qsize': 1,
+                'callback': self._setEnhanceEnableCb, 
+                'callback_args': ()
+            }
+            self.SUBS_DICT['set_enhance_ratio'] = {
+                'namespace': self.namespace,
+                'topic': 'set_tilt_ratio',
+                'msg': UpdateRatio,
+                'qsize': 1,
+                'callback': self._setEnhanceRatioCb, 
                 'callback_args': ()
             }
 
@@ -1402,7 +1446,8 @@ class ImageIF:
         #############################
         # Set variables to param values
         self.controls_dict['resolution_ratio'] = node_if.get_param('resolution_ratio')
-        self.controls_dict['auto_adjust'] = node_if.get_param('auto_adjust')
+        self.controls_dict['auto_adjust_enabled'] = node_if.get_param('auto_adjust_enabled')
+        self.controls_dict['auto_adjust_ratio'] = node_if.get_param('auto_adjust_ratio')
         self.controls_dict['brightness_ratio'] = node_if.get_param('brightness_ratio')
         self.controls_dict['contrast_ratio'] = node_if.get_param('contrast_ratio')
         self.controls_dict['threshold_ratio'] = node_if.get_param('threshold_ratio')
@@ -1410,6 +1455,7 @@ class ImageIF:
         self.controls_dict['start_range_ratio'] = node_if.get_param('start_range_ratio')
         self.controls_dict['stop_range_ratio'] = node_if.get_param('stop_range_ratio')
 
+        self.enhance_dict = node_if.get_param('enhance_dict')
 
         self.overlays_dict['overlay_img_name'] = node_if.get_param('overlay_img_name')
         self.overlays_dict['overlay_date_time'] = node_if.get_param('overlay_date_time')
@@ -1468,7 +1514,7 @@ class ImageIF:
 
 
     def has_subscribers_check(self):
-        return self.has_subs or self.raw_has_subs
+        return self.has_subs
 
 
     def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
@@ -1477,14 +1523,6 @@ class ImageIF:
         if cv2_img is None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return cv2_img
-
-        # Publish the raw image if required
-        if self.pub_raw_image == True and self.raw_has_subs == True:
-            ros_img = nepi_img.cv2img_to_rosimg(frame_id, encoding=encoding)
-            ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
-            ros_img.header.frame_id = frame_id
-            #self.msg_if.pub_warn("Publishing Image with header: " + str(ros_img.header))
-            self.node_if.publish_pub('raw_image_pub', ros_img)
 
         # Process 
         self.status_msg.encoding = encoding
@@ -1502,13 +1540,14 @@ class ImageIF:
 
         # Start Img Pub Process
         start_time = nepi_utils.get_time()   
-
-        # Publish and Save Raw Image Data if Required  
+ 
         [height,width] = cv2_img.shape[0:2]
         last_width = self.status_msg.width
         last_height = self.status_msg.height
         self.status_msg.width = width
         self.status_msg.height = height
+        res_str = str(self.width) + ":" + str(self.height)
+        self.status_msg.resolution_current = res_str
 
         #self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
@@ -1596,7 +1635,7 @@ class ImageIF:
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
         ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
         ros_img.header.frame_id = frame_id
-        self.node_if.publish_pub('image_msg_pub', ros_img)
+        self.node_if.publish_pub('image_pub', ros_img)
 
 
     def unregister(self):
@@ -1608,27 +1647,37 @@ class ImageIF:
 
 
     def set_resolution_ratio(self, ratio):
-        if (ratio < 0.0 or ratio > 1.0):
-            self.msg_if.pub_error("Resolution value out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
+        if (ratio < 0.2):
+            ratio = 0.2
+        if (ratio > 1.0):
+            ratio = 1.0
+        self.msg_if.pub_error("Resolution value out of bounds, using: " + str(ratio), log_name_list = self.log_name_list)
         self.controls_dict['resolution_ratio'] = ratio
         self.status_msg.resolution_ratio = ratio
         self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('resolution_ratio', ratio)
 
 
-    def set_auto_adjust(self, enabled):
-        enabled = msg.data
+    def set_auto_adjust_enable(self, enabled):
         if enabled:
             self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_info("Disabling Auto Adjust", log_name_list = self.log_name_list)
-        self.controls_dict['auto_adjust'] = enabled
+        self.controls_dict['auto_adjust_enabled'] = enabled
         self.status_msg.auto_adjust_enabled = enabled
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust', enabled)
+        self.node_if.set_param('auto_adjust_enabled', enabled)
 
+
+    def set_auto_adjust_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['auto_adjust_ratio'] = ratio
+        self.status_msg.auto_adjust_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('auto_adjust_ratio', ratio)
 
     def set_brightness_ratio(self, ratio):
         if ratio < 0:
@@ -1734,6 +1783,33 @@ class ImageIF:
         self.publish_status(do_updates=False) # Updated inline here
 
 
+    def set_enhance_enable(self,name, enabled):
+        if name in self.enhnace_dict.keys():
+            was_enabled = self.enhnace_dict[name]['enabled']
+            if was_enabled != enabled:
+                if enable == True:
+                    self.msg_if.pub_info("Enabling Enhancment: " + name, log_name_list = self.log_name_list)
+                else:
+                    self.msg_if.pub_info("Disabling Enhancment: " + name, log_name_list = self.log_name_list)
+                self.enhnace_dict[name]['enabled'] = enabled
+                self.publish_status(do_updates=False) # Updated inline here
+                self.node_if.set_param('enhnace_dict', self.enhnace_dict)
+
+
+    def set_enhance_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        if name in self.enhnace_dict.keys():
+            self.msg_if.pub_info("Setting Enhancment Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
+            self.enhnace_dict[name]['ratio'] = ratio
+            self.publish_status(do_updates=False) # Updated inline here
+            self.node_if.set_param('enhnace_dict', self.enhnace_dict)
+
+
+
+
     def set_overlay_image_name(self,enabled):
         self.overlays_dict['overlay_img_name'] = enabled
         self.status_msg.overlay_img_name = enabled
@@ -1786,7 +1862,8 @@ class ImageIF:
         self.node_if.reset_params()
         self.controls_dict = self.init_controls_dict # Resets non param managed values
         self.controls_dict['resolution_ratio'] = node_if.get_param('resolution_ratio')
-        self.controls_dict['auto_adjust'] = node_if.get_param('auto_adjust')
+        self.controls_dict['auto_adjust_enabled'] = node_if.get_param('auto_adjust_enabled')
+        self.controls_dict['auto_adjust_ratio'] = node_if.get_param('auto_adjust_ratio')
         self.controls_dict['brightness_ratio'] = node_if.get_param('brightness_ratio')
         self.controls_dict['contrast_ratio'] = node_if.get_param('contrast_ratio')
         self.controls_dict['threshold_ratio'] = node_if.get_param('threshold_ratio')
@@ -1807,7 +1884,8 @@ class ImageIF:
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
-            self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust']
+            self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
+            self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
             self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
             self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
             self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
@@ -1823,13 +1901,24 @@ class ImageIF:
             self.status_msg.rotate_ratio = self.controls_dict['rotate_ratio']
             self.status_msg.tilt_ratio = self.controls_dict['tilt_ratio']
 
+            enhance_options = []
+            enhance_states = []
+            ehnance_ratios = []
+            for name in self.ehnance_dict.keys():
+                e_dict = self.ehnance_dict[name]
+                enhance_options.append(name)
+                enhance_states.append(e_dict['enabled'])
+                enhance_ratios.append(e_dict['ratio'])
+            self.status_msg.enhance_options = enhance_options
+            self.status_msg.enhance_states = enhance_states
+            self.status_msg.ehnance_ratios = ehnance_ratios
 
-            self.status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-            self.status_msg.overlay_date_time =  self.node_if.get_param('overlay_date_time')
-            self.status_msg.overlay_nav = self.node_if.get_param('overlay_nav')
-            self.status_msg.overlay_pose = self.node_if.get_param('overlay_pose')  
+            self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
+            self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
+            self.status_msg.overlay_nav = self.overlays_dict['overlay_nav']
+            self.status_msg.overlay_pose = self.overlays_dict['overlay_pose']  
             self.status_msg.base_overlay_list = self.init_overlay_list
-            self.status_msg.add_overlay_list = add_overlays = self.node_if.get_param('overlay_list')
+            self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
 
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
@@ -1871,10 +1960,14 @@ class ImageIF:
 
 
     def _setAutoAdjustCb(self, msg):
-        self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Recived Auto Adjust Enable update message: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
         self.set_auto_adjust(enabled)
 
+    def _setAutoAdjustRatioCb(self, msg):
+        self.msg_if.pub_info("Recived Auto Adjust Ratio update message: " + str(msg), log_name_list = self.log_name_list)
+        ratio = msg.data
+        self.set_auto_adjust_ratio(ratio)
 
     def _setBrightnessCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg), log_name_list = self.log_name_list)
@@ -1934,6 +2027,21 @@ class ImageIF:
     def _setTiltCb(self, msg):
         ratio = msg.data
         self.set_tilt_ratio(ratio) 
+
+    def _setEnhanceEnableCb(self, msg):
+        self.msg_if.pub_info("Recived Enable Enhacement message: " + str(msg))
+        name = msg.name
+        enabled = msg.active_state
+        self.set_ehnance_enable(name,enabled) 
+
+    def _setEnhanceRatioCb(self, msg):
+        self.msg_if.pub_info("Recived Ehnacement Ratio update message: " + str(msg))
+        name = msg.name
+        ratio = msg.ratio
+        self.set_ehnance_ratio(name,ratio) 
+
+
+
 
 
     def _setOverlayImgNameCb(self,msg):
@@ -2010,11 +2118,18 @@ class ColorImageIF(Image):
         has_tilt = False
         )
 
+    DEFAULT_ENHANCEMENTS_DICT = dict(
+        low_light = {
+            'enabled': False,
+            'ratio': 0.0
+        }
+    )
 
     #Default Control Values 
     DEFAULT_CONTROLS_DICT = dict( 
         resolution_ratio = 1.0,
-        auto_adjust = False,
+        auto_adjust_enabed = False,
+        auto_adjust_ration = 0.3,
         brightness_ratio = 0.5,
         contrast_ratio =  0.5,
         threshold_ratio =  0.0,
@@ -2046,7 +2161,7 @@ class ColorImageIF(Image):
                 data_type = 'color_image',
                 caps_dict = self.DEFAULT_CAPS_DICT,
                 controls_dict = self.DEFAULT_CONTROLS_DICT, 
-                pub_raw_image = True,
+                enhance_dict = self.DEFAULT_ENHANCEMNTS+DICT,
                 init_overlay_list = init_overlay_list,
                 log_name = log_name,
                 log_name_list = log_name_list,
@@ -2065,14 +2180,25 @@ class ColorImageIF(Image):
     ###############################
 
     def _process_image(self, cv2_img):
-        # Apply Controls
+        # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
-        auto = self.controls_dict['auto_adjust']
+        if res_ratio < 0.9:
+            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
+        # Apply Low Light Enhancment
+        if self.enhance_dict['low_light']['enabled'] == True:
+            ratio = self.enhance_dict['low_light']['ratio']
+            if ratio > 0.05:
+                pass
+                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
+
+        # Apply Adjustment Controls
+        auto = self.controls_dict['auto_adjust_enabled']
+        auto_ratio = self.controls_dict['auto_adjust_ratio']
         brightness = self.controls_dict['contrast_ratio']
         contrast = self.controls_dict['brightness_ratio']
         threshold = self.controls_dict['threshold_ratio']
-        if res_ratio < 0.9:
-            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
         if auto is False:
             cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
             cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)

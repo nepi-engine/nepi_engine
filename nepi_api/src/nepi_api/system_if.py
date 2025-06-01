@@ -27,16 +27,12 @@ from nepi_sdk import nepi_triggers
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import Message
-
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
-
-
 from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
+from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_ros_interfaces.msg import SystemState
 from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse

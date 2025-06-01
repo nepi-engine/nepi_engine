@@ -280,7 +280,7 @@ class AisMgr extends Component {
         <Label title="Enable AI Framework"> 
           <Toggle
             checked={framework_state }
-            onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
+            onClick={() => this.props.ros.sendUpdateStateMsg(this.state.mgrNamespace + "/update_framework_state", this.state.selected_framework, !framework_state)}>
         </Toggle>
         </Label>
 
@@ -529,17 +529,17 @@ class AisMgr extends Component {
                     <Label title="Enable"> </Label>
                       <Toggle
                         checked={selected_state===true}
-                        onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !selected_state)}>
+                        onClick={() => this.props.ros.sendUpdateStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !selected_state)}>
                     </Toggle>
 
                    </div>
 
                     <ButtonMenu>
-                    <Button onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/enable_all_models", sel_framework, true)}>{"Enable All"}</Button>
+                    <Button onClick={() => this.props.ros.sendUpdateStateMsg(this.state.mgrNamespace + "/enable_all_models", sel_framework, true)}>{"Enable All"}</Button>
                     </ButtonMenu>
 
                     <ButtonMenu>
-                    <Button onClick={() => this.props.ros.sendUpdateActiveStateMsg(this.state.mgrNamespace + "/disable_all_models", sel_framework, false)}>{"Disable All"}</Button>
+                    <Button onClick={() => this.props.ros.sendUpdateStateMsg(this.state.mgrNamespace + "/disable_all_models", sel_framework, false)}>{"Disable All"}</Button>
                     </ButtonMenu>
 
             </div>

@@ -125,6 +125,8 @@ add_message_files(FILES
     DriversStatus.msg
     DriverStatus.msg
     UpdateState.msg
+    UpdateRatio.msg
+    UpdateRangeWindow.msg
     UpdateOrder.msg
     UpdateOption.msg
     AppsStatus.msg

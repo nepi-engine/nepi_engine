@@ -866,7 +866,7 @@ renderDetectorSettings() {
             </Column>
             </Columns>
 
-            <Columns>
+        <Columns>
         <Column>
 
         <label align={"left"} textAlign={"left"}>

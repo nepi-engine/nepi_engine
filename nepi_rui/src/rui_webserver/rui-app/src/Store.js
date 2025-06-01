@@ -224,6 +224,7 @@ class ROSConnectionStore {
   @observable appNameList = []
   @observable appStatusList = []
   @observable imageTopics = []
+  @observable imageCaps = []
   @observable imageDetectionTopics = []
   @observable pointcloudTopics = []
   @observable settingCaps = {}
@@ -499,6 +500,9 @@ class ROSConnectionStore {
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
+        if (this.state.imageTopics.indexOf(this.topicNames[i]) === -1){
+          this.callImageCapabilitiesQueryService(this.topicNames[i])
+        }
         if (this.topicNames[i].indexOf('detection_image') !== -1){
           newImageDetectionTopics.push(this.topicNames[i])
         }
@@ -506,7 +510,7 @@ class ROSConnectionStore {
     }
 
     // sort the image topics for comparison to work
-    newImageTopics.sort()
+    newImageTopics.sort()    
 
     if (!this.imageTopics.equals(newImageTopics)) {
       this.imageTopics = newImageTopics
@@ -552,6 +556,7 @@ class ROSConnectionStore {
 
   }
 
+  
   @action.bound
   updateIDXDevices() {
     var idx_devices_changed = false
@@ -1247,7 +1252,7 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  sendUpdateActiveStateMsg(namespace, comp_name, active_state) {
+  sendUpdateStateMsg(namespace, comp_name, active_state) {
     this.publishMessage({
       name: namespace,
       messageType: "nepi_ros_interfaces/UpdateState",
@@ -1257,6 +1262,42 @@ class ROSConnectionStore {
       },
       noPrefix: true
     })
+  }
+
+  @action.bound
+  sendUpdateRatioMsg(namespace, comp_name, ratio) {
+    this.publishMessage({
+      name: namespace,
+      messageType: "nepi_ros_interfaces/UpdateRatio",
+      data: {
+        name: comp_name,
+        active_state: ratio
+      },
+      noPrefix: true
+    })
+  }
+
+  @action.bound
+  sendUpdateRangeWindowMsg(namespace, comp_name, min, max, throttle = true) {
+    if (throttle){
+      if (throttle && this.isThrottled()) {
+        return
+      }
+    }
+    if (namespace) {
+      this.publishMessage({
+        name: namespace,
+        messageType: "nepi_ros_interfaces/UpdateRangeWindow",
+        noPrefix: true,
+        data: {
+          name: comp_name,
+          start_range: min,
+          stop_range: max
+        }
+      })
+    } else {
+      console.warn("publishRangeWindow: namespace not set")
+    }
   }
 
   @action.bound
@@ -1574,6 +1615,15 @@ class ROSConnectionStore {
       args: {namespace : namespace},
     })
     this.settingCaps[namespace] = capabilities
+  }
+
+  @action.bound
+  async callImageCapabilitiesQueryService(namespace) {
+    const capabilities = await this.callService({
+      name: namespace + "/capabilities_query",
+      messageType: "nepi_ros_interfaces/ImageCapabilitiesQuery",  
+    })
+    this.imageCaps[namespace] = capabilities
   }
 
 

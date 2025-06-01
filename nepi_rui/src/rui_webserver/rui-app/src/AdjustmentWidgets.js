@@ -108,13 +108,19 @@ const styles = Styles.Create({
 // Function for sending updated state through rosbridge
 function sendUpdate(props, new_value, throttle) {
   const noPrefix = (props.topic.startsWith('/'))
-  props.ros.publishValue(
-    props.topic,
-    props.msgType,
-    new_value,
-    throttle,
-    noPrefix
-  )
+  const comp_name = this.props.comp_name ? this.props.comp_name : null
+  if (comp_name != null) {
+    props.ros.sendUpdateRatioMsg(props.topic,props.comp_name,new_value)
+  }
+  else {
+    props.ros.publishValue(
+      props.topic,
+      props.msgType,
+      new_value,
+      throttle,
+      noPrefix
+    )
+}
 }
 
 // Following constants control the SliderAdjustment acceleration. The logic is
@@ -128,6 +134,8 @@ const STEP_ACCEL_INCR = 1
 @inject("ros")
 class SliderAdjustment extends Component {
   propTypes = {
+    // Component name if sending an UpdateRatioMsg
+    comp_name: PropTypes.string,
     // Topic on which changes are published
     topic: PropTypes.string.isRequired,
 

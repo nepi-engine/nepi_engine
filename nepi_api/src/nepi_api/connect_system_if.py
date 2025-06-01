@@ -19,7 +19,7 @@ from nepi_sdk import nepi_settings
 from nepi_sdk import nepi_triggers
 from nepi_sdk import nepi_states
 
-from std_msgs.msg import String, Empty
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import Reset
 
 from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
@@ -201,7 +201,6 @@ class ConnectSaveDataIF:
 
         ##############################
         # Complete Initialization
-        self.publish_status()
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
