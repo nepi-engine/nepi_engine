@@ -13,8 +13,9 @@ import copy
 import threading
 import subprocess
 import numpy as np
-import cv2
 import open3d as o3d
+import cv2
+
 import copy
 
 from nepi_sdk import nepi_ros
