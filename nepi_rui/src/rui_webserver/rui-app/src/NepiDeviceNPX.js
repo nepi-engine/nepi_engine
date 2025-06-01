@@ -22,6 +22,8 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
+import NavPoseDataViewer from "./Nepi_IF_NavPoseDataViewer"
+
 
 import {createShortUniqueValues} from "./Utilities"
 
@@ -33,139 +35,143 @@ class NepiDeviceNPX extends Component {
   constructor(props) {
     super(props)
 
-    this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
-    this.onTopicNPXSelected = this.onTopicNPXSelected.bind(this)
-    this.clearTopicNPXSelection = this.clearTopicNPXSelection.bind(this)
-    this.createTopicOptions = this.createTopicOptions.bind(this)
-    this.createImageOptions = this.createImageOptions.bind(this)
 
-    //const npxNamespaces = Object.keys(props.ros.npxDevices)
+    //const namespaces = Object.keys(props.ros.npxDevices)
 
-
-    
     this.state = {
 
       show_controls: true,
       show_settings: true,
       show_save_data: true,
       
-      // NPX Sensor topic to subscribe to and update
-      currentNPXNamespace: null,
-      currentNPXNamespaceText: "No sensor selected"
+      // NPX Device topic to subscribe to and update
+      namespace: null,
+
+      listener: null,
+
+      disabled: false,
     }
+
+    this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
+    this.ondeviceSelected = this.ondeviceSelected.bind(this)
+    this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
+    this.createDeviceOptions = this.createDeviceOptions.bind(this)
+    this.createImageOptions = this.createImageOptions.bind(this)
+
+
   }
 
 
-  // Function for creating topic options for Select input
-  createTopicOptions(topics, filter) {
-    var filteredTopics = topics
-    var i
-    if (filter) {
-      filteredTopics = []
-      for (i = 0; i < topics.length; i++) {
-        // includes does a substring search
-        if (topics[i].includes(filter)) {
-          filteredTopics.push(topics[i])
-        }
-      }
-    }
-
-    var items = []
-    items.push(<Option>{"None"}</Option>)
-    //var unique_names = createShortUniqueValues(filteredTopics)
-    var device_name = ""
-    for (i = 0; i < filteredTopics.length; i++) {
-      device_name = filteredTopics[i].split('/npx')[0].split('/').pop()
-      items.push(<Option value={filteredTopics[i]}>{device_name}</Option>)
-    }
-    // Check that our current selection hasn't disappeard as an available option
-    const { currentNPXNamespace } = this.state
-    if ((currentNPXNamespace != null) && (! filteredTopics.includes(currentNPXNamespace))) {
-      this.clearTopicNPXSelection()
-    }
-
-    return items
-  }
-
-  createImageOptions(npxNamespace) {
-    var items = []
-    items.push(<Option>{"None"}</Option>)
-
-    const image_topics = this.props.ros.imageTopics
-    var sensor_img_topics = []
-
-    for (var i = 0; i < image_topics.length; i++) {
-      const topic = image_topics[i]
-      if (topic.startsWith(npxNamespace) === false || image_topics[i].includes("npx") === false || image_topics[i].includes("depth_map")) {
-        continue
-      }
-      sensor_img_topics.push(topic)
-    }
-
-    const sensor_img_topics_short = createShortUniqueValues(sensor_img_topics)
-    for (i = 0; i < sensor_img_topics.length; i++) {
-      const dp_name = sensor_img_topics_short[i].replace('_image','')
-      items.push(<Option value={sensor_img_topics[i]}>{dp_name}</Option>)
-    }
-    return items    
-  }
-
-  clearTopicNPXSelection() {
+  // Callback for handling ROS StatusNPX messages
+  statusListener(message) {
     this.setState({
-      currentNPXNamespace: null,
-      currentNPXNamespaceText: "No sensor selected",
-      imageTopic_0: "None",
-      imageText_0: "None"        
+      navpose_data: message 
     })
+
   }
 
-  // Handler for NPX Sensor topic selection
-  onTopicNPXSelected(event) {
-    var npx = event.nativeEvent.target.selectedIndex
-    var text = event.nativeEvent.target[npx].text
-    var value = event.target.value
-
-    // Handle the "None" option -- always index 0
-    if (npx === 0) {
-      this.clearTopicNPXSelection()
-      return
+  // Function for configuring and subscribing to StatusNPX
+  updateListener() {
+    const namespace = this.state.currentNPXNamespace
+    if (this.state.listener) {
+      this.state.listener.unsubscribe()
     }
-    else{
-      var autoSelectedImgTopic = null
-      var autoSelectedImgTopicText = null
-      const capabilities = this.props.ros.npxDevices[value]
-      if (capabilities.has_image) {
-        autoSelectedImgTopic = value.concat("/image")
-        autoSelectedImgTopicText = 'image'
-      }
+    var listener = this.props.ros.setupNPXStatusListener(
+      namespace,
+      this.statusListener
+    )
+    this.setState({ listener: listener, disabled: false })
 
+  }
+
+  // Lifecycle method called when compnent updates.
+  // Used to track changes in the topic
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    const namespace = this.state.currentNPXNamespace
+    if (prevState.namespace !== namespace){
+      if (namespace != null) {
+        this.updateListener()
+      } else if (namespace == null){
+        this.setState({ disabled: true })
+      }
+    }
+  }
+
+  // Lifecycle method called just before the component umounts.
+  // Used to unsubscribe to StatusNPX message
+  componentWillUnmount() {
+    if (this.state.listener) {
+      this.state.listener.unsubscribe()
+    }
+  }
+
+
+    // Function for creating topic options for Select input
+    createDeviceOptions(topics) {
+
+      var items = []
+      items.push(<Option>{"None"}</Option>)
+      //var unique_names = createShortUniqueValues(topics)
+      var device_name = ""
+      for (var i = 0; i < topics.length; i++) {
+        device_name = topics[i].split('/idx')[0].split('/').pop()
+        items.push(<Option value={topics[i]}>{device_name}</Option>)
+      }
+      // Check that our current selection hasn't disappeard as an available option
+      const { namespace } = this.state
+      if ((namespace != null) && (! topics.includes(namespace))) {
+        this.clearDeviceSelection()
+      }
+  
+      return items
+    }
+  
+  
+    clearDeviceSelection() {
       this.setState({
-        currentNPXNamespace: value,
-        currentNPXNamespaceText: text,
-        imageTopic_0: autoSelectedImgTopic,
-        imageText_0: autoSelectedImgTopicText
+        namespace: null,
+        namespaceText: "No sensor selected",
+        imageTopic: "None",
+        imageText: "None"        
       })
     }
-  }
+  
+    // Handler for IDX Sensor topic selection
+    ondeviceSelected(event) {
+      var index = event.nativeEvent.target.selectedIndex
+      var text = event.nativeEvent.target[index].text
+      var value = event.target.value
+  
+      // Handle the "None" option -- always index 0
+      if (index === 0) {
+        this.clearDeviceSelection()
+        return
+      }
+      else{
+        var autoSelectedImgTopic = null
+        var autoSelectedImgTopicText = null
+        const capabilities = this.props.ros.idxDevices[value]
+        if (capabilities.has_color_image) {
+          autoSelectedImgTopic = value + '/color_image'
+          autoSelectedImgTopicText = 'color_image'
+        }
+  
+        this.setState({
+          namespace: value,
+          namespaceText: text,
+          imageTopic: autoSelectedImgTopic,
+          imageText: autoSelectedImgTopicText
+        })
+      }
+    }
 
-  // Handler for Image topic selection
-  onImageTopicSelected(event) {
-    var npx = event.nativeEvent.target.selectedIndex
-    var text = event.nativeEvent.target[npx].text
-    var value = event.target.value
-
-    this.setState({
-      imageTopic_0: value,
-      imageText_0: text === "None" ? null : text
-    })
-  }
 
   renderDeviceSelection() {
     const { npxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
-    const SensorSelected = (this.state.currentNPXNamespace != null)
-    const namespace = this.state.currentNPXNamespace
-
+    const deviceSelected = (this.state.namespace != null)
+    const namespace = this.state.namespace
+    
     return (
       <React.Fragment>
         <Columns>
@@ -177,14 +183,14 @@ class NepiDeviceNPX extends Component {
               
                 <Label title={"Device"}>
                   <Select
-                    onChange={this.onTopicNPXSelected}
+                    onChange={this.ondeviceSelected}
                     value={namespace}
                   >
-                    {this.createTopicOptions(Object.keys(npxDevices))}
+                    {this.createDeviceOptions(Object.keys(npxDevices))}
                   </Select>
                 </Label>
                
-                <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
+                <div align={"left"} textAlign={"left"} hidden={!deviceSelected}>
                   <Label title={"Image"}>
                     <Select
                       id="topicSelect_0"
@@ -204,7 +210,7 @@ class NepiDeviceNPX extends Component {
               </Column>
             </Columns>
 
-            <div align={"left"} textAlign={"left"} hidden={!SensorSelected}>
+            <div align={"left"} textAlign={"left"} hidden={!deviceSelected}>
 
               <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -245,27 +251,10 @@ class NepiDeviceNPX extends Component {
     )
   }
 
-  renderImageViewer() {
-    return (
-      <React.Fragment>
-        <Columns>
-          <Column equalWidth={false}>
-            <ImageViewer
-              imageTopic={this.state.imageTopic_0}
-              title={this.state.imageText_0}
-              hideQualitySelector={false}
-            />
-          </Column>
-        </Columns>
-      </React.Fragment>
-    )
-  }
-
-
   render() {
-    const SensorSelected = (this.state.currentNPXNamespace != null)
-    const ImageName = this.state.imageText_0
-    const namespace = this.state.currentNPXNamespace
+    const deviceSelected = (this.state.namespace != null)
+    const namespace = this.state.namespace
+    const navpose_data = this.state.navpose_data
     
     return (
 
@@ -275,7 +264,7 @@ class NepiDeviceNPX extends Component {
 
           <div style={{ width: "65%" }}>
 
-                    <div hidden={(!SensorSelected)}>
+                    <div hidden={(!deviceSelected)}>
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"/status"}
@@ -287,9 +276,14 @@ class NepiDeviceNPX extends Component {
 
                     </div>
 
-                    {this.renderImageViewer()}
+                    <NavPoseDataViewer
+                      namespace={namespace}
+                      navposeData={navpose_data}
+                      title={"NepiDeviceNPXControls"}
+                    />
 
-                    <div hidden={(!SensorSelected)}>
+
+                    <div hidden={(!deviceSelected)}>
 
                       <NepiIFSaveData
                           saveNamespace={namespace + ''}
@@ -315,16 +309,16 @@ class NepiDeviceNPX extends Component {
                     {this.renderDeviceSelection()}
 
 
-                    <div hidden={(!SensorSelected && this.state.show_controls)}>
+                    <div hidden={(!deviceSelected && this.state.show_controls)}>
                       <NepiDeviceNPXControls
-                          npxNamespace={namespace}
-                          npxImageName = {ImageName}
+                          namespace={namespace}
+                          navposeData={navpose_data}
                           title={"NepiDeviceNPXControls"}
                       />
                     </div>
 
 
-                    <div hidden={(!SensorSelected && this.state.show_settings)}>
+                    <div hidden={(!deviceSelected && this.state.show_settings)}>
                       <NepiIFSettings
                         settingsNamespace={namespace + ''}
                         title={"Nepi_IF_Settings"}

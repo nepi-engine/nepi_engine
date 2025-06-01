@@ -500,7 +500,7 @@ class ROSConnectionStore {
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
-        if (this.state.imageTopics.indexOf(this.topicNames[i]) === -1){
+        if (this.imageTopics.indexOf(this.topicNames[i]) === -1){
           this.callImageCapabilitiesQueryService(this.topicNames[i])
         }
         if (this.topicNames[i].indexOf('detection_image') !== -1){

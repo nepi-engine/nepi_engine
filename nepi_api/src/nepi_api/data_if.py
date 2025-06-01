@@ -664,6 +664,7 @@ class NavPoseIF:
             # Pub NavPoseData
             else: 
                 np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+                #self.msg_if.pub_warn("Blank navpose data dict: " + str(np_dict))
                 for key in np_dict.keys():
                     if key in navpose_dict.keys():
                         np_dict[key] = navpose_dict[key]
@@ -685,7 +686,7 @@ class NavPoseIF:
                     if msg is not None:
                         self.node_if.publish_pub('navpose_pub', msg)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e))
+                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), throttle_s = 5.0)
                     success = False
 
                 current_time = nepi_utils.get_time()
@@ -800,7 +801,7 @@ class NavPoseIF:
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish heading data msg: " + str(e))
                         success = False
-        return np_dict
+        return success
 
 
     def unsubsribe(self):
