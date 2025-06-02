@@ -1516,10 +1516,6 @@ class ROSConnectionStore {
   }
 
 
- 
-
-
-
 
   @action.bound
   updateSetting(settingsNamespace,nameStr,typeStr,valueStr) {
@@ -1548,50 +1544,6 @@ class ROSConnectionStore {
     })
   }
 
-
-  @action.bound
-  resetIdxFactoryTriggered(idxDeviceNamespace) {
-    this.publishMessage({
-      name: idxDeviceNamespace + "/reset_factory",
-      messageType: "std_msgs/Empty",
-      data: {},
-      noPrefix: true
-    })
-  }
-
-
-
-
-  @action.bound
-  setIdxControlsEnable(idxDeviceNamespace,idxControls) {
-     this.publishMessage({
-      name: idxDeviceNamespace + "/set_controls_enable",
-      messageType: "std_msgs/Bool",
-      data: {'data':idxControls},
-      noPrefix: true
-    })     
-  }
-
-
-  @action.bound
-  setIdxAutoAdjust(idxDeviceNamespace,autoAdjust) {
-     this.publishMessage({
-      name: idxDeviceNamespace + "/set_auto_adjust",
-      messageType: "std_msgs/Bool",
-      data: {'data':autoAdjust},
-      noPrefix: true
-    })     
-  }
-  
-  @action.bound
-  setFrame3D(namespace, value) {
-      this.publishMessage({
-        name: namespace + '/set_frame_3d',
-        messageType: "std_msgs/String",
-        data: {'data':value},
-        noPrefix: true
-      })     
-    }
 
 
   async callSystemDefsService() {

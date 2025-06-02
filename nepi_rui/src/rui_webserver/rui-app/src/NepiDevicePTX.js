@@ -18,7 +18,7 @@ import Label from "./Label"
 import Input from "./Input"
 import Styles from "./Styles"
 import Button, { ButtonMenu } from "./Button"
-import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified, onChangeSwitchSendBoolValue, onUpdateSetStateValue} from "./Utilities"
+import {createShortUniqueValues, setElementStyleModified, clearElementStyleModified, onUpdateSetStateValue} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
@@ -448,7 +448,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
             panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
             speedRatio, panHomePosEdited, tiltHomePosEdited,
             reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled } = this.state
-    const { ptxDevices, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
+    const { ptxDevices, sendBoolMsg, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
     const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
 
     const panPositionDegClean = panPositionDeg + .001
@@ -512,10 +512,10 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
           <Label title={"Reverse Control"}>
             <div style={{ display: "inline-block", width: "45%", float: "left" }}>
-              <Toggle style={{justifyContent: "flex-left"}} checked={reversePanEnabled} onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_reverse_pan_enable",!reversePanEnabled)} />
+              <Toggle style={{justifyContent: "flex-left"}} checked={reversePanEnabled} onClick={() => sendBoolMsg.bind(this)(namespace + "/set_reverse_pan_enable",!reversePanEnabled)} />
             </div>
             <div style={{ display: "inline-block", width: "45%", float: "right" }}>
-              <Toggle style={{justifyContent: "flex-right"}} checked={reverseTiltEnabled} onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_reverse_tilt_enable",!reverseTiltEnabled)} />
+              <Toggle style={{justifyContent: "flex-right"}} checked={reverseTiltEnabled} onClick={() => sendBoolMsg.bind(this)(namespace + "/set_reverse_tilt_enable",!reverseTiltEnabled)} />
             </div>
           </Label>
 
@@ -613,7 +613,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                     <Toggle
                       checked={autoPanEnabled===true}
                       style={{ width: "45%", float: "left" }}
-                      onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_auto_pan_enable",!autoPanEnabled)}>
+                      onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_pan_enable",!autoPanEnabled)}>
                     </Toggle>
                   </Label>
 
@@ -655,7 +655,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                     <Toggle
                       checked={autoTiltEnabled===true}
                       style={{ width: "45%", float: "left" }}
-                      onClick={() => onChangeSwitchSendBoolValue.bind(this)(namespace + "/set_auto_tilt_enable",!autoTiltEnabled)}>
+                      onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_tilt_enable",!autoTiltEnabled)}>
                     </Toggle>
                   </Label>
 

@@ -254,7 +254,7 @@ class NepiDeviceIDXControls extends Component {
   }
 
   render() {
-    const { idxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
+    const { idxDevices, sendTriggerMsg, sendBoolMsg, sendStringMsg } = this.props.ros
     const namespace = this.props.namespace ? this.props.namespace : null
     if (namespace != null){
       const capabilities = idxDevices[namespace] ? idxDevices[namespace] : null
@@ -268,8 +268,6 @@ class NepiDeviceIDXControls extends Component {
         const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
         const data_products = (capabilities && capabilities.data_products && !this.state.disabled)
 
-
-        const resetControlsNamespace = this.props.namespace + "/reset_controls"
         const framerates = this.state.frameratesCurrent
         const data_product = this.props.dataProduct ? this.props.dataProduct : 'None'
         if (data_product !== 'None'){
@@ -297,7 +295,7 @@ class NepiDeviceIDXControls extends Component {
                                     title={"Framerate"}
                                     msgType={"std_msgs/Float32"}
                                     adjustment={this.state.framerateAdjustment}
-                                    topic={this.props.namespace + '/set_framerate_ratio'}
+                                    topic={namespace + '/set_framerate_ratio'}
                                     scaled={0.01}
                                     min={0}
                                     max={100}
@@ -332,7 +330,7 @@ class NepiDeviceIDXControls extends Component {
                                       title={"Resolution"}
                                       msgType={"std_msgs/Float32"}
                                       adjustment={this.state.resolutionAdjustment}
-                                      topic={this.props.namespace + '/set_resolution_ratio'}
+                                      topic={namespace + '/set_resolution_ratio'}
                                       scaled={0.01}
                                       min={0}
                                       max={100}
@@ -374,7 +372,7 @@ class NepiDeviceIDXControls extends Component {
                                 <Label title={"Auto Adjust"}>
                                     <Toggle
                                       checked={this.state.autoAdjust}
-                                      onClick={() => setIdxAutoAdjust(this.props.namespace,!this.state.autoAdjust)}
+                                      onClick={() => sendBoolMsg(namespace + '/set_auto_adjust_enable' ,!this.state.autoAdjust)}
                                     /> 
                                   </Label>
                         
@@ -393,11 +391,10 @@ class NepiDeviceIDXControls extends Component {
                               title={"Brightness"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.brightnessAdjustment}
-                              topic={this.props.namespace + "/set_brightness"}
+                              topic={namespace + "/set_brightness_ratio"}
                               scaled={0.01}
                               min={0}
                               max={100}
-                              disabled={(capabilities && capabilities.has_brightness && !this.state.disabled)? false : true}
                               tooltip={"Adjustable brightness"}
                               unit={"%"}
                           />
@@ -410,11 +407,10 @@ class NepiDeviceIDXControls extends Component {
                             title={"Contrast"}
                             msgType={"std_msgs/Float32"}
                             adjustment={this.state.contrastAdjustment}
-                            topic={this.props.namespace + "/set_contrast"}
+                            topic={namespace + "/set_contrast_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
-                            disabled={(capabilities && capabilities.has_contrast && !this.state.disabled)? false : true}
                             tooltip={"Adjustable contrast"}
                             unit={"%"}
                           />
@@ -426,11 +422,10 @@ class NepiDeviceIDXControls extends Component {
                               title={"Thresholding"}
                               msgType={"std_msgs/Float32"}
                               adjustment={this.state.thresholdAdjustment}
-                              topic={this.props.namespace + "/set_threshold"}
+                              topic={namespace + "/set_threshold_ratio"}
                               scaled={0.01}
                               min={0}
                               max={100}
-                              disabled={(capabilities && capabilities.has_threshold && !this.state.disabled)? false : true}
                               tooltip={"Adjustable threshold"}
                               unit={"%"}
                           />
@@ -448,7 +443,7 @@ class NepiDeviceIDXControls extends Component {
                           max={this.state.rangeMax}
                           min_limit_m={this.state.rangeLimitMinM}
                           max_limit_m={this.state.rangeLimitMaxM}
-                          topic={this.props.namespace + "/set_range_window"}
+                          topic={namespace + "/set_range_window"}
                           tooltip={"Adjustable range"}
                           unit={"m"}
                         />
@@ -574,15 +569,17 @@ class NepiDeviceIDXControls extends Component {
                         </div>
                       </Column>
                     </Columns>
+
+
                     <Columns>
                       <Column>
                       <div align={"center"} textAlign={"center"}>
                         <Label title={"NEPI"} align={"center"}>
                         </Label>
                         <Toggle 
-                          checked={this.state.frame_3d === "nepi_center_frame"} 
+                          checked={this.state.frame_3d === "nepi_frame"} 
                           disabled={(!this.state.disabled)? false : true}
-                          onClick={() => setFrame3D(this.props.namespace + '',"nepi_center_frame")}
+                          onClick={() => sendStringMsg(namespace + '/set_frame_3d',"nepi_base_frame")}
                         />
                       </div>
           
@@ -592,9 +589,9 @@ class NepiDeviceIDXControls extends Component {
                         <Label title={"Earth"} align={"center"}>
                         </Label>
                         <Toggle 
-                          checked={this.state.frame_3d === "map"} 
+                          checked={this.state.frame_3d === "sensor_frame"} 
                           disabled={(!this.state.disabled)? false : true}
-                          onClick={() => setFrame3D(this.props.namespace + '',"map")}
+                          onClick={() => sendStringMsg(namespace + '/set_frame_3d',"senor_frame")}
                         />
                         </div>
 
@@ -610,7 +607,7 @@ class NepiDeviceIDXControls extends Component {
                       <Column>
 
                           <ButtonMenu>
-                            <Button onClick={() => sendTriggerMsg(resetControlsNamespace)}>{"Reset Controls"}</Button>
+                            <Button onClick={() => sendTriggerMsg(namespace + "/reset_controls")}>{"Reset Controls"}</Button>
                           </ButtonMenu>
         
                       </Column>

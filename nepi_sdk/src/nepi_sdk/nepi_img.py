@@ -10,15 +10,19 @@
 
 
 import os
+#os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
+import copy
+
 import numpy as np
 import cv2
 import math
-import copy
 
+'''
 from scipy.spatial import distance
 from scipy.ndimage.filters import convolve
 from scipy.sparse import diags, csr_matrix
 from scipy.sparse.linalg import spsolve
+'''
 
 
 from sensor_msgs.msg import Image
@@ -733,7 +737,7 @@ def write_image_file(cv2_img,file_path):
 # Low Light Enhancment Dual Illumination
 # github.com/pvnieo/Low-light-Image-Enhancement
 
-
+'''
 def enhance_low_light_dual_illumination(cv2_img, gamma = 0.6, lambda_ = 0.15, sigma = 3,
                            bc = 1, bs = 1, be = 1):
     """Enhance input image, using either DUAL method, or LIME method. For more info, please see original papers.
@@ -941,5 +945,5 @@ def get_sparse_neighbor(p: int, n: int, m: int):
     return d   
     
     
-
+'''
 

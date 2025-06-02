@@ -13,15 +13,13 @@ import copy
 import threading
 import subprocess
 import numpy as np
-import open3d as o3d
-import cv2
 
 import copy
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
+from nepi_sdk import nepi_img
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
@@ -52,7 +50,7 @@ FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame','map']
 
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
-    auto_adjust = False,
+    auto_adjust_ebabled = False,
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
@@ -271,7 +269,7 @@ class IDXDeviceIF:
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
         self.data_products_base_list = data_products_list
-        self.msg_if.pub_warn("Enabled data products: " + str(self.data_products))
+        self.msg_if.pub_warn("Enabled data products: " + str(self.data_products_base_list))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
 
@@ -342,23 +340,19 @@ class IDXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_device_name
             },
-            'controls_enable': {
+            'auto_adjust_ebabled': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict["controls_enable"]
+                'factory_val': self.factory_controls_dict["auto_adjust_ebabled"]
             },
-            'auto_adjust': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict["auto_adjust"]
-            },
-            'brightness': {
+            'brightness_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict["brightness_ratio"]
             },
-            'contrast': {
+            'contrast_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict["contrast_ratio"]
             },
-            'thresholding': {
+            'threshold_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict["threshold_ratio"]
             },
@@ -438,17 +432,9 @@ class IDXDeviceIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_controls_enable': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_controls_enable',
-                'msg': Bool,
-                'qsize': 1,
-                'callback': self.setControlsEnableCb, 
-                'callback_args': ()
-            },
             'set_auto_adjust': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/set_auto_adjust',
+                'topic': 'idx/set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setAutoAdjustCb, 
@@ -456,7 +442,7 @@ class IDXDeviceIF:
             },
             'set_brightness': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/set_brightness',
+                'topic': 'idx/set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setBrightnessCb, 
@@ -464,15 +450,15 @@ class IDXDeviceIF:
             },
             'set_contrast': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/set_contrast',
+                'topic': 'idx/set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setContrastCb, 
                 'callback_args': ()
             },
-            'set_thresholding': {
+            'set_threshold': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/set_thresholding',
+                'topic': 'idx/set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setThresholdingCb, 
@@ -628,17 +614,16 @@ class IDXDeviceIF:
         #############################
         # Finish Initialization
 
-        self.ctl_enabled = self.node_if.get_param('controls_enable')
-        self.ctl_auto = self.node_if.get_param('auto_adjust')       
-        self.ctl_brightness = self.node_if.get_param('brightness')
-        self.ctl_contrast = self.node_if.get_param('contrast')        
-        self.ctl_threshold = self.node_if.get_param('thresholding')
+        self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled')       
+        self.ctl_brightness = self.node_if.get_param('brightness_ratio')
+        self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
+        self.ctl_threshold = self.node_if.get_param('threshold_ratio')
         self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
         self.frame_transform = self.node_if.get_param('frame_3d_transform')  
 
         # Start the data producers
-        if (getColorImage is not None and '2d_color_image' in self.data_products):
+        if (getColorImage is not None and 'color_image' in self.data_products_base_list):
             self.getColorImage = getColorImage
             self.stopColorImageAcquisition = stopColorImageAcquisition
             data_product = 'color_image'
@@ -658,7 +643,7 @@ class IDXDeviceIF:
             self.caps_report.has_color_image = False
         
 
-        if (getDepthMap is not None and 'depth_map' in self.data_products):
+        if (getDepthMap is not None and 'depth_map' in self.data_products_base_list):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
             data_product = 'depth_map'
@@ -678,7 +663,7 @@ class IDXDeviceIF:
             self.caps_report.has_depth_map = False
           
 
-        if (getPointcloud is not None and 'pointcloud' in self.data_products):
+        if (getPointcloud is not None and 'pointcloud' in self.data_products_base_list):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
             data_product = 'pointcloud'
@@ -787,11 +772,10 @@ class IDXDeviceIF:
 
 
     def resetCb(self,do_updates = True):
-        self.ctl_enabled = self.node_if.get_param('controls_enable')
-        self.ctl_auto = self.node_if.get_param('auto_adjust')       
-        self.ctl_brightness = self.node_if.get_param('brightness')
-        self.ctl_contrast = self.node_if.get_param('contrast')        
-        self.ctl_threshold = self.node_if.get_param('thresholding')
+        self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled')       
+        self.ctl_brightness = self.node_if.get_param('brightness_ratio')
+        self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
+        self.ctl_threshold = self.node_if.get_param('threshold_ratio')
         self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
         self.zoom_ratio = self.init_zoom_ratio
@@ -805,11 +789,10 @@ class IDXDeviceIF:
 
 
     def factoryResetCb(self, do_updates = True):
-        self.ctl_enabled = self.node_if.get_param('controls_enable')
-        self.ctl_auto = self.node_if.get_param('auto_adjust')       
-        self.ctl_brightness = self.node_if.get_param('brightness')
-        self.ctl_contrast = self.node_if.get_param('contrast')        
-        self.ctl_threshold = self.node_if.get_param('thresholding')
+        self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled')       
+        self.ctl_brightness = self.node_if.get_param('brightness_ratio')
+        self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
+        self.ctl_threshold = self.node_if.get_param('threshold_ratio')
         self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
         self.zoom_ratio = self.init_zoom_ratio
@@ -827,16 +810,14 @@ class IDXDeviceIF:
             self.settings_if.reset_settings()
         param_dict = nepi_ros.get_param('~', dict())
         self.msg_if.pub_debug("Applying Config Updates from Params: " + str(param_dict))
-        if (self.setControlsEnable is not None and 'controls_enable' in param_dict):
-            self.setControlsEnable(param_dict['controls_enable'])
-        if (self.setAutoAdjust is not None and 'auto_adjust' in param_dict):
-            self.setAutoAdjust(param_dict['auto_adjust'])
-        if (self.setBrightness is not None and 'brightness' in param_dict):
-            self.setBrightness(param_dict['brightness'])
-        if (self.setContrast is not None and 'contrast' in param_dict):
-            self.setContrast(param_dict['contrast'])
-        if (self.setThresholding is not None and 'thresholding' in param_dict):
-            self.setThresholding(param_dict['thresholding'])
+        if (self.setAutoAdjust is not None and 'auto_adjust_ebabled' in param_dict):
+            self.setAutoAdjust(param_dict['auto_adjust_ebabled'])
+        if (self.setBrightness is not None and 'brightness_ratio' in param_dict):
+            self.setBrightness(param_dict['brightness_ratio'])
+        if (self.setContrast is not None and 'contrast_ratio' in param_dict):
+            self.setContrast(param_dict['contrast_ratio'])
+        if (self.setThresholding is not None and 'threshold_ratio' in param_dict):
+            self.setThresholding(param_dict['threshold_ratio'])
         if (self.setResolutionRatio is not None and 'resolution_ratio' in param_dict):
             self.setResolutionRatio(param_dict['resolution_ratio'])
         if (self.setFramerateRatio is not None and 'framerate_ratio' in param_dict):
@@ -940,9 +921,9 @@ class IDXDeviceIF:
             self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
 
         self.ctl_auto = new_auto_adjust       
-        self.status_msg.auto_adjust = new_auto_adjust
+        self.status_msg.auto_adjust_ebabled = new_auto_adjust
         self.publishStatus(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust', new_auto_adjust)
+        self.node_if.set_param('auto_adjust_ebabled', new_auto_adjust)
 
 
 
@@ -950,7 +931,7 @@ class IDXDeviceIF:
     def setBrightnessCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         new_brightness = msg.data
-        if self.node_if.get_param('auto_adjust'):
+        if self.node_if.get_param('auto_adjust_ebabled'):
             self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled", log_name_list = self.log_name_list)
         else:
             if self.setBrightness is not None:
@@ -963,9 +944,9 @@ class IDXDeviceIF:
                     status, err_str = self.setBrightness(new_brightness)
 
         self.ctl_brightness = new_brightness
-        self.status_msg.brightness = new_brightness
+        self.status_msg.brightness_ratio = new_brightness
         self.publishStatus(do_updates=False) # Updated inline here
-        self.node_if.set_param('brightness', new_brightness)
+        self.node_if.set_param('brightness_ratio', new_brightness)
 
 
     def setContrastCb(self, msg):
@@ -977,7 +958,7 @@ class IDXDeviceIF:
             self.publishStatus(do_updates=False) # No change
             return
 
-        if self.node_if.get_param('auto_adjust'):
+        if self.node_if.get_param('auto_adjust_ebabled'):
             self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled", log_name_list = self.log_name_list)
         else:
             if self.setContrast is not None:
@@ -986,10 +967,10 @@ class IDXDeviceIF:
                 status, err_str = self.setContrast(new_contrast)
 
         self.ctl_contrast = new_contrast     
-        self.status_msg.contrast = new_contrast
+        self.status_msg.contrast_ratio = new_contrast
         self.publishStatus(do_updates=False) # Updated inline here   
  
-        self.node_if.set_param('contrast', new_contrast)
+        self.node_if.set_param('contrast_ratio', new_contrast)
         
 
 
@@ -1008,9 +989,9 @@ class IDXDeviceIF:
             status, err_str = self.setThresholding(new_threshold)
 
         self.ctl_threshold = new_threshold
-        self.status_msg.threshold = new_threshold
+        self.status_msg.threshold_ratio = new_threshold
         self.publishStatus(do_updates=False) # Updated inline here
-        self.node_if.set_param('thresholding', new_threshold)
+        self.node_if.set_param('threshold_ratio', new_threshold)
         
 
     def setResolutionRatioCb(self, msg):
@@ -1128,10 +1109,10 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived reset controls message: " + str(msg))
         self.node_if.reset_param('device_name')
         self.node_if.reset_param('controls_enable')
-        self.node_if.reset_param('auto_adjust')       
-        self.node_if.reset_param('brightness')
-        self.node_if.reset_param('contrast')        
-        self.node_if.reset_param('thresholding')
+        self.node_if.reset_param('auto_adjust_ebabled')       
+        self.node_if.reset_param('brightness_ratio')
+        self.node_if.reset_param('contrast_ratio')        
+        self.node_if.reset_param('threshold_ratio')
         self.node_if.reset_param('resolution_ratio')   
         self.node_if.reset_param('framerate_ratio')
         self.node_if.reset_param('range_window/start_range_ratio')
@@ -1145,10 +1126,10 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived factory reset controls message: " + str(msg))
         self.node_if.factory_reset_param('device_name')
         self.node_if.factory_reset_param('controls_enable')
-        self.node_if.factory_reset_param('auto_adjust')       
-        self.node_if.factory_reset_param('brightness')
-        self.node_if.factory_reset_param('contrast')        
-        self.node_if.factory_reset_param('thresholding')
+        self.node_if.factory_reset_param('auto_adjust_ebabled')       
+        self.node_if.factory_reset_param('brightness_ratio')
+        self.node_if.factory_reset_param('contrast_ratio')        
+        self.node_if.factory_reset_param('threshold_ratio')
         self.node_if.factory_reset_param('resolution_ratio')   
         self.node_if.factory_reset_param('framerate_ratio')
         self.node_if.factory_reset_param('range_window/start_range_ratio')
@@ -1492,10 +1473,10 @@ class IDXDeviceIF:
                 framerates.append(self.current_fps[dp])
             self.status_msg.framerates = framerates
 
-            self.status_msg.auto_adjust_enabled = param_dict['auto_adjust'] if 'auto_adjust' in param_dict else False
-            self.status_msg.contrast_ratio = param_dict['contrast'] if 'contrast' in param_dict else 0
-            self.status_msg.brightness_ratio = param_dict['brightness'] if 'brightness' in param_dict else 0
-            self.status_msg.threshold_ratio = param_dict['thresholding'] if 'thresholding' in param_dict else 0
+            self.status_msg.auto_adjust_enabled = param_dict['auto_adjust_ebabled'] if 'auto_adjust_ebabled' in param_dict else False
+            self.status_msg.contrast_ratio = param_dict['contrast_ratio'] if 'contrast_ratio' in param_dict else 0
+            self.status_msg.brightness_ratio = param_dict['brightness_ratio'] if 'brightness_ratio' in param_dict else 0
+            self.status_msg.threshold_ratio = param_dict['threshold_ratio'] if 'threshold_ratio' in param_dict else 0
             
             self.status_msg.range_window_ratios.start_range = self.node_if.get_param('range_window/start_range_ratio')
             self.status_msg.range_window_ratios.stop_range =  self.node_if.get_param('range_window/stop_range_ratio')
