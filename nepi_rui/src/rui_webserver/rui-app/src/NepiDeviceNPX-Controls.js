@@ -46,20 +46,12 @@ class NepiDeviceNPXControls extends Component {
       transformRZ: 0,
       transformHO: 0,
       age_filter_s: null
-
-
-
     }
 
 
     this.onClickToggleShowTransforms = this.onClickToggleShowTransforms.bind(this)
-    
-    this.updateListener = this.updateListener.bind(this)
-    this.statusListener = this.statusListener.bind(this)
     this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
-    
 
-    
     
   }
 

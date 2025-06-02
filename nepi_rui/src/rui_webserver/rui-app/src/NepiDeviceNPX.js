@@ -19,7 +19,6 @@ import Styles from "./Styles"
 import NepiDeviceNPXControls from "./NepiDeviceNPX-Controls"
 
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
-import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NavPoseDataViewer from "./Nepi_IF_NavPoseDataViewer"
@@ -50,14 +49,17 @@ class NepiDeviceNPX extends Component {
       listener: null,
 
       disabled: false,
+
+      connected: false,
+      statusListener: null,
+      needs_update: true,
     }
 
-    this.onImageTopicSelected = this.onImageTopicSelected.bind(this)
     this.ondeviceSelected = this.ondeviceSelected.bind(this)
     this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
     this.createDeviceOptions = this.createDeviceOptions.bind(this)
-    this.createImageOptions = this.createImageOptions.bind(this)
-
+    this.statusListener = this.statusListener.bind(this)
+    this.updateStatusListener = this.updateStatusListener.bind(this)
 
   }
 
@@ -65,32 +67,34 @@ class NepiDeviceNPX extends Component {
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
     this.setState({
-      navpose_data: message 
+      navpose_data: message, 
+      connected: true
     })
 
   }
 
   // Function for configuring and subscribing to StatusNPX
-  updateListener() {
-    const namespace = this.state.currentNPXNamespace
+  updateStatusListener() {
+    const namespace = this.state.namespace + "/npx/status"
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
-    var listener = this.props.ros.setupNPXStatusListener(
+    var statusListener = this.props.ros.setupNPXStatusListener(
       namespace,
+      "nepi_ros_interfaces/NPXStatus",
       this.statusListener
     )
-    this.setState({ listener: listener, disabled: false })
-
+    this.setState({ statusListener: statusListener, needs_update: false })
+    
   }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const namespace = this.state.currentNPXNamespace
+    const namespace = this.state.namespace
     if (prevState.namespace !== namespace){
       if (namespace != null) {
-        this.updateListener()
+        this.updateStatusListener()
       } else if (namespace == null){
         this.setState({ disabled: true })
       }
@@ -100,8 +104,8 @@ class NepiDeviceNPX extends Component {
   // Lifecycle method called just before the component umounts.
   // Used to unsubscribe to StatusNPX message
   componentWillUnmount() {
-    if (this.state.listener) {
-      this.state.listener.unsubscribe()
+    if (this.state.statusListener) {
+      this.state.statusListener.unsubscribe()
     }
   }
 
@@ -131,8 +135,6 @@ class NepiDeviceNPX extends Component {
       this.setState({
         namespace: null,
         namespaceText: "No sensor selected",
-        imageTopic: "None",
-        imageText: "None"        
       })
     }
   
@@ -150,17 +152,12 @@ class NepiDeviceNPX extends Component {
       else{
         var autoSelectedImgTopic = null
         var autoSelectedImgTopicText = null
-        const capabilities = this.props.ros.idxDevices[value]
-        if (capabilities.has_color_image) {
-          autoSelectedImgTopic = value + '/color_image'
-          autoSelectedImgTopicText = 'color_image'
-        }
+        const capabilities = this.props.ros.npxDevices[value]
+        
   
         this.setState({
           namespace: value,
           namespaceText: text,
-          imageTopic: autoSelectedImgTopic,
-          imageText: autoSelectedImgTopicText
         })
       }
     }
@@ -190,19 +187,7 @@ class NepiDeviceNPX extends Component {
                   </Select>
                 </Label>
                
-                <div align={"left"} textAlign={"left"} hidden={!deviceSelected}>
-                  <Label title={"Image"}>
-                    <Select
-                      id="topicSelect_0"
-                      onChange={this.onImageTopicSelected}
-                      value={this.state.imageTopic_0}
-                    >
-                      {namespace
-                        ? this.createImageOptions(namespace)
-                        : NoneOption}
-                    </Select>
-                  </Label>
-                </div>
+ 
 
               </Column>
               <Column>
@@ -255,7 +240,7 @@ class NepiDeviceNPX extends Component {
     const deviceSelected = (this.state.namespace != null)
     const namespace = this.state.namespace
     const navpose_data = this.state.navpose_data
-    
+    const connected = this.state.connected
     return (
 
 
@@ -267,7 +252,7 @@ class NepiDeviceNPX extends Component {
                     <div hidden={(!deviceSelected)}>
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
-                            status_topic={"/status"}
+                            status_topic={"npx/status"}
                             status_msg_type={"nepi_ros_interfaces/NPXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
@@ -286,8 +271,8 @@ class NepiDeviceNPX extends Component {
                     <div hidden={(!deviceSelected)}>
 
                       <NepiIFSaveData
-                          saveNamespace={namespace + ''}
-                          title={"Nepi_IF_SaveData"}
+                        saveNamespace={namespace ? namespace + '/npx' : null}
+                        title={"Nepi_IF_SaveData"}
                       />
                     </div>
 
@@ -320,7 +305,7 @@ class NepiDeviceNPX extends Component {
 
                     <div hidden={(!deviceSelected && this.state.show_settings)}>
                       <NepiIFSettings
-                        settingsNamespace={namespace + ''}
+                        settingsNamespace={namespace ? namespace + '/npx' : null}
                         title={"Nepi_IF_Settings"}
                       />
                     </div>
