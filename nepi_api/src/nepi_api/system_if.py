@@ -184,9 +184,9 @@ class SaveDataIF:
             self.update_filename_dict(factory_filename_dict)
 
         # Config initial data products dict
-        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
-        self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products))
-        self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict))
+        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict), log_name_list = self.log_name_list)
         save_rate_dict = dict()
         save_rate = 0.0
         last_time = 0.0
@@ -203,7 +203,7 @@ class SaveDataIF:
             save_rate_dict[data_product] = save_rate_entry
             self.snapshot_dict[data_product] = False
         self.save_rate_dict = save_rate_dict
-        #self.msg_if.pub_warn("Initialized rate dict: " + str(self.save_rate_dict))
+        self.msg_if.pub_debug("Initialized rate dict: " + str(self.save_rate_dict), log_name_list = self.log_name_list)
             
 
 
@@ -501,7 +501,7 @@ class SaveDataIF:
                     full_path = self.save_data_root_directory
                 else:
                     full_path = ""
-                #self.msg_if.pub_warn("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
+                self.msg_if.pub_debug("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
                 if self.subfolder != subfolder:
                     if not os.path.exists(full_path):
                         self.msg_if.pub_debug("Creating new data subdirectory " + full_path)
@@ -580,13 +580,13 @@ class SaveDataIF:
     def data_product_should_save(self, data_product):
         # If saving is disabled for this node, then it is not time to save this data product!
         save_rate_dict = self.save_rate_dict
-        #self.msg_if.pub_warn("Checking should save for save rate dict: " + str(save_rate_dict))
+        self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict))
         
         if self.save_data == False:
             return False
 
         if data_product not in save_rate_dict.keys():
-            self.msg_if.pub_warn("Unknown data product " + data_product, throttle_s = 5)
+            self.msg_if.pub_warn("Unknown data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             return False
 
         save_rate = save_rate_dict[data_product][0]
@@ -596,9 +596,9 @@ class SaveDataIF:
         save_period = float(1) / float(save_rate)
         now = nepi_utils.get_time()
         elapsed = now - save_rate_dict[data_product][1]
-        #self.msg_if.pub_warn("Checking should save: " + str([save_period,elapsed]))
+        self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
         if (elapsed >= save_period):
-            #self.msg_if.pub_warn("Should save: " + data_product + " : " + str([save_period,elapsed]))
+            self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
             self.save_rate_dict = save_rate_dict
             return True
         return False
@@ -610,7 +610,7 @@ class SaveDataIF:
             enabled = self.snapshot_dict[data_product]
             return enabled
         except:
-            self.msg_if.pub_warn("Unknown snapshot data product " + data_product)
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             return False
         return False
 
@@ -618,7 +618,7 @@ class SaveDataIF:
         try:
             self.snapshot_dict[data_product] = False
         except:
-            self.msg_if.pub_warn("Unknown snapshot data product " + data_product)
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             pass
      
     def get_timestamp_string(self):
@@ -639,19 +639,20 @@ class SaveDataIF:
         should_save = self.data_product_should_save(data_product)
         snapshot_enabled = self.data_product_snapshot_enabled(data_product)
         # Save data if enabled
-        #self.msg_if.pub_warn("******", log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn("Checking save data: " + data_product + " " + str([saving_is_enabled,should_save,snapshot_enabled,save_check]) )
+        self.msg_if.pub_debug("******", log_name_list = self.log_name_list)
+        save_check = [should_save, snapshot_enabled, save_check]
+        self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check) , log_name_list = self.log_name_list, throttle_s = 5)
         if should_save or snapshot_enabled or save_check == False:
             if self.filename_dict['use_utc_tz'] == False:
                 timezone = self.timezone
             else:
                 timezone = 'UTC'
-            #self.msg_if.pub_warn("Saving Data with Timezone: " + str(timezone) )
+            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) )
             self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
             self.data_product_snapshot_reset(data_product)
             self.save_rate_dict[data_product][1] = nepi_utils.get_time()
-        #self.msg_if.pub_warn("Finished Checking save data: " + data_product )
-        #self.msg_if.pub_warn("******", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Finished Checking save data: " + data_product , log_name_list = self.log_name_list, throttle_s = 5)
+        self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
 
 
     def create_filename_msg(self):
@@ -669,13 +670,13 @@ class SaveDataIF:
     def publish_status(self):
         save_rates_msg = []
         save_rate_dict = self.save_rate_dict
-        #self.msg_if.pub_warn("Status pub save_rate_dict " + str(save_rate_dict))
+        self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
         for name in save_rate_dict.keys():
             save_rate_msg = SaveDataRate()
             save_rate_msg.data_product = name
             save_rate_msg.save_rate_hz = save_rate_dict[name][0]
             save_rates_msg.append(save_rate_msg)
-            #self.msg_if.pub_warn("data_rates_msg " + str(save_rates_msg)
+            self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
         status_msg = SaveDataStatus()
         status_msg.filename_config = self.create_filename_msg()
         status_msg.current_data_dir = self.save_path
@@ -693,7 +694,7 @@ class SaveDataIF:
             timezone = self.timezone
         else:
             timezone = 'UTC'
-        #self.msg_if.pub_warn("Saving Data with Timezone: " + str(timezone) )
+        self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
         exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
         status_msg.example_filename = exp_filename
         if self.node_if is not None:
@@ -707,7 +708,7 @@ class SaveDataIF:
 
     def updaterCb(self,timer):
         time_status_dict = self.mgr_time_if.get_time_status()
-        #self.msg_if.pub_warn("Got time status dict " + str(time_status_dict))
+        self.msg_if.pub_debug("Got time status dict " + str(time_status_dict), log_name_list = self.log_name_list, throttle_s = 5)
         if time_status_dict is not None:
             last_tz = copy.deepcopy(self.timezone)
             tzd = time_status_dict['timezone_description']
@@ -743,7 +744,7 @@ class SaveDataIF:
 
 
     def _saveRateCb(self, msg):
-        self.msg_if.pub_info("Recieved Rate Update: " + str(msg))
+        self.msg_if.pub_info("Recieved Rate Update: " + str(msg), log_name_list = self.log_name_list)
         data_product = msg.data_product
         save_rate_hz = msg.save_rate_hz
         self.set_save_rate(data_product,save_rate_hz)
@@ -884,13 +885,13 @@ class SettingsIF:
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_response.settings_count = len(cap_setting_msgs_list)
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
-        #self.msg_if.pub_warn("Cap Settings: " + str(self.capabilities_response))  
+        self.msg_if.pub_debug("Cap Settings: " + str(self.capabilities_response), log_name_list = self.log_name_list)
 
         if factorySettings is None:
             self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
             self.factory_settings = factorySettings
-        #self.msg_if.pub_warn(str(self.factory_settings))
+        self.msg_if.pub_debug(str(self.factory_settings), log_name_list = self.log_name_list)
 
         if setSettingFunction is None:
             self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
@@ -1023,7 +1024,7 @@ class SettingsIF:
         self.node_if.set_param('settings', current_settings)
         settings_msg = nepi_settings.create_msg_data_from_settings(current_settings)
         if not nepi_ros.is_shutdown():
-            #self.msg_if.pub_warn("Publishing settings status msg: " + str(settings_msg))
+            self.msg_if.pub_debug("Publishing settings status msg: " + str(settings_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', settings_msg)
 
 
@@ -1031,14 +1032,14 @@ class SettingsIF:
         success = False
         current_settings = self.getSettingsFunction()
         updated_settings = copy.deepcopy(current_settings)
-        #self.msg_if.pub_warn("New Setting:" + str(new_setting))
+        self.msg_if.pub_debug("New Setting:" + str(new_setting), log_name_list = self.log_name_list)
         s_name = new_setting['name']
         if self.setSettingFunction != None:
             [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(new_setting,current_settings)
             if value_match == False: # name_match would be true for value_match to be true
-                self.msg_if.pub_debug("Will try to update setting " + str(new_setting))
+                self.msg_if.pub_debug("Will try to update setting " + str(new_setting), log_name_list = self.log_name_list)
                 [success,msg] = nepi_settings.try_to_update_setting(new_setting,current_settings,self.cap_settings,self.setSettingFunction)
-                self.msg_if.pub_warn(msg)
+                self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
                 if success:
                     if update_param:
                         updated_settings[s_name] = new_setting
@@ -1053,14 +1054,14 @@ class SettingsIF:
     def initialize_settings(self, do_updates = True):
         current_settings = self.getSettingsFunction()
         self.init_settings = self.node_if.get_param('settings')
-        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings) )
+        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
         if do_updates:
             self.reset_settings()
 
 
     def reset_settings(self, update_status = True):
         self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn(self.init_settings)
+        self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
         if self.init_settings is not None:
             for setting_name in self.init_settings:
                 setting = self.init_settings[setting_name]
@@ -1070,7 +1071,7 @@ class SettingsIF:
 
     def factory_reset_settings(self, update_params = True, update_status = True):
         self.msg_if.pub_info("Applying Factory Settings", log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn(self.init_settings)
+        self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
         for setting_name in self.factory_settings.keys():
             setting = self.factory_settings[setting_name]
             self.update_setting(setting,update_status = False, update_param = update_params)
@@ -1089,8 +1090,8 @@ class SettingsIF:
 
 
     def _updateSettingCb(self,msg):
-        self.msg_if.pub_info("Received settings update msg: " + str(msg))
-        #self.msg_if.pub_warn(msg)
+        self.msg_if.pub_info("Received settings update msg: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug(msg, log_name_list = self.log_name_list)
         setting = nepi_settings.parse_setting_update_msg_data(msg)
         self.update_setting(setting, update_status = True, update_param = True)
 
@@ -1231,7 +1232,7 @@ class StatesIF:
             states_dict = self.get_states_dict_function()
             resp = nepi_states.create_query_resp(states_dict)
         except:
-            self.msg_if.pub_warn("Failed to create resp msg: " + str(e))
+            self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
         return resp
 
 
@@ -1384,7 +1385,7 @@ class TriggersIF:
         try:
             resp = nepi_triggers.create_query_resp(self.triggers_dict)
         except:
-            self.msg_if.pub_warn("Failed to create resp msg: " + str(e))
+            self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
         return resp
 
 

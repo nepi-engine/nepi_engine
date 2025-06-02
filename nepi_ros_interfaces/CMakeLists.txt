@@ -76,13 +76,14 @@ add_message_files(FILES
     TestPatternCfg.msg
     PeriodicSwTrig.msg
     NavPose.msg
-    NavPoseResponse.msg
+    NavPoseData.msg
+    NavPoseSolution.msg
+    NavPoseDataStatus.msg
+    NavPoseSolutionStatus.msg
     StampedString.msg
     SystemStatus.msg
     SystemDefs.msg
     WarningFlags.msg
-    NavPoseStatus.msg
-    NavPoseSystemStatus.msg
     TimeUpdate.msg
     TimeStatus.msg
     OotStatus.msg
@@ -144,7 +145,6 @@ add_message_files(FILES
     PointcloudProcessStatus.msg
     PointcloudRenderStatus.msg
     PointcloudSelectionStatus.msg
-    NavPoseData.msg
     MgrsStatus.msg
     MgrStatus.msg
     Message.msg
@@ -160,6 +160,7 @@ add_message_files(FILES
     SonarStatus.msg
     Elevation.msg
     ImageWindow.msg
+    ImageWindowRatios.msg
 )
 
 ## Generate services in the 'srv' folder

@@ -442,8 +442,7 @@ class ConnectNodePublishersIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-
-        self.msg_if.pub_warn("Connect Node Pub: " + self.class_name + " " + str(log_name_list))     
+            
         self.log_name_list = copy.deepcopy(log_name_list)
         self.log_name_list.append(self.class_name)
         self.msg_if.pub_info("Starting Node Pubs IF Initialization Processes", log_name_list = self.log_name_list)

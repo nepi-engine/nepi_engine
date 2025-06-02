@@ -1,7 +1,7 @@
 # This message contains status information for the navigation/positioning
 
-
 bool publishing
+float32 pub_rate
 
 string frame_id
 string frame_3d
@@ -17,4 +17,4 @@ bool has_depth
 float32 get_latency_time
 float32 pub_latency_time
 float32 process_time
-float32 avg_fps
+float32 avg_pub_rate

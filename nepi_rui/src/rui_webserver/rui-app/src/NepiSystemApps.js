@@ -365,6 +365,33 @@ class AppsMgr extends Component {
             {rui_name}
           </label>
   
+          <Columns equalWidth={true}>
+      <Column>
+
+
+        <Label title="Enable/Disable App"> 
+          <Toggle
+            checked={this.state.active_state===true}
+            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_state", this.state.app_name, !this.state.active_state)}>
+          </Toggle>
+      </Label>
+
+
+      </Column>
+      <Column>
+
+
+      <Label title={"App Enabled"}>
+          <BooleanIndicator value={(this.state.active_state !== null)? this.state.active_state : false} />
+        </Label>
+
+      </Column>
+      <Column>
+
+
+      </Column>
+      </Columns>
+
           <pre style={{ height: "50px", overflowY: "auto" }}>
           {"Description: " + this.state.app_description}
           </pre>
@@ -384,14 +411,6 @@ class AppsMgr extends Component {
           {"Group: " + this.state.group}
           </pre>
 
-        <Label title="Enable/Disable App"> 
-          <Toggle
-            checked={this.state.active_state===true}
-            onClick={() => sendUpdateActiveStateMsg(this.state.mgrNamespace + "/update_state", this.state.app_name, !this.state.active_state)}>
-          </Toggle>
-      </Label>
-
-
       </Column>
       <Column>
 
@@ -399,9 +418,6 @@ class AppsMgr extends Component {
           {"Node: " + this.state.node_name}
           </pre>
 
-      <Label title={"App Enabled"}>
-          <BooleanIndicator value={(this.state.active_state !== null)? this.state.active_state : false} />
-        </Label>
 
       </Column>
       <Column>

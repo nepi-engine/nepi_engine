@@ -32,7 +32,6 @@ from nepi_ros_interfaces.msg import Frame3DTransform
 from geometry_msgs.msg import Vector3
 
 from nepi_ros_interfaces.msg import NPXStatus
-from nepi_ros_interfaces.msg import NavPose, NavPoseData
 from nepi_ros_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 

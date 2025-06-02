@@ -1,6 +1,6 @@
 
-int64 xmin
-int64 ymin
-int64 xmax
-int64 ymax
+int32 x_min
+int32 y_min
+int32 x_max
+int32 y_max
 

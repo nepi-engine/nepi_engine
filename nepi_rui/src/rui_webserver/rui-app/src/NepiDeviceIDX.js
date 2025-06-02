@@ -251,8 +251,8 @@ class NepiDeviceIDX extends Component {
   }
 
   renderImageViewer() {
-    const image_topic = this.state.image_topic
-    const image_text = this.state.image_text
+    const image_topic = this.state.imageTopic
+    const image_text = this.state.imageText
     return (
       <React.Fragment>
         <Columns>

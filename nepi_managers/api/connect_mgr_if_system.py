@@ -165,11 +165,7 @@ class ConnectMgrSystemServicesIF:
             exists = nepi_ros.check_for_service('system_status_query')
             nepi_ros.wait()
             if exists == True:
-                ret = None
-                try:
-                    ret = self.get_system_status_dict(verbose = False)
-                except:
-                    pass # Don't Print Exception
+                ret = self.get_system_status_dict(verbose = False)
                 connected = (ret is not None)
             timer = nepi_ros.get_time() - time_start
         if connected == False:
@@ -266,10 +262,13 @@ class ConnectMgrSystemServicesIF:
         # Process Response
         if response is None:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
-        else:
+            return states_dict
+        try:
             stats_dict = nepi_ros.convert_msg2dict(response)['defs']
             #self.msg_if.pub_info("Got status response" + str(response) + " for service: " + service_name)
             self.msg_if.pub_info("Got system stats dict " + str(stats_dict) + " for service: " + service_name)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to convert service response to dict: " + service_name + " : " + str(response) + " : " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
 
         return stats_dict
 

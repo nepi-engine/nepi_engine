@@ -43,7 +43,7 @@ from nepi_api.device_if_npx import NPXDeviceIF
 
 
 
-SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
+SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 
 FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame','map']
@@ -834,7 +834,7 @@ class IDXDeviceIF:
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
-        dp_dict['namespace'] = namespace
+        
 
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
@@ -1176,11 +1176,12 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
             #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_if = None
             if data_product == 'color_image':
-                dp_if = ColorImageIF(namespace = pub_namespace,log_name = data_product,
+                self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
+                dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+                dp_if = ColorImageIF(namespace = dp_namespace, data_name = data_product, log_name = data_product,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
@@ -1257,11 +1258,12 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
+
             #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
             min_range_m = self.status_msg.range_window.start_range
             max_range_m = self.status_msg.range_window.stop_range
-            dp_if = DepthMapIF(namespace = pub_namespace,
+            dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+            dp_if = DepthMapIF(namespace = dp_namespace, data_name = data_product,
                         default_min_meters = min_range_m,
                         default_max_meters = max_range_m,
                         enable_image_pub = True,
@@ -1349,10 +1351,10 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            pub_namespace = nepi_ros.create_namespace(dp_dict['namespace'],data_product)
             #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
-
-            dp_if = PointcloudIF(namespace =  pub_namespace,log_name = data_product,
+            dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+            dp_if = PointcloudIF(namespace = dp_namespace, data_name = data_product,
+                        log_name = data_product,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -1425,7 +1427,7 @@ class IDXDeviceIF:
 
 
     def runImageThread(self):
-        self.image_thread_proccess('image')
+        self.image_thread_proccess('color_image')
 
     def runDepthMapThread(self):
         self.depth_map_thread_proccess('depth_map')

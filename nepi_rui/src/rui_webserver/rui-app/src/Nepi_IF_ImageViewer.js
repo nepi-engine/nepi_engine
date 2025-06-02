@@ -386,8 +386,8 @@ class ImageViewer extends Component {
       const brightness_ratio = message.brightness_ratio
       const contrast_ratio = message.contrast_ratio
       const threshold_ratio = message.threshold_ratio
-      const range_start_ratio = message.range_window.start_range
-      const range_stop_ratio = message.range_window.stop_range
+      const range_start_ratio = message.range_ratios.start_range
+      const range_stop_ratio = message.range_ratios.stop_range
       const zoom_ratio = message.zoom_ratio
       const pan_lr_ratio = message.pan_left_right_ratio
       const pan_ud_ratio = message.pan_up_down_ratio
@@ -486,7 +486,7 @@ class ImageViewer extends Component {
                           title={"Brightness"}
                           msgType={"std_msgs/Float32"}
                           adjustment={this.state.brightnessAdjustment}
-                          topic={namespace + "/set_brightness"}
+                          topic={namespace + "/set_brightness_ratio"}
                           scaled={0.01}
                           min={0}
                           max={100}
@@ -502,7 +502,7 @@ class ImageViewer extends Component {
                         title={"Contrast"}
                         msgType={"std_msgs/Float32"}
                         adjustment={contrast_ratio}
-                        topic={namespace + "/set_contrast"}
+                        topic={namespace + "/set_contrast_ratio"}
                         scaled={0.01}
                         min={0}
                         max={100}
@@ -517,7 +517,7 @@ class ImageViewer extends Component {
                           title={"Thresholding"}
                           msgType={"std_msgs/Float32"}
                           adjustment={threshold_ratio}
-                          topic={namespace + "/set_threshold"}
+                          topic={namespace + "/set_threshold_ratio"}
                           scaled={0.01}
                           min={0}
                           max={100}
@@ -536,8 +536,8 @@ class ImageViewer extends Component {
                       max={range_stop_ratio}
                       min_limit_m={0.2}
                       max_limit_m={1.0}
-                      topic={namespace + "/set_range_window"}
-                      tooltip={"Adjustable range raio"}
+                      topic={namespace + "/set_range_ratios"}
+                      tooltip={"Adjustable range ratio"}
                       unit={"%"}
                     />
           </div>
@@ -622,7 +622,9 @@ class ImageViewer extends Component {
                         />
           </div>
 
-
+          <ButtonMenu>
+            <Button onClick={() => sendTriggerMsg( namespace + "/reset_controls")}>{"Reset Controls"}</Button>
+          </ButtonMenu>
 
 
       </Column>
@@ -643,7 +645,7 @@ class ImageViewer extends Component {
   }
 
   renderOverlays() {
-    const { sendTrigMsg, sendBoolMsg } = this.props.ros
+    const { sendTriggerMsg, sendBoolMsg } = this.props.ros
     const namespace = this.props.imageTopic
    
     if (this.state.status_msg != null && namespace != null){
@@ -696,6 +698,9 @@ class ImageViewer extends Component {
                 </Column>
               </Columns>
 
+          <ButtonMenu>
+            <Button onClick={() => sendTriggerMsg( namespace + "/reset_overlays")}>{"Reset Overlays"}</Button>
+          </ButtonMenu>
 
       </Column>
       </Columns>

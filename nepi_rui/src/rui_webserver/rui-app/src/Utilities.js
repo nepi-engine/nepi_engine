@@ -107,11 +107,6 @@ export function onChangeSwitchStateValue(stateVarNameStr,currentVal){
   this.setState(obj)
 }
 
-export function onChangeSwitchSendBoolValue(namespace,newVal) {
-  const {sendBoolMsg} = this.props.ros
-  sendBoolMsg(namespace,newVal)
-}
-
 
 /////////////////////////////
 // MENU FUNCTIONS

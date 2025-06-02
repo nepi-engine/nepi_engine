@@ -33,11 +33,11 @@ float32 contrast_ratio
 float32 brightness_ratio
 
 # The thresholding field indicates the 0.0 - 1.0 thresholding setting of the device
-float32 thresholding_ratio
+float32 threshold_ratio
 
 # The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-RangeWindow range_window
+RangeWindow range_ratios
 
 # The zoom field 0.0 - 1.0 
 float32 zoom_ratio
@@ -47,7 +47,7 @@ float32 pan_left_right_ratio
 float32 pan_up_down_ratio
 
 # window pixel ratios 0.0 - 1.0 x_min,x_max,y_min,y_max
-ImageWindow window_ratios
+ImageWindowRatios window_ratios
 
 # The rotate field 0.0 - 1.0 
 float32 rotate_ratio
@@ -55,7 +55,7 @@ float32 rotate_ratio
 # The tilt field 0.0 - 1.0 
 float32 tilt_ratio
 
-string[] enhance_names
+string[] enhance_options
 bool[] enhance_states
 float32[] enhance_ratios
 

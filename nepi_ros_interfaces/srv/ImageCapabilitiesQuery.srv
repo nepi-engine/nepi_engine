@@ -1,22 +1,21 @@
 # This service definition provides the capabilities report for a NEPI IDX sensor
 
 ---
-# Image data product type
-# SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
-#                            'intensity_map','depth_map','pointcloud']
-string data_product_type
 
-# List of data product names provided by class
-string[] data_products
+# Image data source type
+# SUPPORTED_SOURCE_TYPES = ['image','color_image','bw_image',
+#                            'intensity_map','depth_map','pointcloud']
+string data_source_type
+string data_product_name
 
 string[] frame_id_options
 
 bool has_resolution
+bool has_auto_adjust
 bool has_contrast
 bool has_brightness
-bool has_thresholding
+bool has_threshold
 bool has_range
-bool has_auto_adjust
 bool has_zoom
 bool has_pan
 bool has_window
@@ -31,7 +30,7 @@ string[] enhance_options
 bool has_depth_map
 string depth_map_topic
 
-bool has_point_cloud
+bool has_pointcloud
 string pointcloud_topic
 
 

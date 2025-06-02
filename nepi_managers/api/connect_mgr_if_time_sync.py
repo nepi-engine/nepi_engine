@@ -183,10 +183,7 @@ class ConnectMgrTimeSyncIF:
             nepi_ros.wait()
             if exists == True:
                 ret = None
-                try:
-                    ret = self.get_time_status(verbose = True)
-                except:
-                    pass # Don't Print Exception
+                ret = self.get_time_status(verbose = True)
                 connected = (ret is not None)
             timer = nepi_ros.get_time() - time_start
         if connected == False:
@@ -208,16 +205,16 @@ class ConnectMgrTimeSyncIF:
         try:
             response = self.node_if.call_service(service_name, request, verbose = verbose)
             #self.msg_if.pub_info("Got time status response: " + str(response))
-            self.status_msg = response.time_status
-            time_status = response.time_status
-            time_dict = nepi_ros.convert_msg2dict(time_status)
-            #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
         except Exception as e:
             if verbose == True:
                 self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
             else:
                 pass
-
+        if response is not None:
+            self.status_msg = response.time_status
+            time_status = response.time_status
+            time_dict = nepi_ros.convert_msg2dict(time_status)
+            #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
         return time_dict    
 
     #######################
