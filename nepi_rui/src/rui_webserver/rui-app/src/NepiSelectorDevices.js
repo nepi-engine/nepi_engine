@@ -254,7 +254,6 @@ class DevicesSelector extends Component {
         <NPX
          title={"NpxDevice"}
          />
-set_as_gps_source
       </Column>
       </Columns>
     )
