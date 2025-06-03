@@ -170,32 +170,32 @@ class NepiDeviceNPXControls extends Component {
       <div hidden={!has_gps_pub}>    
             <Label title="Set as GPS Source">
               <Toggle
-                checked={this.state.set_as_gps_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_gps_source",!this.state.set_as_gps_source)}>
+                checked={set_as_gps_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_gps_source",!set_as_gps_source)}>
               </Toggle>
             </Label>
       </div>
       <div hidden={!has_elevation_pub}>    
             <Label title="Enable Elevation">
               <Toggle
-                checked={this.state.set_as_elevation_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_elevation_source",!this.state.set_as_elevation_source)}>
+                checked={set_as_elevation_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_elevation_source",set_as_elevation_source)}>
               </Toggle>
             </Label>
       </div>
       <div hidden={!has_pose_pub}>    
             <Label title="Enable Pose">
               <Toggle
-                checked={this.state.set_as_pose_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_pose_source",!this.state.set_as_pose_source)}>
+                checked={set_as_pose_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_pose_source",set_as_pose_source)}>
               </Toggle>
             </Label>
       </div>
       <div hidden={!has_heading_pub}>    
             <Label title="Enable Heading">
               <Toggle
-                checked={this.state.set_as_heading_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!this.state.set_as_heading_source)}>
+                checked={set_as_heading_source===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!set_as_heading_source)}>
               </Toggle>
             </Label>
       </div>

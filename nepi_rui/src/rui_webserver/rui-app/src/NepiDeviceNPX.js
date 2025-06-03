@@ -52,41 +52,91 @@ class NepiDeviceNPX extends Component {
 
       connected: false,
       statusListener: null,
+      navposeListener: null,
       needs_update: true,
+      nav_needs_update: true
     }
 
     this.ondeviceSelected = this.ondeviceSelected.bind(this)
     this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
     this.createDeviceOptions = this.createDeviceOptions.bind(this)
     this.statusListener = this.statusListener.bind(this)
+    this.navposeListener = this.navposeListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
+    this.updateNavposeListener = this.updateNavposeListener.bind(this)
+
 
   }
 
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
+
     this.setState({
-      navpose_data: message, 
+      status_data: message, 
       connected: true
     })
 
   }
 
-  // Function for configuring and subscribing to StatusNPX
-  updateStatusListener() {
-    const namespace = this.state.namespace + "/npx/status"
-    if (this.state.listener) {
-      this.state.listener.unsubscribe()
-    }
-    var statusListener = this.props.ros.setupNPXStatusListener(
-      namespace,
-      "nepi_ros_interfaces/NPXStatus",
-      this.statusListener
-    )
-    this.setState({ statusListener: statusListener, needs_update: false })
+  navposeListener(message) {
     
+    // Transform the data to match what NavPoseDataViewer expects
+    const transformedData = {
+      latitude: message.lat,
+      longitude: message.long,
+      altitude: message.altitude_m,
+      heading: message.heading_deg,
+      roll: message.roll_deg,
+      pitch: message.pitch_deg,
+      yaw: message.yaw_deg,
+      x_m: message.x_m,
+      y_m: message.y_m,
+      z_m: message.z_m,
+      frame_3d: message.frame_3d,
+      frame_id: message.frame_id
+    }
+        
+    this.setState({
+      navpose_data: transformedData, 
+      connected: true
+    })
   }
+
+updateStatusListener() {
+  const namespace = this.state.namespace
+
+  var statusListener = this.props.ros.setupStatusListener(
+    namespace + "/status",
+    "nepi_ros_interfaces/NPXStatus",
+    this.statusListener 
+  )
+  
+  this.setState({ 
+    statusListener: statusListener,
+    needs_update: false 
+  })
+}
+
+updateNavposeListener() {
+  const namespace = this.state.namespace
+  const navposeTopic = namespace + "/navpose"
+  
+  if (this.state.navposeListener) {
+    this.state.navposeListener.unsubscribe()
+  }
+  
+  var navposeListener = this.props.ros.setupStatusListener(
+    navposeTopic,
+    "nepi_ros_interfaces/NavPoseData",
+    this.navposeListener 
+  )
+  
+  this.setState({ 
+    navposeListener: navposeListener,
+    nav_needs_update: false 
+  })
+}
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
@@ -95,6 +145,7 @@ class NepiDeviceNPX extends Component {
     if (prevState.namespace !== namespace){
       if (namespace != null) {
         this.updateStatusListener()
+        this.updateNavposeListener()
       } else if (namespace == null){
         this.setState({ disabled: true })
       }
@@ -107,6 +158,9 @@ class NepiDeviceNPX extends Component {
     if (this.state.statusListener) {
       this.state.statusListener.unsubscribe()
     }
+    if (this.state.navposeListener) {
+      this.state.navposeListener.unsubscribe()
+    }
   }
 
 
@@ -118,7 +172,7 @@ class NepiDeviceNPX extends Component {
       //var unique_names = createShortUniqueValues(topics)
       var device_name = ""
       for (var i = 0; i < topics.length; i++) {
-        device_name = topics[i].split('/idx')[0].split('/').pop()
+        device_name = topics[i].split('/npx')[0].split('/').pop()
         items.push(<Option value={topics[i]}>{device_name}</Option>)
       }
       // Check that our current selection hasn't disappeard as an available option
@@ -240,7 +294,9 @@ class NepiDeviceNPX extends Component {
     const deviceSelected = (this.state.namespace != null)
     const namespace = this.state.namespace
     const navpose_data = this.state.navpose_data
+    const status_data = this.state.status_data
     const connected = this.state.connected
+
     return (
 
 
@@ -296,8 +352,13 @@ class NepiDeviceNPX extends Component {
 
                     <div hidden={(!deviceSelected && this.state.show_controls)}>
                       <NepiDeviceNPXControls
+<<<<<<< HEAD
                           deviceNamespace={namespace}
                           navposeData={navpose_data}
+=======
+                          namespace={namespace}
+                          navposeData={status_data}
+>>>>>>> 01633229c40eab0cd36bf198c9b760245d32e625
                           title={"NepiDeviceNPXControls"}
                       />
                     </div>
