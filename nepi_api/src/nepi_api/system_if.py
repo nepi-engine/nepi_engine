@@ -28,10 +28,10 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
-from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
+from nepi_ros_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
 from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_ros_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_ros_interfaces.msg import SystemState
@@ -142,8 +142,9 @@ class SaveDataIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = '~'
+        namespace = nepi_ros.create_namespace(namespace,'save_data')
         self.namespace = nepi_ros.get_full_namespace(namespace)
-        self.msg_if.pub_warn("Using data namespace: " + self.namespace, log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
         self.timezone = tzd
@@ -231,13 +232,13 @@ class SaveDataIF:
         # Services Config Dict ####################
         if self.namespace == self.node_namespace:
             self.SRVS_DICT = {
-                'query_data_products': {
+                'capabilities_query': {
                     'namespace': self.namespace,
-                    'topic': 'query_data_products',
-                    'srv': DataProductQuery,
-                    'req': DataProductQueryRequest(),
-                    'resp': DataProductQueryResponse(),
-                    'callback': self._dataProductQueryHandler
+                    'topic': 'capabilities_query',
+                    'srv': SaveDataCapabilitiesQuery,
+                    'req': SaveDataCapabilitiesQueryRequest(),
+                    'resp': SaveDataCapabilitiesQueryResponse(),
+                    'callback': self._capabilitiesHandler
                 }
             }
         else:
@@ -247,9 +248,9 @@ class SaveDataIF:
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'msg': SaveDataStatus,
-                'topic': 'save_data_status',
+                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             }
@@ -258,6 +259,14 @@ class SaveDataIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'save': {
+                'namespace': self.namespace,
+                'msg': Bool,
+                'topic': 'save_data_enable',
+                'qsize': 1,
+                'callback': self._saveEnableCb, 
+                'callback_args': ()
+            },  
             'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
@@ -289,15 +298,7 @@ class SaveDataIF:
                 'qsize': 1,
                 'callback': self._saveRateCb, 
                 'callback_args': ()
-            },
-            'save': {
-                'namespace': self.namespace,
-                'msg': Bool,
-                'topic': 'save_data',
-                'qsize': 1,
-                'callback': self._saveEnableCb, 
-                'callback_args': ()
-            },            
+            },          
             'snapshot': {
                 'namespace': self.namespace,
                 'msg': Empty,
@@ -309,7 +310,7 @@ class SaveDataIF:
             'reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
-                'topic': 'save_data_reset',
+                'topic': 'reset',
                 'qsize': 1,
                 'callback': self._resetCb,  
                 'callback_args': ()
@@ -317,9 +318,17 @@ class SaveDataIF:
             'factory_reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
-                'topic': 'save_data_factory_reset',
+                'topic': 'factory_reset',
                 'qsize': 1,
                 'callback': self._factoryResetCb,  
+                'callback_args': ()
+            },
+            'save_all': {
+                'namespace': self.base_namespace,
+                'msg': Bool,
+                'topic': 'save_data_enable',
+                'qsize': 1,
+                'callback': self._saveEnableCb, 
                 'callback_args': ()
             },
             'prefix_all': {
@@ -353,14 +362,6 @@ class SaveDataIF:
                 'qsize': 1,
                 'callback': self._saveRateCb, 
                 'callback_args': ()
-            },
-            'save_all': {
-                'namespace': self.base_namespace,
-                'msg': Bool,
-                'topic': 'save_data',
-                'qsize': 1,
-                'callback': self._saveEnableCb, 
-                'callback_args': ()
             },  
             'snapshot_all': {
                 'namespace': self.base_namespace,
@@ -374,7 +375,7 @@ class SaveDataIF:
             'reset_all': {
                 'namespace': self.base_namespace,
                 'msg': Empty,
-                'topic': 'save_data_reset',
+                'topic': 'reset',
                 'qsize': 1,
                 'callback': self._resetCb,  
                 'callback_args': ()
@@ -382,7 +383,7 @@ class SaveDataIF:
             'factory_reset_all': {
                 'namespace': self.base_namespace,
                 'msg': Empty,
-                'topic': 'save_data_factory_reset',
+                'topic': 'factory_reset',
                 'qsize': 1,
                 'callback': self._factoryResetCb,  
                 'callback_args': ()
@@ -685,7 +686,7 @@ class SaveDataIF:
         status_msg.save_data_utc = self.filename_dict['use_utc_tz']
         status_msg.current_timezone = self.timezone
         status_msg.save_data_rates = save_rates_msg
-        status_msg.save_data = self.save_data
+        status_msg.save_data_enabled = self.save_data
 
         if self.save_data_root_directory is not None:
             status_msg.current_data_dir = self.save_data_root_directory
@@ -717,12 +718,12 @@ class SaveDataIF:
         self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
 
 
-    def _dataProductQueryHandler(self, req):
+    def _capabilitiesHandler(self, req):
         return_list = []
         save_rate_dict = self.save_rate_dict
         for d in save_rate_dict:
             return_list.append(SaveDataRate(data_product = d, save_rate_hz = save_rate_dict[d][0]))
-        return DataProductQueryResponse(return_list)
+        return SaveDataCapabilitiesQueryResponse(return_list)
 
 
     def _setPrefixCb(self, msg):
@@ -805,8 +806,7 @@ EXAMPLE_SETTINGS_DICT = {
                     'capSettings': EXAMPLE_CAP_SETTINGS, 
                     'factorySettings': EXAMPLE_FACTORY_SETTINGS,
                     'setSettingFunction': EXAMPLE_SET_SETTING_FUNCTION, 
-                    'getSettingsFunction': EXAMPLE_GET_SETTINGS_FUNCTION, 
-                    'namespace':  self.node_namespace
+                    'getSettingsFunction': EXAMPLE_GET_SETTINGS_FUNCTION
 }
 '''
 
@@ -832,7 +832,8 @@ class SettingsIF:
     #######################
     ### IF Initialization
     def __init__(self, 
-                settings_dict,
+                namespace = None,
+                settings_dict = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -858,18 +859,23 @@ class SettingsIF:
 
         #############################
         # Initialize Class Variables
-        if 'namespace' not in settings_dict.keys():
-            namespace = None
-        else:
-            namespace = settings_dict['namespace']
         if namespace is None:
             namespace = '~'
+        namespace = nepi_ros.create_namespace(namespace,'settings')
         self.namespace = nepi_ros.get_full_namespace(namespace)
 
-        capSettings = settings_dict['capSettings']
-        factorySettings = settings_dict['capSettings']
-        setSettingFunction = settings_dict['setSettingFunction']
-        getSettingsFunction = settings_dict['getSettingsFunction']
+        if settings_dict is None:
+            self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
+            return
+        else:
+        try:
+            capSettings = settings_dict['capSettings']
+            factorySettings = settings_dict['capSettings']
+            setSettingFunction = settings_dict['setSettingFunction']
+            getSettingsFunction = settings_dict['getSettingsFunction']
+        except Exception as e:
+            self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
+            return
 
 
         #  Initialize capabilities info
@@ -921,7 +927,7 @@ class SettingsIF:
         self.SRVS_DICT = {
             'cap_settings': {
                 'namespace': self.namespace,
-                'topic': 'settings_capabilities_query',
+                'topic': 'capabilities_query',
                 'srv': SettingsCapabilitiesQuery,
                 'req': SettingsCapabilitiesQueryRequest(),
                 'resp': SettingsCapabilitiesQueryResponse(),
@@ -933,8 +939,8 @@ class SettingsIF:
         self.PUBS_DICT = {
             'status_pub': {
                 'namespace': self.namespace,
-                'msg': Settings,
-                'topic': 'settings_status',
+                'msg': SettingsStatus,
+                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             }
@@ -953,7 +959,7 @@ class SettingsIF:
             'reset_setting': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'reset_settings',
+                'topic': 'reset',
                 'qsize': 1,
                 'callback': self._resetSettingsCb,
                 'callback_args': None
@@ -961,7 +967,7 @@ class SettingsIF:
             'factory_reset_setting': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'factory_reset_settings',
+                'topic': 'factory_reset',
                 'qsize': 1,
                 'callback': self._resetFactorySettingsCb,
                 'callback_args': None

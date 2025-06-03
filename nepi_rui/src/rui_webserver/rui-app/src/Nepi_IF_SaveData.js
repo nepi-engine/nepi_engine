@@ -35,24 +35,22 @@ class NepiIFSaveData extends Component {
 
     // these states track the values through the components Save Data Status messages
     this.state = {
-
-      reset_save_data: true,
+      namespace: 'None',
+      capabilities: null,
       saveRatesMsg: "",
       saveDataPrefix: "",
       saveUtcTz: false,
       exp_filename: "",
       saveDataEnabled: false,
       saveDataRate: "1.0",
-      saveNavDataEnabled: true,
-      saveNavDataRate: "10.0",
       saveNamesList: [],
       saveRatesList: [],
       selectedDataProducts: [],
 
-      showSettings: this.props.showSettings ? this.props.showSettings : false,
+      showControls: this.props.showControls ? this.props.showControls : false,
 
       needs_update: true,
-      saveStatusListener: null,
+      saveStatusListener: null
     }
 
 
@@ -71,7 +69,6 @@ class NepiIFSaveData extends Component {
     this.getSaveDataValue = this.getSaveDataValue.bind(this)
     this.onChangeBoolSaveDataValue = this.onChangeBoolSaveDataValue.bind(this)
     this.onChangeBoolUtcTzValue = this.onChangeBoolUtcTzValue.bind(this)
-    this.getSaveNavDataValue = this.getSaveNavDataValue.bind(this)
     this.onUpdateInputSaveDataRateValue = this.onUpdateInputSaveDataRateValue.bind(this)
     this.onKeySaveInputSaveDataRateValue = this.onKeySaveInputSaveDataRateValue.bind(this)
     this.onUpdateInputSaveDataPrefixValue = this.onUpdateInputSaveDataPrefixValue.bind(this)
@@ -79,18 +76,11 @@ class NepiIFSaveData extends Component {
     this.onToggleDataProductSelection = this.onToggleDataProductSelection.bind(this)
     this.sendSaveRateUpdate = this.sendSaveRateUpdate.bind(this)
     
-
-    this.getNavNamespace = this.getNavNamespace.bind(this)
-    this.onChangeBoolSaveNavDataValue = this.onChangeBoolSaveNavDataValue.bind(this)
-    this.onUpdateInputSaveNavDataRateValue = this.onUpdateInputSaveNavDataRateValue.bind(this)
-    this.onKeySaveInputSaveNavDataRateValue = this.onKeySaveInputSaveNavDataRateValue.bind(this)
-    this.sendSaveNavRateUpdate = this.sendSaveNavRateUpdate.bind(this)
-
     this.updateSelectedDataProducts = this.updateSelectedDataProducts.bind(this)
     this.getSelectedDataProducts = this.getSelectedDataProducts.bind(this)
     this.getDiskUsageRate = this.getDiskUsageRate.bind(this)
 
- 
+    this.updateCapabilities = this.updateCapabilities.bind(this)
 
     this.convertStrListToMenuList = this.convertStrListToMenuList.bind(this)
     
@@ -106,7 +96,7 @@ class NepiIFSaveData extends Component {
     const saveDirPrefix = message.current_subfolder
     const saveNamePrefix = message.current_filename_prefix
     const saveUtcTz = message.save_data_utc
-    const saveData = message.save_data
+    const saveData = message.save_data_enabled
     const exp_filename = message.example_filename
     var saveDataPrefix = ""
     if (saveDirPrefix === ""){
@@ -127,27 +117,29 @@ class NepiIFSaveData extends Component {
 
   // Function for configuring and subscribing to Status
   updateSaveStatusListener() {
-    const { saveNamespace } = this.props
+    const namespace = this.state.namespace ? this.state.namespace : null
     if (this.state.saveStatusListener) {
       this.state.saveStatusListener.unsubscribe()
     }
-    var saveStatusListener = this.props.ros.setupSaveDataStatusListener(
-          saveNamespace,
-          this.saveStatusListener
-        )
-    this.setState({ saveStatusListener: saveStatusListener,
-      needs_update: false})
+    if (namespace != 'None'){
+      var saveStatusListener = this.props.ros.setupSaveDataStatusListener(
+            namespace + '/save_data',
+            this.saveStatusListener
+          )
+      this.setState({ saveStatusListener: saveStatusListener,
+        needs_update: false})
+    }
   }
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const namespace = this.props.saveNamespace
-    const namespace_updated = (prevState.saveNamespace !== namespace && namespace !== null)
+    const namespace = this.state.namespace
+    const namespace_updated = (prevState.namespace !== namespace && namespace !== null)
     const needs_update = (this.state.needs_update && namespace !== null)
     if (namespace_updated || needs_update) {
       if (namespace.indexOf('null') === -1){
-        this.setState({saveNamespace: namespace})
+        this.setState({namespace: namespace})
         this.updateSaveStatusListener()
       }
     }
@@ -159,6 +151,31 @@ class NepiIFSaveData extends Component {
     if (this.state.saveStatusListener) {
       this.state.saveStatusListener.unsubscribe()
     }
+  }
+
+
+
+  // Function for creating settings options list from capabilities
+  updateCapabilities() {
+    const {saveDataCaps} = this.props.ros
+    const cur_namespace = this.props.namespace
+    const set_namespace = this.state.namespace.replace('/save_data','')
+    var capabilities = null
+    if (saveDataCaps){
+      capabilities = saveDataCaps[cur_namespace]
+    }    
+    if (capabilities != null && set_namespace !== cur_namespace){
+      this.setState({
+        capabilities: capabilities,
+      })
+    }
+    else if (capabilities == null) {
+      this.setState({
+        capabilities: null,
+      })
+    }
+    const new_namespace = this.state.namespace + '/save_data'
+    this.setState({namespace:  new_namespace})
   }
 
 
@@ -189,8 +206,8 @@ class NepiIFSaveData extends Component {
   }
 
   onClickToggleShowSettings(){
-    const currentVal = this.state.showSettings 
-    this.setState({showSettings: !currentVal})
+    const currentVal = this.state.showControls 
+    this.setState({showControls: !currentVal})
     this.render()
   }
 
@@ -218,12 +235,6 @@ class NepiIFSaveData extends Component {
         configsStrList.push(entryStr)
       }
     }
-    var navSaveRate = "0.0"
-    if (this.state.saveNavDataEnabled === true){
-      navSaveRate = this.state.saveNavDataRate
-    }
-    entryStr = ("nav : " + navSaveRate + " Hz\n")
-    configsStrList.push(entryStr)
     configsStr = configsStrList.join("")
     return configsStr
   }
@@ -242,17 +253,7 @@ class NepiIFSaveData extends Component {
   sendSaveRateUpdate(data_product,rate) {
     const {updateSaveDataRate}  = this.props.ros
     if (isNaN(rate) === false){
-      updateSaveDataRate(this.props.saveNamespace,data_product,rate)
-    }
-  }
-
-  sendSaveNavRateUpdate() {
-    const {updateSaveDataRate}  = this.props.ros
-    const navNamespace = this.getNavNamespace()
-    const saveRateStr = this.state.saveNavDataRate
-    const rate = parseFloat(saveRateStr)
-    if (isNaN(rate) === false) {
-      updateSaveDataRate(navNamespace,'nav_pose',rate)
+      updateSaveDataRate(this.state.namespace,data_product,rate)
     }
   }
 
@@ -302,59 +303,22 @@ class NepiIFSaveData extends Component {
     return saveData
   }
 
-  getNavNamespace()  {
-    const nsStrList = this.props.saveNamespace.split("/")
-    const navNamespace = "/" + nsStrList[1] + "/" + nsStrList[2] + "/nav_pose_pub"
-    return navNamespace
-  }
 
   onChangeBoolSaveDataValue(){
     const {sendBoolMsg}  = this.props.ros
     const enabled = (this.state.saveDataEnabled === false)
-    const saveNavEnabled = (this.state.saveNavDataEnabled === true)
     const saveDataRate = this.state.saveDataRate
     const rate = parseFloat(saveDataRate)
     this.sendSaveRateUpdate('Active',rate)
-    sendBoolMsg(this.props.saveNamespace + '/save_data',enabled)
-    if (saveNavEnabled === true){
-      const navNamespace = this.getNavNamespace()
-      this.sendSaveNavRateUpdate()
-      sendBoolMsg(navNamespace + '/save_data',enabled)
-    }
+    sendBoolMsg(this.state.namespace + '/save_data_enable',enabled)
 
   }
 
   onChangeBoolUtcTzValue(e){
     const {sendBoolMsg}  = this.props.ros
     const enabled = e.target.checked
-    const saveNavEnabled = (this.state.saveNavDataEnabled === true)
-    sendBoolMsg(this.props.saveNamespace + '/save_data_utc',enabled)
-    if (saveNavEnabled === true){
-      const navNamespace = this.getNavNamespace()
-      this.sendSaveNavRateUpdate()
-      sendBoolMsg(navNamespace + '/save_data_utc',enabled)
-    }
+    sendBoolMsg(this.state.namespace + '/save_data_utc',enabled)
   }
-
-  getSaveNavDataValue(){
-    const saveNavData = (this.state.saveNavDataEnabled === true)
-    return saveNavData
-  }
-
-  onChangeBoolSaveNavDataValue(){
-    const {updateSaveDataRate} = this.props.ros
-    const navEnabled = (this.state.saveNavDataEnabled === false)
-    const nav_rate_str = this.state.saveNavDataRate
-    this.setState({saveNavDataEnabled:navEnabled})
-    if (navEnabled){
-      const nav_rate = parseFloat(nav_rate_str)
-      if (isNaN(nav_rate) === false) {
-        const navNamespace = this.getNavNamespace()
-        updateSaveDataRate(navNamespace,"nav_pose",nav_rate)
-      }
-    }
-  }
-
 
 
   onUpdateInputSaveDataRateValue(event) {
@@ -377,22 +341,6 @@ class NepiIFSaveData extends Component {
   }
 
 
-  onUpdateInputSaveNavDataRateValue(event) {
-    this.setState({saveNavDataRate: event.target.value })
-    document.getElementById("nav_rate").style.color = Styles.vars.colors.red
-    this.render()
-  }
-
-  onKeySaveInputSaveNavDataRateValue(event) {
-    if(event.key === 'Enter'){
-      const rate = parseFloat(event.target.value)
-      if (!isNaN(rate)){
-        this.setState({saveNavDataRate: event.target.value })
-        this.sendSaveNavRateUpdate()
-      }
-      document.getElementById("nav_rate").style.color = Styles.vars.colors.black
-    }
-  }
 
   onUpdateInputSaveDataPrefixValue(event) {
     this.setState({ saveDataPrefix: event.target.value })
@@ -404,14 +352,8 @@ class NepiIFSaveData extends Component {
     const { updateSaveDataPrefix} = this.props.ros
     const key = event.key
     const value = event.target.value
-    const navEnabled = (this.state.saveNavDataEnabled === true)
     if(key === 'Enter'){
       document.getElementById("input_prefix").style.color = Styles.vars.colors.black
-      updateSaveDataPrefix(this.props.saveNamespace,value)
-      if ( navEnabled === true) {
-        const navNamespace = this.getNavNamespace()
-        updateSaveDataPrefix(navNamespace,value)
-      }
     }
   }
   
@@ -432,18 +374,12 @@ class NepiIFSaveData extends Component {
 
   onSnapshotTriggered(){
     const { onSnapshotEventTriggered} = this.props.ros
-    onSnapshotEventTriggered(this.props.saveNamespace)
-    const navEnabled = (this.state.saveNavDataEnabled === true)
-    if (navEnabled){
-      const navNamespace = this.getNavNamespace()
-      onSnapshotEventTriggered(navNamespace)
-    }
+    onSnapshotEventTriggered(this.state.namespace)
   }
 
   render() {
-    const { resetSaveDataTriggered} = this.props.ros
+    const { sendTriggerMsg} = this.props.ros
     const saveDataEnabled = this.getSaveDataValue()
-    const saveNavDataEnabled = this.getSaveNavDataValue()
     const dataProdcutSources = this.getSaveNamesList()
     const selectedDataProducts = this.getSelectedDataProducts()
     const diskUsage = this.getDiskUsageRate()
@@ -455,19 +391,16 @@ class NepiIFSaveData extends Component {
             <Columns>
             <Column>
 
-              <ButtonMenu >
-                  <Button onClick={this.onSnapshotTriggered}>{"Take Snapshot"}</Button>
-                </ButtonMenu>
+                    <ButtonMenu >
+                        <Button onClick={this.onSnapshotTriggered}>{"Take Snapshot"}</Button>
+                      </ButtonMenu>
 
-                <Label title={"Save Data"}>
-                <Toggle
-                  checked={ (saveDataEnabled === true) }
-                  onClick={() => {this.onChangeBoolSaveDataValue()}}
-                />
-              </Label>
-
-                </Column>
-            <Column>
+                      <Label title={"Save Data"}>
+                      <Toggle
+                        checked={ (saveDataEnabled === true) }
+                        onClick={() => {this.onChangeBoolSaveDataValue()}}
+                      />
+                    </Label>
 
 
 
@@ -475,117 +408,104 @@ class NepiIFSaveData extends Component {
               <Column>
 
 
-              <Label title="Show Settings">
-                    <Toggle
-                      checked={this.state.showSettings===true}
-                      onClick={this.onClickToggleShowSettings}>
-                    </Toggle>
-                  </Label>
+                  <Label title="Show Settings">
+                        <Toggle
+                          checked={this.state.showControls===true}
+                          onClick={this.onClickToggleShowSettings}>
+                        </Toggle>
+                      </Label>
 
             </Column>
             </Columns>
 
 
-            <div align={"left"} textAlign={"left"} hidden={this.state.showSettings === false}>
+            <div align={"left"} textAlign={"left"} hidden={this.state.showControls === false}>
 
-            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-        
-          <Columns>
-            <Column>
-            <Label title={"Use UTC Time"}>
-                <Toggle
-                  checked={ (saveUtcTz) }
-                  onClick={this.onChangeBoolUtcTzValue}
-                />
-              </Label>
+                  <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+              
+                <Columns>
+                  <Column>
 
-              <Label title={"Set Save Rate (Hz)"}>
-                <Input id="input_rate" 
-                    value={this.state.saveDataRate} 
-                    onChange={this.onUpdateInputSaveDataRateValue} 
-                    onKeyDown= {this.onKeySaveInputSaveDataRateValue} />
-            </Label>
+                        <Label title={"Use UTC Time"}>
+                            <Toggle
+                              checked={ (saveUtcTz) }
+                              onClick={this.onChangeBoolUtcTzValue}
+                            />
+                          </Label>
 
-            <Label title={"Set Save Prefix"}>
-              <Input id="input_prefix" 
-                  value={this.state.saveDataPrefix} 
-                  onChange={this.onUpdateInputSaveDataPrefixValue} 
-                  onKeyDown= {this.onKeySaveInputSaveDataPrefixValue} />
-            </Label>
+                          <Label title={"Set Save Rate (Hz)"}>
+                            <Input id="input_rate" 
+                                value={this.state.saveDataRate} 
+                                onChange={this.onUpdateInputSaveDataRateValue} 
+                                onKeyDown= {this.onKeySaveInputSaveDataRateValue} />
+                        </Label>
 
-
-
-            <Label title="Selected Message Topics">
-              <div onClick={this.doNothing} style={{backgroundColor: Styles.vars.colors.grey0}}>
-                <Select style={{width: "10px"}}/>
-              </div>
-              <div hidden={false}>
-              {dataProdcutSources.map((data_product) =>
-              <div onClick={this.onToggleDataProductSelection}
-                style={{
-                  textAlign: "center",
-                  padding: `${Styles.vars.spacing.xs}`,
-                  color: Styles.vars.colors.black,
-                  backgroundColor: (selectedDataProducts.includes(data_product))? Styles.vars.colors.blue : Styles.vars.colors.grey0,
-                  cursor: "pointer",
-                  }}>
-                  <body data-product={data_product} style={{color: Styles.vars.colors.black}}>{data_product}</body>
-              </div>
-              )}
-              </div>
-            </Label>
-            <Label title={"Nav Data Saving"}>
-            </Label>
-            <Label title={"Enable"}>
-                <Toggle
-                  checked={ (saveNavDataEnabled === true) }
-                  onClick={this.onChangeBoolSaveNavDataValue}
-                />
-              </Label>
-              <Label title={"Max Rate (Hz)"}>
-                  <Input id="nav_rate" 
-                      value={this.state.saveNavDataRate} 
-                      onChange={this.onUpdateInputSaveNavDataRateValue} 
-                      onKeyDown= {this.onKeySaveInputSaveNavDataRateValue} />
-              </Label>
+                        <Label title={"Set Save Prefix"}>
+                          <Input id="input_prefix" 
+                              value={this.state.saveDataPrefix} 
+                              onChange={this.onUpdateInputSaveDataPrefixValue} 
+                              onKeyDown= {this.onKeySaveInputSaveDataPrefixValue} />
+                        </Label>
 
 
-            </Column>
-            <Column>
 
-              <ButtonMenu>
-                <Button onClick={() => resetSaveDataTriggered(this.props.saveNamespace)}>{"Reset Save Settings"}</Button>
-              </ButtonMenu>
-              <Label title={""}>
-              </Label>
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+                        <Label title={"Selected Message Topics"}>
+                          <div onClick={this.doNothing} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                            <Select style={{width: "10px"}}/>
+                          </div>
 
-              <Label title={"Saving"}>
-                <BooleanIndicator value={(this.getSaveDataValue() === true)} />
-              </Label>
+                            {dataProdcutSources.map((data_product) =>
+                            <div onClick={this.onToggleDataProductSelection}
+                                style={{
+                                    textAlign: "center",
+                                    padding: `${Styles.vars.spacing.xs}`,
+                                    color: Styles.vars.colors.black,
+                                    backgroundColor: (selectedDataProducts.includes(data_product))? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                                    cursor: "pointer",
+                                  }}>
+                                  <body data-product={data_product} style={{color: Styles.vars.colors.black}}>{data_product}</body>
+                            </div>
+                            )}
+                        </Label>
 
-              <Label title={"Data Save Rate"}>
-                <Input disabled value={roundWithSuffix(diskUsage, 3, "MB/s")} />
-              </Label>
-
-              <Label title={"Example Filename"}>
-              </Label>
-
-              <pre style={{ height: "100px", overflowY: "auto" }}>
-                {this.state.exp_filename}
-              </pre>
-
-              <Label title={"Data Product Save Settings"}>
-              </Label>
-
-              <pre style={{ height: "400px", overflowY: "auto" }}>
-                {this.getSaveConfigString()}
-              </pre>
-
-            </Column>
-          </Columns>
       
-        </div>
+
+                  </Column>
+                  <Column>
+
+                        <ButtonMenu>
+                          <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
+                        </ButtonMenu>
+                        <Label title={""}>
+                        </Label>
+                        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+                        <Label title={"Saving"}>
+                          <BooleanIndicator value={(this.getSaveDataValue() === true)} />
+                        </Label>
+
+                        <Label title={"Data Save Rate"}>
+                          <Input disabled value={roundWithSuffix(diskUsage, 3, "MB/s")} />
+                        </Label>
+
+                        <Label title={"Example Filename"}>
+                        </Label>
+
+                        <pre style={{ height: "100px", overflowY: "auto" }}>
+                          {this.state.exp_filename}
+                        </pre>
+
+                        <Label title={"Data Product Save Settings"}>
+                        </Label>
+
+                        <pre style={{ height: "400px", overflowY: "auto" }}>
+                          {this.getSaveConfigString()}
+                        </pre>
+
+                  </Column>
+                </Columns>
+        
+          </div>
 
 
       </Section>

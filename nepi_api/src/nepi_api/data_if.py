@@ -528,7 +528,8 @@ class NavPoseIF:
         # Initialize Class Variables
         if namespace is not None:
             self.namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(self.namespace)
+        namespace = nepi_ros.create_namespace(namespace,'navpose')
+        self.namespace = nepi_ros.get_full_namespace(namespace)
 
         self.enable_gps_pub = enable_gps_pub
         self.enable_elevation_pub = enable_elevation_pub
@@ -544,14 +545,14 @@ class NavPoseIF:
             'status_pub': {
                 'msg': NavPoseDataStatus,
                 'namespace': self.namespace,
-                'topic': 'navpose/status',
+                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'navpose_pub': {
                 'msg': NavPoseData,
                 'namespace': self.namespace,
-                'topic': 'navpose',
+                'topic': 'navpose_data',
                 'qsize': 1,
                 'latch': False
             }
@@ -1200,7 +1201,7 @@ class ImageIF:
         # Services Config Dict ####################     
         SRVS_DICT = {
             'image_caps_query': {
-                'namespace': self.base_namespace,
+                'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': ImageCapabilitiesQuery,
                 'req': ImageCapabilitiesQueryRequest(),

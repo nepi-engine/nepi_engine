@@ -228,12 +228,13 @@ class ROSConnectionStore {
   @observable imageDetectionTopics = []
   @observable pointcloudTopics = []
   @observable settingCaps = {}
+  @observable saveDataTopics = []
+  @observable saveDataCaps = {}
   @observable idxDevices = {}
   @observable ptxDevices = {}
   @observable lsxDevices = {}
   @observable rbxDevices = {}
   @observable npxDevices = {}
-  @observable saveDataTopics = []
   @observable resetTopics = []
   @observable navSatFixTopics = []
   @observable orientationTopics = []
@@ -500,9 +501,6 @@ class ROSConnectionStore {
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
-        if (this.imageTopics.indexOf(this.topicNames[i]) === -1){
-          this.callImageCapabilitiesQueryService(this.topicNames[i])
-        }
         if (this.topicNames[i].indexOf('detection_image') !== -1){
           newImageDetectionTopics.push(this.topicNames[i])
         }
@@ -515,11 +513,39 @@ class ROSConnectionStore {
     if (!this.imageTopics.equals(newImageTopics)) {
       this.imageTopics = newImageTopics
       this.imageDetectionTopics = newImageDetectionTopics
+      for (var i = 0; i < this.imageTopics.length; i++) {
+            this.callImageCapabilitiesQueryService(this.imageTopics[i])
+          }
       return true
     } else {
       return false
     }
   }
+
+  @action.bound
+  updateSaveDataTopics() {
+    // Function for updating image topics list
+    var newSaveDataTopics = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicTypes[i] === "nepi_ros_interfaces/SaveDataStatus"){
+        newSaveDataTopics.push(this.topicNames[i])
+      }
+    }
+
+    // sort the save topics for comparison to work
+    newSaveDataTopics.sort()    
+
+    if (!this.saveDataTopics.equals(newSaveDataTopics)) {
+      this.saveDataTopics = newSaveDataTopics
+      for (var i = 0; i < this.saveDataTopics.length; i++) {
+            this.callSaveDataCapabilitiesQueryService(this.saveDataTopics[i])
+          }
+      return true
+    } else {
+      return false
+    }
+  }
+
 
 
   @action.bound
@@ -730,28 +756,6 @@ class ROSConnectionStore {
 
     if (!this.resetTopics.equals(newResetTopics)) {
       this.resetTopics = newResetTopics
-      return true
-    } else {
-      return false
-    }
-  }
-
-  @action.bound
-  updateSaveDataTopics() {
-    var newSaveDataTopics = []
-    var topic = ""
-    for (var i = 0; i < this.topicNames.length; i++) {
-      topic = this.topicNames[i]
-      if (topic.indexOf('save_data_status') !== -1){
-        newSaveDataTopics.push(topic) 
-      }
-    }
-
-    // sort the topics for comparison to work
-    newSaveDataTopics.sort()
-
-    if (!this.saveDataTopics.equals(newSaveDataTopics)) {
-      this.saveDataTopics = newSaveDataTopics
       return true
     } else {
       return false
@@ -1094,10 +1098,10 @@ class ROSConnectionStore {
 
 
   @action.bound
-  setupSaveDataStatusListener(saveNamespace, callback) {
-    if (saveNamespace) {
+  setupSaveDataStatusListener(namespace, callback) {
+    if (namespace) {
       return this.addListener({
-        name: saveNamespace + "/save_data_status",
+        name: namespace + "/status",
         messageType: "nepi_ros_interfaces/SaveDataStatus",
         noPrefix: true,
         callback: callback,
@@ -1107,11 +1111,11 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  setupSettingsStatusListener(settingsNamespace, callback) {
-    if (settingsNamespace) {
+  setupSettingsStatusListener(namespace, callback) {
+    if (namespace) {
       return this.addListener({
-        name: settingsNamespace + "/settings_status",
-        messageType: "nepi_ros_interfaces/Settings",
+        name: namespace + "/status",
+        messageType: "nepi_ros_interfaces/SettingsStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1146,8 +1150,7 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  sendStringMsg(strNamespace,str) {
-    const namespace = strNamespace
+  sendStringMsg(namespace,str) {
     this.publishMessage({
       name: namespace,
       messageType: "std_msgs/String",
@@ -1157,8 +1160,7 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  sendStringArrayMsg(strNamespace,strArray) {
-    const namespace = strNamespace
+  sendStringArrayMsg(namespace,strArray) {
     this.publishMessage({
       name: namespace,
       messageType: "nepi_ros_interfaces/StringArray",
@@ -1471,10 +1473,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  updateSaveDataPrefix(saveDataNamespace,saveDataPrefix) {
-    const namespace = saveDataNamespace + "/save_data_prefix"
+  updateSaveDataPrefix(namespace,saveDataPrefix) {
     this.publishMessage({
-      name: namespace,
+      name: namespace + "/save_data_prefix",
       messageType: "std_msgs/String",
       data: {'data':saveDataPrefix},
       noPrefix: true
@@ -1482,9 +1483,9 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  updateSaveDataRate(saveDataNamespace,data_product,rate_hz) {
+  updateSaveDataRate(namespace,data_product,rate_hz) {
     this.publishMessage({
-      name: saveDataNamespace + "/save_data_rate",
+      name: namespace + "/save_data_rate",
       messageType: "nepi_ros_interfaces/SaveDataRate",
       data: {
         data_product: data_product,
@@ -1496,19 +1497,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  onSnapshotEventTriggered(saveDataNamespace) {
+  onSnapshotEventTriggered(namespace) {
     this.publishMessage({
-      name: saveDataNamespace + "/snapshot_trigger",
-      messageType: "std_msgs/Empty",
-      data: {},
-      noPrefix: true
-    })
-  }
-
-  @action.bound
-  resetSaveDataTriggered(saveDataNamespace) {
-    this.publishMessage({
-      name: saveDataNamespace + "/save_data_reset",
+      name: namespace + "/snapshot_trigger",
       messageType: "std_msgs/Empty",
       data: {},
       noPrefix: true
@@ -1518,9 +1509,9 @@ class ROSConnectionStore {
 
 
   @action.bound
-  updateSetting(settingsNamespace,nameStr,typeStr,valueStr) {
+  updateSetting(namespace,nameStr,typeStr,valueStr) {
     this.publishMessage({
-      name: settingsNamespace + "/update_setting",
+      name: namespace + "/update_setting",
       messageType: "nepi_ros_interfaces/Setting",
       data: {type_str:typeStr,
         name_str:nameStr,
@@ -1544,7 +1535,16 @@ class ROSConnectionStore {
     })
   }
 
-
+  @action.bound
+  async callSaveDataCapabilitiesQueryService(namespace) {
+    this.saveDataCaps[namespace] = []
+    const capabilities = await this.callService({
+      name: namespace + "/capabilities_query",
+      messageType: "nepi_ros_interfaces/SaveDataCapabilitiesQuery",  
+      args: {namespace : namespace},
+    })
+    this.saveDataCaps[namespace] = capabilities
+  }
 
   async callSystemDefsService() {
     this.systemDefs = await this.callService({
@@ -1562,7 +1562,7 @@ class ROSConnectionStore {
   async callSettingsCapabilitiesQueryService(namespace) {
     this.settingCaps[namespace] = []
     const capabilities = await this.callService({
-      name: namespace + "/settings_capabilities_query",
+      name: namespace + "/capabilities_query",
       messageType: "nepi_ros_interfaces/SettingsCapabilitiesQuery",  
       args: {namespace : namespace},
     })
@@ -2278,7 +2278,7 @@ class ROSConnectionStore {
   @action.bound
   onToggleSaveDataAll(value) {
       this.publishMessage({
-      name: "save_data",
+      name: "save_data/save_data_enable",
       messageType: "std_msgs/Bool",
       data: {data: value},
       noPrefix: true
@@ -2288,7 +2288,7 @@ class ROSConnectionStore {
   @action.bound
   onToggleSaveUTCAll(value) {
       this.publishMessage({
-      name: "save_data_utc",
+      name: "save_data/save_data_utc",
       messageType: "std_msgs/Bool",
       data: {data: value},
       noPrefix: true
@@ -2306,7 +2306,7 @@ class ROSConnectionStore {
     }
 
     this.publishMessage({
-      name: "save_data_rate",
+      name: "save_data/save_data_rate",
       messageType: "nepi_ros_interfaces/SaveDataRate",
       data: {
         data_product: "Active",
@@ -2381,7 +2381,7 @@ class ROSConnectionStore {
   @action.bound
   saveSettingsFilePrefix({newFilePrefix}) {
     this.publishMessage({
-      name: "save_data_prefix",
+      name: "save_data/save_data_prefix",
       messageType: "std_msgs/String",
       data: { data: newFilePrefix }
     })

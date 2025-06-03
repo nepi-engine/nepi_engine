@@ -52,7 +52,7 @@ class NepiDeviceIDX extends Component {
 
       data_topic: null,
       data_product: 'None',
-      imageTopic: null,
+      imageTopic: 'None',
       imageText: 'None',      
       
       // IDX Sensor topic to subscribe to and update
@@ -169,7 +169,7 @@ class NepiDeviceIDX extends Component {
     const { idxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const device_selected = (this.state.namespace != null)
-    const namespace = this.state.namespace
+    const namespace = this.state.namespace ? this.state.namespace : "None"
 
     return (
       <React.Fragment>
@@ -277,11 +277,14 @@ class NepiDeviceIDX extends Component {
     
     return (
 
+      <Columns>
+      <Column>
+
 
     
       <div style={{ display: 'flex' }}>
 
-          <div style={{ width: "65%" }}>
+          <div style={{ width: "68%" }}>
 
                     <div hidden={(!device_selected)}>
                       <NepiDeviceInfo
@@ -295,23 +298,21 @@ class NepiDeviceIDX extends Component {
 
                     </div>
 
-                    {this.renderImageViewer()}
+
+                        {this.renderImageViewer()}
 
                     <div hidden={(!device_selected)}>
 
                       <NepiIFSaveData
-                          saveNamespace={namespace + ''}
+                          namespace={namespace}
                           title={"Nepi_IF_SaveData"}
                       />
                     </div>
 
-
           </div>
 
 
-
-
-          <div style={{ width: '5%' }}>
+          <div style={{ width: '2%' }}>
                 {}
           </div>
 
@@ -319,36 +320,38 @@ class NepiDeviceIDX extends Component {
 
           <div style={{ width: "30%"}}>
 
+                {this.renderDeviceSelection()}
 
-                    {this.renderDeviceSelection()}
 
 
-                    <div hidden={(!device_selected && this.state.show_controls)}>
+                <div hidden={(!device_selected && this.state.show_controls)}>
                       <NepiDeviceIDXControls
                           namespace={namespace}
                           dataProduct={data_product}
                           title={"NepiDeviceIDXControls"}
                       />
-                    </div>
+                </div>
 
 
-                    <div hidden={(!device_selected && this.state.show_settings)}>
+                <div hidden={(!device_selected && this.state.show_settings)}>
                       <NepiIFSettings
-                        settingsNamespace={namespace + ''}
+                        namespace={namespace}
                         title={"Nepi_IF_Settings"}
                       />
-                    </div>
+                </div>
 
           </div>
-
-
 
     </div>
 
 
+      </Column>
+    </Columns>
 
     )
   }
+
+
 }
 
 export default NepiDeviceIDX

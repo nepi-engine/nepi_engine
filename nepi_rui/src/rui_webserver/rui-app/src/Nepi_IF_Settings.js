@@ -31,6 +31,10 @@ class Nepi_IF_Settings extends Component {
 
     // these states track the values through  Status messages
     this.state = {
+
+      namespace: 'None',
+      capabilities: null,
+
       capSettingsTypes: ['Menu','Discrete','String','Bool','Int','Float'],
       capSettingsNamesList: [],
       capSettingsTypesList: [],
@@ -49,7 +53,6 @@ class Nepi_IF_Settings extends Component {
       selectedSettingOptions: [],
       selectedSettingInput: "",
 
-      settings_namespace: 'None',
 
       settingsListener: null,
     }
@@ -57,7 +60,7 @@ class Nepi_IF_Settings extends Component {
     this.updateSettingsListener = this.updateSettingsListener.bind(this)
     this.settingsStatusListener = this.settingsStatusListener.bind(this)
 
-    this.updateCapSettingsLists = this.updateCapSettingsLists.bind(this)
+    this.updateCapabilities = this.updateCapabilities.bind(this)
 
     this.getSettingsAsString = this.getSettingsAsString.bind(this)
     this.getSettingValue = this.getSettingValue.bind(this)
@@ -92,28 +95,31 @@ class Nepi_IF_Settings extends Component {
                    settingsCount: count
     })
 
-    this.updateCapSettingsLists() 
+    this.updateCapabilities() 
   }
 
   // Function for configuring and subscribing to Settings Status
   updateSettingsListener() {
-    const { settingsNamespace } = this.props
+    const namespace = this.props.namespace ? this.props.namespace : 'None'
     if (this.state.settingsListener) {
       this.state.settingsListener.unsubscribe()
     }
-    var settingsListener = this.props.ros.setupSettingsStatusListener(
-      settingsNamespace,
-      this.settingsStatusListener
-    )
-    this.setState({ settingsListener: settingsListener})
+    if (namespace !== 'None'){
+      var settingsListener = this.props.ros.setupSettingsStatusListener(
+        namespace,
+        this.settingsStatusListener
+      )
+      
+      this.setState({ settingsListener: settingsListener})
+    }
   }
 
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const { settingsNamespace } = this.props
-    if (prevProps.settingsNamespace !== settingsNamespace && settingsNamespace != null) {
+    const namespace = this.props.namespace
+    if (prevProps.namespace !== namespace) {
       this.updateSettingsListener()
     }
   }
@@ -128,44 +134,42 @@ class Nepi_IF_Settings extends Component {
 
 
   // Function for creating settings options list from capabilities
-  updateCapSettingsLists() {
+  updateCapabilities() {
     const {settingCaps} = this.props.ros
-    const cur_namespace = this.props.settingsNamespace
+    const cur_namespace = this.props.namespace
+    const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
     var typesList = []
     var optionsLists = []
     var ind = 0
-    if (settingCaps && cur_namespace){
-      if (settingCaps[this.props.settingsNamespace]){
-        const set_namespace = this.state.settings_namespace
-        if (set_namespace !== cur_namespace){
-
-          const capabilities = settingCaps[this.props.settingsNamespace]
-          if (capabilities != null){
-            const cap_settings = capabilities.setting_caps_list
-            for ( ind = 0; ind < cap_settings.length; ind++){
-              namesList.push(cap_settings[ind].name_str)
-              typesList.push(cap_settings[ind].type_str)
-              optionsLists.push(cap_settings[ind].options_list)
-            }
-            this.setState({
-              capSettingsNamesList:namesList,      
-              capSettingsTypesList:typesList,
-              capSettingsOptionsLists:optionsLists
-            })
-          }
-          else{
-            this.setState({settings_namespace: cur_namespace,
-              capSettingsNamesList:['None'],      
-              capSettingsTypesList:['None'],
-              capSettingsOptionsLists:['None']
-            })
-
-          }
-          this.setState({settings_namespace: cur_namespace })
-        }
+    var capabilities = null
+    if (settingCaps){
+      capabilities = settingCaps[cur_namespace]
+    }    
+    if (capabilities != null && set_namespace !== cur_namespace){
+      const cap_settings = capabilities.setting_caps_list
+      for ( ind = 0; ind < cap_settings.length; ind++){
+        namesList.push(cap_settings[ind].name_str)
+        typesList.push(cap_settings[ind].type_str)
+        optionsLists.push(cap_settings[ind].options_list)
       }
-    } 
+      this.setState({
+        capabilities: capabilities,
+        capSettingsNamesList:namesList,      
+        capSettingsTypesList:typesList,
+        capSettingsOptionsLists:optionsLists
+      })
+    }
+    else if (capabilities == null) {
+      this.setState({
+        capabilities: null,
+        capSettingsNamesList:['None'],      
+        capSettingsTypesList:['None'],
+        capSettingsOptionsLists:['None']
+      })
+    }
+    const new_namespace = this.props.namespace + '/settings'
+    this.setState({namespace: new_namespace })
   }
   
   getSettingValue(settingName) {
@@ -221,7 +225,7 @@ class Nepi_IF_Settings extends Component {
   onChangeBoolSettingValue(){
     const {updateSetting}  = this.props.ros
     const value = (this.getSettingValue(this.state.selectedSettingName) === "True") ? "False" : "True" 
-    updateSetting(this.props.settingsNamespace,
+    updateSetting(this.state.namespace,
       this.state.selectedSettingName,this.state.selectedSettingType,value)
   }
 
@@ -229,7 +233,7 @@ class Nepi_IF_Settings extends Component {
     const {updateSetting}  = this.props.ros
     const ind = event.nativeEvent.target.selectedIndex
     const value = event.nativeEvent.target[ind].text
-    updateSetting(this.props.settingsNamespace,
+    updateSetting(this.state.namespace,
       this.state.selectedSettingName,this.state.selectedSettingType,value)
   }
 
@@ -243,7 +247,7 @@ class Nepi_IF_Settings extends Component {
     const {updateSetting}  = this.props.ros
     if(event.key === 'Enter'){
       const value = this.state.selectedSettingInput
-      updateSetting(this.props.settingsNamespace,
+      updateSetting(this.state.namespace,
         this.state.selectedSettingName,this.state.selectedSettingType,value)
       document.getElementById("input_setting").style.color = Styles.vars.colors.black
       this.updateSelectedSettingInfo()
@@ -369,7 +373,11 @@ class Nepi_IF_Settings extends Component {
           <Column>
           <div align={"left"} textAlign={"left"} >
               <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(this.props.settingsNamespace + '/reset_settings')}>{"Reset Settings"}</Button>
+                <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
+              </ButtonMenu>
+
+              <ButtonMenu>
+                <Button onClick={() => sendTriggerMsg(this.state.namespace + '/factory_reset')}>{"Factory Reset"}</Button>
               </ButtonMenu>
             </div>
           </Column>
@@ -389,16 +397,16 @@ class Nepi_IF_Settings extends Component {
   }
 
   render() {
-    const make_section = (this.props.make_section === false )? this.props.make_section: true
-    const cur_namespace = this.props.settingsNamespace
-    if (cur_namespace !== "None" && make_section === true){
+    const make_section = this.props.make_section ? this.props.make_section : true
+    const namespace = this.state.namespace ? this.state.namespace : 'None'
+    if (namespace !== 'None' && make_section === true){
       return (
         <Section title={"Device Settings"}>
           {this.renderSettings()}
         </Section>
       )
     }
-    else if (cur_namespace !== "None" && make_section === false) {
+    else if (namespace !== 'None' && make_section === false) {
       return (
         <Columns>
           <Column>

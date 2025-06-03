@@ -271,7 +271,7 @@ class NepiDeviceNPX extends Component {
                     <div hidden={(!deviceSelected)}>
 
                       <NepiIFSaveData
-                        saveNamespace={namespace ? namespace + '/npx' : null}
+                        namespace={namespace ? namespace + '/npx' : null}
                         title={"Nepi_IF_SaveData"}
                       />
                     </div>
@@ -296,7 +296,7 @@ class NepiDeviceNPX extends Component {
 
                     <div hidden={(!deviceSelected && this.state.show_controls)}>
                       <NepiDeviceNPXControls
-                          namespace={namespace}
+                          deviceNamespace={namespace}
                           navposeData={navpose_data}
                           title={"NepiDeviceNPXControls"}
                       />
@@ -305,7 +305,7 @@ class NepiDeviceNPX extends Component {
 
                     <div hidden={(!deviceSelected && this.state.show_settings)}>
                       <NepiIFSettings
-                        settingsNamespace={namespace ? namespace + '/npx' : null}
+                        namespace={namespace ? namespace + '/npx' : null}
                         title={"Nepi_IF_Settings"}
                       />
                     </div>

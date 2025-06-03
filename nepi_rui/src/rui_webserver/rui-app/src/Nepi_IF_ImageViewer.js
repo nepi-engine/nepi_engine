@@ -261,7 +261,7 @@ class ImageViewer extends Component {
       return (
         <Columns>
         <Column>
-         <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+         <pre style={{ height: "200px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
                   {img_stats_text}
                   </pre>
     
@@ -742,28 +742,38 @@ class ImageViewer extends Component {
 
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
 
-        <div hidden={(show_controls !== true )}>
 
-        <Columns>
-          <Column>
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-          {this.renderControls()}
-
-          </Column>
-          <Column>
-
-          {this.renderOverlays()}
-
-          </Column>
-          <Column>
-
-        {this.renderStats()}
+      <div hidden={(show_controls !== true )}>
 
 
-          </Column>
-        </Columns>
+              <Columns>
+                <Column>
 
-        </div>
+                      <Label title={"Controls"} />
+
+                      {this.renderControls()}
+
+                </Column>
+                <Column>
+
+                      <Label title={"Overlays"} />
+                      {this.renderOverlays()}
+
+                </Column>
+                <Column>
+
+
+                    <Label title={"Stats"} />
+                    {this.renderStats()}
+
+
+                </Column>
+              </Columns>
+
+          </div>
+
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
 
@@ -820,8 +830,10 @@ class ImageViewer extends Component {
           </Column>
         </Columns>
 
-        
+
+              
       </Section>
+
     )
   }
 }

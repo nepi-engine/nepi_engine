@@ -22,19 +22,17 @@ from nepi_sdk import nepi_states
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_ros_interfaces.msg import Reset
 
-from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus
-from nepi_ros_interfaces.srv import DataProductQuery, DataProductQueryRequest, DataProductQueryResponse
+from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
+from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-
-
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_ros_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
 from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
-
-from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_ros_interfaces.msg import SystemState
 from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+
+from nepi_ros_interfaces.msg import SystemTrigger
+from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -83,18 +81,21 @@ class ConnectSaveDataIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = '~'
+        namespace = nepi_ros.create_namespace(namespace,'save_data')
         self.namespace = nepi_ros.get_full_namespace(namespace)
+        self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
 
         ##############################  
         # Create NodeClassIF Class  
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'data_products_query': {
-                'msg': DataProductQuery,
+            'capabilities_query': {
                 'namespace': self.namespace,
-                'topic': 'query_data_products',
-                'service': None
+                'topic': 'capabilities_query',
+                'srv': SaveDataCapabilitiesQuery,
+                'req': SaveDataCapabilitiesQueryRequest(),
+                'resp': SaveDataCapabilitiesQueryResponse()
             }
         }
 
@@ -146,7 +147,7 @@ class ConnectSaveDataIF:
             'save_all_data': {
                 'msg': Bool,
                 'namespace': self.base_namespace,
-                'topic': 'save_data',
+                'topic': 'save_data_enable',
                 'qsize': 1,
                 'latch': False
             },
@@ -160,14 +161,14 @@ class ConnectSaveDataIF:
             'reset_all': {
                 'msg': Empty,
                 'namespace': self.base_namespace,
-                'topic': 'save_data_reset',
+                'topic': 'reset',
                 'qsize': 1,
                 'latch': False
             },
             'factory_reset_all': {
                 'msg': Empty,
                 'namespace': self.base_namespace,
-                'topic': 'save_data_factory_reset',
+                'topic': 'factory_reset',
                 'qsize': 1,
                 'latch': False
             }
@@ -347,6 +348,7 @@ class ConnectSettingsIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = '~'
+        namespace = nepi_ros.create_namespace(namespace,'settings')
         self.namespace = nepi_ros.get_full_namespace(namespace)
 
 
@@ -357,7 +359,7 @@ class ConnectSettingsIF:
         self.SRVS_DICT = {
             'setting_query': {
                 'namespace': self.namespace,
-                'topic': 'settings_capabilities_query',
+                'topic': 'capabilities_query',
                 'msg': SettingsCapabilitiesQuery
             }
         }
@@ -374,7 +376,14 @@ class ConnectSettingsIF:
             'reset_pub': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'reset_settings',
+                'topic': 'reset',
+                'qsize': 1,
+                'latch': False
+            },
+            'factory_reset_pub': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'factory_reset',
                 'qsize': 1,
                 'latch': False
             }
@@ -384,9 +393,9 @@ class ConnectSettingsIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'settings_sub': {
-                'msg': Settings,
+                'msg': SettingsStatus,
                 'namespace': self.namespace,
-                'topic': 'system_settings',
+                'topic': ''status'',
                 'qsize': 1,
                 'callback': self._settingsCb,
                 'callback_args': ()
@@ -458,6 +467,11 @@ class ConnectSettingsIF:
     def reset_settings(self):
         msg = Empty()
         success = self.con_node_if.publish_pub('reset_pub',msg)
+        return success
+
+    def factory_reset_settings(self):
+        msg = Empty()
+        success = self.con_node_if.publish_pub('factory_reset_pub',msg)
         return success
 
  

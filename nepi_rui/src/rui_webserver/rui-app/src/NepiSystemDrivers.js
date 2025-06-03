@@ -475,7 +475,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
 
 
           <NepiIFSettings
-            settingsNamespace={settings_namespace}
+            namespace={settings_namespace}
             make_section={false}
             title={"Nepi_IF_Settings"}
           />

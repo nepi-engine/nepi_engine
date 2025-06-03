@@ -92,6 +92,7 @@ add_message_files(FILES
     ObjectCount.msg
     Setting.msg
     Settings.msg
+    SettingsStatus.msg
     SettingCap.msg
     SettingCaps.msg
     StringArray.msg
@@ -175,7 +176,7 @@ add_service_files(
     IPAddrQuery.srv
     WifiQuery.srv
     OpEnvironmentQuery.srv
-    DataProductQuery.srv
+    SaveDataCapabilitiesQuery.srv
     NEPILinkStatusQuery.srv
     BandwidthUsageQuery.srv
     SystemSoftwareStatusQuery.srv

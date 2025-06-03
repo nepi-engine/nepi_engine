@@ -1273,6 +1273,7 @@ class IDXDeviceIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
+            ready = dp_if.wait_for_ready()
             
             # Get Data Product Dict and Data_IF
             

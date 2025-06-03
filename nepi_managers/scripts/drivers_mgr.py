@@ -554,13 +554,13 @@ class NepiDriversMgr(object):
 
     self.msg_if.pub_info("Starting discovery options processes for namespace: " + settings_namespace)
 
-    settings_status_pub = nepi_ros.create_publisher(settings_namespace + '/settings_status', Settings, queue_size=1, latch=True)
+    settings_status_pub = nepi_ros.create_publisher(settings_namespace + '/settings/status', Settings, queue_size=1, latch=True)
     self.discovery_settings_dict[driver_name]['settings_pub'] = settings_status_pub
 
-    settings_update_sub = nepi_ros.create_subscriber(settings_namespace + '/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(settings_namespace))
+    settings_update_sub = nepi_ros.create_subscriber(settings_namespace + '/settings/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(settings_namespace))
     self.discovery_settings_dict[driver_name]['update_sub'] = settings_update_sub
 
-    settings_cap_service = nepi_ros.create_service(settings_namespace + '/settings_capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
+    settings_cap_service = nepi_ros.create_service(settings_namespace + '/capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
     self.discovery_settings_dict[driver_name]['caps_service'] = settings_cap_service
 
     time.sleep(1)

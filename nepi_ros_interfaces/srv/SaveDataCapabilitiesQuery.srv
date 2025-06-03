@@ -2,4 +2,5 @@
 
 ---
 # Array of data product names
-nepi_ros_interfaces/SaveDataRate[] data_products
+nepi_ros_interfaces/SaveDataRate[] save_data_rates
+

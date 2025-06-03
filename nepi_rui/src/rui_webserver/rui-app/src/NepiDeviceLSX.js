@@ -496,7 +496,7 @@ class NepiControlsLights extends Component {
             
 
             <NepiIFSettings
-            settingsNamespace={namespace + '/lxs'}
+            namespace={namespace + '/lxs'}
             title={"Nepi_IF_Settings"}
           />
 

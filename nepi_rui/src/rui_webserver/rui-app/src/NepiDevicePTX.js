@@ -968,7 +968,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
             <div hidden={(namespace == null)}>
               <NepiIFSettings
-                settingsNamespace={namespace}
+                namespace={namespace}
                 title={"Nepi_IF_Settings"}
               />
             </div>

@@ -54,8 +54,6 @@ class NepiDeviceIDXControls extends Component {
       frame3D: null,
 
       showTransforms: false,
-      transforms_topic_list: [],
-      transforms_list: [],
       transfroms_msg: null,
       transformTX: 0,
       transformTY: 0,
@@ -101,23 +99,24 @@ class NepiDeviceIDXControls extends Component {
       contrastAdjustment: message.contrast_ratio,
       brightnessAdjustment: message.brightness_ratio,
       thresholdAdjustment: message.threshold_ratio,
-      rangeMax: message.range_window.stop_range_ratio,
-      rangeMin: message.range_window.start_range_ratio,
+      rangeMax: message.range_window_ratios.stop_range,
+      rangeMin: message.range_window_ratios.start_range,
       rangeLimitMinM: message.min_range_m,
       rangeLimitMaxM: message.max_range_m,
       frame_3d: message.frame_3d,
-      transforms_msg: message.frame_transform
+      transforms_msg: message.frame_3d_transform
     })
 
-    if (transforms !== message.frame_transform){
+    if (transforms !== message.frame_3d_transform){
+      const new_transforms = message.frame_3d_transform
       this.setState({
-        transformTX: message.frame_transform.translate_vector.x,
-        transformTY: message.frame_transform.translate_vector.y,
-        transformTZ: message.frame_transform.translate_vector.z,
-        transformRX: message.frame_transform.rotate_vector.x,
-        transformRY: message.frame_transform.rotate_vector.y,
-        transformRZ: message.frame_transform.rotate_vector.z,
-        transformHO: message.frame_transform.heading_offset
+        transformTX: new_transforms.translate_vector.x,
+        transformTY: new_transforms.translate_vector.y,
+        transformTZ: new_transforms.translate_vector.z,
+        transformRX: new_transforms.rotate_vector.x,
+        transformRY: new_transforms.rotate_vector.y,
+        transformRZ: new_transforms.rotate_vector.z,
+        transformHO: new_transforms.heading_offset
       })
     }
   }
@@ -163,30 +162,6 @@ class NepiDeviceIDXControls extends Component {
     this.render()
   }
 
-  settransform(event){
-    const pointcloud = event.target.value
-    const pointclouds = this.state.transforms_topic_list
-    const transforms = this.state.transforms_list
-    const tf_index = pointclouds.indexOf(pointcloud)
-    if (tf_index !== -1){
-      this.setState({
-        transformPointcloud: pointcloud,
-        transformInd: tf_index
-      })
-      const transform = transforms[tf_index]
-      this.setState({
-        transformTX: round(transform[0]),
-        transformTY: round(transform[1]),
-        transformTZ: round(transform[2]),
-        transformRX: round(transform[3]),
-        transformRY: round(transform[4]),
-        transformRZ: round(transform[5]),
-        transformHO: round(transform[6])
-      })
-      
-    }
-  }
-
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
     const namespace = this.props.namespace + "/set_frame_3d_transform"
@@ -221,7 +196,6 @@ class NepiDeviceIDXControls extends Component {
 
 
  renderLive() {
-    const { idxDevices} = this.props.ros
     const rtsp_url = this.state.rtsp_url
     const rtsp_username = this.state.rtsp_username
     const rtsp_password = this.state.rtsp_password
@@ -255,367 +229,386 @@ class NepiDeviceIDXControls extends Component {
 
   render() {
     const { idxDevices, sendTriggerMsg, sendBoolMsg, sendStringMsg } = this.props.ros
-    const namespace = this.props.namespace ? this.props.namespace : null
-    if (namespace != null){
-      const capabilities = idxDevices[namespace] ? idxDevices[namespace] : null
-      if (capabilities != null){
-        const has_resolution = (capabilities && capabilities.has_resolution && !this.state.disabled)
-        const has_framerate = (capabilities && capabilities.has_framerate && !this.state.disabled)
-        const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
-        const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
-        const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
-        const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
-        const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
-        const data_products = (capabilities && capabilities.data_products && !this.state.disabled)
+    const namespace = this.props.namespace ? this.props.namespace : 'None'
+    var capabilities = null
+    if (namespace != 'None'){
+      capabilities = idxDevices[namespace] ? idxDevices[namespace] : null
+    }
+    if (capabilities == null){
+      return (
+        <Columns>
+          <Column>
 
-        const framerates = this.state.frameratesCurrent
-        const data_product = this.props.dataProduct ? this.props.dataProduct : 'None'
-        if (data_product !== 'None'){
-          const dp_index = framerates ? this.state.dataProducts.indexOf(data_product) : -1
-          var framerate_str = "0"
-          if (dp_index !== -1) {
-            framerate_str = round(framerates[dp_index],1).toString()
-          }
+          </Column>
+        </Columns>
+      )
+    }
+    else {
+      const has_resolution = (capabilities && capabilities.has_resolution && !this.state.disabled)
+      const has_framerate = (capabilities && capabilities.has_framerate && !this.state.disabled)
+      const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
+      const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
+      const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
+      const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
+      const has_range = (capabilities && capabilities.has_range && !this.state.disabled)
+      const data_products = (capabilities && capabilities.data_products && !this.state.disabled)
 
-          return (
+      const framerates = this.state.frameratesCurrent
+      const data_product = this.props.dataProduct ? this.props.dataProduct : 'None'
+      if (data_product === 'None'){
+        return (
+          <Columns>
+            <Column>
+  
+            </Column>
+          </Columns>
+        )
+      }
+      else {
+        const dp_index = framerates ? this.state.dataProducts.indexOf(data_product) : -1
+        var framerate_str = "0"
+        if (dp_index !== -1) {
+          framerate_str = round(framerates[dp_index],1).toString()
+        }
 
-            <Section title={"Controls"}>
+        return (
 
-                {/*
-                <div hidden={this.state.rtsp_url === ""}>
+          <Section title={"Controls"}>
 
-                {this.renderLive()}
+              {/*
+              <div hidden={this.state.rtsp_url === ""}>
 
-                </div>
-                */}
+              {this.renderLive()}
 
-                      <div hidden={(has_framerate === false)}>
+              </div>
+              */}
 
-                      <SliderAdjustment
-                                    title={"Framerate"}
+                    <div hidden={(has_framerate === false)}>
+
+                    <SliderAdjustment
+                                  title={"Framerate"}
+                                  msgType={"std_msgs/Float32"}
+                                  adjustment={this.state.framerateAdjustment}
+                                  topic={namespace + '/set_framerate_ratio'}
+                                  scaled={0.01}
+                                  min={0}
+                                  max={100}
+                                  disabled={(capabilities && !this.state.disabled)? false : true}
+                                  tooltip={"Adjustable Framerate"}
+                                  unit={"%"}
+                              />
+
+                      <Columns>
+                        <Column>
+          
+                          </Column>
+                          <Column>
+                          <Label title={"Current Framerate"}>
+                        <Input
+                          value={framerate_str}
+                          id="framerate"
+                          style={{ width: "100%" }}
+                          disabled={true}
+                        />
+                      </Label>
+            
+                          </Column>
+                        </Columns>
+
+                  </div>
+
+
+                  <div hidden={(has_resolution === false)}>
+
+                    <SliderAdjustment
+                                    title={"Resolution"}
                                     msgType={"std_msgs/Float32"}
-                                    adjustment={this.state.framerateAdjustment}
-                                    topic={namespace + '/set_framerate_ratio'}
+                                    adjustment={this.state.resolutionAdjustment}
+                                    topic={namespace + '/set_resolution_ratio'}
                                     scaled={0.01}
                                     min={0}
                                     max={100}
                                     disabled={(capabilities && !this.state.disabled)? false : true}
-                                    tooltip={"Adjustable Framerate"}
+                                    tooltip={"Adjustable Resolution"}
                                     unit={"%"}
                                 />
 
                         <Columns>
-                          <Column>
-            
+                        <Column>
+
+
+
                             </Column>
                             <Column>
-                            <Label title={"Current Framerate"}>
+
+                            <Label title={"Current Resolution"}>
                           <Input
-                            value={framerate_str}
+                            value={this.state.resolutionString}
                             id="framerate"
                             style={{ width: "100%" }}
                             disabled={true}
                           />
                         </Label>
-              
+
                             </Column>
-                          </Columns>
+                          </Columns>             
 
                     </div>
 
 
-                    <div hidden={(has_resolution === false)}>
 
-                      <SliderAdjustment
-                                      title={"Resolution"}
-                                      msgType={"std_msgs/Float32"}
-                                      adjustment={this.state.resolutionAdjustment}
-                                      topic={namespace + '/set_resolution_ratio'}
-                                      scaled={0.01}
-                                      min={0}
-                                      max={100}
-                                      disabled={(capabilities && !this.state.disabled)? false : true}
-                                      tooltip={"Adjustable Resolution"}
-                                      unit={"%"}
-                                  />
-
-                          <Columns>
-                          <Column>
+                    <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
 
 
+                      <Columns>
+                        <Column>
 
-                              </Column>
-                              <Column>
+                              <Label title={"Auto Adjust"}>
+                                  <Toggle
+                                    checked={this.state.autoAdjust}
+                                    onClick={() => sendBoolMsg(namespace + '/set_auto_adjust_enable' ,!this.state.autoAdjust)}
+                                  /> 
+                                </Label>
+                      
 
-                              <Label title={"Current Resolution"}>
-                            <Input
-                              value={this.state.resolutionString}
-                              id="framerate"
-                              style={{ width: "100%" }}
-                              disabled={true}
-                            />
-                          </Label>
+                            </Column>
+                            <Column>
 
-                              </Column>
-                            </Columns>             
+                            </Column>
+                          </Columns>
 
                       </div>
 
 
-
-                      <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
-
-
-                        <Columns>
-                          <Column>
-
-                                <Label title={"Auto Adjust"}>
-                                    <Toggle
-                                      checked={this.state.autoAdjust}
-                                      onClick={() => sendBoolMsg(namespace + '/set_auto_adjust_enable' ,!this.state.autoAdjust)}
-                                    /> 
-                                  </Label>
-                        
-
-                              </Column>
-                              <Column>
-
-                              </Column>
-                            </Columns>
-
-                        </div>
-
-
-                        <div hidden={this.state.autoAdjust === true && has_brightness === false}>
-                          <SliderAdjustment
-                              title={"Brightness"}
-                              msgType={"std_msgs/Float32"}
-                              adjustment={this.state.brightnessAdjustment}
-                              topic={namespace + "/set_brightness_ratio"}
-                              scaled={0.01}
-                              min={0}
-                              max={100}
-                              tooltip={"Adjustable brightness"}
-                              unit={"%"}
-                          />
-
-                        </div>
-
-
-                        <div hidden={this.state.autoAdjust === true && has_contrast === false}>
-                          <SliderAdjustment
-                            title={"Contrast"}
+                      <div hidden={this.state.autoAdjust === true && has_brightness === false}>
+                        <SliderAdjustment
+                            title={"Brightness"}
                             msgType={"std_msgs/Float32"}
-                            adjustment={this.state.contrastAdjustment}
-                            topic={namespace + "/set_contrast_ratio"}
+                            adjustment={this.state.brightnessAdjustment}
+                            topic={namespace + "/set_brightness_ratio"}
                             scaled={0.01}
                             min={0}
                             max={100}
-                            tooltip={"Adjustable contrast"}
+                            tooltip={"Adjustable brightness"}
                             unit={"%"}
-                          />
+                        />
 
-                        </div>
-
-                        <div hidden={this.state.autoAdjust === true && has_threshold === false}>
-                          <SliderAdjustment
-                              title={"Thresholding"}
-                              msgType={"std_msgs/Float32"}
-                              adjustment={this.state.thresholdAdjustment}
-                              topic={namespace + "/set_threshold_ratio"}
-                              scaled={0.01}
-                              min={0}
-                              max={100}
-                              tooltip={"Adjustable threshold"}
-                              unit={"%"}
-                          />
-                        </div>
+                      </div>
 
 
+                      <div hidden={this.state.autoAdjust === true && has_contrast === false}>
+                        <SliderAdjustment
+                          title={"Contrast"}
+                          msgType={"std_msgs/Float32"}
+                          adjustment={this.state.contrastAdjustment}
+                          topic={namespace + "/set_contrast_ratio"}
+                          scaled={0.01}
+                          min={0}
+                          max={100}
+                          tooltip={"Adjustable contrast"}
+                          unit={"%"}
+                        />
 
+                      </div>
 
-
-
-                      <div hidden={(has_range === false)}>
-                        <RangeAdjustment
-                          title="Range Clip"
-                          min={this.state.rangeMin}
-                          max={this.state.rangeMax}
-                          min_limit_m={this.state.rangeLimitMinM}
-                          max_limit_m={this.state.rangeLimitMaxM}
-                          topic={namespace + "/set_range_window"}
-                          tooltip={"Adjustable range"}
-                          unit={"m"}
+                      <div hidden={this.state.autoAdjust === true && has_threshold === false}>
+                        <SliderAdjustment
+                            title={"Thresholding"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={this.state.thresholdAdjustment}
+                            topic={namespace + "/set_threshold_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            tooltip={"Adjustable threshold"}
+                            unit={"%"}
                         />
                       </div>
 
 
 
-        <Columns>
-          <Column>
-          <Label title="Show 3D Transforms">
-                          <Toggle
-                            checked={this.state.showTransforms}
-                            onClick={this.onClickToggleShowTransforms}>
-                          </Toggle>
-                        </Label>
-
-          </Column>
-          <Column>
-          </Column>
-          </Columns>
 
 
 
-          <div hidden={ this.state.showTransforms === false}>
-
-                <Columns>
-                <Column>
-
-                <Label title={"X (m)"}>
-                  <Input
-                    value={this.state.transformTX}
-                    id="XTranslation"
-                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
-                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
-                    style={{ width: "80%" }}
-                  />
-                </Label>
-
-                <Label title={"Y (m)"}>
-                  <Input
-                    value={this.state.transformTY}
-                    id="YTranslation"
-                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
-                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
-                    style={{ width: "80%" }}
-                  />
-                </Label>
-
-                <Label title={"Z (m)"}>
-                  <Input
-                    value={this.state.transformTZ}
-                    id="ZTranslation"
-                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
-                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
-                    style={{ width: "80%" }}
-                  />
-                </Label>
-
-
-                <ButtonMenu>
-                  <Button onClick={() => this.sendTransformUpdateMessage()}>{"Update Transform"}</Button>
-                </ButtonMenu>
+                    <div hidden={(has_range === false)}>
+                      <RangeAdjustment
+                        title="Range Clip"
+                        min={this.state.rangeMin}
+                        max={this.state.rangeMax}
+                        min_limit_m={this.state.rangeLimitMinM}
+                        max_limit_m={this.state.rangeLimitMaxM}
+                        topic={namespace + "/set_range_window"}
+                        tooltip={"Adjustable range"}
+                        unit={"m"}
+                      />
+                    </div>
 
 
 
+      <Columns>
+        <Column>
+        <Label title="Show 3D Transforms">
+                        <Toggle
+                          checked={this.state.showTransforms}
+                          onClick={this.onClickToggleShowTransforms}>
+                        </Toggle>
+                      </Label>
 
-              </Column>
+        </Column>
+        <Column>
+        </Column>
+        </Columns>
+
+
+
+        <div hidden={ this.state.showTransforms === false}>
+
+              <Columns>
               <Column>
 
-                <Label title={"Roll (deg)"}>
-                  <Input
-                    value={this.state.transformRX}
-                    id="XRotation"
-                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
-                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
-                    style={{ width: "80%" }}
-                  />
-                </Label>
+              <Label title={"X (m)"}>
+                <Input
+                  value={this.state.transformTX}
+                  id="XTranslation"
+                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
+                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
+                  style={{ width: "80%" }}
+                />
+              </Label>
 
-                <Label title={"Pitch (deg)"}>
-                  <Input
-                    value={this.state.transformRY}
-                    id="YRotation"
-                    onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
-                    onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
-                    style={{ width: "80%" }}
-                  />
-                </Label>
+              <Label title={"Y (m)"}>
+                <Input
+                  value={this.state.transformTY}
+                  id="YTranslation"
+                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
+                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
+                  style={{ width: "80%" }}
+                />
+              </Label>
 
-                    <Label title={"Yaw (deg)"}>
-                      <Input
-                        value={this.state.transformRZ}
-                        id="ZRotation"
-                        onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
-                        onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
-                        style={{ width: "80%" }}
-                      />
-                    </Label>
-
-
-                        <ButtonMenu>
-                            <Button onClick={() => sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
-                        </ButtonMenu>
+              <Label title={"Z (m)"}>
+                <Input
+                  value={this.state.transformTZ}
+                  id="ZTranslation"
+                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
+                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
+                  style={{ width: "80%" }}
+                />
+              </Label>
 
 
-                  </Column>
-                </Columns>
+              <ButtonMenu>
+                <Button onClick={() => this.sendTransformUpdateMessage()}>{"Update Transform"}</Button>
+              </ButtonMenu>
 
-      
-                              
-                    <Columns>
-                      <Column>
+
+
+
+            </Column>
+            <Column>
+
+              <Label title={"Roll (deg)"}>
+                <Input
+                  value={this.state.transformRX}
+                  id="XRotation"
+                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
+                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
+                  style={{ width: "80%" }}
+                />
+              </Label>
+
+              <Label title={"Pitch (deg)"}>
+                <Input
+                  value={this.state.transformRY}
+                  id="YRotation"
+                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
+                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
+                  style={{ width: "80%" }}
+                />
+              </Label>
+
+                  <Label title={"Yaw (deg)"}>
+                    <Input
+                      value={this.state.transformRZ}
+                      id="ZRotation"
+                      onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
+                      onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
+                      style={{ width: "80%" }}
+                    />
+                  </Label>
+
+
+                      <ButtonMenu>
+                          <Button onClick={() => sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
+                      </ButtonMenu>
+
+
+                </Column>
+              </Columns>
+
+    
+                            
+                  <Columns>
+                    <Column>
+                    <div align={"left"} textAlign={"left"}>
+                      <Label title={"Output Frame"}>
+                      </Label>
+                    </div>
+                    </Column>
+                    <Column>
                       <div align={"left"} textAlign={"left"}>
-                        <Label title={"Output Frame"}>
+                        <Label title={"Current Frame"}>
+                        <Input value = {this.state.frame_3d} />
                         </Label>
                       </div>
-                      </Column>
-                      <Column>
-                        <div align={"left"} textAlign={"left"}>
-                          <Label title={"Current Frame"}>
-                          <Input value = {this.state.frame_3d} />
-                          </Label>
-                        </div>
-                      </Column>
-                    </Columns>
+                    </Column>
+                  </Columns>
 
-
-                    <Columns>
-                      <Column>
-                      <div align={"center"} textAlign={"center"}>
-                        <Label title={"NEPI"} align={"center"}>
-                        </Label>
-                        <Toggle 
-                          checked={this.state.frame_3d === "nepi_frame"} 
-                          disabled={(!this.state.disabled)? false : true}
-                          onClick={() => sendStringMsg(namespace + '/set_frame_3d',"nepi_base_frame")}
-                        />
-                      </div>
-          
-                      </Column>
-                      <Column>
-                      <div align={"center"} textAlign={"center"}>
-                        <Label title={"Earth"} align={"center"}>
-                        </Label>
-                        <Toggle 
-                          checked={this.state.frame_3d === "sensor_frame"} 
-                          disabled={(!this.state.disabled)? false : true}
-                          onClick={() => sendStringMsg(namespace + '/set_frame_3d',"senor_frame")}
-                        />
-                        </div>
-
-                      </Column>
-                    </Columns>
-              </div>
 
                   <Columns>
                     <Column>
-
-              
-                      </Column>
-                      <Column>
-
-                          <ButtonMenu>
-                            <Button onClick={() => sendTriggerMsg(namespace + "/reset_controls")}>{"Reset Controls"}</Button>
-                          </ButtonMenu>
+                    <div align={"center"} textAlign={"center"}>
+                      <Label title={"NEPI"} align={"center"}>
+                      </Label>
+                      <Toggle 
+                        checked={this.state.frame_3d === "nepi_frame"} 
+                        disabled={(!this.state.disabled)? false : true}
+                        onClick={() => sendStringMsg(namespace + '/set_frame_3d',"nepi_base_frame")}
+                      />
+                    </div>
         
-                      </Column>
-                    </Columns>
+                    </Column>
+                    <Column>
+                    <div align={"center"} textAlign={"center"}>
+                      <Label title={"Earth"} align={"center"}>
+                      </Label>
+                      <Toggle 
+                        checked={this.state.frame_3d === "sensor_frame"} 
+                        disabled={(!this.state.disabled)? false : true}
+                        onClick={() => sendStringMsg(namespace + '/set_frame_3d',"senor_frame")}
+                      />
+                      </div>
 
-            </Section>
-          )
-        }
+                    </Column>
+                  </Columns>
+            </div>
+
+                <Columns>
+                  <Column>
+
+            
+                    </Column>
+                    <Column>
+
+                        <ButtonMenu>
+                          <Button onClick={() => sendTriggerMsg(namespace + "/reset_controls")}>{"Reset Controls"}</Button>
+                        </ButtonMenu>
+      
+                    </Column>
+                  </Columns>
+
+          </Section>
+        )
       }
     }
   }
