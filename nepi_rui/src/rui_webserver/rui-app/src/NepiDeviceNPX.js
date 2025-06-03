@@ -71,7 +71,6 @@ class NepiDeviceNPX extends Component {
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
-
     this.setState({
       status_data: message, 
       connected: true
