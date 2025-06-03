@@ -123,7 +123,10 @@ class NepiDeviceNPXControls extends Component {
     const namespace = this.props.namespace ? this.props.namespace : null
     const message = this.props.navposeData ? this.props.navposeData : null
     const capabilities = npxDevices[namespace] ? npxDevices[namespace] : null
+    console.log("=== NPX Controls Debug ===");
+    console.log("namespace:", namespace);
 
+  
     if (namespace != null && capabilities != null && message != null){
       const transforms = this.state.transforms_msg
       
