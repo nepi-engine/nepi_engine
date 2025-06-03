@@ -80,23 +80,23 @@ class NepiDeviceNPX extends Component {
   }
 
   navposeListener(message) {
-    console.log("=== NavPoseListener Called ===");
     
     // Transform the data to match what NavPoseDataViewer expects
     const transformedData = {
-      ...message,
-      // Map the property names to what NavPoseDataViewer expects
       latitude: message.lat,
       longitude: message.long,
       altitude: message.altitude_m,
       heading: message.heading_deg,
       roll: message.roll_deg,
       pitch: message.pitch_deg,
-      yaw: message.yaw_deg
+      yaw: message.yaw_deg,
+      x_m: message.x_m,
+      y_m: message.y_m,
+      z_m: message.z_m,
+      frame_3d: message.frame_3d,
+      frame_id: message.frame_id
     }
-    
-    console.log("Transformed data:", transformedData);
-    
+        
     this.setState({
       navpose_data: transformedData, 
       connected: true
@@ -121,9 +121,6 @@ updateStatusListener() {
 updateNavposeListener() {
   const namespace = this.state.namespace
   const navposeTopic = namespace + "/navpose"
-  console.log("=== Setting up navpose listener ===");
-  console.log("Topic:", navposeTopic);
-  console.log("Callback function:", this.navposeListener);
   
   if (this.state.navposeListener) {
     this.state.navposeListener.unsubscribe()
@@ -134,9 +131,6 @@ updateNavposeListener() {
     "nepi_ros_interfaces/NavPoseData",
     this.navposeListener 
   )
-  
-  console.log("Navpose listener created:", navposeListener);
-  console.log("Listener topic name:", navposeListener.name);
   
   this.setState({ 
     navposeListener: navposeListener,
@@ -303,11 +297,6 @@ updateNavposeListener() {
     const status_data = this.state.status_data
     const connected = this.state.connected
 
-    console.log("=== RENDER DEBUG ===");
-    console.log("navpose_data:", navpose_data);
-    console.log("status_data:", status_data);
-    console.log("deviceSelected:", deviceSelected);
-    console.log("namespace:", namespace);
     return (
 
 
