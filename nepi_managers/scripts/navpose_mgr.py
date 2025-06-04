@@ -23,13 +23,28 @@ import sys
 import tf
 import yaml
 
-from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
+
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_ros_interfaces.msg import NavPoseMgrStatus
+
+from nepi_ros_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+
+from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+
+from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+
+from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_ros_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
+from nepi_ros_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
@@ -49,24 +64,76 @@ class NavPoseMgr(object):
     NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
     FACTORY_PUB_RATE_HZ = 5.0
-    FACTORY_ID_FRAME = 'nepi_base_frame' 
-    FACTORY_3D_FRAME = 'ENU'
+    FACTORY_3D_FRAME = 'nepi_frame' 
+    FACTORY_NAV_FRAME = 'ENU'
     FACTORY_ALT_FRAME = 'WGS84'
+
+    ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
     data_products_list = ['navpose']
     last_npdata_dict = None
 
     mgr_namespace = ""
+    status_msg = NavPoseMgrStatus()
 
     set_pub_rate = FACTORY_PUB_RATE_HZ
-    set_frame_id = FACTORY_ID_FRAME
-    set_frame_3d = FACTORY_3D_FRAME
-    set_frame_alt = FACTORY_ALT_FRAME
 
-    status_msg = NavPoseDataStatus()
+    time_list = [0,0,0,0,0,0,0]
+
+    connect_dict {
+        'location': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        },
+        'heading': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        },
+        'orientation': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        },
+        'position': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        },
+        'altitude': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        },
+        'depth': {
+            'set_topic': "",
+            'sub_topic': "",
+            'sub': None,
+            'transform': ZERO_TRANSFORM,
+            'times': time_list,
+            'last_time': 0.0
+        }
+    }
+
     #######################
     ### Node Initialization
-    DEFAULT_NODE_NAME = "nav_pose_mgr2" # Can be overwitten by luanch command
+    DEFAULT_NODE_NAME = "nav_pose_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
@@ -81,25 +148,18 @@ class NavPoseMgr(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        connected = self.nav_mgr_if.wait_for_services()
-
-        ##############################
         # Initialize Class Variables
         self.mgr_namespace = nepi_ros.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
+
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
-        self.status_msg.frame_id = self.set_frame_id
-        self.status_msg.frame_3d = self.set_frame_3d
-        self.status_msg.frame_altitude = self.set_frame_alt
 
-        self.status_msg.has_heading = True
-        self.status_msg.has_position = True
-        self.status_msg.has_orientation = True
-        self.status_msg.has_location = True
-        self.status_msg.has_altitude = True
+        self.status_msg.has_heading = False
+        self.status_msg.has_position = False
+        self.status_msg.has_orientation = False
+        self.status_msg.has_location = False
+        self.status_msg.has_altitude = False
         self.status_msg.has_depth = False
 
 
@@ -121,40 +181,34 @@ class NavPoseMgr(object):
                 'namespace': self.mgr_namespace,
                 'factory_val': self.FACTORY_PUB_RATE_HZ
             },
-            'frame_id': {
+            'connect_dict': {
                 'namespace': self.mgr_namespace,
-                'factory_val': self. FACTORY_ID_FRAME
+                'factory_val': self.connect_dict
             },
-            'frame_3d': {
-                'namespace': self.mgr_namespace,
-                'factory_val': self.FACTORY_3D_FRAME
-            },
-            'frame_alt': {
-                'namespace': self.mgr_namespace,
-                'factory_val': self.FACTORY_ALT_FRAME
-            },
+
         }
 
-        # Services Config Dict ####################     
+        # Services Config Dict ####################
         self.SRVS_DICT = None
 
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'navpose_data_status': {
+            'status_pub': {
                 'namespace': self.mgr_namespace,
-                'topic': 'navpose/status',
-                'msg': NavPoseDataStatus,
+                'topic': 'status',
+                'msg': NavPoseMgrStatus,
                 'qsize': 1,
                 'latch': True
             },
-            'navpose_data': {
-                'namespace': self.mgr_namespace,
+            'navpose_pub': {
+                'namespace': self.base_namespace
                 'topic': 'navpose',
                 'msg': NavPoseData,
                 'qsize': 1,
                 'latch': True
-            }
+            },
+
         }
 
         # Subscribers Config Dict ####################
@@ -167,22 +221,31 @@ class NavPoseMgr(object):
                 'callback': self.setPublishRateCb, 
                 'callback_args': ()
             },
-            'frame_3d': {
+            'set_topic': {
                 'namespace': self.mgr_namespace,
-                'topic': 'set_frame_3d',
-                'msg': String,
+                'topic': 'set_topic',
+                'msg': UpdateNavPoseTopic,
                 'qsize': 1,
-                'callback': self.set3dFrameCb, 
+                'callback': self.setTopicCb, 
                 'callback_args': ()
             },
-            'frame_alt': {
+            'set_transform': {
                 'namespace': self.mgr_namespace,
-                'topic': 'set_frame_alt',
-                'msg': String,
+                'topic': 'set_transform',
+                'msg': UpdateFrame3DTransformTopic,
                 'qsize': 1,
-                'callback': self.setAltFrameCb, 
+                'callback': self.setTransformCb, 
                 'callback_args': ()
             },
+            'set_fixed': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_pub_rate',
+                'msg': NavPoseData,
+                'qsize': 1,
+                'callback': self.setFixedCb, 
+                'callback_args': ()
+            },
+            UpdateTopic, UpdateFrame3DTransform
         }
 
 
@@ -200,7 +263,6 @@ class NavPoseMgr(object):
 
 
 
-
         ##############################
         # Set up save data services ########################################################
         factory_data_rates = {}
@@ -214,20 +276,20 @@ class NavPoseMgr(object):
         ######################
         # initialize variables from param server
         self.set_pub_rate = self.node_if.get_param('pub_rate')
-        self.set_frame_id = self.node_if.get_param('frame_id')
-        self.set_frame_3d = self.node_if.get_param('frame_3d')
-        self.set_frame_alt = self.node_if.get_param('frame_alt')
+        self.connect_dict = self.node_if.get_param('connect_dict')
 
         self.initCb(do_updates = True)
         ##############################
         # Start Node Processes
         nepi_ros.start_timer_process(1.0, self._getPublishSaveDataCb, oneshot = True)
+        nepi_ros.start_timer_process(5.0, self._getAvailTopicsCb, oneshot = True)
         nepi_ros.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         nepi_ros.spin()
+
 
 
     #######################
@@ -245,14 +307,21 @@ class NavPoseMgr(object):
         self.publish_status()
         self.node_if.set_param('pub_rate',rate)
 
-    def set3dFrameCb(self,msg):
+    def setTopic(self,msg):
         frame = msg.data
         if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
             self.set_frame_3d = frame
             self.publish_status()
             self.node_if.set_param('frame_3d',frame)
 
-    def setAltFrameCb(self,msg):
+    def setTransformCb(self,msg):
+        frame = msg.data
+        if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
+            self.set_frame_nav = frame
+            self.publish_status()
+            self.node_if.set_param('frame_nav',frame)
+
+    def setFixedCb(self,msg):
         frame = msg.data
         if frame in self.NAVPOSE_ALT_FRAME_OPTIONS:
             self.set_frame_alt = frame
@@ -272,21 +341,30 @@ class NavPoseMgr(object):
         pass
 
 
-    def get_navpose_solution_status(self, verbose = True):
-        navpose_status = self.nav_mgr_if.get_navpose_solution_status()
-        return navpose_status  
+    def publish_navpose(self):
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict)
+        self.node_if.publish_pub('navpose_pub',navpose_msg)
 
     def publish_status(self, do_updates = False):
         self.status_msg.pub_rate = self.set_pub_rate
-        self.status_msg.frame_id = self.set_frame_id
-        self.status_msg.frame_3d = self.set_frame_3d
-        self.status_msg.frame_altitude = self.set_frame_alt
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
         self.node_if.publish_pub('navpose_data_status',self.status_msg)
 
     #######################
     # Private Members
     #######################
+
+    def _getAvailTopicsCb(self,timer):
+
+        self.status_msg.available_location_topics = nepi_nav.get_location_publisher_namespaces()
+        self.status_msg.available_heading_topics = nepi_nav.get_heading_publisher_namespaces()
+        self.status_msg.available_orientation_topics = nepi_nav.get_orientation_publisher_namespaces()
+        self.status_msg.available_position_topics = nepi_nav.get_position_publisher_namespaces()
+        self.status_msg.available_altitude_topics = nepi_nav.get_altitude_publisher_namespaces()
+        self.status_msg.available_depth_topics = nepi_nav.get_depth_publisher_namespaces()
+
+        nepi_ros.start_timer_process(5.0, self._getAvailTopicsCb, oneshot = True)
+
 
     ### Setup a regular background navpose get and publish timer callback
     def _getPublishSaveDataCb(self,timer):
@@ -307,6 +385,9 @@ class NavPoseMgr(object):
 
         delay = float(1.0)/self.set_pub_rate
         nepi_ros.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
+
+    def _publishNavPoseCb(self,timer):
+        self.publish_status()
 
     def _publishStatusCb(self,timer):
         self.publish_status()

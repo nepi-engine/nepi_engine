@@ -1,42 +1,54 @@
-# This message contains status information for the navpose publisher 
+# This message details a navpose solution message
+# Data is provided in the specified reference frames
 
 std_msgs/Header header
-string frame_id
+
+# 3D frame data provided in
 string frame_3d
+
+# Data frames data published in
+string frame_nav
 string frame_altitude
+string frame_depth
 
-float32 geoid_height_meters
+# Global Location
+bool has_location
+float32 time_location
+float32 latitude
+float32 longitude
 
+
+# Heading in degrees true north
 bool has_heading
 float32 time_heading
 float32 heading_deg
 
+# Orientation Degrees in native frame ENU  (roll,pitch,yaw) right-hand
+# with axises defined as x forward, y left, and z up
 bool has_orientation
 float32 time_orientation
-# Orientation Degrees in selected 3d frame (roll,pitch,yaw)
 float32 roll_deg
 float32 pitch_deg
 float32 yaw_deg
 
+# Relative Position meters in native frame ENU (x,y,z) with x forward, y left, and z up
 bool has_position
 float32 time_position
-# Relative Position Meters in selected 3d frame (x,y,z) with x forward, y right/left, and z up/down
 float32 x_m
 float32 y_m
 float32 z_m
 
-bool has_location
-float32 time_location
-# Global Location in set altitude frame (lat,long,alt) with alt in meters
-float32 lat
-float32 long
-
+# Altitude meters in WGS84 frame
 bool has_altitude
 float32 time_altitude
 float32 altitude_m
+float32 geoid_height_meters
 
+# Depth meters from service
 bool has_depth
 float32 time_depth
 float32 depth_m
+
+
 
 

@@ -30,7 +30,12 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
-from nepi_ros_interfaces.msg import NavPose, NavPoseData, NavPoseDataStatus, Heading, Elevation
+from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_ros_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
+
 
 from sensor_msgs.msg import Image
 from nepi_ros_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
@@ -432,17 +437,20 @@ class ReadWriteIF:
 ##################################################
 
 
-
-NAVPOSE_FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
-NAVPOSE_POS_FRAME_OPTIONS = ['ENU','NED']
-NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84','DEPTH']
-
 EXAMPLE_NAVPOSE_DATA_DICT = {
-    'frame_id': 'nepi_base_frame',
-    'frame_3d': 'ENU',
+    'frame_3d': 'nepi_frame',
+    'frame_nav': 'ENU',
     'frame_altitude': 'WGS84',
+    'frame_depth': 'MSL',
 
     'geoid_height_meters': 0,
+
+
+    'has_location': True,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'latitude': 47.080909,
+    'longitude': -120.8787889,
 
     'has_heading': True,
     'time_heading': nepi_utils.get_time(),
@@ -463,15 +471,9 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     'pitch_deg': 30.51,
     'yaw_deg': 30.51,
 
-    'has_location': True,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'lat': 47.080909,
-    'long': -120.8787889,
-
     'has_altitude': True,
     'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified alt frame
+    # Altitude should be provided in postivie meters in specified altitude_m frame
     'altitude_m': 12.321,
 
     'has_depth': False,
@@ -484,6 +486,10 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 
 
 class NavPoseIF:
+
+    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
     ready = False
     namespace = '~'
@@ -500,8 +506,16 @@ class NavPoseIF:
 
     data_products_list = ['navpose']
 
+    frame_3d = 'sensor_frame'
+    frame_nav = 'ENU'
+    frame_altitude = 'WGS84'
+    frame_depth = 'MSL'
+
+    caps_report = NavPoseCapabilitiesQueryResponse()
     def __init__(self, namespace = None,
-                enable_gps_pub = False, enable_elevation_pub = False, enable_pose_pub = False, enable_heading_pub = False,
+                has_location = False, has_heading = False,
+                has_orientation = False, has_position = False,
+                has_altitude = False, has_depth = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -530,15 +544,38 @@ class NavPoseIF:
             self.namespace = namespace
         namespace = nepi_ros.create_namespace(namespace,'navpose')
         self.namespace = nepi_ros.get_full_namespace(namespace)
+        
+        self.has_location = has_location
+        self.has_heading = has_heading
+        self.has_orientation = has_orientation
+        self.has_position = has_position
+        self.has_altitude = has_altitude
+        self.has_depth = has_depth
 
-        self.enable_gps_pub = enable_gps_pub
-        self.enable_elevation_pub = enable_elevation_pub
-        self.enable_pose_pub = enable_pose_pub
-        self.enable_heading_pub = enable_heading_pub
+        # Create Capabilities Report
+
+        self.caps_report.has_location = self.has_location
+        self.caps_report.has_heading = self.has_heading
+        self.caps_report.has_position = self.has_orientation
+        self.caps_report.has_orientation = self.has_position
+        self.caps_report.has_altitude = self.has_altitude
+        self.caps_report.has_depth = self.has_depth
+
 
         ##############################   
         ## Node Setup
 
+        # Services Config Dict ####################     
+        SRVS_DICT = {
+            'navpose_caps_query': {
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
+                'srv': NavPoseCapabilitiesQuery,
+                'req': NavPoseCapabilitiesQueryRequest(),
+                'resp': NavPoseCapabilitiesQueryResponse(),
+                'callback': self._provide_capabilities
+            }
+        }
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
@@ -552,44 +589,62 @@ class NavPoseIF:
             'navpose_pub': {
                 'msg': NavPoseData,
                 'namespace': self.namespace,
-                'topic': 'navpose_data',
+                'topic': '',
                 'qsize': 1,
                 'latch': False
             }
         }
 
-        if self.enable_gps_pub == True:
-            self.PUBS_DICT['gps_pub'] = {
-                'msg': NavSatFix,
+        if self.has_location == True:
+            self.PUBS_DICT['location_pub'] = {
+                'msg': NavPoseLocation,
                 'namespace': self.namespace,
-                'topic': 'gps',
-                'qsize': 1,
-                'latch': False
-            }
-
-        if self.enable_elevation_pub == True:
-            self.PUBS_DICT['elevation_pub'] = {
-                'msg': Elevation,
-                'namespace': self.namespace,
-                'topic': 'elevation',
+                'topic': 'location',
                 'qsize': 1,
                 'latch': False
             }
             
-        if self.enable_pose_pub == True:
-            self.PUBS_DICT['pose_pub'] = {
-                'msg': Odometry,
+        if self.has_orientation == True:
+            self.PUBS_DICT['orientation_pub'] = {
+                'msg': NavPoseOrientation,
                 'namespace': self.namespace,
-                'topic': 'pose',
+                'topic': 'orientation',
                 'qsize': 1,
                 'latch': False
             }
 
-        if self.enable_heading_pub == True:
+        if self.has_position == True:
+            self.PUBS_DICT['orientation_pub'] = {
+                'msg': NavPosePosition,
+                'namespace': self.namespace,
+                'topic': 'position',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.has_heading == True:
             self.PUBS_DICT['heading_pub'] = {
-                'msg': Heading,
+                'msg': NavPoseHeading,
                 'namespace': self.namespace,
                 'topic': 'heading',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.has_altitude == True:
+            self.PUBS_DICT['altitude_pub'] = {
+                'msg': NavPoseAltitude,
+                'namespace': self.namespace,
+                'topic': 'altitude',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.has_depth == True:
+            self.PUBS_DICT['depth_pub'] = {
+                'msg': NavPoseDepth,
+                'namespace': self.namespace,
+                'topic': 'depth',
                 'qsize': 1,
                 'latch': False
             }
@@ -642,6 +697,15 @@ class NavPoseIF:
         return self.ready  
 
 
+    def get_frame_nav_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_altitude_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_depth_options(self):
+        return NAVPOSE_DEPTH_FRAME_OPTIONS
+
     def get_data_products(self):
         return self.data_products_list
 
@@ -662,7 +726,7 @@ class NavPoseIF:
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, timestamp = None, frame_id = 'sensor_frame' ):      
+    def publish_navpose(self,navpose_dict, timestamp = None):      
         success = True
         if navpose_dict is None:
             success = False
@@ -715,102 +779,86 @@ class NavPoseIF:
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
 
+                
                 # Update Status Info
                 self.status_msg.publishing = True
-                self.status_msg.pub_rate = float(1.0) / pub_time_sec
-                self.status_msg.frame_id = np_dict['frame_id']
                 self.status_msg.frame_3d = np_dict['frame_3d']
-                self.status_msg.frame_altitude = np_dict['frame_altitude']
+                self.status_msg.source_frame_nav = np_dict['frame_nav']
+                self.status_msg.source_frame_altitude = np_dict['frame_altitude']
+                self.status_msg.source_frame_depth = np_dict['frame_depth']
 
-                self.status_msg.has_heading = np_dict['has_heading']
-                self.status_msg.has_position = np_dict['has_position']
-                self.status_msg.has_orientation = np_dict['has_orientation']
-                self.status_msg.has_location = np_dict['has_location']
-                self.status_msg.has_altitude = np_dict['has_altitude']
-                self.status_msg.has_depth = np_dict['has_depth']
 
-                self.status_msg.get_latency_time = get_latency
-                self.status_msg.pub_latency_time = pub_latency
-                self.status_msg.process_time = process_time  
+                # Transform navpose data frames to nepi standard frames
+                if np_dict['frame_nav'] != 'ENU':
+                    if np_dict['frame_nav'] == 'NED':
+                        nepi_nav.convert_navposedata_ned2enu(np_dict)
+                if np_dict['frame_altitude'] != 'WGS84':
+                    if np_dict['frame_altitude'] == 'AMSL':
+                        nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
+                if np_dict['frame_depth'] != 'MSL':
+                    if np_dict['frame_depth'] == 'DEPTH':
+                        pass # need to add conversions                 
+
+
+                self.status_msg.pub_frame_nav = np_dict['frame_nav']
+                self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+                self.status_msg.pub_frame_depth = np_dict['frame_depth']
 
 
                 # Publish nav pose subs
-                if self.enable_gps_pub == True:
-                    msg = self.PUBS_DICT['gps_pub']['msg']()
+                if self.has_location == True:
+                    pub_name = 'location_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
-                    try:
-                        if np_dict['has_location'] == True:
-                            if np_dict['has_altitude'] and np_dict['frame_altitude'] == 'AMSL':
-                                np_dict = nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
-                                
-                            msg.latitude = np_dict['latitude']
-                            msg.latitude = np_dict['longitude']
-                            msg.latitude = np_dict['altitude']
-                        self.node_if.publish_pub('gps_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish gps data msg: " + str(e), log_name_list = self.log_name_list)
-                        success = False
+                    msg.timestamp = np_dict['time_location']
+                    msg.latitude = np_dict['latitude']
+                    msg.longitude = np_dict['longitude']
+                    self.node_if.publish_pub(pub_name,msg)
 
-                if self.enable_gps_pub == True:
-                    msg = self.PUBS_DICT['elevation_pub']['msg']()
+                if self.has_heading == True:
+                    pub_name = 'heading_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
-                    try:
+                    msg.timestamp = np_dict['time_heading']
+                    msg.heading_deg = np_dict['heading_deg']
+                    self.node_if.publish_pub(pub_name,msg)
 
-                                
-                        if  np_dict['frame_altitude'] == 'Depth':
-                            depth = np_dict['depth']
-                            if depth > 0:
-                                depth = -1 * depth
-                            msg.elevation = depth
-                        else:
-                            if np_dict['has_location'] == True:
-                                if np_dict['has_altitude'] and np_dict['frame_altitude'] == 'AMSL':
-                                    np_dict = nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
-                            msg.elevation = np_dict['altitude']
-                        self.node_if.publish_pub('elevation_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish elevation data msg: " + str(e), log_name_list = self.log_name_list)
-                        success = False
+                if self.has_orientation == True:
+                    pub_name = 'orientation_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
+                    # gps_fix pub
+                    msg.timestamp = np_dict['time_orientation']
+                    msg.roll_deg = np_dict['roll_deg']
+                    msg.pitch_deg = np_dict['pitch_deg']
+                    msg.yaw_deg = np_dict['yaw_deg']
+                    self.node_if.publish_pub(pub_name,msg)
 
+                if self.has_position == True:
+                    pub_name = 'position_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
+                    # gps_fix pub
+                    msg.timestamp = np_dict['time_position']
+                    msg.x_m = np_dict['x_m']
+                    msg.y_m = np_dict['y_m']
+                    msg.z_m = np_dict['z_m']
+                    self.node_if.publish_pub(pub_name,msg)
 
-                if self.enable_pose_pub == True:
-                    #Create odom pub
-                    msg = self.PUBS_DICT['pose_pub']['msg']()
-                    try:
-                        if np_dict['has_position'] or np_dict['has_orientation']:
-                            if np_dict['frame_3d'] == 'NED':
-                                np_dict = nepi_nav.convert_navposedata_ned2edu(np_dict)
-                                    
-                        if np_dict['has_position'] == True:
-                            point_msg = Point()
-                            point_msg.x = np_dict['x_m']
-                            point_msg.y = np_dict['y_m']
-                            point_msg.z = np_dict['z_m']
-                            msg.pose.pose.position = point_msg
-                        if np_dict['has_orientation'] == True:
-                            rpy = [np_dict['roll_deg'],np_dict['pitch_deg'],np_dict['yaw_deg']]
-                            quad = nepi_nav.convert_rpy2quat(rpy)
-                            quad_msg = Quaternion()
-                            quad_msg.x = quad[0]
-                            quad_msg.y = quad[1]
-                            quad_msg.z = quad[2]
-                            quad_msg.w = quad[3]
-                            msg.pose.pose.orientation = quad_msg
-                        self.node_if.publish_pub('pose_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish pose data msg: " + str(e), log_name_list = self.log_name_list)
-                        success = False
+                if self.has_altitude == True:
+                    pub_name = 'altitude_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
+                    # gps_fix pub
+                    msg.timestamp = np_dict['time_altitude']
+                    msg.altitude_m = np_dict['altitude_m']
+                    self.node_if.publish_pub(pub_name,msg)
 
-                if self.enable_heading_pub == True:
-                    #Create heading pub
-                    msg = self.PUBS_DICT['heading_pub']['msg']()
-                    try:
-                        if np_dict['has_heading'] == True:
-                            msg.heading = np_dict['heading']
-                        self.node_if.publish_pub('heading_pub',msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish heading data msg: " + str(e), log_name_list = self.log_name_list)
-                        success = False
+                if self.has_depth == True:
+                    pub_name = 'depth_pub'
+                    msg = self.PUBS_DICT[pub_name]['msg']()
+                    # gps_fix pub
+                    msg.timestamp = np_dict['time_depth']
+                    msg.depth_m = np_dict['depth_m']
+                    self.node_if.publish_pub(pub_name,msg)
+        
         return success
 
 
@@ -844,6 +892,9 @@ class NavPoseIF:
             self.status_msg.avg_pub_rate = avg_rate
             self.node_if.publish_pub('status_pub', self.status_msg)
 
+    def _provide_capabilities(self, _):
+        return self.caps_report
+
 
 
 
@@ -864,7 +915,7 @@ SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
 SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
                         'laser_2d','laser_3d','lidar_2d','lidar_3d']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
-FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
+FRAME_ID_OPTIONS = ['nepi_frame','sensor_frame','world_frame']
 
 
 EXAMPLE_CAPS_DICT = dict( 
@@ -1065,7 +1116,7 @@ class ImageIF:
 
         self.caps_report.data_source_type = self.data_source_type
         self.caps_report.data_product_name = self.data_product
-        self.caps_report.frame_id_options = FRAME_ID_OPTIONS
+        self.caps_report.frame_3d_options = FRAME_ID_OPTIONS
 
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
@@ -1113,7 +1164,7 @@ class ImageIF:
         status_msg.encoding = 'bgr8'
         status_msg.width = 0
         status_msg.height = 0
-        status_msg.frame_id = 'sensor_frame'
+        status_msg.frame_3d = 'sensor_frame'
         status_msg.get_latency_time = 0
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
@@ -1544,7 +1595,7 @@ class ImageIF:
         return self.has_subs
 
 
-    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_id = 'sensor_frame', add_overlay_list = []):
+    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'sensor_frame', add_overlay_list = []):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None:
@@ -1553,7 +1604,7 @@ class ImageIF:
 
         # Process 
         self.status_msg.encoding = encoding
-        self.status_msg.frame_id = frame_id
+        self.status_msg.frame_3d = frame_3d
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
@@ -1610,7 +1661,7 @@ class ImageIF:
                     if nav_pose_dict is not None:
 
                         if self.status_msg.overlay_nav == True and nav_pose_dict is not None:
-                            overlay = 'Lat: ' +  str(round(nav_pose_dict['lat'],6)) + 'Long: ' +  str(round(nav_pose_dict['long'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
+                            overlay = 'Lat: ' +  str(round(nav_pose_dict['latitude'],6)) + 'Long: ' +  str(round(nav_pose_dict['longitude'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
                             overlay_list.append(overlay)
 
                         if self.status_msg.overlay_pose == True and nav_pose_dict is not None:
@@ -1625,7 +1676,7 @@ class ImageIF:
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
-            ros_img.header.frame_id = frame_id
+            ros_img.header.frame_3d = frame_3d
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('image_pub', ros_img)
         
@@ -1652,7 +1703,7 @@ class ImageIF:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
         return cv2_img
 
-    def publish_msg_img(self, msg_text, timestamp = None, frame_id = 'nepi_base'):
+    def publish_msg_img(self, msg_text, timestamp = None, frame_3d = 'nepi_base'):
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
 
         if timestamp == None:
@@ -1661,7 +1712,7 @@ class ImageIF:
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
         ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
-        ros_img.header.frame_id = frame_id
+        ros_img.header.frame_3d = frame_3d
         self.node_if.publish_pub('image_pub', ros_img)
 
 
@@ -2391,7 +2442,7 @@ class DepthMapImageIF(ImageIF):
 # DepthMapIF
 
 ENCODING_OPTIONS = ['32FC1']
-FRAME_IDS = ['nepi_base_frame','sensor_frame']
+FRAME_IDS = ['nepi_frame','sensor_frame']
 DEFUALT_IMG_WIDTH = 700
 DEFUALT_IMG_HEIGHT = 400
 
@@ -2524,7 +2575,7 @@ class DepthMapIF:
         status_msg.encoding = '32FC1'
         status_msg.width = 0
         status_msg.height = 0
-        status_msg.frame_id = "sensor_frame"
+        status_msg.frame_3d = "sensor_frame"
         status_msg.get_latency_time = 0
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
@@ -2657,7 +2708,7 @@ class DepthMapIF:
         return self.has_subs
 
 
-    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1', min_range_m = None, max_range_m = None, timestamp = None, frame_id = 'nepi_base'):
+    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1', min_range_m = None, max_range_m = None, timestamp = None, frame_3d = 'nepi_base'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None:
@@ -2706,7 +2757,7 @@ class DepthMapIF:
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
             ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
-            ros_img.header.frame_id = frame_id
+            ros_img.header.frame_3d = frame_3d
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('depth_map_pub', ros_img)
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -2797,7 +2848,7 @@ ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
-FRAME_IDS = ['nepi_base_frame','sensor_frame']
+FRAME_IDS = ['nepi_frame','sensor_frame']
 
 
 class PointcloudIF:
@@ -2933,7 +2984,7 @@ class PointcloudIF:
         status_msg.height = 0
         status_msg.depth = 0
         status_msg.point_count = 0,
-        status_msg.frame_id = "nepi_base"
+        status_msg.frame_3d = "nepi_base"
         status_msg.get_latency_time
         status_msg.pub_latency_time
         status_msg.process_time
@@ -3169,7 +3220,7 @@ class PointcloudIF:
         self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         return has_subs
 
-    def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_id = 'sensor_frame'):
+    def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_3d = 'sensor_frame'):
         if self.node_if is None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
             return False
@@ -3210,9 +3261,9 @@ class PointcloudIF:
                 self.msg_if.pub_warn("Pointcloud has subscribers, will publish", log_name_list = self.log_name_list)
             self.status_msg.publishing = True
             #Convert to ros Image message
-            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_id = frame_id)
+            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
             ros_pc.header.stamp = ros_stamp_from_timestamp(timestamp)
-            ros_pc.header.frame_id = frame_id
+            ros_pc.header.frame_3d = frame_3d
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time

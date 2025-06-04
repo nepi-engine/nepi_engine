@@ -1,20 +1,18 @@
 # This message contains status information for the navigation/positioning
 
-bool publishing
-float32 pub_rate
-
-string frame_id
+# Output frame names
 string frame_3d
-string frame_altitude
 
-bool has_heading
-bool has_position
-bool has_orientation
-bool has_location
-bool has_altitude
-bool has_depth
+string source_frame_nav
+string pub_frame_nav
 
-float32 get_latency_time
-float32 pub_latency_time
-float32 process_time
+string source_frame_altitude
+string pub_frame_altitude
+
+string source_frame_depth
+string pub_frame_depth
+
+bool publishing
 float32 avg_pub_rate
+
+

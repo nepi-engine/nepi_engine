@@ -54,7 +54,7 @@ nepi_ros_interfaces/Frame3DTransform frame_3d_transform
 
 # Output transform into which 3D data (navpose,pointclouds...) are published
 # Options ['nepi_base_frame','sensor_frame','map']
-string frame_id
+string frame_3d
 
 
 

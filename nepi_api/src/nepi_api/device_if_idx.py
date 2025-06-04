@@ -46,7 +46,7 @@ from nepi_api.device_if_npx import NPXDeviceIF
 SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 
-FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame','map']
+FRAME_3D_OPTIONS = ['nepi_frame','sensor_frame','map']
 
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
@@ -62,90 +62,9 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     max_range_m = 1.0,
     zoom_ratio = 0.5, 
     rotate_ratio = 0.5,
-    frame_id = 'nepi_center_frame'
+    frame_3d = 'nepi_frame'
     )
-EXAMPLE_HEADING_DATA_DICT = {
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
-}
 
-EXAMPLE_POSITION_DATA_DICT = {
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
-}
-
-EXAMPLE_ORIENTATION_DATA_DICT = {
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees ENU
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
-}
-
-EXAMPLE_LOCATION_DATA_DICT = {
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'lat': 47.080909,
-    'long': -120.8787889,
-}
-
-EXAMPLE_ALTITUDE_DATA_DICT = {
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters WGS84
-    'altitude_m': 12.321,
-}
-
-EXAMPLE_ALTITUDE_DATA_DICT = {
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive distance from surface in meters
-    'altitude_m': 0
-}
-
-EXAMPLE_NAVPOSE_DATA_DICT = {
-    'frame_id': 'ENU',
-    'frame_altitude': 'WGS84',
-
-    'geoid_height_meters': 0,
-
-    'has_heading': True,
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
-
-    'has_position': True,
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
-
-    'has_orientation': True,
-    'time_oreientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
-
-    'has_location': True,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'lat': 47.080909,
-    'long': -120.8787889,
-
-    'has_altitude': True,
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified altitude frame
-    'altitude_m': 12.321,
-
-    'has_depth': False,
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive meters
-    'depth_m': 0.0
-}
 
 class IDXDeviceIF:
     # Default Global Values
@@ -315,7 +234,7 @@ class IDXDeviceIF:
         self.setRange = setRange
         self.caps_report.has_range = True
 
-        self.caps_report.frame_id_options = FRAME_ID_OPTIONS
+        self.caps_report.frame_3d_options = FRAME_3D_OPTIONS
 
         self.status_msg = IDXStatus()
 
@@ -384,7 +303,7 @@ class IDXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
             },
-            'frame_id': {
+            'frame_3d': {
                 'namespace': self.node_namespace,
                 'factory_val': "sensor_frame"
             }
@@ -1077,7 +996,7 @@ class IDXDeviceIF:
         self.status_msg.frame_3d_transform = transform_msg
         self.publishStatus(do_updates=False) # Updated inline here 
 
-        self.node_if.set_param('frame_3d_transform',  self.frame_transform)
+        self.node_if.set_param('frame_transform',  self.frame_transform)
 
 
     def clearFrame3dTransformCb(self, msg):
@@ -1086,9 +1005,9 @@ class IDXDeviceIF:
 
     def clearFrame3dTransform(self):
         self.frame_transform = self.ZERO_TRANSFORM
-        self.status_msg.frame_3d_transform = Frame3DTransform()
+        self.status_msg.frame_transform = Frame3DTransform()
         self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_3d_transform',  self.frame_transform)
+        self.node_if.set_param('frame_transform',  self.frame_transform)
 
 
     def setFrame3dCb(self, msg):
@@ -1097,9 +1016,9 @@ class IDXDeviceIF:
         self.setFrame3d(new_frame_3d)
 
     def setFrame3d(self, new_frame_3d):
-        self.status_msg.frame_id = new_frame_3d
+        self.status_msg.frame_3d = new_frame_3d
         self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_id', new_frame_3d)
+        self.node_if.set_param('frame_3d', new_frame_3d)
 
    
     def initConfig(self):
@@ -1117,8 +1036,8 @@ class IDXDeviceIF:
         self.node_if.reset_param('framerate_ratio')
         self.node_if.reset_param('range_window/start_range_ratio')
         self.node_if.reset_param('range_window/stop_range_ratio')
-        self.node_if.reset_param('frame_3d_transform')
-        self.node_if.reset_param('frame_id')
+        self.node_if.reset_param('frame_transform')
+        self.node_if.reset_param('frame_3d')
         self.resetCb(do_updates = True)
 
 
@@ -1134,8 +1053,8 @@ class IDXDeviceIF:
         self.node_if.factory_reset_param('framerate_ratio')
         self.node_if.factory_reset_param('range_window/start_range_ratio')
         self.node_if.factory_reset_param('range_window/stop_range_ratio')
-        self.node_if.factory_reset_param('frame_3d_transform')
-        self.node_if.factory_reset_param('frame_id')
+        self.node_if.factory_reset_param('frame_transform')
+        self.node_if.factory_reset_param('frame_3d')
         self.factoryResetCb(do_updates = True)
 
 
@@ -1218,8 +1137,8 @@ class IDXDeviceIF:
                         # Now process and publish image
                         if (dp_has_subs == True or dp_should_save == True):
                             #Publish Ros Image
-                            frame_id = self.node_if.get_param('frame_id')
-                            cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
+                            frame_3d = self.node_if.get_param('frame_3d')
+                            cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d)
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
@@ -1308,8 +1227,8 @@ class IDXDeviceIF:
                             #Publish Ros Image
                             min_range_m = self.status_msg.range_window.start_range
                             max_range_m = self.status_msg.range_window.stop_range
-                            frame_id = self.node_if.get_param('frame_id')
-                            dp_if.publish_cv2_depth_map(cv2_img,min_range_m = min_range_m, max_range_m = max_range_m, encoding = encoding, timestamp = timestamp, frame_id = frame_id)
+                            frame_3d = self.node_if.get_param('frame_3d')
+                            dp_if.publish_cv2_depth_map(cv2_img,min_range_m = min_range_m, max_range_m = max_range_m, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d)
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
@@ -1371,29 +1290,29 @@ class IDXDeviceIF:
                 get_data = dp_has_subs or dp_should_save
                 if get_data == True:
                     acquiring = True
-                    status, msg, o3d_pc, timestamp, frame_id = dp_get_data()
+                    status, msg, o3d_pc, timestamp, frame_3d = dp_get_data()
                     if o3d_pc is not None:
 
 
                         #********************
-                        set_frame = self.status_msg.frame_id
+                        set_frame = self.status_msg.frame_3d
                         if set_frame == 'sensor_frame':
-                            frame_id = set_frame # else pass through sensor frame
+                            frame_3d = set_frame # else pass through sensor frame
                         else:
-                            frame_id = 'base_frame'
+                            frame_3d = 'nepi_frame'
 
                         transform = self.frame_transform
                         zero_transform = True
                         for i in range(len(transform)):
                             if transform[i] != 0:
                                 zero_transform = False
-                        should_transform = (zero_transform == False) and (frame_id == 'nepi_center_frame')
+                        should_transform = (zero_transform == False) and (frame_3d == 'nepi_frame')
                         if should_transform:   
                             o3d_pc = self.transformPointcloud(o3d_pc,transform)
 
                         #********************
                         if (dp_has_subs == True):
-                            dp_if.publish_o3d_pc(o3d_pc, timestamp = timestamp, frame_id = frame_id )
+                            dp_if.publish_o3d_pc(o3d_pc, timestamp = timestamp, frame_3d = frame_3d )
                         if (dp_should_save == True ):
                             self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp, save_check=False)
 
@@ -1486,7 +1405,7 @@ class IDXDeviceIF:
             self.status_msg.min_range_m = self.node_if.get_param('range_limits/min_range_m')
             self.status_msg.max_range_m = self.node_if.get_param('range_limits/max_range_m')
             # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
-            transform = self.node_if.get_param('frame_3d_transform')
+            transform = self.node_if.get_param('frame_transform')
             transform_msg = Frame3DTransform()
             transform_msg.translate_vector.x = transform[0]
             transform_msg.translate_vector.y = transform[1]
@@ -1497,7 +1416,7 @@ class IDXDeviceIF:
             transform_msg.heading_offset = transform[6]
             self.status_msg.frame_3d_transform = transform_msg
             
-            self.status_msg.frame_id = param_dict['frame_id'] if 'frame_id' in param_dict else "nepi_center_frame"
+            self.status_msg.frame_3d = param_dict['frame_3d'] if 'frame_3d' in param_dict else "nepi_frame"
             self.msg_if.pub_debug("Got status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
     

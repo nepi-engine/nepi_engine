@@ -11,7 +11,7 @@
 
   <arg name="run_mgr_network" default="true" />
   <arg name="run_mgr_time_sync" default="true" />
-  <arg name="run_mgr_nav_pose" default="true" />
+  <arg name="run_mgr_navpose" default="true" />
   <arg name="run_gpsd_ros_client" default="false" />
   <arg name="run_mgr_ai_models" default="true" />
   <arg name="run_mgr_drivers" default="true" />
@@ -60,13 +60,11 @@
     <node name="time_sync_mgr" pkg="nepi_managers" type="time_sync_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group> 
 
-    <!-- MGR:  Nav/Pose -->
-    <group if="$(arg run_mgr_nav_pose)" >
+    <!-- MGR:  NavPose -->
+    <group if="$(arg run_mgr_navpose)" >
       <!-- Nav/Pose Mgr -->
-      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/nav_pose_mgr.yaml" ns="nav_pose_mgr" />
-      <node name="nav_pose_mgr" pkg="nepi_managers" type="nav_pose_mgr" respawn="false" output="$(arg output_destination)" />
-      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/ai_model_mgr.yaml" ns="nav_pose_mgr2" />
-      <node name="nav_pose_mgr2" pkg="nepi_managers" type="nav_pose_mgr.py" respawn="false" output="$(arg output_destination)" />
+      <rosparam command="load" file="$(arg config_file_root)/nepi_managers/navpose_mgr.yaml" ns="navpose_mgr" />
+      <node name="navpose_mgr" pkg="nepi_managers" type="navpose_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>      
     
  <!-- GPSD ROS Client -->

@@ -25,9 +25,11 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 
-
-from nepi_ros_interfaces.msg import NavPose, NavPoseData
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest
+from nepi_ros_interfaces.msg import NavPoseMgrStatus
+from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -67,13 +69,21 @@ def get_navpose_publisher_namespaces():
 
 
 def get_location_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseLocation)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_gps_publisher_namespaces():
     topics_list = nepi_ros.find_topics_by_msg(NavSatFix)
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))
     return namespaces_list
 
-def get_pose_publisher_namespaces():
+
+def get_geopoint_publisher_namespaces():
     topics_list = nepi_ros.find_topics_by_msg(GeoPoint)
     namespaces_list = []
     for topic in topics_list:
@@ -81,7 +91,64 @@ def get_pose_publisher_namespaces():
     return namespaces_list
 
 def get_heading_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_name('heading')
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseDepth)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+
+def get_orienation_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseOrientation)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_position_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(NavPosePosition)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_odometry_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(Odometry)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_pose_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(Pose)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_point_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(Point)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_quaternion_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(Quaternion)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_altitude_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseAltitude)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic))
+    return namespaces_list
+
+def get_depth_publisher_namespaces():
+    topics_list = nepi_ros.find_topics_by_msg(NavPoseDepth)
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))
@@ -89,11 +156,88 @@ def get_heading_publisher_namespaces():
 
 
 #######################
-# Create NavPose Messages
+# 3D Frame Helper Functions
 
-NAVPOSE_FRAME_ID_OPTIONS = ['nepi_base_frame','sensor_frame']
-NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
-NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
+ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+
+
+def convert_tranform_list2msg(transform_list):
+  transform_msg = Frame3DTransform()
+  if len(transform_list) == 7:
+      transform_msg.translate_vector.x = transform_list[0]
+      transform_msg.translate_vector.y = transform_list[1]
+      transform_msg.translate_vector.z = transform_list[2]
+      transform_msg.rotate_vector.x = transform_list[3]
+      transform_msg.rotate_vector.y = transform_list[4]
+      transform_msg.rotate_vector.z = transform_list[5]
+      transform_msg.heading_offset = transform_list[6]
+  return transform_msg
+
+def convert_tranform_msg2list(transform_msg):
+  transform_list = ZERO_TRANSFORM
+  if len(transform_list) == 7:
+      transform_list[0] = transform_msg.translate_vector.x
+      transform_list[1] = transform_msg.translate_vector.y
+      transform_list[2] = transform_msg.translate_vector.z
+      transform_list[3] = transform_msg.rotate_vector.x
+      transform_list[4] = transform_msg.rotate_vector.y
+      transform_list[5] = transform_msg.rotate_vector.z
+      transform_list[6] = transform_msg.heading_offset
+  return transform_list
+
+def transform_navpose_dict(npdata_dict, transform, frame_3d_name = 'nepi_frame'):
+  if npdata_dict is None:
+    logger.log_info("Got None navpose dict", throttle_s = 5.0)
+  else:
+    if transform != ZERO_TRANSFORM:
+      x = transform[0]
+      y = transform[1]
+      z = transform[2]
+      translation_vector = [x, y, z]
+      roll = transform[3]
+      pitch = transform[4]
+      yaw = transform[5]
+      rotate_vector = [roll, pitch, yaw]
+      try:
+        npdata_dict['frame_3d'] = frame_3d_name
+        
+
+        if npdata_dict['has_location'] == True:
+          npdata_dict['latitude'] = npdata_dict['latitude']
+          npdata_dict['longitude'] = npdata_dict['longitude']
+
+        if npdata_dict['has_heading'] == True:
+          npdata_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
+
+        if npdata_dict['has_orientation'] == True:
+          npdata_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
+          npdata_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
+          npdata_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
+
+        if npdata_dict['has_position'] == True:
+          npdata_dict['x_m'] = npdata_dict['x_m'] - x
+          npdata_dict['y_m'] = npdata_dict['y_m'] - y
+          npdata_dict['z_m'] = npdata_dict['z_m'] - z
+
+
+        if npdata_dict['has_altitude'] == True:
+          npdata_dict['altitude_m'] = npdata_dict['altitude_m'] - z
+
+        if npdata_dict['has_depth'] == True:
+          npdata_dict['depth_m'] = npdata_dict['depth_m'] - z
+
+      except Exception as e:
+        logger.log_info("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
+  return npdata_dict
+
+
+#######################
+# NavPose Data Helper Functions
+
+NAVPOSE_FRAME_ID_OPTIONS = ['nepi_frame','sensor_frame']
+NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+NAVPOSE_DEPTH_FRAME_OPTIONS = ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
 BLANK_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),
@@ -120,8 +264,8 @@ BLANK_ORIENTATION_DATA_DICT = {
 BLANK_LOCATION_DATA_DICT = {
     'time_location': nepi_utils.get_time(),
     # Location Lat,Long
-    'lat': 0.0,
-    'long': 0.0,
+    'latitude': 0.0,
+    'longitude': 0.0
 }
 
 BLANK_ALTITUDE_DATA_DICT = {
@@ -139,11 +283,18 @@ BLANK_DEPTH_DATA_DICT = {
 
 
 BLANK_NAVPOSE_DICT = {
-    'frame_id': 'nepi_base_frame',
+    'frame_3d': 'nepi_frame',
     'frame_3d': 'ENU',
     'frame_altitude': 'WGS84',
+    'frame_depth': 'MSL',
 
     'geoid_height_meters': 0.0,
+
+    'has_location': False,
+    'time_location': nepi_utils.get_time(),
+    # Location Lat,Long
+    'latitude': 0.0,
+    'longitude': 0.0,
 
     'has_heading': False,
     'time_heading': nepi_utils.get_time(),
@@ -164,12 +315,6 @@ BLANK_NAVPOSE_DICT = {
     'pitch_deg': 0.0,
     'yaw_deg': 0.0,
 
-    'has_location': False,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'lat': 0.0,
-    'long': 0.0,
-
     'has_altitude': False,
     'time_altitude': nepi_utils.get_time(),
     # Altitude should be provided in postivie meters in specified alt frame
@@ -182,51 +327,56 @@ BLANK_NAVPOSE_DICT = {
 }
 
 
-ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+def convert_navposedata_amsl2wgs84(npdata_dict):
+  if npdata_dict['frame_altitude'] == 'AMSL':
+    geopoint_in = GeoPoint()
+    geopoint_in.latitude = npdata_dict['lat']
+    geopoint_in.longitude = npdata_dict['long']
+    geopoint_in.altitude = npdata_dict['altitude_m']
+    geopoint_out = convert_amsl_to_wgs84(geopoint_in)
+    npdata_dict['lat'] = geopoint_out.latitude
+    npdata_dict['long'] = geopoint_out.longitude
+    npdata_dict['altitude_m'] = geopoint_out.altitude
+  return npdata_dict
 
-def transform_navpose_dict(npdata_dict, transform):
-  if npdata_dict is None:
-    logger.log_info("Got None navpose dict", throttle_s = 5.0)
-  else:
-    if transform != ZERO_TRANSFORM:
-      x = transform[0]
-      y = transform[1]
-      z = transform[2]
-      translation_vector = [x, y, z]
-      roll = transform[3]
-      pitch = transform[4]
-      yaw = transform[5]
-      rotate_vector = [roll, pitch, yaw]
-      try:
-        npdata_dict['frame_id'] = 'nepi_base_frame', 
-        
-        if npdata_dict['has_heading'] == True:
-          npdata_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
+def convert_navposedata_wgs842amsl(npdata_dict):
+  if npdata_dict['frame_altitude'] == 'WGS84':
+    geopoint_in = GeoPoint()
+    geopoint_in.latitude = npdata_dict['lat']
+    geopoint_in.longitude = npdata_dict['long']
+    geopoint_in.altitude = npdata_dict['altitude_m']
+    geopoint_out = convert_wgs84_to_amsl(geopoint_in)
+    npdata_dict['lat'] = geopoint_out.latitude
+    npdata_dict['long'] = geopoint_out.longitude
+    npdata_dict['altitude_m'] = geopoint_out.altitude
+  return npdata_dict  
 
-        if npdata_dict['has_orientation'] == True:
-          npdata_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
-          npdata_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
-          npdata_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
 
-        if npdata_dict['has_position'] == True:
-          npdata_dict['x_m'] = npdata_dict['x_m'] - x
-          npdata_dict['y_m'] = npdata_dict['y_m'] - y
-          npdata_dict['z_m'] = npdata_dict['z_m'] - z
+  
 
-        if npdata_dict['has_location'] == True:
-          npdata_dict['lat'] = npdata_dict['lat']
-          npdata_dict['long'] = npdata_dict['long']
+  
+def convert_navposedata_enu2ned(npdata_dict):
+  rpy_enu_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
+  yaw_ned_d = convert_yaw_enu2ned(rpy_enu_d[2])
+  rpy_ned_d = [rpy_enu_d[0],rpy_enu_d[1],yaw_ned_d]
+  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_ned_d
 
-        if npdata_dict['has_altitude'] == True:
-          npdata_dict['altitude_m'] = npdata_dict['altitude_m'] - z
+  point_ned= [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
+  [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_ned
 
-        if npdata_dict['has_depth'] == True:
-          npdata_dict['depth_m'] = npdata_dict['depth_m'] - z
+  return npdata_dict
 
-      except Exception as e:
-        npdata_msg = None
-        logger.log_info("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
-  return npdata_msg
+def convert_navposedata_ned2edu(npdata_dict):
+  rpy_ned_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
+  yaw_enu_d = convert_yaw_ned2enu(rpy_ned_d[2])
+  rpy_enu_d = [rpy_enu_d[0],rpy_enu_d[1],yaw_enu_d]
+  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_ned_d
+
+  point_enu = [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
+  [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_enu
+
+  return npdata_dict
+
 
 
 def convert_navposedata_dict2msg(npdata_dict):
@@ -237,9 +387,12 @@ def convert_navposedata_dict2msg(npdata_dict):
     try:
       npdata_msg = NavPoseData()
       npdata_msg.header.stamp = nepi_ros.ros_stamp_now()
-      npdata_msg.frame_id = npdata_dict['frame_id']
+
       npdata_msg.frame_3d = npdata_dict['frame_3d']
+      npdata_msg.frame_nav = npdata_dict['frame_nav']
       npdata_msg.frame_altitude = npdata_dict['frame_altitude']
+      npdata_msg.frame_depth = npdata_dict['frame_depth']
+
       npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
 
       npdata_msg.has_heading = npdata_dict['has_heading']
@@ -285,145 +438,6 @@ def convert_navposedata_msg2dict(npdata_msg):
   return npdata_dict
 
 
-def convert_navpose_resp2dict(navpose_response):
-  resp_dict = None
-  if navpose_response is not None:
-    if hasattr(navpose_response,'nav_pose'):
-      timestamp_sec = nepi_ros.sec_from_timestamp(navpose_response.nav_pose.timestamp)
-      navpose_msg = navpose_response.nav_pose
-    elif hasattr(navpose_response,'timestamp'):
-      nepi_ros.sec_from_timestamp(navpose_response.timestamp)
-      navpose_msg = navpose_response
-    else:
-      return resp_dict
-    try:
-      resp_dict = nepi_ros.convert_msg2dict(navpose_msg)
-    except Exception as e:
-      logger.log_warn("Failed to convert NavPose Solution Resp to dict: " + str(navpose_msg) + " : " + str(e), throttle_s = 5.0)
-      resp_dict = None
-  return resp_dict
-
-
-def convert_navpose_resp2data_msg(navpose_response, frame_id = 'nepi_base_frame', frame_3d = 'ENU', frame_altitude = 'WGS84'):
-  #logger.log_warn("Will convert navpose response to npdata_msg: " + str(navpose_response))
-  npdata_msg = None
-  if navpose_response is not None:
-    if hasattr(navpose_response,'nav_pose'):
-      timestamp_sec = nepi_ros.sec_from_timestamp(navpose_response.nav_pose.timestamp)
-      navpose_msg = navpose_response.nav_pose
-    elif hasattr(navpose_response,'timestamp'):
-      timestamp_sec = nepi_ros.sec_from_timestamp(navpose_response.timestamp)
-      navpose_msg = navpose_response
-    else:
-      return npdata_msg
-    try:
-        #logger.log_warn("Will try convert navpose solution msg to npdata_msg: " + str(navpose_msg))
-        # Get current navpose
-        # Get current heading in degrees
-        heading_deg = get_navpose_heading_deg(navpose_msg)
-        # Get current orientation vector (roll, pitch, yaw) in degrees enu framenavpose_msg
-        if frame_3d == 'NED':
-          # Get current orientation vector (roll, pitch, yaw) in degrees ned frame +-180
-          ort_values = get_navpose_orientation_ned_degs(navpose_msg)
-          # Get current position vector (x, y, z) in meters ned frame
-          pos_values = get_navpose_position_ned_m(navpose_msg)
-        else:
-          frame_3d == 'ENU'
-          ort_values = get_navpose_orientation_enu_degs(navpose_msg)
-          # Get current position vector (x, y, z) in meters enu frame
-          pos_values = get_navpose_position_enu_m(navpose_msg)
-        if frame_altitude == "AMSL":
-          # Get current location vector (lat, long, alt) in geopoint data with AMSL height
-          geo_values =  get_navpose_location_amsl_geo(navpose_msg)
-        else:
-          frame_altitude = 'WGS84'
-          # Get current location vector (lat, long, alt) in geopoint data with WGS84 height
-          geo_values =  get_navpose_location_wgs84_geo(navpose_msg)  
-        # Get current geoid heihgt
-        geoid_height =  get_navpose_geoid_height(navpose_msg)
-
-        # Publish new current navpose data
-        npdata_msg = NavPoseData()
-        npdata_msg.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp_sec)
-        npdata_msg.frame_id = frame_id
-        npdata_msg.frame_3d = frame_3d
-        npdata_msg.frame_altitude = frame_altitude
-        npdata_msg.geoid_height_meters = geoid_height
-
-        npdata_msg.has_heading = heading_deg != 0
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.heading.header.stamp)
-        npdata_msg.time_heading = timestamp_sec
-        npdata_msg.heading_deg = heading_deg
-
-        npdata_msg.has_orientation = any(ort_values)
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.odom.header.stamp)
-        npdata_msg.time_orientation = timestamp_sec
-        npdata_msg.roll_deg = ort_values[0]
-        npdata_msg.pitch_deg = ort_values[1]
-        npdata_msg.yaw_deg = ort_values[2]
-
-        npdata_msg.has_position = any(pos_values)
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.odom.header.stamp)
-        npdata_msg.time_position = timestamp_sec
-        npdata_msg.x_m = pos_values[0]
-        npdata_msg.y_m = pos_values[1]
-        npdata_msg.z_m = pos_values[2]
-
-        npdata_msg.has_location = any(geo_values[0:-1])
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.fix.header.stamp)
-        npdata_msg.time_location = timestamp_sec
-        npdata_msg.lat = geo_values[0]
-        npdata_msg.long = geo_values[1]
-
-        npdata_msg.has_altitude = geo_values[2] != 0
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.fix.header.stamp)
-        npdata_msg.time_altitude = timestamp_sec
-        npdata_msg.altitude_m =geo_values[2]
-
-        npdata_msg.has_depth = geo_values[2] != 0
-        timestamp_sec = nepi_ros.sec_from_timestamp(navpose_msg.fix.header.stamp)
-        npdata_msg.time_depth = timestamp_sec
-        npdata_msg.depth_m = -1 * geo_values[2]
-
-    except Exception as e:
-      logger.log_info("Failed to convert NavPose Solution Resp to Data msg: " + str(navpose_msg) + " : " + str(e), throttle_s = 5.0)
-      npdata_msg = None
-  return npdata_msg
-
-def convert_navpose_resp2data_dict(navpose_response, frame_id = 'nepi_base_frame', frame_3d = 'ENU', frame_altitude = 'WGS84'):
-  npdata_dict = None
-  if navpose_response is not None:
-    npdata_msg = convert_navpose_resp2data_msg(navpose_response, frame_id = frame_id, frame_3d = frame_3d, frame_altitude = frame_altitude)
-    try:
-      npdata_dict = nepi_ros.convert_msg2dict(npdata_msg)
-    except Exception as e:
-      logger.log_info("Failed to convert NavPose Data msg to dict: " + str(npdata_msg) + " : " + str(e), throttle_s = 5.0)
-  return npdata_dict
-
-
-#######################
-# NavPose Request Functions
-
-def get_navpose_response(namespace):
-  try:
-    get_navpose_service = nepi_ros.create_service(namespace, NavPoseQuery)
-    navpose_response = get_navpose_service(NavPoseQueryRequest())
-  except Exception as e:
-    logger.log_info("Service call failed: " + str(e))
-  return navpose_response
-
-def get_navpose_heading_deg(navpose_response):
-  heading_deg = -999
-  if navpose_response is not None:
-    if hasattr(navpose_response,'nav_pose'):
-      navpose_msg = navpose_response.nav_pose
-    elif hasattr(navpose_response,'timestamp'):
-      navpose_msg = navpose_response
-    else:
-      return heading_deg
-  # Set current heading in degrees
-  heading_deg = navpose_msg.heading.heading
-  return heading_deg
 
 def get_navpose_orientation_enu_degs(navpose_response):
   # Set current orientation vector (roll, pitch, yaw) in degrees enu frame
@@ -546,32 +560,6 @@ def get_navpose_geoid_height_at_geopoint(geopoint):
   return geoid_height
   
 
-
-def convert_navposedata_amsl2wgs84(npdata_dict):
-  if npdata_dict['frame_3d'] == 'AMSL':
-    geopoint_in = GeoPoint()
-    geopoint_in.latitude = npdata_dict['lat']
-    geopoint_in.longitude = npdata_dict['long']
-    geopoint_in.altitude = npdata_dict['altitude_m']
-    geopoint_out = convert_amsl_to_wgs84(geopoint_in)
-    npdata_dict['lat'] = geopoint_out.latitude
-    npdata_dict['long'] = geopoint_out.longitude
-    npdata_dict['altitude_m'] = geopoint_out.altitude
-  return npdata_dict
-
-def convert_navposedata_wgs842amsl(npdata_dict):
-  if npdata_dict['frame_3d'] == 'WGS84':
-    geopoint_in = GeoPoint()
-    geopoint_in.latitude = npdata_dict['lat']
-    geopoint_in.longitude = npdata_dict['long']
-    geopoint_in.altitude = npdata_dict['altitude_m']
-    geopoint_out = convert_wgs84_to_amsl(geopoint_in)
-    npdata_dict['lat'] = geopoint_out.latitude
-    npdata_dict['long'] = geopoint_out.longitude
-    npdata_dict['altitude_m'] = geopoint_out.altitude
-  return npdata_dict  
-
-  
 def convert_amsl_to_wgs84(geopoint_in):
   geoid_height = get_navpose_geoid_height_at_geopoint(geopoint_in)
   geopoint_out = GeoPoint()
@@ -587,46 +575,6 @@ def convert_wgs84_to_amsl(geopoint_in):
   geopoint_out.longitude = geopoint_in.longitude
   geopoint_out.altitude = geopoint_in.altitude + geoid_height
   return geopoint_out
-
-
-
-
-
-
-def convert_navposedata_enu2ned(npdata_dict):
-  rpy_enu_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
-  yaw_ned_d = convert_yaw_enu2ned(rpy_enu_d[2])
-  rpy_ned_d = [rpy_enu_d[0],rpy_enu_d[1],yaw_ned_d]
-  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_ned_d
-
-  point_ned= [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
-  [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_ned
-
-  return npdata_dict
-
-def convert_navposedata_ned2edu(npdata_dict):
-  rpy_ned_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
-  yaw_enu_d = convert_yaw_ned2enu(rpy_ned_d[2])
-  rpy_enu_d = [rpy_enu_d[0],rpy_enu_d[1],yaw_enu_d]
-  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_ned_d
-
-  point_enu = [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
-  [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_enu
-
-  return npdata_dict
-
-'''
-def convert_navposedata_2_odom_(npdata_dict):
-  odom_msg = 
-  rpy_enu_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
-  pose.
-  # Set current orientation vector (roll, pitch, yaw) in degrees enu frame
-  pose_enu_o = navpose_response.nav_pose.odom.pose.pose.orientation
-  xyzw_enu_o = list([pose_enu_o.x,pose_enu_o.y,pose_enu_o.z,pose_enu_o.w])
-  rpy_enu_d = convert_quat2rpy(xyzw_enu_o)
-  orientation_enu_degs = [rpy_enu_d[0],rpy_enu_d[1],rpy_enu_d[2]]
-  return orientation_enu_degs
-'''
 
 
 

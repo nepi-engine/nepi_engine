@@ -69,17 +69,21 @@ add_message_files(FILES
     BoundingBoxes.msg
     BoundingBoxes3D.msg
     Frame3DTransform.msg
-    Frame3DTransformUpdate.msg
+    Frame3DTransforms.msg
     IDXStatus.msg
     HwTrigInCfg.msg
     HwTrigOutCfg.msg
     TestPatternCfg.msg
     PeriodicSwTrig.msg
-    NavPose.msg
     NavPoseData.msg
-    NavPoseSolution.msg
+    NavPoseLocation.msg    
+    NavPoseHeading.msg
+    NavPoseOrientation.msg
+    NavPosePosition.msg
+    NavPoseAltitude.msg
+    NavPoseDepth.msg
     NavPoseDataStatus.msg
-    NavPoseSolutionStatus.msg
+    NavPoseMgrStatus.msg
     StampedString.msg
     SystemStatus.msg
     SystemDefs.msg
@@ -131,6 +135,9 @@ add_message_files(FILES
     UpdateRangeWindow.msg
     UpdateOrder.msg
     UpdateOption.msg
+    UpdateFrame3DTransform.msg
+    UpdateTopic.msg
+    UpdateNavPoseTopic.msg
     AppsStatus.msg
     AppStatus.msg
     AiDetectorMgrStatus.msg
@@ -146,8 +153,6 @@ add_message_files(FILES
     PointcloudProcessStatus.msg
     PointcloudRenderStatus.msg
     PointcloudSelectionStatus.msg
-    MgrsStatus.msg
-    MgrStatus.msg
     Message.msg
     SystemState.msg
     SystemStatesStatus.msg
@@ -159,9 +164,9 @@ add_message_files(FILES
     DepthMapStatus.msg
     PointcloudStatus.msg
     SonarStatus.msg
-    Elevation.msg
     ImageWindow.msg
     ImageWindowRatios.msg
+
 )
 
 ## Generate services in the 'srv' folder
@@ -170,8 +175,6 @@ add_service_files(
     ConvertRawTstamp.srv
     FileReset.srv
     SystemDefsQuery.srv
-    NavPoseQuery.srv
-    NavPoseStatusQuery.srv
     TimeStatusQuery.srv
     IPAddrQuery.srv
     WifiQuery.srv
@@ -201,7 +204,6 @@ add_service_files(
     OnvifDeviceListQuery.srv
     AppStatusQuery.srv
     DriverStatusQuery.srv
-    MgrStatusQuery.srv
     SetBoolState.srv
     AiMgrActiveModelsInfoQuery.srv
     AiDetectorInfoQuery.srv
@@ -210,6 +212,11 @@ add_service_files(
     SystemStatusQuery.srv
     DebugQuery.srv
     ImageCapabilitiesQuery.srv
+    NavPoseCapabilitiesQuery.srv
+    NavPoseDataQuery.srv
+    Frame3DTransformsQuery.srv
+    Frame3DTransformRegister.srv
+    Frame3DTransformDelete.srv
     
 )
 

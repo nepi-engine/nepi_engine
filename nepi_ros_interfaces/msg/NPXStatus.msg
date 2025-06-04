@@ -1,31 +1,36 @@
 # This message contains status information for the NPX devices 
 
-float32 update_rate
-string frame_id
-string frame_3d
-string frame_altitude
+
+bool has_location
+bool set_as_locaition_source
 
 bool has_heading
-bool has_position
-bool has_orientation
-bool has_location
-bool has_altitude
-bool has_depth
-
-bool has_gps_pub
-bool set_as_gps_source
-
-bool has_elevation_pub
-bool set_as_elevation_source
-
-bool has_pose_pub
-bool set_as_pose_source
-
-bool has_heading_pub
 bool set_as_heading_source
 
-# Input Transform for data from sensor's native sensor frame to the nepi_center_frame 
-nepi_ros_interfaces/Frame3DTransform frame_transform
+bool has_orientation
+bool set_as_orienation_source
+
+bool has_position
+bool set_as_position_source
+
+bool has_altitude
+bool set_as_altitude_source
+
+bool has_depth
+bool set_as_depth_source
+
+string frame_3d
+
+# Provides the transform to the system 3D frame 'nepi_frame'
+# (Not applied by NPX driver)
+Frame3dTransforms nepi_frame_3d_transform
+
+# Actual data will be in the nepi standard frames 
+string source_frame_nav
+string source_frame_altitude
+string source_frame_depth
+
+float32 update_rate
 
 
 

@@ -24,13 +24,18 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 
+from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_ros_interfaces.msg import NavPose, NavPoseSolution, NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
-from nepi_ros_interfaces.srv import NavPoseStatusQuery, NavPoseStatusQueryRequest, NavPoseStatusQueryResponse
+from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+
+from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+
 
 from nepi_ros_interfaces.msg import SaveDataRate
-
 
 from nepi_sdk import nepi_ros
 from nepi_sdk import nepi_utils
@@ -43,7 +48,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 class ConnectMgrNavPoseIF:
  
-    MGR_NODE_NAME = 'nav_pose_mgr'
+    MGR_NODE_NAME = 'navpose_mgr'
 
     ready = False
 
@@ -207,14 +212,14 @@ class ConnectMgrNavPoseIF:
         self.SUBS_DICT = {
             'navpose_data_status': {
                 'namespace': self.mgr_namespace,
-                'topic': 'navpose/status',
+                'topic': 'status',
                 'msg': NavPoseDataStatus,
                 'qsize': 1,
                 'callback': self._navposeDataStatusCb
             },
             'navpose_data': {
                 'namespace': self.mgr_namespace,
-                'topic': 'navpose',
+                'topic': 'navpose_data',
                 'msg': NavPoseData,
                 'qsize': 1,
                 'callback': self._navposeDataCb

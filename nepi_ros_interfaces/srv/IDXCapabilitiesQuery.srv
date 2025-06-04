@@ -18,7 +18,7 @@ bool has_intensity_map
 bool has_depth_map
 bool has_pointcloud
 
-string[] frame_id_options
+string[] frame_3d_options
 
 
 
