@@ -30,9 +30,10 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
+
 from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
 from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
 from nepi_ros_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 

@@ -408,6 +408,39 @@ def find_topics_by_msg(msg_type):
   return topic_list
 
 # Function to find a topic
+def find_topics_by_msgs(msg_type_list):
+  topic_list = []
+  msg_list = []
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      if isinstance(topic_str,str) and isinstance(msg_str,str):
+        for msg_type in msg_type_list:
+          if msg_str.find(msg_type) != -1:
+            topic_list.append(topic_str)
+            msg_list.append(msg_str)
+  except:
+    pass
+  return topic_list,msg_list
+
+# Function to find a topic
+def find_msg_by_topic(topic):
+  msg = None
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      if isinstance(topic_str,str) and isinstance(msg_str,str):
+        if topic_str == topic:
+          msg = msg_str
+  except:
+    pass
+  return topic_list
+
+# Function to find a topic
 def find_topics_by_name(topic_name):
   topic_list = []
   try:

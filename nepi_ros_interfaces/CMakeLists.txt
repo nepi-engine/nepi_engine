@@ -84,6 +84,7 @@ add_message_files(FILES
     NavPoseDepth.msg
     NavPoseDataStatus.msg
     NavPoseMgrStatus.msg
+    NavPoseMgrCompInfo.msg
     StampedString.msg
     SystemStatus.msg
     SystemDefs.msg

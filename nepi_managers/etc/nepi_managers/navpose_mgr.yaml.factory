@@ -1,24 +1,4 @@
 node_name: navpose_mgr                             
-location_msgs: 
-  - 'nepi_ros_interfaces/NavPoseLocation'                               
-  - 'sensor_msgs/NavSatFix'
-  - 'geographic_msgs/GeoPoint'
-heading_msgs:
-  - 'nepi_ros_interfaces/NavPoseHeading'
-orientation_msgs:
-  - 'nepi_ros_interfaces/NavPoseOrientation'
-  - 'nav_msgs/Odometry'
-  - 'geometry_msgs/Pose'
-  - 'geometry_msgs/Quaternion'
-position_msgs:
-  - 'nepi_ros_interfaces/NavPosePosition'
-  - 'nav_msgs/Odometry'
-  - 'geometry_msgs/Pose'
-  - 'geometry_msgs/Quaternion'
-altitude_msgs:
-  - 'nepi_ros_interfaces/NavPoseAltitude'
-depth_msgs:
-  - 'nepi_ros_interfaces/NavPoseDepth'
 
 transforms_dict:
   - nepi_frame:

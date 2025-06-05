@@ -395,7 +395,7 @@ class ConnectSettingsIF:
             'settings_sub': {
                 'msg': SettingsStatus,
                 'namespace': self.namespace,
-                'topic': ''status'',
+                'topic': 'status',
                 'qsize': 1,
                 'callback': self._settingsCb,
                 'callback_args': ()

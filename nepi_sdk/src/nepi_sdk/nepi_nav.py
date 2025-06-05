@@ -24,8 +24,15 @@ from pygeodesy.ellipsoidalKarney import LatLon
 from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
+from nav_msgs.msg import Odometry
 
-from nepi_ros_interfaces.msg import NavPoseMgrStatus
+from nepi_ros_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
+
+from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
 from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
@@ -57,102 +64,216 @@ if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
 
+NAVPOSE_MSG_DICT = {
+        'location': {
+            'nepi_ros_interfaces/NavPoseLocation': NavPoseLocation,
+            'sensor_msgs/NavSatFix': NavSatFix,
+            'geographic_msgs/GeoPoint': GeoPoint
+        },
+        'heading': {
+            'nepi_ros_interfaces/NavPoseHeading': NavPoseHeading
+        },
+        'orientation': {
+            'nepi_ros_interfaces/NavPoseOrientation': NavPoseOrientation,
+            'nav_msgs/Odometry': Odometry,
+            'geometry_msgs/Pose': Pose,
+            'geometry_msgs/Quaternion': Quaternion
+        },
+        'position': {
+            'nepi_ros_interfaces/NavPosePosition': NavPosePosition,
+            'nav_msgs/Odometry': Odometry, 
+            'geometry_msgs/Pose': Pose,
+            'geometry_msgs/Point ': Point
+        },
+        'altitude': {
+            'nepi_ros_interfaces/NavPoseAltitude': NavPoseAltitude,
+            'sensor_msgs/NavSatFix': NavSatFix,
+            'geographic_msgs/GeoPoint': GeoPoint
+        },
+        'depth': {
+            'nepi_ros_interfaces/NavPoseDepth': NavPoseDepth, 
+            'sensor_msgs/NavSatFix': NavSatFix,
+            'geographic_msgs/GeoPoint': GeoPoint      
+        }
+    }
 
 
 
-def get_navpose_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseData)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
+def get_navpose_publisher_namespaces(name):
+    topic_list = []
+    msg_list = []
+    if name in NAVPOSE_MSG_DICT.keys():
+      msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
+      [topics_list,msg_list] = nepi_ros.find_topics_by_msgs(msg_str_list)
+    return topic_list,msg_list
 
 
-def get_location_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseLocation)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_gps_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavSatFix)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
 
 
-def get_geopoint_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(GeoPoint)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
+def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
+    msg_type = msg._type
+    npdata_dict = BLANK_NAVPOSE_DICT
+    
+    if name == 'location':
+      if msg_type == 'nepi_ros_interfaces/NavPoseLocation':
+        try:
+          npdata_dict['time_location'] = msg.timestamp
+          npdata_dict['latitude'] = msg.latitude
+          npdata_dict['longitude'] = msg.longitude
+        except:
+          pass
+      elif msg_type == 'sensor_msgs/NavSatFix':
+        try:
+          npdata_dict['time_location'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['latitude'] = msg.latitude
+          npdata_dict['longitude'] = msg.longitude
+        except:
+          pass
+      elif msg_type == 'geographic_msgs/GeoPoint':
+        try:
+          npdata_dict['time_location'] = nepi_utils.get_time()
+          npdata_dict['latitude'] = msg.latitude
+          npdata_dict['longitude'] = msg.longitude
+        except:
+          pass
 
-def get_heading_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseDepth)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
+    elif name == 'heading':
+      if msg_type == 'nepi_ros_interfaces/NavPoseHeading':
+        try:
+          npdata_dict['time_heading'] = msg.timestamp
+          npdata_dict['heading_deg'] = msg.heading_deg
+        except:
+          pass
+     
+          
+    if name == 'orientation':
+      if msg_type == 'nepi_ros_interfaces/NavPoseOrientation':
+        try:
+          npdata_dict['time_orientation'] = msg.timestamp
+          npdata_dict['roll_deg'] = msg.roll_deg
+          npdata_dict['pitch_deg'] = msg.pitch_deg
+          npdata_dict['yaw_deg'] = msg.yaw_deg
+        except:
+          pass
+      elif msg_type == 'nav_msgs/Odometry':
+        try:
+          data = msg.pose.pose.orientation
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          npdata_dict['time_orientation'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['roll_deg'] = roll
+          npdata_dict['pitch_deg'] = pitch
+          npdata_dict['yaw_deg'] = yaw
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Pose':
+        try:
+          data = msg.orientation
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          npdata_dict['time_orientation'] = nepi_utils.get_time()
+          npdata_dict['roll_deg'] = roll
+          npdata_dict['pitch_deg'] = pitch
+          npdata_dict['yaw_deg'] = yaw
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Quaternion':
+        try:
+          data = msg
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          npdata_dict['time_orientation'] = nepi_utils.get_time()
+          npdata_dict['roll_deg'] = roll
+          npdata_dict['pitch_deg'] = pitch
+          npdata_dict['yaw_deg'] = yaw
+        except:
+          pass
 
+    if name == 'position':
+      if msg_type == 'nepi_ros_interfaces/NavPoseOrientation':
+        try:
+          npdata_dict['time_position'] = msg.timestamp
+          npdata_dict['x_m'] = msg.x_m
+          npdata_dict['y_m'] = msg.y_m
+          npdata_dict['z_m'] = msg.y_m
+        except:
+          pass
+      elif msg_type == 'nav_msgs/Odometry':
+        try:
+          data = msg.pose.pose.position
+          pos = [data.x,data.y,data.z]
+          npdata_dict['time_position'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['roll_deg'] = pos.x
+          npdata_dict['pitch_deg'] = pos.y
+          npdata_dict['yaw_deg'] = pos.z
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Pose':
+        try:
+          data = msg.position
+          pos = [data.x,data.y,data.z]
+          npdata_dict['time_position'] = nepi_utils.get_time()
+          npdata_dict['roll_deg'] = pos.x
+          npdata_dict['pitch_deg'] = pos.y
+          npdata_dict['yaw_deg'] = pos.z
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Point':
+        try:
+          data = msg
+          pos = [data.x,data.y,data.z]
+          npdata_dict['time_position'] = nepi_utils.get_time()
+          npdata_dict['roll_deg'] = pos.x
+          npdata_dict['pitch_deg'] = pos.y
+          npdata_dict['yaw_deg'] = pos.z
+        except:
+          pass
 
-def get_orienation_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseOrientation)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
+   
+    if name == 'altitude':
+      if msg_type == 'nepi_ros_interfaces/NavPosePosition':
+        try:
+          npdata_dict['time_altitude'] = msg.timestamp
+          npdata_dict['altitude_m'] = msg.altitude_m
+        except:
+          pass
+      elif msg_type == 'sensor_msgs/NavSatFix':
+        try:
+          npdata_dict['time_altitude'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['altitude_m'] = msg.altitude
+        except:
+          pass
+      elif msg_type == 'geographic_msgs/GeoPoint':
+        try:
+          npdata_dict['time_altitude'] = nepi_utils.get_time()
+          npdata_dict['altitude_m'] = msg.altitude
+        except:
+          pass
 
-def get_position_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPosePosition)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_odometry_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(Odometry)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_pose_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(Pose)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_point_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(Point)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_quaternion_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(Quaternion)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_altitude_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseAltitude)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
-
-def get_depth_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(NavPoseDepth)
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-    return namespaces_list
+    if name == 'depth':
+      if msg_type == 'nepi_ros_interfaces/NavPosePosition':
+        try:
+          npdata_dict['time_depth'] = msg.timestamp
+          npdata_dict['depth_m'] = msg.depth_m
+        except:
+          pass
+      elif msg_type == 'sensor_msgs/NavSatFix':
+        try:
+          npdata_dict['time_depth'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['depth_m'] = msg.depth
+        except:
+          pass
+      elif msg_type == 'geographic_msgs/GeoPoint':
+        try:
+          npdata_dict['time_depth'] = nepi_utils.get_time()
+          npdata_dict['depth_m'] = msg.depth
+        except:
+          pass
+      
+      if transform is not None:
+        if tranform != ZERO_TRANSFORM:
+          npdata_dict = transform_navpose_dict(npdata_dict,transform)
+    return npdata_dict
 
 
 #######################
@@ -327,6 +448,37 @@ BLANK_NAVPOSE_DICT = {
 }
 
 
+def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
+    if npdata_dict_org is not None and npdata_dict_new is not None:
+      try:
+        if npdata_dict_new['has_location'] == True:
+            npdata_dict_org['time_location'] = npdata_dict_new['time_location']
+            npdata_dict_org['latitude'] = npdata_dict_new['latitude']
+            npdata_dict_org['longitude'] = npdata_dict_new['longitude']
+        if npdata_dict_new['has_heading'] == True:
+            npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
+            npdata_dict_org['heading'] = npdata_dict_new['heading']
+        if npdata_dict_new['has_orienation'] == True:
+            npdata_dict_org['time_orienation'] = npdata_dict_new['time_orienation']
+            npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
+            npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
+            npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']
+        if npdata_dict_new['has_position'] == True:
+            npdata_dict_org['time_position'] = npdata_dict_new['time_position']
+            npdata_dict_org['x_m'] = npdata_dict_new['x_m']
+            npdata_dict_org['y_m'] = npdata_dict_new['y_m']
+            npdata_dict_org['z_m'] = npdata_dict_new['z_m']
+        if npdata_dict_new['has_altitude'] == True:
+            npdata_dict_org['time_altitude'] = npdata_dict_new['time_altitude']
+            npdata_dict_org['altitude_m'] = npdata_dict_new['altitude_m']
+        if npdata_dict_new['has_depth'] == True:
+            npdata_dict_org['time_detph'] = npdata_dict_new['time_depth']
+            npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
+      except:
+        pass
+    return np_data_org
+
+
 def convert_navposedata_amsl2wgs84(npdata_dict):
   if npdata_dict['frame_altitude'] == 'AMSL':
     geopoint_in = GeoPoint()
@@ -351,8 +503,6 @@ def convert_navposedata_wgs842amsl(npdata_dict):
     npdata_dict['altitude_m'] = geopoint_out.altitude
   return npdata_dict  
 
-
-  
 
   
 def convert_navposedata_enu2ned(npdata_dict):

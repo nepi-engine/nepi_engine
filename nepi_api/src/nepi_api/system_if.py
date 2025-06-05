@@ -868,14 +868,14 @@ class SettingsIF:
             self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
             return
         else:
-        try:
-            capSettings = settings_dict['capSettings']
-            factorySettings = settings_dict['capSettings']
-            setSettingFunction = settings_dict['setSettingFunction']
-            getSettingsFunction = settings_dict['getSettingsFunction']
-        except Exception as e:
-            self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
-            return
+            try:
+                capSettings = settings_dict['capSettings']
+                factorySettings = settings_dict['capSettings']
+                setSettingFunction = settings_dict['setSettingFunction']
+                getSettingsFunction = settings_dict['getSettingsFunction']
+            except Exception as e:
+                self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
+                return
 
 
         #  Initialize capabilities info

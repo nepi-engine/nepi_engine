@@ -22,6 +22,7 @@ import time
 import sys
 import tf
 import yaml
+import threading
 
 
 from nepi_sdk import nepi_ros
@@ -30,21 +31,26 @@ from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import NavPoseMgrStatus
+from geographic_msgs.msg import GeoPoint
+from sensor_msgs.msg import NavSatFix
+from geometry_msgs.msg import Point, Pose, Quaternion
+from nav_msgs.msg import Odometry
+
+from nepi_ros_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
 from nepi_ros_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
 from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
 from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
 
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-from nepi_ros_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
-from nepi_ros_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
+#from nepi_ros_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
+#from nepi_ros_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
@@ -70,66 +76,70 @@ class NavPoseMgr(object):
 
     ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
+
+    times_list = [0,0,0,0,0,0,0]
+
+    BLANK_CONNECT = {
+            'topic': "",
+            'transform': ZERO_TRANSFORM,
+            'times': times_list,
+            'last_time': 0.0
+        }
+
+    BLANK_SUB = {
+            'topic': "",
+            'msg': "",
+            'sub': None
+        }
+
+    BLANK_AVIAL_TOPIC = {
+            'topics': [],
+            'msgs': [],
+        }
+
     data_products_list = ['navpose']
-    last_npdata_dict = None
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict_lock = threading.Lock()
+    init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    last_npdata_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     mgr_namespace = ""
     status_msg = NavPoseMgrStatus()
 
     set_pub_rate = FACTORY_PUB_RATE_HZ
 
-    time_list = [0,0,0,0,0,0,0]
 
-    connect_dict {
-        'location': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        },
-        'heading': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        },
-        'orientation': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        },
-        'position': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        },
-        'altitude': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        },
-        'depth': {
-            'set_topic': "",
-            'sub_topic': "",
-            'sub': None,
-            'transform': ZERO_TRANSFORM,
-            'times': time_list,
-            'last_time': 0.0
-        }
+    connect_dict = {
+        'location': BLANK_CONNECT,
+        'heading': BLANK_CONNECT,
+        'orientation': BLANK_CONNECT,
+        'position': BLANK_CONNECT,
+        'altitude': BLANK_CONNECT,
+        'depth': BLANK_CONNECT
     }
+
+    subs_dict_lock = threading.Lock()
+    subs_dict = {
+        'location': BLANK_SUB,
+        'heading': BLANK_SUB,
+        'orientation': BLANK_SUB,
+        'position': BLANK_SUB,
+        'altitude': BLANK_SUB,
+        'depth': BLANK_SUB
+    }
+
+    transforms_dict = dict()
+
+    avail_topics_dict = {
+        'location': BLANK_AVIAL_TOPIC,
+        'heading': BLANK_AVIAL_TOPIC,
+        'orientation': BLANK_AVIAL_TOPIC,
+        'position': BLANK_AVIAL_TOPIC,
+        'altitude': BLANK_AVIAL_TOPIC,
+        'depth': BLANK_AVIAL_TOPIC
+    }
+
+ 
 
     #######################
     ### Node Initialization
@@ -151,6 +161,15 @@ class NavPoseMgr(object):
         # Initialize Class Variables
         self.mgr_namespace = nepi_ros.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
+
+        self.cb_dict = {
+            'location': self._locationSubCb,
+            'heading': self._headingSubCb,
+            'orientation': self._orientationSubCb,
+            'position': self._positionSubCb,
+            'altitude': self._altitudeSubCb,
+            'depth': self._depthSubCb,
+        }
 
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
@@ -185,11 +204,28 @@ class NavPoseMgr(object):
                 'namespace': self.mgr_namespace,
                 'factory_val': self.connect_dict
             },
+            'transforms_dict': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.transforms
+            },
+            'init_navpose_dict': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.init_navpose_dict
+            }
 
         }
 
         # Services Config Dict ####################
-        self.SRVS_DICT = None
+        self.SRVS_DICT = {
+            'navpose_query': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose_query',
+                'srv': NavPoseDataQuery,
+                'req': NavPoseDataQueryRequest(),
+                'resp': NavPoseDataQueryResponse(),
+                'callback': self.navposeDataQueryHandler
+            }
+        }
 
 
         # Publishers Config Dict ####################
@@ -202,7 +238,7 @@ class NavPoseMgr(object):
                 'latch': True
             },
             'navpose_pub': {
-                'namespace': self.base_namespace
+                'namespace': self.base_namespace,
                 'topic': 'navpose',
                 'msg': NavPoseData,
                 'qsize': 1,
@@ -218,7 +254,7 @@ class NavPoseMgr(object):
                 'topic': 'set_pub_rate',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setPublishRateCb, 
+                'callback': self._setPublishRateCb, 
                 'callback_args': ()
             },
             'set_topic': {
@@ -226,26 +262,65 @@ class NavPoseMgr(object):
                 'topic': 'set_topic',
                 'msg': UpdateNavPoseTopic,
                 'qsize': 1,
-                'callback': self.setTopicCb, 
+                'callback': self._setTopicCb, 
+                'callback_args': ()
+            },
+            'clear_topic': {
+                'namespace': self.mgr_namespace,
+                'topic': 'clear_topic',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._clearTopicCb, 
                 'callback_args': ()
             },
             'set_transform': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_transform',
-                'msg': UpdateFrame3DTransformTopic,
+                'msg': UpdateFrame3DTransform,
                 'qsize': 1,
-                'callback': self.setTransformCb, 
+                'callback': self._setTransformCb, 
                 'callback_args': ()
             },
-            'set_fixed': {
+            'clear_transform': {
                 'namespace': self.mgr_namespace,
-                'topic': 'set_pub_rate',
+                'topic': 'clear_transform',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._clearTransformCb, 
+                'callback_args': ()
+            },
+            'set_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_navpose',
                 'msg': NavPoseData,
                 'qsize': 1,
-                'callback': self.setFixedCb, 
+                'callback': self._setNavPoseCb, 
                 'callback_args': ()
             },
-            UpdateTopic, UpdateFrame3DTransform
+            'reset_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'reset_navpose',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetNavPoseCb, 
+                'callback_args': ()
+            },
+            'set_init_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_init_navpose',
+                'msg': NavPoseData,
+                'qsize': 1,
+                'callback': self._setInitNavPoseCb, 
+                'callback_args': ()
+            },
+            'reset_init_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'reset_init_navpose',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetInitNavPoseCb, 
+                'callback_args': ()
+            }
         }
 
 
@@ -277,12 +352,14 @@ class NavPoseMgr(object):
         # initialize variables from param server
         self.set_pub_rate = self.node_if.get_param('pub_rate')
         self.connect_dict = self.node_if.get_param('connect_dict')
+        self.transforms_dict = self.node_if.get_param('transforms_dict')
 
         self.initCb(do_updates = True)
         ##############################
         # Start Node Processes
         nepi_ros.start_timer_process(1.0, self._getPublishSaveDataCb, oneshot = True)
-        nepi_ros.start_timer_process(5.0, self._getAvailTopicsCb, oneshot = True)
+        nepi_ros.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
+        nepi_ros.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
         nepi_ros.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
@@ -295,8 +372,7 @@ class NavPoseMgr(object):
     #######################
     ### Node Methods
 
-    def setPublishRateCb(self,msg):
-        rate = msg.data
+    def setPublishRateCb(self,rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
         max = self.NAVPOSE_PUB_RATE_OPTIONS[1]
         if rate < min:
@@ -307,38 +383,84 @@ class NavPoseMgr(object):
         self.publish_status()
         self.node_if.set_param('pub_rate',rate)
 
-    def setTopic(self,msg):
-        frame = msg.data
-        if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
-            self.set_frame_3d = frame
-            self.publish_status()
-            self.node_if.set_param('frame_3d',frame)
 
-    def setTransformCb(self,msg):
-        frame = msg.data
-        if frame in self.NAVPOSE_3D_FRAME_OPTIONS:
-            self.set_frame_nav = frame
-            self.publish_status()
-            self.node_if.set_param('frame_nav',frame)
+    def setTopic(self,name,topic,transform = None):
+        self._connectTopic(name,topic,transform = transform)
 
-    def setFixedCb(self,msg):
-        frame = msg.data
-        if frame in self.NAVPOSE_ALT_FRAME_OPTIONS:
-            self.set_frame_alt = frame
-            self.publish_status()
-            self.node_if.set_param('frame_alt',frame)
+    def clearTopic(self,name):
+        self._unregisterTopic(name)
 
+    def setTransform(self,name,transform = None):
+        if transform is not None:
+            if len(transform) == 7:
+                topic = self.connect_dict[name]['topic']
+                self.connect_dict[name]['transform'] = transform
+                if topic != '':
+                    self.transforms_dict[topic] = transform
 
+    def clearTranform(self,name):
+        if name in self.connect_dict.keys():
+            self.connect_dict[name]['transform'] = self.ZERO_TRANSFORM
+            topic = self.connect_dict[name]['topic']
+            if topic != '':
+                self.transforms_dict[topic] = self.ZERO_TRANSFORM
+
+    def setNavPoseCb(self,npdata_dict):
+        if npdata_dict is not None:
+            if npdata_dict['has_location'] == True:
+                success = _unregisterTopic(self,'location')
+                self.transforms_dict['location'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_heading'] == True:
+                success = _unregisterTopic(self,'heading')
+                self.transforms_dict['heading'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_orienation'] == True:
+                success = _unregisterTopic(self,'orienation')
+                self.transforms_dict['orienation'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_position'] == True:
+                success = _unregisterTopic(self,'position')
+                self.transforms_dict['position'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_altitude'] == True:
+                success = _unregisterTopic(self,'altitude')
+                self.transforms_dict['altitude'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_depth'] == True:
+                success = _unregisterTopic(self,'depth')
+                self.transforms_dict['depth'] = self.ZERO_TRANSFORM
+            navpose_dict = copy.deepcopy(self.navpose_dict)
+            navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict,npdata_dict)
+            self.navpose_dict_lock.acquire()
+            self.navpose_dict = navpose_dict
+            self.navpose_dict_lock.release()
+            
+
+    def resetNavPose(self):
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        self.navpose_dict_lock.release()
+
+    def setInitNavPoseCb(self,npdata_dict):
+        self.init_navpose_dict = npdata_dict
+            
+
+    def resetInitNavPose(self):
+        self.init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+
+    def applyInitNavPose(self,npdata_dict):
+        # Need to add 
+        return npdata_dict
 
     def initCb(self,do_updates = False):
         if do_updates == True:
             self.resetCb(do_updates)
 
     def resetCb(self,do_updates = False):
-        pass
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        self.navpose_dict_lock.release()
         
     def factoryResetCb(self,do_updates = False):
-        pass
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        self.navpose_dict_lock.release()
 
 
     def publish_navpose(self):
@@ -346,6 +468,42 @@ class NavPoseMgr(object):
         self.node_if.publish_pub('navpose_pub',navpose_msg)
 
     def publish_status(self, do_updates = False):
+
+        connect_dict = copy.deepcopy(self.connect_dict)
+        subs_dict = copy.deepcopy(self.subs_dict)
+        avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
+
+
+        comp_names = []
+        comp_infos = []
+        for name in self.connect_dict.keys():
+            comp_names.append(name)
+
+            comp_info = NavPoseMgrCompInfo()
+            comp_info.name = name
+            comp_info.available_topics = avail_topics_dict[name]['topics']
+            comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']
+            comp_info.topic = subs_dict[name]['topic']
+            comp_info.topic_msg = subs_dict[name]['msg']
+
+            times = connect_dict[name]['times']
+            avg_times = sum(times)/len(times)
+            if avg_times > .01:
+                avg_rate = float(1.0) / avg_times
+            else:
+                avg_rate = 0
+            comp_info.location_avg_rate = avg_rate
+            comp_info.location_last_time = connect_dict[name]['last_time']
+            comp_info.location_transform = connect_dict[name]['transform']
+
+            comp_infos.append(comp_info)
+        self.status_msg.comp_names = comp_names
+        self.status_msg.comp_infos = comp_infos
+
+
+        init_np_msg = nepi_nav.convert_navpose_dict2msg(self.init_navpose_dict)
+        self.status_msg.init_navpose = init_np_msg
+
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
         self.node_if.publish_pub('navpose_data_status',self.status_msg)
@@ -354,23 +512,162 @@ class NavPoseMgr(object):
     # Private Members
     #######################
 
-    def _getAvailTopicsCb(self,timer):
+    def _navposeDataQueryHandler(self,req):
+        response = NavPoseDataQueryResponse()
+        self.navpose_dict_lock.acquire()
+        npdata_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        npdata_msg = nepi_nav.convert_navposedata_dict2msg(npdata_dict) 
+        response.navpose_data = npdata_msg
+        return response
 
-        self.status_msg.available_location_topics = nepi_nav.get_location_publisher_namespaces()
-        self.status_msg.available_heading_topics = nepi_nav.get_heading_publisher_namespaces()
-        self.status_msg.available_orientation_topics = nepi_nav.get_orientation_publisher_namespaces()
-        self.status_msg.available_position_topics = nepi_nav.get_position_publisher_namespaces()
-        self.status_msg.available_altitude_topics = nepi_nav.get_altitude_publisher_namespaces()
-        self.status_msg.available_depth_topics = nepi_nav.get_depth_publisher_namespaces()
+    def _updateAvailTopicsCb(self,timer):
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('location')
+        self.avail_topics_dict['location']['topics'] = topic_list
+        self.avail_topics_dict['location']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('heading')
+        self.avail_topics_dict['heading']['topics'] = topic_list
+        self.avail_topics_dict['heading']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('orientation')
+        self.avail_topics_dict['orientation']['topics'] = topic_list
+        self.avail_topics_dict['orientation']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('postition')
+        self.avail_topics_dict['postition']['topics'] = topic_list
+        self.avail_topics_dict['postition']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('altitude')
+        self.avail_topics_dict['altitude']['topics'] = topic_list
+        self.avail_topics_dict['altitude']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('depth')
+        self.avail_topics_dict['depth']['topics'] = topic_list
+        self.avail_topics_dict['depth']['msgs'] = msg_list
 
-        nepi_ros.start_timer_process(5.0, self._getAvailTopicsCb, oneshot = True)
+        nepi_ros.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
+
+
+    def _updateConnectionsCb(self,timer):
+        # Register new topic requests
+        self.subs_dict_lock.aquire()
+        subs_dict = copy.deepcopy(self.subs_dict)
+        self.subs_dict_lock.release()
+        for name in self.connect_dict.keys():
+            topic = self.connect_dict[name]['topic']
+            if topic != subs_dict[name]['topic']:
+                transform = self.ZERO_TRANSFORM
+                if topic in transform_dict.keys():
+                    transform = transform_dict[topic]
+                self._connectTopic(name,topic,transform = transform)
+        nepi_ros.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)        
+
+    def _connectTopic(self,name,topic,transform = None):
+        if name in self.avail_topics_dict.keys():
+            if topic in self.avail_topics_dict[name]:
+                if self.subs_dict[name]['topic'] != '':
+                    success = self._unregisterTopic(name)
+                msg_str = self.avail_topics_dict[name]['msg']
+                if msg_str in nepi_nav.NAVPOSE_MSG_DICT[name].keys():
+                    msg = nepi_nav.NAVPOSE_MSG_DICT[name][msg_str]
+                    cb = self.cb_dict[name]
+
+                    self.subs_dict_lock.aquire()
+                    sub = nepi_ros.create_subscriber(topic, msg, cb, callback_args = (name))
+                    self.subs_dict[name]['topic'] = topic
+                    self.subs_dict[name]['msg'] = msg_str
+                    self.subs_dict[name] = sub
+                    self.connect_dict[name]['topic'] = topic
+                    self.subs_dict_lock.release()
+                    new_transform = self.ZERO_TRANSFORM
+                    if transform is not None:
+                        new_transform = transform
+                        self.transforms_dict[topic] = new_transform
+                    elif topic in self.transforms_dict.keys():
+                        new_transform = self.transforms_dict[topic]
+                    self.connect_dict[name] = new_transform
+
+
+    def _unregisterTopic(self,name):
+            self.subs_dict_lock.aquire()
+            if self.subs_dict[name]['sub'] is not None:
+                self.subs_dict[name]['sub'].unregister()
+                nepi_ros.sleep(1)
+            self.subs_dict[name] = self.BLANK_SUB
+            self.connect_dict[name] = self.BLANK_CONNECT
+            self.subs_dict_lock.release()
+            
+
+
+    def _compSubCb(self,msg,args):
+        name = args
+        # Update copy of dict
+        self.navpose_dict_lock.acquire()
+        npdata_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        transform = self.connect_dict[name]['transform']
+        npdata_dict = nepi_nav.update_navpose_dict_from_msg(name, npdata_dict, msg, transfrom = transform)
+
+        # Now update class dict
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = npdata_dict
+        self.navpose_dict_lock.release()            
+        
+        # Update time info
+        last_time = self.connect_dict[name]['last_time']
+        cur_time = nepi_utils.get_time()
+        times = self.connect_dict[name]['times']
+        times = times.pop(0)
+        times = times.append(cur_time - last_time)
+        self.connect_dict[name]['times']
+        self.connect_dict[name]['last_time'] = cur_time
+
+
+    def _setPublishRateCb(self,msg):
+        rate = msg.data
+        self.setPublishRate(rate)
+       
+
+    def _setTopicCb(self,msg):
+        name = msg.name
+        topic = msg.topic
+        has_tr = msg.has_transform
+        transform = None
+        if has_tr:
+            transform = msg.transform
+        self.setTopic(name, topic, transform = transform)
+       
+
+    def _clearTopicCb(self,msg):
+        self.clearTopic(msg.data)
+        
+
+    def _setTransformCb(self,msg):
+        self.setTransform(msg.name, msg.transform)
+
+    def _clearTransformCb(self,msg):
+        self.clearTransform(msg.data)
+
+    def _setNavPoseCb(self,msg):
+        npdata_dict = nepi_nav.convert_navpose_msg2data(msg)
+        self.setNavPoseCb(npdata_dict)
+       
+    def _resetNavPoseCb(self,msg):
+        self.resetNavPose()
+
+    def _setInitNavPoseCb(self,msg):
+        npdata_dict = nepi_nav.convert_navpose_msg2data(msg)
+        self.setInitNavPoseCb(npdata_dict)
+       
+    def _resetInitNavPoseCb(self,msg):
+        self.resetInitNavPose()
 
     ### Setup a regular background navpose get and publish timer callback
     def _getPublishSaveDataCb(self,timer):
         timestamp = nepi_utils.get_time()
         # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
-        npdata_dict = self.nav_mgr_if.get_navpose_data_dict()
+        self.navpose_dict_lock.acquire()
+        npdata_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        npdata_dict = self.applyInitNavPose(npdata_dict)
+
         if npdata_dict is not None:
             #self.msg_if.pub_warn("Got navpose data dict: " + str(npdata_dict))
             npdata_msg = nepi_nav.convert_navposedata_dict2msg(npdata_dict)
@@ -385,9 +682,6 @@ class NavPoseMgr(object):
 
         delay = float(1.0)/self.set_pub_rate
         nepi_ros.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
-
-    def _publishNavPoseCb(self,timer):
-        self.publish_status()
 
     def _publishStatusCb(self,timer):
         self.publish_status()

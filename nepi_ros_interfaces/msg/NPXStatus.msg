@@ -23,7 +23,7 @@ string frame_3d
 
 # Provides the transform to the system 3D frame 'nepi_frame'
 # (Not applied by NPX driver)
-Frame3dTransforms nepi_frame_3d_transform
+Frame3DTransform nepi_frame_3d_transform
 
 # Actual data will be in the nepi standard frames 
 string source_frame_nav

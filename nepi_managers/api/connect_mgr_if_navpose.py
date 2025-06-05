@@ -23,10 +23,11 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
+from nav_msgs.msg import Odometry
 
 from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
 from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrienation, NavPoseLocation
+from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
