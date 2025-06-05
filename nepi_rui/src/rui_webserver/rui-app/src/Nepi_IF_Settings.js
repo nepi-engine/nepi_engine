@@ -80,6 +80,7 @@ class Nepi_IF_Settings extends Component {
   // Callback for handling ROS Settings Status messages
   settingsStatusListener(message) {
     const settings = message.settings_list
+    const capabilities = message.setting_caps_list
     var namesList = []
     var typesList = []
     var valuesList = []
@@ -135,7 +136,7 @@ class Nepi_IF_Settings extends Component {
 
   // Function for creating settings options list from capabilities
   updateCapabilities() {
-    const {settingCaps} = this.props.ros
+    const settingCaps = this.state.capabilities
     const cur_namespace = this.props.namespace
     const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
