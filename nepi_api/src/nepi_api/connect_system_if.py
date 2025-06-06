@@ -366,7 +366,14 @@ class ConnectSettingsIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'update_pub': {
+            'cap_update_pub': {
+                'msg': Setting,
+                'namespace': self.namespace,
+                'topic': 'update_cap_setting',
+                'qsize': 1,
+                'latch': False
+            },
+            'setting_update_pub': {
                 'msg': Setting,
                 'namespace': self.namespace,
                 'topic': 'update_setting',
@@ -458,9 +465,14 @@ class ConnectSettingsIF:
             settings_dict = nepi_settings.parse_settings_msg(self.settings_msg)
         return settings_dict
 
+    def update_cap_setting(self, cap_setting_dict):
+        msg = nepi_settings.create_msg_from_cap_setting(cap_setting_dict)
+        success = self.con_node_if.publish_pub('cap_update_pub',msg)
+        return success
+
     def update_setting(self, setting_dict):
         msg = nepi_settings.create_msg_from_setting(setting_dict)
-        success = self.con_node_if.publish_pub('update_pub',msg)
+        success = self.con_node_if.publish_pub('setting_update_pub',msg)
         return success
 
 
@@ -482,8 +494,8 @@ class ConnectSettingsIF:
 
     def _getCapSettings(self):
         req = SettingsCapabilitiesQueryRequest()
-        resp = self.con_node_if.call_service('setting_query',req)
-        cap_dict = nepi_settings.parse_cap_settings_msg_data(resp)
+        resp = self.con_node_if.call_service('capabilities_query',req)
+        cap_dict = nepi_settings.parse_cap_settings_msg(resp)
         self.ready = True
         return cap_dict
 

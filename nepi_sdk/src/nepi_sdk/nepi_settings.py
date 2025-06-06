@@ -68,7 +68,15 @@ def UPDATE_NONE_SETTINGS_FUNCTION():
 
 def GET_NONE_SETTINGS_FUNCTION():
   return NONE_SETTINGS
-        
+
+
+def parse_cap_setting_msg(cap_setting_msg):
+    cap_setting = dict()
+    cap_setting['name'] = cap_setting_msg.name_str
+    cap_setting['type'] = cap_setting_msg.type_str
+    cap_setting['options'] = cap_setting_msg.options_list
+  return(cap_setting)
+
 def parse_cap_settings_msg(cap_settings_msg):
   setting_caps_list = cap_settings_msg.setting_caps_list
   cap_settings = dict()
@@ -80,17 +88,13 @@ def parse_cap_settings_msg(cap_settings_msg):
     cap_settings[entry.name_str] = cap_setting
   return(cap_settings)
 
-def create_msg_from_cap_settings(cap_settings):
-  cap_settings_msg = SettingCaps()
-  cap_settings_msg.setting_caps_list = get_cap_setting_msgs_list(cap_settings)
-  cap_settings_msg.settings_count = len(cap_settings_list)
-  return cap_settings_msg
+def create_msg_from_cap_setting(cap_settings):
+  cap_setting_msg = SettingCap()
+  cap_setting_msg.setting_caps_list = get_cap_setting_msg(cap_settings)
+  return cap_setting_msg
+  
 
-
-def get_cap_setting_msgs_list(cap_settings):
-  cap_setting_msgs_list = []
-  for cap_setting_name in cap_settings.keys():
-    cap_setting = cap_settings[cap_setting_name]
+def get_cap_setting_msg(cap_setting):
     cap_setting_msg = SettingCap()
     cap_setting_msg.type_str = cap_setting['type']
     cap_setting_msg.name_str = cap_setting['name']
@@ -98,10 +102,28 @@ def get_cap_setting_msgs_list(cap_settings):
       cap_setting_msg.options_list = cap_setting['options']
     else:
       cap_setting_msg.options_list = []
+
+
+def create_msg_from_cap_settings(cap_settings):
+  cap_settings_msg = SettingCaps()
+  cap_settings_msg.setting_caps_list = get_cap_setting_msgs_list(cap_settings)
+  cap_settings_msg.settings_count = len(cap_settings_list)
+  return cap_settings_msg
+
+def get_cap_setting_msgs_list(cap_settings):
+  cap_setting_msgs_list = []
+  for cap_setting_name in cap_settings.keys():
+    cap_setting = cap_settings[cap_setting_name]
+    cap_setting_msg = get_cap_setting_msg
     cap_setting_msgs_list.append(cap_setting_msg)
   return cap_setting_msgs_list
 
-
+def parse_setting_msg_data(msg_data):
+  setting = dict()
+  setting['name'] = msg_data.name_str
+  setting['type'] = msg_data.type_str
+  setting['value'] = msg_data.value_str
+  return setting
 
 def parse_settings_msg(settings_msg):
   settings = dict()
@@ -112,6 +134,13 @@ def parse_settings_msg(settings_msg):
     setting['value'] = entry.value_str
     settings[entry.name_str] = setting
   return(settings)
+
+def create_msg_from_setting(setting):
+  setting_msg = Setting()
+  setting_msg.type_str = setting['type']
+  setting_msg.name_str = setting['name']
+  setting_msg.value_str = setting['value']
+  return setting_msg
 
 def create_msg_from_settings(settings):
   settings_msg = Settings()
@@ -125,19 +154,6 @@ def create_msg_from_settings(settings):
   return settings_msg
 
 
-def create_msg_from_setting(setting):
-  setting_msg = Setting()
-  setting_msg.type_str = setting['type']
-  setting_msg.name_str = setting['name']
-  setting_msg.value_str = setting['value']
-  return setting_msg
-
-def parse_setting_update_msg_data(msg_data):
-  setting = dict()
-  setting['name'] = msg_data.name_str
-  setting['type'] = msg_data.type_str
-  setting['value'] = msg_data.value_str
-  return setting
 
 def get_setting_from_settings(setting_name,settings):
   setting = None

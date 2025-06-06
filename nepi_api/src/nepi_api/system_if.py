@@ -834,6 +834,7 @@ class SettingsIF:
     def __init__(self, 
                 namespace = None,
                 settings_dict = None,
+                allow_cap_updates = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -864,6 +865,8 @@ class SettingsIF:
         namespace = nepi_ros.create_namespace(namespace,'settings')
         self.namespace = nepi_ros.get_full_namespace(namespace)
 
+        self.allow_cap_updates = allow_cap_updates
+
         if settings_dict is None:
             self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
             return
@@ -891,6 +894,7 @@ class SettingsIF:
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_response.settings_count = len(cap_setting_msgs_list)
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
+            self.capabilities_response.setting_caps_list = self.allow_cap_updates
         self.msg_if.pub_debug("Cap Settings: " + str(self.capabilities_response), log_name_list = self.log_name_list)
 
         if factorySettings is None:
@@ -909,6 +913,9 @@ class SettingsIF:
         else:
             self.getSettingsFunction = getSettingsFunction
         #Reset Settings and Update Param Server
+
+        # Update Status Message
+        self.status_msg.has_cap_updates = self.allow_cap_updates
 
 
         ##############################  
@@ -974,6 +981,16 @@ class SettingsIF:
             },
         }
 
+        if self.allow_cap_updates == True:
+        self.SUBS_DICT['update_cap_setting'] = {
+                'msg': SettingCap,
+                'namespace': self.namespace,
+                'topic': 'update_cap_setting',
+                'qsize': 1,
+                'callback': self._updateCapSettingCb,
+                'callback_args': None
+            },            
+
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(params_dict = self.PARAMS_DICT,
@@ -1029,17 +1046,24 @@ class SettingsIF:
         current_settings = self.getSettingsFunction()
         self.node_if.set_param('settings', current_settings)
         cap_settings = self.capabilities_response.setting_caps_list
-        status_msg = nepi_settings.create_status_msg_from_settings(current_settings,cap_settings)
+        status_msg = nepi_settings.create_status_msg(current_settings,cap_settings)
         if not nepi_ros.is_shutdown():
             self.msg_if.pub_debug("Publishing settings status msg: " + str(settings_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', settings_msg)
 
    def update_cap_setting(self,cap_setting):
         success = False
+        if self.allow_cap_updates == False:
+            self.msg_if.pub_warn("Ignoring cap update request. Cap updates not enabled", log_name_list = self.log_name_list)
+            return success
         if 'name' in cap_setting.keys():
             name = cap_setting['name']
             if name in self.cap_settings.keys():
-                self.cap_settings[name] = cap_setting
+                if cap_setting['default_value'] not in cap_setting['options']:
+                    if len(cap_setting['options'])>0:
+                        cap_setting['default_value'] = cap_setting['options'][0]
+                    else:
+                        cap_setting['default_value'] = self.cap_settings['default_value']
                 cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
                 self.capabilities_response.settings_count = len(cap_setting_msgs_list)
                 self.capabilities_response.setting_caps_list = cap_setting_msgs_list
@@ -1109,10 +1133,14 @@ class SettingsIF:
 
 
     def _updateSettingCb(self,msg):
-        self.msg_if.pub_info("Received settings update msg: " + str(msg), log_name_list = self.log_name_list)
-        self.msg_if.pub_debug(msg, log_name_list = self.log_name_list)
-        setting = nepi_settings.parse_setting_update_msg_data(msg)
-        self.update_setting(setting, update_status = True, update_param = True)
+        self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
+        setting_dict = nepi_settings.parse_setting_msg(msg)
+        self.update_setting(setting_dict, update_status = True, update_param = True)
+
+    def _updateSettingCb(self,msg):
+        self.msg_if.pub_info("Received cap setting update msg: " + str(msg), log_name_list = self.log_name_list)
+        cap_setting_dict = nepi_settings.parse_cap_setting_msg(msg)
+        self.update_cap_setting(cap_setting_dict, update_status = True, update_param = True)
 
     def _resetSettingsCb(self,msg):
         self.reset_settings()

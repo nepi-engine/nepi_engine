@@ -53,7 +53,7 @@ class Nepi_IF_Settings extends Component {
       selectedSettingOptions: [],
       selectedSettingInput: "",
 
-
+      last_caps: null,
       settingsListener: null,
     }
 
@@ -90,6 +90,7 @@ class Nepi_IF_Settings extends Component {
       valuesList.push(settings[ind].value_str)
     }
     const count = namesList.length
+
     this.setState({settingsNamesList:namesList,
                    settingsTypesList:typesList,
                    settingsValuesList:valuesList,
@@ -101,16 +102,17 @@ class Nepi_IF_Settings extends Component {
 
   // Function for configuring and subscribing to Settings Status
   updateSettingsListener() {
-    const namespace = this.props.namespace ? this.props.namespace : 'None'
+    const namespace = this.props.namespace ? 
+        (this.props.namespace !== 'None' ? this.props.namespace + '/settings': 'None') : 'None'
     if (this.state.settingsListener) {
       this.state.settingsListener.unsubscribe()
     }
     if (namespace !== 'None'){
       var settingsListener = this.props.ros.setupSettingsStatusListener(
-        namespace,
+        namespace + '/status',
         this.settingsStatusListener
       )
-      
+      this.setState({namespace: namespace})
       this.setState({ settingsListener: settingsListener})
     }
   }
@@ -137,7 +139,8 @@ class Nepi_IF_Settings extends Component {
   // Function for creating settings options list from capabilities
   updateCapabilities() {
     const settingCaps = this.state.capabilities
-    const cur_namespace = this.props.namespace
+    const lastCaps = this.state.last_caps
+    this.setState({last_caps: settingsCaps})
     const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
     var typesList = []
@@ -147,7 +150,7 @@ class Nepi_IF_Settings extends Component {
     if (settingCaps){
       capabilities = settingCaps[cur_namespace]
     }    
-    if (capabilities != null && set_namespace !== cur_namespace){
+    if (capabilities != null && settingCaps !== lastCaps){
       const cap_settings = capabilities.setting_caps_list
       for ( ind = 0; ind < cap_settings.length; ind++){
         namesList.push(cap_settings[ind].name_str)
@@ -169,8 +172,6 @@ class Nepi_IF_Settings extends Component {
         capSettingsOptionsLists:['None']
       })
     }
-    const new_namespace = this.props.namespace + '/settings'
-    this.setState({namespace: new_namespace })
   }
   
   getSettingValue(settingName) {

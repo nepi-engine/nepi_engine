@@ -1069,7 +1069,7 @@ class ROSConnectionStore {
   setupSettingsStatusListener(namespace, callback) {
     if (namespace) {
       return this.addListener({
-        name: namespace + "/status",
+        name: namespace,
         messageType: "nepi_ros_interfaces/SettingsStatus",
         noPrefix: true,
         callback: callback,
@@ -1462,6 +1462,23 @@ class ROSConnectionStore {
   }
 
 
+
+///// Settings IF Calls
+
+
+@action.bound
+updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
+  this.publishMessage({
+    name: namespace + "/update_setting",
+    messageType: "nepi_ros_interfaces/SettingCap",
+    data: {type_str:typeStr,
+      name_str:nameStr,
+      options_list:optionsStrList,
+      default_value_str:valueStr
+    },
+    noPrefix: true
+  })
+}
 
   @action.bound
   updateSetting(namespace,nameStr,typeStr,valueStr) {
