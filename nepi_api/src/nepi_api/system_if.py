@@ -1028,27 +1028,40 @@ class SettingsIF:
     def publish_status(self):
         current_settings = self.getSettingsFunction()
         self.node_if.set_param('settings', current_settings)
-        settings_msg = nepi_settings.create_msg_data_from_settings(current_settings)
+        cap_settings = self.capabilities_response.setting_caps_list
+        status_msg = nepi_settings.create_status_msg_from_settings(current_settings,cap_settings)
         if not nepi_ros.is_shutdown():
             self.msg_if.pub_debug("Publishing settings status msg: " + str(settings_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', settings_msg)
 
+   def update_cap_setting(self,cap_setting):
+        success = False
+        if 'name' in cap_setting.keys():
+            name = cap_setting['name']
+            if name in self.cap_settings.keys():
+                self.cap_settings[name] = cap_setting
+                cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
+                self.capabilities_response.settings_count = len(cap_setting_msgs_list)
+                self.capabilities_response.setting_caps_list = cap_setting_msgs_list
+                success = True
+                self.msg_if.pub_debug("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
+        return success
 
-    def update_setting(self,new_setting,update_status = True, update_param = True):
+    def update_setting(self,setting,update_status = True, update_param = True):
         success = False
         current_settings = self.getSettingsFunction()
         updated_settings = copy.deepcopy(current_settings)
-        self.msg_if.pub_debug("New Setting:" + str(new_setting), log_name_list = self.log_name_list)
-        s_name = new_setting['name']
+        self.msg_if.pub_debug("New Setting:" + str(setting), log_name_list = self.log_name_list)
+        s_name = setting['name']
         if self.setSettingFunction != None:
-            [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(new_setting,current_settings)
+            [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
             if value_match == False: # name_match would be true for value_match to be true
-                self.msg_if.pub_debug("Will try to update setting " + str(new_setting), log_name_list = self.log_name_list)
-                [success,msg] = nepi_settings.try_to_update_setting(new_setting,current_settings,self.cap_settings,self.setSettingFunction)
+                self.msg_if.pub_debug("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
+                [success,msg] = nepi_settings.try_to_update_setting(setting,current_settings,self.cap_settings,self.setSettingFunction)
                 self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
                 if success:
                     if update_param:
-                        updated_settings[s_name] = new_setting
+                        updated_settings[s_name] = setting
                         self.node_if.set_param('settings', updated_settings)
                     if update_status:
                         self.publish_status() 

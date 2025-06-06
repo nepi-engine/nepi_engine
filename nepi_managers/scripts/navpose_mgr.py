@@ -630,9 +630,9 @@ class NavPoseMgr(object):
     def _setTopicCb(self,msg):
         name = msg.name
         topic = msg.topic
-        has_tr = msg.has_transform
+        apply_tr = msg.apply_transform
         transform = None
-        if has_tr:
+        if apply_tr:
             transform = msg.transform
         self.setTopic(name, topic, transform = transform)
        

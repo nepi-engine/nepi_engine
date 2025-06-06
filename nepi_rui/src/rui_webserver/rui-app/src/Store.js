@@ -206,7 +206,6 @@ class ROSConnectionStore {
   @observable navTransformYRot = null
   @observable navTransformZRot = null
   @observable navHeadingOffset = null
-  @observable transformNavPoseOrientation = null
     
   @observable imageRecognitions = []
 
@@ -420,7 +419,6 @@ class ROSConnectionStore {
 		    this.updateLXSDevices()
         this.updateRBXDevices()
         this.updateNPXDevices()
-        this.updateNavPoseSourceTopics()
 
         if (newPrefix || newResetTopics || newSaveDataTopics || newMessageTopics || newImageTopics || newPointcloudTopics) {
           this.initalizeListeners()
@@ -763,47 +761,6 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  updateNavPoseSourceTopics() {
-    // Function for updating image topics list
-    var newNavSatFixTopics = []
-    var newOrientationTopics = []
-    var newHeadingTopics = []
-    for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "sensor_msgs/NavSatFix") {
-        newNavSatFixTopics.push(this.topicNames[i])
-      }
-      else if ((this.topicTypes[i] === "nav_msgs/Odometry") || (this.topicTypes[i] === "sensor_msgs/Imu")) {
-        newOrientationTopics.push(this.topicNames[i])
-      }
-      else if ((this.topicTypes[i] === "std_msgs/Float64")   || (this.topicTypes[i] === "nepi_ros_interfaces/Heading")){
-        // Float64 ==> Not a very good differentiator!
-        newHeadingTopics.push(this.topicNames[i])
-      }
-    }
-
-    var topicsChanged = false
-    newNavSatFixTopics.sort()
-    if (!this.navSatFixTopics.equals(newNavSatFixTopics)) {
-      this.navSatFixTopics = newNavSatFixTopics
-      topicsChanged = true
-    }
-
-    newOrientationTopics.sort()
-    if (!this.orientationTopics.equals(newOrientationTopics)) {
-      this.orientationTopics = newOrientationTopics
-      topicsChanged = true
-    }
-
-    newHeadingTopics.sort()
-    if (!this.headingTopics.equals(newHeadingTopics)) {
-      this.headingTopics = newHeadingTopics
-      topicsChanged = true
-    }
-
-    return topicsChanged
-  }
-
-  @action.bound
   destroyROSConnection() {
     this.rosAutoReconnect = false
     this.ros.off("connection", this.onConnectedToROS)
@@ -899,8 +856,6 @@ class ROSConnectionStore {
     this.startPollingBandwidthUsageService()
     this.startPollingWifiQueryService()
     this.startPollingOpEnvironmentQueryService()
-    this.startPollingNavPoseService()
-    this.startPollingNavPoseStatusService()
     this.startPollingTimeStatusService()
     
     // automation manager services
@@ -1746,120 +1701,6 @@ class ROSConnectionStore {
   }
 
 
-  startPollingNavPoseService() {
-    var resp = null
-    const _pollOnce = async () => {
-      resp = await this.callService({
-        name: "nav_pose_query",
-        messageType: "nepi_ros_interfaces/NavPoseQuery",
-        args: {query_time: 0.0, 
-               transform: (this.transformNavPoseOrientation !== null)? this.transformNavPoseOrientation : true}
-      })
-
-      this.navPose = resp.nav_pose
-      this.navPoseOrientationIsTransformed = resp.transformed
-
-      this.navPoseLocationLat = this.navPose.fix.latitude
-      this.navPoseLocationLng = this.navPose.fix.longitude
-      this.navPoseLocationAlt = this.navPose.fix.altitude
-      this.navPoseDirectionHeadingDeg = this.navPose.heading.heading
-
-      this.navSatFixStatus = this.navPose.fix.status.status
-      this.navSatFixService = this.navPose.fix.status.service
-
-      this.navPosePositionEnuX = this.navPose.odom.pose.pose.position.x
-      this.navPosePositionEnuY = this.navPose.odom.pose.pose.position.y
-      this.navPosePositionEnuZ = this.navPose.odom.pose.pose.position.z
-
-      // magnitude of linear_velocity?
-      let { x, y, z } = this.navPose.odom.twist.twist.linear
-      this.navPoseDirectionSpeedMpS = Math.sqrt(x * x + y * y + z * z)
-
-      this.navPoseOrientationYawRate = this.navPose.odom.twist.twist.angular.z * (180/Math.PI)
-      this.navPoseOrientationPitchRate = this.navPose.odom.twist.twist.angular.y * (180/Math.PI)
-      this.navPoseOrientationRollRate = this.navPose.odom.twist.twist.angular.x * (180/Math.PI)
-
-      const q = new cannon.Quaternion(
-        this.navPose.odom.pose.pose.orientation.x,
-        this.navPose.odom.pose.pose.orientation.y,
-        this.navPose.odom.pose.pose.orientation.z,
-        this.navPose.odom.pose.pose.orientation.w
-      )
-      const vec = new cannon.Vec3()
-      // cannon exception says "Euler order XYZ not supported yet,:" so we must switch X and Z manually here
-      //q.toEuler(vec, "XYZ")
-      q.toEuler(vec, EULER_ORDER_FOR_CANNON)
-      //this.navPoseOrientationYawAngle = vec.z * (180/Math.PI)
-      this.navPoseOrientationYawAngle = vec.x * (180/Math.PI)
-      this.navPoseOrientationPitchAngle = vec.y * (180/Math.PI)
-      //this.navPoseOrientationRollAngle = vec.x * (180/Math.PI)
-      this.navPoseOrientationRollAngle = vec.z * (180/Math.PI)
-
-      this.navPoseOrientationFrame = this.navPose.odom.child_frame_id
-      
-      if (this.transformNavPoseOrientation === null){
-        this.transformNavPoseOrientation = this.navPoseOrientationIsTransformed
-      }
-
-
-      if (this.connectedToROS) {
-        setTimeout(_pollOnce, 500)
-      }
-    }
-
-    _pollOnce()
-  }
-
-  startPollingNavPoseStatusService() {
-    const _pollOnce = async () => {
-      this.navPoseStatus = await this.callService({
-        name: "nav_pose_status_query",
-        messageType: "nepi_ros_interfaces/NavPoseStatusQuery",
-        msgKey: "status"
-      })
-
-      this.selectedNavSatFixTopic = this.navPoseStatus.nav_sat_fix_topic
-      this.lastNavSatFix = this.navPoseStatus.last_nav_sat_fix
-      this.navSatFixRate = this.navPoseStatus.nav_sat_fix_rate
-      
-      this.selectedOrientationTopic = this.navPoseStatus.orientation_topic
-      this.lastOrientation = this.navPoseStatus.last_orientation
-      this.orientationRate = this.navPoseStatus.orientation_rate
-
-      this.selectedHeadingTopic = this.navPoseStatus.heading_topic
-      this.lastHeading = this.navPoseStatus.last_heading
-      this.headingRate = this.navPoseStatus.heading_rate
-      
-      this.navSrcFrame = this.navPoseStatus.transform.header.frame_id
-      this.navTargetFrame = this.navPoseStatus.transform.child_frame_id
-      this.navTransformXTrans = this.navPoseStatus.transform.transform.translation.x
-      this.navTransformYTrans = this.navPoseStatus.transform.transform.translation.y
-      this.navTransformZTrans = this.navPoseStatus.transform.transform.translation.z
-
-      const q = new cannon.Quaternion(
-        this.navPoseStatus.transform.transform.rotation.x,
-        this.navPoseStatus.transform.transform.rotation.y,
-        this.navPoseStatus.transform.transform.rotation.z,
-        this.navPoseStatus.transform.transform.rotation.w
-      )
-      const vec = new cannon.Vec3()
-      q.toEuler(vec, EULER_ORDER_FOR_CANNON)
-      this.navTransformXRot = vec.x * (180/Math.PI)
-      this.navTransformYRot = vec.y * (180/Math.PI)
-      this.navTransformZRot = vec.z * (180/Math.PI)
-
-      this.navHeadingOffset = this.navPoseStatus.heading_offset
-
-      this.gpsClockSyncEnabled = this.navPoseStatus.gps_clock_sync_enabled
-
-      if (this.connectedToROS) {
-        setTimeout(_pollOnce, 2000)
-      }
-    }
-
-    _pollOnce()
-  }
-
   startPollingTimeStatusService() {
     const _pollOnce = async () => {
       this.timeStatus = await this.callService({
@@ -2405,14 +2246,6 @@ class ROSConnectionStore {
         script: autoStartScriptName,
         enabled: isEnabled
        }
-    })
-  }
-
-  @action.bound
-  onReinitNavPoseSolution() {
-    this.publishMessage({
-      name: "nav_pose_mgr/reinit_solution",
-      messageType: "std_msgs/Empty",
     })
   }
 
