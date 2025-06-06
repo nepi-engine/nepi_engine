@@ -50,7 +50,7 @@ from nepi_ros_interfaces.msg import PointcloudStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_nav_pose import ConnectMgrNavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 
@@ -1172,7 +1172,7 @@ class ImageIF:
         self.status_msg = status_msg
 
         ####################
-        # Connect to nav_pose_mgr for data
+        # Connect to navpose_mgr for data
 
         ##############################
         ## Connect NEPI NavPose Manager
@@ -1655,18 +1655,18 @@ class ImageIF:
                 date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
                 overlay_list.append(overlay)
 
-            nav_pose_dict = None
+            navpose_dict = None
             if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
                 if self.nav_mgr_ready == True:
-                    nav_pose_dict = self.nav_mgr_if.get_navpose_data_dict()
-                    if nav_pose_dict is not None:
+                    navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                    if navpose_dict is not None:
 
-                        if self.status_msg.overlay_nav == True and nav_pose_dict is not None:
-                            overlay = 'Lat: ' +  str(round(nav_pose_dict['latitude'],6)) + 'Long: ' +  str(round(nav_pose_dict['longitude'],6)) + 'Head: ' +  str(round(nav_pose_dict['heading_deg'],2))
+                        if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                            overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
                             overlay_list.append(overlay)
 
-                        if self.status_msg.overlay_pose == True and nav_pose_dict is not None:
-                            overlay = 'Roll: ' +  str(round(nav_pose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(nav_pose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(nav_pose_dict['yaw_deg'],2))
+                        if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                            overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
                             overlay_list.append(overlay)
  
             overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list

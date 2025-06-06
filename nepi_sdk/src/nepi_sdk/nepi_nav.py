@@ -59,7 +59,7 @@ if os.path.exists(GEOID_DATABASE_FILE):
     ginterpolator = pygeodesy.GeoidKarney(GEOID_DATABASE_FILE)
     file_loaded = True
   except Exception as e:
-    logger.log_info("Geoids database failed to import: " + str(e))
+    logger.log_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
 if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
@@ -348,7 +348,7 @@ def transform_navpose_dict(npdata_dict, transform, frame_3d_name = 'nepi_frame')
           npdata_dict['depth_m'] = npdata_dict['depth_m'] - z
 
       except Exception as e:
-        logger.log_info("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
+        logger.log_warn("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
   return npdata_dict
 
 
@@ -405,7 +405,7 @@ BLANK_DEPTH_DATA_DICT = {
 
 BLANK_NAVPOSE_DICT = {
     'frame_3d': 'nepi_frame',
-    'frame_3d': 'ENU',
+    'frame_nav': 'ENU',
     'frame_altitude': 'WGS84',
     'frame_depth': 'MSL',
 
@@ -482,24 +482,24 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
 def convert_navposedata_amsl2wgs84(npdata_dict):
   if npdata_dict['frame_altitude'] == 'AMSL':
     geopoint_in = GeoPoint()
-    geopoint_in.latitude = npdata_dict['lat']
-    geopoint_in.longitude = npdata_dict['long']
+    geopoint_in.latitude = npdata_dict['latitude']
+    geopoint_in.longitude = npdata_dict['longitude']
     geopoint_in.altitude = npdata_dict['altitude_m']
     geopoint_out = convert_amsl_to_wgs84(geopoint_in)
-    npdata_dict['lat'] = geopoint_out.latitude
-    npdata_dict['long'] = geopoint_out.longitude
+    npdata_dict['latitude'] = geopoint_out.latitude
+    npdata_dict['longitude'] = geopoint_out.longitude
     npdata_dict['altitude_m'] = geopoint_out.altitude
   return npdata_dict
 
 def convert_navposedata_wgs842amsl(npdata_dict):
   if npdata_dict['frame_altitude'] == 'WGS84':
     geopoint_in = GeoPoint()
-    geopoint_in.latitude = npdata_dict['lat']
-    geopoint_in.longitude = npdata_dict['long']
+    geopoint_in.latitude = npdata_dict['latitude']
+    geopoint_in.longitude = npdata_dict['longitude']
     geopoint_in.altitude = npdata_dict['altitude_m']
     geopoint_out = convert_wgs84_to_amsl(geopoint_in)
-    npdata_dict['lat'] = geopoint_out.latitude
-    npdata_dict['long'] = geopoint_out.longitude
+    npdata_dict['latitude'] = geopoint_out.latitude
+    npdata_dict['longitude'] = geopoint_out.longitude
     npdata_dict['altitude_m'] = geopoint_out.altitude
   return npdata_dict  
 
@@ -563,8 +563,8 @@ def convert_navposedata_dict2msg(npdata_dict):
 
       npdata_msg.has_location = npdata_dict['has_location']
       npdata_msg.time_location = npdata_dict['time_location']
-      npdata_msg.lat = npdata_dict['lat']
-      npdata_msg.long = npdata_dict['long']
+      npdata_msg.latitude = npdata_dict['latitude']
+      npdata_msg.longitude = npdata_dict['longitude']
 
       npdata_msg.has_altitude = npdata_dict['has_altitude']
       npdata_msg.time_altitude = npdata_dict['time_altitude']
@@ -575,7 +575,7 @@ def convert_navposedata_dict2msg(npdata_dict):
       npdata_msg.depth_m = npdata_dict['depth_m']
     except Exception as e:
       npdata_msg = None
-      logger.log_info("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
+      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
   return npdata_msg
 
 def convert_navposedata_msg2dict(npdata_msg):
@@ -584,7 +584,7 @@ def convert_navposedata_msg2dict(npdata_msg):
     npdata_dict = nepi_ros.msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
-    logger.log_info("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)
+    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)
   return npdata_dict
 
 

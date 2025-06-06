@@ -23,6 +23,8 @@ import sys
 import tf
 import yaml
 import threading
+import copy
+
 
 
 from nepi_sdk import nepi_ros
@@ -54,7 +56,7 @@ from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQue
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
-from nepi_api.connect_mgr_if_nav_pose import ConnectMgrNavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 from nepi_api.system_if import SaveDataIF
 
 #########################################
@@ -63,7 +65,7 @@ from nepi_api.system_if import SaveDataIF
 
 
 class NavPoseMgr(object):
-    MGR_NODE_NAME = 'nav_pose_mgr'
+    MGR_NODE_NAME = 'navpose_mgr'
 
     NAVPOSE_PUB_RATE_OPTIONS = [1.0,20.0] 
     NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
@@ -143,7 +145,7 @@ class NavPoseMgr(object):
 
     #######################
     ### Node Initialization
-    DEFAULT_NODE_NAME = "nav_pose_mgr" # Can be overwitten by luanch command
+    DEFAULT_NODE_NAME = "navpose_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
@@ -206,7 +208,7 @@ class NavPoseMgr(object):
             },
             'transforms_dict': {
                 'namespace': self.mgr_namespace,
-                'factory_val': self.transforms
+                'factory_val': self.transforms_dict
             },
             'init_navpose_dict': {
                 'namespace': self.mgr_namespace,
@@ -223,7 +225,7 @@ class NavPoseMgr(object):
                 'srv': NavPoseDataQuery,
                 'req': NavPoseDataQueryRequest(),
                 'resp': NavPoseDataQueryResponse(),
-                'callback': self.navposeDataQueryHandler
+                'callback': self._navposeDataQueryHandler
             }
         }
 
@@ -492,16 +494,16 @@ class NavPoseMgr(object):
                 avg_rate = float(1.0) / avg_times
             else:
                 avg_rate = 0
-            comp_info.location_avg_rate = avg_rate
-            comp_info.location_last_time = connect_dict[name]['last_time']
-            comp_info.location_transform = connect_dict[name]['transform']
+            comp_info.avg_rate = avg_rate
+            comp_info.last_time = connect_dict[name]['last_time']
+            comp_info.transform = connect_dict[name]['transform']
 
             comp_infos.append(comp_info)
         self.status_msg.comp_names = comp_names
         self.status_msg.comp_infos = comp_infos
 
 
-        init_np_msg = nepi_nav.convert_navpose_dict2msg(self.init_navpose_dict)
+        init_np_msg = nepi_nav.convert_navposedata_dict2msg(self.init_navpose_dict)
         self.status_msg.init_navpose = init_np_msg
 
         self.status_msg.pub_rate = self.set_pub_rate
@@ -531,9 +533,9 @@ class NavPoseMgr(object):
         [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('orientation')
         self.avail_topics_dict['orientation']['topics'] = topic_list
         self.avail_topics_dict['orientation']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('postition')
-        self.avail_topics_dict['postition']['topics'] = topic_list
-        self.avail_topics_dict['postition']['msgs'] = msg_list
+        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('position')
+        self.avail_topics_dict['position']['topics'] = topic_list
+        self.avail_topics_dict['position']['msgs'] = msg_list
         [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('altitude')
         self.avail_topics_dict['altitude']['topics'] = topic_list
         self.avail_topics_dict['altitude']['msgs'] = msg_list
@@ -547,7 +549,7 @@ class NavPoseMgr(object):
 
     def _updateConnectionsCb(self,timer):
         # Register new topic requests
-        self.subs_dict_lock.aquire()
+        self.subs_dict_lock.acquire()
         subs_dict = copy.deepcopy(self.subs_dict)
         self.subs_dict_lock.release()
         for name in self.connect_dict.keys():
@@ -569,7 +571,7 @@ class NavPoseMgr(object):
                     msg = nepi_nav.NAVPOSE_MSG_DICT[name][msg_str]
                     cb = self.cb_dict[name]
 
-                    self.subs_dict_lock.aquire()
+                    self.subs_dict_lock.acquire()
                     sub = nepi_ros.create_subscriber(topic, msg, cb, callback_args = (name))
                     self.subs_dict[name]['topic'] = topic
                     self.subs_dict[name]['msg'] = msg_str
@@ -586,7 +588,7 @@ class NavPoseMgr(object):
 
 
     def _unregisterTopic(self,name):
-            self.subs_dict_lock.aquire()
+            self.subs_dict_lock.acquire()
             if self.subs_dict[name]['sub'] is not None:
                 self.subs_dict[name]['sub'].unregister()
                 nepi_ros.sleep(1)
@@ -659,10 +661,30 @@ class NavPoseMgr(object):
     def _resetInitNavPoseCb(self,msg):
         self.resetInitNavPose()
 
+
+    def _locationSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'location')
+
+    def _headingSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'heading')
+
+    def _orientationSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'orientation')
+
+    def _positionSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'position')
+
+    def _altitudeSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'altitude')
+
+    def _depthSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'depth')
+
+
     ### Setup a regular background navpose get and publish timer callback
     def _getPublishSaveDataCb(self,timer):
         timestamp = nepi_utils.get_time()
-        # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
+        # Get current NEPI NavPose data from NEPI ROS navpose_query service call
         self.navpose_dict_lock.acquire()
         npdata_dict = copy.deepcopy(self.navpose_dict)
         self.navpose_dict_lock.release()

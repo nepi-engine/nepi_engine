@@ -92,7 +92,6 @@ add_message_files(FILES
     TimeUpdate.msg
     TimeStatus.msg
     OotStatus.msg
-    Heading.msg
     NEPILinkStatus.msg
     ObjectCount.msg
     Setting.msg
@@ -277,10 +276,10 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(
+#include_directories(
 # include
 # ${catkin_INCLUDE_DIRS}
-)
+#)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -328,10 +327,10 @@ include_directories(
 # )
 
 ## Mark cpp header files for installation - Msgs and Services are under the project name subdir
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-)
+#install(DIRECTORY include/${PROJECT_NAME}/
+#  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#  FILES_MATCHING PATTERN "*.h"
+#)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

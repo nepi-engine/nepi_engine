@@ -9,14 +9,20 @@
 #
 
 import os
-import sys
-import time
-import copy
 import numpy as np
 import math
-
+import time
+import sys
 import tf
 import yaml
+import threading
+import copy
+
+
+
+from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
@@ -24,6 +30,10 @@ from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
+
+from nepi_ros_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+
+from nepi_ros_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
 from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
 from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -35,15 +45,9 @@ from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, N
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
 
-
-from nepi_ros_interfaces.msg import SaveDataRate
-
-from nepi_sdk import nepi_ros
-from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_nav
-
 from nepi_api.messages_if import MsgIF
-from nepi_api.connect_system_if import ConnectSaveDataIF
+from nepi_api.system_if import SaveDataIF
+
 from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
@@ -104,84 +108,77 @@ class ConnectMgrNavPoseIF:
             'nav_pose_query': {
                 'namespace': self.base_namespace,
                 'topic': 'nav_pose_query',
-                'srv': NavPoseQuery,
-                'req': NavPoseQueryRequest(),
-                'resp': NavPoseQueryResponse()
-            },
-            'nav_pose_status_query': {
-                'namespace': self.base_namespace,
-                'topic': 'nav_pose_status_query',
-                'srv': NavPoseStatusQuery,
-                'req': NavPoseStatusQueryRequest(),
-                'resp': NavPoseStatusQueryResponse()
-            },
+                'srv': NavPoseDataQuery,
+                'req': NavPoseDataQueryRequest(),
+                'resp': NavPoseDataQueryResponse()
+            }
         }
 
     
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'set_gps_topic': {
-                'namespace': self.base_namespace,
-                'topic': 'set_gps_topic',
-                'msg': String,
-                'latch': False,
-                'qsize': None
-            },
-            'set_pose_topic': {
-                'namespace': self.base_namespace,
-                'topic': 'set_pose_topic',
-                'msg': String,
-                'latch': False,
-                'qsize': None
-            },
-            'set_elevation_topic': {
-                'namespace': self.base_namespace,
-                'topic': 'set_elevation_topic',
-                'msg': String,
-                'latch': False,
-                'qsize': 10
-            },
-            'set_heading_topic': {
-                'namespace': self.base_namespace,
-                'topic': 'set_heading_topic',
-                'msg': String,
-                'latch': False,
-                'qsize': 10
-            },
-            'enable_gps_clock_sync': {
-                'namespace': self.base_namespace,
-                'topic': 'enable_gps_clock_sync',
-                'msg': Bool,
-                'latch': False,
-                'qsize': 10
-            },
-            'reinit_navpose_solution': {
-                'namespace': self.base_namespace,
-                'topic': 'reinit_navpose_solution',
-                'msg': Empty,
-                'latch': False,
-                'qsize': 10
-            },
             'pub_rate': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_pub_rate',
                 'msg': Float32,
                 'qsize': 1,
+                'latch': False,
+            },
+            'set_topic': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_topic',
+                'msg': UpdateNavPoseTopic,
+                'qsize': 1,
+                'latch': False,
+            },
+            'clear_topic': {
+                'namespace': self.mgr_namespace,
+                'topic': 'clear_topic',
+                'msg': String,
+                'qsize': 1,
+                'latch': False,
+            },
+            'set_transform': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_transform',
+                'msg': UpdateFrame3DTransform,
+                'qsize': 1,
+                'latch': False,
+            },
+            'clear_transform': {
+                'namespace': self.mgr_namespace,
+                'topic': 'clear_transform',
+                'msg': String,
+                'qsize': 1,
+                'latch': False,
+            },
+            'set_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_navpose',
+                'msg': NavPoseData,
+                'qsize': 1,
+                'latch': False,
+            },
+            'reset_navpose': {
+                'namespace': self.mgr_namespace,
+                'topic': 'reset_navpose',
+                'msg': Empty,
+                'qsize': 1,
                 'latch': False
             },
-            'frame_3d': {
+            'set_init_navpose': {
                 'namespace': self.mgr_namespace,
-                'topic': 'set_frame_3d',
-                'msg': String,
+                'topic': 'set_init_navpose',
+                'msg': NavPoseData,
                 'qsize': 1,
                 'latch': False
 
             },
-            'frame_alt': {
+            'reset_init_navpose': {
                 'namespace': self.mgr_namespace,
-                'topic': 'set_frame_alt',
-                'msg': String,
+                'topic': 'reset_init_navpose',
+                'msg': Empty,
                 'qsize': 1,
                 'latch': False
             },
@@ -211,16 +208,16 @@ class ConnectMgrNavPoseIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'navpose_data_status': {
+            'status_pub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
-                'msg': NavPoseDataStatus,
+                'msg': NavPoseMgrStatus,
                 'qsize': 1,
                 'callback': self._navposeDataStatusCb
             },
-            'navpose_data': {
-                'namespace': self.mgr_namespace,
-                'topic': 'navpose_data',
+            'navpose_pub': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
                 'msg': NavPoseData,
                 'qsize': 1,
                 'callback': self._navposeDataCb
