@@ -706,10 +706,10 @@ class PTXActuatorIF:
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction, 
-                    'namespace':  settings_ns
+                    'getSettingsFunction': getSettingsFunction
+
         }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT,
+        self.settings_if = SettingsIF(settings_ns, self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )

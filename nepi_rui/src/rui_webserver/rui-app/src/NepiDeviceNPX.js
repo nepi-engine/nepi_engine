@@ -351,13 +351,8 @@ updateNavposeListener() {
 
                     <div hidden={(!deviceSelected && this.state.show_controls)}>
                       <NepiDeviceNPXControls
-<<<<<<< HEAD
                           deviceNamespace={namespace}
                           navposeData={navpose_data}
-=======
-                          namespace={namespace}
-                          navposeData={status_data}
->>>>>>> 01633229c40eab0cd36bf198c9b760245d32e625
                           title={"NepiDeviceNPXControls"}
                       />
                     </div>

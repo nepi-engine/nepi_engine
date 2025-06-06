@@ -44,7 +44,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_nav_pose import ConnectMgrNavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 EXAMPLE_LOCATION_DATA_DICT = {
@@ -302,8 +302,8 @@ class NPXDeviceIF:
         # Initialize navpose_dict
         self.navpose_dict['frame_3d'] = self.frame_3d
         self.navpose_dict['frame_nav'] = self.frame_nav
-        self.navpose_dict['altitude_frame'] = self.frame_altitude
-        self.navpose_dict['depth_frame'] = self.frame_depth
+        self.navpose_dict['frame_altitude'] = self.frame_altitude
+        self.navpose_dict['frame_depth'] = self.frame_depth
 
         # Initialize status message
         self.status_msg.has_location = self.has_location
@@ -516,7 +516,7 @@ class NPXDeviceIF:
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = nepi_ros.create_namespace(self.node_namespace,'npx')
-
+        
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
