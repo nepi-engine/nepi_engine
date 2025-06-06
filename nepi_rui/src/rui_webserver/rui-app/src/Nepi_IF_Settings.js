@@ -140,7 +140,7 @@ class Nepi_IF_Settings extends Component {
   updateCapabilities() {
     const settingCaps = this.state.capabilities
     const lastCaps = this.state.last_caps
-    this.setState({last_caps: settingsCaps})
+    this.setState({last_caps: settingCaps})
     const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
     var typesList = []
@@ -148,7 +148,7 @@ class Nepi_IF_Settings extends Component {
     var ind = 0
     var capabilities = null
     if (settingCaps){
-      capabilities = settingCaps[cur_namespace]
+      capabilities = settingCaps[this.state.namespace]
     }    
     if (capabilities != null && settingCaps !== lastCaps){
       const cap_settings = capabilities.setting_caps_list

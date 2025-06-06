@@ -64,6 +64,18 @@ if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
 
+
+
+def get_navpose_publisher_namespaces():
+    msg_type = 'nepi_ros_interfaces/NavPoseData'
+    return nepi_ros.find_topics_by_msg(msg_type)
+
+###############
+### NavPose Solution Components
+
+
+NAVPOSE_COMPONENTS = ['location','heading','orientation','position','altitude','depth']
+
 NAVPOSE_MSG_DICT = {
         'location': {
             'nepi_ros_interfaces/NavPoseLocation': NavPoseLocation,
@@ -98,8 +110,7 @@ NAVPOSE_MSG_DICT = {
     }
 
 
-
-def get_navpose_publisher_namespaces(name):
+def get_navpose_comp_publisher_namespaces(name):
     topic_list = []
     msg_list = []
     if name in NAVPOSE_MSG_DICT.keys():

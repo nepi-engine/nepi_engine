@@ -45,10 +45,12 @@ from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, N
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
 
+from nepi_ros_interfaces.srv import SaveDataRate
+
 from nepi_api.messages_if import MsgIF
-from nepi_api.system_if import SaveDataIF
 
 from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_system_if import ConnectSaveDataIF
 
 
 class ConnectMgrNavPoseIF:
@@ -60,9 +62,10 @@ class ConnectMgrNavPoseIF:
     services_connected = False
 
     status_msg = None
+    status_dict = None
     status_connected = False
 
-    data_msg = None
+    navpose_dict = None
 
     #######################
     ### IF Initialization
@@ -104,10 +107,11 @@ class ConnectMgrNavPoseIF:
         }
 
         # Services Config Dict ####################     
+        # Services Config Dict ####################
         self.SRVS_DICT = {
-            'nav_pose_query': {
+            'navpose_query': {
                 'namespace': self.base_namespace,
-                'topic': 'nav_pose_query',
+                'topic': 'navpose_query',
                 'srv': NavPoseDataQuery,
                 'req': NavPoseDataQueryRequest(),
                 'resp': NavPoseDataQueryResponse()
@@ -173,7 +177,6 @@ class ConnectMgrNavPoseIF:
                 'msg': NavPoseData,
                 'qsize': 1,
                 'latch': False
-
             },
             'reset_init_navpose': {
                 'namespace': self.mgr_namespace,
@@ -208,14 +211,14 @@ class ConnectMgrNavPoseIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'status_pub': {
+            'status_sub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
                 'msg': NavPoseMgrStatus,
                 'qsize': 1,
                 'callback': self._navposeDataStatusCb
             },
-            'navpose_pub': {
+            'navpose_sub': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose',
                 'msg': NavPoseData,
@@ -289,10 +292,10 @@ class ConnectMgrNavPoseIF:
             self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return connected
 
-    def get_navpose_solution_msg(self, verbose = True):
-        service_name = 'nav_pose_query'
+    def call_navpose_dict_service(self, verbose = True):
+        service_name = 'navpose_query'
         response = None
-        solution_dict = None
+        navpose_dict = None
         try:
             request = self.node_if.create_request_msg(service_name)
         except Exception as e:
@@ -305,76 +308,11 @@ class ConnectMgrNavPoseIF:
                 self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
             else:
                 pass
-        return response.nav_pose  
+        if response is not None:
+            navpose_msg = response.navpose_dict
+            navpose_dict = nepi_nav.convert_navposedata_msg2dict(navpose_msg)
+        return navpose_dict
 
-
-    def get_navpose_solution_dict(self, verbose = True):
-        navpose_msg = self.get_navpose_solution_msg()
-        solution_dict = nepi_nav.convert_navpose_resp2dict(navpose_msg)
-        return solution_dict    
-
-
-    def get_navpose_solution_as_data_dict(self, verbose = True):
-        navpose_msg = self.get_navpose_solution_msg()
-        data_dict = nepi_nav.convert_navpose_resp2data_dict(navpose_msg)
-        return data_dict    
-
-
-    def get_navpose_solution_status(self, verbose = True):
-        service_name = 'nav_pose_status_query'
-        response = None
-        status_dict = None
-        try:
-            request = self.node_if.create_request_msg(service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + " " + str(e), log_name_list = self.log_name_list)
-        try:
-            response = self.node_if.call_service(service_name, request, verbose = verbose)
-            #self.msg_if.pub_info("Got time status response: " + str(response), log_name_list = self.log_name_list)
-            navpose_status = response.status
-            status_dict = nepi_ros.convert_msg2dict(navpose_status)
-            #self.msg_if.pub_info("Got time status dict: " + str(navpose_status), log_name_list = self.log_name_list)
-        except Exception as e:
-            if verbose == True:
-                self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e), log_name_list = self.log_name_list)
-            else:
-                pass
-        return status_dict    
-
-
-    def get_navpose_data_dict(self):
-        data_dict = None
-        npsolution_msg = self.get_navpose_solution_msg()
-        if npsolution_msg is not None:
-            data_dict = nepi_nav.convert_navpose_resp2data_dict(npsolution_msg)
-        return data_dict
-
-
-    def get_navpose_data_status_dict(self):
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
-        return status_dict
-        
-
-
-    def set_gps_source_topic(self,topic):
-        self.node_if.publish_pub('set_gps_topic',topic)
-
-    def set_elevation_source_topic(self,topic):
-        self.node_if.publish_pub('set_elevation_topic',topic)
-
-    def set_pose_source_topic(self,topic):
-        self.node_if.publish_pub('set_pose_topic',topic)
-
-    def set_heading_source_topic(self,topic):
-        self.node_if.publish_pub('set_heading_topic',topic)
-
-    def set_enable_gps_clock_sync(self,enable):
-        self.node_if.publish_pub('enable_gps_clock_sync',enable)
-
-    def reinit_navpose_solution(self):
-        self.node_if.publish_pub('reinit_navpose_solution',Empty())
 
     def check_status_connection(self):
         return self.status_connected
@@ -393,23 +331,51 @@ class ConnectMgrNavPoseIF:
                 self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
 
-    def unregister(self):
-        self._unsubscribeTopic()
-
     def set_pub_rate(self,pub_rate):
         pub_name = 'set_pub_rate'
         msg = pub_rate
         self.con_node_if.publish_pub(pub_name,msg)  
+   
 
-    def set_frame_3d(self,set_frame_3d):
-        pub_name = 'set_frame_3d'
-        msg = set_frame_3d
-        self.con_node_if.publish_pub(pub_name,msg)  
+    def get_comp_names(self):
+        return nepi_nav.NAVPOSE_COMPONENTS
 
-    def set_frame_alt(self,frame_alt):
-        pub_name = 'set_frame_alt'
-        msg = frame_alt
-        self.con_node_if.publish_pub(pub_name,msg)  
+    def set_comp_topic(self,name,topic,transform_list = None):
+        if name in nepi_nav.NAVPOSE_COMPONENTS:
+            msg = NavPoseTopicUpdate()
+            msg.name = name
+            msg.topic = topic
+            msg.apply_transform = False
+            if transform_list is not None:
+                tr_msg = nepi_nav.convert_tranform_list2msg(transform_list)
+                if tr_msg is not None:
+                    msg.apply_transform = True
+                    msg.transform = tr_msg
+            self.node_if.publish_pub('set_topic',msg)
+
+
+    def clear_comp_topic(self,name):
+        if name in nepi_nav.NAVPOSE_COMPONENTS:
+            msg = name
+            self.node_if.publish_pub('clear_topic',msg)
+
+
+    def reinit_navpose_solution(self):
+        self.node_if.publish_pub('reinit_navpose_solution',Empty())
+
+
+  def get_navpose_dict(self, verbose = True):
+        return self.navpose_dict    
+
+    def get_navpose_status_dict(self):
+        return self.status_dict
+
+
+    def unregister(self):
+        self._unsubscribeTopic()
+
+    #################
+    ## Save Config Functions
 
     def call_save_config(self):
         self.con_node_if.publish_pub('save_config',Empty())
@@ -427,12 +393,9 @@ class ConnectMgrNavPoseIF:
         data_products = self.con_save_data_if.get_data_products()
         return data_products
 
-    def get_save_status_dict(self):
+    def get_save_data_status(self):
         status_dict = self.con_save_data_if.get_status_dict()
         return status_dict
-
-    def set_save_data(self,enable):
-        self.con_save_data_if.save_data_pub(enable)
 
     def set_save_data_prefix(self,prefix):
         self.con_save_data_if.save_data_prefix_pub(prefix)
@@ -440,13 +403,16 @@ class ConnectMgrNavPoseIF:
     def set_save_data_rate(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
         self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
 
-    def call_save_snapshot(self):
+    def set_save_data_enable(self,enable):
+        self.con_save_data_if.save_data_pub(enable)
+
+    def call_save_data_snapshot(self):
         self.con_save_data_if.publish_pub()
 
-    def call_reset_save(self):
+    def call_save_data_reset(self):
         self.con_save_data_if.publish_pub(pub_name,msg)
 
-    def call_factory_reset_save(self):
+    def call_save_data_factory_reset(self):
         pub_name = 'factory_reset'
         msg = Empty()
         self.con_save_data_if.publish_pub(pub_name,msg)
@@ -476,7 +442,8 @@ class ConnectMgrNavPoseIF:
     def _navposeDataStatusCb(self,status_msg):      
         self.status_connected = True
         self.status_msg = status_msg
+        self.status_dict = nepi_ros.convert_msg2dict(status_msg)
 
     def _navposeDataCb(self,data_msg):      
-        self.data_msg = data_msg
+        self.navpose_dict = nepi_nav.convert_navposedata_msg2dict(data_msg)
 

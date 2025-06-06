@@ -25,6 +25,8 @@ string frame_3d
 # (Not applied by NPX driver)
 Frame3DTransform nepi_frame_3d_transform
 
+bool apply_transform
+
 # Actual data will be in the nepi standard frames 
 string source_frame_nav
 string source_frame_altitude

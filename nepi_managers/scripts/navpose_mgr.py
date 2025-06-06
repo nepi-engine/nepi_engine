@@ -82,7 +82,9 @@ class NavPoseMgr(object):
     times_list = [0,0,0,0,0,0,0]
 
     BLANK_CONNECT = {
+            'fixed': False,
             'topic': "",
+            'connected': False,
             'transform': ZERO_TRANSFORM,
             'times': times_list,
             'last_time': 0.0
@@ -175,13 +177,6 @@ class NavPoseMgr(object):
 
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
-
-        self.status_msg.has_heading = False
-        self.status_msg.has_position = False
-        self.status_msg.has_orientation = False
-        self.status_msg.has_location = False
-        self.status_msg.has_altitude = False
-        self.status_msg.has_depth = False
 
 
         ##############################
@@ -411,21 +406,27 @@ class NavPoseMgr(object):
         if npdata_dict is not None:
             if npdata_dict['has_location'] == True:
                 success = _unregisterTopic(self,'location')
+                self.connect_dict['location']['fixed'] = True
                 self.transforms_dict['location'] = self.ZERO_TRANSFORM
             if npdata_dict['has_heading'] == True:
                 success = _unregisterTopic(self,'heading')
+                self.connect_dict['heading']['fixed'] = True
                 self.transforms_dict['heading'] = self.ZERO_TRANSFORM
             if npdata_dict['has_orienation'] == True:
                 success = _unregisterTopic(self,'orienation')
+                self.connect_dict['orienation']['fixed'] = True
                 self.transforms_dict['orienation'] = self.ZERO_TRANSFORM
             if npdata_dict['has_position'] == True:
                 success = _unregisterTopic(self,'position')
+                self.connect_dict['position']['fixed'] = True
                 self.transforms_dict['position'] = self.ZERO_TRANSFORM
             if npdata_dict['has_altitude'] == True:
                 success = _unregisterTopic(self,'altitude')
+                self.connect_dict['altitude']['fixed'] = True
                 self.transforms_dict['altitude'] = self.ZERO_TRANSFORM
             if npdata_dict['has_depth'] == True:
                 success = _unregisterTopic(self,'depth')
+                self.connect_dict['depth']['fixed'] = True
                 self.transforms_dict['depth'] = self.ZERO_TRANSFORM
             navpose_dict = copy.deepcopy(self.navpose_dict)
             navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict,npdata_dict)
@@ -485,8 +486,10 @@ class NavPoseMgr(object):
             comp_info.name = name
             comp_info.available_topics = avail_topics_dict[name]['topics']
             comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']
+            comp_info.fixed = avail_topics_dict[name]['fixed']
             comp_info.topic = subs_dict[name]['topic']
             comp_info.topic_msg = subs_dict[name]['msg']
+            comp_info.available_topics = avail_topics_dict[name]['connected']
 
             times = connect_dict[name]['times']
             avg_times = sum(times)/len(times)
@@ -600,6 +603,7 @@ class NavPoseMgr(object):
 
     def _compSubCb(self,msg,args):
         name = args
+        self.connect_dict[name]['connected'] = True
         # Update copy of dict
         self.navpose_dict_lock.acquire()
         npdata_dict = copy.deepcopy(self.navpose_dict)

@@ -28,6 +28,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from geographic_msgs.msg import GeoPoint
 
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_ros_interfaces.msg import UpdateNavPoseTopic
 
 from geometry_msgs.msg import Vector3
 
@@ -166,6 +167,7 @@ class NPXDeviceIF:
   frame_depth = DEFAULT_DEPTH_FRAME
 
   frame_3d_transform = ZERO_TRANSFORM
+  apply_tranform = False
 
   has_location = False  
   has_heading = False
@@ -384,10 +386,13 @@ class NPXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.set_depth_source
             },
-
             'frame_3d_transform': {
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
+            },
+            'apply_transform': {
+                'namespace': self.node_namespace,
+                'factory_val': False
             }
 
         }
@@ -491,7 +496,15 @@ class NPXDeviceIF:
                 'qsize': 1,
                 'callback': self._setFrame3dTransformCb, 
                 'callback_args': ()
-            }
+            },
+            'set_apply_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_apply_transform',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setApplyTransformCb, 
+                'callback_args': ()
+            },
             
 
 
@@ -569,6 +582,8 @@ class NPXDeviceIF:
 
         self.frame_3d_transform = self.node_if.get_param('frame_3d_transform')
 
+        self.apply_tranform = self.node_if.get_param('set_apply_tranform')
+      
 
         self.initCb(do_updates = True)
 
@@ -674,6 +689,18 @@ class NPXDeviceIF:
         self.status_msg.frame_3d_transform = Frame3DTransform()
         self.publishStatus(do_updates=False) # Updated inline here 
         self.node_if.set_param('frame_3d_transform',  self.frame_3d_transform)
+
+
+  def _setApplyTransformCb(self, msg):
+      self.msg_if.pub_info("Recived set apply transform update message: " + str(msg))
+      enabled = msg.data
+      self.setLocSource(enabled)
+
+  def setApplyTransforme(self, enabled):
+      self.apply_tranform = enabled
+      self.status_msg.apply_transform = enabled
+      self.publishStatus(do_updates=False) # Updated inline here 
+      self.node_if.set_param('set_apply_tranform',  enabled)
 
   def _setLocSourceCb(self, msg):
       self.msg_if.pub_info("Recived set location source update message: " + str(msg))
@@ -838,7 +865,10 @@ class NPXDeviceIF:
   def _updateNavPoseConnectCb(self,timer):     
     if self.navpose_mgr_if is not None:
     
-      transform = self.frame_3d_transform
+      if self.apply_transform == False:
+        transform = None
+      else:
+        transform = self.frame_3d_transform
 
       # Update Location
       name = 'location'
@@ -846,10 +876,10 @@ class NPXDeviceIF:
       was_set = copy.deepcopy(self.was_location_source)
       is_set = copy.deepcopy(self.set_location_source)
       self.was_location_source = is_set
-      if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+      if is_set == True:
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif is_set == False and was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
 
       # Update Heading
       name = 'heading'
@@ -857,10 +887,10 @@ class NPXDeviceIF:
       was_set = copy.deepcopy(self.was_heading_source)
       is_set = copy.deepcopy(self.set_heading_source)
       self.was_heading_source = is_set
-      if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+      if is_set == True:
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif is_set == False and was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
 
       # Update Orientation
       name = 'orientation'
@@ -869,9 +899,9 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_orientation_source)
       self.was_orientation_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
 
 
       # Update position
@@ -881,9 +911,9 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_position_source)
       self.was_position_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif is_set == False and was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
 
 
       # Update altitude
@@ -893,9 +923,9 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_altitude_source)
       self.was_altitude_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif is_set == False and was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
 
 
       # Update depth
@@ -905,9 +935,9 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_depth_source)
       self.was_depth_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
       elif is_set == False and was_set == True:
-        self.navpose_mgr_if.clear_topic(name)
+        self.navpose_mgr_if.clear_comp_topic(name)
   
     nepi_ros.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
 
@@ -922,9 +952,10 @@ class NPXDeviceIF:
       self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_altitude_source = self.set_altitude_source
       self.status_msg.set_as_depth_source = self.set_depth_source
-            
+
       transform_msg = nepi_nav.convert_transform_list2msg(self.frame_3d_transform)
       self.status_msg.frame_3d_transform = transform_msg
+      self.status_msg.apply_transform = self.apply_transofrm
 
       self.status_msg.update_rate = self.update_rate
 

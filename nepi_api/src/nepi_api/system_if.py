@@ -982,14 +982,14 @@ class SettingsIF:
         }
 
         if self.allow_cap_updates == True:
-        self.SUBS_DICT['update_cap_setting'] = {
-                'msg': SettingCap,
-                'namespace': self.namespace,
-                'topic': 'update_cap_setting',
-                'qsize': 1,
-                'callback': self._updateCapSettingCb,
-                'callback_args': None
-            },            
+            self.SUBS_DICT['update_cap_setting'] = {
+                    'msg': SettingCap,
+                    'namespace': self.namespace,
+                    'topic': 'update_cap_setting',
+                    'qsize': 1,
+                    'callback': self._updateCapSettingCb,
+                    'callback_args': None
+                },            
 
 
         # Create Node Class ####################
@@ -1051,7 +1051,7 @@ class SettingsIF:
             self.msg_if.pub_debug("Publishing settings status msg: " + str(settings_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', settings_msg)
 
-   def update_cap_setting(self,cap_setting):
+    def update_cap_setting(self,cap_setting):
         success = False
         if self.allow_cap_updates == False:
             self.msg_if.pub_warn("Ignoring cap update request. Cap updates not enabled", log_name_list = self.log_name_list)

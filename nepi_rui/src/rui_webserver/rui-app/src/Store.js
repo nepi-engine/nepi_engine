@@ -1275,7 +1275,7 @@ class ROSConnectionStore {
     if (transformFloatList.length === 7){
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_ros_interfaces/Frame3DTransformUpdate",
+        messageType: "nepi_ros_interfaces/UpdateFrame3DTransform",
         data: { 
           topic_namespace: transformNamespace,
           transform: {
@@ -1427,6 +1427,62 @@ class ROSConnectionStore {
   /*******************************/
 
 
+
+
+///// Node IF Calls
+
+@action.bound
+saveConfigTriggered(namespace) {
+  this.publishMessage({
+    name: namespace + "/save_config",
+    messageType: "std_msgs/Empty",
+    data: {},
+    noPrefix: true
+  })
+}
+
+
+@action.bound
+sendSaveConfigTrigger(namespace) {
+  this.publishMessage({
+    name: namespace + "/save_config",
+    messageType: "std_msgs/Empty",
+    data: {},
+    noPrefix: true
+  })
+}
+
+
+///// System IF Calls
+
+@action.bound
+updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
+  this.publishMessage({
+    name: namespace + "/update_setting",
+    messageType: "nepi_ros_interfaces/SettingCap",
+    data: {type_str:typeStr,
+      name_str:nameStr,
+      options_list:optionsStrList,
+      default_value_str:default_value_str
+    },
+    noPrefix: true
+  })
+}
+
+  @action.bound
+  updateSetting(namespace,nameStr,typeStr,valueStr) {
+    this.publishMessage({
+      name: namespace + "/update_setting",
+      messageType: "nepi_ros_interfaces/Setting",
+      data: {type_str:typeStr,
+        name_str:nameStr,
+        value_str:valueStr
+      },
+      noPrefix: true
+    })
+  }
+
+ 
   @action.bound
   updateSaveDataPrefix(namespace,saveDataPrefix) {
     this.publishMessage({
@@ -1452,60 +1508,42 @@ class ROSConnectionStore {
 
 
   @action.bound
-  onSnapshotEventTriggered(namespace) {
+  updateNavPoseTopic(namespace, name, topic, apply_transform, transform_list) {
+    const apply_tf = apply_transform ? apply_transform : false
+    const transform = transform_list ? 
+              (transform_list.length === 7 ? transform_list : [0,0,0,0,0,0,0]) :
+              [0,0,0,0,0,0,0]
+
     this.publishMessage({
-      name: namespace + "/snapshot_trigger",
-      messageType: "std_msgs/Empty",
-      data: {},
-      noPrefix: true
-    })
-  }
-
-
-
-///// Settings IF Calls
-
-
-@action.bound
-updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
-  this.publishMessage({
-    name: namespace + "/update_setting",
-    messageType: "nepi_ros_interfaces/SettingCap",
-    data: {type_str:typeStr,
-      name_str:nameStr,
-      options_list:optionsStrList,
-      default_value_str:valueStr
-    },
-    noPrefix: true
-  })
-}
-
-  @action.bound
-  updateSetting(namespace,nameStr,typeStr,valueStr) {
-    this.publishMessage({
-      name: namespace + "/update_setting",
-      messageType: "nepi_ros_interfaces/Setting",
-      data: {type_str:typeStr,
-        name_str:nameStr,
-        value_str:valueStr
+      name: namespace,
+      messageType: "nepi_ros_interfaces/UpdateNavPoseTopic",
+      data: { 
+          name: name,
+          topic: topic,
+          apply_transform: apply_tf,
+          transform: {
+            translate_vector: {
+              x: transform[0],
+              y: transform[1],
+              z: transform[2]
+            },
+            rotate_vector: {
+              x: transform[3],
+              y: transform[4],
+              z: transform[5]
+            },
+            heading_offset: transform[6]
+          }
       },
       noPrefix: true
     })
-  }
+  }  
 
 
+  ////////////////////////////////
+  /////  Service Calls
+  ///////////////////////////////
 
- 
-
-  @action.bound
-  saveConfigTriggered(namespace) {
-    this.publishMessage({
-      name: namespace + "/save_config",
-      messageType: "std_msgs/Empty",
-      data: {},
-      noPrefix: true
-    })
-  }
 
   @action.bound
   async callSaveDataCapabilitiesQueryService(namespace) {

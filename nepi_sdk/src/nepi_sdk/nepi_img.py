@@ -34,6 +34,12 @@ from nepi_sdk.nepi_ros import logger as Logger
 log_name = "nepi_img"
 logger = Logger(log_name = log_name)
 
+
+def get_image_publisher_namespaces(name):
+    msg_type = 'sensor_msgs/Image'
+    return nepi_ros.find_topics_by_msg(msg_type)
+
+
 #########################
 ### Misc Functions
 

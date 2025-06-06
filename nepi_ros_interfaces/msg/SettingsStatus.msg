@@ -2,5 +2,5 @@
 int32 settings_count
 SettingCap[] setting_caps_list
 Settings[] settings_list
-boo has_cap_updates
+bool has_cap_updates
 

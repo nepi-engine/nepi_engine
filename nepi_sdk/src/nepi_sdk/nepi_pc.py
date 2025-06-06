@@ -25,8 +25,9 @@ import open3d as o3d
 import math
 import cv2
 
-
 from nepi_sdk import open3d_ros_helper 
+
+from sensor_msgs.msg import PointCloud2
 
 from nepi_sdk.nepi_ros import logger as Logger
 log_name = "nepi_pc"
@@ -41,6 +42,13 @@ def set_verbosity_level(level = "Error"):
     if level in VERBOSITY_LEVELS:
         eval("o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel." + level + ")")
     return get_verbosity_level()
+
+
+def get_pointcloud_publisher_namespaces(name):
+    msg_type = 'sensor_msgs/PointCloud2'
+    return nepi_ros.find_topics_by_msg(msg_type)
+
+
 ###########################################
 ### Pointcloud conversion functions
 
