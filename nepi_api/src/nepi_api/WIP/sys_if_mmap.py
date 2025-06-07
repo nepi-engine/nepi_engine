@@ -9,7 +9,7 @@
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 
 from nepi_api.sys_if_msg import MsgIF
 
@@ -20,12 +20,12 @@ class MMapIF(object):
     def __init__(self, log_name = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.node_name = nepi_ros.get_node_name()
-        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
 
         ############################## 
         self.msg_if = MsgIF(log_name = self.class_name)
-        nepi_ros.sleep(1)
+        nepi_sdk.sleep(1)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         ##############################   
 
@@ -51,7 +51,7 @@ elif self.mmap_dict[mmap_id]['valid'] == True:
     if locked == False:
         locked = nepi_mmap.lock_mmap(mmap_id)
         if locked == True:
-            [success,msg] = nepi_mmap.write_cv2img_mmap_data(mmap_id, cv2_img, encoding = encoding, ros_timestamp = ros_timestamp)
+            [success,msg] = nepi_mmap.write_cv2img_mmap_data(mmap_id, cv2_img, encoding = encoding, get_msg_stampstamp = get_msg_stampstamp)
             unlocked = nepi_mmap.unlock_mmap(mmap_id)
             if success == False:
                 #self.msg_if.pub_warn("Failed to save mmap for topic: " + img_topic + " mmap_id: " + mmap_id + " with msg " + msg)
@@ -85,11 +85,11 @@ else:
 '''
 def imageMmapThread(self,img_topic, mmap_id):    
     mmap_list = nepi_mmap.get_mmap_list()
-    while img_topic in self.imgs_pub_sub_dict.keys() and mmap_id in mmap_list and not nepi_ros.is_shutdown():
-        current_time = nepi_ros.get_time_now()
+    while img_topic in self.imgs_pub_sub_dict.keys() and mmap_id in mmap_list and not nepi_sdk.is_shutdown():
+        current_time = nepi_sdk.get_time_now()
         mmap_list = nepi_mmap.get_mmap_list()
 
-        start_time = nepi_ros.get_time()   
+        start_time = nepi_sdk.get_time()   
 
         get_image = (self.get_img == True or self.throttle_image == False)
         #self.msg_if.pub_warn(":" + self.log_name + ": Callback got image from topic:  " + img_topic + " with get topic " + str(self.get_img))
@@ -129,7 +129,7 @@ def imageMmapThread(self,img_topic, mmap_id):
                             img_dict['height'] = height 
 
                             ros_header = Header()
-                            ros_header.stamp = nepi_ros.ros_stamp_from_sec(timestamp)
+                            ros_header.stamp = nepi_sdk.msg_stamp_from_sec(timestamp)
                             img_dict = self.imagePreprocessFunction(cv2_img, options_dict)
                             img_dict['timestamp'] = timestamp
                             img_dict['ros_img_topic'] = img_topic
@@ -142,7 +142,7 @@ def imageMmapThread(self,img_topic, mmap_id):
                             self.img_dict_lock.release()
                             self.got_img = True
 
-                            process_time = round( (nepi_ros.get_time() - start_time) , 3)
+                            process_time = round( (nepi_sdk.get_time() - start_time) , 3)
                             self.img_info_dict['process_time'] = process_time
 
                             unlocked = nepi_mmap.unlock_mmap(mmap_id)

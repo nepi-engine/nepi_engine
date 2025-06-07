@@ -31,7 +31,7 @@ class TriggerMgrNoHardware : public TriggerMgrBase
 	 *			   
 	 * @param[in]  cfg   The configuration message
 	 */
-	virtual void configureHwTrigIn(const nepi_ros_interfaces::HwTrigInCfg::ConstPtr& cfg) override
+	virtual void configureHwTrigIn(const nepi_sdk_interfaces::HwTrigInCfg::ConstPtr& cfg) override
 	{
 		ROS_WARN("Unsupported HW function (configureHwTrigIn)"); 
 	}
@@ -53,7 +53,7 @@ class TriggerMgrNoHardware : public TriggerMgrBase
 	 *
 	 * @param[in]  cfg   The configuration message
 	 */
-	virtual void configureHwTrigOut(const nepi_ros_interfaces::HwTrigOutCfg::ConstPtr& cfg) override
+	virtual void configureHwTrigOut(const nepi_sdk_interfaces::HwTrigOutCfg::ConstPtr& cfg) override
 	{
 		ROS_WARN("Unsupported HW function (configureHwTrigOut)"); 
 	}

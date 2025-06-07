@@ -42,7 +42,7 @@ import time
 import nepi_utils
 
 from std_srvs.srv import Empty, EmptyRequest, Trigger
-from nepi_ros_interfaces.srv import GetScriptsQuery,GetRunningScriptsQuery ,LaunchScript, StopScript
+from nepi_sdk_interfaces.srv import GetScriptsQuery,GetRunningScriptsQuery ,LaunchScript, StopScript
 
 #####################################################################################
 # SETUP - Edit as Necessary ##################################

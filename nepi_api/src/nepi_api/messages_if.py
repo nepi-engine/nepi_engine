@@ -8,13 +8,13 @@
 #
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import Message
-from nepi_ros_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
+from nepi_sdk_interfaces.msg import Message
+from nepi_sdk_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 
 
 class MsgIF:
@@ -30,8 +30,8 @@ class MsgIF:
     def __init__(self, log_name = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.node_name = nepi_ros.get_node_name()
-        self.base_namespace = nepi_ros.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
 
         ############################## 
         self.ns_str = self.node_name + ": "
@@ -40,7 +40,7 @@ class MsgIF:
             self.ln_str = str(log_name) + ": "
         self._logSelfMsg("Starting IF Initialization Processes", )
         ##############################   
-        nepi_ros.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
+        nepi_sdk.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
 
         self._createMsgPublishers()
         ##############################
@@ -54,7 +54,7 @@ class MsgIF:
         if msg is None:
             msg = "MSGIF got None msg"
         msg_str = self._createMsgString(msg, log_name_list = log_name_list)
-        nepi_ros.log_msg(msg_str, level = level, throttle_s = throttle_s)
+        nepi_sdk.log_msg(msg_str, level = level, throttle_s = throttle_s)
         self.msg_pub.publish(msg_str)
         self.msg_pub_sys.publish(msg_str)
     
@@ -81,14 +81,14 @@ class MsgIF:
     ###############################
   
     def _createMsgPublishers(self):
-        self.msg_pub = nepi_ros.create_publisher("~messages", Message, queue_size=1)
-        self.msg_pub_sys = nepi_ros.create_publisher("messages", Message, queue_size=1)
+        self.msg_pub = nepi_sdk.create_publisher("~messages", Message, queue_size=1)
+        self.msg_pub_sys = nepi_sdk.create_publisher("messages", Message, queue_size=1)
 
 
     def _logSelfMsg(self,msg, log_name_list = []):
         ln_str = self._createLogNameStr(log_name_list)
         msg_str = self.ns_str + ln_str + self.ln_str + self.cn_str + str(msg)
-        nepi_ros.log_msg_info(msg_str)
+        nepi_sdk.log_msg_info(msg_str)
 
     def _createMsgString(self,msg, log_name_list = []):
         ln_str = self._createLogNameStr(log_name_list)

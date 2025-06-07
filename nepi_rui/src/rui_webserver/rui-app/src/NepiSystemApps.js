@@ -144,7 +144,7 @@ class AppsMgr extends Component {
     }
     var appsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AppsStatus",
+          "nepi_sdk_interfaces/AppsStatus",
           this.appsStatusListener
         )
     this.setState({ appsListener: appsListener,
@@ -185,7 +185,7 @@ class AppsMgr extends Component {
       }
       var appListener = this.props.ros.setupStatusListener(
             statusNamespace,
-            "nepi_ros_interfaces/AppStatus",
+            "nepi_sdk_interfaces/AppStatus",
             this.statusAppListener
           )
       this.setState({ appListener: appListener})

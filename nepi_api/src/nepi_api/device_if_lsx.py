@@ -12,12 +12,12 @@ import time
 import copy
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_ros_interfaces.msg import LSXStatus
-from nepi_ros_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import LSXStatus
+from nepi_sdk_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -84,9 +84,9 @@ class LSXDeviceIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -381,16 +381,18 @@ class LSXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'lsx')
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction, 
-                    'namespace':  settings_ns
+                    'getSettingsFunction': getSettingsFunction
+                    
         }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT, 
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -411,7 +413,7 @@ class LSXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'lsx')
+        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -427,13 +429,13 @@ class LSXDeviceIF:
         # Finish Initialization
         self.initCb(do_updates = True)
         status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
-        nepi_ros.start_timer_process(status_update_time, self.statusTimerCb)      
+        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb)      
         self.publishStatus()
         self.ready = True
         self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
 
 
-        nepi_ros.sleep
+        nepi_sdk.sleep
 
         ###############################
         # Class Methods
@@ -446,10 +448,10 @@ class LSXDeviceIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -478,7 +480,7 @@ class LSXDeviceIF:
           val = self.node_if.get_param('strobe_enbled')
           self.enableStrobeFunction(val)
 
-    nepi_ros.sleep
+    nepi_sdk.sleep
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
         self.node_if.set_param('standby_enabled', self.init_standby_enabled)

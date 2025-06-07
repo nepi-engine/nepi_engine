@@ -12,10 +12,10 @@
 
 import os
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_cfg"
 logger = Logger(log_name = log_name)
   
@@ -24,7 +24,7 @@ logger = Logger(log_name = log_name)
 
 
 def get_save_config_subscriber_namespaces():
-    topics_list = nepi_ros.find_topics_by_name('save_config')
+    topics_list = nepi_sdk.find_topics_by_name('save_config')
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))

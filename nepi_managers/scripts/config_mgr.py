@@ -17,12 +17,12 @@ import os
 import time
 import errno
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -60,11 +60,11 @@ class config_mgr(object):
     DEFAULT_NODE_NAME = "config_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -78,7 +78,7 @@ class config_mgr(object):
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         ###########################
 
         ##############################
@@ -195,7 +195,7 @@ class config_mgr(object):
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
 
@@ -215,7 +215,7 @@ class config_mgr(object):
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
 
@@ -242,7 +242,7 @@ class config_mgr(object):
                 os.remove(link_name)
                 os.symlink(target, link_name)
             else:
-                nepi_ros.log_msg_error("Unable to create symlink " + str(e))
+                nepi_sdk.log_msg_error("Unable to create symlink " + str(e))
                 return False
         link = nepi_utils.get_symlink_target(link_name)
         self.msg_if.pub_info("File " + target + " updated with link: " + str(link))
@@ -258,14 +258,14 @@ class config_mgr(object):
             self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
             paramlist = None
             try:
-                paramlist = nepi_ros.load_params_from_file(file_pathname, namespace)
+                paramlist = nepi_sdk.load_params_from_file(file_pathname, namespace)
                 self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
             if paramlist is not None:
                 for params, ns in paramlist:
                     try:
-                        nepi_ros.upload_params(ns, params, verbose=True)     
+                        nepi_sdk.upload_params(ns, params, verbose=True)     
                     except Exception as e:
                         self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
                 self.msg_if.pub_info("Updated Params for namespace: " + namespace )
@@ -325,7 +325,7 @@ class config_mgr(object):
         user_cfg_pathname = self.get_user_cfg_pathname(qualified_node_name)
         self.msg_if.pub_info("Storing Params for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # First, write to the user file
-        nepi_ros.save_params_to_file(user_cfg_pathname, qualified_node_name)
+        nepi_sdk.save_params_to_file(user_cfg_pathname, qualified_node_name)
         self.msg_if.pub_info("Params saved for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
         # Now, ensure the link points to the correct file
         cfg_pathname = self.get_cfg_pathname(qualified_node_name)

@@ -17,7 +17,7 @@ import threading
 import cv2
 import open3d as o3d
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_img
@@ -31,21 +31,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
-from nepi_ros_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_sdk_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 
 
 from sensor_msgs.msg import Image
-from nepi_ros_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
-from nepi_ros_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
+from nepi_sdk_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
-from nepi_ros_interfaces.msg import DepthMapStatus, RangeWindow
+from nepi_sdk_interfaces.msg import DepthMapStatus, RangeWindow
 
 from sensor_msgs.msg import PointCloud2
-from nepi_ros_interfaces.msg import PointcloudStatus
+from nepi_sdk_interfaces.msg import PointcloudStatus
 
 
 from nepi_api.messages_if import MsgIF
@@ -110,9 +110,9 @@ class ReadWriteIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -175,8 +175,8 @@ class ReadWriteIF:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
@@ -403,7 +403,7 @@ class ReadWriteIF:
         add_time = self.filename_dict['add_timestamp']
         data_time_str = ''
         if add_time == True:
-            time_ns = nepi_ros.sec_from_timestamp(timestamp)
+            time_ns = nepi_sdk.sec_from_timestamp(timestamp)
             add_ms = self.filename_dict['add_ms']
             add_us = self.filename_dict['add_us']
             add_tz = self.filename_dict['add_tz']
@@ -523,9 +523,9 @@ class NavPoseIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -543,8 +543,8 @@ class NavPoseIF:
         # Initialize Class Variables
         if namespace is not None:
             self.namespace = namespace
-        namespace = nepi_ros.create_namespace(namespace,'navpose')
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+        namespace = nepi_sdk.create_namespace(namespace,'navpose')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
         
         self.has_location = has_location
         self.has_heading = has_heading
@@ -660,12 +660,12 @@ class NavPoseIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ##############################
         # Start Node Processes
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
         # Complete Initialization
@@ -688,8 +688,8 @@ class NavPoseIF:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
@@ -716,7 +716,7 @@ class NavPoseIF:
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
 
@@ -747,7 +747,7 @@ class NavPoseIF:
                 if timestamp == None:
                     timestamp = nepi_utils.get_time()
                 else:
-                    timestamp = nepi_ros.sec_from_timestamp(timestamp)
+                    timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
                 current_time = nepi_utils.get_time()
                 get_latency = (current_time - timestamp)
@@ -881,7 +881,7 @@ class NavPoseIF:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 
     def _publishStatusCb(self,timer):
@@ -916,7 +916,6 @@ SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
 SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
                         'laser_2d','laser_3d','lidar_2d','lidar_3d']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
-FRAME_ID_OPTIONS = ['nepi_frame','sensor_frame','world_frame']
 
 
 EXAMPLE_CAPS_DICT = dict( 
@@ -960,6 +959,10 @@ DEFUALT_IMG_WIDTH = 700
 DEFUALT_IMG_HEIGHT = 400
 
 class ImageIF:
+
+
+
+    FRAME_3D_OPTIONS = ['nepi_frame','sensor_frame','world_frame']
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -1058,9 +1061,9 @@ class ImageIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -1093,8 +1096,8 @@ class ImageIF:
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = copy.deepcopy(self.namespace)
-        namespace = nepi_ros.get_full_namespace(namespace)
-        self.namespace = nepi_ros.create_namespace(namespace,data_name)
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
 
@@ -1117,7 +1120,7 @@ class ImageIF:
 
         self.caps_report.data_source_type = self.data_source_type
         self.caps_report.data_product_name = self.data_product
-        self.caps_report.frame_3d_options = FRAME_ID_OPTIONS
+        self.caps_report.frame_3d_options = self.FRAME_3D_OPTIONS
 
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
@@ -1134,11 +1137,11 @@ class ImageIF:
         self.caps_report.has_enhances = self.has_enhance
         self.caps_report.enhance_options = self.enhance_options
 
-        dm_ns = nepi_ros.create_namespace(os.path.dirname(self.namespace),'depth_map')
-        dm_topic = nepi_ros.find_topic(dm_ns)
+        dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
+        dm_topic = nepi_sdk.find_topic(dm_ns)
         has_dm = dm_topic != ""
-        pc_ns = nepi_ros.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        pc_topic = nepi_ros.find_topic(pc_ns)
+        pc_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
+        pc_topic = nepi_sdk.find_topic(pc_ns)
         has_pc = pc_topic != ""
 
         self.caps_report.has_depth_map = has_dm
@@ -1165,7 +1168,6 @@ class ImageIF:
         status_msg.encoding = 'bgr8'
         status_msg.width = 0
         status_msg.height = 0
-        status_msg.frame_3d = 'sensor_frame'
         status_msg.get_latency_time = 0
         status_msg.pub_latency_time = 0
         status_msg.process_time = 0
@@ -1517,7 +1519,7 @@ class ImageIF:
                         )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         self.publish_status(do_updates=True)
 
@@ -1546,8 +1548,8 @@ class ImageIF:
 
         ##############################
         # Start Node Processes
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
         # Complete Initialization
@@ -1569,8 +1571,8 @@ class ImageIF:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
@@ -1588,7 +1590,7 @@ class ImageIF:
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
 
@@ -1609,7 +1611,7 @@ class ImageIF:
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
-            timestamp = nepi_ros.sec_from_timestamp(timestamp)
+            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
 
         current_time = nepi_utils.get_time()
@@ -1676,7 +1678,7 @@ class ImageIF:
 
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
+            ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
             ros_img.header.frame_3d = frame_3d
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('image_pub', ros_img)
@@ -1712,7 +1714,7 @@ class ImageIF:
 
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
+        ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
         ros_img.header.frame_3d = frame_3d
         self.node_if.publish_pub('image_pub', ros_img)
 
@@ -1720,7 +1722,7 @@ class ImageIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.wait()
+        nepi_sdk.wait()
         self.namespace = '~'
         self.status_msg = None
 
@@ -2042,7 +2044,7 @@ class ImageIF:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
         self.publish_status()
@@ -2492,9 +2494,9 @@ class DepthMapIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -2518,8 +2520,8 @@ class DepthMapIF:
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = self.namespace
-        namespace = nepi_ros.get_full_namespace(namespace)
-        self.namespace = nepi_ros.create_namespace(namespace,data_name)
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ###############################
@@ -2528,7 +2530,7 @@ class DepthMapIF:
             #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
             #success = self.mgr_sys_srv_if.wait_for_services()
             #if success == False:
-            #    nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
+            #    nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
 
             #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
             self.msg_if.pub_debug("Using User Config Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
@@ -2546,7 +2548,7 @@ class DepthMapIF:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
             else: 
                 #Try and launch node
-                unique_name = nepi_ros.get_unique_name_from_namespace(self.namespace,self.base_namespace)
+                unique_name = nepi_sdk.get_unique_name_from_namespace(self.namespace,self.base_namespace)
                 img_pub_node_name = unique_name + "_depth_map_img_pub"
                 img_pub_namespace = self.node_namespace + "_depth_map_img_pub"
                 self.msg_if.pub_warn("Launching Depth Map Pub Node: " + img_pub_node_name, log_name_list = self.log_name_list)
@@ -2555,15 +2557,15 @@ class DepthMapIF:
                 # Pre Set Img Pub Params
                 dm_data_product = os.path.basename(self.namespace)
                 img_data_product = dm_data_product + '_image'
-                param_ns = nepi_ros.create_namespace(img_pub_namespace,'data_product')
-                nepi_ros.set_param(param_ns,img_data_product)
+                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'data_product')
+                nepi_sdk.set_param(param_ns,img_data_product)
 
                 dm_namespace = self.namespace
-                param_ns = nepi_ros.create_namespace(img_pub_namespace,'dm_namespace')
-                nepi_ros.set_param(param_ns,dm_namespace)
+                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'dm_namespace')
+                nepi_sdk.set_param(param_ns,dm_namespace)
                         
 
-                [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, img_pub_node_name)
+                [success, msg, pub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, img_pub_node_name)
 
                 self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
 
@@ -2653,14 +2655,14 @@ class DepthMapIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         self.publish_status(do_updates=True)
         
         ##############################
         # Start Node Processes
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
         # Complete Initialization
@@ -2682,8 +2684,8 @@ class DepthMapIF:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
@@ -2701,7 +2703,7 @@ class DepthMapIF:
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
 
@@ -2721,7 +2723,7 @@ class DepthMapIF:
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
-            timestamp = nepi_ros.sec_from_timestamp(timestamp)
+            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
 
         current_time = nepi_utils.get_time()
@@ -2757,7 +2759,7 @@ class DepthMapIF:
 
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = nepi_ros.ros_stamp_from_timestamp(timestamp)
+            ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
             ros_img.header.frame_3d = frame_3d
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('depth_map_pub', ros_img)
@@ -2787,7 +2789,7 @@ class DepthMapIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.wait()
+        nepi_sdk.wait()
         self.namespace = '~'
         self.status_msg = None
 
@@ -2822,7 +2824,7 @@ class DepthMapIF:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
         self.publish_status()
@@ -2895,9 +2897,9 @@ class PointcloudIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -2922,8 +2924,8 @@ class PointcloudIF:
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = self.namespace
-        namespace = nepi_ros.get_full_namespace(namespace)
-        self.namespace = nepi_ros.create_namespace(namespace,data_name)
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ###############################
@@ -2933,7 +2935,7 @@ class PointcloudIF:
             #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
             #success = self.mgr_sys_srv_if.wait_for_services()
             #if success == False:
-            #    nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
+            #    nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
 
             #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
             #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
@@ -2953,7 +2955,7 @@ class PointcloudIF:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
             else: 
                 #Try and launch node
-                unique_name = nepi_ros.get_unique_name_from_namespace(self.namespace,self.base_namespace)
+                unique_name = nepi_sdk.get_unique_name_from_namespace(self.namespace,self.base_namespace)
                 img_pub_node_name = unique_name + "_img_pub"
                 self.msg_if.pub_warn("Launching Img Pub Node: " + img_pub_node_name, log_name_list = self.log_name_list)
                 img_pub_namespace = self.node_namespace + "_img_pub"
@@ -2962,14 +2964,14 @@ class PointcloudIF:
                 # Pre Set Img Pub Params
                 pc_data_product = os.path.basename(self.namespace)
                 img_data_product = pc_data_product + '_image'
-                param_ns = nepi_ros.create_namespace(img_pub_namespace,'data_product')
-                nepi_ros.set_param(param_ns,img_data_product)
+                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'data_product')
+                nepi_sdk.set_param(param_ns,img_data_product)
 
-                param_ns = nepi_ros.create_namespace(img_pub_namespace,'pc_namespace')
-                nepi_ros.set_param(param_ns,self.node_namespace)
+                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'pc_namespace')
+                nepi_sdk.set_param(param_ns,self.node_namespace)
                         
 
-                [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, img_pub_node_name)
+                [success, msg, pub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, img_pub_node_name)
 
                 self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
         '''
@@ -3163,14 +3165,14 @@ class PointcloudIF:
 
         
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         self.publish_status(do_updates=True)
 
         ##############################
         # Start Node Processes
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
         # Complete Initialization
@@ -3193,8 +3195,8 @@ class PointcloudIF:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
@@ -3212,7 +3214,7 @@ class PointcloudIF:
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
 
@@ -3232,7 +3234,7 @@ class PointcloudIF:
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
-            timestamp = nepi_ros.sec_from_timestamp(timestamp)
+            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
         self.status_msg.has_rgb = o3d_pc.has_colors()
         #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
@@ -3263,7 +3265,7 @@ class PointcloudIF:
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
-            ros_pc.header.stamp = ros_stamp_from_timestamp(timestamp)
+            ros_pc.header.stamp = msg_stamp_from_timestamp(timestamp)
             ros_pc.header.frame_3d = frame_3d
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -3272,7 +3274,7 @@ class PointcloudIF:
             self.status_msg.pub_latency_time = latency
 
 
-            if not nepi_ros.is_shutdown():
+            if not nepi_sdk.is_shutdown():
                 self.node_if.publish_pub('pointcloud_pub', ros_pc)
 
             if self.last_pub_time is None:
@@ -3295,7 +3297,7 @@ class PointcloudIF:
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
-        nepi_ros.wait()
+        nepi_sdk.wait()
         self.node_if = None
         self.namespace = '~'
         self.status_msg = None
@@ -3364,7 +3366,7 @@ class PointcloudIF:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_ros.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 
     def _publishStatusCb(self,timer):

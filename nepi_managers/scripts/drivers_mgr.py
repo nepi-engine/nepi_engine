@@ -18,18 +18,18 @@ import time
 import warnings
 import copy
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_ros_interfaces.msg import SystemStatus
-from nepi_ros_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
-from nepi_ros_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
+from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
+from nepi_sdk_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
+from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -81,15 +81,16 @@ class NepiDriversMgr(object):
   active_node_dict = dict()
 
 
+  settings_dict = dict()
 
   #######################
   ### Node Initialization
   DEFAULT_NODE_NAME = "drivers_mgr" # Can be overwitten by luanch command
   def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -106,7 +107,7 @@ class NepiDriversMgr(object):
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
         self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
         self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
@@ -118,7 +119,7 @@ class NepiDriversMgr(object):
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
 
@@ -184,9 +185,9 @@ class NepiDriversMgr(object):
         }  
 
         '''
-        nepi_ros.create_subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
-        nepi_ros.create_subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
-        nepi_ros.create_subscriber('~remove_driver', String, self.removeDriverCb)
+        nepi_sdk.create_subscriber('~install_driver_pkg', String, self.installDriverPkgCb)
+        nepi_sdk.create_subscriber('~backup_on_remeove', Bool, self.enableBackupCb)
+        nepi_sdk.create_subscriber('~remove_driver', String, self.removeDriverCb)
         '''
 
 
@@ -273,7 +274,7 @@ class NepiDriversMgr(object):
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ###########################
         # Initialize Params
@@ -298,13 +299,13 @@ class NepiDriversMgr(object):
         self.initCb(do_updates = True)
 
 
-        nepi_ros.sleep(2)
+        nepi_sdk.sleep(2)
         ###########################
-        nepi_ros.start_timer_process(0.5, self.statusPublishCb)
+        nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 
         # Setup a driver folder timed check
-        nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
-        nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
+        nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+        nepi_sdk.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
         time.sleep(1)
         ## Publish Status
       
@@ -313,9 +314,9 @@ class NepiDriversMgr(object):
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         #Set up node shutdown
-        nepi_ros.on_shutdown(self.cleanup_actions)
+        nepi_sdk.on_shutdown(self.cleanup_actions)
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
   #######################
@@ -352,7 +353,7 @@ class NepiDriversMgr(object):
         drvs_dict = self.node_if.get_param("drvs_dict")
         #self.msg_if.pub_warn("Got init start drvs keys: " + str(drvs_dict.keys()))
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
-        nepi_ros.set_param("drivers_dict",drvs_dict)
+        nepi_sdk.set_param("drivers_dict",drvs_dict)
         drvs_dict = self.node_if.get_param("drvs_dict")
         #self.msg_if.pub_warn("Got init end drvs keys: " + str(drvs_dict.keys()))
         self.resetCb()
@@ -404,7 +405,7 @@ class NepiDriversMgr(object):
     available_paths_list = self.getAvailableDevPaths()
     # Get list of active nodes
     warnings.filterwarnings('ignore', '.*unclosed.*', ) 
-    node_namespace_list = nepi_ros.get_node_list()
+    node_namespace_list = nepi_sdk.get_node_list()
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
@@ -453,11 +454,11 @@ class NepiDriversMgr(object):
               # Check if still running
 
               launch_time = self.discovery_node_dict[driver_name]['launch_time']
-              cur_time = nepi_ros.get_time()
+              cur_time = nepi_sdk.get_time()
               do_check = (cur_time - launch_time) > self.NODE_LAUNCH_TIME_SEC
               if do_check == True:
                 node_name = self.discovery_node_dict[driver_name]['node_name']
-                running = nepi_ros.check_node_by_name(node_name)  
+                running = nepi_sdk.check_node_by_name(node_name)  
                 if running == True:
                   drvs_dict[driver_name]['msg'] = "Discovery process running"
                 else:
@@ -472,7 +473,7 @@ class NepiDriversMgr(object):
                 #Setup required param server drv_dict for discovery node
                 dict_param_name = os.path.join(discovery_node_name, "drv_dict")
                 #self.msg_if.pub_warn("Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
-                nepi_ros.set_param(dict_param_name,drv_dict)
+                nepi_sdk.set_param(dict_param_name,drv_dict)
                 #Try and launch node
                 self.msg_if.pub_info("")
                 self.msg_if.pub_info("Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))
@@ -484,7 +485,7 @@ class NepiDriversMgr(object):
                   self.discovery_node_dict[driver_name]['process'] = "LAUNCH"
                   self.discovery_node_dict[driver_name]['node_name'] = discovery_node_name
                   self.discovery_node_dict[driver_name]['subprocess'] = sub_process
-                  self.discovery_node_dict[driver_name]['launch_time'] =  nepi_ros.get_time()  
+                  self.discovery_node_dict[driver_name]['launch_time'] =  nepi_sdk.get_time()  
                 else:
                   self.msg_if.pub_warn("Failed to Launch discovery node: " + discovery_node_name  + " with msg: " + msg)
                   drvs_dict[driver_name]['msg'] = msg
@@ -541,8 +542,8 @@ class NepiDriversMgr(object):
     # Publish Status
     self.publish_status()
     # And now that we are finished, start a timer for the drvt runDiscovery()
-    nepi_ros.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+    nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL,100)
+    nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
     self.msg_if.pub_info("Creating driver options dict: " + driver_name)
@@ -554,13 +555,13 @@ class NepiDriversMgr(object):
 
     self.msg_if.pub_info("Starting discovery options processes for namespace: " + settings_namespace)
 
-    settings_status_pub = nepi_ros.create_publisher(settings_namespace + '/settings/status', Settings, queue_size=1, latch=True)
+    settings_status_pub = nepi_sdk.create_publisher(settings_namespace + '/settings/status', SettingsStatus, queue_size=1, latch=True)
     self.discovery_settings_dict[driver_name]['settings_pub'] = settings_status_pub
 
-    settings_update_sub = nepi_ros.create_subscriber(settings_namespace + '/settings/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(settings_namespace))
+    settings_update_sub = nepi_sdk.create_subscriber(settings_namespace + '/settings/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(settings_namespace))
     self.discovery_settings_dict[driver_name]['update_sub'] = settings_update_sub
 
-    settings_cap_service = nepi_ros.create_service(settings_namespace + '/capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
+    settings_cap_service = nepi_sdk.create_service(settings_namespace + '/settings/capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)
     self.discovery_settings_dict[driver_name]['caps_service'] = settings_cap_service
 
     time.sleep(1)
@@ -657,9 +658,21 @@ class NepiDriversMgr(object):
           setting.type_str = drv_setting['type']
           setting.value_str = drv_setting['value']
           settings_list.append(setting)
-        settings_msg = Settings()
+        settings_msg = SettingsStatus()
         settings_msg.settings_count = len(settings_list)
         settings_msg.settings_list = settings_list
+
+        cap_list = []
+        for drv_setting_name in drv_settings.keys():
+          drv_setting = drv_settings[drv_setting_name]
+          settings_cap = SettingCap()
+          settings_cap.name_str = drv_setting_name
+          settings_cap.type_str = drv_setting['type']
+          settings_cap.options_list = drv_setting['options']
+          cap_list.append(settings_cap)
+
+        settings_msg.setting_caps_list = cap_list
+        settings_msg.has_cap_updates = False
         settings_pub = self.discovery_settings_dict[driver_name]['settings_pub']
         settings_pub.publish(settings_msg)
 

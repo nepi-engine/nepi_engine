@@ -14,11 +14,11 @@
 import time
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_mmap"
 logger = Logger(log_name = log_name)
 
@@ -59,7 +59,7 @@ def wait_for_unlock_mmap(mmap_id, timeout = 1):
   unlocked = False
   start_time = nepi_utils.get_time_now()
   timer = 0
-  while locked == True and timer < timeout and not nepi_ros.is_shutdown():
+  while locked == True and timer < timeout and not nepi_sdk.is_shutdown():
     locked = check_lock_mmap(mmap_id)
     if locked is not None:
       if locked == False:

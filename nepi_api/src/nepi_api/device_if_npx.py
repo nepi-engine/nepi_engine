@@ -27,16 +27,16 @@ import yaml
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from geographic_msgs.msg import GeoPoint
 
-from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_ros_interfaces.msg import UpdateNavPoseTopic
+from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_sdk_interfaces.msg import UpdateNavPoseTopic
 
 from geometry_msgs.msg import Vector3
 
-from nepi_ros_interfaces.msg import NPXStatus
-from nepi_ros_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import NPXStatus
+from nepi_sdk_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_settings
@@ -219,9 +219,9 @@ class NPXDeviceIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -326,7 +326,7 @@ class NPXDeviceIF:
      
 
         # Create a navpose data IF
-        npx_namespace = nepi_ros.create_namespace(self.node_namespace,'npx')
+        npx_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
         self.navpose_if = NavPoseIF(namespace = npx_namespace,
                             has_location = self.has_location,
                             has_heading = self.has_heading,
@@ -390,7 +390,7 @@ class NPXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
             },
-            'apply_transform': {
+            'include_transform': {
                 'namespace': self.node_namespace,
                 'factory_val': False
             }
@@ -497,9 +497,9 @@ class NPXDeviceIF:
                 'callback': self._setFrame3dTransformCb, 
                 'callback_args': ()
             },
-            'set_apply_transform': {
+            'set_include_transform': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/set_apply_transform',
+                'topic': 'npx/set_include_transform',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self._setApplyTransformCb, 
@@ -528,18 +528,18 @@ class NPXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'npx')
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
         
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction, 
-                    'namespace': settings_ns
+                    'getSettingsFunction': getSettingsFunction
                     
         }
 
-        self.settings_if = SettingsIF(self.SETTINGS_DICT,
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                            settings_dict = self.SETTINGS_DICT,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
@@ -560,7 +560,7 @@ class NPXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'ptx')
+        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -587,9 +587,9 @@ class NPXDeviceIF:
 
         self.initCb(do_updates = True)
 
-        nepi_ros.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
         ###############################
         # Finish Initialization
 
@@ -609,10 +609,10 @@ class NPXDeviceIF:
       if self.ready is not None:
           self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
           timer = 0
-          time_start = nepi_ros.get_time()
-          while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-              nepi_ros.sleep(.1)
-              timer = nepi_ros.get_time() - time_start
+          time_start = nepi_sdk.get_time()
+          while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+              nepi_sdk.sleep(.1)
+              timer = nepi_sdk.get_time() - time_start
           if self.ready == False:
               self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
           else:
@@ -698,7 +698,7 @@ class NPXDeviceIF:
 
   def setApplyTransforme(self, enabled):
       self.apply_tranform = enabled
-      self.status_msg.apply_transform = enabled
+      self.status_msg.include_transform = enabled
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_apply_tranform',  enabled)
 
@@ -859,13 +859,13 @@ class NPXDeviceIF:
 
     # set up next loop
     delay = float(1) / self.update_rate
-    nepi_ros.start_timer_process(delay, self._updateNavPoseDictCb, oneshot = True)
+    nepi_sdk.start_timer_process(delay, self._updateNavPoseDictCb, oneshot = True)
 
 
   def _updateNavPoseConnectCb(self,timer):     
     if self.navpose_mgr_if is not None:
     
-      if self.apply_transform == False:
+      if self.include_transform == False:
         transform = None
       else:
         transform = self.frame_3d_transform
@@ -939,7 +939,7 @@ class NPXDeviceIF:
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
   
-    nepi_ros.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
+    nepi_sdk.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
 
 
 
@@ -955,7 +955,7 @@ class NPXDeviceIF:
 
       transform_msg = nepi_nav.convert_transform_list2msg(self.frame_3d_transform)
       self.status_msg.frame_3d_transform = transform_msg
-      self.status_msg.apply_transform = self.apply_transofrm
+      self.status_msg.include_transform_enabled = self.apply_transofrm
 
       self.status_msg.update_rate = self.update_rate
 

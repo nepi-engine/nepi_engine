@@ -142,7 +142,7 @@ class AppsAiSelector extends Component {
     }
     var appsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AppsStatus",
+          "nepi_sdk_interfaces/AppsStatus",
           this.appsStatusListener
         )
     this.setState({ appsListener: appsListener,
@@ -173,7 +173,7 @@ class AppsAiSelector extends Component {
     }
     var aiMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AiModelMgrStatus",
+          "nepi_sdk_interfaces/AiModelMgrStatus",
           this.aiMgrStatusListener
         )
     this.setState({ aiMgrListener: aiMgrListener})

@@ -18,7 +18,7 @@ import open3d as o3d
 import inspect
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_settings
 from nepi_sdk import nepi_states
@@ -27,18 +27,18 @@ from nepi_sdk import nepi_triggers
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
-from nepi_ros_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_sdk_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
+from nepi_sdk_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
+from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_ros_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_ros_interfaces.msg import SystemState
-from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_sdk_interfaces.msg import SystemState
+from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
-from nepi_ros_interfaces.msg import SystemTrigger
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+from nepi_sdk_interfaces.msg import SystemTrigger
+from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
@@ -122,9 +122,9 @@ class SaveDataIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -141,9 +141,9 @@ class SaveDataIF:
         ############################## 
         # Initialize Class Variables
         if namespace is None:
-            namespace = '~'
-        namespace = nepi_ros.create_namespace(namespace,'save_data')
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+            namespace = self.node_namespace
+        namespace = nepi_sdk.create_namespace(namespace,'save_data')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
@@ -403,7 +403,7 @@ class SaveDataIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         save_rate_dict = self.node_if.get_param('save_rate_dict')
         for data_product in self.save_rate_dict.keys():
@@ -417,7 +417,7 @@ class SaveDataIF:
         filename_dict =  self.node_if.get_param('filename_dict')
         self.update_filename_dict(filename_dict)
         
-        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+        self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
         ##############################
         # Complete Initialization
         self.publish_status()
@@ -438,10 +438,10 @@ class SaveDataIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -715,7 +715,7 @@ class SaveDataIF:
             tzd = time_status_dict['timezone_description']
             #tzd = nepi_utils.get_timezone_description(tzd)
             self.timezone = tzd
-        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+        self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
 
     def _capabilitiesHandler(self, req):
@@ -820,8 +820,7 @@ class SettingsIF:
     namespace = '~'
 
     node_if = None
-
-
+    
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
     factorySettings = nepi_settings.NONE_SETTINGS
     setSettingFunction = None
@@ -841,9 +840,9 @@ class SettingsIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -861,9 +860,9 @@ class SettingsIF:
         #############################
         # Initialize Class Variables
         if namespace is None:
-            namespace = '~'
-        namespace = nepi_ros.create_namespace(namespace,'settings')
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+            namespace = self.node_namespace
+        namespace = nepi_sdk.create_namespace(namespace,'settings')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.allow_cap_updates = allow_cap_updates
 
@@ -894,7 +893,7 @@ class SettingsIF:
             cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
             self.capabilities_response.settings_count = len(cap_setting_msgs_list)
             self.capabilities_response.setting_caps_list = cap_setting_msgs_list
-            self.capabilities_response.setting_caps_list = self.allow_cap_updates
+            self.capabilities_response.has_cap_updates = self.allow_cap_updates
         self.msg_if.pub_debug("Cap Settings: " + str(self.capabilities_response), log_name_list = self.log_name_list)
 
         if factorySettings is None:
@@ -913,9 +912,6 @@ class SettingsIF:
         else:
             self.getSettingsFunction = getSettingsFunction
         #Reset Settings and Update Param Server
-
-        # Update Status Message
-        self.status_msg.has_cap_updates = self.allow_cap_updates
 
 
         ##############################  
@@ -1002,14 +998,14 @@ class SettingsIF:
    
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
         ##############################
         # Run Initialization Processes
         self.initialize_settings(do_updates = True)     
     
-        nepi_ros.start_timer_process(1.0, self._publishSettingsCb)
+        nepi_sdk.start_timer_process(1.0, self._publishSettingsCb)
 
   
         ##############################
@@ -1032,10 +1028,10 @@ class SettingsIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -1045,11 +1041,11 @@ class SettingsIF:
     def publish_status(self):
         current_settings = self.getSettingsFunction()
         self.node_if.set_param('settings', current_settings)
-        cap_settings = self.capabilities_response.setting_caps_list
-        status_msg = nepi_settings.create_status_msg(current_settings,cap_settings)
-        if not nepi_ros.is_shutdown():
-            self.msg_if.pub_debug("Publishing settings status msg: " + str(settings_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('status_pub', settings_msg)
+        cap_settings = self.cap_settings
+        status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
+        if not nepi_sdk.is_shutdown():
+            #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.node_if.publish_pub('status_pub', status_msg)
 
     def update_cap_setting(self,cap_setting):
         success = False
@@ -1189,9 +1185,9 @@ class StatesIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -1208,8 +1204,8 @@ class StatesIF:
         #############################
         # Initialize Class Variables
         if namespace is None:
-            namespace = '~'
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+            namespace = self.node_namespace
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.get_states_dict_function = get_states_dict_function
 
@@ -1236,7 +1232,7 @@ class StatesIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ##############################
         # Complete Initialization
@@ -1257,10 +1253,10 @@ class StatesIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -1326,9 +1322,9 @@ class TriggersIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -1384,7 +1380,7 @@ class TriggersIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ##############################
         # Complete Initialization
@@ -1407,10 +1403,10 @@ class TriggersIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:

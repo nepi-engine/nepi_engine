@@ -15,4 +15,4 @@ string depth_topic
 Header depth_header
 
 # Array of individual targets
-nepi_ros_interfaces/TargetData[] targets_data
+nepi_sdk_interfaces/TargetData[] targets_data

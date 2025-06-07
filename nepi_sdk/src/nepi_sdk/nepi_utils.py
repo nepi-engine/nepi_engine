@@ -26,9 +26,9 @@ import numpy as np
 import pytz
 import datetime
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 log_name = "nepi_utils"
-logger = nepi_ros.logger(log_name = log_name)
+logger = nepi_sdk.logger(log_name = log_name)
 
 
 
@@ -47,7 +47,7 @@ def get_datetime_str_now(add_ms = True, add_us = False, timezone = None):
 def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = False, add_tz = False, timezone = None):
   if timestamp is None:
       timestamp = get_time()
-  time_ns = nepi_ros.sec_from_timestamp(timestamp)
+  time_ns = nepi_sdk.sec_from_timestamp(timestamp)
   #logger.log_warn("  Creating dt string with timestamp: " + str(timestamp) + " time_sec: " + str(time_ns))
   dt = convert_time_to_datetime(time_ns, timezone = timezone)
   #logger.log_warn("  Got dt str: " + dt.strftime('%Y-%m-%d,%H-%M-%S'))

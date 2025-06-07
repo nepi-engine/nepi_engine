@@ -7,7 +7,7 @@ This file is part of nepi-engine
 License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 -->
 # nepi_sdk
-This repository contains foundational NEPI Engine ROS and support modules. In particular, abstract base classes, ROS-independent "drivers", full system and device command and control nodes, and anything that doesn't serve a very specialized purpose in the NEPI edge ecosystem is included in this repository. Along with _nepi_ros_interfaces_, the present repository can be considered the foundation of the NEPI edge ecosystem, with most other submodules in the ecosystem relying heavily on this one.
+This repository contains foundational NEPI Engine ROS and support modules. In particular, abstract base classes, ROS-independent "drivers", full system and device command and control nodes, and anything that doesn't serve a very specialized purpose in the NEPI edge ecosystem is included in this repository. Along with _nepi_sdk_interfaces_, the present repository can be considered the foundation of the NEPI edge ecosystem, with most other submodules in the ecosystem relying heavily on this one.
 
 ### Code Organization ###
 Code is organized within this repo according to standard ROS directory structures.

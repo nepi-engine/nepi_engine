@@ -20,7 +20,7 @@ import copy
 
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
 
@@ -31,21 +31,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_ros_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
-from nepi_ros_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
 
-from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
 
-from nepi_ros_interfaces.srv import SaveDataRate
+from nepi_sdk_interfaces.msg import SaveDataRate
 
 from nepi_api.messages_if import MsgIF
 
@@ -76,9 +76,9 @@ class ConnectMgrNavPoseIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -241,7 +241,7 @@ class ConnectMgrNavPoseIF:
                                             )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         self.con_save_data_if = ConnectSaveDataIF(namespace = self.mgr_namespace)
 
@@ -264,10 +264,10 @@ class ConnectMgrNavPoseIF:
         success = False
         self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
@@ -277,15 +277,15 @@ class ConnectMgrNavPoseIF:
     def wait_for_services(self, timeout = float('inf') ):
         self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
+        time_start = nepi_sdk.get_time()
         connected = False
-        while connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            exists = nepi_ros.check_for_service('nav_pose_status_query')
-            nepi_ros.wait()
+        while connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            exists = nepi_sdk.check_for_service('nav_pose_status_query')
+            nepi_sdk.wait()
             if exists == True:
                 ret = self.get_navpose_solution_msg(verbose = True)
                 connected = (ret is not None)
-            timer = nepi_ros.get_time() - time_start
+            timer = nepi_sdk.get_time() - time_start
         if connected == False:
             self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
@@ -321,10 +321,10 @@ class ConnectMgrNavPoseIF:
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.status_connected == False:
                 self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
             else:
@@ -364,7 +364,7 @@ class ConnectMgrNavPoseIF:
         self.node_if.publish_pub('reinit_navpose_solution',Empty())
 
 
-  def get_navpose_dict(self, verbose = True):
+    def get_navpose_dict(self, verbose = True):
         return self.navpose_dict    
 
     def get_navpose_status_dict(self):
@@ -442,7 +442,7 @@ class ConnectMgrNavPoseIF:
     def _navposeDataStatusCb(self,status_msg):      
         self.status_connected = True
         self.status_msg = status_msg
-        self.status_dict = nepi_ros.convert_msg2dict(status_msg)
+        self.status_dict = nepi_sdk.convert_msg2dict(status_msg)
 
     def _navposeDataCb(self,data_msg):      
         self.navpose_dict = nepi_nav.convert_navposedata_msg2dict(data_msg)

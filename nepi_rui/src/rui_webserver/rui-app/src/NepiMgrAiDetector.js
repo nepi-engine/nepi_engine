@@ -35,7 +35,7 @@ function round(value, decimals = 0) {
 @inject("ros")
 @observer
 
-// Component that contains the LSX controls
+
 class AiDetectorMgr extends Component {
   detector_info = []
   constructor(props) {
@@ -43,8 +43,8 @@ class AiDetectorMgr extends Component {
 
     this.state = {
 
-      modelMgrName: "ai_model_mgr",
-      modelMgrNamespace: null,
+      mgrName: "ai_model_mgr",
+      mgrNamespace: null,
 
       modelMgrListener: null,
 
@@ -96,8 +96,8 @@ class AiDetectorMgr extends Component {
     }
 
     this.getBaseNamespace = this.getBaseNamespace.bind(this)
+    this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
-    this.getModelMgrNamespace = this.getModelMgrNamespace.bind(this)
     this.updateModelMgrStatusListener = this.updateModelMgrStatusListener.bind(this)
     this.modelMgrStatusListener = this.modelMgrStatusListener.bind(this)
 
@@ -134,11 +134,11 @@ class AiDetectorMgr extends Component {
   }
 
 
-  getModelMgrNamespace(){
+  getMgrNamespace(){
     const { namespacePrefix, deviceId} = this.props.ros
     var mgrNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.modelMgrName
+      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.mgrName
     }
     return mgrNamespace
   }
@@ -169,14 +169,14 @@ class AiDetectorMgr extends Component {
 
   // Function for configuring and subscribing to Status
   updateModelMgrStatusListener() {
-    const statusNamespace = this.getModelMgrNamespace() + '/status'
+    const statusNamespace = this.getMgrNamespace() + '/status'
     if (this.state.modelMgrListener) {
       this.state.modelMgrListener.unsubscribe()
       this.setState({det_status_msg: null, det_mgr_status_msg: null})
     }
     var modelMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AiModelMgrStatus",
+          "nepi_sdk_interfaces/AiModelMgrStatus",
           this.modelMgrStatusListener
         )
     this.setState({ modelMgrListener: modelMgrListener,
@@ -238,7 +238,7 @@ class AiDetectorMgr extends Component {
       const statusNamespace = detector_namespace + '/status'
       var detectorMgrListener = this.props.ros.setupStatusListener(
         statusNamespace,
-        "nepi_ros_interfaces/AiDetectorMgrStatus",
+        "nepi_sdk_interfaces/AiDetectorMgrStatus",
         this.detectorMgrStatusListener
       )
       this.setState({ 
@@ -249,7 +249,7 @@ class AiDetectorMgr extends Component {
       const detStatusNamespace = detector_namespace + '/detector_status'
       var detectorListener = this.props.ros.setupStatusListener(
         detStatusNamespace,
-        "nepi_ros_interfaces/AiDetectorStatus",
+        "nepi_sdk_interfaces/AiDetectorStatus",
         this.detectorStatusListener
       )
       this.setState({ 
@@ -277,14 +277,14 @@ class AiDetectorMgr extends Component {
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
     // First update manager status
-    const model_mgr_namespace = this.getModelMgrNamespace()
-    const cur_namespace = this.state.modelMgrNamespace
+    const model_mgr_namespace = this.getMgrNamespace()
+    const cur_namespace = this.state.mgrNamespace
     const namespace_updated = (cur_namespace !== model_mgr_namespace && model_mgr_namespace !== null)
     const needs_update = (this.state.needs_update && model_mgr_namespace !== null)
     if (namespace_updated || needs_update) {
       if (model_mgr_namespace.indexOf('null') === -1){
         this.setState({
-          modelMgrNamespace: model_mgr_namespace
+          mgrNamespace: model_mgr_namespace
         })
         this.updateModelMgrStatusListener()
       } 
@@ -343,7 +343,7 @@ class AiDetectorMgr extends Component {
 
   renderAiDetector() {
     const {sendTriggerMsg} = this.props.ros
-    const model_mgr_namespace = this.getModelMgrNamespace()
+    const model_mgr_namespace = this.getMgrNamespace()
     const model_mgr_connected = this.state.model_mgr_connected == true
 
     const has_framework = this.active_framework !== "None"

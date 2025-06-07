@@ -16,7 +16,7 @@ import numpy as np
 
 import copy
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
@@ -24,10 +24,10 @@ from nepi_sdk import nepi_img
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
 
-from nepi_ros_interfaces.msg import IDXStatus, RangeWindow
-from nepi_ros_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
-from nepi_ros_interfaces.msg import ImageStatus, PointcloudStatus
-from nepi_ros_interfaces.msg import Frame3DTransform
+from nepi_sdk_interfaces.msg import IDXStatus, RangeWindow
+from nepi_sdk_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import ImageStatus, PointcloudStatus
+from nepi_sdk_interfaces.msg import Frame3DTransform
 
 from geometry_msgs.msg import Vector3
 
@@ -156,9 +156,9 @@ class IDXDeviceIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -299,7 +299,7 @@ class IDXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict["max_range_m"]
             },
-            'frame_3d_transform': {
+            'frame_transform': {
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
             },
@@ -475,17 +475,18 @@ class IDXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction, 
-                    'namespace':  settings_ns
+                    'getSettingsFunction': getSettingsFunction
+                    
         }
 
-        self.settings_if = SettingsIF(self.SETTINGS_DICT, 
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -624,7 +625,7 @@ class IDXDeviceIF:
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -667,10 +668,10 @@ class IDXDeviceIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -727,7 +728,7 @@ class IDXDeviceIF:
     def ApplyConfigUpdates(self):
         if self.settings_if is not None:
             self.settings_if.reset_settings()
-        param_dict = nepi_ros.get_param('~', dict())
+        param_dict = nepi_sdk.get_param('~', dict())
         self.msg_if.pub_debug("Applying Config Updates from Params: " + str(param_dict))
         if (self.setAutoAdjust is not None and 'auto_adjust_ebabled' in param_dict):
             self.setAutoAdjust(param_dict['auto_adjust_ebabled'])
@@ -1095,11 +1096,11 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_if = None
             if data_product == 'color_image':
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
-                dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+                dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
                 dp_if = ColorImageIF(namespace = dp_namespace, data_name = data_product, log_name = data_product,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -1109,7 +1110,7 @@ class IDXDeviceIF:
             
             self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
 
-            while (not nepi_ros.is_shutdown() and dp_if is not None):
+            while (not nepi_sdk.is_shutdown() and dp_if is not None):
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
@@ -1158,9 +1159,9 @@ class IDXDeviceIF:
                     self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
                 else: # No subscribers and already stopped
                     acquiring = False
-                    nepi_ros.sleep(0.25)
+                    nepi_sdk.sleep(0.25)
                 self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
-                nepi_ros.sleep(0.01) # Yield
+                nepi_sdk.sleep(0.01) # Yield
 
 
     def depth_map_thread_proccess(self,data_product):
@@ -1178,10 +1179,10 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
 
-            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             min_range_m = self.status_msg.range_window.start_range
             max_range_m = self.status_msg.range_window.stop_range
-            dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+            dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = DepthMapIF(namespace = dp_namespace, data_name = data_product,
                         default_min_meters = min_range_m,
                         default_max_meters = max_range_m,
@@ -1198,7 +1199,7 @@ class IDXDeviceIF:
             
             self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
 
-            while (not nepi_ros.is_shutdown()):
+            while (not nepi_sdk.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
@@ -1248,9 +1249,9 @@ class IDXDeviceIF:
                     self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
                 else: # No subscribers and already stopped
                     acquiring = False
-                    nepi_ros.sleep(0.25)
+                    nepi_sdk.sleep(0.25)
                 self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
-                nepi_ros.sleep(0.01) # Yield
+                nepi_sdk.sleep(0.01) # Yield
 
 
               
@@ -1271,15 +1272,15 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_ros.create_publisher(pub_namespace, Image, queue_size = 10)
-            dp_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
+            dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = PointcloudIF(namespace = dp_namespace, data_name = data_product,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
 
-            while (not nepi_ros.is_shutdown()):
+            while (not nepi_sdk.is_shutdown()):
  
                 # Get Data Product Dict and Data_IF
                 dp_has_subs = dp_if.has_subscribers_check()
@@ -1325,8 +1326,8 @@ class IDXDeviceIF:
                     acquiring = False
                 else: # No subscribers and already stopped
                     acquiring = False
-                    nepi_ros.sleep(0.25)
-                nepi_ros.sleep(0.01) # Yield
+                    nepi_sdk.sleep(0.25)
+                nepi_sdk.sleep(0.01) # Yield
                 
 
 
@@ -1362,7 +1363,7 @@ class IDXDeviceIF:
     def publishStatus(self, do_updates = True):
         # TODO: Probably these should be queried from the parent (and through the driver) via explicit callbacks rather than via the param server
         if do_updates == True:
-            param_dict = nepi_ros.get_param('~')
+            param_dict = nepi_sdk.get_param('~')
 
             self.status_msg.device_name = param_dict['device_name'] if 'device_name' in param_dict else self.init_device_name
             self.status_msg.sensor_name = self.sensor_name

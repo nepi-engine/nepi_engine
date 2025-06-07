@@ -37,7 +37,7 @@ class NepiDeviceNPXControls extends Component {
       showTransforms: false,
       transforms_topic_list: [],
       transforms_list: [],
-      transforms_msg: null,
+      transform_msg: null,
       transformTX: 0,
       transformTY: 0,
       transformTZ: 0,
@@ -49,41 +49,11 @@ class NepiDeviceNPXControls extends Component {
     }
 
 
-    this.onClickToggleShowTransforms = this.onClickToggleShowTransforms.bind(this)
     this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
-
+    this.sendClearTransformClearMessage = this.sendClearTransformClearMessage.bind(this)
     
   }
 
-  onClickToggleShowTransforms(){
-    const newVal = this.state.showTransforms === false
-    this.setState({showTransforms: newVal})
-    this.render()
-  }
-
-  settransform(event){
-    const pointcloud = event.target.value
-    const pointclouds = this.state.transforms_topic_list
-    const transforms = this.state.transforms_list
-    const tf_index = pointclouds.indexOf(pointcloud)
-    if (tf_index !== -1){
-      this.setState({
-        transformPointcloud: pointcloud,
-        transformInd: tf_index
-      })
-      const transform = transforms[tf_index]
-      this.setState({
-        transformTX: round(transform[0]),
-        transformTY: round(transform[1]),
-        transformTZ: round(transform[2]),
-        transformRX: round(transform[3]),
-        transformRY: round(transform[4]),
-        transformRZ: round(transform[5]),
-        transformHO: round(transform[6])
-      })
-      
-    }
-  }
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
@@ -100,7 +70,7 @@ class NepiDeviceNPXControls extends Component {
   }
 
 
-  sendClearTransformUpdateMessage(){
+  sendClearTransformClearMessage(){
     this.setState({
       transformTX: 0,
       transformTY: 0,
@@ -119,89 +89,125 @@ class NepiDeviceNPXControls extends Component {
 
 
   renderControls() {
-    const { npxDevices, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
+    const { npxDevices, sendBoolMsg, sendTriggerMsg, setIdxControlsEnable, setIdxAutoAdjust, setFrame3D } = this.props.ros
     const namespace = this.props.namespace ? this.props.namespace : null
-    const message = this.props.navposeData ? this.props.navposeData : null
+    const message = this.props.status_msg ? this.props.status_msg : null
     const capabilities = npxDevices[namespace] ? npxDevices[namespace] : null
     console.log("=== NPX Controls Debug ===");
     console.log("namespace:", namespace);
 
   
     if (namespace != null && capabilities != null && message != null){
-      const transforms = this.state.transforms_msg
-      
-      const has_gps_pub = capabilities ? capabilities.has_gps_pub : false
-      const has_elevation_pub = capabilities ? capabilities.has_elevation_pub : false
-      const has_pose_pub = capabilities ? capabilities.has_pose_pub : false
-      const has_heading_pub = capabilities ? capabilities.has_heading_pub : false
+
+
 
       const update_rate = message.update_rate
-      const frame_id = message.frame_id
+
       const frame_3d = message.frame_3d
+      const transform_msg = message.nepi_frame_3d_transform
+      const apply_tf =  message.include_transform_enabled
+
+      const frame_nav = message.frame_nav
       const frame_altitude = message.frame_altitude
+      const frame_depth = message.frame_depth
 
-      const has_heading = message.has_heading
-      const has_position = message.has_position
-      const has_orientation = message.has_orientation
-      const has_location = message.has_location
-      const has_altitude = message.has_altitude
+
+      const has_loc = message.has_location
+      const set_loc = message.set_as_locaition_source
+
+      const has_head = message.has_heading
+      const set_head = message.set_as_heading_source
+
+      const has_orien = message.has_orientation
+      const set_orien = message.set_as_orientation_source
+
+      const has_pos = message.has_position
+      const set_pos = message.set_as_position_source
+
+      const has_alt = message.has_altitude
+      const set_alt = message.set_as_altitude_source
+
       const has_depth = message.has_depth
-      const set_as_gps_source = message.set_as_gps_source
-      const set_as_elevation_source = message.set_as_elevation_source
-      const set_as_pose_source = message.set_as_pose_source
-      const set_as_heading_source = message.set_as_heading_source
+      const set_depth = message.set_as_depth_source
 
-      const transforms_msg = message.frame_transform
 
-    if (transforms !== message.frame_transform){
-      this.setState({
-        transforms_msg: transforms_msg,
-        transformTX: message.frame_transform.translate_vector.x,
-        transformTY: message.frame_transform.translate_vector.y,
-        transformTZ: message.frame_transform.translate_vector.z,
-        transformRX: message.frame_transform.rotate_vector.x,
-        transformRY: message.frame_transform.rotate_vector.y,
-        transformRZ: message.frame_transform.rotate_vector.z,
-        transformHO: message.frame_transform.heading_offset
-      })
-    }
+      const transform = this.state.transform_msg
+      if (transform !== transform_msg){
+        this.setState({
+          transform_msg: transform_msg,
+          transformTX: transform_msg.translate_vector.x,
+          transformTY: transform_msg.translate_vector.y,
+          transformTZ: transform_msg.translate_vector.z,
+          transformRX: transform_msg.rotate_vector.x,
+          transformRY: transform_msg.rotate_vector.y,
+          transformRZ: transform_msg.rotate_vector.z,
+          transformHO: transform_msg.heading_offset
+        })
+      }
+
+      const include_transform = message.include_transform_enabled
+    
       return (
 
         <Section title={"NavPose Controls"}>
         <Columns>
         <Column>
-      <div hidden={!has_gps_pub}>    
-            <Label title="Set as GPS Source">
+      <div hidden={!has_loc}>    
+            <Label title="Set as Location Source">
               <Toggle
-                checked={set_as_gps_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_gps_source",!set_as_gps_source)}>
+                checked={set_loc===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_location_source",!set_loc)}>
               </Toggle>
             </Label>
       </div>
-      <div hidden={!has_elevation_pub}>    
-            <Label title="Enable Elevation">
+
+      <div hidden={!has_head}>    
+            <Label title="Set as Heading Source">
               <Toggle
-                checked={set_as_elevation_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_elevation_source",set_as_elevation_source)}>
+                checked={set_head===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!set_head)}>
               </Toggle>
             </Label>
       </div>
-      <div hidden={!has_pose_pub}>    
-            <Label title="Enable Pose">
+
+      <div hidden={!has_orien}>    
+            <Label title="Set as Orienation Source">
               <Toggle
-                checked={set_as_pose_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_pose_source",set_as_pose_source)}>
+                checked={set_orien===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_orientation_source",!set_orien)}>
               </Toggle>
             </Label>
       </div>
-      <div hidden={!has_heading_pub}>    
-            <Label title="Enable Heading">
+
+
+      <div hidden={!has_pos}>    
+            <Label title="Set as Position Source">
               <Toggle
-                checked={set_as_heading_source===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!set_as_heading_source)}>
+                checked={set_pos===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_position_source",!set_pos)}>
               </Toggle>
             </Label>
       </div>
+
+
+      <div hidden={!has_alt}>    
+            <Label title="Set as Altitude Source">
+              <Toggle
+                checked={set_alt===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_altitude_source",!set_alt)}>
+              </Toggle>
+            </Label>
+      </div>
+
+      <div hidden={!has_depth}>    
+            <Label title="Set as Depth Source">
+              <Toggle
+                checked={set_depth===true}
+                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_depth_source",!set_depth)}>
+              </Toggle>
+            </Label>
+      </div>
+
       </Column>
       </Columns>
 
@@ -276,10 +282,10 @@ class NepiDeviceNPXControls extends Component {
       </Columns> 
     <Columns>
       <Column>
-      <Label title="Show 3D Transforms">
+      <Label title="Enbable Nepi Frame 3D Transform">
         <Toggle
-          checked={this.state.showTransforms}
-          onClick={this.onClickToggleShowTransforms}>
+          checked={include_transform}
+          onClick={sendBoolMsg(this.props.npxNamespace + '/set_include_transform',!include_transform)}>
         </Toggle>
       </Label>
 
@@ -290,7 +296,8 @@ class NepiDeviceNPXControls extends Component {
 
 
 
-      <div hidden={ this.state.showTransforms === false}>
+
+      <div hidden={ include_transform === false}>
 
             <Columns>
             <Column>

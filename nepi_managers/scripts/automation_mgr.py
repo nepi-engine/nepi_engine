@@ -16,13 +16,13 @@ import yaml
 import time
 import psutil
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemStatus
-from nepi_ros_interfaces.srv import (
+from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.srv import (
     GetScriptsQuery,
     GetScriptsQueryRequest,
     GetScriptsQueryResponse,
@@ -43,7 +43,7 @@ from nepi_ros_interfaces.srv import (
     SystemStorageFolderQueryResponse
 )
 
-from nepi_ros_interfaces.msg import AutoStartEnabled
+from nepi_sdk_interfaces.msg import AutoStartEnabled
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -73,10 +73,10 @@ class AutomationManager(object):
     DEFAULT_NODE_NAME = "automation_manager" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -97,7 +97,7 @@ class AutomationManager(object):
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
         self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
 
@@ -109,7 +109,7 @@ class AutomationManager(object):
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
     
 
         ##############################
@@ -210,7 +210,7 @@ class AutomationManager(object):
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
         ###########################
@@ -246,7 +246,7 @@ class AutomationManager(object):
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
     
@@ -460,7 +460,7 @@ class AutomationManager(object):
             try:
                 process.terminate()
                 process.wait(timeout=self.script_stop_timeout_s)
-                self.script_counters[req.script]['cumulative_run_time'] += (nepi_ros.ros_time_now() - nepi_ros.ros_time_from_sec(self.processes[req.script]['start_time'])).to_sec()
+                self.script_counters[req.script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(self.processes[req.script]['start_time'])).to_sec()
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
@@ -485,7 +485,7 @@ class AutomationManager(object):
         """
         Monitor the status of all automation scripts.
         """
-        while not nepi_ros.is_shutdown():
+        while not nepi_sdk.is_shutdown():
             for script in self.scripts:
                 if script in self.processes:
                     process = self.processes[script]
@@ -501,9 +501,9 @@ class AutomationManager(object):
                             self.script_counters[script]['errored_out'] += 1
                                                
                         # Update the cumulative run time whether exited on success or error
-                        self.script_counters[script]['cumulative_run_time'] += (nepi_ros.ros_time_now() - nepi_ros.ros_time_from_sec(process['start_time'])).to_sec()
+                        self.script_counters[script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
-                        nepi_ros.wait()
+                        nepi_sdk.wait()
         
 
     def handle_get_system_stats(self, req):
@@ -554,7 +554,7 @@ class AutomationManager(object):
             response.memory_percent = 100.0 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
                         
             # Get creation/start-up time
-            response.run_time_s = (nepi_ros.ros_time_now() - nepi_ros.ros_time_from_sec(process.create_time())).to_sec()
+            response.run_time_s = (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process.create_time())).to_sec()
             # The script_counters cumulative run time only gets updated on script termination, so to keep this value moving in the response,
             # increment it here.
             response.cumulative_run_time_s += response.run_time_s

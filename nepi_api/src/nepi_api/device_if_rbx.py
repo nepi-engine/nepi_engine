@@ -19,7 +19,7 @@ import sys
 import cv2
 import copy
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
@@ -34,10 +34,10 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from pygeodesy.ellipsoidalKarney import LatLon
 
-from nepi_ros_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
+from nepi_sdk_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
      RBXGotoPose, RBXGotoPosition, RBXGotoLocation, RBXMotorControl
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
-from nepi_ros_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
+from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_sdk_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
 
 from nepi_api.messages_if import MsgIF
@@ -183,9 +183,9 @@ class RBXRobotIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -691,16 +691,18 @@ class RBXRobotIF:
 
         # Setup System IF Classes ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'idx')
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
                     'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction, 
-                    'namespace':  settings_ns
+                    'getSettingsFunction': getSettingsFunction
+                    
         }
-        self.settings_if = SettingsIF(self.SETTINGS_DICT,
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -721,7 +723,7 @@ class RBXRobotIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_ros.create_namespace(self.node_namespace,'idx')
+        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -779,13 +781,13 @@ class RBXRobotIF:
         ###############################
         # Finish Initialization
         # Start NavPose Data Updater
-        NAVPOSE_SERVICE_NAME = nepi_ros.create_namespace(self.base_namespace,"nav_pose_query")
+        NAVPOSE_SERVICE_NAME = nepi_sdk.create_namespace(self.base_namespace,"nav_pose_query")
         self.msg_if.pub_info("Waiting for NEPI NavPose query service on: " + NAVPOSE_SERVICE_NAME)
-        nepi_ros.wait_for_service(NAVPOSE_SERVICE_NAME)
+        nepi_sdk.wait_for_service(NAVPOSE_SERVICE_NAME)
         self.msg_if.pub_info("Connecting to NEPI NavPose query service at: " + NAVPOSE_SERVICE_NAME)
-        self.get_navpose_service = nepi_ros.connect_service(NAVPOSE_SERVICE_NAME, NavPoseQuery)
+        self.get_navpose_service = nepi_sdk.connect_service(NAVPOSE_SERVICE_NAME, NavPoseQuery)
         time.sleep(1)
-        nepi_ros.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
+        nepi_sdk.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
 
 
         ####################################
@@ -793,7 +795,7 @@ class RBXRobotIF:
         self.rbx_info.connected = True
         self.rbx_status.ready = True 
         self.initCb(do_updates = True)
-        nepi_ros.start_timer_process(self.rbx_status_pub_interval, self.statusPublishCb)
+        nepi_sdk.start_timer_process(self.rbx_status_pub_interval, self.statusPublishCb)
         self.publishInfo()
         self.publishStatus()
         self.ready = True
@@ -1300,7 +1302,7 @@ class RBXRobotIF:
         self.rbx_info.home_alt = home_location[2]
         self.rbx_info.fake_gps_enabled = self.node_if.get_param('rbx/fake_gps_enabled')
 
-        if not nepi_ros.is_shutdown():
+        if not nepi_sdk.is_shutdown():
             #self.msg_if.pub_info(self.rbx_info)
             self.node_if.publish_pub('rbx_info_pub',self.rbx_info)
 
@@ -1391,7 +1393,7 @@ class RBXRobotIF:
    
 
         self.status_str_msg = status_str_msg
-        if not nepi_ros.is_shutdown():
+        if not nepi_sdk.is_shutdown():
             self.node_if.publish_pub('rbx_status_pub', self.rbx_status)
             self.node_if.publish_pub('rbx_status_str_pub', str(status_str_msg))
 
@@ -1413,7 +1415,7 @@ class RBXRobotIF:
                 self.statusTextOverlay(cv2_img,text,x, y)
                 y = y + 20
         # Publish new image to ros
-        if not nepi_ros.is_shutdown():
+        if not nepi_sdk.is_shutdown():
             self.image_if.publish_cv2_img(cv2_img)
             # You can view the enhanced_2D_image topic at 
             # //192.168.179.103:9091/ in a connected web browser
@@ -1422,7 +1424,7 @@ class RBXRobotIF:
 
         ## Update image source topic and subscriber if changed from last time.
         image_source = self.node_if.get_param('rbx/image_source')
-        image_topic = nepi_ros.find_topic(image_source)
+        image_topic = nepi_sdk.find_topic(image_source)
         if image_topic != "":
           if image_topic != self.rbx_image_source_last:
               if self.rbx_image_sub != None:
@@ -1435,7 +1437,7 @@ class RBXRobotIF:
                     self.msg_if.pub_info(e)
           if self.rbx_image_sub == None:
             self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
-            self.rbx_image_sub = nepi_ros.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
+            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
             self.node_if.set_param('rbx/image_source', image_topic)
         else:
               image_topic = "None"
@@ -1523,7 +1525,7 @@ class RBXRobotIF:
       timeout_timer = 0 # Initialize timeout timer
       attitude_errors = [] # Initialize running list of errors
       time2sleep = 0.1
-      while setpoint_attitude_reached is False and not nepi_ros.is_shutdown():  # Wait for setpoint goal to be set
+      while setpoint_attitude_reached is False and not nepi_sdk.is_shutdown():  # Wait for setpoint goal to be set
         if self.checkStopFunction() is True:
             self.msg_if.pub_info("Setpoint Attitude received Stop Command", log_name_list = self.log_name_list)
             new_attitude_ned_degs = copy.deepcopy(cur_attitude_ned_degs)
@@ -1671,7 +1673,7 @@ class RBXRobotIF:
       yaw_errors = [] # Initialize running list of errors
       timeout_timer = 0 # Initialize timeout timer
       time2sleep = 0.1
-      while setpoint_position_local_point_reached is False or setpoint_position_local_yaw_reached is False and not nepi_ros.is_shutdown():  # Wait for setpoint goal to be set
+      while setpoint_position_local_point_reached is False or setpoint_position_local_yaw_reached is False and not nepi_sdk.is_shutdown():  # Wait for setpoint goal to be set
         if self.checkStopFunction() is True:
             self.msg_if.pub_info("Setpoint Position received Stop Command", log_name_list = self.log_name_list)
             new_position_enu_m = copy.deepcopy(self.current_position_enu_m)
@@ -1823,7 +1825,7 @@ class RBXRobotIF:
       yaw_errors = [] # Initialize running list of errors
       timeout_timer = 0 # Initialize timeout timer
       time2sleep = 0.1
-      while (setpoint_location_global_geopoint_reached is False or setpoint_location_global_yaw_reached is False) and not nepi_ros.is_shutdown(): # Wait for setpoint goal to be set
+      while (setpoint_location_global_geopoint_reached is False or setpoint_location_global_yaw_reached is False) and not nepi_sdk.is_shutdown(): # Wait for setpoint goal to be set
         if self.checkStopFunction() is True:
           self.msg_if.pub_info("Setpoint Location received Stop Command", log_name_list = self.log_name_list)
           new_geopoint_wgs84 = copy.deepcopy(self.current_location_wgs84_geo)

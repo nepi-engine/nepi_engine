@@ -16,15 +16,15 @@
 import os
 import time
 
-from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryResponse
+from nepi_sdk_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryResponse
 
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_ros import sec_from_ros_time, ros_time_now
-from nepi_sdk.nepi_ros import find_topics_by_msg
+from nepi_sdk.nepi_sdk import sec_from_msg_stamp, get_msg_stamp
+from nepi_sdk.nepi_sdk import find_topics_by_msg
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_triggers"
 logger = Logger(log_name = log_name)
 
@@ -53,7 +53,7 @@ def parse_trigger_msg(trigger_msg):
     trigger_dict = dict()
     trigger_dict['name'] = trigger_msg.name
 
-    trigger_dict['time'] = sec_from_ros_time(trigger_msg.header.stamp)
+    trigger_dict['time'] = sec_from_msg_stamp(trigger_msg.header.stamp)
     trigger_dict['description'] = trigger_msg.description
     trigger_dict['node_name'] = trigger_msg.node_name
     trigger_dict['data_str_list'] = trigger_msg.data_str_list
@@ -63,7 +63,7 @@ def parse_trigger_msg(trigger_msg):
 
 def create_trigger_msg(node_name, trigger_dict):
     trigger_msg = SystemTrigger()
-    trigger_msg.header.stamp = ros_time_now()
+    trigger_msg.header.stamp = get_msg_stamp()
     trigger_msg.name = trigger_dict['name']
     trigger_msg.description = trigger_dict['description']
     trigger_msg.data_str_list = trigger_dict['data_str_list']
@@ -75,7 +75,7 @@ def parse_triggers_query_resp(triggers_query_resp):
   triggers = triggers_query_resp.triggers_list
   triggers_dict = dict()
   for trigger in triggers:
-    triggers_dict[trigger.name] = nepi_ros.convert_msg2dict(trigger)
+    triggers_dict[trigger.name] = nepi_sdk.convert_msg2dict(trigger)
   return triggers_dict
 
 

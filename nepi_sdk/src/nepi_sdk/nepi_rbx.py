@@ -19,7 +19,7 @@ import rospy
 import rosnode
 import time
 import sys
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_settings
 
 from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64, Float64MultiArray
@@ -29,10 +29,10 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from mavros_msgs.msg import State, AttitudeTarget
 from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest, CommandTOL, CommandHome
-from nepi_ros_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, \
+from nepi_sdk_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, \
     RBXGotoPose, RBXGotoPosition, RBXGotoLocation, Setting, Settings, SettingCap, SettingCaps
-from nepi_ros_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
-from nepi_ros_interfaces.srv import NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.srv import NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 
 # ROS namespace setup
@@ -55,7 +55,7 @@ def rbx_initialize(self, rbx_namespace):
 
   ## Define Namespaces
   # NEPI RBX DEVICE NAMESPACE
-  rbx_topic=nepi_ros.wait_for_topic(rbx_namespace)
+  rbx_topic=nepi_sdk.wait_for_topic(rbx_namespace)
   NEPI_ROBOT_NAMESPACE = rbx_topic.rpartition("rbx")[0]
   NEPI_RBX_NAMESPACE = (NEPI_ROBOT_NAMESPACE + "rbx/")
   rospy.loginfo("NEPI_RBX: Found rbx namespace: " + NEPI_RBX_NAMESPACE)
@@ -64,7 +64,7 @@ def rbx_initialize(self, rbx_namespace):
   NEPI_RBX_CAPABILITIES_TOPIC = NEPI_RBX_NAMESPACE + "capabilities_query"
   NEPI_RBX_CAPABILITIES_NAVPOSE_TOPIC = NEPI_RBX_NAMESPACE + "navpose_capabilities_query"
   # Get RBX capabilities
-  nepi_ros.wait_for_service(NEPI_RBX_CAPABILITIES_TOPIC)
+  nepi_sdk.wait_for_service(NEPI_RBX_CAPABILITIES_TOPIC)
   rbx_caps_service = rospy.ServiceProxy(NEPI_RBX_CAPABILITIES_TOPIC, RBXCapabilitiesQuery)
   time.sleep(1)
   rbx_caps = rbx_caps_service()
@@ -90,7 +90,7 @@ def rbx_initialize(self, rbx_namespace):
   ## Setup Settings Callback
   self.NEPI_RBX_SETTINGS_TOPIC = NEPI_ROBOT_NAMESPACE + "settings_status"
   rospy.loginfo("DRONE_INSPECT: Waiting for topic: " + self.NEPI_RBX_SETTINGS_TOPIC)
-  nepi_ros.wait_for_topic(self.NEPI_RBX_SETTINGS_TOPIC)
+  nepi_sdk.wait_for_topic(self.NEPI_RBX_SETTINGS_TOPIC)
   rbx_settings_pub = rospy.Publisher(NEPI_ROBOT_NAMESPACE + 'publish_settings', Empty, queue_size=1)
   rospy.loginfo("DRONE_INSPECT: Starting rbx settings scubscriber callback")
   rospy.Subscriber(self.NEPI_RBX_SETTINGS_TOPIC, Settings, self.rbx_settings_callback, queue_size=None)
@@ -105,7 +105,7 @@ def rbx_initialize(self, rbx_namespace):
     ## Setup Info Update Callback
   self.NEPI_RBX_INFO_TOPIC = NEPI_RBX_NAMESPACE + "info" # RBX Info Message
   rospy.loginfo("DRONE_INSPECT: Waiting for topic: " + self.NEPI_RBX_INFO_TOPIC)
-  nepi_ros.wait_for_topic(self.NEPI_RBX_INFO_TOPIC)
+  nepi_sdk.wait_for_topic(self.NEPI_RBX_INFO_TOPIC)
   rbx_info_pub = rospy.Publisher(NEPI_RBX_NAMESPACE + 'publish_info', Empty, queue_size=1)
   rospy.loginfo("DRONE_INSPECT: Starting rbx info scubscriber callback")
   rospy.Subscriber(self.NEPI_RBX_INFO_TOPIC,RBXInfo, self.rbx_info_callback, queue_size=None)
@@ -119,7 +119,7 @@ def rbx_initialize(self, rbx_namespace):
   ## Setup Status Update Callback
   self.NEPI_RBX_STATUS_TOPIC = NEPI_RBX_NAMESPACE + "status" # RBX Status Message
   rospy.loginfo("DRONE_INSPECT: Waiting for topic: " + self.NEPI_RBX_STATUS_TOPIC)
-  nepi_ros.wait_for_topic(self.NEPI_RBX_STATUS_TOPIC)
+  nepi_sdk.wait_for_topic(self.NEPI_RBX_STATUS_TOPIC)
   rbx_status_pub = rospy.Publisher(NEPI_RBX_NAMESPACE + 'publish_status', Empty, queue_size=1)
   rospy.loginfo("DRONE_INSPECT: Starting rbx status scubscriber callback")
   rospy.Subscriber(self.NEPI_RBX_STATUS_TOPIC, RBXStatus, self.rbx_status_callback, queue_size=None)
@@ -189,14 +189,14 @@ def rbx_status_callback(self, msg):
 ### RBX Helper Functions
 
 def get_capabilities(self,caps_topic):
-  nepi_ros.wait_for_service(caps_topic)
+  nepi_sdk.wait_for_service(caps_topic)
   rbx_caps_service = rospy.ServiceProxy(caps_topic, RBXCapabilitiesQuery)
   time.sleep(1)
   rbx_caps = rbx_caps_service()
   return rbx_caps
 
 def get_navpose_capabilities(self,caps_navpose_topic):
-  nepi_ros.wait_for_service(caps_navpose_topic)
+  nepi_sdk.wait_for_service(caps_navpose_topic)
   rbx_cap_navpose_service = rospy.ServiceProxy(caps_navpose_topic, NPXCapabilitiesQuery)
   time.sleep(1)
   rbx_cap_navpose = rbx_cap_navpose_service()

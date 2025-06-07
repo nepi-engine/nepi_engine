@@ -29,7 +29,7 @@ from nepi_sdk import open3d_ros_helper
 
 from sensor_msgs.msg import PointCloud2
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_pc"
 logger = Logger(log_name = log_name)
 
@@ -46,7 +46,7 @@ def set_verbosity_level(level = "Error"):
 
 def get_pointcloud_publisher_namespaces(name):
     msg_type = 'sensor_msgs/PointCloud2'
-    return nepi_ros.find_topics_by_msg(msg_type)
+    return nepi_sdk.find_topics_by_msg(msg_type)
 
 
 ###########################################
@@ -93,7 +93,7 @@ def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     ros_img_msg = ros_numpy.image.numpy_to_image(np_array, encoding)
     
     if stamp is None:
-        ros_img_msg.header.stamp = nepi_ros.ros_time_now()
+        ros_img_msg.header.stamp = nepi_sdk.get_msg_stamp()
     else:
         ros_img_msg.header.stamp = stamp
     
@@ -595,7 +595,7 @@ def write_o3dpc_2_pcd(data_2_save,file_path):
 
 def get_pc_depth_map_topic(pc_topic):
   topic = pc_topic.rsplit('/',1)[0] + "/depth_map"
-  topic = nepi_ros.find_topic(topic)
+  topic = nepi_sdk.find_topic(topic)
   if topic == "":
     topic = None
   return topic
@@ -603,7 +603,7 @@ def get_pc_depth_map_topic(pc_topic):
 
 def get_pc_pointcloud_img_topic(pc_topic):
   topic = pc_topic.rsplit('/',1)[0] + "/pointcloud_image"
-  topic = nepi_ros.find_topic(topic)
+  topic = nepi_sdk.find_topic(topic)
   if topic == "":
     topic = None
   return topic

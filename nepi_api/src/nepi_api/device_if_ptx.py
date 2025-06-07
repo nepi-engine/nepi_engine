@@ -14,15 +14,15 @@ import math
 import numpy as np
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
-from nepi_ros_interfaces.msg import RangeWindow
-from nepi_ros_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltOffsets, PanTiltPosition, SingleAxisTimedMove
-from nepi_ros_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
+from nepi_sdk_interfaces.msg import RangeWindow
+from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltOffsets, PanTiltPosition, SingleAxisTimedMove
+from nepi_sdk_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
 
@@ -173,9 +173,9 @@ class PTXActuatorIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -700,7 +700,7 @@ class PTXActuatorIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_ros.create_namespace(self.node_namespace,'ptx')
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -709,7 +709,8 @@ class PTXActuatorIF:
                     'getSettingsFunction': getSettingsFunction
 
         }
-        self.settings_if = SettingsIF(settings_ns, self.SETTINGS_DICT,
+        self.settings_if = SettingsIF(namespace = settings_ns, 
+                        settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -732,7 +733,7 @@ class PTXActuatorIF:
                 'add_node_name': True
                 }
                 
-            sd_namespace = nepi_ros.create_namespace(self.node_namespace,'ptx')
+            sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
             self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
@@ -806,7 +807,7 @@ class PTXActuatorIF:
                 speed_ratio = self.node_if.get_param('speed_ratio')
                 self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
                 self.setSpeedRatioCb(speed_ratio)
-                nepi_ros.sleep(1)
+                nepi_sdk.sleep(1)
                 self.speed_ratio = self.getSpeedRatioCb()
                 self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
 
@@ -868,17 +869,17 @@ class PTXActuatorIF:
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
         self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
-        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
+        nepi_sdk.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
         if self.has_auto_pan:
             # Start Auto Pan Process
             self.msg_if.pub_info("Starting auto pan scanning process")
-            nepi_ros.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
 
         if self.has_auto_tilt:
             # Start Auto Pan Process
             self.msg_if.pub_info("Starting auto tilt scanning process")
-            nepi_ros.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
         self.publish_status()
         self.ready = True
         self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
@@ -1065,10 +1066,10 @@ class PTXActuatorIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -1510,7 +1511,7 @@ class PTXActuatorIF:
     def factoryResetCb(self, do_updates = True):
         if self.deviceResetCb is not None:
             self.deviceResetCb()
-            nepi_ros.sleep(2)
+            nepi_sdk.sleep(2)
         self.resetCb()
 
 
@@ -1525,11 +1526,11 @@ class PTXActuatorIF:
             status_pub_delay = 0.01
         else:
             status_pub_delay = status_pub_delay - pub_time
-        nepi_ros.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
+        nepi_sdk.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
     def publish_status(self, do_updates = False):
         start_time = nepi_utils.get_time()
-        self.status_msg.header.stamp = nepi_ros.ros_time_now()
+        self.status_msg.header.stamp = nepi_sdk.get_msg_stamp()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             [pan_deg,tilt_deg] = self.getPositionCb()

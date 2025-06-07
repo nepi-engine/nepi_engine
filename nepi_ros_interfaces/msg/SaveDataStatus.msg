@@ -10,7 +10,7 @@ bool save_data_utc
 string current_timezone
 
 # Array of data product names
-nepi_ros_interfaces/SaveDataRate[] save_data_rates
+nepi_sdk_interfaces/SaveDataRate[] save_data_rates
 
 # The save_data field indicates whether captured data is currently being saved in continuous fashion. The
 # save-data-next control does not affect this field

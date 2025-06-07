@@ -72,7 +72,7 @@ class NepiDeviceNPX extends Component {
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
     this.setState({
-      status_data: message, 
+      status_msg: message, 
       connected: true
     })
 
@@ -107,7 +107,7 @@ updateStatusListener() {
 
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
-    "nepi_ros_interfaces/NPXStatus",
+    "nepi_sdk_interfaces/NPXStatus",
     this.statusListener 
   )
   
@@ -127,7 +127,7 @@ updateNavposeListener() {
   
   var navposeListener = this.props.ros.setupStatusListener(
     navposeTopic,
-    "nepi_ros_interfaces/NavPoseData",
+    "nepi_sdk_interfaces/NavPoseData",
     this.navposeListener 
   )
   
@@ -293,7 +293,7 @@ updateNavposeListener() {
     const deviceSelected = (this.state.namespace != null)
     const namespace = this.state.namespace
     const navpose_data = this.state.navpose_data
-    const status_data = this.state.status_data
+    const status_msg = this.state.status_msg
     const connected = this.state.connected
 
     return (
@@ -308,7 +308,7 @@ updateNavposeListener() {
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"npx/status"}
-                            status_msg_type={"nepi_ros_interfaces/NPXStatus"}
+                            status_msg_type={"nepi_sdk_interfaces/NPXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
                             title={"NepiDeviceNPXInfo"}
@@ -319,14 +319,14 @@ updateNavposeListener() {
                     <NavPoseDataViewer
                       namespace={namespace}
                       navposeData={navpose_data}
-                      title={"NepiDeviceNPXControls"}
+                      title={"NavPose Data"}
                     />
 
 
                     <div hidden={(!deviceSelected)}>
 
                       <NepiIFSaveData
-                        namespace={namespace ? namespace + '/npx' : null}
+                        namespace={namespace}
                         title={"Nepi_IF_SaveData"}
                       />
                     </div>
@@ -352,7 +352,7 @@ updateNavposeListener() {
                     <div hidden={(!deviceSelected && this.state.show_controls)}>
                       <NepiDeviceNPXControls
                           deviceNamespace={namespace}
-                          navposeData={navpose_data}
+                          status_msg={status_msg}
                           title={"NepiDeviceNPXControls"}
                       />
                     </div>
@@ -360,7 +360,7 @@ updateNavposeListener() {
 
                     <div hidden={(!deviceSelected && this.state.show_settings)}>
                       <NepiIFSettings
-                        namespace={namespace ? namespace + '/npx' : null}
+                        namespace={namespace}
                         title={"Nepi_IF_Settings"}
                       />
                     </div>

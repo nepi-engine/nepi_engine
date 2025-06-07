@@ -27,7 +27,7 @@ import copy
 
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
 
@@ -38,21 +38,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_ros_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
-from nepi_ros_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
 
-from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-#from nepi_ros_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
-#from nepi_ros_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
+from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+#from nepi_sdk_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
+#from nepi_sdk_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
@@ -84,6 +84,7 @@ class NavPoseMgr(object):
     BLANK_CONNECT = {
             'fixed': False,
             'topic': "",
+            'msg': "",
             'connected': False,
             'transform': ZERO_TRANSFORM,
             'times': times_list,
@@ -150,11 +151,11 @@ class NavPoseMgr(object):
     DEFAULT_NODE_NAME = "navpose_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -163,7 +164,7 @@ class NavPoseMgr(object):
 
         ##############################
         # Initialize Class Variables
-        self.mgr_namespace = nepi_ros.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
+        self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
 
         self.cb_dict = {
@@ -331,7 +332,7 @@ class NavPoseMgr(object):
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
 
@@ -354,15 +355,15 @@ class NavPoseMgr(object):
         self.initCb(do_updates = True)
         ##############################
         # Start Node Processes
-        nepi_ros.start_timer_process(1.0, self._getPublishSaveDataCb, oneshot = True)
-        nepi_ros.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
-        nepi_ros.start_timer_process(1.0, self._publishStatusCb)
+        nepi_sdk.start_timer_process(1.0, self._getPublishSaveDataCb, oneshot = True)
+        nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
-        nepi_ros.spin()
+        nepi_sdk.spin()
 
 
 
@@ -486,10 +487,10 @@ class NavPoseMgr(object):
             comp_info.name = name
             comp_info.available_topics = avail_topics_dict[name]['topics']
             comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']
-            comp_info.fixed = avail_topics_dict[name]['fixed']
-            comp_info.topic = subs_dict[name]['topic']
-            comp_info.topic_msg = subs_dict[name]['msg']
-            comp_info.available_topics = avail_topics_dict[name]['connected']
+            comp_info.fixed = connect_dict[name]['fixed']
+            comp_info.topic = connect_dict[name]['topic']
+            comp_info.topic_msg = connect_dict[name]['msg']
+            comp_info.available_topics = connect_dict[name]['connected']
 
             times = connect_dict[name]['times']
             avg_times = sum(times)/len(times)
@@ -527,26 +528,26 @@ class NavPoseMgr(object):
         return response
 
     def _updateAvailTopicsCb(self,timer):
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('location')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('location')
         self.avail_topics_dict['location']['topics'] = topic_list
         self.avail_topics_dict['location']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('heading')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('heading')
         self.avail_topics_dict['heading']['topics'] = topic_list
         self.avail_topics_dict['heading']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('orientation')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('orientation')
         self.avail_topics_dict['orientation']['topics'] = topic_list
         self.avail_topics_dict['orientation']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('position')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('position')
         self.avail_topics_dict['position']['topics'] = topic_list
         self.avail_topics_dict['position']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('altitude')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('altitude')
         self.avail_topics_dict['altitude']['topics'] = topic_list
         self.avail_topics_dict['altitude']['msgs'] = msg_list
-        [topic_list,msg_list] = nepi_nav.get_navpose_publisher_namespaces('depth')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('depth')
         self.avail_topics_dict['depth']['topics'] = topic_list
         self.avail_topics_dict['depth']['msgs'] = msg_list
 
-        nepi_ros.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
+        nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
 
 
@@ -562,7 +563,7 @@ class NavPoseMgr(object):
                 if topic in transform_dict.keys():
                     transform = transform_dict[topic]
                 self._connectTopic(name,topic,transform = transform)
-        nepi_ros.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)        
+        nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)        
 
     def _connectTopic(self,name,topic,transform = None):
         if name in self.avail_topics_dict.keys():
@@ -575,9 +576,10 @@ class NavPoseMgr(object):
                     cb = self.cb_dict[name]
 
                     self.subs_dict_lock.acquire()
-                    sub = nepi_ros.create_subscriber(topic, msg, cb, callback_args = (name))
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args = (name))
                     self.subs_dict[name]['topic'] = topic
                     self.subs_dict[name]['msg'] = msg_str
+                    self.connect_dict[name]['msg'] = msg_str
                     self.subs_dict[name] = sub
                     self.connect_dict[name]['topic'] = topic
                     self.subs_dict_lock.release()
@@ -594,7 +596,7 @@ class NavPoseMgr(object):
             self.subs_dict_lock.acquire()
             if self.subs_dict[name]['sub'] is not None:
                 self.subs_dict[name]['sub'].unregister()
-                nepi_ros.sleep(1)
+                nepi_sdk.sleep(1)
             self.subs_dict[name] = self.BLANK_SUB
             self.connect_dict[name] = self.BLANK_CONNECT
             self.subs_dict_lock.release()
@@ -634,7 +636,7 @@ class NavPoseMgr(object):
     def _setTopicCb(self,msg):
         name = msg.name
         topic = msg.topic
-        apply_tr = msg.apply_transform
+        apply_tr = msg.include_transform
         transform = None
         if apply_tr:
             transform = msg.transform
@@ -707,7 +709,7 @@ class NavPoseMgr(object):
             self.last_npdata_dict = npdata_dict
 
         delay = float(1.0)/self.set_pub_rate
-        nepi_ros.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
+        nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
         self.publish_status()

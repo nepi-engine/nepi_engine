@@ -18,11 +18,11 @@ from rospy import loginfo, logwarn, logdebug, logerr, logfatal
 from rospy import loginfo_throttle, logwarn_throttle, logdebug_throttle, logerr_throttle, logfatal_throttle
 from rospy import get_name, Publisher
 from std_msgs.msg import String
-from nepi_ros_interfaces.msg import Message
+from nepi_sdk_interfaces.msg import Message
 
 #################################
 ## DEPRICIATED
-## Now split between nepi_ros sdk and message_if api 
+## Now split between nepi_sdk sdk and message_if api 
 
 def printMsg(msg, level = "None"):
   msg_str = str(msg)

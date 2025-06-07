@@ -11,19 +11,19 @@ import os
 import time 
 import copy
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import Reset
+from nepi_sdk_interfaces.msg import Reset
 
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
 from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
-# from nepi_ros_interfaces.msg import
-from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+# from nepi_sdk_interfaces.msg import
+from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -70,9 +70,9 @@ class NodeConfigsIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -106,38 +106,38 @@ class NodeConfigsIF:
             namespace = self.node_namespace
         else:
             namespace = namespace
-        self.namespace = nepi_ros.get_full_namespace(namespace)
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
 
         # Create reset serivces
         self.request_msg.node_name = self.namespace
-        self.reset_service = nepi_ros.connect_service('~user_reset', FileReset)
-        self.factory_reset_service = nepi_ros.connect_service('~factory_reset', FileReset)
+        self.reset_service = nepi_sdk.connect_service('~user_reset', FileReset)
+        self.factory_reset_service = nepi_sdk.connect_service('~factory_reset', FileReset)
 
-        self.reset_service = nepi_ros.connect_service('user_reset', FileReset)
-        self.factory_reset_service = nepi_ros.connect_service('factory_reset', FileReset)
+        self.reset_service = nepi_sdk.connect_service('user_reset', FileReset)
+        self.factory_reset_service = nepi_sdk.connect_service('factory_reset', FileReset)
 
         time.sleep(1)
 
-        self.save_params_pub = nepi_ros.create_publisher('store_params', String, queue_size=1)
+        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, queue_size=1)
 
         self.msg_if.pub_info("Loading saved config data", log_name_list = self.log_name_list)
         self.reset_config()
 
 
         # Subscribe to save config for node namespace
-        nepi_ros.create_subscriber('~save_config', Empty, self._saveCb)
-        nepi_ros.create_subscriber('~init_config', Empty, self._initCb)
-        nepi_ros.create_subscriber('~reset_config', Empty, self._resetCb)
-        nepi_ros.create_subscriber('~factory_reset_config', Empty, self._factoryResetCb)
-        nepi_ros.create_subscriber('~system_reset', Reset, self._systemResetCb)
+        nepi_sdk.create_subscriber('~save_config', Empty, self._saveCb)
+        nepi_sdk.create_subscriber('~init_config', Empty, self._initCb)
+        nepi_sdk.create_subscriber('~reset_config', Empty, self._resetCb)
+        nepi_sdk.create_subscriber('~factory_reset_config', Empty, self._factoryResetCb)
+        nepi_sdk.create_subscriber('~system_reset', Reset, self._systemResetCb)
 
         # Global Topic Subscribers
-        nepi_ros.create_subscriber('save_config', Empty, self._saveCb)
-        nepi_ros.create_subscriber('init_config', Empty, self._initCb)
-        nepi_ros.create_subscriber('reset_config', Empty, self._resetCb)
-        nepi_ros.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
-        nepi_ros.create_subscriber('system_reset', Reset, self._systemResetCb)
+        nepi_sdk.create_subscriber('save_config', Empty, self._saveCb)
+        nepi_sdk.create_subscriber('init_config', Empty, self._initCb)
+        nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb)
+        nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
+        nepi_sdk.create_subscriber('system_reset', Reset, self._systemResetCb)
 
         if 'init_configs' in configs_dict.keys():
             init_configs = configs_dict['init_configs']
@@ -162,10 +162,10 @@ class NodeConfigsIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -181,22 +181,22 @@ class NodeConfigsIF:
 
     def save_config(self):
         self.save_params_pub.publish(self.node_namespace)
-        if self.initCb is not None and not nepi_ros.is_shutdown():
+        if self.initCb is not None and not nepi_sdk.is_shutdown():
             self.initCb() # Callback provided by container class to update based on param server, etc.
 
     def reset_config(self):
         success = False
-        success = nepi_ros.call_service(self.reset_service,self.request_msg)
-        nepi_ros.sleep(1)
-        if (self.resetCb and success == True) and not nepi_ros.is_shutdown():
+        success = nepi_sdk.call_service(self.reset_service,self.request_msg)
+        nepi_sdk.sleep(1)
+        if (self.resetCb and success == True) and not nepi_sdk.is_shutdown():
             self.resetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
     def factory_reset_config(self):
         success = False
-        success = nepi_ros.call_service(self.factory_reset_service,self.request_msg)
-        nepi_ros.sleep(1)
-        if (self.factoryResetCb) and not nepi_ros.is_shutdown():
+        success = nepi_sdk.call_service(self.factory_reset_service,self.request_msg)
+        nepi_sdk.sleep(1)
+        if (self.factoryResetCb) and not nepi_sdk.is_shutdown():
             self.factoryResetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
@@ -283,9 +283,9 @@ class NodeParamsIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -325,10 +325,10 @@ class NodeParamsIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -336,7 +336,7 @@ class NodeParamsIF:
         return self.ready
 
     def load_params(self, file_path):
-        self.nepi_ros.load_params_from_file(file_path,self.namespace)        
+        self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
 
     def initialize_params(self):
         for param_name in self.params_dict.keys():
@@ -354,27 +354,27 @@ class NodeParamsIF:
                 self.set_param(param_name, init_val)
 
     def reset_params(self):
-        for param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
+        for param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
             init_val = self.params_dict[param_name]['init_val']
             self.set_param(param_name, init_val)
 
     def factory_reset_params(self):
-        for param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
+        for param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
             factory_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, factory_val)
 
     def save_params(self, file_path):
-        if not nepi_ros.is_shutdown():
-            self.nepi_ros.save_params_to_file(file_path,self.namespace)       
+        if not nepi_sdk.is_shutdown():
+            self.nepi_sdk.save_params_to_file(file_path,self.namespace)       
 
     def has_param(self, param_name):
         namespace = self.get_param_namespace(param_name)
-        return nepi_ros.has_param(namespace)
+        return nepi_sdk.has_param(namespace)
 
     def get_param(self, param_name):
         value = None
         namespace = self.get_param_namespace(param_name)
-        if param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
+        if param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
             param_dict = self.params_dict[param_name]
             if 'init_val' in param_dict.keys():
                 fallback = param_dict['init_val']
@@ -382,13 +382,13 @@ class NodeParamsIF:
                 fallback = param_dict['factory_val']
 
             if fallback is not None:       
-                 value = nepi_ros.get_param(namespace,fallback)
+                 value = nepi_sdk.get_param(namespace,fallback)
         return value
 
     def set_param(self, param_name, value):
-        if not nepi_ros.is_shutdown():
+        if not nepi_sdk.is_shutdown():
             namespace = self.get_param_namespace(param_name)
-            nepi_ros.set_param(namespace,value)
+            nepi_sdk.set_param(namespace,value)
 
     def reset_param(self, param_name):
         if param_name in self.params_dict.keys():
@@ -406,9 +406,9 @@ class NodeParamsIF:
 
     def get_param_namespace(self,param_name):
         namespace = ""
-        if param_name in self.params_dict.keys() and not nepi_ros.is_shutdown():
+        if param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
             param_dict = self.params_dict[param_name]
-            namespace = nepi_ros.create_namespace(param_dict['namespace'],param_name)
+            namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
 
 
@@ -455,9 +455,9 @@ class NodeServicesIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -495,10 +495,10 @@ class NodeServicesIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -548,16 +548,16 @@ class NodeServicesIF:
             if 'service' not in srv_dict.keys() and srv_dict['callback'] is not None:
                 srv_callback = None
                 try:
-                    srv_namespace = nepi_ros.create_namespace(srv_dict['namespace'],srv_dict['topic'])
+                    srv_namespace = nepi_sdk.create_namespace(srv_dict['namespace'],srv_dict['topic'])
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
-                if srv_callback is not None and not nepi_ros.is_shutdown():
+                if srv_callback is not None and not nepi_sdk.is_shutdown():
                     self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
                     try:
-                        service = nepi_ros.create_service(srv_namespace, srv_msg, srv_callback)   
+                        service = nepi_sdk.create_service(srv_namespace, srv_msg, srv_callback)   
                         self.srvs_dict[service_name]['service'] = service
                         self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
                     except Exception as e:
@@ -569,7 +569,7 @@ class NodeServicesIF:
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
             purge = True
-            if 'service' in srv_dict.keys() and not nepi_ros.is_shutdown():
+            if 'service' in srv_dict.keys() and not nepi_sdk.is_shutdown():
                 try:
                     self.srvs_dict[service_name]['service'].shutdown()
                 except Exception as e:
@@ -617,9 +617,9 @@ class NodePublishersIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -658,10 +658,10 @@ class NodePublishersIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -675,7 +675,7 @@ class NodePublishersIF:
 
     def has_subscribers_check(self,pub_name):
         has_subs = False
-        if pub_name in self.pubs_dict.keys() and not nepi_ros.is_shutdown():
+        if pub_name in self.pubs_dict.keys() and not nepi_sdk.is_shutdown():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
@@ -687,7 +687,7 @@ class NodePublishersIF:
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
-                if pub_dict['pub'] is not None and not nepi_ros.is_shutdown():
+                if pub_dict['pub'] is not None and not nepi_sdk.is_shutdown():
                     try:
                         pub_dict['pub'].publish(pub_msg)
                         success = True
@@ -716,12 +716,12 @@ class NodePublishersIF:
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' not in pub_dict.keys():
-                if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_ros.is_shutdown():
-                    pub_namespace = nepi_ros.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
+                if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
+                    pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
                     self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
-                        pub = nepi_ros.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
+                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
                     self.pubs_dict[pub_name]['pub'] = pub
@@ -732,7 +732,7 @@ class NodePublishersIF:
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
-            if 'pub' in pub_dict.keys() and not nepi_ros.is_shutdown():
+            if 'pub' in pub_dict.keys() and not nepi_sdk.is_shutdown():
                 try:
                     self.pubs_dict[pub_name]['pub'].unregister()
                 except Exception as e:
@@ -776,9 +776,9 @@ class NodeSubscribersIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -818,10 +818,10 @@ class NodeSubscribersIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -852,8 +852,8 @@ class NodeSubscribersIF:
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
-            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_ros.is_shutdown():
-                sub_namespace = nepi_ros.create_namespace(sub_dict['namespace'],sub_dict['topic'])
+            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
+                sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
                 self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
@@ -861,9 +861,9 @@ class NodeSubscribersIF:
                     sub_dict['callback_args'] = ()
                 try:
                     if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_ros.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
                     else:
-                        sub = nepi_ros.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
                     #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
@@ -877,7 +877,7 @@ class NodeSubscribersIF:
         if sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             purge = True
-            if 'sub' in sub_dict.keys() and not nepi_ros.is_shutdown():
+            if 'sub' in sub_dict.keys() and not nepi_sdk.is_shutdown():
                 try:
                     self.subs_dict[sub_name]['sub'].unregister()
                 except Exception as e:
@@ -993,11 +993,11 @@ class NodeClassIF:
                 ):
         ####  IF INIT SETUP ####
         if node_name is not None:
-            nepi_ros.init_node(name = node_name) # Can be overwitten by luanch command
+            nepi_sdk.init_node(name = node_name) # Can be overwitten by luanch command
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -1070,7 +1070,7 @@ class NodeClassIF:
             if subs_dict is not None:
                 ready = self.subs_if.wait_for_ready()
         else:
-            nepi_ros.sleep(0.1)
+            nepi_sdk.sleep(0.1)
 
 
 
@@ -1092,10 +1092,10 @@ class NodeClassIF:
         success = False
         self.msg_if.pub_info("Waiting for Ready", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Wait for Ready Timed Out", log_name_list = self.log_name_list)
         else:
@@ -1228,7 +1228,7 @@ class NodeClassIF:
             self.pubs_if.unregister_pubs()
 
     def publish_pub(self,pub_name, pub_msg):
-        if self.pubs_if is not None and not nepi_ros.is_shutdown():
+        if self.pubs_if is not None and not nepi_sdk.is_shutdown():
             self.pubs_if.publish_pub(pub_name, pub_msg)   
             
     # Subscriber Methods ####################

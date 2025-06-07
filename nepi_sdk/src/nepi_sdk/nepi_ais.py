@@ -13,7 +13,7 @@ import cv2
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_ais"
 logger = Logger(log_name = log_name)
 

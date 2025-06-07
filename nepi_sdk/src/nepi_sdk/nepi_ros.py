@@ -43,8 +43,8 @@ from geometry_msgs.msg import *
 from nav_msgs.msg import *
 from geographic_msgs.msg import *
 
-from nepi_ros_interfaces.srv import *
-from nepi_ros_interfaces.msg import *
+from nepi_sdk_interfaces.srv import *
+from nepi_sdk_interfaces.msg import *
 
 
 #######################
@@ -53,7 +53,7 @@ from nepi_ros_interfaces.msg import *
 
 def log_msg(msg, level = "None", throttle_s = None, prefix = ""):
   #if msg is None:
-      #msg = "nepi_ros log_msg got None msg"
+      #msg = "nepi_sdk log_msg got None msg"
   if msg is not None:
     msg_str = prefix + str(msg)
     level = level.lower()
@@ -119,7 +119,7 @@ class logger:
     
     def log(self, msg, level = "None", throttle_s = None):
         if msg is None:
-            msg = "nepi_ros logger got None msg"
+            msg = "nepi_sdk logger got None msg"
         if msg is not None:
           msg_str = self._createMsgString(msg)
           log_msg(msg_str, level = level, throttle_s = throttle_s)
@@ -249,13 +249,13 @@ def check_for_node(node_name):
 def wait_for_node(node_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.logwarn("nepi_ros: Waiting for node with name: " + node_name)
+  rospy.logwarn("nepi_sdk: Waiting for node with name: " + node_name)
   node = ""
   while node == "" and timer < timeout and not rospy.is_shutdown():
     node=find_node(node_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_ros: Found node: " + node)
+  rospy.loginfo("nepi_sdk: Found node: " + node)
   return node
 
 
@@ -330,7 +330,7 @@ def kill_node_namespace(node_namespace):
   try:
     subprocess.call(["rosnode","kill", node_namespace])
   except Exception as e:
-    rospy.logwarn("nepi_ros: Failed to kill node_namespace: " + node_namespace + " " + str(e))
+    rospy.logwarn("nepi_sdk: Failed to kill node_namespace: " + node_namespace + " " + str(e))
 
 def spin():
   rospy.spin()
@@ -349,7 +349,7 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = None, callback_
     else:
         sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args=callback_args)
   except Exception as e:
-    rospy.logwarn("nepi_ros: Failed to create subscriber: " + str(e))
+    rospy.logwarn("nepi_sdk: Failed to create subscriber: " + str(e))
   return sub
 
 def create_publisher(pub_namespace, msg, queue_size = None,  latch = False):
@@ -358,7 +358,7 @@ def create_publisher(pub_namespace, msg, queue_size = None,  latch = False):
   try:
     pub = rospy.Publisher(pub_namespace, msg, queue_size=queue_size, latch=latch)
   except Exception as e:
-    rospy.logwarn("nepi_ros: Failed to create publisher: " + str(e))
+    rospy.logwarn("nepi_sdk: Failed to create publisher: " + str(e))
   return pub
 
 
@@ -466,13 +466,13 @@ def check_for_topic(topic_name):
 def wait_for_topic(topic_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.loginfo("nepi_ros: Waiting for topic with name: " + topic_name)
+  rospy.loginfo("nepi_sdk: Waiting for topic with name: " + topic_name)
   topic = ""
   while topic == "" and timer < timeout and not rospy.is_shutdown():
     topic=find_topic(topic_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_ros: Found topic: " + topic)
+  rospy.loginfo("nepi_sdk: Found topic: " + topic)
   return topic
 
 #######################
@@ -543,13 +543,13 @@ def check_for_service(service_name):
 def wait_for_service(service_name, timeout = float('inf')):
   start_time = get_time()
   timer = 0
-  rospy.loginfo("nepi_ros: Waiting for service name: " + service_name)
+  rospy.loginfo("nepi_sdk: Waiting for service name: " + service_name)
   found_service = ""
   while found_service == "" and timer < timeout and not rospy.is_shutdown():
     found_service=find_service(service_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  rospy.loginfo("nepi_ros: Found service: " + found_service)
+  rospy.loginfo("nepi_sdk: Found service: " + found_service)
   return found_service
 
 def create_service(service_namespace, srv_msg, srv_callback):
@@ -558,7 +558,7 @@ def create_service(service_namespace, srv_msg, srv_callback):
   try:
     service = rospy.Service(service_namespace, srv_msg, srv_callback)
   except Exception as e:
-    rospy.loginfo("nepi_ros: Failed to create service: " + str(e) )
+    rospy.loginfo("nepi_sdk: Failed to create service: " + str(e) )
   return service
 
 def connect_service(service_namespace, service_msg):
@@ -567,7 +567,7 @@ def connect_service(service_namespace, service_msg):
   try:
     service = rospy.ServiceProxy(service_namespace, service_msg)
   except Exception as e:
-      rospy.loginfo("nepi_ros: Failed to connect to service: " + str(e) )
+      rospy.loginfo("nepi_sdk: Failed to connect to service: " + str(e) )
   return service
 
 def call_service(service, request, verbose = True):
@@ -577,11 +577,11 @@ def call_service(service, request, verbose = True):
           response = service(request)
       except Exception as e:
           if verbose == True:
-            rospy.loginfo("nepi_ros: Failed to call service: " + str(e) )
+            rospy.loginfo("nepi_sdk: Failed to call service: " + str(e) )
           else:
             pass
     else:
-      rospy.loginfo("nepi_ros: Cant call None service")
+      rospy.loginfo("nepi_sdk: Cant call None service")
     return response
 
 #########################
@@ -618,12 +618,12 @@ def load_params_from_file(file_path, params_namespace = None):
         rospy.logwarn("Error loading parameters from file: " + file_path + " " + str(e))
     try:
         if params_input != []:
-          #rospy.logwarn("nepi_ros: loaded params" + str(params_input) + " for " + params_namespace)
+          #rospy.logwarn("nepi_sdk: loaded params" + str(params_input) + " for " + params_namespace)
           params = params_input[0][0]
           for key in params.keys():
               value = params[key]
               param_namesapce = params_namespace + key
-              #rospy.logwarn("nepi_ros: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
+              #rospy.logwarn("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
               rospy.set_param(param_namesapce, value)
           rospy.loginfo("Parameters loaded successfully for " + params_namespace)
     except rosparam.RosParamException as e:
@@ -714,7 +714,10 @@ def start_timer_process(duration, callback_function, oneshot = False):
   except Exception as e:
     rospy.logerr("Failed to start timer process: " + str(e))
   return success
-  
+
+
+
+
 
 #########################
 ### Time Helper Functions
@@ -723,112 +726,85 @@ def get_time():
   return time.time_ns() / 1000000000
 
 
-def get_ros_time_type():
+def get_msg_time_type():
   return rospy.rostime.Time
 
-def ros_time_now():
-  return rospy.Time.now()
+def get_msg_stamp():
+    return rospy.Time.now()
 
-def get_rostime():
-  return rospy.get_rostime()
 
-def ros_time_from_sec(time_ns):
-  return rospy.Time.from_sec(time_ns)
-
-def ros_time(time_ns = None):
-  if time_ns is None:
-    return ros_time_now()
+def msg_stamp_from_sec(time_sec = None):
+  if time_sec is None:
+    return rospy.Time.now()
   else:
-    return ros_time_from_sec(time_ns)
+    return rospy.Time(time_sec)
 
 
-def sec_from_ros_time(ros_time):
-  ros_time_str = str(ros_time)
-  if len(ros_time_str) > 9:
-    sec_str = ros_time_str[0:-9]
-  else:
-    sec_str = '0'
-  dec_str = ros_time_str[-9:]
-  time_str = sec_str + '.' + dec_str
-  time_sec = float(time_str)
+def sec_from_msg_stamp(msg_stamp):
+  time_sec = 0.0
+  if hasattr(msg_stamp,'sec'):
+    sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
+    time_sec = float(sec_str)
+  elif isinstance(timestamp,int) == True:
+    msg_stamp_str = str(msg_stamp)
+    if len(msg_stamp_str) > 9:
+      sec_str = msg_stamp_str[0:-9]
+    else:
+      sec_str = '0'
+    dec_str = msg_stamp_str[-9:]
+    time_str = sec_str + '.' + dec_str
+    time_sec = float(time_str)
   return time_sec
 
 
 
-def get_ros_stamp():
-    ros_time = ros_time_now()
-    return ros_stamp_from_ros_time(ros_time)
-
-def ros_stamp_now():
-    ros_time = ros_time_now()
-    return ros_stamp_from_ros_time(ros_time)
-
-
-def ros_stamp_from_ros_time(ros_time):
-  ros_stamp = ros_time
-  return ros_stamp
-
-
-def ros_stamp_from_sec(time_sec):
-  ros_time = ros_time_from_sec(time_sec)
-  ros_stamp = ros_stamp_from_ros_time(ros_time)
-  return ros_stamp
-  
-def sec_from_ros_stamp(stamp):
-  sec_str = str(stamp.secs) + '.' + str(stamp.nsecs)
-  sec = float(sec_str)
-  return sec
-
-
-def ros_stamp_from_timestamp(timestamp):
+def msg_stamp_from_timestamp(timestamp):
     #rospy.logwarn("Got timestamp to convert to stamp: " + str(timestamp))
     #rospy.logwarn("Got timestamp type to convert to stamp: " + str(type(timestamp)))
+    stamp = get_msg_stamp()
     if timestamp is None:
-        stamp = get_ros_stamp()
-    elif isinstance(timestamp,get_ros_time_type()) == False:
+        return stamp
+    elif isinstance(timestamp,get_msg_time_type()) == False:
           if isinstance(timestamp,float) == True:
-              stamp = ros_stamp_from_sec(timestamp)
-          else:
-              stamp = get_ros_stamp()
+              stamp = msg_stamp_from_sec(timestamp)
+          elif isinstance(timestamp,int) == True:
+              stamp = msg_stamp_from_sec(timestamp)
     else:
       try:
-        stamp = ros_stamp_from_ros_time(timestamp)
+        time_sec = sec_from_msg_stamp(timestamp)
+        stamp = msg_stamp_from_sec(time_sec)
       except:
-        stamp = get_ros_stamp()
+        pass
     return stamp
-
 
 
 def sec_from_timestamp(timestamp = None):
     #rospy.logwarn("Got timestamp to convert to sec: " + str(timestamp))
     #rospy.logwarn("Got timestamp type to convert to sec: " + str(type(timestamp)))
     if timestamp is None:
-        time_ns = get_time()
+        time_sec = get_time()
     else:
-        if isinstance(timestamp,get_ros_time_type()) == True:
+        if isinstance(timestamp,get_msg_time_type()) == True:
               try:
-                time_ns = sec_from_ros_stamp(timestamp)
+                time_sec = sec_from_msg_stamp(timestamp)
               except:
-                try:
-                  time_ns = sec_from_ros_time(timestamp)
-                except:
-                  time_ns = get_time()
+                time_sec = get_time()
         elif isinstance(timestamp,float) == True:
-            time_ns = timestamp
+            time_sec = timestamp
         else:
-            time_ns = get_time()
-    return time_ns
+            time_sec = get_time()
+    return time_sec
 
 
 
-def ros_duration(time_s):
-  return duration(time_s)
+def ros_duration(time_sec):
+  return duration(time_sec)
 
-def duration(time_s):
-  return rospy.Duration(time_s)
+def duration(time_sec):
+  return rospy.Duration(time_sec)
 
-def ros_rate(time_s):
-  return rospy.Rate(time_s)
+def ros_rate(time_sec):
+  return rospy.Rate(time_sec)
 
 
 # Sleep process that breaks sleep into smaller times for better shutdown
@@ -897,12 +873,23 @@ def get_time():
 #########################
 ### Msg Helper Functions
 
+def create_header_msg(time_sec = None, frame_id = None):
+  header = Header()
+  header.stamp = msg_stamp_from_sec(time_sec)
+  if frame_id is not None:
+    header.frame_id = frame_id
+  return header
+
+def parse_header_msg(header_msg):
+  time_sec = sec_from_msg_stamp(header_msg.stamp)
+  frame_id = header_msg.frame_id
+  return time_sec,frame_id
+  
 def convert_msg2dict(msg):
   msg_dict = None
   if msg is not None:
     msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
   return msg_dict
-
 
 def parse_string_list_msg_data(msg_data):
   str_list = []

@@ -14,11 +14,11 @@ import copy
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
-from nepi_ros_interfaces.msg import AiModelMgrStatus
-from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+from nepi_sdk_interfaces.msg import AiModelMgrStatus
+from nepi_sdk_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_img
 
@@ -69,9 +69,9 @@ class ConnectMgrAiModelIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -142,7 +142,7 @@ class ConnectMgrAiModelIF:
                                             )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
         ################################
         # Complete Initialization
 
@@ -162,10 +162,10 @@ class ConnectMgrAiModelIF:
         success = False
         self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
@@ -175,10 +175,10 @@ class ConnectMgrAiModelIF:
     def wait_for_status(self, timeout = float('inf') ):
         self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.status_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.status_connected == False:
             self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
@@ -189,7 +189,7 @@ class ConnectMgrAiModelIF:
         status_dict = None
 
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         else:
             self.msg_if.pub_info("Status Listener Not connected", log_name_list = self.log_name_list)
         return status_dict
@@ -198,7 +198,7 @@ class ConnectMgrAiModelIF:
     def get_status_dict(self):
         status_dict = None
         if self.status_msg is not None:
-            status_dict = nepi_ros.convert_msg2dict(self.status_msg)
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         else:
             self.msg_if.pub_warn("Status Listener Not ready", log_name_list = self.log_name_list)
         return status_dict
@@ -218,7 +218,7 @@ class ConnectMgrAiModelIF:
         if response is None:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
-            models_info_dict = nepi_ros.convert_msg2dict(response)
+            models_info_dict = nepi_sdk.convert_msg2dict(response)
             #self.msg_if.pub_info("Got models response" + str(response) + " for service: " + service_name)
             #self.msg_if.pub_info("Got models info response" + str(models_info_dict) + " for service: " + service_name)
 

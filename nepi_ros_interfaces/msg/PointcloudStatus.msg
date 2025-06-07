@@ -34,7 +34,7 @@ int32 image_height
 
 # The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-nepi_ros_interfaces/RangeWindow range_ratios
+nepi_sdk_interfaces/RangeWindow range_ratios
 
 # Zoom Ratio 0.0 - 1.0
 float32 zoom_ratio

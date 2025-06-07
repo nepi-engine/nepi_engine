@@ -105,7 +105,7 @@ class AppsAutoSelector extends Component {
     }
     var appsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/AppsStatus",
+          "nepi_sdk_interfaces/AppsStatus",
           this.appsStatusListener
         )
     this.setState({ appsListener: appsListener,

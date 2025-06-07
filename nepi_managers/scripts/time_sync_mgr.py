@@ -20,18 +20,18 @@ import pytz
 import datetime
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Empty, Time
-from nepi_ros_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.msg import SystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
-from nepi_ros_interfaces.msg import Reset, TimeUpdate
-from nepi_ros_interfaces.msg import TimeStatus
+from nepi_sdk_interfaces.msg import Reset, TimeUpdate
+from nepi_sdk_interfaces.msg import TimeStatus
 
-from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
+from nepi_sdk_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -65,10 +65,10 @@ class time_sync_mgr(object):
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -83,7 +83,7 @@ class time_sync_mgr(object):
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         sys_status_dict = mgr_sys_if.get_system_status_dict()
         in_container = False
         if sys_status_dict is not None: 
@@ -95,7 +95,7 @@ class time_sync_mgr(object):
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
         self.time_status = TimeStatus()
@@ -199,7 +199,7 @@ class time_sync_mgr(object):
 
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
             
 
         # Upddate Vars
@@ -217,8 +217,8 @@ class time_sync_mgr(object):
                 self.informClockUpdate() 
 
             # Set up a periodic timer to check for NTP sync so we can inform the rest of the system when first sync detected
-            self.ntp_status_check_timer = nepi_ros.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
-            self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+            self.ntp_status_check_timer = nepi_sdk.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
+            self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
             
 
         else:
@@ -231,7 +231,7 @@ class time_sync_mgr(object):
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
 
@@ -388,7 +388,7 @@ class time_sync_mgr(object):
                     self.time_status.last_ntp_sync[ind] = status_entry[2]
                     self.time_status.current_offset[ind] = status_entry[3]
 
-        self.updater = nepi_ros.start_timer_process(1, self.updaterCb, oneshot = True)
+        self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
 
 
@@ -513,23 +513,23 @@ class time_sync_mgr(object):
         elif Reset.SOFTWARE_RESET == reset_type:
             self.msg_if.pub_info("Executing soft reset for NTP")
             self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
-            nepi_ros.signal_shutdown('Shutdown by request')
+            nepi_sdk.signal_shutdown('Shutdown by request')
         elif Reset.HARDWARE_RESET == reset_type:
             self.msg_if.pub_info("Executing hard reset for NTP")
             # TODO: Any hardware restart required?
             self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
-            nepi_ros.signal_shutdown('Shutdown by request')
+            nepi_sdk.signal_shutdown('Shutdown by request')
 
 
     def informClockUpdate(self):
         self.node_if.publish_pub('sys_time_updated', Empty()) # Make sure to inform the rest of the nodes that the system clock was updated
 
         # For onvif_mgr, must use a service rather than the system_time_updated topic due to limitation with onvif_mgr message subscriptions
-        topic = nepi_ros.find_service('onvif_mgr/resync_onvif_device_clocks')
+        topic = nepi_sdk.find_service('onvif_mgr/resync_onvif_device_clocks')
         if topic != "":
             try:
-                nepi_ros.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
-                resync_srv = nepi_ros.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
+                nepi_sdk.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
+                resync_srv = nepi_sdk.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
                 resync_srv()
             except Exception as e:
                 pass

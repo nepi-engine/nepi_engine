@@ -20,11 +20,11 @@
 import os
 import copy
 
-from nepi_ros_interfaces.msg import Setting, Settings, SettingCap, SettingCaps
+from nepi_sdk_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_settings"
 logger = Logger(log_name = log_name)
 
@@ -38,7 +38,7 @@ NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
 
 
 def get_settings_publisher_namespaces():
-    topics_list = nepi_ros.find_topics_by_msg(Settings)
+    topics_list = nepi_sdk.find_topics_by_msg(Settings)
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))
@@ -107,14 +107,14 @@ def get_cap_setting_msg(cap_setting):
 def create_msg_from_cap_settings(cap_settings):
   cap_settings_msg = SettingCaps()
   cap_settings_msg.setting_caps_list = get_cap_setting_msgs_list(cap_settings)
-  cap_settings_msg.settings_count = len(cap_settings_list)
+  cap_settings_msg.settings_count = len(cap_settings)
   return cap_settings_msg
 
 def get_cap_setting_msgs_list(cap_settings):
   cap_setting_msgs_list = []
   for cap_setting_name in cap_settings.keys():
     cap_setting = cap_settings[cap_setting_name]
-    cap_setting_msg = get_cap_setting_msg
+    cap_setting_msg = get_cap_setting_msg(cap_setting)
     cap_setting_msgs_list.append(cap_setting_msg)
   return cap_setting_msgs_list
 
@@ -301,11 +301,11 @@ def get_settings_by_type(settings,type_str):
   return settings_of_type
 
 
-def create_status_msg(settings,cap_settings):
-  status_msg = Settings()
+def create_status_msg(settings,cap_settings, has_cap_updates = False):
+  status_msg = SettingsStatus()
   if len(settings) == len(cap_settings):
     status_msg.setting_caps_list = get_cap_setting_msgs_list(cap_settings)
-    status_msg = Settings()
+    status_msg.has_cap_updates = has_cap_updates
     settings_list = []
     for setting_name in settings.keys():
       setting = settings[setting_name]
@@ -313,6 +313,7 @@ def create_status_msg(settings,cap_settings):
       settings_list.append(setting_msg)
     status_msg.settings_list = settings_list
     status_msg.settings_count = len(settings_list)
+
   return status_msg
 
 def parse_status_msg_data(status_msg):
@@ -330,5 +331,6 @@ def parse_status_msg_data(status_msg):
     setting['type'] = entry.type_str
     setting['value'] = entry.value_str
     settings[entry.name_str] = setting
-  return(settings, cap_settings)
+  has_cap_updates = status_msg.has_cap_updates
+  return(settings, cap_settings,has_cap_updates )
   

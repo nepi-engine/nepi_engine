@@ -15,15 +15,15 @@ import subprocess
 import time
 import warnings
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
-from nepi_ros_interfaces.msg import SystemStatus
-from nepi_ros_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOrder
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
-from nepi_ros_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
+from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOrder
+from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_sdk_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -69,10 +69,10 @@ class NepiAppsMgr(object):
   DEFAULT_NODE_NAME = "apps_mgr" # Can be overwitten by luanch command
   def __init__(self):
       #### APP NODE INIT SETUP ####
-      nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+      nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
       self.class_name = type(self).__name__
-      self.base_namespace = nepi_ros.get_base_namespace()
-      self.node_name = nepi_ros.get_node_name()
+      self.base_namespace = nepi_sdk.get_base_namespace()
+      self.node_name = nepi_sdk.get_node_name()
       self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
       ##############################  
@@ -91,7 +91,7 @@ class NepiAppsMgr(object):
       mgr_sys_if = ConnectMgrSystemIF()
       success = mgr_sys_if.wait_for_status()
       if success == False:
-          nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
       # NEED TO CHANGE TO SYSTEM SERVICE CALLS
       self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
@@ -107,7 +107,7 @@ class NepiAppsMgr(object):
       mgr_cfg_if = ConnectMgrConfigIF()
       success = mgr_cfg_if.wait_for_status()
       if success == False:
-          nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
 
 
@@ -225,7 +225,7 @@ class NepiAppsMgr(object):
       )
 
       #ready = self.node_if.wait_for_ready()
-      nepi_ros.wait()
+      nepi_sdk.wait()
 
       # Setup message publisher and init param server
       self.msg_if.pub_info("Starting Initialization Processes")
@@ -250,11 +250,11 @@ class NepiAppsMgr(object):
 
 
       ###########################
-      nepi_ros.start_timer_process(0.5, self.statusPublishCb)
+      nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 
       # Setup a app folder timed check
-      nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
-      nepi_ros.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
+      nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+      nepi_sdk.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
       time.sleep(1)
       ## Publish Status
       self.publish_status()
@@ -263,9 +263,9 @@ class NepiAppsMgr(object):
       ## Initiation Complete
       self.msg_if.pub_info("Initialization Complete")
       #Set up node shutdown
-      nepi_ros.on_shutdown(self.cleanup_actions)
+      nepi_sdk.on_shutdown(self.cleanup_actions)
       # Spin forever (until object is detected)
-      nepi_ros.spin()
+      nepi_sdk.spin()
       #########################################################
 
 
@@ -344,7 +344,7 @@ class NepiAppsMgr(object):
     ###############################
     # Get list of active nodes
     warnings.filterwarnings('ignore', '.*unclosed.*', ) 
-    node_namespace_list = nepi_ros.get_node_list()
+    node_namespace_list = nepi_sdk.get_node_list()
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
@@ -357,7 +357,7 @@ class NepiAppsMgr(object):
           node_name = self.apps_active_dict[app_name]['node_name']
           if node_name in node_list:
             sub_process = self.apps_active_dict[app_name]['subprocess']
-            success = nepi_ros.kill_node_process(node_name,sub_process)
+            success = nepi_sdk.kill_node_process(node_name,sub_process)
             if success:
               purge_list.append(app_name)
     # purge from active discovery dict
@@ -393,10 +393,10 @@ class NepiAppsMgr(object):
           config_file_path = self.apps_config_folder + "/" + app_config_file_name.split(".")[0] + "/" + app_config_file_name
           params_namespace = os.path.join(self.base_namespace, app_node_name)
           apt_dict_pn = os.path.join(params_namespace, 'app_dict')
-          nepi_ros.set_param(apt_dict_pn,app_dict)
+          nepi_sdk.set_param(apt_dict_pn,app_dict)
           if os.path.exists(config_file_path):
             try:
-              nepi_ros.load_params_from_file(config_file_path, params_namespace)
+              nepi_sdk.load_params_from_file(config_file_path, params_namespace)
             except Exception as e:
               self.msg_if.pub_warn("Could not get params from config file: " + config_file_path + " " + str(e))
           else:
@@ -404,7 +404,7 @@ class NepiAppsMgr(object):
           #Try and launch node
           self.msg_if.pub_info("")
           self.msg_if.pub_info("Launching application node: " + app_node_name)
-          [success, msg, sub_process] = nepi_ros.launch_node(app_pkg_name, app_file_name, app_node_name)
+          [success, msg, sub_process] = nepi_sdk.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success:
             apps_dict[app_name]['msg'] = "Discovery process lanched"
             self.apps_active_dict[app_name]=dict()
@@ -423,8 +423,8 @@ class NepiAppsMgr(object):
     # Publish Status
     self.publish_status()
     # And now that we are finished, start a timer for the appt runDiscovery()
-    nepi_ros.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_ros.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+    nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL,100)
+    nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
    
 
 

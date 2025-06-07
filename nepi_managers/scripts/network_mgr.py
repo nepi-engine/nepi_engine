@@ -18,17 +18,17 @@ import requests
 import time
 import copy
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemStatus
-from nepi_ros_interfaces.msg import Reset, WifiCredentials
-from nepi_ros_interfaces.srv import IPAddrQuery, IPAddrQueryRequest, IPAddrQueryResponse
-from nepi_ros_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
-from nepi_ros_interfaces.srv import BandwidthUsageQueryRequest, BandwidthUsageQuery, BandwidthUsageQueryResponse
-from nepi_ros_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
+from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.msg import Reset, WifiCredentials
+from nepi_sdk_interfaces.srv import IPAddrQuery, IPAddrQueryRequest, IPAddrQueryResponse
+from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+from nepi_sdk_interfaces.srv import BandwidthUsageQueryRequest, BandwidthUsageQuery, BandwidthUsageQueryResponse
+from nepi_sdk_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -93,10 +93,10 @@ class NetworkMgr:
     DEFAULT_NODE_NAME = "network_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -110,7 +110,7 @@ class NetworkMgr:
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         status_dict = mgr_sys_if.get_system_status_dict()
         self.msg_if.pub_warn("Got System Status Dict: " + str(status_dict))
         self.in_container = status_dict['in_container']
@@ -120,7 +120,7 @@ class NetworkMgr:
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
         self.dhcp_enabled = False # initialize to false -- will be updated in set_dhcp_from_params
@@ -350,7 +350,7 @@ class NetworkMgr:
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ###########################
         # Complete Initialization
@@ -376,11 +376,11 @@ class NetworkMgr:
 
         success = self.save_config()
 
-        nepi_ros.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
+        nepi_sdk.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
 
         # Long duration internet check -- do oneshot and reschedule from within the callback
-        nepi_ros.start_timer_process(self.UPDATER_INTERVAL_S, self.updaterCb, oneshot = True)
-        nepi_ros.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
 
 
         #########################################################
@@ -404,7 +404,7 @@ class NetworkMgr:
     ### Mgr Config Functions
 
     def run(self):
-        nepi_ros.spin()
+        nepi_sdk.spin()
 
     def cleanup(self):
         self.process.stop()
@@ -548,7 +548,7 @@ class NetworkMgr:
                                 self.msg_if.pub_warn("Calling dhclient -r subprocess")
                                 subprocess.check_call(['dhclient', '-r', self.NET_IFACE])
                                 restart_network = True
-                                nepi_ros.wait()
+                                nepi_sdk.wait()
                             self.dhcp_enabled = False
                             self.msg_if.pub_warn("DHCP disabled")
                         except Exception as e:
@@ -559,14 +559,14 @@ class NetworkMgr:
                                 self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
                                 # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
                                 subprocess.call(['ifdown', self.NET_IFACE])
-                                nepi_ros.wait()
+                                nepi_sdk.wait()
                                 subprocess.call(['ifup', self.NET_IFACE])
                                 self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
                         except Exception as e:
                             self.msg_if.pub_warn("Unable to reset NET_IFACE: " + self.NET_IFACE + " " + str(e))
                     else:
                         self.msg_if.pub_warn("DHCP already disabled")
-                    #nepi_ros.sleep(5)
+                    #nepi_sdk.sleep(5)
                 self.update_ip_table = True
                 self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
             else:
@@ -588,7 +588,7 @@ class NetworkMgr:
         pass
 
     def resetCb(self):
-        user_reset_proxy = nepi_ros.create_service('user_reset', FileReset)
+        user_reset_proxy = nepi_sdk.create_service('user_reset', FileReset)
         try:
             resp = user_reset_proxy(self.node_name)
         except Exception as e:
@@ -597,7 +597,7 @@ class NetworkMgr:
         self.set_dhcp_from_params()
 
     def factoryResetCb(self):
-        factory_reset_proxy = nepi_ros.create_service('factory_reset', FileReset)
+        factory_reset_proxy = nepi_sdk.create_service('factory_reset', FileReset)
         try:
             resp = factory_reset_proxy(self.node_name)
         except Exception as e:
@@ -623,11 +623,11 @@ class NetworkMgr:
             pass # factoryResetCb called by node_if
 
         elif Reset.SOFTWARE_RESET:
-            nepi_ros.signal_shutdown("{}: shutdown by request".format(self.node_name))
+            nepi_sdk.signal_shutdown("{}: shutdown by request".format(self.node_name))
         elif Reset.HARDWARE_RESET:
             # Reset the interface
             subprocess.call(['ifdown', self.NET_IFACE])
-            nepi_ros.wait()
+            nepi_sdk.wait()
             subprocess.call(['ifup', self.NET_IFACE])
         success = self.save_config()
 
@@ -667,7 +667,7 @@ class NetworkMgr:
         self.node_if.set_param('wifi/client_ssid', self.wifi_client_ssid)
         self.node_if.set_param('wifi/client_passphrase', self.wifi_client_passphrase)
 
-        self.node_if.publish_pub('store_params', nepi_ros.get_node_namespace())
+        self.node_if.publish_pub('store_params', nepi_sdk.get_node_namespace())
         '''
 
     def save_config(self):
@@ -824,7 +824,7 @@ class NetworkMgr:
             try:
                 # Kill any current access point -- no problem if one isn't already running; just returns immediately
                 subprocess.call([self.CREATE_AP_CALL, '--stop', self.wifi_iface])
-                nepi_ros.wait()
+                nepi_sdk.wait()
 
                 # Use the create_ap command line
                 subprocess.check_call([self.CREATE_AP_CALL, '-n', '--redirect-to-localhost', '--isolate-clients', '--daemon',
@@ -899,10 +899,10 @@ class NetworkMgr:
                     
                         subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
                         self.wifi_client_connected = False
-                        nepi_ros.wait()
+                        nepi_sdk.wait()
                         subprocess.check_call(start_supplicant_cmd)
                         # Wait a few seconds for it to connect
-                        nepi_ros.sleep(5)
+                        nepi_sdk.sleep(5)
                         connected_ssid = self.get_wifi_client_connected_ssid()
                         if connected_ssid is None:
                             raise Exception("Wifi client failed to connect")
@@ -914,8 +914,8 @@ class NetworkMgr:
                                         self.wifi_client_passphrase + "): " + str(e))
                         # Auto retry in 3 seconds
                         self.msg_if.pub_info("Automatically retrying Wifi connect in 3 seconds")
-                        if not nepi_ros.is_shutdown():
-                            self.retry_wifi_timer = nepi_ros.start_timer_process(3, self.auto_retry_wifi_client_connect, oneshot=True)
+                        if not nepi_sdk.is_shutdown():
+                            self.retry_wifi_timer = nepi_sdk.start_timer_process(3, self.auto_retry_wifi_client_connect, oneshot=True)
                 else:
                     self.msg_if.pub_info("Wifi client ready -- need SSID and passphrase to connect")
                     self.retry_wifi_timer = None
@@ -929,7 +929,7 @@ class NetworkMgr:
         else:
             # Stop the supplicant
             subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
-            nepi_ros.wait()
+            nepi_sdk.wait()
             # Bring down the interface
             link_down_cmd = self.ENABLE_DISABLE_WIFI_ADAPTER_PRE + [self.wifi_iface] + self.DISABLE_WIFI_ADAPTER_POST
             subprocess.call(link_down_cmd)
@@ -993,7 +993,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Skipping IP Update until dhcp change complete")
 
         #self.msg_if.pub_warn("Exiting updater process")
-        nepi_ros.start_timer_process(self.UPDATER_INTERVAL_S, self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.updaterCb, oneshot = True)
 
 
     def internetCheckCb(self, event):
@@ -1024,7 +1024,7 @@ class NetworkMgr:
         self.clock_skewed = cur_year < 2024
             
         #self.msg_if.pub_warn("Exiting internet check process")
-        nepi_ros.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
 
     def handle_ip_addr_query(self, req):
         ips = self.report_ip_addrs

@@ -8,7 +8,7 @@
 string data_source_type
 string data_product_name
 
-string[] frame_id_options
+string[] frame_3d_options
 
 bool has_resolution
 bool has_auto_adjust

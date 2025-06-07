@@ -18,10 +18,10 @@ import importlib
 import subprocess
 import time
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
   
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_aifs"
 logger = Logger(log_name = log_name)
  
@@ -279,7 +279,7 @@ def launchClassifierNode(pkg_name, file_name, ros_node_name, device_path = None)
 def killClassifierNode(node_namespace,sub_process):
     success = True
     node_name = node_namespace.split("/")[-1]
-    node_namespace_list = nepi_ros.get_node_list()
+    node_namespace_list = nepi_sdk.get_node_list()
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
@@ -287,7 +287,7 @@ def killClassifierNode(node_namespace,sub_process):
     logger.log_warn( node_name)
     if node_name in node_list:
       logger.log_warn("Killing node: " + node_name)
-      [kill_list,fail_list] = nepi_ros.kill_node(node_name)
+      [kill_list,fail_list] = nepi_sdk.kill_node(node_name)
       time.sleep(2)    
       # Next check running processes
       if sub_process.poll() is not None: 

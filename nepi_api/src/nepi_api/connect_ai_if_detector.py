@@ -17,12 +17,12 @@ import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
-from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,  AiDetectorInfoQueryResponse
+from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,  AiDetectorInfoQueryResponse
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_ais
 
@@ -101,7 +101,7 @@ class ConnectAiDetectorIF:
     boxes_dict = dict()
 
     first_det_time = None
-    last_det_time = nepi_ros.get_time()
+    last_det_time = nepi_sdk.get_time()
 
     src_img_topic = None
     pub_img_topic = None
@@ -128,9 +128,9 @@ class ConnectAiDetectorIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -257,10 +257,10 @@ class ConnectAiDetectorIF:
         # Wait for Status Message
         self.msg_if.pub_info("Waiting for status message on topic: " + status_topic)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.det_status_msg is None and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.2)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.det_status_msg is None and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.2)
+            timer = nepi_sdk.get_time() - time_start
         if self.det_status_msg is None:
             self.msg_if.pub_warn("Status msg topic subscribe timed out " + str(status_topic))
             success = False
@@ -278,7 +278,7 @@ class ConnectAiDetectorIF:
             else:
                 service_namespace = os.path.join(self.det_namespace,service_dict['psn'], service_name)
             self.msg_if.pub_info("Waiting for " + service_name + " on det_namespace " + service_namespace)
-            ret = nepi_ros.wait_for_service(service_namespace, timeout = timeout )
+            ret = nepi_sdk.wait_for_service(service_namespace, timeout = timeout )
             if ret == "":
                 self.msg_if.pub_warn("Wait for service: " + service_name + " timed out", log_name_list = self.log_name_list) 
             else:
@@ -286,7 +286,7 @@ class ConnectAiDetectorIF:
                 #self.msg_if.pub_warn("Creating service with det_namespace: " + service_namespace)
                 #self.msg_if.pub_warn("Creating service with msg: " + str(service_dict['msg']))
                 try:
-                    service = nepi_ros.create_service(service_namespace, service_dict['msg'])
+                    service = nepi_sdk.create_service(service_namespace, service_dict['msg'])
                     time.sleep(1)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
@@ -308,7 +308,7 @@ class ConnectAiDetectorIF:
 
         if success == True and auto_reg_img == True:
             self.msg_if.pub_info("Starting auto reg check service", log_name_list = self.log_name_list)
-            nepi_ros.start_timer_process(nepi_ros.ros_duration(.1), self.autoRegImgCb, oneshot = True)
+            nepi_sdk.start_timer_process(nepi_sdk.ros_duration(.1), self.autoRegImgCb, oneshot = True)
 
         #################################
         self.ready = True
@@ -332,10 +332,10 @@ class ConnectAiDetectorIF:
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
-            while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -353,10 +353,10 @@ class ConnectAiDetectorIF:
         success = False
         self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.det_connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.det_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.det_connected == False:
             self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
@@ -402,7 +402,7 @@ class ConnectAiDetectorIF:
             # Call service
             response = None
             if request is not None:
-                response = nepi_ros.call_service(srv_dict['service'],  request)
+                response = nepi_sdk.call_service(srv_dict['service'],  request)
 
             # Process Response
             if response is None:
@@ -414,7 +414,7 @@ class ConnectAiDetectorIF:
                 self.det_img_height = det_info_msg.det_img_height
                 self.det_classes = det_info_msg.det_classes
                 self.det_classes_colors = nepi_ais.get_classes_colors_list(det_info_msg.det_classes)
-                info_dict = nepi_ros.convert_msg2dict(det_info_msg)
+                info_dict = nepi_sdk.convert_msg2dict(det_info_msg)
                 self.msg_if.pub_info("Got detector info dict" + str(info_dict))
         return info_dict
 
@@ -423,7 +423,7 @@ class ConnectAiDetectorIF:
         status_dict = None
         if self.det_connected != False: 
             if self.det_status_msg is not None:
-                status_dict = nepi_ros.convert_msg2dict(self.det_status_msg)
+                status_dict = nepi_sdk.convert_msg2dict(self.det_status_msg)
             else:
                 self.msg_if.pub_warn("Status Dict not Available", log_name_list = self.log_name_list)
         else:
@@ -492,16 +492,16 @@ class ConnectAiDetectorIF:
         if det_img_ns in self.det_img_data_dict.keys():
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
-            time_start = nepi_ros.get_time()
+            time_start = nepi_sdk.get_time()
             connected = False
-            while connected == False and timer < timeout and not nepi_ros.is_shutdown():
+            while connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 check = self.det_img_data_dict['connected']
                 if check is None:
                     connected = False
                 else:
                     conected = check
-                nepi_ros.sleep(.1)
-                timer = nepi_ros.get_time() - time_start
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
             if connected == False:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
@@ -706,7 +706,7 @@ class ConnectAiDetectorIF:
                             'boxes': blist
                             }
 
-        time = nepi_ros.get_time()
+        time = nepi_sdk.get_time()
         if self.det_img_dict[det_img_namespace]['first_det_time'] is None:
             self.det_img_dict[det_img_namespace]['first_det_time'] = time
         self.det_img_dict[det_img_namespace]['last_det_time'] = time

@@ -94,7 +94,7 @@ class NepiSystemMessages extends Component {
     }
     var messagesStatusListener = this.props.ros.setupStatusListener(
       namespace,
-      "nepi_ros_interfaces/Message",
+      "nepi_sdk_interfaces/Message",
       this.messagesStatusListener
     )
     this.setState({ messagesStatusListener: messagesStatusListener,

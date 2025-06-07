@@ -23,10 +23,10 @@ import usb
 import copy
 from serial.tools import list_ports
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_drvs"
 logger = Logger(log_name = log_name)
 
@@ -571,7 +571,7 @@ def unimportDriverClass(module_name):
 def checkLoadConfigFile(node_name):
   config_folder = DRIVERS_CFG_FOLDER
   config_file = os.path.join(config_folder, node_name + ".yaml")
-  node_namespace = nepi_ros.get_base_namespace() + node_name
+  node_namespace = nepi_sdk.get_base_namespace() + node_name
   if os.path.exists(config_file):
     print("Loading parameters from " + config_file + " to " + node_namespace)
     rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]

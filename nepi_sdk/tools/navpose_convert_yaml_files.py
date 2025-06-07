@@ -16,11 +16,11 @@
 import os
 import yaml
 import rospy
-from nepi_edge_sdk_base import nepi_ros
+from nepi_edge_sdk_base import nepi_sdk
 from nepi_edge_sdk_base import nepi_nav
 from std_msgs.msg import Float64MultiArray
-from nepi_ros_interfaces.srv import NavPoseQuery, NavPoseQueryRequest
-from nepi_ros_interfaces.msg import NavPose, NavPoseResponse
+from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest
+from nepi_sdk_interfaces.msg import NavPose, NavPoseResponse
 
 
 ##########################################
@@ -31,7 +31,7 @@ NED_ORIENTATION_ENABLE = True
 WGS84_GEO_ENABLE = True
 AMSL_GEO_ENABLE = False
 
-NEPI_BASE_NAMESPACE = nepi_ros.get_base_namespace()
+NEPI_BASE_NAMESPACE = nepi_sdk.get_base_namespace()
 NAVPOSE_SERVICE_NAME = NEPI_BASE_NAMESPACE + "nav_pose_query"
 
 def convert_yaml_files(yaml_dir):

@@ -28,16 +28,16 @@ from scipy.sparse.linalg import spsolve
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_img"
 logger = Logger(log_name = log_name)
 
 
 def get_image_publisher_namespaces(name):
     msg_type = 'sensor_msgs/Image'
-    return nepi_ros.find_topics_by_msg(msg_type)
+    return nepi_sdk.find_topics_by_msg(msg_type)
 
 
 #########################
@@ -65,7 +65,7 @@ def create_cv2_blank_img(width,height, color = (255, 255, 255) ):
 
 
 def getImgShortName(det_namespace):
-    base_namespace = nepi_ros.get_base_namespace()
+    base_namespace = nepi_sdk.get_base_namespace()
     short_name = det_namespace.replace(base_namespace,"")
     if short_name.find("idx") != -1:
         short_name = short_name.replace("/idx","")
@@ -74,7 +74,7 @@ def getImgShortName(det_namespace):
 
 def get_img_depth_map_topic(img_topic):
   topic = img_topic.rsplit('/',1)[0] + "/depth_map"
-  topic = nepi_ros.find_topic(topic)
+  topic = nepi_sdk.find_topic(topic)
   if topic == "":
     topic = None
   return topic
@@ -82,7 +82,7 @@ def get_img_depth_map_topic(img_topic):
 
 def get_img_pointcloud_topic(img_topic):
   topic = img_topic.rsplit('/',1)[0] + "/pointcloud"
-  topic = nepi_ros.find_topic(topic)
+  topic = nepi_sdk.find_topic(topic)
   if topic == "":
     topic = None
   return topic

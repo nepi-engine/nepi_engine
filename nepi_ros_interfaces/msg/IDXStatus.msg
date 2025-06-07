@@ -50,7 +50,7 @@ float32 threshold_ratio
 RangeWindow range_window_ratios
 
 # Input Transform for data from sensor's native sensor frame to the nepi_center_frame 
-nepi_ros_interfaces/Frame3DTransform frame_3d_transform
+nepi_sdk_interfaces/Frame3DTransform frame_3d_transform
 
 # Output transform into which 3D data (navpose,pointclouds...) are published
 # Options ['nepi_base_frame','sensor_frame','map']

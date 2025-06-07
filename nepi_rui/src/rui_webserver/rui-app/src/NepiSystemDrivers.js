@@ -146,7 +146,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     }
     var driversListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_ros_interfaces/DriversStatus",
+          "nepi_sdk_interfaces/DriversStatus",
           this.driversStatusListener
         )
     this.setState({ driversListener: driversListener})
@@ -182,7 +182,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       }
       var driverListener = this.props.ros.setupStatusListener(
             statusNamespace,
-            "nepi_ros_interfaces/DriverStatus",
+            "nepi_sdk_interfaces/DriverStatus",
             this.statusDriverListener
           )
       this.setState({ driverListener: driverListener})

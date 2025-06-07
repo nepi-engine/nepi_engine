@@ -21,13 +21,13 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
-from nepi_ros_interfaces.msg import AiDetectorMgrStatus
-from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+from nepi_sdk_interfaces.msg import AiDetectorMgrStatus
+from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_sdk_interfaces.srv import SystemStorageFolderQuery
+from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_ais
@@ -93,7 +93,7 @@ class AiDetectorIF:
     self_managed = True
     model_name = "None"
 
-    last_detect_time = nepi_ros.get_time()
+    last_detect_time = nepi_sdk.get_time()
     img_ifs_dict = dict()
     img_ifs_lock = threading.Lock()
     imgs_info_dict = dict()
@@ -138,9 +138,9 @@ class AiDetectorIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -162,7 +162,7 @@ class AiDetectorIF:
         self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
         success = self.mgr_sys_srv_if.wait_for_services()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
 
         #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
         #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
@@ -215,17 +215,17 @@ class AiDetectorIF:
             self.msg_if.pub_warn("Launching Img Pub Node: " + img_pub_node_name)
 
             # Pre Set Img Pub Params
-            param_ns = nepi_ros.create_namespace(img_pub_namespace,'data_product')
-            nepi_ros.set_param(param_ns,self.img_data_product)
+            param_ns = nepi_sdk.create_namespace(img_pub_namespace,'data_product')
+            nepi_sdk.set_param(param_ns,self.img_data_product)
 
-            param_ns = nepi_ros.create_namespace(img_pub_namespace,'det_namespace')
-            nepi_ros.set_param(param_ns,self.node_namespace)
+            param_ns = nepi_sdk.create_namespace(img_pub_namespace,'det_namespace')
+            nepi_sdk.set_param(param_ns,self.node_namespace)
 
-            param_ns = nepi_ros.create_namespace(img_pub_namespace,'all_namespace')
-            nepi_ros.set_param(param_ns,self.all_namespace)
+            param_ns = nepi_sdk.create_namespace(img_pub_namespace,'all_namespace')
+            nepi_sdk.set_param(param_ns,self.all_namespace)
                      
 
-            [success, msg, pub_process] = nepi_ros.launch_node(pkg_name, img_pub_file, img_pub_node_name)
+            [success, msg, pub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, img_pub_node_name)
 
             self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg)
         
@@ -539,7 +539,7 @@ class AiDetectorIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_ros.sleep(0.1)
+        nepi_sdk.sleep(0.1)
 
         ###############################
         # Create System IFs
@@ -606,10 +606,10 @@ class AiDetectorIF:
         # Complete Initialization
 
         # Start Timer Processes
-        nepi_ros.start_timer_process((1.0), self.publishStatusCb)
-        nepi_ros.start_timer_process((1.0), self.updateDetectionState)
-        nepi_ros.start_timer_process((0.1), self.updaterCb, oneshot = True)
-        nepi_ros.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
+        nepi_sdk.start_timer_process((1.0), self.publishStatusCb)
+        nepi_sdk.start_timer_process((1.0), self.updateDetectionState)
+        nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
 
         self.state = 'Loaded'
         ##########################
@@ -661,7 +661,7 @@ class AiDetectorIF:
         self.node_if.set_param('enabled', enabled)
         self.publish_status()
         time.sleep(1)
-        if msg.data == False and not nepi_ros.is_shutdown():
+        if msg.data == False and not nepi_sdk.is_shutdown():
             self.get_img_topic = "None"
 
     def addAllClassesCb(self,msg):
@@ -870,7 +870,7 @@ class AiDetectorIF:
         self.img_ifs_lock.release()
         # Update Image subscribers
         for i,img_topic in enumerate(img_topics):
-            img_topic = nepi_ros.find_topic(img_topic)
+            img_topic = nepi_sdk.find_topic(img_topic)
             if img_topic != '':
                 img_topics[i] = img_topic
                 if img_topic not in active_img_topics:
@@ -907,7 +907,7 @@ class AiDetectorIF:
         else: # Loaded, but not enabled
             self.state = "Loaded"
 
-        nepi_ros.start_timer_process((.1), self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process((.1), self.updaterCb, oneshot = True)
 
 
     def subscribeImgTopic(self,img_topic):
@@ -1053,7 +1053,7 @@ class AiDetectorIF:
         img_topic = args
 
 
-        start_time = nepi_ros.get_time()   
+        start_time = nepi_sdk.get_time()   
 
         if img_topic in imgs_info_dict.keys():
             if imgs_info_dict[img_topic]['active'] == True:
@@ -1061,9 +1061,9 @@ class AiDetectorIF:
                 enabled = self.det_status_msg.enabled
                 if enabled == True and self.sleep_state == False:
                     # Process ros image message
-                    current_time = nepi_ros.ros_time_now()
-                    ros_timestamp = image_msg.header.stamp
-                    latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                    current_time = nepi_sdk.get_msg_stamp()
+                    get_msg_stampstamp = image_msg.header.stamp
+                    latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
                     imgs_info_dict[img_topic]['image_latency_time'] = latency
                     #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
 
@@ -1085,12 +1085,12 @@ class AiDetectorIF:
                         img_dict = dict()
                         img_dict['cv2_img'] = cv2_img
                         '''
-                        ros_timestamp = image_msg.header.stamp
+                        get_msg_stampstamp = image_msg.header.stamp
                         img_dict = self.preprocessImage(cv2_img,options_dict)
                         img_dict['topic'] = img_topic
-                        img_dict['timestamp'] = nepi_ros.sec_from_ros_time(ros_timestamp)
+                        img_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
                         img_dict['msg_header'] = image_msg.header
-                        img_dict['msg_stamp'] = ros_timestamp
+                        img_dict['msg_stamp'] = get_msg_stampstamp
                         ##############################
 
                         self.img_dict_lock.acquire()
@@ -1098,7 +1098,7 @@ class AiDetectorIF:
                         self.img_dict_lock.release()
                         self.got_img_topic = img_topic
 
-                        preprocess_time = round( (nepi_ros.get_time() - start_time) , 3)
+                        preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
                         imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
 
                 if img_topic in self.imgs_info_dict.keys():
@@ -1110,7 +1110,7 @@ class AiDetectorIF:
 
     def updateDetectCb(self,timer):
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        start_time = nepi_ros.get_time()
+        start_time = nepi_sdk.get_time()
         enabled = self.det_status_msg.enabled
         if enabled == True:
             img_topics = self.det_status_msg.image_source_topics
@@ -1125,7 +1125,7 @@ class AiDetectorIF:
                 # check timer
                 max_rate = self.det_status_msg.max_proc_rate_hz
                 delay_time = float(1) / max_rate 
-                current_time = nepi_ros.get_time()
+                current_time = nepi_sdk.get_time()
                 timer = round((current_time - self.last_detect_time), 3)
                 #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
 
@@ -1151,7 +1151,7 @@ class AiDetectorIF:
                 if img_topic == "None" and next_img_topic != "None":
                     self.get_img_topic = next_img_topic
                     self.cur_img_topic = next_img_topic
-                    self.last_detect_time = nepi_ros.get_time()
+                    self.last_detect_time = nepi_sdk.get_time()
 
                 ##############################
                 # Check for non responding image streams                   
@@ -1161,7 +1161,7 @@ class AiDetectorIF:
                         imgs_info_dict[img_topic]['connected'] = False
                     self.get_img_topic = next_img_topic
                     self.cur_img_topic = next_img_topic
-                    self.last_detect_time = nepi_ros.get_time()
+                    self.last_detect_time = nepi_sdk.get_time()
 
                 elif timer > delay_time: 
 
@@ -1174,7 +1174,7 @@ class AiDetectorIF:
                         detect_delay = nepi_utils.get_time() - self.last_detect_time
                         self.time_list.pop(0)
                         self.time_list.append(detect_delay)
-                        self.last_detect_time = nepi_ros.get_time()
+                        self.last_detect_time = nepi_sdk.get_time()
 
                     #self.msg_if.pub_warn("Timer over delay check, looking for image topic: " +  img_topic)
                     if img_topic != "None" and img_topic in connected_list and img_topic == self.got_img_topic :
@@ -1224,13 +1224,13 @@ class AiDetectorIF:
 
                                 self.publishDetectionData(img_dict,detect_dict_list,ros_img_header)
                                 
-                            detect_time = round( (nepi_ros.get_time() - start_time) , 3)
+                            detect_time = round( (nepi_sdk.get_time() - start_time) , 3)
                             imgs_info_dict[img_topic]['detect_time'] = detect_time
                             #self.msg_if.pub_info("Detect Time: {:.2f}".format(detect_time))
 
-                        current_time = nepi_ros.ros_time_now()
-                        ros_timestamp = img_dict['msg_stamp']
-                        latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                        current_time = nepi_sdk.get_msg_stamp()
+                        get_msg_stampstamp = img_dict['msg_stamp']
+                        latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
                         imgs_info_dict[img_topic]['detect_latency_time'] = latency
                         #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
 
@@ -1242,7 +1242,7 @@ class AiDetectorIF:
 
 
                        
-        nepi_ros.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
+        nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
 
     def publishDetectionData(self,img_dict, detect_dict_list,ros_img_header):
         det_count = len(detect_dict_list)
@@ -1273,7 +1273,7 @@ class AiDetectorIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
             bbs_msg = BoundingBoxes()
-            bbs_msg.header.stamp = nepi_ros.ros_time_now()
+            bbs_msg.header.stamp = nepi_sdk.get_msg_stamp()
             bbs_msg.model_name = self.node_name
             bbs_msg.image_header = ros_img_header
             bbs_msg.image_topic = img_topic
@@ -1286,7 +1286,7 @@ class AiDetectorIF:
             self.publishDetMsg(img_topic,'bounding_boxes',bbs_msg)
                                        
             found_object_msg = ObjectCount()
-            found_object_msg.header.stamp = nepi_ros.ros_time_now()
+            found_object_msg.header.stamp = nepi_sdk.get_msg_stamp()
             found_object_msg.model_name = self.node_name
             found_object_msg.image_header = ros_img_header
             found_object_msg.image_topic = img_topic
@@ -1307,7 +1307,7 @@ class AiDetectorIF:
             image_text = image_text.replace('/','_')
             if len(detect_dict_list) > 0:
                 data_product = 'bounding_boxes'
-                ros_timestamp = bbs_msg.header.stamp
+                get_msg_stampstamp = bbs_msg.header.stamp
                 bbs_dict = nepi_ais.get_boxes_info_from_msg(bbs_msg)
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
                 bbs_dict['bounding_boxes']=bb_dict_list
@@ -1359,7 +1359,7 @@ class AiDetectorIF:
         self.status_msg.name = self.model_name
         self.status_msg.has_sleep = self.has_sleep
 
-        if do_updates == True and not nepi_ros.is_shutdown():
+        if do_updates == True and not nepi_sdk.is_shutdown():
             self.status_msg.sleep_enabled = self.node_if.get_param('sleep_enabled')
             self.status_msg.sleep_suspend_sec = self.node_if.get_param('sleep_suspend_sec')
             self.status_msg.sleep_run_sec = self.node_if.get_param('sleep_run_sec')
@@ -1434,7 +1434,7 @@ class AiDetectorIF:
         self.det_status_msg.avg_rate_hz = avg_rate
 
 
-        if do_updates == True and not nepi_ros.is_shutdown():
+        if do_updates == True and not nepi_sdk.is_shutdown():
             self.det_status_msg.enabled = self.node_if.get_param('enabled')
             sel_classes = self.node_if.get_param('selected_classes')
             self.det_status_msg.selected_classes = sel_classes

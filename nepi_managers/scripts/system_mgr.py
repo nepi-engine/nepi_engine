@@ -16,7 +16,7 @@ import datetime
 import subprocess
 import importlib
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
@@ -24,8 +24,8 @@ from nepi_sdk import nepi_triggers
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
-from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
+from nepi_sdk_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
+from nepi_sdk_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
@@ -33,11 +33,11 @@ from nepi_ros_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, Sys
                             SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
-from nepi_ros_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_ros_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+from nepi_sdk_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
-from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
-from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_sdk_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -156,10 +156,10 @@ class SystemMgrNode():
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -171,7 +171,7 @@ class SystemMgrNode():
         ###############################
         # Initialize Class Variables
         self.msg_if.pub_warn("Getting System Info")
-        self.first_stage_rootfs_device = nepi_ros.get_param(
+        self.first_stage_rootfs_device = nepi_sdk.get_param(
             "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
         if self.first_stage_rootfs_device == "container":
@@ -194,7 +194,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Mounting Storage Drive")
         # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
-        self.storage_mountpoint = nepi_ros.get_param(
+        self.storage_mountpoint = nepi_sdk.get_param(
             "~storage_mountpoint", self.storage_mountpoint)
         
         self.msg_if.pub_warn("Updating Rootfs Scheme")
@@ -229,7 +229,7 @@ class SystemMgrNode():
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
             # Now can advertise the system folder query
-            nepi_ros.create_service('system_storage_folder_query', SystemStorageFolderQuery,
+            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
                 self.provide_system_data_folder)
 
 
@@ -530,7 +530,7 @@ class SystemMgrNode():
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -566,13 +566,13 @@ class SystemMgrNode():
         self.triggers_status_interval = 1.0
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting triggers status pub service: ")
-        #nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
+        #nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
         # Create States Status Pub Processes
         self.states_status_interval = 1.0
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
-        nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
         self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_enabled')
 
@@ -586,12 +586,12 @@ class SystemMgrNode():
 
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
-        nepi_ros.start_timer_process(self.STATUS_PERIOD, self.publish_status)
+        nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publish_status)
         self.msg_if.pub_warn("System status ready")
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_warn("Initialization Complete")
-        nepi_ros.spin()
+        nepi_sdk.spin()
 
 
 
@@ -606,19 +606,19 @@ class SystemMgrNode():
             # Now gather all the params and set members appropriately
             self.storage_mountpoint = self.node_if.get_param("storage_mountpoint")
             
-            self.auto_switch_rootfs_on_new_img_install = nepi_ros.get_param(
+            self.auto_switch_rootfs_on_new_img_install = nepi_sdk.get_param(
                 "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-            self.first_stage_rootfs_device = nepi_ros.get_param(
+            self.first_stage_rootfs_device = nepi_sdk.get_param(
                 "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
             # nepi_storage_device has some additional logic
             self.getNEPIStorageDevice()
             
-            self.new_img_staging_device = nepi_ros.get_param(
+            self.new_img_staging_device = nepi_sdk.get_param(
                 "~new_img_staging_device", self.new_img_staging_device)
 
-            self.new_img_staging_device_removable = nepi_ros.get_param(
+            self.new_img_staging_device_removable = nepi_sdk.get_param(
                 "~new_img_staging_device_removable", self.new_img_staging_device_removable)
 
             self.emmc_device = self.node_if.get_param("emmc_device")
@@ -657,7 +657,7 @@ class SystemMgrNode():
             for namespace in namespaces:
                 topic = os.path.join(namespace,'system_triggers_query')
                 if topic not in self.service_dict.keys():
-                    service = nepi_ros.create_service(topic,SystemTrigger)
+                    service = nepi_sdk.create_service(topic,SystemTrigger)
                     if service is not None:
                         self.service_dict[topic] = service
                         time.sleep(1)
@@ -665,7 +665,7 @@ class SystemMgrNode():
                     service = self.service_dict[topic]
                     req = SystemTriggersQueryRequest()
                     try:
-                        resp = nepi_ros.call_service(service, req)
+                        resp = nepi_sdk.call_service(service, req)
                         triggers_list = resp.triggers_list
                         for trigger in triggers_list:
                             trigger_name = trigger.name
@@ -681,7 +681,7 @@ class SystemMgrNode():
             msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
             if self.node_if is not None:
                 self.node_if.publish_pub('triggers_status_pub', msg)
-        nepi_ros.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
 
 
 
@@ -693,7 +693,7 @@ class SystemMgrNode():
             for namespace in namespaces:
                 topic = os.path.join(namespace,'system_states_query')
                 if topic not in self.service_dict.keys():
-                    service = nepi_ros.create_service(topic,SystemState)
+                    service = nepi_sdk.create_service(topic,SystemState)
                     if service is not None:
                         self.service_dict[topic] = service
                         time.sleep(1)
@@ -701,7 +701,7 @@ class SystemMgrNode():
                     service = self.service_dict[topic]
                     req = SystemStatesQueryRequest()
                     try:
-                        resp = nepi_ros.call_service(service, req)
+                        resp = nepi_sdk.call_service(service, req)
                         for state in resp.states_list:
                             states_list.append(state)
                     except:
@@ -712,12 +712,12 @@ class SystemMgrNode():
                 self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
             if self.node_if is not None:
                 self.node_if.publish_pub('states_status_pub', msg)
-        nepi_ros.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
     def add_info_string(self, string, level):
         self.status_msg.info_strings.append(StampedString(
-            timestamp=nepi_ros.ros_time_now(), payload=string, priority=level))
+            timestamp=nepi_sdk.get_msg_stamp(), payload=string, priority=level))
 
     def get_device_sn(self):
         with open(self.SYS_ENV_PATH, "r") as f:
@@ -985,7 +985,7 @@ class SystemMgrNode():
         if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
             self.msg_if.pub_warn(
                 "Setting environment parameter to a non-standard value: " + str(msg.data))
-        nepi_ros.set_param("~op_environment", msg.data)
+        nepi_sdk.set_param("~op_environment", msg.data)
 
     def set_device_id(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
@@ -1238,10 +1238,10 @@ class SystemMgrNode():
             
           # If we get here, failed to get the storage device from /etc/fstab
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
-          if not nepi_ros.has_param("~nepi_storage_device"):
+          if not nepi_sdk.has_param("~nepi_storage_device"):
               self.msg_if.pub_warn("Parameter nepi_storage_device not available -- falling back to hard-coded " + self.nepi_storage_device)
           else:
-              self.nepi_storage_device = nepi_ros.get_param(
+              self.nepi_storage_device = nepi_sdk.get_param(
                 "~nepi_storage_device", self.nepi_storage_device)
               self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage_device + ' from config file')
         else:

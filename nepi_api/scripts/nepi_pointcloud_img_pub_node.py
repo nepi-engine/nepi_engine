@@ -21,7 +21,7 @@ import cv2
 import threading
 
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
@@ -29,8 +29,8 @@ from nepi_sdk import nepi_img
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 
-from nepi_ros_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_ros_interfaces.msg import DepthMapStatus
+from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_sdk_interfaces.msg import DepthMapStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -45,7 +45,7 @@ NONE_IMG_DICT = {
     'cv2_img': None,
     'width': 0,
     'height': 0,
-    'timestamp': nepi_ros.get_time(),
+    'timestamp': nepi_sdk.get_time(),
     'ros_img_topic': 'None',
     'ros_img_header': Header(),
     'ros_img_stamp': Header().stamp
@@ -69,11 +69,11 @@ class DepthMapImgPub:
     DEFAULT_NODE_NAME = "depth_map_img_pub" # Can be overwitten by luanch command
     def __init__(self):
         ####  IF INIT SETUP ####
-        nepi_ros.init_node(name = self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name = self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -85,12 +85,12 @@ class DepthMapImgPub:
 
             
 
-        self.data_product = nepi_ros.get_param(self.node_namespace + "/data_product",self.IMG_DATA_PRODUCT)
+        self.data_product = nepi_sdk.get_param(self.node_namespace + "/data_product",self.IMG_DATA_PRODUCT)
         self.data_products = [self.data_product]
         self.msg_if.pub_info("Starting with Image Data Product: " + str(self.data_product))
         
         backup_dm_namespace = self.node_namespace.replace("_img_pub","/depth_map")
-        self.dm_namespace = nepi_ros.get_param(self.node_namespace + "/dm_namespace",backup_dm_namespace)
+        self.dm_namespace = nepi_sdk.get_param(self.node_namespace + "/dm_namespace",backup_dm_namespace)
 
 
         self.status_msg = DepthMapStatus()
@@ -173,13 +173,13 @@ class DepthMapImgPub:
         # Complete Initialization
 
         # Start Timer Processes
-        nepi_ros.start_timer_process((0.1), self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
 
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever 
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
 
@@ -211,11 +211,11 @@ class DepthMapImgPub:
 
 
         if connected == False:
-                depth_map_topic = nepi_ros.find_topic(self.dm_namespace)
+                depth_map_topic = nepi_sdk.find_topic(self.dm_namespace)
                 if depth_map_topic != '':
                     success = self.subscribeImgTopic(depth_map_topic)     
 
-        nepi_ros.start_timer_process((.5), self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process((.5), self.updaterCb, oneshot = True)
 
 
     def subscribeImgTopic(self,depth_map_topic):
@@ -332,7 +332,7 @@ class DepthMapImgPub:
 
 
     def depthMapCb(self, depth_map_msg, args):     
-        start_time = nepi_ros.get_time()   
+        start_time = nepi_sdk.get_time()   
         depth_map_topic = args
         img_info_dict = copy.deepcopy(self.img_info_dict) 
 
@@ -358,11 +358,11 @@ class DepthMapImgPub:
                 if timer > delay_time: 
                     self.img_info_dict['last_img_time'] = current_time
 
-                    ros_timestamp = depth_map_msg.header.stamp
+                    get_msg_stampstamp = depth_map_msg.header.stamp
                     ros_frame_id = depth_map_msg.header.frame_id
 
-                    current_time = nepi_ros.ros_time_now()
-                    latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                    current_time = nepi_sdk.get_msg_stamp()
+                    latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
                     img_info_dict['get_latency_time'] = latency
 
                     # Apply Colormap
@@ -397,8 +397,8 @@ class DepthMapImgPub:
                     data_product = self.data_product
                     self.save_data_if.save_img2file(data_product,cv2_img,timestamp)
 
-                    current_time = nepi_ros.ros_time_now()
-                    latency = (current_time.to_sec() - ros_timestamp.to_sec())
+                    current_time = nepi_sdk.get_msg_stamp()
+                    latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
                     img_info_dict['pub_latency_time'] = latency                              
 
 

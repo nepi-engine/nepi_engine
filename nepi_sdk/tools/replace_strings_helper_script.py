@@ -43,9 +43,9 @@ import fileinput
 SCRIPT_FOLDER = "/mnt/nepi_storage/automation_scripts/"
 SCRIPT_LIST = [] # Leave empty to update all files in folder. Add files to limit which files are updated
 
-FIND_REPLACE_LIST = [["resources import nepi","nepi_edge_sdk_base import nepi_ros "],
+FIND_REPLACE_LIST = [["resources import nepi","nepi_edge_sdk_base import nepi_sdk "],
                      ["resources import nepi_navpose","nepi_edge_sdk_base import nepi_nav "],
-                     ["nepi.","nepi_ros."]]
+                     ["nepi.","nepi_sdk."]]
 
 
 #####################################################################################

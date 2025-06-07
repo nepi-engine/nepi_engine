@@ -14,10 +14,10 @@ import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_ros_interfaces.msg import TimeStatus, TimeUpdate
-from nepi_ros_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
+from nepi_sdk_interfaces.msg import TimeStatus, TimeUpdate
+from nepi_sdk_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 
@@ -43,9 +43,9 @@ class ConnectMgrTimeSyncIF:
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
-        self.node_namespace = nepi_ros.get_node_namespace()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
         # Create Msg Class
@@ -142,7 +142,7 @@ class ConnectMgrTimeSyncIF:
                                             )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
         ################################
         # Complete Initialization
@@ -163,10 +163,10 @@ class ConnectMgrTimeSyncIF:
         success = False
         self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
-        while self.ready == False and timer < timeout and not nepi_ros.is_shutdown():
-            nepi_ros.sleep(.1)
-            timer = nepi_ros.get_time() - time_start
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
             self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
@@ -176,16 +176,16 @@ class ConnectMgrTimeSyncIF:
     def wait_for_services(self, timeout = float('inf') ):
         self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
         timer = 0
-        time_start = nepi_ros.get_time()
+        time_start = nepi_sdk.get_time()
         connected = False
-        while connected == False and timer < timeout and not nepi_ros.is_shutdown():
-            exists = nepi_ros.check_for_service('time_status_query')
-            nepi_ros.wait()
+        while connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            exists = nepi_sdk.check_for_service('time_status_query')
+            nepi_sdk.wait()
             if exists == True:
                 ret = None
                 ret = self.get_time_status(verbose = True)
                 connected = (ret is not None)
-            timer = nepi_ros.get_time() - time_start
+            timer = nepi_sdk.get_time() - time_start
         if connected == False:
             self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
@@ -213,7 +213,7 @@ class ConnectMgrTimeSyncIF:
         if response is not None:
             self.status_msg = response.time_status
             time_status = response.time_status
-            time_dict = nepi_ros.convert_msg2dict(time_status)
+            time_dict = nepi_sdk.convert_msg2dict(time_status)
             #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
         return time_dict    
 

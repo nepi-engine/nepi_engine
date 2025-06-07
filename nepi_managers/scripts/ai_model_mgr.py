@@ -19,24 +19,24 @@ import time
 import numpy as np
 import cv2
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_img
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_ros_interfaces.msg import SystemStatus
+from nepi_sdk_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-from nepi_ros_interfaces.msg import UpdateState, AiModelMgrStatus
-from nepi_ros_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_ros_interfaces.msg import BoundingBoxes, ObjectCount
+from nepi_sdk_interfaces.msg import UpdateState, AiModelMgrStatus
+from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_sdk_interfaces.msg import BoundingBoxes, ObjectCount
 
-from nepi_ros_interfaces.srv import SystemStorageFolderQuery
-from nepi_ros_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
-from nepi_ros_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
+from nepi_sdk_interfaces.srv import SystemStorageFolderQuery
+from nepi_sdk_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
 
 
 from nepi_api.messages_if import MsgIF
@@ -73,10 +73,10 @@ class AIDetectorManager:
     DEFAULT_NODE_NAME = "ai_model_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### MGR NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -94,7 +94,7 @@ class AIDetectorManager:
         mgr_sys_if = ConnectMgrSystemIF()
         success = mgr_sys_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
         self.aifs_param_folder = mgr_sys_if.get_sys_folder_path("aifs",AIFS_PARAM_FOLDER)
         self.msg_if.pub_info("Using AI Frameworks Params Folder: " + str(self.aifs_param_folder))
@@ -112,7 +112,7 @@ class AIDetectorManager:
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
         ###########################
 
@@ -267,7 +267,7 @@ class AIDetectorManager:
 
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
 
@@ -284,22 +284,22 @@ class AIDetectorManager:
 
         self.all_namespace = os.path.join(self.base_namespace,'ai')
         self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
-        self.ros_loading_img.header.stamp = nepi_ros.ros_time_now()
+        self.ros_loading_img.header.stamp = nepi_sdk.get_msg_stamp()
         self.node_if.publish_pub('image_pub', self.ros_loading_img)
 
 
         self.msg_if.pub_info("Staring AI Framework and Model update process")
-        nepi_ros.start_timer_process(1.0, self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
         self.msg_if.pub_info("Staring AI Model Info update process")
-        nepi_ros.start_timer_process(1.0, self.modelsInfoUpdaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self.modelsInfoUpdaterCb, oneshot = True)
 
-        self.ros_waiting_img.header.stamp = nepi_ros.ros_time_now()
+        self.ros_waiting_img.header.stamp = nepi_sdk.get_msg_stamp()
         self.node_if.publish_pub('image_pub', self.ros_waiting_img)
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
 
@@ -455,7 +455,7 @@ class AIDetectorManager:
                 models_dict[model_name]['active'] = False
                 self.running_models_list.remove(model_name)
                 self.killModel(model_name)
-                nepi_ros.wait()
+                nepi_sdk.wait()
 
         active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
         for model_name in active_models_list:
@@ -469,7 +469,7 @@ class AIDetectorManager:
                 if success == True:
                     self.msg_if.pub_warn("Model loaded successfully, adding to running models list: " + model_name)
                     self.running_models_list.append(model_name)
-                    nepi_ros.wait()
+                    nepi_sdk.wait()
                     model_type = models_dict[model_name]['type']
                     if model_type == "detection":
                         self.detector_info_dict[model_name] = None # Gets updated in modelsInfoUpdateCb
@@ -482,10 +482,10 @@ class AIDetectorManager:
         models_dict = self.node_if.get_param("models_dict")
         self.node_if.set_param("models_dict",models_dict)
         if len(active_models_list) == 0:
-            self.ros_no_models_img.header.stamp = nepi_ros.ros_time_now()
+            self.ros_no_models_img.header.stamp = nepi_sdk.get_msg_stamp()
             self.node_if.publish_pub('image_pub', self.ros_no_models_img)
         self.publish_status()
-        nepi_ros.start_timer_process(1.0, self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
     def modelsInfoUpdaterCb(self,timer):
         models_dict = self.node_if.get_param("models_dict")
@@ -501,18 +501,18 @@ class AIDetectorManager:
                 # Check for service
                 service_namespace = os.path.join(namespace,'detector_info_query')
                 #self.msg_if.pub_warn("Looking for det info services topic: " + str(service_namespace) )
-                service_exists = True # nepi_ros.check_for_service(service_namespace)
+                service_exists = True # nepi_sdk.check_for_service(service_namespace)
                 #self.msg_if.pub_warn("Got check for service reply: " + str(service_exists) )
                 if service_exists == True:
                     try:
                         #self.msg_if.pub_info("Connecting to model info service " + service_namespace)
-                        info_service = nepi_ros.connect_service(service_namespace, AiDetectorInfoQuery)
+                        info_service = nepi_sdk.connect_service(service_namespace, AiDetectorInfoQuery)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to obtain model info service: " + str(e))
                     try:
                         #self.msg_if.pub_info("Requesting model info for service" + service_namespace)
                         request = AiDetectorInfoQueryRequest()
-                        response = nepi_ros.call_service(info_service, request)
+                        response = nepi_sdk.call_service(info_service, request)
                         #self.msg_if.pub_info("Got model info response: " + str(response))
                         detector_info_dict[model_name] = response.detector_info
                     except Exception as e:
@@ -520,7 +520,7 @@ class AIDetectorManager:
                 else:
                     self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
         self.detector_info_dict = detector_info_dict
-        nepi_ros.start_timer_process(self.MODEL_INFO_INTERVAL, self.modelsInfoUpdaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.MODEL_INFO_INTERVAL, self.modelsInfoUpdaterCb, oneshot = True)
 
 
     def handleInfoRequest(self,_):
@@ -555,7 +555,7 @@ class AIDetectorManager:
                 # Just Assume Running for now
                 self.msg_if.pub_warn("Node Found: " + model_name)
                 self.model_namespace_dict[model_name] = node_namespace
-                nepi_ros.wait()
+                nepi_sdk.wait()
 
                 ''' Future check
                 # Try and Wait for model status message
@@ -569,7 +569,7 @@ class AIDetectorManager:
                     timeout = 60
                 self.msg_if.pub_warn("Waiting for model " + model_name + " to publish status on topic: " + status_topic)
                 self.msg_if.pub_warn("Model " + model_name + " status wait timeout set to " + str(timeout))
-                got_topic = nepi_ros.wait_for_topic(status_topic,timeout = timeout)
+                got_topic = nepi_sdk.wait_for_topic(status_topic,timeout = timeout)
                 if got_topic == "":
                     self.msg_if.pub_warn("Model status timed out for: " + model_name)
                 else:
@@ -577,7 +577,7 @@ class AIDetectorManager:
 
                 # Check node is active
                 self.msg_if.pub_warn("Checking that node is active for model " + model_name )
-                node_running = nepi_ros.check_for_node(model_name)
+                node_running = nepi_sdk.check_for_node(model_name)
                 if node_running == True:
                     self.msg_if.pub_warn("Node Found: " + model_name)
                     self.model_namespace_dict[model_name] = node_namespace

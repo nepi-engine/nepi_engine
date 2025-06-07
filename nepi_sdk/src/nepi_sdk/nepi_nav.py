@@ -26,23 +26,23 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_ros_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
+from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
 
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_ros_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_ros_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_ros_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-from nepi_ros_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_ros_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_nav"
 logger = Logger(log_name = log_name)
 
@@ -67,8 +67,8 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    msg_type = 'nepi_ros_interfaces/NavPoseData'
-    return nepi_ros.find_topics_by_msg(msg_type)
+    msg_type = 'nepi_sdk_interfaces/NavPoseData'
+    return nepi_sdk.find_topics_by_msg(msg_type)
 
 ###############
 ### NavPose Solution Components
@@ -78,32 +78,32 @@ NAVPOSE_COMPONENTS = ['location','heading','orientation','position','altitude','
 
 NAVPOSE_MSG_DICT = {
         'location': {
-            'nepi_ros_interfaces/NavPoseLocation': NavPoseLocation,
+            'nepi_sdk_interfaces/NavPoseLocation': NavPoseLocation,
             'sensor_msgs/NavSatFix': NavSatFix,
             'geographic_msgs/GeoPoint': GeoPoint
         },
         'heading': {
-            'nepi_ros_interfaces/NavPoseHeading': NavPoseHeading
+            'nepi_sdk_interfaces/NavPoseHeading': NavPoseHeading
         },
         'orientation': {
-            'nepi_ros_interfaces/NavPoseOrientation': NavPoseOrientation,
+            'nepi_sdk_interfaces/NavPoseOrientation': NavPoseOrientation,
             'nav_msgs/Odometry': Odometry,
             'geometry_msgs/Pose': Pose,
             'geometry_msgs/Quaternion': Quaternion
         },
         'position': {
-            'nepi_ros_interfaces/NavPosePosition': NavPosePosition,
+            'nepi_sdk_interfaces/NavPosePosition': NavPosePosition,
             'nav_msgs/Odometry': Odometry, 
             'geometry_msgs/Pose': Pose,
             'geometry_msgs/Point ': Point
         },
         'altitude': {
-            'nepi_ros_interfaces/NavPoseAltitude': NavPoseAltitude,
+            'nepi_sdk_interfaces/NavPoseAltitude': NavPoseAltitude,
             'sensor_msgs/NavSatFix': NavSatFix,
             'geographic_msgs/GeoPoint': GeoPoint
         },
         'depth': {
-            'nepi_ros_interfaces/NavPoseDepth': NavPoseDepth, 
+            'nepi_sdk_interfaces/NavPoseDepth': NavPoseDepth, 
             'sensor_msgs/NavSatFix': NavSatFix,
             'geographic_msgs/GeoPoint': GeoPoint      
         }
@@ -115,7 +115,7 @@ def get_navpose_comp_publisher_namespaces(name):
     msg_list = []
     if name in NAVPOSE_MSG_DICT.keys():
       msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
-      [topics_list,msg_list] = nepi_ros.find_topics_by_msgs(msg_str_list)
+      [topics_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list)
     return topic_list,msg_list
 
 
@@ -126,7 +126,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
     npdata_dict = BLANK_NAVPOSE_DICT
     
     if name == 'location':
-      if msg_type == 'nepi_ros_interfaces/NavPoseLocation':
+      if msg_type == 'nepi_sdk_interfaces/NavPoseLocation':
         try:
           npdata_dict['time_location'] = msg.timestamp
           npdata_dict['latitude'] = msg.latitude
@@ -135,7 +135,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          npdata_dict['time_location'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['time_location'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
           npdata_dict['latitude'] = msg.latitude
           npdata_dict['longitude'] = msg.longitude
         except:
@@ -149,7 +149,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
 
     elif name == 'heading':
-      if msg_type == 'nepi_ros_interfaces/NavPoseHeading':
+      if msg_type == 'nepi_sdk_interfaces/NavPoseHeading':
         try:
           npdata_dict['time_heading'] = msg.timestamp
           npdata_dict['heading_deg'] = msg.heading_deg
@@ -158,7 +158,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
      
           
     if name == 'orientation':
-      if msg_type == 'nepi_ros_interfaces/NavPoseOrientation':
+      if msg_type == 'nepi_sdk_interfaces/NavPoseOrientation':
         try:
           npdata_dict['time_orientation'] = msg.timestamp
           npdata_dict['roll_deg'] = msg.roll_deg
@@ -171,7 +171,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           data = msg.pose.pose.orientation
           quat = [data.x,data.y,data.z,data.w]
           [roll,pitch,yaw] = convert_quat2rpy(quat)
-          npdata_dict['time_orientation'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['time_orientation'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
           npdata_dict['roll_deg'] = roll
           npdata_dict['pitch_deg'] = pitch
           npdata_dict['yaw_deg'] = yaw
@@ -201,7 +201,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
 
     if name == 'position':
-      if msg_type == 'nepi_ros_interfaces/NavPoseOrientation':
+      if msg_type == 'nepi_sdk_interfaces/NavPoseOrientation':
         try:
           npdata_dict['time_position'] = msg.timestamp
           npdata_dict['x_m'] = msg.x_m
@@ -213,7 +213,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
         try:
           data = msg.pose.pose.position
           pos = [data.x,data.y,data.z]
-          npdata_dict['time_position'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['time_position'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
           npdata_dict['roll_deg'] = pos.x
           npdata_dict['pitch_deg'] = pos.y
           npdata_dict['yaw_deg'] = pos.z
@@ -242,7 +242,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
 
    
     if name == 'altitude':
-      if msg_type == 'nepi_ros_interfaces/NavPosePosition':
+      if msg_type == 'nepi_sdk_interfaces/NavPosePosition':
         try:
           npdata_dict['time_altitude'] = msg.timestamp
           npdata_dict['altitude_m'] = msg.altitude_m
@@ -250,7 +250,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          npdata_dict['time_altitude'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['time_altitude'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
           npdata_dict['altitude_m'] = msg.altitude
         except:
           pass
@@ -262,7 +262,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
 
     if name == 'depth':
-      if msg_type == 'nepi_ros_interfaces/NavPosePosition':
+      if msg_type == 'nepi_sdk_interfaces/NavPosePosition':
         try:
           npdata_dict['time_depth'] = msg.timestamp
           npdata_dict['depth_m'] = msg.depth_m
@@ -270,7 +270,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          npdata_dict['time_depth'] = nepi_ros.sec_from_ros_stamp(msg.header.stamp)
+          npdata_dict['time_depth'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
           npdata_dict['depth_m'] = msg.depth
         except:
           pass
@@ -547,7 +547,7 @@ def convert_navposedata_dict2msg(npdata_dict):
   else:
     try:
       npdata_msg = NavPoseData()
-      npdata_msg.header.stamp = nepi_ros.ros_stamp_now()
+      npdata_msg.header.stamp = nepi_sdk.get_msg_stamp()
 
       npdata_msg.frame_3d = npdata_dict['frame_3d']
       npdata_msg.frame_nav = npdata_dict['frame_nav']
@@ -592,7 +592,7 @@ def convert_navposedata_dict2msg(npdata_dict):
 def convert_navposedata_msg2dict(npdata_msg):
   npdata_dict = None
   try:
-    npdata_dict = nepi_ros.msg2dict(npdata_msg)
+    npdata_dict = nepi_sdk.msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
     logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)

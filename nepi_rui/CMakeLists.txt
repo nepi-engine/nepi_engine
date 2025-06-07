@@ -10,14 +10,14 @@ cmake_minimum_required(VERSION 2.8.3)
 project(nepi_rui)
 
 # Find catkin macros and libraries
-find_package(catkin REQUIRED COMPONENTS nepi_ros_interfaces rosbridge_server rospy)
+find_package(catkin REQUIRED COMPONENTS nepi_sdk_interfaces rosbridge_server rospy)
 
 ###################################
 ## Catkin specific configuration ##
 ###################################
 catkin_package(
   CATKIN_DEPENDS
-    nepi_ros_interfaces
+    nepi_sdk_interfaces
     rosbridge_server
 )
 catkin_python_setup()

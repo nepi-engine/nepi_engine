@@ -817,7 +817,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"/status"}
-                            status_msg_type={"nepi_ros_interfaces/PTXStatus"}
+                            status_msg_type={"nepi_sdk_interfaces/PTXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
                             title={"NepiSensorsImagingInfo"}

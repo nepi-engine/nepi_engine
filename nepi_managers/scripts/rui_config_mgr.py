@@ -10,14 +10,14 @@
 
 
 from std_msgs.msg import UInt8
-from nepi_ros_interfaces.msg import RUISettings
+from nepi_sdk_interfaces.msg import RUISettings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
-from nepi_sdk import nepi_ros
+from nepi_sdk import nepi_sdk
  
 
 class RUICfgMgrNode:
@@ -29,10 +29,10 @@ class RUICfgMgrNode:
     DEFAULT_NODE_NAME = "rui_config_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
-        nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
         self.class_name = type(self).__name__
-        self.base_namespace = nepi_ros.get_base_namespace()
-        self.node_name = nepi_ros.get_node_name()
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
 
         ##############################  
@@ -47,7 +47,7 @@ class RUICfgMgrNode:
         mgr_sys_if = ConnectMgrSystemIF()
         success = mgr_sys_if.wait_for_status()
         if success == False:
-            nepi_ros.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
         
 
         ##############################
@@ -118,7 +118,7 @@ class RUICfgMgrNode:
         )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_ros.wait()
+        nepi_sdk.wait()
 
 
         #########################################################
@@ -131,7 +131,7 @@ class RUICfgMgrNode:
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
-        nepi_ros.spin()
+        nepi_sdk.spin()
         #########################################################
 
     def publish_settings(self):

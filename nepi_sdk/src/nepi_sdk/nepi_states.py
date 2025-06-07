@@ -17,12 +17,12 @@ import rospy
 import time
 import copy
 
-from nepi_ros_interfaces.msg import SystemState, SystemStatesStatus
-from nepi_ros_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_sdk_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
-from nepi_sdk.nepi_ros import find_topics_by_msg
+from nepi_sdk.nepi_sdk import find_topics_by_msg
 
-from nepi_sdk.nepi_ros import logger as Logger
+from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_states"
 logger = Logger(log_name = log_name)
 
@@ -58,7 +58,7 @@ def create_state_msg(node_name, state_dict):
     return state_msg
 
 def parse_state_msg(msg):
-    state_dict = nepi_ros.convert_msg2dict(msg)
+    state_dict = nepi_sdk.convert_msg2dict(msg)
     return state_dict
 
 def get_data_from_state_dict(state_dict):
@@ -101,7 +101,7 @@ def parse_states_query_resp(states_query_resp):
   states_dict = dict()
   states = states_query_resp.states_list
   for state in states:
-    states_dict = nepi_ros.convert_msg2dict(state)
+    states_dict = nepi_sdk.convert_msg2dict(state)
     states_dict[state.name] = state_dict
   return states_dict
 
@@ -116,7 +116,7 @@ def parse_states_status_msg(msg):
   states = msg.states_list
   states_list = []
   for state in states:
-    state_dict = nepi_ros.convert_msg2dict(state)
+    state_dict = nepi_sdk.convert_msg2dict(state)
     states_list.append(state_dict)
   return states_list
   
