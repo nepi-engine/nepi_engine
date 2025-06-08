@@ -347,7 +347,7 @@ class ConnectMgrNavPoseIF:
             msg.topic = topic
             msg.apply_transform = False
             if transform_list is not None:
-                tr_msg = nepi_nav.convert_tranform_list2msg(transform_list)
+                tr_msg = nepi_nav.convert_transform_list2msg(transform_list)
                 if tr_msg is not None:
                     msg.apply_transform = True
                     msg.transform = tr_msg

@@ -282,7 +282,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           pass
       
       if transform is not None:
-        if tranform != ZERO_TRANSFORM:
+        if transform != ZERO_TRANSFORM:
           npdata_dict = transform_navpose_dict(npdata_dict,transform)
     return npdata_dict
 
@@ -293,7 +293,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
 ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
 
-def convert_tranform_list2msg(transform_list):
+def convert_transform_list2msg(transform_list):
   transform_msg = Frame3DTransform()
   if len(transform_list) == 7:
       transform_msg.translate_vector.x = transform_list[0]
@@ -305,7 +305,7 @@ def convert_tranform_list2msg(transform_list):
       transform_msg.heading_offset = transform_list[6]
   return transform_msg
 
-def convert_tranform_msg2list(transform_msg):
+def convert_transform_msg2list(transform_msg):
   transform_list = ZERO_TRANSFORM
   if len(transform_list) == 7:
       transform_list[0] = transform_msg.translate_vector.x

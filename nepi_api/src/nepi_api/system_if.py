@@ -865,6 +865,7 @@ class SettingsIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.allow_cap_updates = allow_cap_updates
+        self.msg_if.pub_warn("Initialize Class Variables: " + str(settings_dict))
 
         if settings_dict is None:
             self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
@@ -1042,6 +1043,7 @@ class SettingsIF:
         current_settings = self.getSettingsFunction()
         self.node_if.set_param('settings', current_settings)
         cap_settings = self.cap_settings
+        self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list)
         status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
         if not nepi_sdk.is_shutdown():
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)

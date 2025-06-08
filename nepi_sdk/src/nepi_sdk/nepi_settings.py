@@ -102,6 +102,7 @@ def get_cap_setting_msg(cap_setting):
       cap_setting_msg.options_list = cap_setting['options']
     else:
       cap_setting_msg.options_list = []
+    return cap_setting_msg
 
 
 def create_msg_from_cap_settings(cap_settings):
