@@ -70,11 +70,14 @@ class Nepi_IF_Settings extends Component {
     this.onUpdateInputSettingValue = this.onUpdateInputSettingValue.bind(this)
     this.onKeySaveInputSettingValue = this.onKeySaveInputSettingValue.bind(this)
 
+    this.updateSettingsInfo = this.updateSettingsInfo.bind(this)
     this.updateSelectedSettingInfo = this.updateSelectedSettingInfo.bind(this)
     this.getSelectedSettingInfo = this.getSelectedSettingInfo.bind(this)
     this.getSortedStrList = this.getSortedStrList.bind(this)
 
     this.renderSettings = this.renderSettings.bind(this)
+    this.renderSetting = this.renderSetting.bind(this)
+    this.renderResets = this.renderResets.bind(this)
   }
 
   // Callback for handling ROS Settings Status messages
@@ -189,30 +192,34 @@ class Nepi_IF_Settings extends Component {
     const name_ind = event.nativeEvent.target.selectedIndex
     const name = event.nativeEvent.target[name_ind].text
     const ind = this.state.capSettingsNamesList.indexOf(name)
-    if (ind !== -1){
-      this.setState({selectedSettingInd : ind })
-      this.setState({selectedSettingName  :  name })
-      const type = this.state.capSettingsTypesList[ind]
-      this.setState({selectedSettingType  :  type }) 
-      const value = this.getSettingValue(name) 
-      this.setState({selectedSettingValue  : value })
-      const options = this.state.capSettingsOptionsLists[ind]
-      this.setState({selectedSettingOptions  :  options })
-      if (type === "Int" || type === "Float" ) {
-        this.setState({selectedSettingLowerLimit  :  options.length > 0 ? options[0] : "" })
-        this.setState({selectedSettingUpperLimit  :  options.length > 1 ? options[1] : "" })
-      } else {
-        this.setState({selectedSettingLowerLimit  :  "" })
-        this.setState({selectedSettingUpperLimit  :  "" })
-      }
-      this.setState({selectedSettingInput  :  value })
-      this.render()
-    }
-    else{
-    this.setState({selectedSettingName  :  "NONE" }) 
-    this.setState({selectedSettingType  :  "NONE" }) 
-    }
+    this.updateSettingsInfo(ind)
 
+  updateSettingsInfo(ind){
+      if (ind !== -1){
+        this.setState({selectedSettingInd : ind })
+        this.setState({selectedSettingName  :  name })
+        const type = this.state.capSettingsTypesList[ind]
+        this.setState({selectedSettingType  :  type }) 
+        const value = this.getSettingValue(name) 
+        this.setState({selectedSettingValue  : value })
+        const options = this.state.capSettingsOptionsLists[ind]
+        this.setState({selectedSettingOptions  :  options })
+        if (type === "Int" || type === "Float" ) {
+          this.setState({selectedSettingLowerLimit  :  options.length > 0 ? options[0] : "" })
+          this.setState({selectedSettingUpperLimit  :  options.length > 1 ? options[1] : "" })
+        } else {
+          this.setState({selectedSettingLowerLimit  :  "" })
+          this.setState({selectedSettingUpperLimit  :  "" })
+        }
+        this.setState({selectedSettingInput  :  value })
+        this.render()
+      }
+      else{
+      this.setState({selectedSettingName  :  "NONE" }) 
+      this.setState({selectedSettingType  :  "NONE" }) 
+      }
+
+    }
   }
 
   getSelectedSettingInfo(){
@@ -295,6 +302,79 @@ class Nepi_IF_Settings extends Component {
 
   renderSettings() {
     const { sendTriggerMsg} = this.props.ros
+    const show_all = this.props.show_all ? this.props.show_all : false
+
+    const settingsHeight = this.state.settingsCount * 25
+    const settingsHeightStr = settingsHeight.toString() + 'px'
+
+
+    if (show_all === false){
+      return(
+          <Columns>
+            <Column>
+              <Label title={"Select Setting"}>
+                <Select
+                  id="selectedSettingName"
+                  onChange={this.updateSelectedSettingInfo}
+                  value={this.state.selectedSettingName}
+                >
+                  {createMenuListFromStrList(capSettingNamesOrdered,false,[],['NONE'],[])}
+                </Select>
+              </Label>
+
+
+              </Column>
+                <Column>
+
+                </Column>
+              </Columns>
+
+
+
+              <Columns>
+              <Column>
+
+              {this.renderSetting()}
+
+              {this.renderResets()}
+
+
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+            
+            <Label title={"Current Settings"} >
+            </Label>
+            <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
+              {this.getSettingsAsString()}
+            </pre>
+
+              </Column>
+            </Columns>
+      )
+    }
+    else {
+      for (let ind = 0; ind < settings.length; ind++){
+        this.updateSettingsInfo(ind)
+            
+          return (
+
+              <Columns>
+              <Column>
+
+              {this.renderSetting()}
+
+              {this.renderResets()}
+
+              </Column>
+              </Columns>
+          )
+
+    }
+  }
+
+
+
+  renderSetting(){
     const selSetInfo = this.getSelectedSettingInfo()
     const selSetType = selSetInfo[1]
     const selSetName = selSetInfo[2]
@@ -302,101 +382,97 @@ class Nepi_IF_Settings extends Component {
     const selSetMax = selSetInfo[5]
     const selSetOptions= selSetInfo[6]
     const capSettingNamesOrdered = this.getSortedStrList(this.state.capSettingsNamesList)
-    const settingsHeight = this.state.settingsCount * 25
-    const settingsHeightStr = settingsHeight.toString() + 'px'
     return (
-      <Columns>
-          <Column>
 
         <Columns>
-          <Column>
-            <Label title={"Select Setting"}>
+        <Column>
+
+          <div align={"left"} textAlign={"right"} hidden={selSetType !== "Bool" }>
+            <Label title={selSetName}>
+              <Toggle
+                checked={ (this.getSettingValue(selSetName) === "True")}
+                onClick={() => {this.onChangeBoolSettingValue()}}
+              />
+            </Label>
+          </div>
+
+            
+
+            <div align={"left"} textAlign={"right"} hidden={selSetType !== "Menu" && selSetType !== "Discrete" }>
+            <Label title={selSetName}>
               <Select
-                id="selectedSettingName"
-                onChange={this.updateSelectedSettingInfo}
-                value={this.state.selectedSettingName}
+                id="descreteSetting"
+                onChange={this.onChangeDescreteSettingValue}
+                value={this.getSettingValue(selSetName)}
               >
-                {createMenuListFromStrList(capSettingNamesOrdered,false,[],['NONE'],[])}
+                {createMenuListFromStrList(selSetOptions,false,[],["Select"],[])}
               </Select>
             </Label>
-
-            <div align={"left"} textAlign={"right"} hidden={selSetType !== "Bool" }>
-              <Label title={selSetName}>
-                <Toggle
-                  checked={ (this.getSettingValue(selSetName) === "True")}
-                  onClick={() => {this.onChangeBoolSettingValue()}}
-                />
-              </Label>
             </div>
 
-              
+          <div align={"left"} textAlign={"right"} 
+            hidden={!(selSetType === "String" ||
+            selSetType === "Int" ||
+            selSetType === "Float")}
+          >
 
-              <div align={"left"} textAlign={"right"} hidden={selSetType !== "Menu" && selSetType !== "Discrete" }>
-              <Label title={selSetName}>
-                <Select
-                  id="descreteSetting"
-                  onChange={this.onChangeDescreteSettingValue}
-                  value={this.getSettingValue(selSetName)}
-                >
-                  {createMenuListFromStrList(selSetOptions,false,[],["Select"],[])}
-                </Select>
-              </Label>
+              <div align={"left"} textAlign={"right"} hidden={selSetMin === ""}>
+                  <Label title={"Lower Input Limit"}>
+                    <Input disabled value={selSetMin} />
+                  </Label>
               </div>
 
-            <div align={"left"} textAlign={"right"} 
-              hidden={!(selSetType === "String" ||
-              selSetType === "Int" ||
-              selSetType === "Float")}
-            >
+              <div align={"left"} textAlign={"right"} hidden={selSetMax === ""}>
+                  <Label title={"Upper Input Limit"}>
+                    <Input disabled value={selSetMax} />
+                  </Label>
+              </div>
 
-                <div align={"left"} textAlign={"right"} hidden={selSetMin === ""}>
-                    <Label title={"Lower Input Limit"}>
-                      <Input disabled value={selSetMin} />
-                    </Label>
-                </div>
+              <Label title={selSetName}>
+                <Input id="input_setting" 
+                  value={this.state.selectedSettingInput} 
+                  onChange={this.onUpdateInputSettingValue} 
+                  onKeyDown= {this.onKeySaveInputSettingValue} />
+              </Label>
+              <Label title={"* Some changes may require power cycle"}>
+              </Label>
+          </div>
 
-                <div align={"left"} textAlign={"right"} hidden={selSetMax === ""}>
-                    <Label title={"Upper Input Limit"}>
-                      <Input disabled value={selSetMax} />
-                    </Label>
-                </div>
+        </Column>
+        <Column>
 
-                <Label title={selSetName}>
-                  <Input id="input_setting" 
-                    value={this.state.selectedSettingInput} 
-                    onChange={this.onUpdateInputSettingValue} 
-                    onKeyDown= {this.onKeySaveInputSettingValue} />
-                </Label>
-                <Label title={"* Some changes may require power cycle"}>
-                </Label>
-            </div>
+        </Column>
+      </Columns>
 
-          </Column>
-          <Column>
-          <div align={"left"} textAlign={"left"} >
-              <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
-              </ButtonMenu>
-
-              <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(this.state.namespace + '/factory_reset')}>{"Factory Reset"}</Button>
-              </ButtonMenu>
-            </div>
-          </Column>
-        </Columns>
-
-          
-          <Label title={"Current Settings"} >
-          </Label>
-          <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
-            {this.getSettingsAsString()}
-          </pre>
-
- 
-          </Column>
-        </Columns>
     )
+
   }
+
+  renderResets(){
+    return(
+
+      <Columns>
+      <Column>
+
+      <ButtonMenu>
+            <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
+          </ButtonMenu>
+
+      </Column>
+      <Column>
+
+
+          <ButtonMenu>
+            <Button onClick={() => sendTriggerMsg(this.state.namespace + '/factory_reset')}>{"Factory Reset"}</Button>
+          </ButtonMenu>
+
+      </Column>
+    </Columns>
+
+    )
+
+  }
+
 
   render() {
     const make_section = this.props.make_section ? this.props.make_section : true
@@ -410,6 +486,8 @@ class Nepi_IF_Settings extends Component {
     }
     else if (namespace !== 'None' && make_section === false) {
       return (
+
+
         <Columns>
           <Column>
           {this.renderSettings()}

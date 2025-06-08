@@ -53,7 +53,7 @@ class NepiDeviceIDXControls extends Component {
       tiltAdjustment: null,
       frame3D: null,
 
-      showTransforms: false,
+      showTransform: false,
       transfroms_msg: null,
       transformTX: 0,
       transformTY: 0,
@@ -72,11 +72,14 @@ class NepiDeviceIDXControls extends Component {
     }
 
 
-    this.onClickToggleShowTransforms = this.onClickToggleShowTransforms.bind(this)
-    
+    this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
+    this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
+    this.sendTransformClearMessage = this.sendTransformClearMessage.bind(this)
+
+
     this.updateListener = this.updateListener.bind(this)
     this.statusListener = this.statusListener.bind(this)
-    this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
+
     
 
     
@@ -85,7 +88,7 @@ class NepiDeviceIDXControls extends Component {
 
   // Callback for handling ROS StatusIDX messages
   statusListener(message) {
-    const transforms = this.state.transforms_msg
+    const transform = this.state.transform_msg
     this.setState({
       rtsp_url: message.rtsp_url,
       rtsp_username: message.rtsp_username,
@@ -104,19 +107,19 @@ class NepiDeviceIDXControls extends Component {
       rangeLimitMinM: message.min_range_m,
       rangeLimitMaxM: message.max_range_m,
       frame_3d: message.frame_3d,
-      transforms_msg: message.frame_3d_transform
+      transform_msg: message.frame_3d_transform
     })
 
-    if (transforms !== message.frame_3d_transform){
-      const new_transforms = message.frame_3d_transform
+    if (transform !== message.frame_3d_transform){
+      const new_transform = message.frame_3d_transform
       this.setState({
-        transformTX: new_transforms.translate_vector.x,
-        transformTY: new_transforms.translate_vector.y,
-        transformTZ: new_transforms.translate_vector.z,
-        transformRX: new_transforms.rotate_vector.x,
-        transformRY: new_transforms.rotate_vector.y,
-        transformRZ: new_transforms.rotate_vector.z,
-        transformHO: new_transforms.heading_offset
+        transformTX: new_transform.translate_vector.x,
+        transformTY: new_transform.translate_vector.y,
+        transformTZ: new_transform.translate_vector.z,
+        transformRX: new_transform.rotate_vector.x,
+        transformRY: new_transform.rotate_vector.y,
+        transformRZ: new_transform.rotate_vector.z,
+        transformHO: new_transform.heading_offset
       })
     }
   }
@@ -156,15 +159,15 @@ class NepiDeviceIDXControls extends Component {
     }
   }
 
-  onClickToggleShowTransforms(){
-    const newVal = this.state.showTransforms === false
-    this.setState({showTransforms: newVal})
+  onClickToggleShowTransform(){
+    const newVal = this.state.showTransform === false
+    this.setState({showTransform: newVal})
     this.render()
   }
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_frame_3d_transform"
+    const namespace = this.props.namespace + "/set_3d_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -177,7 +180,7 @@ class NepiDeviceIDXControls extends Component {
   }
 
 
-  sendClearTransformUpdateMessage(){
+  sendTransformUZeroMessage(){
     this.setState({
       transformTX: 0,
       transformTY: 0,
@@ -188,12 +191,17 @@ class NepiDeviceIDXControls extends Component {
       transformHO: 0,      
     })
     const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_frame_3d_transform"
+    const namespace = this.props.namespace + "/set_3d_transform"
     const transformList = [0,0,0,0,0,0,0]
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
 
 
+  sendTransformClearMessage(){
+    const {sendTriggerMsg} = this.props.ros
+    const namespace = this.props.namespace + "/clear_3d_transform"
+    sendTriggerMsg(namespace)
+  }
 
  renderLive() {
     const rtsp_url = this.state.rtsp_url
@@ -447,10 +455,10 @@ class NepiDeviceIDXControls extends Component {
 
       <Columns>
         <Column>
-        <Label title="Show 3D Transforms">
+        <Label title="Show 3D Transform">
                         <Toggle
-                          checked={this.state.showTransforms}
-                          onClick={this.onClickToggleShowTransforms}>
+                          checked={this.state.showTransform}
+                          onClick={this.onClickToggleShowTransform}>
                         </Toggle>
                       </Label>
 
@@ -461,7 +469,7 @@ class NepiDeviceIDXControls extends Component {
 
 
 
-        <div hidden={ this.state.showTransforms === false}>
+        <div hidden={ this.state.showTransform === false}>
 
               <Columns>
               <Column>

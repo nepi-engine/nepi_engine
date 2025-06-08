@@ -409,7 +409,7 @@ class IDXDeviceIF:
             },
             'clear_frame_3d_transform': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/clear_frame_3d_transform',
+                'topic': 'idx/clear_3d_transform',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.clearFrame3dTransformCb, 
@@ -417,7 +417,7 @@ class IDXDeviceIF:
             },
             'set_frame_3d_transform': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/set_frame_3d_transform',
+                'topic': 'idx/set_3d_transform',
                 'msg': Frame3DTransform,
                 'qsize': 1,
                 'callback': self.setFrame3dTransformCb, 

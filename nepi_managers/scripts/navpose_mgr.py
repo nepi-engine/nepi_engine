@@ -82,7 +82,7 @@ class NavPoseMgr(object):
     times_list = [0,0,0,0,0,0,0]
 
     BLANK_CONNECT = {
-            'fixed': False,
+            'fixed': True,
             'topic': "",
             'msg': "",
             'connected': False,
@@ -567,7 +567,9 @@ class NavPoseMgr(object):
 
     def _connectTopic(self,name,topic,transform = None):
         if name in self.avail_topics_dict.keys():
-            if topic in self.avail_topics_dict[name]:
+            if topic == 'None' or topic == '':
+                success = self._unregisterTopic(name)
+            elif topic in self.avail_topics_dict[name]:
                 if self.subs_dict[name]['topic'] != '':
                     success = self._unregisterTopic(name)
                 msg_str = self.avail_topics_dict[name]['msg']

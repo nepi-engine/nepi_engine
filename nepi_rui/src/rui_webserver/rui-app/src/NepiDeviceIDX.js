@@ -33,15 +33,6 @@ class NepiDeviceIDX extends Component {
   constructor(props) {
     super(props)
 
-    this.onDeviceSelected = this.onDeviceSelected.bind(this)
-    this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
-    this.createDeviceOptions = this.createDeviceOptions.bind(this)
-
-    this.createDataProductOptions = this.createDataProductOptions.bind(this)
-    this.onDataProductSelected = this.onDataProductSelected.bind(this)
-
-    //const namespaces = Object.keys(props.ros.idxDevices)
-
 
     
     this.state = {
@@ -59,6 +50,16 @@ class NepiDeviceIDX extends Component {
       namespace: null,
       namespaceText: "No sensor selected"
     }
+
+    this.onDeviceSelected = this.onDeviceSelected.bind(this)
+    this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
+    this.createDeviceOptions = this.createDeviceOptions.bind(this)
+
+    this.createDataProductOptions = this.createDataProductOptions.bind(this)
+    this.onDataProductSelected = this.onDataProductSelected.bind(this)
+
+    //const namespaces = Object.keys(props.ros.idxDevices)
+
   }
 
 
@@ -66,7 +67,7 @@ class NepiDeviceIDX extends Component {
   createDeviceOptions(topics) {
 
     var items = []
-    items.push(<Option>{"None"}</Option>)
+    items.push(<Option value={'None'}>{'None'}</Option>)
     //var unique_names = createShortUniqueValues(topics)
     var device_name = ""
     for (var i = 0; i < topics.length; i++) {

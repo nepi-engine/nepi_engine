@@ -169,43 +169,53 @@ class ROSConnectionStore {
   @observable clockNTP = false
   @observable clockPPS = false
 
-  @observable navPose = null
-  @observable navPoseLocationLat = null
-  @observable navPoseLocationLng = null
-  @observable navPoseLocationAlt = null
-  @observable navPoseDirectionHeadingDeg = null
-  @observable navPoseDirectionSpeedMpS = null
-  @observable navPoseOrientationYawAngle = null
-  @observable navPoseOrientationYawRate = null
-  @observable navPoseOrientationPitchAngle = null
-  @observable navPoseOrientationPitchRate = null
-  @observable navPoseOrientationRollAngle = null
-  @observable navPoseOrientationRollRate = null
-  @observable navPoseOrientationFrame = null
-  @observable navPoseOrientationIsTransformed = false
-  @observable navSatFixStatus = null
-  @observable navSatFixService = null
+  @observable blankNavPoseData = {
+      frame_3d: 'nepi_frame',
+      frame_nav: 'ENU',
+      frame_altitude: 'WGS84',
+      frame_depth: 'MSL',
+  
+      geoid_height_meters: 0.0,
+  
+      has_location: false,
+      time_location: moment.utc().unix(),
+      // Location Lat,Long
+      latitude: 0.0,
+      longitude: 0.0,
+  
+      has_heading: false,
+      time_heading: moment.utc().unix(),
+      // Heading should be provided in Degrees True North
+      heading_deg: 0.0,
+  
+      has_position: false,
+      time_position: moment.utc().unix(),
+      // Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+      x_m: 0.0,
+      y_m: 0.0,
+      z_m: 0.0,
+  
+      has_orientation: false,
+      time_orientation: moment.utc().unix(),
+      // Orientation should be provided in Degrees in specified 3d frame
+      roll_deg: 0.0,
+      pitch_deg: 0.0,
+      yaw_deg: 0.0,
+  
+      has_altitude: false,
+      time_altitude: moment.utc().unix(),
+      // Altitude should be provided in postivie meters in specified alt frame
+      altitude_m: 0.0,
+  
+      has_depth: false,
+      time_depth: moment.utc().unix(),
+      // Depth should be provided in positive meters
+      depth_m: 0.0
+  }
+  
 
-  @observable navPoseStatus = null
   @observable gpsClockSyncEnabled = false
-  @observable selectedNavSatFixTopic = null
-  @observable lastNavSatFix = null
-  @observable navSatFixRate = null
-  @observable selectedOrientationTopic = null
-  @observable lastOrientation = null
-  @observable orientationRate = null
-  @observable selectedHeadingTopic = null
-  @observable lastHeading = null
-  @observable headingRate = null  
-  @observable navSrcFrame = null
-  @observable navTargetFrame = null
-  @observable navTransformXTrans = null
-  @observable navTransformYTrans = null
-  @observable navTransformZTrans = null
-  @observable navTransformXRot = null
-  @observable navTransformYRot = null
-  @observable navTransformZRot = null
-  @observable navHeadingOffset = null
+
     
   @observable imageRecognitions = []
 
@@ -1270,57 +1280,7 @@ class ROSConnectionStore {
     })
   }
 
-  @action.bound
-  sendFrame3DTransformUpdateMsg(namespace, transformNamespace, transformFloatList) {
-    if (transformFloatList.length === 7){
-      this.publishMessage({
-        name: namespace,
-        messageType: "nepi_sdk_interfaces/UpdateFrame3DTransform",
-        data: { 
-          topic_namespace: transformNamespace,
-          transform: {
-            translate_vector: {
-              x: transformFloatList[0],
-              y: transformFloatList[1],
-              z: transformFloatList[2]
-            },
-            rotate_vector: {
-              x: transformFloatList[3],
-              y: transformFloatList[4],
-              z: transformFloatList[5]
-            },
-            heading_offset: transformFloatList[6]
-          }
-        },
-        noPrefix: true
-      })
-    }
-  }
 
-  @action.bound
-  sendFrame3DTransformMsg(namespace, transformFloatList) {
-    if (transformFloatList.length === 7){
-      this.publishMessage({
-        name: namespace,
-        messageType: "nepi_sdk_interfaces/Frame3DTransform",
-        data: { 
-            translate_vector: {
-              x: transformFloatList[0],
-              y: transformFloatList[1],
-              z: transformFloatList[2]
-            },
-            rotate_vector: {
-              x: transformFloatList[3],
-              y: transformFloatList[4],
-              z: transformFloatList[5]
-            },
-            heading_offset: transformFloatList[6]
-
-        },
-        noPrefix: true
-      })
-    }
-  }
 
   @action.bound
   sendFloatVector3Msg(namespace, float1_str,float2_str,float3_str) {
@@ -1507,6 +1467,10 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   }
 
 
+
+  
+  ///// NavPose IF Calls
+
   @action.bound
   updateNavPoseTopic(namespace, name, topic, apply_transform, transform_list) {
     const apply_tf = apply_transform ? apply_transform : false
@@ -1539,6 +1503,183 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     })
   }  
 
+
+  @action.bound
+  sendNavPoseDataMsg(namespace,navpose_data){
+      this.publishMessage({
+        name: namespace + '/set_navpose/',
+        messageType: "nepi_sdk_interfaces/NavPoseData",
+        data: navpose_data,
+        noPrefix: true
+      })
+    }
+
+    @action.bound
+    sendInitNavPoseDataMsg(namespace,navpose_data){
+      this.publishMessage({
+        name: namespace + '/set_init_navpose/',
+        messageType: "nepi_sdk_interfaces/NavPoseData",
+        data: navpose_data,
+        noPrefix: true
+      })
+    }
+
+    @action.bound
+    sendNavPoseDataLocationMsg(namespace,lat,long,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_location = true
+      np_msg.time_location = moment.utc().unix()
+      np_msg.latitude = parseFloat(lat)
+      np_msg.longitude = parseFloat(long)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+    @action.bound
+    sendNavPoseDataHeadingMsg(namespace,heading,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_heading = true
+      np_msg.time_heading = moment.utc().unix()
+      np_msg.heading_deg = parseFloat(heading)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+
+    @action.bound
+    sendNavPoseDataOrienationMsg(namespace,roll,pitch,yaw,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_orienation = true
+      np_msg.time_orienation = moment.utc().unix()
+      np_msg.roll_deg = parseFloat(roll)
+      np_msg.pitch_deg = parseFloat(pitch)
+      np_msg.yaw_deg = parseFloat(yaw)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+
+
+    @action.bound
+    sendNavPoseDataPositionMsg(namespace,x,y,z,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_position = true
+      np_msg.time_position = moment.utc().unix()
+      np_msg.x_m = parseFloat(x)
+      np_msg.y_m = parseFloat(y)
+      np_msg.z_m = parseFloat(z)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+
+
+
+
+    @action.bound
+    sendNavPoseDataAltitudeMsg(namespace,alt,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_altitude = true
+      np_msg.time_altitude = moment.utc().unix()
+      np_msg.altitude_m = parseFloat(alt)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+
+    @action.bound
+    sendNavPoseDataDepthMsg(namespace,depth,init_np){
+      var np_msg = this.blankNavPoseData
+      np_msg.has_depth = true
+      np_msg.time_depth = moment.utc().unix()
+      np_msg.depth_m = parseFloat(depth)
+      const init = init_np ? init_np : false
+      if (init === false){
+        this.sendNavPoseDataMsg(namespace,np_msg)
+      }
+      else {
+        this.sendInitNavPoseDataMsg(namespace,np_msg)
+      }
+    }
+
+
+
+    @action.bound
+    sendFrame3DTransformMsg(namespace, transformFloatList) {
+      if (transformFloatList.length === 7){
+        this.publishMessage({
+          name: namespace,
+          messageType: "nepi_sdk_interfaces/Frame3DTransform",
+          data: { 
+              translate_vector: {
+                x: transformFloatList[0],
+                y: transformFloatList[1],
+                z: transformFloatList[2]
+              },
+              rotate_vector: {
+                x: transformFloatList[3],
+                y: transformFloatList[4],
+                z: transformFloatList[5]
+              },
+              heading_offset: transformFloatList[6]
+  
+          },
+          noPrefix: true
+        })
+      }
+    }
+  
+    @action.bound
+    sendFrame3DTransformUpdateMsg(namespace, name, transformFloatList) {
+      if (transformFloatList.length === 7){
+        this.publishMessage({
+          name: namespace,
+          messageType: "nepi_sdk_interfaces/UpdateFrame3DTransform",
+          data: { 
+            name: name,
+            transform: {
+              translate_vector: {
+                x: transformFloatList[0],
+                y: transformFloatList[1],
+                z: transformFloatList[2]
+              },
+              rotate_vector: {
+                x: transformFloatList[3],
+                y: transformFloatList[4],
+                z: transformFloatList[5]
+              },
+              heading_offset: transformFloatList[6]
+            }
+          },
+          noPrefix: true
+        })
+      }
+    }
 
   ////////////////////////////////
   /////  Service Calls
@@ -2362,151 +2503,8 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
   /////////////////////////////////////////////////////////////////////////
 
-  // Nav/Pose Control methods /////////////////////////////////////////////
-  @action.bound
-  onSetInitOrientation(roll_deg, pitch_deg, yaw_deg) {
-    var q = new cannon.Quaternion()
-    q.setFromEuler(roll_deg * (Math.PI/180), pitch_deg * (Math.PI/180), yaw_deg * (Math.PI/180), EULER_ORDER_FOR_CANNON) // Use YZX order because that's the only one available for the reverse operation
-    this.publishMessage({
-      name: "nav_pose_mgr/set_init_orientation",
-      messageType: "geometry_msgs/QuaternionStamped",
-      data: {
-        header: {
-          seq: 0,
-          stamp: {
-            sec: moment().unix(),
-            nsec: 0
-          },
-          frame_id: "na"
-        },
-        quaternion: {
-          x: q.x,
-          y: q.y,
-          z: q.z,
-          w: q.w
-        }
-      }
-    })
-  }
-
-  @action.bound
-  onSetInitGPS(latitude_deg, longitude_deg, altitude_m) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_init_gps",
-      messageType: "sensor_msgs/NavSatFix",
-      data: {
-        header: {
-          seq: 0,
-          stamp: {
-            sec: 0,
-            nsec: 0
-          },
-          frame_id: "na"
-        },
-        status: {
-          status: 0, // Valid FIX
-          service: 1 // GPS
-        },
-        latitude: parseFloat(latitude_deg),
-        longitude: parseFloat(longitude_deg),
-        altitude: parseFloat(altitude_m),
-        position_covariance_type: 0 // Unknown
-      }
-    })
-  }
-
-  @action.bound
-  onSetInitHeading(heading_mag_deg) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_init_heading",
-      messageType: "std_msgs/Float64",
-      data: {
-        data: parseFloat(heading_mag_deg),
-      }
-    })
-  }
-
-  @action.bound
-  onSetAHRSOffsets(x_trans, y_trans, z_trans, x_rot, y_rot, z_rot, heading) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_ahrs_offset",
-      messageType: "nepi_sdk_interfaces/Offset",
-      data: {
-        translation: {
-          x: parseFloat(x_trans),
-          y: parseFloat(y_trans),
-          z: parseFloat(z_trans),
-        },
-        rotation: {
-          x: parseFloat(x_rot),
-          y: parseFloat(y_rot),
-          z: parseFloat(z_rot)
-        },
-        heading: parseFloat(heading)
-      }
-    })
-  }
-
-  @action.bound
-  onSetAHRSOutFrame(ahrs_out_frame) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_ahrs_out_frame",
-      messageType: "std_msgs/String",
-      data: {
-        data: ahrs_out_frame
-      }
-    })
-  }
-
-  @action.bound
-  onToggletransformNavPoseOrientation() {
-    this.transformNavPoseOrientation = !(this.transformNavPoseOrientation)
-  }
-
-  @action.bound
-  onSetGPSFixTopic(topic) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_gps_topic",
-      messageType: "std_msgs/String",
-      data: {
-        data: topic
-      }
-    })
-  }
-
-  @action.bound
-  onToggleGPSClockSync() {
-    this.gpsClockSyncEnabled = !(this.gpsClockSyncEnabled)
-    this.publishMessage({
-      name: "nav_pose_mgr/enable_gps_clock_sync",
-      messageType: "std_msgs/Bool",
-      data: {
-        data: this.gpsClockSyncEnabled
-      }
-    })
-  }
-
-  @action.bound
-  onSetOrientationTopic(topic) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_orientation_topic",
-      messageType: "std_msgs/String",
-      data: {
-        data: topic
-      }
-    })
-  }
-
-  @action.bound
-  onSetHeadingTopic(topic) {
-    this.publishMessage({
-      name: "nav_pose_mgr/set_heading_topic",
-      messageType: "std_msgs/String",
-      data: {
-        data: topic
-      }
-    })
-  }
+  // Image Control methods /////////////////////////////////////////////
+ 
 
   @action.bound
   onChangeStreamingImageQuality(quality) {
@@ -2518,26 +2516,14 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     })
   }
 
+
   /////////////////////////////////////////////////////////////////////////
+  // Nav/Pose Control methods /////////////////////////////////////////////
 
-  // Mux Sequencer
-  @action.bound
-  onConfigureMuxSequence(updated_sequence_dict) {
-    this.publishMessage({
-      name: "app_image_sequencer/configure_mux_sequence",
-      messageType: "nepi_app_image_sequencer/ImageMuxSequence",
-      data: updated_sequence_dict
-    })
-  }
 
-  @action.bound
-  onDeleteMuxSequence(sequence_id) {
-    this.publishMessage({
-      name: "app_image_sequencer/delete_mux_sequence",
-      messageType: "std_msgs/String",
-      data: { data: sequence_id }
-    })
-  }
+
+
+  /////////////////////////////////////////////////////////////////////////
 
   // PTX
   @action.bound

@@ -34,8 +34,8 @@ class NepiDeviceNPXControls extends Component {
 
       frame3D: null,
 
-      showTransforms: false,
-      transforms_topic_list: [],
+      showTransform: false,
+      transform_topic_list: [],
       transforms_list: [],
       transform_msg: null,
       transformTX: 0,
@@ -45,19 +45,21 @@ class NepiDeviceNPXControls extends Component {
       transformRY: 0,
       transformRZ: 0,
       transformHO: 0,
+      include_transform: false,
+
       age_filter_s: null
     }
 
 
     this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
-    this.sendClearTransformClearMessage = this.sendClearTransformClearMessage.bind(this)
+    this.sendTransformClearMessage = this.sendTransformClearMessage.bind(this)
     
   }
 
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_frame_transform"
+    const namespace = this.props.namespace + "/set_3d_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -70,7 +72,7 @@ class NepiDeviceNPXControls extends Component {
   }
 
 
-  sendClearTransformClearMessage(){
+  sendTransformZeroMessage(){
     this.setState({
       transformTX: 0,
       transformTY: 0,
@@ -81,11 +83,16 @@ class NepiDeviceNPXControls extends Component {
       transformHO: 0,      
     })
     const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_frame_transform"
+    const namespace = this.props.namespace + "/set_3d_transform"
     const transformList = [0,0,0,0,0,0,0]
     sendClearFrame3DTransformMsg(namespace,transformList)
   }
 
+  sendTransformClearMessage(){
+    const {sendTriggerMsg} = this.props.ros
+    const namespace = this.props.namespace + "/clear_3d_transform"
+    sendTriggerMsg(namespace)
+  }
 
 
   renderControls() {
@@ -375,7 +382,7 @@ class NepiDeviceNPXControls extends Component {
 
 
                 <ButtonMenu>
-                        <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/clear_frame_transform")}>{"Clear Transform"}</Button>
+                        <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
                 </ButtonMenu>
 
 

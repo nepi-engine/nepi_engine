@@ -474,7 +474,7 @@ class NPXDeviceIF:
 
             'clear_frame_3d_transform': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/clear_frame_transform',
+                'topic': 'npx/clear_3d_transform',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._clearFrame3dTransformCb, 
@@ -482,7 +482,7 @@ class NPXDeviceIF:
             },
             'set_frame_transform': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/set_frame_transform',
+                'topic': 'npx/set_3d_transform',
                 'msg': Frame3DTransform,
                 'qsize': 1,
                 'callback': self._setFrame3dTransformCb, 
@@ -490,7 +490,7 @@ class NPXDeviceIF:
             },
             'include_transform_enabled': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/include_transform_enabled',
+                'topic': 'npx/include_3d_transform_enabled',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self._setApplyTransformCb, 

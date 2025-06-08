@@ -79,6 +79,9 @@ USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 
 class AiDetectorIF:
     
+    namespace = '~'
+    all_namespace = None
+
     IMAGE_DATA_PRODUCT = 'detection_image'
 
     STATES_DICT = dict()
@@ -120,6 +123,7 @@ class AiDetectorIF:
     time_list = [0,0,0,0,0,0,0,0,0,0]
     sleep_state = False
     def __init__(self, 
+                namespace,
                 model_name, 
                 framework, 
                 description, 
@@ -127,9 +131,9 @@ class AiDetectorIF:
                 proc_img_width,  
                 classes_list, 
                 default_config_dict, 
-                all_namespace, 
                 preprocessImageFunction, 
                 processDetectionFunction,
+                all_namespace = None,
                 has_img_tiling = False,
                 enable_image_pub = True,
                 log_name = None,
@@ -156,6 +160,14 @@ class AiDetectorIF:
 
         ##############################  
         # Init Class Variables 
+
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = nepi_sdk.create_namespace(namespace,'settings')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
+
+
+
         self.has_img_tiling = has_img_tiling
 
         ## Get folder info
@@ -183,8 +195,11 @@ class AiDetectorIF:
         self.model_proc_img_height = proc_img_height
         self.model_proc_img_width = proc_img_width
         self.default_config_dict = default_config_dict
-        if all_namespace[-1] == "/":
-            all_namespace = all_namespace[:-1]
+        if all_namespace is None:
+            all_namespace = ''
+        else:
+            if all_namespace[-1] == "/":
+                all_namespace = all_namespace[:-1]
         self.all_namespace = all_namespace
         self.preprocessImage = preprocessImageFunction
         self.processDetection = processDetectionFunction
@@ -351,7 +366,7 @@ class AiDetectorIF:
             },
         }
 
-        if all_namespace.find(self.node_name) == -1:
+        if all_namespace != '':
             self_managed = False
             self.PUBS_DICT['found_object_all'] = {
                 'msg': ObjectCount,
