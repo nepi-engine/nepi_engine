@@ -137,11 +137,11 @@ class NepiIFSaveData extends Component {
     const namespace = this.state.namespace
     const namespace_updated = (prevState.namespace !== namespace && namespace !== null)
     const needs_update = (this.state.needs_update && namespace !== null)
-    if (namespace_updated || needs_update) {
-      if (namespace.indexOf('null') === -1){
-        this.setState({namespace: namespace})
-        this.updateSaveStatusListener()
-      }
+  
+    if ((namespace_updated || needs_update) &&
+        namespace !== "None" &&
+        !namespace.includes("null")) {
+      this.updateSaveStatusListener()
     }
   }
 

@@ -10,8 +10,10 @@ import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
 import Section from "./Section"
+import Select, { Option } from "./Select"
+
 //import EnableAdjustment from "./EnableAdjustment"
-import Section from "./Section"
+import Styles from "./Styles"
 import Button, { ButtonMenu } from "./Button"
 import RangeAdjustment from "./RangeAdjustment"
 import {RadioButtonAdjustment, SliderAdjustment} from "./AdjustmentWidgets"
@@ -19,15 +21,12 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import Input from "./Input"
 import { Column, Columns } from "./Columns"
-import { round, onUpdateSetStateValue, onEnterSetStateFloatValue,  } from "./Utilities"
+import { round, onUpdateSetStateValue, onEnterSetStateFloatValue, createShortUniqueValues } from "./Utilities"
 
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NavPoseDataViewer from "./Nepi_IF_NavPoseDataViewer"
-
-
-import {round, onUpdateSetStateValue, createShortUniqueValues} from "./Utilities"
 
 @inject("ros")
 @observer
@@ -240,13 +239,12 @@ updateNavposeListener() {
         const infos = comp_infos[index]
         const topics = infos.available_topics
         for (var i = 0; i < topics.length; i++) {
-          comp_name = topics[i]
           items.push(<Option value={topics[i]}>{topics[i]}</Option>)
         }
-        return items
       }
-
     }
+
+    return items
   }
 
 
@@ -329,7 +327,7 @@ updateNavposeListener() {
         const comp_info = comp_infos[i]
         // Show for each
         const name = comp_info.name
-        const name_text = toUpperCase(name)
+        const name_text = name.toUpperCase()
         const fixed = comp_info.fixed
         const topics = comp_info.available_topics
         const msgs = comp_info.available_topic_msgs

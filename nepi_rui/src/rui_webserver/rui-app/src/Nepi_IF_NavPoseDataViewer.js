@@ -48,8 +48,10 @@ class NavPoseDataViewer extends Component {
     const roll = navpose_data ? navpose_data.roll : null
     const pitch = navpose_data ? navpose_data.pitch : null
     const yaw = navpose_data ? navpose_data.yaw : null
+    console.log("NavPoseDataViewer data:", navpose_data)
+
     return (
-      <Section title={"Nav/Pose Output Frame (" + frame_id + ")"}>
+      <Section title={"Nav/Pose Output Frame: (" + frame_id + ")"}>
         <Columns>
           <Column>
             <label style={{fontWeight: 'bold'}}>
@@ -89,7 +91,7 @@ class NavPoseDataViewer extends Component {
           <Column>
             <div style={{ display: "flex", marginLeft: Styles.vars.spacing.regular }}>
               <label style={{fontWeight: 'bold', flex: 1, textAlign: "left"}}>
-              {"Orientation Frame " + frame_3d}
+              {"Orientation Frame: " + frame_3d}
               </label>
             </div>
             <Label title={"Roll Degs"}>
@@ -127,7 +129,7 @@ class NavPoseDataViewer extends Component {
           <Column>
             <div style={{ display: "flex", marginLeft: Styles.vars.spacing.regular }}>
               <label style={{fontWeight: 'bold', flex: 1, textAlign: "left"}}>
-              {"Position Frame " + frame_3d}
+              {"Position Frame: " + frame_3d}
               </label>
             </div>
             <Label title={"X Meters"}>

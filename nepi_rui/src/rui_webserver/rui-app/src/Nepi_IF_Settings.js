@@ -192,33 +192,38 @@ class Nepi_IF_Settings extends Component {
     const name_ind = event.nativeEvent.target.selectedIndex
     const name = event.nativeEvent.target[name_ind].text
     const ind = this.state.capSettingsNamesList.indexOf(name)
-    this.updateSettingsInfo(ind)
+    this.updateSettingsInfo(ind, name)
+  }
 
-  updateSettingsInfo(ind){
-      if (ind !== -1){
-        this.setState({selectedSettingInd : ind })
-        this.setState({selectedSettingName  :  name })
-        const type = this.state.capSettingsTypesList[ind]
-        this.setState({selectedSettingType  :  type }) 
-        const value = this.getSettingValue(name) 
-        this.setState({selectedSettingValue  : value })
-        const options = this.state.capSettingsOptionsLists[ind]
-        this.setState({selectedSettingOptions  :  options })
-        if (type === "Int" || type === "Float" ) {
-          this.setState({selectedSettingLowerLimit  :  options.length > 0 ? options[0] : "" })
-          this.setState({selectedSettingUpperLimit  :  options.length > 1 ? options[1] : "" })
-        } else {
-          this.setState({selectedSettingLowerLimit  :  "" })
-          this.setState({selectedSettingUpperLimit  :  "" })
-        }
-        this.setState({selectedSettingInput  :  value })
-        this.render()
+  updateSettingsInfo(ind, name) {
+    if (ind !== -1) {
+      this.setState({ selectedSettingInd: ind });
+      this.setState({ selectedSettingName: name });
+      const type = this.state.capSettingsTypesList[ind];
+      this.setState({ selectedSettingType: type });
+      const value = this.getSettingValue(name);
+      this.setState({ selectedSettingValue: value });
+      const options = this.state.capSettingsOptionsLists[ind];
+      this.setState({ selectedSettingOptions: options });
+  
+      if (type === "Int" || type === "Float") {
+        this.setState({
+          selectedSettingLowerLimit: options.length > 0 ? options[0] : "",
+          selectedSettingUpperLimit: options.length > 1 ? options[1] : ""
+        });
+      } else {
+        this.setState({
+          selectedSettingLowerLimit: "",
+          selectedSettingUpperLimit: ""
+        });
       }
-      else{
-      this.setState({selectedSettingName  :  "NONE" }) 
-      this.setState({selectedSettingType  :  "NONE" }) 
-      }
-
+  
+      this.setState({ selectedSettingInput: value });
+    } else {
+      this.setState({
+        selectedSettingName: "NONE",
+        selectedSettingType: "NONE"
+      });
     }
   }
 
@@ -303,13 +308,15 @@ class Nepi_IF_Settings extends Component {
   renderSettings() {
     const { sendTriggerMsg} = this.props.ros
     const show_all = this.props.show_all ? this.props.show_all : false
+    const capSettingNamesOrdered = this.getSortedStrList(this.state.capSettingsNamesList)
 
     const settingsHeight = this.state.settingsCount * 25
     const settingsHeightStr = settingsHeight.toString() + 'px'
 
 
     if (show_all === false){
-      return(
+      return (
+        <React.Fragment>
           <Columns>
             <Column>
               <Label title={"Select Setting"}>
@@ -318,56 +325,34 @@ class Nepi_IF_Settings extends Component {
                   onChange={this.updateSelectedSettingInfo}
                   value={this.state.selectedSettingName}
                 >
-                  {createMenuListFromStrList(capSettingNamesOrdered,false,[],['NONE'],[])}
+                  {createMenuListFromStrList(capSettingNamesOrdered, false, [], ['NONE'], [])}
                 </Select>
               </Label>
-
-
-              </Column>
-                <Column>
-
-                </Column>
-              </Columns>
-
-
-
-              <Columns>
-              <Column>
-
+            </Column>
+            <Column />
+          </Columns>
+      
+          <Columns>
+            <Column>
               {this.renderSetting()}
-
               {this.renderResets()}
-
-
-
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-            
-            <Label title={"Current Settings"} >
-            </Label>
-            <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
-              {this.getSettingsAsString()}
-            </pre>
-
-              </Column>
-            </Columns>
+      
+              <div
+                style={{
+                  borderTop: "1px solid #ffffff",
+                  marginTop: Styles.vars.spacing.medium,
+                  marginBottom: Styles.vars.spacing.xs,
+                }}
+              />
+      
+              <Label title={"Current Settings"} />
+              <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
+                {this.getSettingsAsString()}
+              </pre>
+            </Column>
+          </Columns>
+        </React.Fragment>
       )
-    }
-    else {
-      for (let ind = 0; ind < settings.length; ind++){
-        this.updateSettingsInfo(ind)
-            
-          return (
-
-              <Columns>
-              <Column>
-
-              {this.renderSetting()}
-
-              {this.renderResets()}
-
-              </Column>
-              </Columns>
-          )
 
     }
   }
@@ -449,6 +434,7 @@ class Nepi_IF_Settings extends Component {
   }
 
   renderResets(){
+    const { sendTriggerMsg } = this.props.ros
     return(
 
       <Columns>

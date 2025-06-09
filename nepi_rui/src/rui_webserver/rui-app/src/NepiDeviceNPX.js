@@ -82,8 +82,8 @@ class NepiDeviceNPX extends Component {
     
     // Transform the data to match what NavPoseDataViewer expects
     const transformedData = {
-      latitude: message.lat,
-      longitude: message.long,
+      latitude: message.latitude,
+      longitude: message.longitude,
       altitude: message.altitude_m,
       heading: message.heading_deg,
       roll: message.roll_deg,
@@ -104,7 +104,9 @@ class NepiDeviceNPX extends Component {
 
 updateStatusListener() {
   const namespace = this.state.namespace
-
+  const statusTopic = namespace + "/status"
+  console.log("=====NPX=====")
+  console.log("NPX status listener: " + statusTopic)
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
     "nepi_sdk_interfaces/NPXStatus",
@@ -120,7 +122,8 @@ updateStatusListener() {
 updateNavposeListener() {
   const namespace = this.state.namespace
   const navposeTopic = namespace + "/navpose"
-  
+  console.log("NPX Navpose listener: " + navposeTopic)
+
   if (this.state.navposeListener) {
     this.state.navposeListener.unsubscribe()
   }
@@ -139,14 +142,16 @@ updateNavposeListener() {
 
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    const namespace = this.state.namespace
-    if (prevState.namespace !== namespace){
-      if (namespace != null) {
-        this.updateStatusListener()
-        this.updateNavposeListener()
-      } else if (namespace == null){
-        this.setState({ disabled: true })
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.namespace !== this.state.namespace) {
+      const namespace = this.state.namespace;
+      console.log("Updated namespace: " + namespace);
+  
+      if (namespace) {
+        this.updateStatusListener();
+        this.updateNavposeListener();
+      } else {
+        this.setState({ disabled: true });
       }
     }
   }
@@ -295,6 +300,10 @@ updateNavposeListener() {
     const navpose_data = this.state.navpose_data
     const status_msg = this.state.status_msg
     const connected = this.state.connected
+    console.log("=====dataviewer=======")
+    console.log("navpose_data passed: "+ navpose_data)
+    console.log("status_msg passed: "+ status_msg)
+    console.log("navposeData passed:", this.state.navposeData)
 
     return (
 
