@@ -342,7 +342,7 @@ class ConnectMgrNavPoseIF:
 
     def set_comp_topic(self,name,topic,transform_list = None):
         if name in nepi_nav.NAVPOSE_COMPONENTS:
-            msg = NavPoseTopicUpdate()
+            msg = UpdateNavPoseTopic()
             msg.name = name
             msg.topic = topic
             msg.apply_transform = False

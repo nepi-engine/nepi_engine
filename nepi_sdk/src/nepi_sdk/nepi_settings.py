@@ -16,7 +16,8 @@
 # 4) NEPI Settings utility functions
 # 5) Misc helper functions
 
-  
+import rospy
+
 import os
 import copy
 
@@ -108,7 +109,6 @@ def get_cap_setting_msg(cap_setting):
 def create_msg_from_cap_settings(cap_settings):
   cap_settings_msg = SettingCaps()
   cap_settings_msg.setting_caps_list = get_cap_setting_msgs_list(cap_settings)
-  cap_settings_msg.settings_count = len(cap_settings)
   return cap_settings_msg
 
 def get_cap_setting_msgs_list(cap_settings):
@@ -151,7 +151,6 @@ def create_msg_from_settings(settings):
     setting_msg = create_msg_from_setting(setting)
     settings_list.append(setting_msg)
   settings_msg.settings_list = settings_list
-  settings_msg.settings_count = len(settings_list)
   return settings_msg
 
 
@@ -310,7 +309,7 @@ def create_status_msg(settings,cap_settings, has_cap_updates = False):
     settings_list = []
     for setting_name in settings.keys():
       setting = settings[setting_name]
-      setting_msg = create_msg_from_setting(setting)
+      setting_msg = create_msg_from_settings(setting)
       settings_list.append(setting_msg)
     status_msg.settings_list = settings_list
     status_msg.settings_count = len(settings_list)

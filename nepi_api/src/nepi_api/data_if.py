@@ -557,9 +557,8 @@ class NavPoseIF:
 
         self.caps_report.has_location = self.has_location
         self.caps_report.has_heading = self.has_heading
-        self.caps_report.has_position = self.has_orientation
-        self.caps_report.has_orientation = self.has_position
-        self.caps_report.has_altitude = self.has_altitude
+        self.caps_report.has_position = self.has_position
+        self.caps_report.has_orientation = self.has_orientation
         self.caps_report.has_depth = self.has_depth
 
 
@@ -615,7 +614,7 @@ class NavPoseIF:
             }
 
         if self.has_position == True:
-            self.PUBS_DICT['orientation_pub'] = {
+            self.PUBS_DICT['position_pub'] = {
                 'msg': NavPosePosition,
                 'namespace': self.namespace,
                 'topic': 'position',
@@ -732,6 +731,10 @@ class NavPoseIF:
         if navpose_dict is None:
             success = False
         else:
+            self.status_msg.frame_3d = navpose_dict['frame_3d']
+            self.status_msg.source_frame_nav = navpose_dict['frame_nav']
+            self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
+            self.status_msg.source_frame_depth = navpose_dict['frame_depth']
             has_subs = copy.deepcopy(self.has_subs)
             if has_subs == False:
                 self.status_msg.publishing = False
@@ -783,10 +786,6 @@ class NavPoseIF:
                 
                 # Update Status Info
                 self.status_msg.publishing = True
-                self.status_msg.frame_3d = np_dict['frame_3d']
-                self.status_msg.source_frame_nav = np_dict['frame_nav']
-                self.status_msg.source_frame_altitude = np_dict['frame_altitude']
-                self.status_msg.source_frame_depth = np_dict['frame_depth']
 
 
                 # Transform navpose data frames to nepi standard frames
@@ -880,7 +879,7 @@ class NavPoseIF:
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 
@@ -2043,7 +2042,7 @@ class ImageIF:
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
@@ -2823,7 +2822,7 @@ class DepthMapIF:
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
@@ -3365,7 +3364,7 @@ class PointcloudIF:
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 

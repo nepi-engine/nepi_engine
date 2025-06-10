@@ -300,10 +300,11 @@ updateNavposeListener() {
     const navpose_data = this.state.navpose_data
     const status_msg = this.state.status_msg
     const connected = this.state.connected
-    console.log("=====dataviewer=======")
-    console.log("navpose_data passed: "+ navpose_data)
-    console.log("status_msg passed: "+ status_msg)
+    console.log("=====Passed from Main=======")
     console.log("navposeData passed:", this.state.navposeData)
+    console.log("deviceSelected:", deviceSelected)
+    console.log("namespace:", namespace)
+
 
     return (
 
@@ -358,9 +359,9 @@ updateNavposeListener() {
                     {this.renderDeviceSelection()}
 
 
-                    <div hidden={(!deviceSelected && this.state.show_controls)}>
+                    <div hidden={(!deviceSelected)}>
                       <NepiDeviceNPXControls
-                          deviceNamespace={namespace}
+                          namespace={namespace}
                           status_msg={status_msg}
                           title={"NepiDeviceNPXControls"}
                       />

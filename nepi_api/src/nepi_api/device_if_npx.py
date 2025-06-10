@@ -441,10 +441,10 @@ class NPXDeviceIF:
             },
             'set_as_locaition_source': {
                 'namespace': self.node_namespace,
-                'topic': 'npx/set_as_locaition_source',
+                'topic': 'npx/set_as_location_source',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self._setOrienSourceCb, 
+                'callback': self._setLocSourceCb, 
                 'callback_args': ()
             },
             'set_as_position_source': {
@@ -759,7 +759,8 @@ class NPXDeviceIF:
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_depth_source',  enabled)
 
-
+  def publishStatus(self, do_updates=True):
+      self._publishStatusCb(None)
 
   def initCb(self,do_updates = False):
       self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
@@ -868,7 +869,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_location_source)
       self.was_location_source = is_set
       if is_set == True:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
 
@@ -879,7 +880,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_heading_source)
       self.was_heading_source = is_set
       if is_set == True:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
 
@@ -890,7 +891,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_orientation_source)
       self.was_orientation_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
 
@@ -902,7 +903,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_position_source)
       self.was_position_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
 
@@ -914,7 +915,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_altitude_source)
       self.was_altitude_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
 
@@ -926,7 +927,7 @@ class NPXDeviceIF:
       is_set = copy.deepcopy(self.set_depth_source)
       self.was_depth_source = is_set
       if is_set == True and was_set == False:
-        self.navpose_mgr_if.set_comp_topic(name,topic,transform = transform)
+        self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
       elif is_set == False and was_set == True:
         self.navpose_mgr_if.clear_comp_topic(name)
   
@@ -945,7 +946,7 @@ class NPXDeviceIF:
       self.status_msg.set_as_depth_source = self.set_depth_source
       transform_msg = nepi_nav.convert_transform_list2msg(self.nepi_frame_3d_transform)
       self.status_msg.nepi_frame_3d_transform = transform_msg
-      self.status_msg.include_transform_enabled = self.apply_transform
+      self.status_msg.include_transform_enabled = self.include_transform_enabled
 
       self.status_msg.update_rate = self.update_rate
 
