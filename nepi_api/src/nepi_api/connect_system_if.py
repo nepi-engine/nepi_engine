@@ -315,9 +315,9 @@ class ConnectSettingsIF:
     ready = False
     namespace = '~'
 
+    settings_dict = None
     cap_settings_dict = None
-
-    settings_msg = None
+    has_cap_updates = False
 
     #######################
     ### IF Initialization
@@ -461,15 +461,17 @@ class ConnectSettingsIF:
     def get_settings_capabilities_dict(self):
         return self.cap_settings_dict
 
+    def get_has_capabilities_updating(self):
+        return self.has_cap_updates
+
     def get_settings_dict(self):
-        settings_dict = None
-        if self.settings_msg is not None:
-            settings_dict = nepi_settings.parse_settings_msg(self.settings_msg)
-        return settings_dict
+        return self.settings_dict
 
     def update_cap_setting(self, cap_setting_dict):
-        msg = nepi_settings.create_msg_from_cap_setting(cap_setting_dict)
-        success = self.con_node_if.publish_pub('cap_update_pub',msg)
+        success = False
+        if self.has_cap_updates == True:
+            msg = nepi_settings.create_msg_from_cap_setting(cap_setting_dict)
+            success = self.con_node_if.publish_pub('cap_update_pub',msg)
         return success
 
     def update_setting(self, setting_dict):
@@ -496,13 +498,13 @@ class ConnectSettingsIF:
 
     def _getCapSettings(self):
         req = SettingsCapabilitiesQueryRequest()
-        resp = self.con_node_if.call_service('capabilities_query',req)
-        cap_dict = nepi_settings.parse_cap_settings_msg(resp)
-        self.ready = True
-        return cap_dict
+        response = self.con_node_if.call_service('capabilities_query',req)
+        if response is not None:
+            [self.cap_settings_dict,self.has_cap_updates] = nepi_settings.parse_capabilities_response(response)
+        return self.cap_settings_dict
 
     def _settingsCb(self,msg):
-        self.settings_msg = msg
+        [self.settings_dict,self.cap_settings_dict,self.has_cap_updates] = nepi_settings.parse_status_msg(msg)
 
 
 

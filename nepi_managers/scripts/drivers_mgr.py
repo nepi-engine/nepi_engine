@@ -537,7 +537,7 @@ class NepiDriversMgr(object):
               self.node_if.save_config() # Save config on options change
               self.msg_if.pub_info("Instantiated discovery settings IF class " + discovery_node_name + " for driver " + driver_name)
           if driver_name in self.discovery_settings_dict.keys():
-            self.publishDiscoverySettings(driver_name) 
+            self.publishDiscoverySettingsStatus(driver_name) 
 
     # Publish Status
     self.publish_status()
@@ -572,7 +572,7 @@ class NepiDriversMgr(object):
     drvs_dict = self.node_if.get_param("drvs_dict")
     #self.msg_if.pub_info("Got capabilities req: " + str(req))
     namespace = req.namespace
-    capabilities_report = SettingsCapabilitiesQueryResponse()
+    caps_report = SettingsCapabilitiesQueryResponse()
     for driver_name in self.discovery_settings_dict.keys():
       settings_dict = self.discovery_settings_dict[driver_name]
       dict_namespace = settings_dict['namespace']
@@ -580,53 +580,54 @@ class NepiDriversMgr(object):
       #self.msg_if.pub_info("Have namespace: " + dict_namespace)
       if namespace == dict_namespace:
         drv_dict = drvs_dict[driver_name]
-        drv_settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+        settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
         cap_list = []
-        for drv_setting_name in drv_settings.keys():
-          drv_setting = drv_settings[drv_setting_name]
-          settings_cap = SettingCap()
-          settings_cap.name_str = drv_setting_name
-          settings_cap.type_str = drv_setting['type']
-          settings_cap.options_list = drv_setting['options']
-          cap_list.append(settings_cap)
-        capabilities_report = SettingsCapabilitiesQueryResponse()
-        capabilities_report.settings_count = len(cap_list)
-        capabilities_report.setting_caps_list = cap_list
+        for setting_name in settings.keys():
+          setting = settings[setting_name]
+          setting_cap = SettingCap()
+          setting_cap.name_str = setting_name
+          setting_cap.type_str = setting['type']
+          setting_cap.options_list = setting['options']
+          cap_list.append(setting_cap)
+        caps_report = SettingsCapabilitiesQueryResponse()
+        caps_report.settings_count = len(cap_list)
+        caps_report.setting_caps_list = cap_list
+        caps_report.has_cap_updates = False
         break
-    return capabilities_report
+    return caps_report
 
    
   def updateSettingCb(self,msg, args):
       namespace = args
       self.msg_if.pub_info("Received settings update msg " + str(msg))
-      found_driver_name = None
+      driver_name = None
       for driver_name in self.discovery_settings_dict.keys():
         settings_dict = self.discovery_settings_dict[driver_name]
         dict_namespace = settings_dict['namespace']
         #self.msg_if.pub_info("Looking for namespace: " + namespace)
         #self.msg_if.pub_info("Have namespace: " + dict_namespace)
         if namespace == dict_namespace:
-          found_driver_name = driver_name
+          driver_name = driver_name
           break
-      if found_driver_name is not None:
-        setting = nepi_settings.parse_setting_update_msg_data(msg)
-        self.msg_if.pub_info("Updating option: " + str(setting) + " for driver " + found_driver_name)
-        self.updateSetting(found_driver_name,setting)
+      if driver_name is not None:
+        setting = nepi_settings.parse_setting_msg(msg)
+        self.msg_if.pub_info("Updating option: " + str(setting) + " for driver " + driver_name)
+        self.updateSetting(driver_name,setting)
 
   def updateSetting(self,driver_name, setting):
       drvs_dict = self.node_if.get_param("drvs_dict")
       drv_dict = drvs_dict[driver_name]
-      drv_settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+      settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
       # Create cap options dict
       settings_cap_dict = dict()
-      for drv_setting_name in drv_settings.keys():
-        drv_setting = drv_settings[drv_setting_name]
-        settings_cap = dict()
-        settings_cap[drv_setting_name] = dict()
-        settings_cap['name'] = drv_setting_name
-        settings_cap['type'] = drv_setting['type']
-        settings_cap['options'] =  drv_setting['options']
-      valid = nepi_settings.check_valid_setting(setting,settings_cap_dict)
+      for setting_name in settings.keys():
+        setting = settings[setting_name]
+        setting_caps = dict()
+        setting_caps[setting_name] = dict()
+        setting_caps['name'] = setting_name
+        setting_caps['type'] = setting['type']
+        setting_caps['options'] =  setting['options']
+      valid = nepi_settings.check_valid_setting(setting,setting_caps)
       if valid == True:
         #self.msg_if.pub_warn("Updating setting " + str(setting))
         setting_name = setting['name']
@@ -643,38 +644,40 @@ class NepiDriversMgr(object):
       #self.msg_if.pub_warn("Got factory reset drvs keys: " + str(drvs_dict.keys()))
       #self.msg_if.pub_warn("Got update settings drvs keys: " + str(drvs_dict.keys()))
       self.node_if.save_config()
-      self.publishDiscoverySettings(driver_name)   
+      self.publishDiscoverySettingsStatus(driver_name)   
 
 
-  def publishDiscoverySettings(self,driver_name):
+  def publishDiscoverySettingsStatus(self,driver_name):
         drvs_dict = self.node_if.get_param("drvs_dict")
         drv_dict = drvs_dict[driver_name]
-        drv_settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
-        settings_list = []
-        for drv_setting_name in drv_settings.keys():
-          drv_setting = drv_settings[drv_setting_name]
-          setting = Setting()
-          setting.name_str = drv_setting_name
-          setting.type_str = drv_setting['type']
-          setting.value_str = drv_setting['value']
-          settings_list.append(setting)
-        settings_msg = SettingsStatus()
-        settings_msg.settings_count = len(settings_list)
-        settings_msg.settings_list = settings_list
 
-        cap_list = []
-        for drv_setting_name in drv_settings.keys():
-          drv_setting = drv_settings[drv_setting_name]
-          settings_cap = SettingCap()
-          settings_cap.name_str = drv_setting_name
-          settings_cap.type_str = drv_setting['type']
-          settings_cap.options_list = drv_setting['options']
-          cap_list.append(settings_cap)
+        settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+        settings_status_msg = SettingsStatus()
+        settings_status_msg.settings_count = len(settings)
 
-        settings_msg.setting_caps_list = cap_list
-        settings_msg.has_cap_updates = False
+        setting_msgs_list = []
+        for setting_name in settings.keys():
+          setting = settings[setting_name]
+          setting_msg = Setting()
+          setting_msg.name_str = setting_name
+          setting_msg.type_str = setting['type']
+          setting_msg.value_str = setting['value']
+          setting_msgs_list.append(setting_msg)
+        settings_status_msg.settings_list = setting_msgs_list
+
+        caps_msgs_list = []
+        for setting_name in settings.keys():
+          cap_setting = settings[setting_name]
+          cap_msg = SettingCap()
+          cap_msg.name_str = setting_name
+          cap_msg.type_str = setting['type']
+          cap_msg.options_list = setting['options']
+          caps_msgs_list.append(cap_msg)
+        settings_status_msg.setting_caps_list = caps_msgs_list
+
+        settings_status_msg.has_cap_updates = False
         settings_pub = self.discovery_settings_dict[driver_name]['settings_pub']
-        settings_pub.publish(settings_msg)
+        settings_pub.publish(settings_status_msg)
 
 
   ###############################################

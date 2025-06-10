@@ -885,17 +885,10 @@ class SettingsIF:
         #  Initialize capabilities info
         if capSettings is None:
             self.cap_settings = nepi_settings.NONE_CAP_SETTINGS
-            cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
-            self.caps_response.settings_count = len(cap_setting_msgs_list)
-            self.caps_response.setting_caps_list = cap_setting_msgs_list
-            self.factory_settings = nepi_settings.NONE_SETTINGS
         else:
             self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings), log_name_list = self.log_name_list)
             self.cap_settings = capSettings   
-            cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
-            self.caps_response.settings_count = len(cap_setting_msgs_list)
-            self.caps_response.setting_caps_list = cap_setting_msgs_list
-            self.caps_response.has_cap_updates = self.allow_cap_updates
+        self.caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
         self.msg_if.pub_debug("Cap Settings: " + str(self.caps_response), log_name_list = self.log_name_list)
 
         if factorySettings is None:
@@ -1063,11 +1056,9 @@ class SettingsIF:
                         cap_setting['default_value'] = cap_setting['options'][0]
                     else:
                         cap_setting['default_value'] = self.cap_settings['default_value']
-                cap_setting_msgs_list = nepi_settings.get_cap_setting_msgs_list(self.cap_settings)
-                self.caps_response.settings_count = len(cap_setting_msgs_list)
-                self.caps_response.setting_caps_list = cap_setting_msgs_list
-                success = True
-                self.msg_if.pub_debug("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
+        self.caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
+        success = True
+        self.msg_if.pub_debug("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
         return success
 
     def update_setting(self,setting,update_status = True, update_param = True):
@@ -1136,7 +1127,7 @@ class SettingsIF:
         setting_dict = nepi_settings.parse_setting_msg(msg)
         self.update_setting(setting_dict, update_status = True, update_param = True)
 
-    def _updateSettingCb(self,msg):
+    def _updateCapSettingCb(self,msg):
         self.msg_if.pub_info("Received cap setting update msg: " + str(msg), log_name_list = self.log_name_list)
         cap_setting_dict = nepi_settings.parse_cap_setting_msg(msg)
         self.update_cap_setting(cap_setting_dict, update_status = True, update_param = True)
