@@ -755,11 +755,6 @@ class NPXDeviceIF:
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_altitude_source',  enabled)
 
-  def _setOrienSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
-      enabled = msg.data
-      self.node_if.set_param('set_orientation_source',  enabled)
-
   def _setDepthSourceCb(self, msg):
       self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
       enabled = msg.data
