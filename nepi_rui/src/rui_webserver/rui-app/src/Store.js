@@ -1559,8 +1559,8 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     @action.bound
     sendNavPoseDataOrienationMsg(namespace,roll,pitch,yaw,init_np){
       var np_msg = this.blankNavPoseData
-      np_msg.has_orienation = true
-      np_msg.time_orienation = moment.utc().unix()
+      np_msg.has_orientation = true
+      np_msg.time_orientation = moment.utc().unix()
       np_msg.roll_deg = parseFloat(roll)
       np_msg.pitch_deg = parseFloat(pitch)
       np_msg.yaw_deg = parseFloat(yaw)

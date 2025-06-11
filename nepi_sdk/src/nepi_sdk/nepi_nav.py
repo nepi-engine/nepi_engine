@@ -469,8 +469,8 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
         if npdata_dict_new['has_heading'] == True:
             npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
             npdata_dict_org['heading'] = npdata_dict_new['heading']
-        if npdata_dict_new['has_orienation'] == True:
-            npdata_dict_org['time_orienation'] = npdata_dict_new['time_orienation']
+        if npdata_dict_new['has_orientation'] == True:
+            npdata_dict_org['time_orientation'] = npdata_dict_new['time_orientation']
             npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
             npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
             npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']

@@ -105,8 +105,6 @@ class NepiDeviceNPX extends Component {
 updateStatusListener() {
   const namespace = this.state.namespace
   const statusTopic = namespace + "/status"
-  console.log("=====NPX=====")
-  console.log("NPX status listener: " + statusTopic)
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
     "nepi_sdk_interfaces/NPXStatus",
@@ -122,8 +120,6 @@ updateStatusListener() {
 updateNavposeListener() {
   const namespace = this.state.namespace
   const navposeTopic = namespace + "/navpose"
-  console.log("NPX Navpose listener: " + navposeTopic)
-
   if (this.state.navposeListener) {
     this.state.navposeListener.unsubscribe()
   }
@@ -144,9 +140,7 @@ updateNavposeListener() {
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState) {
     if (prevState.namespace !== this.state.namespace) {
-      const namespace = this.state.namespace;
-      console.log("Updated namespace: " + namespace);
-  
+      const namespace = this.state.namespace;  
       if (namespace) {
         this.updateStatusListener();
         this.updateNavposeListener();
@@ -300,16 +294,9 @@ updateNavposeListener() {
     const navpose_data = this.state.navpose_data
     const status_msg = this.state.status_msg
     const connected = this.state.connected
-    console.log("=====Passed from Main=======")
-    console.log("navposeData passed:", this.state.navposeData)
-    console.log("deviceSelected:", deviceSelected)
-    console.log("namespace:", namespace)
-
 
     return (
-
-
-    
+      
       <div style={{ display: 'flex' }}>
 
           <div style={{ width: "65%" }}>

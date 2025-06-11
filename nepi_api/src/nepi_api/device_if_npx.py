@@ -439,7 +439,7 @@ class NPXDeviceIF:
                 'callback': self._setHeadSourceCb, 
                 'callback_args': ()
             },
-            'set_as_locaition_source': {
+            'set_as_location_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_location_source',
                 'msg': Bool,
@@ -462,6 +462,14 @@ class NPXDeviceIF:
                 'qsize': 1,
                 'callback': self._setAltSourceCb, 
                 'callback_args': ()
+            },            
+            'set_as_orientation_source': {
+                'namespace': self.node_namespace,
+                'topic': 'npx/set_as_orientation_source',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setOrienSourceCb, 
+                'callback_args': ()
             },
             'set_as_depth_source': {
                 'namespace': self.node_namespace,
@@ -471,7 +479,6 @@ class NPXDeviceIF:
                 'callback': self._setDepthSourceCb, 
                 'callback_args': ()
             },
-
             'clear_frame_3d_transform': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/clear_3d_transform',
@@ -700,7 +707,7 @@ class NPXDeviceIF:
 
   def setLocSource(self, enabled):
       self.set_location_source = enabled
-      self.status_msg.set_as_locaition_source = enabled
+      self.status_msg.set_as_location_source = enabled
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_location_source',  enabled)
 
@@ -722,7 +729,7 @@ class NPXDeviceIF:
 
   def setOrienSource(self, enabled):
       self.set_orientation_source = enabled
-      self.status_msg.set_as_locaition_source = enabled
+      self.status_msg.set_as_orientation_source = enabled
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_orientation_source',  enabled)
 
@@ -747,6 +754,11 @@ class NPXDeviceIF:
       self.status_msg.set_as_altitude_source = enabled
       self.publishStatus(do_updates=False) # Updated inline here 
       self.node_if.set_param('set_altitude_source',  enabled)
+
+  def _setOrienSourceCb(self, msg):
+      self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
+      enabled = msg.data
+      self.node_if.set_param('set_orientation_source',  enabled)
 
   def _setDepthSourceCb(self, msg):
       self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
@@ -937,11 +949,11 @@ class NPXDeviceIF:
 
   def _publishStatusCb(self,timer):
 
-      self.status_msg.set_as_locaition_source = self.set_location_source
+      self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_heading_source = self.set_heading_source
-      self.status_msg.set_as_orienation_source = self.set_orientation_source
+      self.status_msg.set_as_orientation_source = self.set_orientation_source
       self.status_msg.set_as_position_source = self.set_position_source
-      self.status_msg.set_as_locaition_source = self.set_location_source
+      self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_altitude_source = self.set_altitude_source
       self.status_msg.set_as_depth_source = self.set_depth_source
       transform_msg = nepi_nav.convert_transform_list2msg(self.nepi_frame_3d_transform)

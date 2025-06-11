@@ -413,10 +413,10 @@ class NavPoseMgr(object):
                 success = _unregisterTopic(self,'heading')
                 self.connect_dict['heading']['fixed'] = True
                 self.transforms_dict['heading'] = self.ZERO_TRANSFORM
-            if npdata_dict['has_orienation'] == True:
-                success = _unregisterTopic(self,'orienation')
-                self.connect_dict['orienation']['fixed'] = True
-                self.transforms_dict['orienation'] = self.ZERO_TRANSFORM
+            if npdata_dict['has_orientation'] == True:
+                success = _unregisterTopic(self,'orientation')
+                self.connect_dict['orientation']['fixed'] = True
+                self.transforms_dict['orientation'] = self.ZERO_TRANSFORM
             if npdata_dict['has_position'] == True:
                 success = _unregisterTopic(self,'position')
                 self.connect_dict['position']['fixed'] = True

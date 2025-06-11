@@ -25,13 +25,13 @@ string source_frame_depth
 
 
 bool has_location
-bool set_as_locaition_source
+bool set_as_location_source
 
 bool has_heading
 bool set_as_heading_source
 
 bool has_orientation
-bool set_as_orienation_source
+bool set_as_orientation_source
 
 bool has_position
 bool set_as_position_source

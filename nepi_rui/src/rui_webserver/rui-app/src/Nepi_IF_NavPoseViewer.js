@@ -96,7 +96,7 @@ class NavPoseViewer extends Component {
     })
   }
 
-  orienationListener(message) {
+  orientationListener(message) {
     this.setState({
     roll: message.x,
     pitch: message.y,
@@ -104,7 +104,7 @@ class NavPoseViewer extends Component {
     })
   }
 
-  orienationListener(message) {
+  orientationListener(message) {
     this.setState({
     x_m: message.x,
     y_m: message.y,

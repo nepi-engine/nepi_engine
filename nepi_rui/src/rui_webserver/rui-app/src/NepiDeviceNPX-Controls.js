@@ -96,8 +96,7 @@ class NepiDeviceNPXControls extends Component {
     const namespace = this.props.namespace ? this.props.namespace : null
     const message = this.props.status_msg ? this.props.status_msg : null
     const capabilities = npxDevices[namespace] ? npxDevices[namespace] : null
-    console.log("=== NPX Controls Debug ===");
-    console.log("namespace:", namespace);
+
 
     if (namespace != null && capabilities != null && message != null){
       const update_rate = message.update_rate
@@ -108,7 +107,7 @@ class NepiDeviceNPXControls extends Component {
       const frame_altitude = message.frame_altitude
       const frame_depth = message.frame_depth
       const has_loc = message.has_location
-      const set_loc = message.set_as_locaition_source
+      const set_loc = message.set_as_location_source
       const has_head = message.has_heading
       const set_head = message.set_as_heading_source
       const has_orien = message.has_orientation
@@ -161,11 +160,10 @@ class NepiDeviceNPXControls extends Component {
             <Label title="Set as Orientation Source">
               <Toggle
                 checked={set_orien===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_orientation_source",!set_orien)}>
+                onClick={() => {this.props.ros.sendBoolMsg(namespace + "/set_as_orientation_source", !set_orien);}}>
               </Toggle>
             </Label>
           </div>
-
           <div hidden={!has_pos}>    
             <Label title="Set as Position Source">
               <Toggle
@@ -198,7 +196,7 @@ class NepiDeviceNPXControls extends Component {
               <Label title="Enable Nepi Frame 3D Transform">
                 <Toggle
                   checked={include_transform}
-                  onClick={() => this.props.ros.sendBoolMsg(this.props.npxNamespace + '/set_include_transform',!include_transform)}>
+                  onClick={() => this.props.ros.sendBoolMsg(namespace + '/set_include_transform',!include_transform)}>
                 </Toggle>
               </Label>
             </Column>
@@ -318,8 +316,8 @@ class NepiDeviceNPXControls extends Component {
                   <Toggle 
                     checked={this.state.frame_3d === "nepi_center_frame"} 
                     disabled={(!this.state.disabled)? false : true}
-                    onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"nepi_center_frame")}
-                  />
+                    onClick={() => this.props.ros.setFrame3D(this.props.namespace,"nepi_center_frame")}
+                    />
                 </div>
               </Column>
               <Column>
@@ -329,8 +327,8 @@ class NepiDeviceNPXControls extends Component {
                   <Toggle 
                     checked={this.state.frame_3d === "earth_frame"} 
                     disabled={(!this.state.disabled)? false : true}
-                    onClick={() => this.props.ros.setFrame3D(this.props.npxNamespace + '',"earth_frame")}
-                  />
+                    onClick={() => this.props.ros.setFrame3D(this.props.namespace,"earth_frame")}
+                    />
                 </div>
               </Column>
             </Columns>
