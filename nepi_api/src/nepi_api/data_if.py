@@ -565,6 +565,7 @@ class NavPoseIF:
         ##############################   
         ## Node Setup
 
+
         # Services Config Dict ####################     
         SRVS_DICT = {
             'navpose_caps_query': {
@@ -1184,6 +1185,13 @@ class ImageIF:
 
         ##############################   
         ## Node Setup
+        self.CONFIGS_DICT = {
+                'init_callback': None, #self.initCb,
+                'reset_callback': None, #self.resetCb,
+                'factory_reset_callback': None, #self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.namespace,
+        }
 
         # Params Config Dict ####################
         PARAMS_DICT = {
@@ -1509,6 +1517,7 @@ class ImageIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -2588,6 +2597,13 @@ class DepthMapIF:
 
         ##############################   
         ## Node Setup
+        self.CONFIGS_DICT = {
+                'init_callback': None, #self.initCb,
+                'reset_callback': None, #self.resetCb,
+                'factory_reset_callback': None, #self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.namespace,
+        }
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -2646,6 +2662,7 @@ class DepthMapIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
@@ -2998,6 +3015,13 @@ class PointcloudIF:
 
         ##############################   
         ## Node Setup
+        self.CONFIGS_DICT = {
+                'init_callback': None, #self.initCb,
+                'reset_callback': None, #self.resetCb,
+                'factory_reset_callback': None, #self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.namespace,
+        }
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -3155,6 +3179,7 @@ class PointcloudIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,

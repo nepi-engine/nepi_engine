@@ -65,7 +65,7 @@ class ConnectAiDetectorIF:
     ready = False
 
     det_connected = False
-    det_namespace = None
+    namespace = None
     det_info_msg = None
     det_status_sub = None
     det_status_msg = None
@@ -121,7 +121,7 @@ class ConnectAiDetectorIF:
     #######################
     ### IF Initialization
     log_name = "ConnectAiDetectorIF"
-    def __init__(self, det_namespace, auto_reg_img = False, auto_dereg_img = False, timeout = 500,
+    def __init__(self, namespace, auto_reg_img = False, auto_dereg_img = False, timeout = 500,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -153,9 +153,8 @@ class ConnectAiDetectorIF:
         #######################
         # Connect Detector
         success = True
-        det_img_namespace = nepi_utils.clear_end_slash(det_img_namespace)
-        self.det_namespace = det_namespace
-        self.msg_if.pub_info("Connecting to Detector: " + det_img_namespace)
+        self.namespace = namespace
+        self.msg_if.pub_info("Connecting to Detector: " + self.namespace)
 
 
         ##################################################
@@ -240,16 +239,16 @@ class ConnectAiDetectorIF:
 
         
         
-        DET_PUB_NS = det_namespace
+        DET_PUB_NS = self.namespace
 
 
-
+        self.con_save_data_if = ConnectSaveDataIF(namespace = self.namespace)
 
         #######################
         #Setup Detector Subscribers
-        DET_SUB_NS = det_namespace
+        DET_SUB_NS = self.namespace
         # Setup status msg subscriber for base detection det_img_namespace
-        status_topic = self.det_namespace + "/status"
+        status_topic = self.namespace + "/status"
         self.det_status_sub = rospy.Subscriber(status_topic, AiDetectorStatus, self.detectorStatusCb, queue_size=10)
 
 
@@ -276,14 +275,14 @@ class ConnectAiDetectorIF:
             if service_dict['psn'] is None: 
                 service_namespace = os.path.join(self.base_namespace, service_name)
             else:
-                service_namespace = os.path.join(self.det_namespace,service_dict['psn'], service_name)
-            self.msg_if.pub_info("Waiting for " + service_name + " on det_namespace " + service_namespace)
+                service_namespace = os.path.join(self.namespace,service_dict['psn'], service_name)
+            self.msg_if.pub_info("Waiting for " + service_name + " on namespace " + service_namespace)
             ret = nepi_sdk.wait_for_service(service_namespace, timeout = timeout )
             if ret == "":
                 self.msg_if.pub_warn("Wait for service: " + service_name + " timed out", log_name_list = self.log_name_list) 
             else:
                 self.msg_if.pub_info("Creating service call for: " + service_name)
-                #self.msg_if.pub_warn("Creating service with det_namespace: " + service_namespace)
+                #self.msg_if.pub_warn("Creating service with namespace: " + service_namespace)
                 #self.msg_if.pub_warn("Creating service with msg: " + str(service_dict['msg']))
                 try:
                     service = nepi_sdk.create_service(service_namespace, service_dict['msg'])
@@ -300,11 +299,11 @@ class ConnectAiDetectorIF:
         ####################
         # Wrap Up
         if success == False:
-            self.msg_if.pub_warn("Detector Connection Failed: " + det_namespace)
+            self.msg_if.pub_warn("Detector Connection Failed: " + namespace)
             self.unregister_detector()
         else:
             self.det_connected = True
-            self.msg_if.pub_info("Detector Connected: " + det_namespace)
+            self.msg_if.pub_info("Detector Connected: " + namespace)
 
         if success == True and auto_reg_img == True:
             self.msg_if.pub_info("Starting auto reg check service", log_name_list = self.log_name_list)
@@ -365,7 +364,7 @@ class ConnectAiDetectorIF:
 
 
     def get_det_namespace(self):
-        return self.det_namespace
+        return self.namespace
 
     def get_det_classes(self):
         return self.det_classes
@@ -648,7 +647,7 @@ class ConnectAiDetectorIF:
             
         # Reset some variables
         self.det_img_namespace = None
-        self.det_namespace = None
+        self.namespace = None
         self.det_connected = False
         self.active = False
 
@@ -660,6 +659,48 @@ class ConnectAiDetectorIF:
         return success
 
 
+    #################
+    ## Save Config Functions
+
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
+        
+    #################
+    ## Save Data Functions
+
+    def get_save_data_products(self):
+        data_products = self.con_save_data_if.get_data_products()
+        return data_products
+
+    def get_save_data_status(self):
+        status_dict = self.con_save_data_if.get_status_dict()
+        return status_dict
+
+    def set_save_data_prefix(self,prefix):
+        self.con_save_data_if.save_data_prefix_pub(prefix)
+
+    def set_save_data_rate(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
+        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
+
+    def set_save_data_enable(self,enable):
+        self.con_save_data_if.save_data_pub(enable)
+
+    def call_save_data_snapshot(self):
+        self.con_save_data_if.publish_pub()
+
+    def call_save_data_reset(self):
+        self.con_save_data_if.publish_pub(pub_name,msg)
+
+    def call_save_data_factory_reset(self):
+        pub_name = 'factory_reset'
+        msg = Empty()
+        self.con_save_data_if.publish_pub(pub_name,msg)
 
 
 

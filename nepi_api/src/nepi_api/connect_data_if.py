@@ -231,6 +231,18 @@ class ConnectImageIF:
     def unregister(self):
         self._unsubscribeTopic()
 
+    #################
+    ## Save Config Functions
+
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
+
     ###############################
     # Class Private Methods
     ###############################
@@ -527,6 +539,17 @@ class ConnectPointcloudIF:
     def unregister(self):
         self._unsubscribeTopic()
 
+    #################
+    ## Save Config Functions
+
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
     ###############################
     # Class Private Methods
     ###############################
@@ -847,6 +870,17 @@ class ConnectNavPoseIF:
     def unregister(self):
         self._unsubscribeTopic()
 
+    #################
+    ## Save Config Functions
+
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
     ###############################
     # Class Private Methods
     ###############################

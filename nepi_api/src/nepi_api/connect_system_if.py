@@ -289,7 +289,17 @@ class ConnectSaveDataIF:
         success = True
         return success  
 
+    #################
+    ## Save Config Functions
 
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
     # Class Private Methods
@@ -490,7 +500,17 @@ class ConnectSettingsIF:
         success = self.con_node_if.publish_pub('factory_reset_pub',msg)
         return success
 
- 
+     #################
+    ## Save Config Functions
+
+    def call_save_config(self):
+        self.con_node_if.publish_pub('save_config',Empty())
+
+    def call_reset_config(self):
+        self.con_node_if.publish_pub('reset_config',Empty())
+
+    def call_factory_reset_config(self):
+        self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
     # Class Private Methods

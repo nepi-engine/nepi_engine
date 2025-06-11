@@ -1654,6 +1654,9 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       }
     }
   
+
+
+    
     @action.bound
     sendFrame3DTransformUpdateMsg(namespace, name, transformFloatList) {
       if (transformFloatList.length === 7){

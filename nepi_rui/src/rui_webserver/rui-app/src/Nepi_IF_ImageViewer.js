@@ -737,6 +737,8 @@ class ImageViewer extends Component {
 
     const show_controls = this.props.show_controls ? this.props.show_controls : true
 
+    const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
+
     return (
       <Section title={this.props.title}>
 
@@ -773,6 +775,44 @@ class ImageViewer extends Component {
               </Columns>
 
           </div>
+
+
+
+          <div align={"left"} textAlign={"left"} hidden={namespace !== 'None'}>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          <Columns>
+            <Column>
+
+
+              <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+            </ButtonMenu>
+
+
+              </Column>
+            <Column>
+
+
+            <ButtonMenu>
+                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+              </ButtonMenu>
+
+            </Column>
+            <Column>
+
+            <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+            </ButtonMenu>
+
+
+            </Column>
+          </Columns>
+          </div>
+
+
+
 
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      

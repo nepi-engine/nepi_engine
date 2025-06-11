@@ -384,6 +384,8 @@ class NepiIFSaveData extends Component {
     const selectedDataProducts = this.getSelectedDataProducts()
     const diskUsage = this.getDiskUsageRate()
     const saveUtcTz = this.state.saveUtcTz
+    const namespace = this.state.namespace ? this.state.namespace : 'None'
+
     
     return (
       <Section title={"Save Data"}>
@@ -505,6 +507,40 @@ class NepiIFSaveData extends Component {
                   </Column>
                 </Columns>
         
+          </div>
+
+
+          <div align={"left"} textAlign={"left"} hidden={namespace !== 'None'}>
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          <Columns>
+            <Column>
+
+
+              <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+            </ButtonMenu>
+
+
+              </Column>
+            <Column>
+
+
+            <ButtonMenu>
+                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+              </ButtonMenu>
+
+            </Column>
+            <Column>
+
+            <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+            </ButtonMenu>
+
+
+            </Column>
+          </Columns>
           </div>
 
 

@@ -567,6 +567,7 @@ class NavPoseMgr(object):
 
     def _connectTopic(self,name,topic,transform = None):
         if name in self.avail_topics_dict.keys():
+            self.connect_dict[name]['fixed'] = False
             if topic == 'None' or topic == '':
                 success = self._unregisterTopic(name)
             elif topic in self.avail_topics_dict[name]:
