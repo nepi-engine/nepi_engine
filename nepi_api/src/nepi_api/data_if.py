@@ -1556,7 +1556,9 @@ class ImageIF:
 
         ##############################
         # Start Node Processes
+        self.msg_if.pub_warn("Staring subscribers check process", log_name_list = self.log_name_list)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        self.msg_if.pub_warn("Starting status publisher process", log_name_list = self.log_name_list)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
@@ -1606,7 +1608,13 @@ class ImageIF:
         return self.has_subs
 
 
-    def publish_cv2_img(self,cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'sensor_frame', add_overlay_list = []):
+    def publish_cv2_img(self,cv2_img, 
+                        encoding = "bgr8", 
+                        timestamp = None, 
+                        frame_3d = 'sensor_frame', 
+                        add_overlay_list = [],
+                        do_subscriber_check = True
+                        ):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None:
@@ -1640,56 +1648,44 @@ class ImageIF:
 
         self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-        if self.has_subs == False:
-            self.msg_if.pub_debug("Image has no subscribers", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Image has no subscribers", log_name_list = self.log_name_list)
-            self.status_msg.publishing = False
-
-        else:
-            self.msg_if.pub_debug("Image has subscribers, will publish", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Image has subscribers, will publish", log_name_list = self.log_name_list)
-            self.status_msg.publishing = True
-
-            cv2_img = self._process_image(self,cv2_img)
+        cv2_img = self._process_image(self,cv2_img)
 
 
-            # Apply Overlays
-            overlay_list = []
-            if self.status_msg.overlay_img_name == True:
-                overlay = nepi_img.getImgShortName(self.img_namespace)
-                overlay_list.append(overlay)
-            
-            if self.status_msg.overlay_date_time == True:
-                date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-                overlay_list.append(overlay)
+        # Apply Overlays
+        overlay_list = []
+        if self.status_msg.overlay_img_name == True:
+            overlay = nepi_img.getImgShortName(self.img_namespace)
+            overlay_list.append(overlay)
+        
+        if self.status_msg.overlay_date_time == True:
+            date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+            overlay_list.append(overlay)
 
-            navpose_dict = None
-            if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                if self.nav_mgr_ready == True:
-                    navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
-                    if navpose_dict is not None:
+        navpose_dict = None
+        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+            if self.nav_mgr_ready == True:
+                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                if navpose_dict is not None:
 
-                        if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                            overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
-                            overlay_list.append(overlay)
+                    if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                        overlay_list.append(overlay)
 
-                        if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                            overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                            overlay_list.append(overlay)
- 
-            overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+                    if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                        overlay_list.append(overlay)
 
-            cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
+        overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+
+        cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
 
 
-            #Convert to ros Image message
-            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
-            ros_img.header.frame_3d = frame_3d
-            self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('image_pub', ros_img)
+        #Convert to ros Image message
+        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+        ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
+        ros_img.header.frame_3d = frame_3d
+        self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+        self.node_if.publish_pub('image_pub', ros_img)
         
         # Update stats
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -2051,7 +2047,7 @@ class ImageIF:
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):

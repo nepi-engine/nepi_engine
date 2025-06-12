@@ -26,6 +26,8 @@ import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
+import NepiSystemMessages from "./Nepi_IF_Messages"
+
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
   //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
@@ -128,7 +130,7 @@ class NepiDevicePTX extends Component {
     this.createPTXOptions = this.createPTXOptions.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
 
-    this.onEnterSendInputBoxRangeWindowValue = this.onEnterSendInputBoxRangeWindowValue.bind(this)
+    this.onEnterSendScanRangeWindowValue = this.onEnterSendScanRangeWindowValue.bind(this)
   }
 
   onUpdateText(e) {
@@ -188,9 +190,10 @@ class NepiDevicePTX extends Component {
 
   onKeyText(e) {
     const {ptxDevices, onSetPTXGotoPos, onSetPTXGotoPanPos, onSetPTXGotoTiltPos, onSetPTXHomePos, onSetPTXSoftStopPos, onSetPTXHardStopPos} = this.props.ros
-    const ptxNamespace = this.state.ptxNamespace
-    const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
-    const ptx_caps = ptxDevices[ptxNamespace]
+    const namespace = this.state.namespace
+
+    const ptx_id = namespace? namespace.split('/').slice(-1) : "No Pan/Tilt Selected"
+    const ptx_caps = ptxDevices[namespace]
     const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt_control)
     var panElement = null
     var tiltElement = null
@@ -198,7 +201,6 @@ class NepiDevicePTX extends Component {
     var panMaxElement = null
     var tiltMinElement = null
     var tiltMaxElement = null
-    const namespace = this.state.ptxNamespace
     if(e.key === 'Enter'){
       if ((e.target.id === "PTXPanHomePos") || (e.target.id === "PTXTiltHomePos"))
       {
@@ -360,14 +362,14 @@ class NepiDevicePTX extends Component {
       return
     }
 
-    this.setState({ ptxNamespace: value })
+    this.setState({ namespace: value })
 
     var listener = this.props.ros.setupPTXStatusListener(
         value,
         this.ptxStatusListener
       )
       
-    this.setState({ ptxNamespace: value, listener: listener, disabled: false })
+    this.setState({ namespace: value, listener: listener, disabled: false })
   }
 
   // Lifecycle method called just before the component umounts.
@@ -416,10 +418,11 @@ class NepiDevicePTX extends Component {
 
 
 
-onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
+onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
   const {publishRangeWindow} = this.props.ros
-  const ptxNamespace = this.state.ptxNamespace
-  const namespace = ptxNamespace + topicName
+  const namespace = this.state.namespace
+
+  const topic_namespace = namespace + topicName
   var min = -60
   var max = 60
   if(event.key === 'Enter'){
@@ -433,14 +436,16 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
         min = other_val
         max = value
       }
-      publishRangeWindow(namespace,min,max,false)
+      publishRangeWindow(topic_namespace,min,max,false)
     }
     document.getElementById(event.target.id).style.color = Styles.vars.colors.black
   }
 }
 
   renderControlPanel() {
-    const { ptxNamespace, ptSerialNum, ptHwVersion, ptSwVersion,
+    const { ptxDevices, sendBoolMsg, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
+    
+    const { ptSerialNum, ptHwVersion, ptSwVersion,
             panPositionDeg, tiltPositionDeg, panHomePosDeg, tiltHomePosDeg,
             panMaxHardstopDeg, tiltMaxHardstopDeg, panMinHardstopDeg, tiltMinHardstopDeg,
             panMinHardstopEdited, tiltMinHardstopEdited, panMaxHardstopEdited, tiltMaxHardstopEdited,
@@ -448,13 +453,14 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
             panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
             speedRatio, panHomePosEdited, tiltHomePosEdited,
             reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled } = this.state
-    const { ptxDevices, sendBoolMsg, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
-    const ptx_id = ptxNamespace? ptxNamespace.split('/').slice(-1) : "No Pan/Tilt Selected"
+
+    const namespace = this.state.namespace
+    const ptx_id = namespace? namespace.split('/').slice(-1) : "No Pan/Tilt Selected"
 
     const panPositionDegClean = panPositionDeg + .001
     const tiltPositionDegClean = tiltPositionDeg + .001
 
-    const ptx_caps = ptxDevices[ptxNamespace]
+    const ptx_caps = ptxDevices[namespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning)
     const has_sep_pan_tilt = ptx_caps && (ptx_caps.has_seperate_pan_tilt_control)
@@ -477,8 +483,6 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
     const tiltSoftStopMin = (tiltMinSoftstopEdited === null)? round(tiltMinSoftstopDeg, 1) : tiltMinSoftstopEdited
     const panSoftStopMax = (panMaxSoftstopEdited === null)? round(panMaxSoftstopDeg, 1) : panMaxSoftstopEdited
     const tiltSoftStopMax = (tiltMaxSoftstopEdited === null)? round(tiltMaxSoftstopDeg, 1) : tiltMaxSoftstopEdited
-
-    const namespace = this.state.ptxNamespace
 
     const hide_auto_pan = ((has_auto_pan === false || has_abs_pos === false) || (has_sep_pan_tilt === false && autoTiltEnabled == true))
     const hide_auto_tilt = ((has_auto_tilt === false || has_abs_pos === false) || (has_sep_pan_tilt === false && autoPanEnabled == true))
@@ -528,7 +532,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
           title={"Speed"}
           msgType={"std_msgs/Float32"}
           adjustment={speedRatio}
-          topic={ptxNamespace + "/set_speed_ratio"}
+          topic={namespace + "/set_speed_ratio"}
           scaled={0.01}
           min={0}
           max={100}
@@ -598,8 +602,8 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
 
         <ButtonMenu>
-          <Button disabled={!has_homing} onClick={() => onPTXGoHome(ptxNamespace)}>{"Go Home"}</Button>
-          <Button disabled={!has_homing} onClick={() => onPTXSetHomeHere(ptxNamespace)}>{"Set Home Here"}</Button>
+          <Button disabled={!has_homing} onClick={() => onPTXGoHome(namespace)}>{"Go Home"}</Button>
+          <Button disabled={!has_homing} onClick={() => onPTXSetHomeHere(namespace)}>{"Set Home Here"}</Button>
         </ButtonMenu>
 
       </div>
@@ -630,7 +634,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                       value={this.state.panScanMin} 
                       style={{ width: "45%", float: "left" }}
                       onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
+                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
 
 
 
@@ -638,7 +642,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                     value={this.state.panScanMax} 
                     style={{ width: "45%" }}
                       onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />                      
+                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />                      
                 </Label>
 
                 </div>
@@ -676,7 +680,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                       value={this.state.tiltScanMin} 
                       style={{ width: "45%", float: "left" }}
                       onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
+                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
 
           
 
@@ -685,7 +689,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                      value={this.state.tiltScanMax} 
                      style={{ width: "45%" }}
                       onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
-                      onKeyDown= {(event) => this.onEnterSendInputBoxRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
+                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
                 </Label>
 
                 </div>
@@ -797,16 +801,17 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
   render() {
     const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
-    const { ptxNamespace, panNowRatio, panGoalRatio, tiltNowRatio, tiltGoalRatio} = this.state
+    const { panNowRatio, panGoalRatio, tiltNowRatio, tiltGoalRatio} = this.state
+    const namespace = this.state.namespace
 
     const ptxImageViewerElement = document.getElementById("ptxImageViewer")
     const tiltSliderHeight = (ptxImageViewerElement)? ptxImageViewerElement.offsetHeight : "100px"
 
-    const ptx_caps = ptxDevices[ptxNamespace]
+    const ptx_caps = ptxDevices[namespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning === true)
 
-    const namespace = this.state.ptxNamespace
+    
 
     return (
       <React.Fragment>
@@ -839,7 +844,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
                   title={"Pan"}
                   msgType={"std_msgs/Float32"}
                   adjustment={panGoalRatio}
-                  topic={ptxNamespace + "/goto_pan_ratio"}
+                  topic={namespace + "/goto_pan_ratio"}
                   scaled={0.01}
                   min={0}
                   max={100}
@@ -854,23 +859,23 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
               <ButtonMenu>
 
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(ptxNamespace, - 1)}
-                    buttonUpAction={() => onPTXStop(ptxNamespace)}>
+                    buttonDownAction={() => onPTXJogPan(namespace, - 1)}
+                    buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25C0'}
                     </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(ptxNamespace, 1)}
-                    buttonUpAction={() => onPTXStop(ptxNamespace)}>
+                    buttonDownAction={() => onPTXJogPan(namespace, 1)}
+                    buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25B6'}
                   </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogTilt(ptxNamespace, 1)}
-                    buttonUpAction={() => onPTXStop(ptxNamespace)}>
+                    buttonDownAction={() => onPTXJogTilt(namespace, 1)}
+                    buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25B2'}
                   </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogTilt(ptxNamespace, -1)}
-                    buttonUpAction={() => onPTXStop(ptxNamespace)}>
+                    buttonDownAction={() => onPTXJogTilt(namespace, -1)}
+                    buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25BC'}
                   </Button>
 
@@ -883,9 +888,16 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
 
                 <ButtonMenu>
 
-                  <Button onClick={() => onPTXStop(ptxNamespace)}>{"STOP"}</Button>
+                  <Button onClick={() => onPTXStop(namespace)}>{"STOP"}</Button>
                   
                   </ButtonMenu>
+
+
+                  <NepiSystemMessages
+                    messagesNamespace={namespace}
+                    title={"NepiSystemMessages"}
+                    />
+
 
 
           </Column>
@@ -895,7 +907,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
               title={"Tilt"}
               msgType={"std_msgs/Float32"}
               adjustment={tiltGoalRatio}
-              topic={ptxNamespace + "/goto_tilt_ratio"}
+              topic={namespace + "/goto_tilt_ratio"}
               scaled={0.01}
               min={0}
               max={100}
@@ -961,7 +973,7 @@ onEnterSendInputBoxRangeWindowValue(event, topicName, entryName, other_val) {
             </div>
 
 
-            { ptxNamespace?
+            { namespace?
               this.renderControlPanel()
               : null
             }

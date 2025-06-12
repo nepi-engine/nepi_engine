@@ -213,9 +213,9 @@ class SaveDataIF:
 
         # Configs Dict ########################
         self.CONFIGS_DICT = {
-                'init_callback': None, #self.initCb,
-                'reset_callback': None, #self.resetCb,
-                'factory_reset_callback': None, #self.factoryResetCb,
+                'init_callback': self._initCb, #self.initCb,
+                'reset_callback': self._resetCb, #self.resetCb,
+                'factory_reset_callback': self._factoryResetCb, #self.factoryResetCb,
                 'init_configs': True,
                 'namespace':  self.namespace,
         }
@@ -592,7 +592,7 @@ class SaveDataIF:
     def data_product_should_save(self, data_product):
         # If saving is disabled for this node, then it is not time to save this data product!
         save_rate_dict = self.save_rate_dict
-        self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict))
+        #self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
         
         if self.save_data == False:
             return False
@@ -651,7 +651,7 @@ class SaveDataIF:
         should_save = self.data_product_should_save(data_product)
         snapshot_enabled = self.data_product_snapshot_enabled(data_product)
         # Save data if enabled
-        self.msg_if.pub_debug("******", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
         save_check = [should_save, snapshot_enabled, save_check]
         self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check) , log_name_list = self.log_name_list, throttle_s = 5)
         if should_save or snapshot_enabled or save_check == False:
@@ -659,7 +659,7 @@ class SaveDataIF:
                 timezone = self.timezone
             else:
                 timezone = 'UTC'
-            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) )
+            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
             self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
             self.data_product_snapshot_reset(data_product)
             self.save_rate_dict[data_product][1] = nepi_utils.get_time()
@@ -720,7 +720,7 @@ class SaveDataIF:
 
     def updaterCb(self,timer):
         time_status_dict = self.mgr_time_if.get_time_status()
-        self.msg_if.pub_debug("Got time status dict " + str(time_status_dict), log_name_list = self.log_name_list, throttle_s = 5)
+        #self.msg_if.pub_debug("Got time status dict " + str(time_status_dict), log_name_list = self.log_name_list, throttle_s = 5)
         if time_status_dict is not None:
             last_tz = copy.deepcopy(self.timezone)
             tzd = time_status_dict['timezone_description']
@@ -777,6 +777,8 @@ class SaveDataIF:
             if enabled:
                 self.snapshot_dict[data_product] = True
 
+    def _initCb(self,do_updates = False):
+        pass
 
     def _resetCb(self,reset_msg):
         self.msg_if.pub_info("Recieved save data reset msg", log_name_list = self.log_name_list)
@@ -899,8 +901,8 @@ class SettingsIF:
         else:
             self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings), log_name_list = self.log_name_list)
             self.cap_settings = capSettings   
-        self.caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
-        self.msg_if.pub_debug("Cap Settings: " + str(self.caps_response), log_name_list = self.log_name_list)
+        caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
+        self.msg_if.pub_debug("Cap Settings: " + str(caps_response), log_name_list = self.log_name_list)
 
         if factorySettings is None:
             self.factory_settings = nepi_settings.NONE_SETTINGS
@@ -923,9 +925,9 @@ class SettingsIF:
         ##############################  
         # Create NodeClassIF Class  
         self.CONFIGS_DICT = {
-                'init_callback': None, #self.initCb,
-                'reset_callback': None, #self.resetCb,
-                'factory_reset_callback': None, #self.factoryResetCb,
+                'init_callback': self._initCb, #self.initCb,
+                'reset_callback': self._resetCb, #self.resetCb,
+                'factory_reset_callback': self._factoryResetCb, #self.factoryResetCb,
                 'init_configs': True,
                 'namespace':  self.namespace,
         }
@@ -971,7 +973,7 @@ class SettingsIF:
                 'callback': self._updateSettingCb,
                 'callback_args': None
             },
-            'reset_setting': {
+            'reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'reset',
@@ -979,7 +981,7 @@ class SettingsIF:
                 'callback': self._resetSettingsCb,
                 'callback_args': None
             },
-            'factory_reset_setting': {
+            'factory_reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'factory_reset',
@@ -1056,7 +1058,7 @@ class SettingsIF:
         current_settings = self.getSettingsFunction()
         self.node_if.set_param('settings', current_settings)
         cap_settings = self.cap_settings
-        #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 10.0)
+        #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
         status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
         if not nepi_sdk.is_shutdown():
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -1075,9 +1077,8 @@ class SettingsIF:
                         cap_setting['default_value'] = cap_setting['options'][0]
                     else:
                         cap_setting['default_value'] = self.cap_settings['default_value']
-        self.caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
         success = True
-        self.msg_if.pub_debug("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
         return success
 
     def update_setting(self,setting,update_status = True, update_param = True):
@@ -1134,8 +1135,19 @@ class SettingsIF:
     # Class Private Methods
     ###############################
 
+    def _initCb(self,do_updates = False):
+        pass
+
+    def _resetCb(self,do_updates = True):
+        self.reset_settings(do_updates = do_updates)
+
+    def _factoryResetCb(self,do_updates = True):
+        self.factory_reset_settings(do_updates = do_updates)
+
+
     def _provideCapabilitiesHandler(self, req):
-        return self.caps_response
+        caps_response = nepi_settings.create_capabilities_response(self.cap_settings, has_cap_updates = self.allow_cap_updates)
+        return caps_response
 
     def _publishSettingsCb(self, timer):
         self.publish_status()

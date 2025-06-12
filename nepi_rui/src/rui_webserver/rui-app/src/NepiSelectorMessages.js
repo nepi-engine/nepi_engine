@@ -118,6 +118,7 @@ class NepiMessagesSelector extends Component {
 
         <NepiSystemMessages
         messagesNamespace={msg_namespace}
+        hide_control={true}
         title={"NepiSystemMessages"}
         />
 

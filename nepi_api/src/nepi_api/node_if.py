@@ -119,7 +119,7 @@ class NodeConfigsIF:
 
         time.sleep(1)
 
-        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, queue_size=1)
+        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, _queue_size=1)
 
         self.msg_if.pub_info("Loading saved config data", log_name_list = self.log_name_list)
         self.reset_config()
@@ -638,6 +638,7 @@ class NodePublishersIF:
         self.pubs_dict = pubs_dict
         if self.pubs_dict is None:
             self.pubs_dict = dict()
+        self.msg_if.pub_warn("Initializing with pub dict: " + str(self.pubs_dict) )
         self._initialize_pubs()
 
         ##############################  
@@ -679,7 +680,7 @@ class NodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
-                #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs))
+                self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs))
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -721,7 +722,7 @@ class NodePublishersIF:
                     self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
-                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
+                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], _queue_size = pub_dict['qsize'],  _latch = pub_dict['latch'])
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
                     self.pubs_dict[pub_name]['pub'] = pub
@@ -861,9 +862,9 @@ class NodeSubscribersIF:
                     sub_dict['callback_args'] = ()
                 try:
                     if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], _queue_size = sub_dict['qsize'])
                     else:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], _queue_size = sub_dict['qsize'], _callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
                     #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)

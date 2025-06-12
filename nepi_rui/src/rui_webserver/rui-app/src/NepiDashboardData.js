@@ -196,7 +196,7 @@ class NepiDashboardData extends Component {
     const { namespacePrefix, deviceId} = this.props.ros
     var allNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data_status"
+      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data"
     }
     return allNamespace
   }

@@ -24,6 +24,8 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 
+import NepiSystemMessages from "./Nepi_IF_Messages"
+
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
@@ -417,8 +419,13 @@ class NepiControlsLights extends Component {
                     hideQualitySelector={false}
                   />
                 </div>
-          </Column>
 
+                <NepiSystemMessages
+                    messagesNamespace={namespace}
+                    title={"NepiSystemMessages"}
+                    />
+
+          </Column>
           <Column>
           <Section title={"Selection"}>
 

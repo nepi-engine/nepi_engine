@@ -41,7 +41,7 @@ class NepiMessagesSelector extends Component {
     const { namespacePrefix, deviceId} = this.props.ros
     var allNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data_status"
+      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data"
     }
     return allNamespace
   }
@@ -57,7 +57,7 @@ class NepiMessagesSelector extends Component {
     for (var i = 0; i < saveData_topics.length; i++) {
       topic = saveData_topics[i]
       if (topic !== allNamespace && topic.indexOf("None") === -1) {
-        items.push(<Option value={topic.replace("/save_data_status","")}>{shortnames[i].replace("/save_data_status","")}</Option>)
+        items.push(<Option value={topic.replace("/status","")}>{shortnames[i].replace("/status","")}</Option>)
       }
     }
     return items    
@@ -98,7 +98,7 @@ class NepiMessagesSelector extends Component {
 
 
   renderApplication() {
-    const node_namespace = this.state.selected_topic.replace("/save_data_status", "")
+    const node_namespace = this.state.selected_topic.replace("/status", "")
 
     return (
       <React.Fragment>

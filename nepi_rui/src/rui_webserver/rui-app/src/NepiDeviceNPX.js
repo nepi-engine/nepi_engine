@@ -23,6 +23,7 @@ import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NavPoseDataViewer from "./Nepi_IF_NavPoseDataViewer"
 
+import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import {createShortUniqueValues} from "./Utilities"
 
@@ -326,6 +327,13 @@ updateNavposeListener() {
                         namespace={namespace}
                         title={"Nepi_IF_SaveData"}
                       />
+
+                    <NepiSystemMessages
+                    messagesNamespace={namespace}
+                    title={"NepiSystemMessages"}
+                    />
+
+
                     </div>
 
 

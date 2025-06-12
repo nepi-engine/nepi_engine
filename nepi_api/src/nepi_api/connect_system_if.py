@@ -183,7 +183,7 @@ class ConnectSaveDataIF:
             'status_sub': {
                 'msg': SaveDataStatus,
                 'namespace': self.namespace,
-                'topic': 'save_data_status',
+                'topic': 'status',
                 'qsize': 1,
                 'callback': self._statusCb,
                 'callback_args': ()

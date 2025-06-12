@@ -340,7 +340,7 @@ def spin():
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = None, callback_args=[]):
+def create_subscriber(sub_namespace, msg, callback, _queue_size = 10, _callback_args=[]):
   sub = None
   sub_namespace = get_full_namespace(sub_namespace)
   try:
@@ -352,11 +352,11 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = None, callback_
     rospy.logwarn("nepi_sdk: Failed to create subscriber: " + str(e))
   return sub
 
-def create_publisher(pub_namespace, msg, queue_size = None,  latch = False):
+def create_publisher(pub_namespace, msg, _queue_size = 10,  _latch = False):
   pub = None
   pub_namespace = get_full_namespace(pub_namespace)
   try:
-    pub = rospy.Publisher(pub_namespace, msg, queue_size=queue_size, latch=latch)
+    pub = rospy.Publisher(pub_namespace, msg, queue_size = _queue_size, latch =  _latch)
   except Exception as e:
     rospy.logwarn("nepi_sdk: Failed to create publisher: " + str(e))
   return pub

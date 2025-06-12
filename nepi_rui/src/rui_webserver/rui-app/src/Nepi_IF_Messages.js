@@ -15,7 +15,7 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
 
-import {Queue} from "./Utilities"
+import {Queue, onChangeSwitchStateValue} from "./Utilities"
 
 
 
@@ -26,11 +26,16 @@ class NepiSystemMessages extends Component {
   constructor(props) {
     super(props)
 
+    const show_control = this.props.hide_control ? !this.props.hide_control : true
+    const show_messages = (show_control === false)
     // these states track the values through  Status messages
     this.state = {
 
       msg_queue_size: 50,
       status_msg: null,
+
+      show_control: show_control,
+      show_messages: show_messages,
 
       needs_update: true,
 
@@ -48,6 +53,8 @@ class NepiSystemMessages extends Component {
     this.onClickPause = this.onClickPause.bind(this)
     this.getAllNamespace = this.getAllNamespace.bind(this)
 
+    this.renderShowControl = this.renderShowControl.bind(this)
+    this.renderMessages = this.renderMessages.bind(this)
     this.messagesStatusListener = this.messagesStatusListener.bind(this)
     this.updateMessagesStatusListener = this.updateMessagesStatusListener.bind(this)
   }
@@ -140,7 +147,135 @@ class NepiSystemMessages extends Component {
     const currentVal = this.state.paused
     this.setState({paused: !currentVal})
   }
+
+  renderShowControl() {
+  const show_control = this.state.show_control
+  const show_messages = this.state.show_messages
+
+    if (show_control === false){
+      return(
+        <Columns>
+        <Column>
+
+      </Column>
+      </Columns>
+
+      )
+
+    }
+    else {
+      return(
+        <Columns>
+        <Column>
+
+
+            <Label title="Show Messages">
+                  <Toggle
+                    checked={this.state.show_messages===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_messages",this.state.show_messages)}>
+                  </Toggle>
+                </Label>
+
+        </Column>
+        <Column>
+
+      </Column>
+      </Columns>
+      )
+    }
+  }
+
+
+
+  renderMessages() {
+    const show_debug = this.props.ros.systemDebugEnabled
+    const connected = this.state.connected
+    const msg_str_list = (connected === true && this.msg_queue.getLength() > 0) ? this.msg_queue.getItems() : ["Waiting for message to publish"]
+    const msg_str = this.convertStrListToJoinedStr(msg_str_list.reverse())
+    const paused = this.state.paused
+    const show_messages = this.state.show_messages
+
+
+    if (show_messages === false){
+      return(
+        <Columns>
+        <Column>
   
+      </Column>
+      </Columns>
+
+      )
+
+    }   
+    else{   
+      return (
+
+        <Columns>
+        <Column>
+
+              <Columns>
+              <Column>
+
+              <Label title="Pause"> </Label>
+
+              <Toggle
+                        checked={paused===true}
+                        onClick={this.onClickPause}>
+              </Toggle>
+                
+              </Column>
+              <Column>
+
+
+              </Column>
+              <Column>
+
+              </Column>
+              </Columns>
+
+
+              <Columns>
+              <Column>
+            <div align={"left"} textAlign={"left"}> 
+          <label style={{fontWeight: 'bold'}}>
+            {"Messages"}
+          </label>
+          
+            <pre style={{ height: "1000px", overflowY: "auto" }}>
+              {msg_str ? msg_str : ""}
+            </pre>
+            </div>
+
+            </Column>
+            </Columns>
+
+            <Columns>
+              <Column>
+
+              <Label title="Show Debug Messages"> </Label>
+              <Toggle
+              checked={show_debug}
+              onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !show_debug)}>
+              </Toggle>
+                
+              </Column>
+              <Column>
+
+
+              </Column>
+              <Column>
+
+              </Column>
+              </Columns>
+      </Column>
+      </Columns>
+
+
+
+      )
+    }
+  }
+
   render() {
     const show_debug = this.props.ros.systemDebugEnabled
     const connected = this.state.connected
@@ -156,57 +291,12 @@ class NepiSystemMessages extends Component {
             <Columns>
             <Column>
 
-            <Label title="Pause"> </Label>
-
-            <Toggle
-                      checked={paused===true}
-                      onClick={this.onClickPause}>
-            </Toggle>
-              
-            </Column>
-            <Column>
-
-
-            </Column>
-            <Column>
+            {this.renderShowControl()}
+            {this.renderMessages()}
 
             </Column>
             </Columns>
 
-
-            <Columns>
-            <Column>
-           <div align={"left"} textAlign={"left"}> 
-        <label style={{fontWeight: 'bold'}}>
-          {"Messages"}
-        </label>
-        
-          <pre style={{ height: "1000px", overflowY: "auto" }}>
-            {msg_str ? msg_str : ""}
-          </pre>
-          </div>
-
-          </Column>
-          </Columns>
-
-          <Columns>
-            <Column>
-
-            <Label title="Show Debug Messages"> </Label>
-            <Toggle
-            checked={show_debug}
-            onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !show_debug)}>
-            </Toggle>
-              
-            </Column>
-            <Column>
-
-
-            </Column>
-            <Column>
-
-            </Column>
-            </Columns>
 
 
       </Section>
@@ -214,6 +304,7 @@ class NepiSystemMessages extends Component {
 
     )
   }
+
 
 }
 export default NepiSystemMessages

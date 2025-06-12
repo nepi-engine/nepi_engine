@@ -1437,7 +1437,7 @@ class RBXRobotIF:
                     self.msg_if.pub_info(e)
           if self.rbx_image_sub == None:
             self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
-            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
+            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, _queue_size = 1)
             self.node_if.set_param('rbx/image_source', image_topic)
         else:
               image_topic = "None"

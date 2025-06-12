@@ -22,6 +22,7 @@ import os
 import copy
 
 from nepi_sdk_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
+from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_sdk import nepi_sdk
 
@@ -129,18 +130,16 @@ def create_msg_from_setting(setting):
   return setting_msg
 
 def create_msgs_list_from_settings(settings):
-  settings_msg = Settings()
   settings_list = []
   for setting_name in settings.keys():
     setting = settings[setting_name]
     setting_msg = create_msg_from_setting(setting)
     settings_list.append(setting_msg)
-  settings_msg.settings_list = settings_list
-  return settings_msg
+  return settings_list
 
 
 def create_capabilities_response(cap_settings, has_cap_updates = False):
-  response = SettingsStatus()
+  response = SettingsCapabilitiesQueryResponse()
   response.settings_count = len(cap_settings)
   response.setting_caps_list = create_msgs_list_from_cap_settings(cap_settings)
   response.has_cap_updates = has_cap_updates

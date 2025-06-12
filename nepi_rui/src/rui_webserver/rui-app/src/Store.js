@@ -536,7 +536,7 @@ class ROSConnectionStore {
     var newSaveDataTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "nepi_sdk_interfaces/SaveDataStatus"){
-        newSaveDataTopics.push(this.topicNames[i])
+        newSaveDataTopics.push(this.topicNames[i].replace('status',''))
       }
     }
 

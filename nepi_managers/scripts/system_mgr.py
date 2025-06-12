@@ -891,7 +891,7 @@ class SystemMgrNode():
     def enable_debug_callback(self, msg):
         self.status_msg.sys_debug_enabled = msg.data
         if self.node_if is not None:
-            self.node_if.set_param['debug_enabled']
+            self.node_if.set_param('debug_enabled',msg.data)
             self.node_if.save_config()
 
     def ensure_reqd_storage_subdirs(self):

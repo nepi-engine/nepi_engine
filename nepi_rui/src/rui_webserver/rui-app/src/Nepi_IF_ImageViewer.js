@@ -55,6 +55,8 @@ class ImageViewer extends Component {
     super(props)
 
     this.state = {
+      show_controls: false,
+
       hasInitialized: false,
       shouldUpdate: true,
       streamWidth: null,
@@ -735,10 +737,9 @@ class ImageViewer extends Component {
       this.setState({currentStreamingImageQuality: streamingImageQuality})
     }
 
-    const show_controls = this.props.show_controls ? this.props.show_controls : true
-
+    
     const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
-
+    const show_controls = this.state.show_controls
     return (
       <Section title={this.props.title}>
 
@@ -747,7 +748,16 @@ class ImageViewer extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-      <div hidden={(show_controls !== true )}>
+        <Label title="Show Controls">
+                  <Toggle
+                    checked={this.state.show_controls===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                  </Toggle>
+        </Label>
+
+
+
+        <div align={"left"} textAlign={"left"} hidden={(show_controls !== true || namespace === 'None')}>
 
 
               <Columns>
@@ -773,43 +783,6 @@ class ImageViewer extends Component {
 
                 </Column>
               </Columns>
-
-          </div>
-
-
-
-          <div align={"left"} textAlign={"left"} hidden={namespace !== 'None'}>
-
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-          <Columns>
-            <Column>
-
-
-              <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-            </ButtonMenu>
-
-
-              </Column>
-            <Column>
-
-
-            <ButtonMenu>
-                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-              </ButtonMenu>
-
-            </Column>
-            <Column>
-
-            <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-            </ButtonMenu>
-
-
-            </Column>
-          </Columns>
-          </div>
 
 
 
@@ -869,6 +842,38 @@ class ImageViewer extends Component {
           </div>
           </Column>
         </Columns>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+          <Columns>
+            <Column>
+
+
+              <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
+            </ButtonMenu>
+
+
+              </Column>
+            <Column>
+
+
+            <ButtonMenu>
+                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+              </ButtonMenu>
+
+            </Column>
+            <Column>
+
+            <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
+            </ButtonMenu>
+
+
+            </Column>
+          </Columns>
+
+      </div>
 
 
               

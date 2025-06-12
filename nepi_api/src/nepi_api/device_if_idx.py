@@ -1096,7 +1096,7 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
             dp_if = None
             if data_product == 'color_image':
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
@@ -1108,7 +1108,7 @@ class IDXDeviceIF:
             
             # Get Data Product Dict and Data_IF
             
-            self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
+            self.msg_if.pub_debug("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
 
             while (not nepi_sdk.is_shutdown() and dp_if is not None):
                 dp_has_subs = dp_if.has_subscribers_check()
@@ -1122,10 +1122,10 @@ class IDXDeviceIF:
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
 
                     if (status is False or cv2_img is None):
-                        self.msg_if.pub_debug("No Data Recieved: " + data_product)
+                        self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
-                        self.msg_if.pub_debug("Got Data: " + data_product)
+                        self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
                         
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.img_width
@@ -1136,17 +1136,15 @@ class IDXDeviceIF:
                         
 
                         # Now process and publish image
-                        if (dp_has_subs == True or dp_should_save == True):
-                            #Publish Ros Image
-                            frame_3d = self.node_if.get_param('frame_3d')
-                            cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d)
+                        frame_3d = self.node_if.get_param('frame_3d')
+                        cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, do_subscriber_check = False)
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
 
                         self.update_fps(data_product)
 
-                        self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height), log_name_list = self.log_name_list, throttle_s = 5.0)
                         if cur_width != self.img_width or cur_height != self.img_height:
                             self.publishStatus()
 
@@ -1160,7 +1158,7 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_sdk.sleep(0.25)
-                self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
+                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]), log_name_list = self.log_name_list, throttle_s = 5.0)  
                 nepi_sdk.sleep(0.01) # Yield
 
 
@@ -1179,7 +1177,7 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
             min_range_m = self.status_msg.range_window.start_range
             max_range_m = self.status_msg.range_window.stop_range
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
@@ -1197,7 +1195,7 @@ class IDXDeviceIF:
             
             # Get Data Product Dict and Data_IF
             
-            self.msg_if.pub_debug("Accessing data_product dict: " + data_product + " " + str(dp_dict))
+            self.msg_if.pub_debug("Starting depth map thread with data_product dict: " + data_product + " " + str(dp_dict))
 
             while (not nepi_sdk.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
@@ -1211,10 +1209,10 @@ class IDXDeviceIF:
 
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
                     if (status is False or cv2_img is None):
-                        self.msg_if.pub_debug("No Data Recieved: " + data_product)
+                        self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
-                        self.msg_if.pub_debug("Got Data: " + data_product)
+                        self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
                         
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.img_width
@@ -1236,7 +1234,7 @@ class IDXDeviceIF:
 
                         self.update_fps(data_product)
 
-                        self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height))
+                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.img_width) + ":" + str(self.img_height), log_name_list = self.log_name_list, throttle_s = 5.0)
                         if cur_width != self.img_width or cur_height != self.img_height:
                             self.publishStatus()
 
@@ -1250,7 +1248,7 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_sdk.sleep(0.25)
-                self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]))    
+                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]), log_name_list = self.log_name_list, throttle_s = 5.0)    
                 nepi_sdk.sleep(0.01) # Yield
 
 
@@ -1272,7 +1270,7 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = PointcloudIF(namespace = dp_namespace, data_name = data_product,
                         log_name = data_product,
@@ -1418,6 +1416,6 @@ class IDXDeviceIF:
             self.status_msg.frame_3d_transform = transform_msg
             
             self.status_msg.frame_3d = param_dict['frame_3d'] if 'frame_3d' in param_dict else "nepi_frame"
-            self.msg_if.pub_debug("Got status msg: " + str(self.status_msg))
+            #self.msg_if.pub_debug("Got status msg: " + str(self.status_msg), throttle_s = 5.0)
         self.node_if.publish_pub('status_pub',self.status_msg)
     

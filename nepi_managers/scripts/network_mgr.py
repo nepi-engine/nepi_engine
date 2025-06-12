@@ -305,7 +305,7 @@ class NetworkMgr:
             },
             'set_wifi_access_point_credentials': {
                 'namespace': self.base_namespace,
-                'topic': 'reset',
+                'topic': 'set_wifi_access_point_credentials',
                 'msg': WifiCredentials,
                 'qsize': 10,
                 'callback': self.set_wifi_ap_credentials_handler, 

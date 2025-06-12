@@ -510,7 +510,7 @@ class NepiIFSaveData extends Component {
           </div>
 
 
-          <div align={"left"} textAlign={"left"} hidden={namespace !== 'None'}>
+          <div align={"left"} textAlign={"left"} hidden={namespace === 'None'}>
 
           <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 

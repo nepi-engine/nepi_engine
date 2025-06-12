@@ -19,7 +19,7 @@ import Select from "./Select"
 import Input from "./Input"
 
 
-import { createMenuListFromStrList, onChangeSwitchStateValue } from "./Utilities"
+import { createMenuListFromStrList } from "./Utilities"
 
 @inject("ros")
 @observer
@@ -94,7 +94,9 @@ class Nepi_IF_Settings extends Component {
     }
     const count = namesList.length
 
-    this.setState({settingsNamesList:namesList,
+    this.setState({
+                  capabilities: capabilities,
+                   settingsNamesList:namesList,
                    settingsTypesList:typesList,
                    settingsValuesList:valuesList,
                    settingsCount: count
@@ -141,35 +143,28 @@ class Nepi_IF_Settings extends Component {
 
   // Function for creating settings options list from capabilities
   updateCapabilities() {
-    const settingCaps = this.state.capabilities
     const lastCaps = this.state.last_caps
-    this.setState({last_caps: settingCaps})
+    const cap_settings = this.state.capabilities
+    this.setState({last_caps: cap_settings})
     const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
     var typesList = []
     var optionsLists = []
-    var ind = 0
-    var capabilities = null
-    if (settingCaps){
-      capabilities = settingCaps[this.state.namespace]
-    }    
-    if (capabilities != null && settingCaps !== lastCaps){
-      const cap_settings = capabilities.setting_caps_list
+    var ind = 0 
+    if (cap_settings != null && cap_settings !== lastCaps){
       for ( ind = 0; ind < cap_settings.length; ind++){
         namesList.push(cap_settings[ind].name_str)
         typesList.push(cap_settings[ind].type_str)
         optionsLists.push(cap_settings[ind].options_list)
       }
       this.setState({
-        capabilities: capabilities,
         capSettingsNamesList:namesList,      
         capSettingsTypesList:typesList,
         capSettingsOptionsLists:optionsLists
       })
     }
-    else if (capabilities == null) {
+    else if (cap_settings == null) {
       this.setState({
-        capabilities: null,
         capSettingsNamesList:['None'],      
         capSettingsTypesList:['None'],
         capSettingsOptionsLists:['None']
@@ -319,38 +314,49 @@ class Nepi_IF_Settings extends Component {
         <React.Fragment>
           <Columns>
             <Column>
-              <Label title={"Select Setting"}>
-                <Select
-                  id="selectedSettingName"
-                  onChange={this.updateSelectedSettingInfo}
-                  value={this.state.selectedSettingName}
-                >
-                  {createMenuListFromStrList(capSettingNamesOrdered, false, [], ['NONE'], [])}
-                </Select>
-              </Label>
-            </Column>
-            <Column />
-          </Columns>
+
+              <Columns>
+                <Column>
+                  <Label title={"Select Setting"}>
+                    <Select
+                      id="selectedSettingName"
+                      onChange={this.updateSelectedSettingInfo}
+                      value={this.state.selectedSettingName}
+                    >
+                      {createMenuListFromStrList(capSettingNamesOrdered, false, [], ['NONE'], [])}
+                    </Select>
+                  </Label>
+                </Column>
+                <Column />
+              </Columns>
+          
+              <Columns>
+                <Column>
+
+                  {this.renderSetting()}
       
-          <Columns>
-            <Column>
-              {this.renderSetting()}
+          
+                  <div
+                    style={{
+                      borderTop: "1px solid #ffffff",
+                      marginTop: Styles.vars.spacing.medium,
+                      marginBottom: Styles.vars.spacing.xs,
+                    }}
+                  />
+          
+                  <Label title={"Current Settings"} />
+                  <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
+                    {this.getSettingsAsString()}
+                  </pre>
+
+                </Column>
+              </Columns>
+
               {this.renderResets()}
-      
-              <div
-                style={{
-                  borderTop: "1px solid #ffffff",
-                  marginTop: Styles.vars.spacing.medium,
-                  marginBottom: Styles.vars.spacing.xs,
-                }}
-              />
-      
-              <Label title={"Current Settings"} />
-              <pre style={{ height: settingsHeightStr, overflowY: "auto" }}>
-                {this.getSettingsAsString()}
-              </pre>
-            </Column>
+
+          </Column>
           </Columns>
+
         </React.Fragment>
       )
 
@@ -423,11 +429,14 @@ class Nepi_IF_Settings extends Component {
               </Label>
           </div>
 
+
         </Column>
         <Column>
 
         </Column>
       </Columns>
+
+
 
     )
 
@@ -435,25 +444,45 @@ class Nepi_IF_Settings extends Component {
 
   renderResets(){
     const { sendTriggerMsg } = this.props.ros
+    const namespace = this.state.namespace
     return(
-
       <Columns>
       <Column>
 
-      <ButtonMenu>
-            <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <Columns>
+          <Column>
+
+
+            <ButtonMenu>
+                <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
           </ButtonMenu>
 
-      </Column>
-      <Column>
+
+            </Column>
+          <Column>
 
 
           <ButtonMenu>
-            <Button onClick={() => sendTriggerMsg(this.state.namespace + '/factory_reset')}>{"Factory Reset"}</Button>
+              <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
+            </ButtonMenu>
+
+          </Column>
+          <Column>
+
+          <ButtonMenu>
+                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
           </ButtonMenu>
 
-      </Column>
-    </Columns>
+
+          </Column>
+        </Columns>
+
+        </Column>
+        </Columns>
+
 
     )
 
@@ -477,45 +506,6 @@ class Nepi_IF_Settings extends Component {
         <Columns>
           <Column>
           {this.renderSettings()}
-
-
-
-          <div align={"left"} textAlign={"left"} hidden={namespace !== 'None'}>
-
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-          <Columns>
-            <Column>
-
-
-              <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-            </ButtonMenu>
-
-
-              </Column>
-            <Column>
-
-
-            <ButtonMenu>
-                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-              </ButtonMenu>
-
-            </Column>
-            <Column>
-
-            <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-            </ButtonMenu>
-
-
-            </Column>
-          </Columns>
-          </div>
-
-
-
-
 
           </Column>
         </Columns>

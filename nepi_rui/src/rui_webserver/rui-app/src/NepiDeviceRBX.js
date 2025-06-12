@@ -27,6 +27,7 @@ import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
+import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import {  createShortValuesFromNamespaces, createMenuListFromStrList, onDropdownSelectedSendIndex,
   onUpdateSetStateValue, onEnterSendFloatValue} from "./Utilities"
@@ -612,6 +613,12 @@ class NepiDeviceRBX extends Component {
                 title={"Device Messages"}
             />
           </div>
+
+
+          <NepiSystemMessages
+                    messagesNamespace={namespace}
+                    title={"NepiSystemMessages"}
+                    />
 
         </Column>
         <Column>

@@ -23,6 +23,8 @@ import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 
+import NepiSystemMessages from "./Nepi_IF_Messages"
+
 import {createShortUniqueValues} from "./Utilities"
 
 @inject("ros")
@@ -308,7 +310,14 @@ class NepiDeviceIDX extends Component {
                           namespace={namespace}
                           title={"Nepi_IF_SaveData"}
                       />
+
+                    <NepiSystemMessages
+                    messagesNamespace={namespace}
+                    title={"NepiSystemMessages"}
+                    />
+
                     </div>
+
 
           </div>
 
