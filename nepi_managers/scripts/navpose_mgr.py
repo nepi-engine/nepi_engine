@@ -579,7 +579,7 @@ class NavPoseMgr(object):
                     cb = self.cb_dict[name]
 
                     self.subs_dict_lock.acquire()
-                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args = (name))
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, _callback_args = (name))
                     self.subs_dict[name]['topic'] = topic
                     self.subs_dict[name]['msg'] = msg_str
                     self.connect_dict[name]['msg'] = msg_str

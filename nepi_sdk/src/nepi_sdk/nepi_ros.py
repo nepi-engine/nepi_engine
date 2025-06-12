@@ -344,10 +344,10 @@ def create_subscriber(sub_namespace, msg, callback, _queue_size = 10, _callback_
   sub = None
   sub_namespace = get_full_namespace(sub_namespace)
   try:
-    if len(callback_args) == 0:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
+    if len(_callback_args) == 0:
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = _queue_size)
     else:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args=_callback_args)
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = _queue_size, callback_args=_callback_args)
   except Exception as e:
     rospy.logwarn("nepi_sdk: Failed to create subscriber: " + str(e))
   return sub
