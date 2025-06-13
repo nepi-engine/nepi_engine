@@ -85,6 +85,7 @@ class NodeConfigsIF:
         self.msg_if.pub_info("Starting Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################    
+        self.msg_if.pub_debug("Got Config Dict: " + str(configs_dict), log_name_list = self.log_name_list)
 
         if 'init_callback' in configs_dict.keys():  
             self.initCb = configs_dict['init_callback']
@@ -104,33 +105,31 @@ class NodeConfigsIF:
         namespace = configs_dict['namespace']
         if namespace is None:
             namespace = self.node_namespace
-        else:
-            namespace = namespace
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-
+        self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         # Create reset serivces
         self.request_msg.node_name = self.namespace
-        self.reset_service = nepi_sdk.connect_service('~user_reset', FileReset)
-        self.factory_reset_service = nepi_sdk.connect_service('~factory_reset', FileReset)
+        self.reset_service = nepi_sdk.connect_service(self.namespace + '/user_reset', FileReset)
+        self.factory_reset_service = nepi_sdk.connect_service(self.namespace + '/factory_reset', FileReset)
 
         self.reset_service = nepi_sdk.connect_service('user_reset', FileReset)
         self.factory_reset_service = nepi_sdk.connect_service('factory_reset', FileReset)
 
         time.sleep(1)
 
-        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, _queue_size=1)
+        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, queue_size=1)
 
         self.msg_if.pub_info("Loading saved config data", log_name_list = self.log_name_list)
         self.reset_config()
 
 
         # Subscribe to save config for node namespace
-        nepi_sdk.create_subscriber('~save_config', Empty, self._saveCb)
-        nepi_sdk.create_subscriber('~init_config', Empty, self._initCb)
-        nepi_sdk.create_subscriber('~reset_config', Empty, self._resetCb)
-        nepi_sdk.create_subscriber('~factory_reset_config', Empty, self._factoryResetCb)
-        nepi_sdk.create_subscriber('~system_reset', Reset, self._systemResetCb)
+        nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)
+        nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb)
+        nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb)
+        nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb)
+        nepi_sdk.create_subscriber(self.namespace + '/system_reset', Reset, self._systemResetCb)
 
         # Global Topic Subscribers
         nepi_sdk.create_subscriber('save_config', Empty, self._saveCb)
@@ -722,7 +721,7 @@ class NodePublishersIF:
                     self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
                     pub = None
                     try:
-                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], _queue_size = pub_dict['qsize'],  _latch = pub_dict['latch'])
+                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
                     self.pubs_dict[pub_name]['pub'] = pub
@@ -862,9 +861,9 @@ class NodeSubscribersIF:
                     sub_dict['callback_args'] = ()
                 try:
                     if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], _queue_size = sub_dict['qsize'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
                     else:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], _queue_size = sub_dict['qsize'], _callback_args=sub_dict['callback_args'])
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
                     #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
@@ -1031,7 +1030,7 @@ class NodeClassIF:
                     'reset_callback': self._resetConfigCb,
                     'factory_reset_callback': self._factoryResetConfigCb,
                     'init_configs': True,
-                    'namespace': self.node_namespace
+                    'namespace': configs_dict['namespace']
             }
             self.configs_if = NodeConfigsIF(configs_dict = configs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
@@ -1273,13 +1272,13 @@ class NodeClassIF:
                 self.configs_dict['init_callback']()
             
 
-    def _resetConfigCb(self,msg):
+    def _resetConfigCb(self):
         self.reset_params()
         if self.configs_dict is not None:
             if self.configs_dict['reset_callback'] is not None:
                 self.configs_dict['reset_callback']()
 
-    def _factoryResetConfigCb(self,msg):
+    def _factoryResetConfigCb(self):
         self.factory_reset_params()
         if self.configs_dict is not None:
             if self.configs_dict['factory_reset_callback'] is not None:

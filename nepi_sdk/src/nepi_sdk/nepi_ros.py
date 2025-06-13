@@ -340,23 +340,27 @@ def spin():
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, _queue_size = 10, _callback_args=[]):
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args=[]):
+  if queue_size is None:
+    queue_size = 1
   sub = None
   sub_namespace = get_full_namespace(sub_namespace)
   try:
-    if len(_callback_args) == 0:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = _queue_size)
+    if len(callback_args) == 0:
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
     else:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = _queue_size, callback_args=_callback_args)
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args = callback_args)
   except Exception as e:
     rospy.logwarn("nepi_sdk: Failed to create subscriber: " + str(e))
   return sub
 
-def create_publisher(pub_namespace, msg, _queue_size = 10,  _latch = False):
+def create_publisher(pub_namespace, msg, queue_size = 10, latch = False):
+  if queue_size is None:
+    queue_size = 1
   pub = None
   pub_namespace = get_full_namespace(pub_namespace)
   try:
-    pub = rospy.Publisher(pub_namespace, msg, queue_size = _queue_size, latch =  _latch)
+    pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size, latch = latch)
   except Exception as e:
     rospy.logwarn("nepi_sdk: Failed to create publisher: " + str(e))
   return pub

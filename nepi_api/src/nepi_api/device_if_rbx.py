@@ -396,39 +396,39 @@ class RBXRobotIF:
         }
 
         self.PARAMS_DICT = {
-            'rbx/device_name': {
+            'device_name': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_device_name
             },
-            'rbx/cmd_timeout': {
+            'cmd_timeout': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_CMD_TIMEOUT_SEC
             },
-            'rbx/home_location': {
+            'home_location': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_HOME_LOCATION
             },
-            'rbx/fake_gps_enabled': {
+            'fake_gps_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': False
             },
-            'rbx/max_error_m': {
+            'max_error_m': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_M
             },
-            'rbx/max_error_deg': {
+            'max_error_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_DEG
             },
-            'rbx/stabilized_sec': {
+            'stabilized_sec': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_GOTO_STABILIZED_SEC
             },
-            'rbx/image_source': {
+            'image_source': {
                 'namespace': self.node_namespace,
                 'factory_val': self.FACTORY_IMAGE_INPUT_TOPIC_NAME
             },
-            'rbx/image_status_overlay': {
+            'image_status_overlay': {
                 'namespace': self.node_namespace,
                 'factory_val': False
             },
@@ -839,7 +839,7 @@ class RBXRobotIF:
         if valid_name is False:
             self.update_error_msg("Received invalid device name update: " + new_device_name)
         else:
-            self.node_if.set_param('rbx/device_name', new_device_name)
+            self.node_if.set_param('device_name', new_device_name)
         self.node_if.save_config()
         self.publishInfo()
 
@@ -850,7 +850,7 @@ class RBXRobotIF:
         self.resetDeviceName()
 
     def resetDeviceName(self):
-        self.node_if.set_param('rbx/device_name', self.factory_device_name)
+        self.node_if.set_param('device_name', self.factory_device_name)
         self.node_if.save_config()
         self.publishInfo()
 
@@ -958,9 +958,9 @@ class RBXRobotIF:
     def setErrorBoundsCb(self,error_bounds_msg):
         self.msg_if.pub_info("Received set goals message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(error_bounds_msg)
-        self.node_if.set_param('rbx/max_error_m', error_bounds_msg.max_distance_error_m)
-        self.node_if.set_param('rbx/max_error_deg', error_bounds_msg.max_rotation_error_deg)
-        self.node_if.set_param('rbx/stabilized_sec', error_bounds_msg.min_stabilize_time_s)
+        self.node_if.set_param('max_error_m', error_bounds_msg.max_distance_error_m)
+        self.node_if.set_param('max_error_deg', error_bounds_msg.max_rotation_error_deg)
+        self.node_if.set_param('stabilized_sec', error_bounds_msg.min_stabilize_time_s)
         self.rbx_info.error_bounds = error_bounds_msg
         self.publishInfo()
 
@@ -968,7 +968,7 @@ class RBXRobotIF:
     def setCmdTimeoutCb(self,cmd_timeout_msg):
         self.msg_if.pub_info("Received set timeout message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(cmd_timeout_msg)
-        self.node_if.set_param('rbx/cmd_timeout', cmd_timeout_msg.data)
+        self.node_if.set_param('cmd_timeout', cmd_timeout_msg.data)
         self.rbx_info.cmd_timeout = cmd_timeout_msg.data 
         self.publishInfo()
 
@@ -977,7 +977,7 @@ class RBXRobotIF:
     def setImageTopicCb(self,set_image_topic_msg):
         self.msg_if.pub_info("Received set image topic message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(set_image_topic_msg)
-        self.node_if.set_param('rbx/image_source', set_image_topic_msg.data)
+        self.node_if.set_param('image_source', set_image_topic_msg.data)
         self.publishInfo()
 
 
@@ -985,7 +985,7 @@ class RBXRobotIF:
     def enableImageOverlayCb(self,enable_msg):
         self.msg_if.pub_info("Received enable image overlay message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(enable_msg)
-        self.node_if.set_param('rbx/image_status_overlay', enable_msg.data)
+        self.node_if.set_param('image_status_overlay', enable_msg.data)
         self.publishInfo()
 
     ### Callback to set current process name
@@ -1213,7 +1213,7 @@ class RBXRobotIF:
     def fakeGPSEnableCb(self,msg):
         self.msg_if.pub_info("Received set set fake gps enable message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(msg)
-        self.node_if.set_param('rbx/fake_gps_enabled', msg.data)
+        self.node_if.set_param('fake_gps_enabled', msg.data)
         self.setFakeGPSFunction(msg.data)
         self.publishStatus()
         self.publishInfo()
@@ -1251,10 +1251,10 @@ class RBXRobotIF:
 
     def ApplyConfigUpdates(self):
         if self.setFakeGPSFunction is not None:
-          fake_gps_enabled = self.node_if.get_param('rbx/fake_gps_enabled')
+          fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
           self.setFakeGPSFunction(fake_gps_enabled) 
         if self.setHomeFunction is not None:
-          home_location = self.node_if.get_param('rbx/home_location')
+          home_location = self.node_if.get_param('home_location')
           geo_home = GeoPoint()
           geo_home.latitude = home_location[0]
           geo_home.longitude = home_location[1]
@@ -1282,14 +1282,14 @@ class RBXRobotIF:
     
     
     def publishInfo(self):
-        self.rbx_info.device_name = self.node_if.get_param('rbx/device_name')
+        self.rbx_info.device_name = self.node_if.get_param('device_name')
         error_bounds = RBXErrorBounds()
-        error_bounds.max_distance_error_m = self.node_if.get_param('rbx/max_error_m')
-        error_bounds.max_rotation_error_deg = self.node_if.get_param('rbx/max_error_deg')
-        error_bounds.min_stabilize_time_s = self.node_if.get_param('rbx/stabilized_sec')
+        error_bounds.max_distance_error_m = self.node_if.get_param('max_error_m')
+        error_bounds.max_rotation_error_deg = self.node_if.get_param('max_error_deg')
+        error_bounds.min_stabilize_time_s = self.node_if.get_param('stabilized_sec')
         self.rbx_info.error_bounds = error_bounds
-        self.rbx_info.cmd_timeout = self.node_if.get_param('rbx/cmd_timeout')
-        self.rbx_info.image_status_overlay = self.node_if.get_param('rbx/image_status_overlay') 
+        self.rbx_info.cmd_timeout = self.node_if.get_param('cmd_timeout')
+        self.rbx_info.image_status_overlay = self.node_if.get_param('image_status_overlay') 
         self.rbx_info.state = self.getStateIndFunction()
         self.rbx_info.mode = self.getModeIndFunction()
         if self.getHomeFunction is not None:
@@ -1300,7 +1300,7 @@ class RBXRobotIF:
         self.rbx_info.home_lat = home_location[0]
         self.rbx_info.home_long = home_location[1]
         self.rbx_info.home_alt = home_location[2]
-        self.rbx_info.fake_gps_enabled = self.node_if.get_param('rbx/fake_gps_enabled')
+        self.rbx_info.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
 
         if not nepi_sdk.is_shutdown():
             #self.msg_if.pub_info(self.rbx_info)
@@ -1328,7 +1328,7 @@ class RBXRobotIF:
         self.rbx_status.current_yaw = self.current_orientation_ned_degs[2]
 
         self.rbx_status.last_cmd_string = self.last_cmd_string
-        self.rbx_status.fake_gps_enabled = self.node_if.get_param('rbx/fake_gps_enabled')
+        self.rbx_status.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
 
         ## Update Control Info
         if self.manualControlsReadyFunction is not None:
@@ -1423,7 +1423,7 @@ class RBXRobotIF:
         self.save_data_if.save('image',cv2_img,timestamp = timestamp)
 
         ## Update image source topic and subscriber if changed from last time.
-        image_source = self.node_if.get_param('rbx/image_source')
+        image_source = self.node_if.get_param('image_source')
         image_topic = nepi_sdk.find_topic(image_source)
         if image_topic != "":
           if image_topic != self.rbx_image_source_last:
@@ -1437,8 +1437,8 @@ class RBXRobotIF:
                     self.msg_if.pub_info(e)
           if self.rbx_image_sub == None:
             self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
-            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, _queue_size = 1)
-            self.node_if.set_param('rbx/image_source', image_topic)
+            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
+            self.node_if.set_param('image_source', image_topic)
         else:
               image_topic = "None"
         if image_topic == "None":

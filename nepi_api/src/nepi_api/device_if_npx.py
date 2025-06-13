@@ -200,6 +200,7 @@ class NPXDeviceIF:
 
   has_updated = False
 
+  pub_subs = False
 
   navpose_mgr_if = None
   #######################
@@ -287,6 +288,7 @@ class NPXDeviceIF:
           self.has_depth = True
 
 
+
         # Create capabilities report
         self.caps_report = NPXCapabilitiesQueryResponse()
         self.caps_report.has_heading = self.has_heading
@@ -326,14 +328,14 @@ class NPXDeviceIF:
      
 
         # Create a navpose data IF
-        npx_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
-        self.navpose_if = NavPoseIF(namespace = npx_namespace,
-                            has_location = self.has_location,
-                            has_heading = self.has_heading,
-                            has_orientation =  self.has_orientation,
-                            has_position = self.has_position,
-                            has_altitude = self.has_altitude,
-                            has_depth = self.has_depth,
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            pub_location = self.has_location,
+                            pub_heading = self.has_heading,
+                            pub_orientation =  self.has_orientation,
+                            pub_position = self.has_position,
+                            pub_altitude = self.has_altitude,
+                            pub_depth = self.has_depth,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if

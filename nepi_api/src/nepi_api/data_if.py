@@ -513,10 +513,13 @@ class NavPoseIF:
     frame_depth = 'MSL'
 
     caps_report = NavPoseCapabilitiesQueryResponse()
+
+    pub_subs = True,
+
     def __init__(self, namespace = None,
-                has_location = False, has_heading = False,
-                has_orientation = False, has_position = False,
-                has_altitude = False, has_depth = False,
+                pub_location = False, pub_heading = False,
+                pub_orientation = False, pub_position = False,
+                pub_altitude = False, pub_depth = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -546,21 +549,22 @@ class NavPoseIF:
         namespace = nepi_sdk.create_namespace(namespace,'navpose')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         
-        self.has_location = has_location
-        self.has_heading = has_heading
-        self.has_orientation = has_orientation
-        self.has_position = has_position
-        self.has_altitude = has_altitude
-        self.has_depth = has_depth
+        self.pub_location = pub_location
+        self.pub_heading = pub_heading
+        self.pub_orientation = pub_orientation
+        self.pub_position = pub_position
+        self.pub_altitude = pub_altitude
+        self.pub_depth = pub_depth
 
         # Create Capabilities Report
 
-        self.caps_report.has_location = self.has_location
-        self.caps_report.has_heading = self.has_heading
-        self.caps_report.has_position = self.has_position
-        self.caps_report.has_orientation = self.has_orientation
-        self.caps_report.has_depth = self.has_depth
+        self.caps_report.has_location_pub = self.pub_location
+        self.caps_report.has_heading_pub = self.pub_heading
+        self.caps_report.has_position_pub = self.pub_position
+        self.caps_report.has_orientation_pub = self.pub_orientation
+        self.caps_report.has_depth_pub = self.pub_depth
 
+        self.pub_subs = pub_subs,
 
         ##############################   
         ## Node Setup
@@ -596,7 +600,7 @@ class NavPoseIF:
             }
         }
 
-        if self.has_location == True:
+        if self.pub_location == True:
             self.PUBS_DICT['location_pub'] = {
                 'msg': NavPoseLocation,
                 'namespace': self.namespace,
@@ -605,7 +609,7 @@ class NavPoseIF:
                 'latch': False
             }
             
-        if self.has_orientation == True:
+        if self.pub_orientation == True:
             self.PUBS_DICT['orientation_pub'] = {
                 'msg': NavPoseOrientation,
                 'namespace': self.namespace,
@@ -614,7 +618,7 @@ class NavPoseIF:
                 'latch': False
             }
 
-        if self.has_position == True:
+        if self.pub_position == True:
             self.PUBS_DICT['position_pub'] = {
                 'msg': NavPosePosition,
                 'namespace': self.namespace,
@@ -623,7 +627,7 @@ class NavPoseIF:
                 'latch': False
             }
 
-        if self.has_heading == True:
+        if self.pub_heading == True:
             self.PUBS_DICT['heading_pub'] = {
                 'msg': NavPoseHeading,
                 'namespace': self.namespace,
@@ -632,7 +636,7 @@ class NavPoseIF:
                 'latch': False
             }
 
-        if self.has_altitude == True:
+        if self.pub_altitude == True:
             self.PUBS_DICT['altitude_pub'] = {
                 'msg': NavPoseAltitude,
                 'namespace': self.namespace,
@@ -641,7 +645,7 @@ class NavPoseIF:
                 'latch': False
             }
 
-        if self.has_depth == True:
+        if self.pub_depth == True:
             self.PUBS_DICT['depth_pub'] = {
                 'msg': NavPoseDepth,
                 'namespace': self.namespace,
@@ -807,7 +811,7 @@ class NavPoseIF:
 
 
                 # Publish nav pose subs
-                if self.has_location == True:
+                if self.pub_location == True:
                     pub_name = 'location_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -816,7 +820,7 @@ class NavPoseIF:
                     msg.longitude = np_dict['longitude']
                     self.node_if.publish_pub(pub_name,msg)
 
-                if self.has_heading == True:
+                if self.pub_heading == True:
                     pub_name = 'heading_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -824,7 +828,7 @@ class NavPoseIF:
                     msg.heading_deg = np_dict['heading_deg']
                     self.node_if.publish_pub(pub_name,msg)
 
-                if self.has_orientation == True:
+                if self.pub_orientation == True:
                     pub_name = 'orientation_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -834,7 +838,7 @@ class NavPoseIF:
                     msg.yaw_deg = np_dict['yaw_deg']
                     self.node_if.publish_pub(pub_name,msg)
 
-                if self.has_position == True:
+                if self.pub_position == True:
                     pub_name = 'position_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -844,7 +848,7 @@ class NavPoseIF:
                     msg.z_m = np_dict['z_m']
                     self.node_if.publish_pub(pub_name,msg)
 
-                if self.has_altitude == True:
+                if self.pub_altitude == True:
                     pub_name = 'altitude_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -852,7 +856,7 @@ class NavPoseIF:
                     msg.altitude_m = np_dict['altitude_m']
                     self.node_if.publish_pub(pub_name,msg)
 
-                if self.has_depth == True:
+                if self.pub_depth == True:
                     pub_name = 'depth_pub'
                     msg = self.PUBS_DICT[pub_name]['msg']()
                     # gps_fix pub
@@ -962,7 +966,7 @@ class ImageIF:
 
 
 
-    FRAME_3D_OPTIONS = ['nepi_frame','sensor_frame','world_frame']
+    FRAME_3D_OPTIONS = ['nepi_frame','sensor_frame']
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -1043,6 +1047,9 @@ class ImageIF:
     enhance_options = []
     sel_enhances = []
 
+    get_navpose_function = None
+    has_navpose = False
+    navpose_if = None
 
     def __init__(self, namespace , 
                 data_name ,
@@ -1055,6 +1062,7 @@ class ImageIF:
                 pubs_dict,
                 subs_dict,
                 init_overlay_list,
+                get_navpose_function,
                 log_name,
                 log_name_list,
                 msg_if
@@ -1116,11 +1124,13 @@ class ImageIF:
                 if caps_dict.get(cap) != None:
                     self.caps_dict[cap] = caps_dict[cap]
 
+        self.get_navpose_function = get_navpose_function
+        if get_navpose_function is not None:
+            self.has_navpose = True
 
 
         self.caps_report.data_source_type = self.data_source_type
         self.caps_report.data_product_name = self.data_product
-        self.caps_report.frame_3d_options = self.FRAME_3D_OPTIONS
 
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
@@ -1136,6 +1146,8 @@ class ImageIF:
 
         self.caps_report.has_enhances = self.has_enhance
         self.caps_report.enhance_options = self.enhance_options
+
+        self.caps_report.has_navpose = self.has_navpose
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         dm_topic = nepi_sdk.find_topic(dm_ns)
@@ -1185,13 +1197,6 @@ class ImageIF:
 
         ##############################   
         ## Node Setup
-        self.CONFIGS_DICT = {
-                'init_callback': None, #self.initCb,
-                'reset_callback': None, #self.resetCb,
-                'factory_reset_callback': None, #self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-        }
 
         # Params Config Dict ####################
         PARAMS_DICT = {
@@ -1303,15 +1308,22 @@ class ImageIF:
 
         # Subs Config Dict ####################
         SUBS_DICT = {
+            'reset': {
+                'namespace': self.namespace,
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetCb, 
+                'callback_args': ()
+            },
             'reset_controls': {
                 'namespace': self.namespace,
-                'topic': 'reset_controls',
+                'topic': 'reset',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._resetControlsCb, 
                 'callback_args': ()
             },
-            
             'overlay_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
@@ -1517,7 +1529,6 @@ class ImageIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -1528,6 +1539,17 @@ class ImageIF:
 
         #self.node_if.wait_for_ready()
         nepi_sdk.wait()
+
+        # Setup navpose data IF if needed
+        if self.has_navpose:
+            np_namespace = self.namespace
+            self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            log_name = 'navpose',
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+           
+
 
         self.publish_status(do_updates=True)
 
@@ -1607,6 +1629,16 @@ class ImageIF:
     def has_subscribers_check(self):
         return self.has_subs
 
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        elif self.nav_mgr_ready == True:
+            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
+
 
     def publish_cv2_img(self,cv2_img, 
                         encoding = "bgr8", 
@@ -1623,7 +1655,6 @@ class ImageIF:
 
         # Process 
         self.status_msg.encoding = encoding
-        self.status_msg.frame_3d = frame_3d
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
@@ -1643,12 +1674,14 @@ class ImageIF:
         last_height = self.status_msg.height
         self.status_msg.width = width
         self.status_msg.height = height
-        res_str = str(self.width) + ":" + str(self.height)
+        res_str = str(width) + ":" + str(height)
         self.status_msg.resolution_current = res_str
 
         self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-        cv2_img = self._process_image(self,cv2_img)
+        cv2_img = self._process_image(cv2_img)
+
+        navpose_dict = self.get_navpose_dict()
 
 
         # Apply Overlays
@@ -1661,12 +1694,9 @@ class ImageIF:
             date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
             overlay_list.append(overlay)
 
-        navpose_dict = None
-        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-            if self.nav_mgr_ready == True:
-                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
-                if navpose_dict is not None:
 
+        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                if navpose_dict is not None:
                     if self.status_msg.overlay_nav == True and navpose_dict is not None:
                         overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
                         overlay_list.append(overlay)
@@ -1682,10 +1712,13 @@ class ImageIF:
 
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
-        ros_img.header.frame_3d = frame_3d
+        sec = nepi_sdk.sec_from_timestamp(timestamp)
+        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
         self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
         self.node_if.publish_pub('image_pub', ros_img)
+
+        if navpose_dict is not None:
+            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
         
         # Update stats
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -1718,8 +1751,8 @@ class ImageIF:
 
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
-        ros_img.header.frame_3d = frame_3d
+        sec = nepi_sdk.sec_from_timestamp(timestamp)
+        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
         self.node_if.publish_pub('image_pub', ros_img)
 
 
@@ -2176,6 +2209,9 @@ class ImageIF:
     def _clearOverlayListCb(self,msg):
         self.clear_overlay_list()
 
+    def _resetControlsCb(self,msg):
+        self.reset_controls()
+        self.reset_overlays()
 
     def _resetControlsCb(self,msg):
         self.reset_controls()
@@ -2257,6 +2293,7 @@ class ColorImageIF(ImageIF):
     def __init__(self, namespace = None , 
                 data_name = 'color_image',
                 init_overlay_list = [],
+                get_navpose_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -2274,6 +2311,7 @@ class ColorImageIF(ImageIF):
                 None,
                 None,
                 init_overlay_list,
+                get_navpose_function,
                 log_name,
                 log_name_list,
                 msg_if
@@ -2593,13 +2631,6 @@ class DepthMapIF:
 
         ##############################   
         ## Node Setup
-        self.CONFIGS_DICT = {
-                'init_callback': None, #self.initCb,
-                'reset_callback': None, #self.resetCb,
-                'factory_reset_callback': None, #self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-        }
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -2658,7 +2689,6 @@ class DepthMapIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
@@ -2723,7 +2753,7 @@ class DepthMapIF:
         return self.has_subs
 
 
-    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1', min_range_m = None, max_range_m = None, timestamp = None, frame_3d = 'nepi_base'):
+    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1', min_range_m = None, max_range_m = None, timestamp = None, frame_3d = 'sensor_frame'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None:
@@ -2771,8 +2801,8 @@ class DepthMapIF:
 
             #Convert to ros Image message
             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            ros_img.header.stamp = nepi_sdk.msg_stamp_from_timestamp(timestamp)
-            ros_img.header.frame_3d = frame_3d
+            sec = nepi_sdk.sec_from_timestamp(timestamp)
+            ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('depth_map_pub', ros_img)
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -2999,7 +3029,7 @@ class PointcloudIF:
         status_msg.height = 0
         status_msg.depth = 0
         status_msg.point_count = 0,
-        status_msg.frame_3d = "nepi_base"
+        status_msg.frame_3d = "sensor_frame"
         status_msg.get_latency_time
         status_msg.pub_latency_time
         status_msg.process_time
@@ -3011,14 +3041,6 @@ class PointcloudIF:
 
         ##############################   
         ## Node Setup
-        self.CONFIGS_DICT = {
-                'init_callback': None, #self.initCb,
-                'reset_callback': None, #self.resetCb,
-                'factory_reset_callback': None, #self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-        }
-
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'max_img_pub_rate': {
@@ -3175,7 +3197,6 @@ class PointcloudIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
@@ -3285,8 +3306,8 @@ class PointcloudIF:
             self.status_msg.publishing = True
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
-            ros_pc.header.stamp = msg_stamp_from_timestamp(timestamp)
-            ros_pc.header.frame_3d = frame_3d
+            sec = nepi_sdk.sec_from_timestamp(timestamp)
+            ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time

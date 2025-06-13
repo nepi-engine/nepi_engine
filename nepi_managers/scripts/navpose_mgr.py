@@ -56,7 +56,6 @@ from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQue
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 from nepi_api.system_if import SaveDataIF
 
 #########################################
@@ -145,6 +144,9 @@ class NavPoseMgr(object):
     }
 
  
+    np_status_msg = NavPoseDataStatus()
+
+    frame_desc = 'Undefined'
 
     #######################
     ### Node Initialization
@@ -166,6 +168,18 @@ class NavPoseMgr(object):
         # Initialize Class Variables
         self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
+        self.np_status_msg.frame_3d = 'nepi_frame'
+
+        self.np_status_msg.source_frame_nav = 'ENU'
+        self.np_status_msg.source_frame_altitude = 'WGS84'
+        self.np_status_msg.source_frame_depth = 'DEPTH'
+
+        self.np_status_msg.pub_frame_nav = 'ENU'
+        self.np_status_msg.pub_frame_altitude = 'WGS84'
+        self.np_status_msg.pub_frame_depth = 'DEPTH'
+
+        self.np_status_msg.publishing = False
+        self.np_status_msg.avg_pub_rate = 0.0
 
         self.cb_dict = {
             'location': self._locationSubCb,
@@ -194,6 +208,10 @@ class NavPoseMgr(object):
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
+            'frame_desc': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.frame_desc
+            },
             'pub_rate': {
                 'namespace': self.mgr_namespace,
                 'factory_val': self.FACTORY_PUB_RATE_HZ
@@ -242,11 +260,26 @@ class NavPoseMgr(object):
                 'qsize': 1,
                 'latch': True
             },
+            'navpose_status_pub': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPoseDataStatus,
+                'qsize': 1,
+                'latch': True
+            },
 
         }
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'set_frame_desc': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_frame_description',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setFrameDescCb, 
+                'callback_args': ()
+            },
             'pub_rate': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_pub_rate',
@@ -348,6 +381,7 @@ class NavPoseMgr(object):
 
         ######################
         # initialize variables from param server
+        self.frame_desc = self.node_if.get_param('frame_desc')
         self.set_pub_rate = self.node_if.get_param('pub_rate')
         self.connect_dict = self.node_if.get_param('connect_dict')
         self.transforms_dict = self.node_if.get_param('transforms_dict')
@@ -359,6 +393,7 @@ class NavPoseMgr(object):
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+        nepi_sdk.start_timer_process(1.0, self._publishNavPoseStatusCb)
 
         ##############################
         ## Initiation Complete
@@ -370,6 +405,11 @@ class NavPoseMgr(object):
     #######################
     ### Node Methods
 
+    def setFrameDesc(self,description):
+        self.frame_desc = description
+        self.publish_status(do_updates = False)
+        self.node_if.set_param('frame_desc',description)      
+
     def setPublishRateCb(self,rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
         max = self.NAVPOSE_PUB_RATE_OPTIONS[1]
@@ -378,7 +418,7 @@ class NavPoseMgr(object):
         if rate > max:
             rate = max
         self.set_pub_rate = rate
-        self.publish_status()
+        self.publish_status(do_updates = False)
         self.node_if.set_param('pub_rate',rate)
 
 
@@ -468,8 +508,13 @@ class NavPoseMgr(object):
 
 
     def publish_navpose(self):
+        self.np_status_msg.publishing = True
         navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict)
         self.node_if.publish_pub('navpose_pub',navpose_msg)
+
+    def publish_navpose_status(self):
+        self.np_status_msg.avg_pub_rate = self.set_pub_rate
+        self.node_if.publish_pub('navpose_status_pub', self.np_status_msg)
 
     def publish_status(self, do_updates = False):
 
@@ -477,6 +522,7 @@ class NavPoseMgr(object):
         subs_dict = copy.deepcopy(self.subs_dict)
         avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
 
+        self.status_msg.nepi_frame_description = self.frame_desc
 
         comp_names = []
         comp_infos = []
@@ -512,7 +558,9 @@ class NavPoseMgr(object):
 
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
-        self.node_if.publish_pub('navpose_data_status',self.status_msg)
+        self.node_if.publish_pub('status_pub',self.status_msg)
+
+
 
     #######################
     # Private Members
@@ -579,7 +627,7 @@ class NavPoseMgr(object):
                     cb = self.cb_dict[name]
 
                     self.subs_dict_lock.acquire()
-                    sub = nepi_sdk.create_subscriber(topic, msg, cb, _callback_args = (name))
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args = (name))
                     self.subs_dict[name]['topic'] = topic
                     self.subs_dict[name]['msg'] = msg_str
                     self.connect_dict[name]['msg'] = msg_str
@@ -717,6 +765,9 @@ class NavPoseMgr(object):
     def _publishStatusCb(self,timer):
         self.publish_status()
 
+
+    def _publishNavPoseStatusCb(self,timer):
+        self.publish_navpose_status()
 
     def _cleanupActions(self):
         self.msg_if.pub_info("Shutting down: Executing script cleanup actions")

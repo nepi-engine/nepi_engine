@@ -26,7 +26,7 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
-
+import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import {  createShortValuesFromNamespaces, createMenuListFromStrList, onDropdownSelectedSendIndex,
@@ -629,36 +629,10 @@ class NepiDeviceRBX extends Component {
           </div>
 
           <div hidden={(!deviceSelected)}>
-
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-          <Columns>
-              <Column>
-
-
-                <ButtonMenu>
-                    <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-              </ButtonMenu>
-
-
-                </Column>
-              <Column>
-
-
-              <ButtonMenu>
-                  <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-                </ButtonMenu>
-
-              </Column>
-              <Column>
-
-              <ButtonMenu>
-                    <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-              </ButtonMenu>
-
-
-              </Column>
-              </Columns>
+          <NepiIFConfig
+                        namespace={namespace}
+                        title={"Nepi_IF_Conig"}
+                  />
 
           </div>
 

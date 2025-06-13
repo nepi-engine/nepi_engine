@@ -23,7 +23,7 @@ import Toggle from "react-toggle"
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
-
+import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
@@ -465,38 +465,10 @@ class NepiControlsLights extends Component {
             </Section>
 
           <div hidden={connected === false}>
-          
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-              <Columns>
-              <Column>
-
-
-                <ButtonMenu>
-                    <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-              </ButtonMenu>
-
-
-                </Column>
-              <Column>
-
-
-              <ButtonMenu>
-                  <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-                </ButtonMenu>
-
-              </Column>
-              <Column>
-
-              <ButtonMenu>
-                    <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-              </ButtonMenu>
-
-
-              </Column>
-              </Columns>
-
-
+                <NepiIFConfig
+                        namespace={namespace}
+                        title={"Nepi_IF_Conig"}
+                  />
 
 
             {this.renderControlPanel()}

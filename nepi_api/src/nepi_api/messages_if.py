@@ -40,7 +40,7 @@ class MsgIF:
             self.ln_str = str(log_name) + ": "
         self._logSelfMsg("Starting IF Initialization Processes", )
         ##############################   
-        nepi_sdk.create_subscriber('debug_mode', Bool, self._debugCb, _queue_size = 10)
+        nepi_sdk.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
 
         self._createMsgPublishers()
         ##############################
@@ -81,8 +81,8 @@ class MsgIF:
     ###############################
   
     def _createMsgPublishers(self):
-        self.msg_pub = nepi_sdk.create_publisher("~messages", Message, _queue_size=1)
-        self.msg_pub_sys = nepi_sdk.create_publisher("messages", Message, _queue_size=1)
+        self.msg_pub = nepi_sdk.create_publisher("~messages", Message, queue_size=1)
+        self.msg_pub_sys = nepi_sdk.create_publisher("messages", Message, queue_size=1)
 
 
     def _logSelfMsg(self,msg, log_name_list = []):

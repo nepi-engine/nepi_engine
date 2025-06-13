@@ -233,9 +233,12 @@ class ROSConnectionStore {
   @observable appNameList = []
   @observable appStatusList = []
   @observable imageTopics = []
-  @observable imageCaps = []
+  @observable imageCaps = {}
   @observable imageDetectionTopics = []
+  @observable depthMapTopics = []
+  @observable depthMapCaps = {}
   @observable pointcloudTopics = []
+  @observable pointcloudCaps = {}
   @observable settingCaps = {}
   @observable saveDataTopics = []
   @observable saveDataCaps = {}

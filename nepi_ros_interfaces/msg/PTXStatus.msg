@@ -64,7 +64,14 @@ float32 pan_home_pos_deg
 float32 tilt_home_pos_deg
 
 
-PanTiltOffsets offsets
+# Meters from center base of pan tilt to hieight tilt axis 
+# Measured in upright position, inversions handled downstream
+float32 height_to_tilt_axis 
+# Meters x,y,z from pantilt tilt center axis in ENU frame
+# Measured in upright position, inversions handled downstream
+float32 x_from_tilt_axis
+float32 y_from_tilt_axis
+float32 z_from_tilt_axis
 
 bool is_moving
 

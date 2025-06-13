@@ -555,10 +555,10 @@ class NepiDriversMgr(object):
 
     self.msg_if.pub_info("Starting discovery options processes for namespace: " + settings_namespace)
 
-    settings_status_pub = nepi_sdk.create_publisher(settings_namespace + '/settings/status', SettingsStatus, _queue_size=1, _latch=True)
+    settings_status_pub = nepi_sdk.create_publisher(settings_namespace + '/settings/status', SettingsStatus, queue_size=1, latch=True)
     self.discovery_settings_dict[driver_name]['settings_pub'] = settings_status_pub
 
-    settings_update_sub = nepi_sdk.create_subscriber(settings_namespace + '/settings/update_setting', Setting, self.updateSettingCb, _queue_size=1, _callback_args=(settings_namespace))
+    settings_update_sub = nepi_sdk.create_subscriber(settings_namespace + '/settings/update_setting', Setting, self.updateSettingCb, queue_size=1, callback_args=(settings_namespace))
     self.discovery_settings_dict[driver_name]['update_sub'] = settings_update_sub
 
     settings_cap_service = nepi_sdk.create_service(settings_namespace + '/settings/capabilities_query', SettingsCapabilitiesQuery, self.provide_capabilities)

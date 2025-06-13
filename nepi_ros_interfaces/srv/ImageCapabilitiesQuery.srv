@@ -8,8 +8,6 @@
 string data_source_type
 string data_product_name
 
-string[] frame_3d_options
-
 bool has_resolution
 bool has_auto_adjust
 bool has_contrast
@@ -24,6 +22,8 @@ bool has_tilt
 
 bool has_enhances
 string[] enhance_options
+
+bool has_navpose
 
 # If supported
 

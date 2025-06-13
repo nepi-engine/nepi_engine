@@ -211,28 +211,20 @@ class SaveDataIF:
         ##############################    
         # Node Setup
 
-        # Configs Dict ########################
-        self.CONFIGS_DICT = {
-                'init_callback': self._initCb, #self.initCb,
-                'reset_callback': self._resetCb, #self.resetCb,
-                'factory_reset_callback': self._factoryResetCb, #self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-        }
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'save_rate_dict': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': save_rate_dict
             },
             'save_data': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'filename_dict': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.filename_dict
             }
         }
@@ -240,7 +232,7 @@ class SaveDataIF:
 
 
         # Services Config Dict ####################
-        if self.namespace == self.node_namespace:
+        if self.namespace == self.namespace:
             self.SRVS_DICT = {
                 'capabilities_query': {
                     'namespace': self.namespace,
@@ -324,15 +316,7 @@ class SaveDataIF:
                 'qsize': 1,
                 'callback': self._resetCb,  
                 'callback_args': ()
-            },
-            'factory_reset': {
-                'namespace': self.namespace,
-                'msg': Empty,
-                'topic': 'factory_reset',
-                'qsize': 1,
-                'callback': self._factoryResetCb,  
-                'callback_args': ()
-            },
+            }
             'save_all': {
                 'namespace': self.base_namespace,
                 'msg': Bool,
@@ -380,31 +364,12 @@ class SaveDataIF:
                 'qsize': 1,
                 'callback': self._snapshotCb, 
                 'callback_args': ()
-            },            
-
-            'reset_all': {
-                'namespace': self.base_namespace,
-                'msg': Empty,
-                'topic': 'reset',
-                'qsize': 1,
-                'callback': self._resetCb,  
-                'callback_args': ()
-            },
-            'factory_reset_all': {
-                'namespace': self.base_namespace,
-                'msg': Empty,
-                'topic': 'factory_reset',
-                'qsize': 1,
-                'callback': self._factoryResetCb,  
-                'callback_args': ()
-            },
-
+            }
         }
 
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -422,7 +387,7 @@ class SaveDataIF:
                 self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
             self.save_rate_dict[data_product][1] = 0.0 # Reset timer
         self.node_if.set_param('save_rate_dict',self.save_rate_dict)
-        self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
+        #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
 
         self.save_data = self.node_if.get_param('save_data')
         filename_dict =  self.node_if.get_param('filename_dict')
@@ -554,7 +519,7 @@ class SaveDataIF:
         else:
             self.msg_if.pub_warn("Requested unknown data product: " + data_product)    
         self.save_rate_dict = save_rate_dict     
-        self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
+        #self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
         self.publish_status()
         self.node_if.set_param('save_rate_dict',save_rate_dict)
         
@@ -777,13 +742,12 @@ class SaveDataIF:
             if enabled:
                 self.snapshot_dict[data_product] = True
 
-    def _initCb(self,do_updates = False):
-        pass
 
     def _resetCb(self,reset_msg):
         self.msg_if.pub_info("Recieved save data reset msg", log_name_list = self.log_name_list)
         self.node_if.reset_params()
         self.publish_status()
+
 
     def _factoryResetCb(self,reset_msg):
         self.msg_if.pub_info("Recieved save data factory reset msg", log_name_list = self.log_name_list)
@@ -924,13 +888,6 @@ class SettingsIF:
 
         ##############################  
         # Create NodeClassIF Class  
-        self.CONFIGS_DICT = {
-                'init_callback': self._initCb, #self.initCb,
-                'reset_callback': self._resetCb, #self.resetCb,
-                'factory_reset_callback': self._factoryResetCb, #self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-        }
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -980,15 +937,7 @@ class SettingsIF:
                 'qsize': 1,
                 'callback': self._resetSettingsCb,
                 'callback_args': None
-            },
-            'factory_reset_settings': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'factory_reset',
-                'qsize': 1,
-                'callback': self._resetFactorySettingsCb,
-                'callback_args': None
-            },
+            }
         }
 
         if self.allow_cap_updates == True:
@@ -1004,7 +953,6 @@ class SettingsIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                                    configs_dict = self.CONFIGS_DICT,
                                     params_dict = self.PARAMS_DICT,
                                     services_dict = self.SRVS_DICT,
                                     pubs_dict = self.PUBS_DICT,
@@ -1135,14 +1083,12 @@ class SettingsIF:
     # Class Private Methods
     ###############################
 
-    def _initCb(self,do_updates = False):
-        pass
 
-    def _resetCb(self,do_updates = True):
-        self.reset_settings(do_updates = do_updates)
+    def _resetCb(self,msg):
+        self.reset_settings()
 
-    def _factoryResetCb(self,do_updates = True):
-        self.factory_reset_settings(do_updates = do_updates)
+    def _factoryResetCb(self,msg):
+        self.factory_reset_settings()
 
 
     def _provideCapabilitiesHandler(self, req):

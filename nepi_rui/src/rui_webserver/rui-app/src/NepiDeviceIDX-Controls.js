@@ -20,6 +20,8 @@ import Input from "./Input"
 import { Column, Columns } from "./Columns"
 import { round, onUpdateSetStateValue, onEnterSetStateFloatValue,  } from "./Utilities"
 
+import NepiIFReset from "./Nepi_IF_Reset"
+
 @inject("ros")
 @observer
 
@@ -68,6 +70,18 @@ class NepiDeviceIDXControls extends Component {
 
       disabled: false,
       frame_3d: null,
+
+
+      avail_pantilt_topics: [],
+      pantilt_mounted: false,
+      sel_pantilt_name: 'None',
+      sel_pantilt_device_topic: 'None',
+      sel_pantilt_navpose_topic: 'None',
+      sel_pantilt_connected: false,
+      pantilt_offsets: [0,0,0,0], 
+    
+
+
       frame_status: null
     }
 
@@ -108,6 +122,12 @@ class NepiDeviceIDXControls extends Component {
       rangeLimitMaxM: message.max_range_m,
       frame_3d: message.frame_3d,
       transform_msg: message.frame_3d_transform
+      avail_pantilt_topics: message.avail_pantilt_topics,
+      pantilt_mounted: message.pantilt_mounted,
+      sel_pantilt_name: message.sel_pantilt_name,
+      sel_pantilt_device_topic: message.sel_pantilt_device_topic,
+      sel_pantilt_navpose_topic: message.sel_pantilt_navpose_topic,
+      sel_pantilt_connected: message.sel_pantilt_connected,
     })
 
     if (transform !== message.frame_3d_transform){
@@ -120,6 +140,18 @@ class NepiDeviceIDXControls extends Component {
         transformRY: new_transform.rotate_vector.y,
         transformRZ: new_transform.rotate_vector.z,
         transformHO: new_transform.heading_offset
+      })
+    }
+
+    const pantilt_offsets = [
+      message.height_to_tilt_axis,
+      message.x_from_tilt_axis,
+      message.y_from_tilt_axis,
+      message.z_from_tilt_axis]
+    const cur_offsets = this.state.pantilt_offsets
+    if (pantilt_offsets !== cur_offsets) {
+      this.setState({
+      pantilt_offsets: pantilt_offsets
       })
     }
   }
@@ -600,21 +632,10 @@ class NepiDeviceIDXControls extends Component {
                     </Column>
                   </Columns>
             </div>
-
-                <Columns>
-                  <Column>
-
-            
-                    </Column>
-                    <Column>
-
-                        <ButtonMenu>
-                          <Button onClick={() => sendTriggerMsg(namespace + "/reset_controls")}>{"Reset Controls"}</Button>
-                        </ButtonMenu>
-      
-                    </Column>
-                  </Columns>
-
+               <NepiIFReset
+                        namespace={namespace}
+                        title={"Nepi_IF_Reset"}
+                  />
           </Section>
         )
       }

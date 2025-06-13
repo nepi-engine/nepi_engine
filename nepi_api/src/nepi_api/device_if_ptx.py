@@ -1610,12 +1610,10 @@ class PTXActuatorIF:
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
 
-        offsets_msg = PanTiltOffsets()
-        offsets_msg.height_to_tilt_axis = self.offsets_dict['h']
-        offsets_msg.x_from_tilt_axis = self.offsets_dict['x']
-        offsets_msg.y_from_tilt_axis = self.offsets_dict['y']
-        offsets_msg.z_from_tilt_axis = self.offsets_dict['z']
-        self.status_msg.offsets = offsets_msg
+        self.status_msg.height_to_tilt_axis = self.offsets_dict['h']
+        self.status_msg.x_from_tilt_axis = self.offsets_dict['x']
+        self.status_msg.y_from_tilt_axis = self.offsets_dict['y']
+        self.status_msg.z_from_tilt_axis = self.offsets_dict['z']
 
         if do_updates == True:
             if self.getSoftLimitsCb is not None:

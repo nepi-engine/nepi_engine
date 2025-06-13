@@ -49,7 +49,24 @@ float32 threshold_ratio
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
 RangeWindow range_window_ratios
 
-# Input Transform for data from sensor's native sensor frame to the nepi_center_frame 
+string[] avail_pantilt_topics
+# If Device is Pan and Tilt Mounted
+bool pantilt_mounted
+# Selected Pan Tilt Device and NavPose Topic
+string sel_pantilt_name
+string sel_pantilt_device_topic
+string sel_pantilt_navpose_topic
+bool sel_pantilt_connected
+# Meters from center base of pan tilt to hieight tilt axis 
+# Measured in upright position, inversions handled downstream
+float32 pantilt_height_to_tilt_axis 
+# Meters x,y,z from pantilt tilt center axis in ENU frame
+# Measured in upright position, inversions handled downstream
+float32 pantilt_x_from_tilt_axis
+float32 pantilt_y_from_tilt_axis
+float32 pantilt_z_from_tilt_axis
+
+# Input Transform for data from sensor's native sensor frame ( or PanTilt center base frame) to the nepi_center_frame 
 nepi_sdk_interfaces/Frame3DTransform frame_3d_transform
 
 # Output transform into which 3D data (navpose,pointclouds...) are published

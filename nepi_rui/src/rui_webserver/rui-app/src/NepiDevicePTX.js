@@ -25,7 +25,7 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
-
+import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
 function round(value, decimals = 0) {
@@ -111,10 +111,7 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
-      offset_h: null,
-      offset_x: null,
-      offset_y: null,
-      offset_z: null,
+      pantilt_offsets: [0,0,0,0],
 
       listener: null,
       disabled: true
@@ -325,10 +322,6 @@ class NepiDevicePTX extends Component {
       autoTiltEnabled: message.auto_tilt_enabled,
       autoTiltMin: message.auto_tilt_range_window.start_range,
       autoTiltMax: message.auto_tilt_range_window.stop_range,
-      offset_h: message.offsets.height_to_tilt_axis,
-      offset_x: message.offsets.x_from_tilt_axis,
-      offset_y: message.offsets.y_from_tilt_axis,
-      offset_z: message.offsets.z_from_tilt_axis
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
@@ -344,6 +337,17 @@ class NepiDevicePTX extends Component {
       })
     }
 
+    const pantilt_offsets = [
+      message.height_to_tilt_axis,
+      message.x_from_tilt_axis,
+      message.y_from_tilt_axis,
+      message.z_from_tilt_axis]
+    const cur_offsets = this.state.pantilt_offsets
+    if (pantilt_offsets !== cur_offsets) {
+      this.setState({
+      pantilt_offsets: pantilt_offsets
+      })
+    }
     
   }
 
@@ -940,36 +944,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
 
             <div align={"left"} textAlign={"left"} hidden={namespace == null}>
+              
+                  <NepiIFConfig
+                        namespace={namespace}
+                        title={"Nepi_IF_SaveConif"}
+                  />
 
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                <Columns>
-                  <Column>
-
-
-                    <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-                  </ButtonMenu>
-
-
-                    </Column>
-                  <Column>
-
-
-                  <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-                    </ButtonMenu>
-
-                  </Column>
-                  <Column>
-
-                  <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-                  </ButtonMenu>
-
-
-                  </Column>
-                </Columns>
             </div>
 
 

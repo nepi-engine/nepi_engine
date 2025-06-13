@@ -22,8 +22,10 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
+import NepiIFConfig from "./Nepi_IF_Config"
 
 import NepiSystemMessages from "./Nepi_IF_Messages"
+
 
 import {createShortUniqueValues} from "./Utilities"
 
@@ -169,7 +171,7 @@ class NepiDeviceIDX extends Component {
   }
 
   renderDeviceSelection() {
-    const { idxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
+    const { idxDevices, sendTriggerMsg  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const device_selected = (this.state.namespace != null)
     const namespace = this.state.namespace ? this.state.namespace : "None"
@@ -213,36 +215,11 @@ class NepiDeviceIDX extends Component {
             </Columns>
 
             <div align={"left"} textAlign={"left"} hidden={!device_selected}>
-
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                <Columns>
-                  <Column>
-
-
-                    <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-                  </ButtonMenu>
-
-
-                    </Column>
-                  <Column>
-
-
-                  <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-                    </ButtonMenu>
-
-                  </Column>
-                  <Column>
-
-                  <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-                  </ButtonMenu>
-
-
-                  </Column>
-                </Columns>
+              
+                    <NepiIFConfig
+                        namespace={namespace}
+                        title={"Nepi_IF_Conig"}
+                  />
           </div>
 
 

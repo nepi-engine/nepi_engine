@@ -20,6 +20,8 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
+from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_devices
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
@@ -28,6 +30,7 @@ from nepi_sdk_interfaces.msg import IDXStatus, RangeWindow
 from nepi_sdk_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_sdk_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_sdk_interfaces.msg import Frame3DTransform
+from nepi_sdk_interfaces.msg import PanTiltOffsets
 
 from geometry_msgs.msg import Vector3
 
@@ -40,7 +43,23 @@ from nepi_api.data_if import DepthMapIF
 from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
+
+        ##############################
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        ready = self.nav_mgr_if.wait_for_ready()
+
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        elif self.nav_mgr_ready == True:
+            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
 
 
 SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
@@ -131,6 +150,16 @@ class IDXDeviceIF:
     pointcloud_thread = None
 
     frame_transform = ZERO_TRANSFORM
+    avail_pts = []
+    pt_mounted = False
+    pt_topic = ''
+    pt_connected = False
+    pt_offsets_dict = dict(
+        h_m = 0.0,
+        x_m = 0.0,
+        y_m = 0.0,
+        z_m = 0.0
+    )
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -306,6 +335,18 @@ class IDXDeviceIF:
             'frame_3d': {
                 'namespace': self.node_namespace,
                 'factory_val': "sensor_frame"
+            },
+            'pt_mounted': {
+                'namespace': self.node_namespace,
+                'factory_val': False
+            },
+            'pt_topic': {
+                'namespace': self.node_namespace,
+                'factory_val': ''
+            },
+            'pt_offsets': {
+                'namespace': self.node_namespace,
+                'factory_val': self.pt_offsets_dict
             }
 
 
@@ -433,7 +474,7 @@ class IDXDeviceIF:
             },
             'reset_controls': {
                 'namespace': self.node_namespace,
-                'topic': 'idx/reset_controls',
+                'topic': 'idx/reset',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
@@ -454,7 +495,40 @@ class IDXDeviceIF:
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
+            },
+            'set_pt_mounted': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_pt_mounted',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self.setPtMountedCb, 
+                'callback_args': ()
+            },
+            'set_pt_topic': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_pt_topic',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setPtTopicCb, 
+                'callback_args': ()
+            },
+            'set_pt_offsets': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/set_pt_offsets',
+                'msg': PanTiltOffsets,
+                'qsize': 1,
+                'callback': self.setPtOffsetsCb, 
+                'callback_args': ()
+            },
+            'clear_pt_offsets': {
+                'namespace': self.node_namespace,
+                'topic': 'idx/clear_pt_offsets',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.clearPtOffsetsCb, 
+                'callback_args': ()
             }
+            
         }
 
 
@@ -541,6 +615,11 @@ class IDXDeviceIF:
         self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
 
         self.frame_transform = self.node_if.get_param('frame_3d_transform')  
+
+        self.pt_mounted = self.node_if.get_param('pt_mounted')
+        self.pt_topic = self.node_if.get_param('pt_topic')
+        self.pt_offsets_dict = self.node_if.get_param('pt_offsets_dict')
+
 
         # Start the data producers
         if (getColorImage is not None and 'color_image' in self.data_products_base_list):
@@ -650,6 +729,7 @@ class IDXDeviceIF:
             self.pointcloud_thread.start()
 
 
+        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         ####################################
         self.initCb(do_updates = True)
         self.publishStatus()
@@ -659,6 +739,10 @@ class IDXDeviceIF:
 
     ###############################
     # Class Methods
+
+    def updaterCb(self,timer):
+        self.avail_pts = nepi_drevices.get_ptx_device_namespaces()
+        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
 
     def get_ready_state(self):
         return self.ready
@@ -704,6 +788,10 @@ class IDXDeviceIF:
         self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
         if do_updates:
             self.ApplyConfigUpdates()
+        if self.save_data_if is not None:
+            self.save_data_if.reset()
+        if self.settings_if is not None:
+            self.settings_if.reset_settings(update_status = False, update_params = True)
         self.publishStatus()
 
 
@@ -719,10 +807,13 @@ class IDXDeviceIF:
         self.rotate_ratio = self.init_rotate_ratio
         self.tilt_ratio = self.init_rotate_ratio
         self.render_controls = [self.zoom_ratio,self.rotate_ratio,self.tilt_ratio]
-        if self.settings_if is not None:
-            self.settings_if.factory_reset_settings(update_status = False, update_params = True)
+
         if do_updates:
             self.ApplyConfigUpdates()
+        if self.save_data_if is not None:
+            self.save_data_if.factory_reset()
+        if self.settings_if is not None:
+            self.settings_if.factory_reset(update_status = False, update_params = True)
         self.publishStatus()
 
     def ApplyConfigUpdates(self):
@@ -808,6 +899,8 @@ class IDXDeviceIF:
         self.status_msg.device_name = self.factory_device_name
         self.publishStatus(do_updates=False) # Updated inline here
         self.node_if.set_param('device_name', self.factory_device_name)
+
+
          
 
 
@@ -1021,6 +1114,40 @@ class IDXDeviceIF:
         self.publishStatus(do_updates=False) # Updated inline here 
         self.node_if.set_param('frame_3d', new_frame_3d)
 
+
+
+
+    def setPtMountedCb(self,msg):
+        self.msg_if.pub_info("Recived pt mounted message: " + str(msg))
+        self.pt_mounted = msg.data
+        self.status_msg.pantilt_mounted = self.pt_mounted
+        self.publishStatus(do_updates=False) # Updated inline here 
+        self.node_if.set_param('pt_mounted', self.pt_mounted)
+
+    def setPtTopicCb(self,msg):
+        self.msg_if.pub_info("Recived pt topic message: " + str(msg))
+        self.pt_topic = msg.data
+        self.publishStatus(do_updates=False) # Updated inline here 
+        self.node_if.set_param('pt_mounted', self.pt_mounted)
+
+    def setPtOffsetsCb(self,msg):
+        self.msg_if.pub_info("Recived pt topic offsets: " + str(msg))
+        self.pt_offsets_dict['h_m'] = msg.height_to_tilt_axis
+        self.pt_offsets_dict['x_m'] = msg.x_from_tilt_axis
+        self.pt_offsets_dict['y_m'] = msg.y_from_tilt_axis
+        self.pt_offsets_dict['z_m'] = msg.z_from_tilt_axis
+        self.publishStatus(do_updates=False) # Updated inline here 
+        self.node_if.set_param('pt_offsets', self.pt_offsets_dict)
+
+    def clearPtOffsetsCb(self,msg):
+        self.msg_if.pub_info("Recived pt topic offsets: " + str(msg))
+        self.pt_offsets_dict['h_m'] = 0
+        self.pt_offsets_dict['x_m'] = 0
+        self.pt_offsets_dict['y_m'] = 0
+        self.pt_offsets_dict['z_m'] = 0
+        self.publishStatus(do_updates=False) # Updated inline here 
+        self.node_if.set_param('pt_offsets', self.pt_offsets_dict)
+
    
     def initConfig(self):
       self.initCb(do_updates = True)
@@ -1096,7 +1223,7 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_if = None
             if data_product == 'color_image':
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
@@ -1177,7 +1304,7 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             min_range_m = self.status_msg.range_window.start_range
             max_range_m = self.status_msg.range_window.stop_range
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
@@ -1192,6 +1319,7 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
+            dp_dict['dp_if'] = dp_if
             
             # Get Data Product Dict and Data_IF
             
@@ -1270,7 +1398,7 @@ class IDXDeviceIF:
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, _queue_size = 10)
+            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = PointcloudIF(namespace = dp_namespace, data_name = data_product,
                         log_name = data_product,
@@ -1414,8 +1542,28 @@ class IDXDeviceIF:
             transform_msg.rotate_vector.z = transform[5]
             transform_msg.heading_offset = transform[6]
             self.status_msg.frame_3d_transform = transform_msg
-            
+          
             self.status_msg.frame_3d = param_dict['frame_3d'] if 'frame_3d' in param_dict else "nepi_frame"
             #self.msg_if.pub_debug("Got status msg: " + str(self.status_msg), throttle_s = 5.0)
+
+        self.status_msg.avail_pantilt_topics = self.avail_pts
+
+        self.status_msg.sel_pantilt_device_topic = self.pt_topic
+        self.status_msg.sel_pantilt_navpose_topic = nepi_sdk.create_namespace(self.pt_topic,'navpose')
+        pt_name = self.pt_topic.split('/ptx')[0]
+        pt_name = pt_name.replace(self.base_namespace)
+        if pt_name[0] = '/':
+            pt_name = pt_name[1:]
+        self.status_msg.sel_pantilt_name = pt_name
+
+        self.status_msg.pantilt_connected = self.pt_connected
+
+        self.status_msg.height_to_tilt_axis = self.pt_offsets_dict['h']
+        self.status_msg.x_from_tilt_axis = self.pt_offsets_dict['x']
+        self.status_msg.y_from_tilt_axis = self.pt_offsets_dict['y']
+        self.status_msg.z_from_tilt_axis = self.pt_offsets_dict['z']
+
+
+
         self.node_if.publish_pub('status_pub',self.status_msg)
     

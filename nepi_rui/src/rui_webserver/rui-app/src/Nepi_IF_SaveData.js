@@ -21,6 +21,8 @@ import Select, { Option } from "./Select"
 import Input from "./Input"
 
 
+import NepiIFReset from "./Nepi_IF_Reset"
+
 function roundWithSuffix(value, decimals, suffix) {
   return value && (value.toFixed(decimals) + " " + suffix)
 }
@@ -90,7 +92,7 @@ class NepiIFSaveData extends Component {
 
   }
 
-  // Callback for handling ROS Status messages
+  // CAllback for handling ROS Status messages
   saveStatusListener(message) {
     const saveDataRates = message.save_data_rates
     const saveDirPrefix = message.current_subfolder
@@ -117,35 +119,33 @@ class NepiIFSaveData extends Component {
 
   // Function for configuring and subscribing to Status
   updateSaveStatusListener() {
-    const namespace = this.state.namespace ? this.state.namespace : null
+    const namespace = this.props.namespace + '/save_data'
     if (this.state.saveStatusListener) {
       this.state.saveStatusListener.unsubscribe()
     }
     if (namespace != 'None'){
       var saveStatusListener = this.props.ros.setupSaveDataStatusListener(
-            namespace + '/save_data',
+            namespace,
             this.saveStatusListener
           )
+      this.setState({ namespace: namespace})
       this.setState({ saveStatusListener: saveStatusListener,
         needs_update: false})
     }
   }
 
-  // Lifecycle method called when compnent updates.
+  // Lifecycle method cAlled when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const namespace = this.state.namespace
-    const namespace_updated = (prevState.namespace !== namespace && namespace !== null)
-    const needs_update = (this.state.needs_update && namespace !== null)
+    const namespace = this.props.namespace ? this.props.namespace : 'None'
+    const namespace_updated = (prevProps.namespace !== namespace && namespace !== 'None')
   
-    if ((namespace_updated || needs_update) &&
-        namespace !== "None" &&
-        !namespace.includes("null")) {
+    if ((namespace_updated) && !namespace.includes("null")) {
       this.updateSaveStatusListener()
     }
   }
 
-  // Lifecycle method called just before the component umounts.
+  // Lifecycle method cAlled just before the component umounts.
   // Used to unsubscribe to Status message
   componentWillUnmount() {
     if (this.state.saveStatusListener) {
@@ -189,9 +189,9 @@ class NepiIFSaveData extends Component {
     var rate_str = ""
     var saveRateMsg = null
     // add None and All options to lists
-    NamesList.push("NONE")
+    NamesList.push("None")
     RatesList.push("0.0")
-    NamesList.push("ALL")
+    NamesList.push("All")
     RatesList.push(this.state.saveDataRate)
     for (let ind = 0; ind < saveRatesMsg.length; ind++){
         saveRateMsg =saveRatesMsg[ind]
@@ -230,7 +230,7 @@ class NepiIFSaveData extends Component {
     var entryStr
     var configsStrList = [""]
     for (let ind = 0; ind < namesList.length; ind++) {
-      if (namesList[ind] !== "NONE" && namesList[ind] !== "ALL" ){
+      if (namesList[ind] !== "None" && namesList[ind] !== "All" ){
         entryStr = namesList[ind] + " : " + ratesList[ind] +  " Hz\n"
         configsStrList.push(entryStr)
       }
@@ -264,7 +264,7 @@ class NepiIFSaveData extends Component {
     var name = ""
     for (let ind = 0; ind < NamesList.length; ind++){
       name = NamesList[ind]
-      if (name !== "NONE" && name !== "ALL"){
+      if (name !== "None" && name !== "All"){
         if (parseFloat(RatesList[ind]) > 0) {
           selectedList.push(NamesList[ind])
         }
@@ -404,18 +404,19 @@ class NepiIFSaveData extends Component {
                       />
                     </Label>
 
-
-
-              </Column>
-              <Column>
-
-
-                  <Label title="Show Settings">
+                      <Label title="Show Controls">
                         <Toggle
                           checked={this.state.showControls===true}
                           onClick={this.onClickToggleShowSettings}>
                         </Toggle>
                       </Label>
+
+              </Column>
+              <Column>
+
+              </Column>
+              <Column>
+
 
             </Column>
             </Columns>
@@ -475,9 +476,6 @@ class NepiIFSaveData extends Component {
                   </Column>
                   <Column>
 
-                        <ButtonMenu>
-                          <Button onClick={() => sendTriggerMsg(this.state.namespace + '/reset')}>{"Reset"}</Button>
-                        </ButtonMenu>
                         <Label title={""}>
                         </Label>
                         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -512,35 +510,11 @@ class NepiIFSaveData extends Component {
 
           <div align={"left"} textAlign={"left"} hidden={namespace === 'None'}>
 
-          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+                  <NepiIFReset
+                        namespace={namespace}
+                        title={"Nepi_IF_Reset"}
+                  />
 
-          <Columns>
-            <Column>
-
-
-              <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-            </ButtonMenu>
-
-
-              </Column>
-            <Column>
-
-
-            <ButtonMenu>
-                <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-              </ButtonMenu>
-
-            </Column>
-            <Column>
-
-            <ButtonMenu>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-            </ButtonMenu>
-
-
-            </Column>
-          </Columns>
           </div>
 
 
