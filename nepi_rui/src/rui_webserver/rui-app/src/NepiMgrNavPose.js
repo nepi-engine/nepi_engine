@@ -169,13 +169,15 @@ class NavPoseMgr extends Component {
 
 
     this.getBaseNamespace = this.getBaseNamespace.bind(this)
-    this.getnamespace = this.getnamespace.bind(this)
+    this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
     this.renderMgrFixedControls = this.renderMgrFixedControls.bind(this)
     this.renderMgrTopicControls = this.renderMgrTopicControls.bind(this)
 
+    /*
     this.getShowTransform = this.getShowTransform.bind(this)
     this.setShowTransform = this.setShowTransform.bind(this)
+    */
     this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
     this.sendTransformClearMessage = this.sendTransformClearMessage.bind(this)
 
@@ -190,16 +192,20 @@ class NavPoseMgr extends Component {
 
     
   getBaseNamespace(){
+    console.log("=====getBaseNamespace called=====")
+
     const { namespacePrefix, deviceId} = this.props.ros
     var baseNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
       baseNamespace = "/" + namespacePrefix + "/" + deviceId 
     }
+    console.log("BaseNamespace: " + baseNamespace)
+
     return baseNamespace
   }
 
 
-  getnamespace(){
+  getMgrNamespace(){
     const { namespacePrefix, deviceId} = this.props.ros
     var namespace = null
     if (namespacePrefix !== null && deviceId !== null){
@@ -214,6 +220,9 @@ class NavPoseMgr extends Component {
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
+    console.log("=====statusListener called=====")
+    console.log("statusListener msg: ", message);
+
     const last_status_msg = this.state.status_msg
     this.setState({
       status_msg: message, 
@@ -256,6 +265,8 @@ class NavPoseMgr extends Component {
   }
 
   navposeListener(message) {
+    console.log("=====navposeListener called=====" + message)
+    console.log("navposeListener msg: " + message)
     // Transform the data to match what NavPoseDataViewer expects
     const last_navpose_msg = this.state.navpose_msg
     const navpose_data = {
@@ -368,7 +379,11 @@ class NavPoseMgr extends Component {
   }
 
 updateStatusListener() {
-  const namespace = this.state.namespace
+  console.log("=====updateStatusListener called=====")
+
+  const namespace = this.state.base_namespace + "/" + this.state.mgrName 
+  const topic = namespace + "/status";
+  console.log("Subscribing to:", topic);
 
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
@@ -383,6 +398,8 @@ updateStatusListener() {
 }
 
 updateNavposeListener() {
+  console.log("=====updateNavposeListener called=====")
+
   const namespace = this.state.base_namespace
   const navposeTopic = namespace + "/navpose"
   
@@ -418,6 +435,33 @@ updateNavposeListener() {
       } else if (namespace == null){
         this.setState({ disabled: true })
       }
+    console.log("Namespace check:", this.getMgrNamespace(), this.getBaseNamespace(), this.props.ros);
+
+    }
+  }
+
+  componentDidMount() {
+    this.checkConnection();
+  }
+  
+  async checkConnection() {
+    const { namespacePrefix, deviceId } = this.props.ros;
+    if (namespacePrefix != null && deviceId != null) {
+      const namespace = this.getMgrNamespace();
+      const base_namespace = this.getBaseNamespace();
+  
+      this.setState({
+        namespace: namespace,
+        base_namespace: base_namespace
+      }, () => {
+        this.updateStatusListener();
+        this.updateNavposeListener();
+      });
+  
+    } else {
+      setTimeout(() => {
+        this.checkConnection();
+      }, 1000);
     }
   }
 
@@ -431,6 +475,7 @@ updateNavposeListener() {
       this.state.navposeListener.unsubscribe()
     }
   }
+
 
 
   // Function for creating topic options for Select input
@@ -490,6 +535,7 @@ updateNavposeListener() {
 
 
   sendTransformClearMessage(name){
+    
     const {sendStringMsg} = this.props.ros
     const namespace = this.state.namespace + "/clear_3d_transform"
     sendStringMsg(namespace,name)
@@ -498,12 +544,18 @@ updateNavposeListener() {
   
 
   renderMgrControls() {
+
+    
+
     const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
-    const status_msg = false //this.state.status_msg
+    const status_msg = this.state.status_msg
     //////////////// 
-    
+    if (status_msg == null){
+      console.log('status_msg is null in renderMgrControls')
+    }
+
     if (status_msg == null){
       return (
             <Columns>
@@ -570,6 +622,7 @@ updateNavposeListener() {
         )
 
       }    
+
     }
   }
 
@@ -577,7 +630,7 @@ updateNavposeListener() {
     const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
-    const status_msg = false //this.state.status_msg
+    const status_msg = null //this.state.status_msg
     //////////////// 
 
     
@@ -606,8 +659,9 @@ updateNavposeListener() {
                             <Input
                               value={round(npData['latitude'],6)}
                               id="latitude"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.latitude")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.latitude")}
+                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npData.latitude"
+)}
+                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npData.longitude")}
                               style={{ width: "80%" }}
                             />
                           </Label>
@@ -918,11 +972,11 @@ updateNavposeListener() {
   }
 
 
-  renderTopicControls(name, comp_info) {
+  renderMgrTopicControls(name, comp_info) {
     const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
-    const status_msg = false //this.state.status_msg
+    const status_msg = this.state.status_msg
     //////////////// 
     
     if (status_msg == null){
