@@ -111,7 +111,7 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
-      pantilt_offsets: [0,0,0,0],
+      pantilt_offsets: [0,0,0],
 
       listener: null,
       disabled: true
@@ -338,10 +338,9 @@ class NepiDevicePTX extends Component {
     }
 
     const pantilt_offsets = [
-      message.height_to_tilt_axis,
-      message.x_from_tilt_axis,
-      message.y_from_tilt_axis,
-      message.z_from_tilt_axis]
+      message.x_from_base_center,
+      message.y_from_base_center,
+      message.z_from_base_center]
     const cur_offsets = this.state.pantilt_offsets
     if (pantilt_offsets !== cur_offsets) {
       this.setState({
