@@ -393,7 +393,8 @@ class NavPoseMgr(object):
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
-        nepi_sdk.start_timer_process(1.0, self._publishNavPoseStatusCb)
+        np_pub_delay = float(1.0)/self.set_pub_rate
+        nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
 
         ##############################
         ## Initiation Complete
@@ -446,27 +447,27 @@ class NavPoseMgr(object):
     def setNavPoseCb(self,npdata_dict):
         if npdata_dict is not None:
             if npdata_dict['has_location'] == True:
-                success = _unregisterTopic(self,'location')
+                success = self._unregisterTopic(self,'location')
                 self.connect_dict['location']['fixed'] = True
                 self.transforms_dict['location'] = self.ZERO_TRANSFORM
             if npdata_dict['has_heading'] == True:
-                success = _unregisterTopic(self,'heading')
+                success = self._unregisterTopic(self,'heading')
                 self.connect_dict['heading']['fixed'] = True
                 self.transforms_dict['heading'] = self.ZERO_TRANSFORM
             if npdata_dict['has_orientation'] == True:
-                success = _unregisterTopic(self,'orientation')
+                success = self._unregisterTopic(self,'orientation')
                 self.connect_dict['orientation']['fixed'] = True
                 self.transforms_dict['orientation'] = self.ZERO_TRANSFORM
             if npdata_dict['has_position'] == True:
-                success = _unregisterTopic(self,'position')
+                success = self._unregisterTopic(self,'position')
                 self.connect_dict['position']['fixed'] = True
                 self.transforms_dict['position'] = self.ZERO_TRANSFORM
             if npdata_dict['has_altitude'] == True:
-                success = _unregisterTopic(self,'altitude')
+                success = self._unregisterTopic(self,'altitude')
                 self.connect_dict['altitude']['fixed'] = True
                 self.transforms_dict['altitude'] = self.ZERO_TRANSFORM
             if npdata_dict['has_depth'] == True:
-                success = _unregisterTopic(self,'depth')
+                success = self._unregisterTopic(self,'depth')
                 self.connect_dict['depth']['fixed'] = True
                 self.transforms_dict['depth'] = self.ZERO_TRANSFORM
             navpose_dict = copy.deepcopy(self.navpose_dict)
@@ -517,6 +518,7 @@ class NavPoseMgr(object):
         self.node_if.publish_pub('navpose_status_pub', self.np_status_msg)
 
     def publish_status(self, do_updates = False):
+        self.msg_if.pub_warn("========publish_status called========")
 
         connect_dict = copy.deepcopy(self.connect_dict)
         subs_dict = copy.deepcopy(self.subs_dict)
@@ -536,7 +538,6 @@ class NavPoseMgr(object):
             comp_info.fixed = connect_dict[name]['fixed']
             comp_info.topic = connect_dict[name]['topic']
             comp_info.topic_msg = connect_dict[name]['msg']
-            comp_info.available_topics = connect_dict[name]['connected']
 
             times = connect_dict[name]['times']
             avg_times = sum(times)/len(times)
@@ -559,8 +560,6 @@ class NavPoseMgr(object):
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
-
-
 
     #######################
     # Private Members
@@ -618,7 +617,7 @@ class NavPoseMgr(object):
             self.connect_dict[name]['fixed'] = False
             if topic == 'None' or topic == '':
                 success = self._unregisterTopic(name)
-            elif topic in self.avail_topics_dict[name]:
+            elif topic in self.avail_topics_dict[name]['topics']:
                 if self.subs_dict[name]['topic'] != '':
                     success = self._unregisterTopic(name)
                 msg_str = self.avail_topics_dict[name]['msg']
@@ -764,10 +763,12 @@ class NavPoseMgr(object):
 
     def _publishStatusCb(self,timer):
         self.publish_status()
-
-
-    def _publishNavPoseStatusCb(self,timer):
         self.publish_navpose_status()
+
+    def _publishNavPoseCb(self,timer):
+        self.publish_navpose()
+        np_pub_delay = float(1.0)/self.set_pub_rate
+        nepi_sdk.start_timer_process(np_pub_delay, self._publishNavPoseCb, oneshot = True)       
 
     def _cleanupActions(self):
         self.msg_if.pub_info("Shutting down: Executing script cleanup actions")
