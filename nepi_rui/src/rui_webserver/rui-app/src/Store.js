@@ -1701,21 +1701,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       }
     }
 
-    @action.bound
-    sendPanTiltOffsetsMsg(namespace, offsetsFloatList) {
-      if (offsetsFloatList.length === 3){
-        this.publishMessage({
-          name: namespace,
-          messageType: "nepi_sdk_interfaces/PanTiltOffsets",
-          data: { 
-            x_from_base_center: offsetsFloatList[1],
-            y_from_base_center: offsetsFloatList[2],
-            z_from_base_center: offsetsFloatList[3]
-          },
-          noPrefix: true
-        })
-      }
-    }
+
   ////////////////////////////////
   /////  Service Calls
   ///////////////////////////////
