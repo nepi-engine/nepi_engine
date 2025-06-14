@@ -294,7 +294,23 @@ export function onUpdateSetStateValue(event,stateVarStr) {
   this.render()
 }
 
+export function onUpdateSetStateIndexValue(event, stateVarStr, index = null) {
+  var key = stateVarStr
+  var value = parseFloat(event.target.value)
+  var obj = {}
 
+  if (index !== null) {
+    var arr = [...this.state[key]]
+    arr[index] = value
+    obj[key] = arr
+  } else {
+    obj[key] = value
+  }
+
+  this.setState(obj)
+  document.getElementById(event.target.id).style.color = Styles.vars.colors.red
+  this.render()
+}
 
 export function onEnterSendIntValue(event, namespace) {
   const {sendIntMsg} = this.props.ros

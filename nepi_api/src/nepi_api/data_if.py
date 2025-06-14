@@ -564,7 +564,6 @@ class NavPoseIF:
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
 
-        self.pub_subs = pub_subs,
 
         ##############################   
         ## Node Setup

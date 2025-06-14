@@ -18,7 +18,7 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import Input from "./Input"
 import { Column, Columns } from "./Columns"
-import { round, onUpdateSetStateValue, onEnterSetStateFloatValue,  } from "./Utilities"
+import { round, onUpdateSetStateValue, onEnterSetStateFloatValue} from "./Utilities"
 
 import NepiIFReset from "./Nepi_IF_Reset"
 

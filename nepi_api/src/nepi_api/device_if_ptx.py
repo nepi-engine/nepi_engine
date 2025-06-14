@@ -1608,7 +1608,6 @@ class PTXActuatorIF:
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
 
-        self.status_msg.height_to_tilt_axis = self.offsets_dict['h']
         self.status_msg.x_from_base_center = self.offsets_dict['x']
         self.status_msg.y_from_base_center = self.offsets_dict['y']
         self.status_msg.z_from_base_center = self.offsets_dict['z']
