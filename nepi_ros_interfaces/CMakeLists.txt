@@ -76,13 +76,14 @@ add_message_files(FILES
     TestPatternCfg.msg
     PeriodicSwTrig.msg
     NavPoseData.msg
+    NavPoseDataTrack.msg
+    NavPoseDataStatus.msg
     NavPoseLocation.msg    
     NavPoseHeading.msg
     NavPoseOrientation.msg
     NavPosePosition.msg
     NavPoseAltitude.msg
     NavPoseDepth.msg
-    NavPoseDataStatus.msg
     NavPoseMgrStatus.msg
     NavPoseMgrCompInfo.msg
     StampedString.msg

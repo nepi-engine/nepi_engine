@@ -31,7 +31,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataTrack, NavPoseDataStatus
 from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -492,6 +492,8 @@ class NavPoseIF:
     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
+    MIN_MAX_TRACK_LENGTH = [1,100]
+    MIN_MAX_TRACK_SEC = [1,3600]
     ready = False
     namespace = '~'
 
@@ -514,7 +516,10 @@ class NavPoseIF:
 
     caps_report = NavPoseCapabilitiesQueryResponse()
 
-    pub_subs = True,
+    track_lenght = 1
+    track_sec = 60
+    track_sec_last = 0.0
+    track_msg_list = []
 
     def __init__(self, namespace = None,
                 pub_location = False, pub_heading = False,
@@ -564,7 +569,10 @@ class NavPoseIF:
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
 
-        self.pub_subs = pub_subs,
+        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
+        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
+        
+        self.pub_subs = pub_subs
 
         ##############################   
         ## Node Setup
@@ -581,6 +589,21 @@ class NavPoseIF:
                 'callback': self._provide_capabilities
             }
         }
+
+        # Params Config Dict ####################
+        PARAMS_DICT = {
+
+            'track_length': {
+                'namespace': self.namespace,
+                'factory_val': self.track_length
+            },
+            'auto_adjust_enabled': {
+                'namespace': self.namespace,
+                'factory_val': self.track_sec
+            }
+        }
+
+
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
@@ -654,18 +677,57 @@ class NavPoseIF:
                 'latch': False
             }
 
-        # Subs Config Dict ####################
 
+        # Subs Config Dict ####################
+        SUBS_DICT = {
+            'reset': {
+                'namespace': self.namespace,
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetCb, 
+                'callback_args': ()
+            },
+            'set_track_length': {
+                'msg': Int32,
+                'namespace': self.namespace,
+                'topic': 'set_track_length',
+                'qsize': 1,
+                'callback': self._setTrackLengthCb
+            },
+            'set_track_sec': {
+                'msg': Int32,
+                'namespace': self.namespace,
+                'topic': 'set_track_sec',
+                'qsize': 1,
+                'callback': self._setTrackSecCb
+            },          
+            'clear_tracks': {
+                'namespace': self.namespace,
+                'topic': 'clear_tracks',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._clearTracksCb, 
+                'callback_args': ()
+            }
+        }
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                        params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
                                             )
 
         #self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
+
+        ##############################
+        # Update vals from param server
+        self.track_length = self.node_if.get_param('track_length')
+        self.track_sec = self.node_if.get_param('track_sec')
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -864,6 +926,41 @@ class NavPoseIF:
                     msg.depth_m = np_dict['depth_m']
                     self.node_if.publish_pub(pub_name,msg)
         
+            # Update tracks if needed
+            next_sec = self.get_next_track_sec()
+            if next_sec <= 0:
+                try:
+                    track_msg = nepi_nav.get_track_msg_from_dict(np_dict)
+                    if track_msg is not None:
+                        if len(self.track_msg_list) >= self.track_length:
+                            self.track_msg_list.pop[0]
+                        self.track_msg_list.append(track_msg)
+                        self.track_sec_last = nepi_utils.get_time()
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to convert navpose data to track msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+
+    def get_frame_nav_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_altitude_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_depth_options(self):
+        return NAVPOSE_DEPTH_FRAME_OPTIONS
+
+    def get_data_products(self):
+        return self.data_products_list
+
+    def get_blank_navpose_dict(self):
+        return nepi_nav.BLANK_NAVPOSE_DICT
+
+    def get_status_dict(self):
+        status_dict = None
+        if self.status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
+
         return success
 
 
@@ -874,6 +971,68 @@ class NavPoseIF:
         time.sleep(1)
         self.namespace = None
         self.status_msg = NavPoseDataStatus()
+
+
+
+    def get_track_length(self):
+        return self.track_length
+
+    def set_track_length(self,length):
+        if length < self.MIN_MAX_TRACK_LENGTH[0]:
+            length = self.MIN_MAX_TRACK_LENGTH[0]
+        if length > self.MIN_MAX_TRACK_LENGTH[1]:
+            length = self.MIN_MAX_TRACK_LENGTH[1]
+        self.track_length = length
+        track_msg_list = copy.deepcopy(self.track_msg_list)
+        while len(track_msg_list) > self.track_length:
+            track_msg_list.pop[0]
+        self.track_msg_list = track_msg_list
+        self.node_if.set_param('track_length',length)
+        self.publish_status()
+
+    def get_track_sec(self):
+        return self.track_sec
+
+    def set_track_sec(self,sec):
+        if sec < self.MIN_MAX_TRACK_SEC[0]:
+            sec = self.MIN_MAX_TRACK_SEC[0]
+        if sec > self.MIN_MAX_TRACK_SEC[1]:
+            sec = self.MIN_MAX_TRACK_SEC[1]
+        self.track_sec = sec
+        self.node_if.set_param('track_sec',sec)
+        self.publish_status()
+
+    def get_next_track_sec(self):
+        sec = nepi_utils.get_time() - self.track_sec_last
+        next_sec = self.track_sec - sec
+        if next_sec < 0:
+            next_sec = 0
+        return next_sec
+
+    def get_tracks(self):
+        track_list = []
+        for track_msg in self.track_msg_list:
+            track_list.append(nepi_sdk.convert_msg2dict(track_msg))
+        return track_list
+        
+    def clear_tracks(self):
+        self.track_msg_list = []
+        self.track_sec_last = 0.0
+
+    def publish_status(self):
+        if self.node_if is not None:
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_pub_rate = avg_rate
+            self.status_msg.track_length = self.track_length
+            self.status_msg.track_sec = self.track_sec
+            self.status_msg.track_next_sec = self.get_next_track_sec()
+            self.status_msg.track_list = self.track_msg_list
+            self.node_if.publish_pub('status_pub', self.status_msg)
+
+
 
     ###############################
     # Class Private Methods
@@ -889,18 +1048,22 @@ class NavPoseIF:
 
 
     def _publishStatusCb(self,timer):
-        if self.node_if is not None:
-            avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
-            self.node_if.publish_pub('status_pub', self.status_msg)
+        self.publish_status()
 
     def _provide_capabilities(self, _):
         return self.caps_report
 
 
+    def _setTrackLengthCb(self,msg):
+        data = msg.data
+        self.set_track_length(data)
+
+    def _setTrackSecCb(self,msg):
+        data = msg.data
+        self.set_track_sec(data)
+    
+    def _clearTracksCb(self,msg):
+        self.clear_tracks()
 
 
 ##################################################
@@ -1050,6 +1213,7 @@ class ImageIF:
     get_navpose_function = None
     has_navpose = False
     navpose_if = None
+
 
     def __init__(self, namespace , 
                 data_name ,

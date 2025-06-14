@@ -30,7 +30,6 @@ from nepi_sdk_interfaces.msg import IDXStatus, RangeWindow
 from nepi_sdk_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_sdk_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_sdk_interfaces.msg import Frame3DTransform
-from nepi_sdk_interfaces.msg import PanTiltOffsets
 
 from geometry_msgs.msg import Vector3
 
@@ -154,12 +153,7 @@ class IDXDeviceIF:
     pt_mounted = False
     pt_topic = ''
     pt_connected = False
-    pt_offsets_dict = dict(
-        h_m = 0.0,
-        x_m = 0.0,
-        y_m = 0.0,
-        z_m = 0.0
-    )
+
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -343,10 +337,6 @@ class IDXDeviceIF:
             'pt_topic': {
                 'namespace': self.node_namespace,
                 'factory_val': ''
-            },
-            'pt_offsets': {
-                'namespace': self.node_namespace,
-                'factory_val': self.pt_offsets_dict
             }
 
 
@@ -511,22 +501,6 @@ class IDXDeviceIF:
                 'qsize': 1,
                 'callback': self.setPtTopicCb, 
                 'callback_args': ()
-            },
-            'set_pt_offsets': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_pt_offsets',
-                'msg': PanTiltOffsets,
-                'qsize': 1,
-                'callback': self.setPtOffsetsCb, 
-                'callback_args': ()
-            },
-            'clear_pt_offsets': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/clear_pt_offsets',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.clearPtOffsetsCb, 
-                'callback_args': ()
             }
             
         }
@@ -618,7 +592,6 @@ class IDXDeviceIF:
 
         self.pt_mounted = self.node_if.get_param('pt_mounted')
         self.pt_topic = self.node_if.get_param('pt_topic')
-        self.pt_offsets_dict = self.node_if.get_param('pt_offsets_dict')
 
 
         # Start the data producers
@@ -1129,25 +1102,6 @@ class IDXDeviceIF:
         self.pt_topic = msg.data
         self.publishStatus(do_updates=False) # Updated inline here 
         self.node_if.set_param('pt_mounted', self.pt_mounted)
-
-    def setPtOffsetsCb(self,msg):
-        self.msg_if.pub_info("Recived pt topic offsets: " + str(msg))
-        self.pt_offsets_dict['h_m'] = msg.height_to_tilt_axis
-        self.pt_offsets_dict['x_m'] = msg.x_from_tilt_axis
-        self.pt_offsets_dict['y_m'] = msg.y_from_tilt_axis
-        self.pt_offsets_dict['z_m'] = msg.z_from_tilt_axis
-        self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('pt_offsets', self.pt_offsets_dict)
-
-    def clearPtOffsetsCb(self,msg):
-        self.msg_if.pub_info("Recived pt topic offsets: " + str(msg))
-        self.pt_offsets_dict['h_m'] = 0
-        self.pt_offsets_dict['x_m'] = 0
-        self.pt_offsets_dict['y_m'] = 0
-        self.pt_offsets_dict['z_m'] = 0
-        self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('pt_offsets', self.pt_offsets_dict)
-
    
     def initConfig(self):
       self.initCb(do_updates = True)
@@ -1557,11 +1511,6 @@ class IDXDeviceIF:
         self.status_msg.sel_pantilt_name = pt_name
 
         self.status_msg.pantilt_connected = self.pt_connected
-
-        self.status_msg.height_to_tilt_axis = self.pt_offsets_dict['h']
-        self.status_msg.x_from_tilt_axis = self.pt_offsets_dict['x']
-        self.status_msg.y_from_tilt_axis = self.pt_offsets_dict['y']
-        self.status_msg.z_from_tilt_axis = self.pt_offsets_dict['z']
 
 
 

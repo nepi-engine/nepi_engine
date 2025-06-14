@@ -57,20 +57,15 @@ string sel_pantilt_name
 string sel_pantilt_device_topic
 string sel_pantilt_navpose_topic
 bool sel_pantilt_connected
-# Meters from center base of pan tilt to hieight tilt axis 
-# Measured in upright position, inversions handled downstream
-float32 pantilt_height_to_tilt_axis 
-# Meters x,y,z from pantilt tilt center axis in ENU frame
-# Measured in upright position, inversions handled downstream
-float32 pantilt_x_from_tilt_axis
-float32 pantilt_y_from_tilt_axis
-float32 pantilt_z_from_tilt_axis
 
-# Input Transform for data from sensor's native sensor frame ( or PanTilt center base frame) to the nepi_center_frame 
+# Input Transform for data from sensor's native sensor frame to the nepi_frame,
+# Or PanTilt center tilt axis if panTilt mounted
 nepi_sdk_interfaces/Frame3DTransform frame_3d_transform
 
 # Output transform into which 3D data (navpose,pointclouds...) are published
-# Options ['nepi_base_frame','sensor_frame','map']
+# Options ['nepi_frame','sensor_frame']
+# If frame_3d_transform is set to no zero values -> nepi_frame
+# If frame_3d_transform is set to all zeros values -> sensor_frame
 string frame_3d
 
 

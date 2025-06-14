@@ -100,7 +100,7 @@ def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     if frame_id is not None:
         ros_img_msg.header.frame_id = frame_id
     else:
-        ros_img_msg.header.frame_id="nepi_center_frame"
+        ros_img_msg.header.frame_id="nepi_frame"
     return ros_img_msg
 
 def o3dimg_to_cv2img(o3d_img):

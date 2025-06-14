@@ -70,19 +70,13 @@ class NepiDeviceIDXControls extends Component {
 
       disabled: false,
       frame_3d: null,
-
-
+  
       avail_pantilt_topics: [],
       pantilt_mounted: false,
       sel_pantilt_name: 'None',
       sel_pantilt_device_topic: 'None',
       sel_pantilt_navpose_topic: 'None',
-      sel_pantilt_connected: false,
-      pantilt_offsets: [0,0,0,0], 
-    
-
-
-      frame_status: null
+      sel_pantilt_connected: false
     }
 
 
@@ -140,18 +134,6 @@ class NepiDeviceIDXControls extends Component {
         transformRY: new_transform.rotate_vector.y,
         transformRZ: new_transform.rotate_vector.z,
         transformHO: new_transform.heading_offset
-      })
-    }
-
-    const pantilt_offsets = [
-      message.height_to_tilt_axis,
-      message.x_from_tilt_axis,
-      message.y_from_tilt_axis,
-      message.z_from_tilt_axis]
-    const cur_offsets = this.state.pantilt_offsets
-    if (pantilt_offsets !== cur_offsets) {
-      this.setState({
-      pantilt_offsets: pantilt_offsets
       })
     }
   }
@@ -591,46 +573,17 @@ class NepiDeviceIDXControls extends Component {
                   <Columns>
                     <Column>
                     <div align={"left"} textAlign={"left"}>
-                      <Label title={"Output Frame"}>
-                      </Label>
-                    </div>
-                    </Column>
-                    <Column>
-                      <div align={"left"} textAlign={"left"}>
                         <Label title={"Current Frame"}>
                         <Input value = {this.state.frame_3d} />
                         </Label>
                       </div>
                     </Column>
-                  </Columns>
-
-
-                  <Columns>
                     <Column>
-                    <div align={"center"} textAlign={"center"}>
-                      <Label title={"NEPI"} align={"center"}>
-                      </Label>
-                      <Toggle 
-                        checked={this.state.frame_3d === "nepi_frame"} 
-                        disabled={(!this.state.disabled)? false : true}
-                        onClick={() => sendStringMsg(namespace + '/set_frame_3d',"nepi_base_frame")}
-                      />
-                    </div>
-        
-                    </Column>
-                    <Column>
-                    <div align={"center"} textAlign={"center"}>
-                      <Label title={"Earth"} align={"center"}>
-                      </Label>
-                      <Toggle 
-                        checked={this.state.frame_3d === "sensor_frame"} 
-                        disabled={(!this.state.disabled)? false : true}
-                        onClick={() => sendStringMsg(namespace + '/set_frame_3d',"senor_frame")}
-                      />
-                      </div>
 
                     </Column>
                   </Columns>
+
+
             </div>
                <NepiIFReset
                         namespace={namespace}

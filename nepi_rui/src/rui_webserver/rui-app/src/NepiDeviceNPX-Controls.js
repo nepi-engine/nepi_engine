@@ -314,9 +314,9 @@ class NepiDeviceNPXControls extends Component {
                   <Label title={"NEPI"} align={"center"}>
                   </Label>
                   <Toggle 
-                    checked={this.state.frame_3d === "nepi_center_frame"} 
+                    checked={this.state.frame_3d === "nepi_frame"} 
                     disabled={(!this.state.disabled)? false : true}
-                    onClick={() => this.props.ros.setFrame3D(this.props.namespace,"nepi_center_frame")}
+                    onClick={() => this.props.ros.setFrame3D(this.props.namespace,"nepi_frame")}
                     />
                 </div>
               </Column>

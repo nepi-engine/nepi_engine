@@ -15,4 +15,10 @@ string pub_frame_depth
 bool publishing
 float32 avg_pub_rate
 
+# Track Queue Settings
+int32 track_length
+int32 track_sec
+int32 track_next_sec
+NavPoseDataTrack[] track_list
+
 

@@ -677,6 +677,16 @@ class SaveDataIF:
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', status_msg)
 
+    def reset(self):
+        self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+        self.node_if.reset_params()
+        self.publish_status()
+
+
+    def factory_reset(self):
+        self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+        self.node_if.factory_reset_params()
+        self.publish_status()
 
     ###############################
     # Class Private Methods
@@ -744,15 +754,10 @@ class SaveDataIF:
 
 
     def _resetCb(self,reset_msg):
-        self.msg_if.pub_info("Recieved save data reset msg", log_name_list = self.log_name_list)
-        self.node_if.reset_params()
-        self.publish_status()
-
+        self.reset()
 
     def _factoryResetCb(self,reset_msg):
-        self.msg_if.pub_info("Recieved save data factory reset msg", log_name_list = self.log_name_list)
-        self.node_if.factory_reset_params()
-        self.publish_status()
+        self.factory_reset
 
 
 
@@ -1060,7 +1065,7 @@ class SettingsIF:
             self.reset_settings()
 
 
-    def reset_settings(self, update_status = True):
+    def reset(self, update_status = True):
         self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
         self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
         if self.init_settings is not None:
@@ -1085,7 +1090,7 @@ class SettingsIF:
 
 
     def _resetCb(self,msg):
-        self.reset_settings()
+        self.reset()
 
     def _factoryResetCb(self,msg):
         self.factory_reset_settings()
@@ -1110,7 +1115,7 @@ class SettingsIF:
         self.update_cap_setting(cap_setting_dict, update_status = True, update_param = True)
 
     def _resetSettingsCb(self,msg):
-        self.reset_settings()
+        self.reset()
 
     def _resetFactorySettingsCb(self,msg):
         self.factory_reset_settings()
