@@ -18,7 +18,7 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import Input from "./Input"
 import { Column, Columns } from "./Columns"
-import { round, onUpdateSetStateValue, onEnterSetStateFloatValue,  } from "./Utilities"
+import { round, onUpdateSetStateValue, onEnterSetStateFloatValue} from "./Utilities"
 
 import NepiIFReset from "./Nepi_IF_Reset"
 
@@ -115,13 +115,13 @@ class NepiDeviceIDXControls extends Component {
       rangeLimitMinM: message.min_range_m,
       rangeLimitMaxM: message.max_range_m,
       frame_3d: message.frame_3d,
-      transform_msg: message.frame_3d_transform
+      transform_msg: message.frame_3d_transform,
       avail_pantilt_topics: message.avail_pantilt_topics,
       pantilt_mounted: message.pantilt_mounted,
       sel_pantilt_name: message.sel_pantilt_name,
       sel_pantilt_device_topic: message.sel_pantilt_device_topic,
       sel_pantilt_navpose_topic: message.sel_pantilt_navpose_topic,
-      sel_pantilt_connected: message.sel_pantilt_connected,
+      sel_pantilt_connected: message.sel_pantilt_connected
     })
 
     if (transform !== message.frame_3d_transform){

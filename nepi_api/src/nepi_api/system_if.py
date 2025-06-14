@@ -316,7 +316,7 @@ class SaveDataIF:
                 'qsize': 1,
                 'callback': self._resetCb,  
                 'callback_args': ()
-            }
+            },
             'save_all': {
                 'namespace': self.base_namespace,
                 'msg': Bool,

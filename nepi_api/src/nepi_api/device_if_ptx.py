@@ -134,7 +134,6 @@ class PTXActuatorIF:
 
 
     offsets_dict = dict()
-    offsets_dict['h'] = 0
     offsets_dict['x'] = 0
     offsets_dict['y'] = 0
     offsets_dict['z'] = 0
@@ -964,10 +963,10 @@ class PTXActuatorIF:
         z = 0.0
         if orien_dict is not None:
             
-            ho = self.offsets_dict['h']
+            ho = self.offsets_dict['z']
             xo = self.offsets_dict['x']
             yo = self.offsets_dict['y']
-            zo = self.offsets_dict['z']
+            zo = 0
 
             # calculate pos from tilt axis
             tilt_rad = -1 * math.radians(orien_dict['pitch_deg'])
@@ -1431,10 +1430,9 @@ class PTXActuatorIF:
 
     def setOffsetsHandler(self, msg):
         self.msg_if.pub_info("Setting offsets to: " + str(msg))
-        self.offsets_dict['h'] = msg.height_to_tilt_axis
-        self.offsets_dict['x'] = msg.x_from_tilt_axis
-        self.offsets_dict['y'] = msg.y_from_tilt_axis
-        self.offsets_dict['z'] = msg.z_from_tilt_axis
+        self.offsets_dict['x'] = msg.x_from_base_center
+        self.offsets_dict['y'] = msg.y_from_base_center
+        self.offsets_dict['z'] = msg.z_from_base_center
         self.publish_status()
         self.node_if.set_param('offsets', self.offsets_dict)
 
@@ -1610,10 +1608,9 @@ class PTXActuatorIF:
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
 
-        self.status_msg.height_to_tilt_axis = self.offsets_dict['h']
-        self.status_msg.x_from_tilt_axis = self.offsets_dict['x']
-        self.status_msg.y_from_tilt_axis = self.offsets_dict['y']
-        self.status_msg.z_from_tilt_axis = self.offsets_dict['z']
+        self.status_msg.x_from_base_center = self.offsets_dict['x']
+        self.status_msg.y_from_base_center = self.offsets_dict['y']
+        self.status_msg.z_from_base_center = self.offsets_dict['z']
 
         if do_updates == True:
             if self.getSoftLimitsCb is not None:

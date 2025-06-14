@@ -294,8 +294,6 @@ export function onUpdateSetStateValue(event,stateVarStr) {
   this.render()
 }
 
-
-
 export function onEnterSendIntValue(event, namespace) {
   const {sendIntMsg} = this.props.ros
   if(event.key === 'Enter'){
