@@ -30,7 +30,7 @@ import Nepi_IF_SaveData from "./Nepi_IF_SaveData"
 @observer
 
 // NavPose viewer window
-class NavPoseViewer extends Component {
+class NavPoseData extends Component {
   constructor(props) {
     super(props)
 
@@ -55,7 +55,7 @@ class NavPoseViewer extends Component {
 
       connected: false,
 
-      locListener: null.
+      locListener: null,
       headListener: null,
       orienListener: null,
       posListener: null
@@ -195,4 +195,4 @@ class NavPoseViewer extends Component {
 
 }
 
-export default NavPoseViewer
+export default NavPoseData

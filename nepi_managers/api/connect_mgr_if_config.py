@@ -13,7 +13,7 @@ import time
 import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+from nepi_sdk_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -79,16 +79,16 @@ class ConnectMgrConfigIF:
             'user_reset': {
                 'namespace': self.mgr_namespace,
                 'topic': 'user_reset',
-                'srv': FileReset,
-                'req': FileResetRequest(),
-                'resp': FileResetResponse(),
+                'srv': ParamsReset,
+                'req': ParamsResetRequest(),
+                'resp': ParamsResetResponse(),
             },
             'factory_reset': {
                 'namespace': self.mgr_namespace,
                 'topic': 'factory_reset',
-                'srv': FileReset,
-                'req': FileResetRequest(),
-                'resp': FileResetResponse(),
+                'srv': ParamsReset,
+                'req': ParamsResetRequest(),
+                'resp': ParamsResetResponse(),
             }
         }
 

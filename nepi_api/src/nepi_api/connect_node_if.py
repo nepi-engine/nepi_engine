@@ -86,10 +86,10 @@ class ConnectNodeConfigsIF:
         ##############################  
         # Setup Class Publishers for Node Namespace
         self.msg_if.pub_debug("Creating config publishers on namespace: " + self.namespace)
-        self.save_pub = nepi_sdk.create_publisher('~save_config', Empty, queue_size=1) 
-        self.reset_pub = nepi_sdk.create_publisher('~reset_config', Empty, queue_size=1) 
-        self.factory_reset_pub = nepi_sdk.create_publisher('~factory_reset_config', Empty, queue_size=1) 
-        self.sys_reset_pub = nepi_sdk.create_publisher('~system_reset', Reset, queue_size=1)
+        self.save_pub = nepi_sdk.create_publisher(self.namespace + '/save_config', Empty, queue_size=1) 
+        self.reset_pub = nepi_sdk.create_publisher(self.namespace + '/reset_config', Empty, queue_size=1) 
+        self.factory_reset_pub = nepi_sdk.create_publisher(self.namespace + '/factory_reset_config', Empty, queue_size=1) 
+        self.sys_reset_pub = nepi_sdk.create_publisher(self.namespace + '/system_reset', Reset, queue_size=1)
 
         ##############################  
         # Complete Initialization Process

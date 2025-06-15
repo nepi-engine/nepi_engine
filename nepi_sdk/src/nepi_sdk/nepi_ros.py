@@ -179,6 +179,7 @@ def create_namespace(base_namespace,topic):
       topic = topic[1:]
 
   namespace = os.path.join(base_namespace,topic)
+  namespace = get_full_namespace(namespace)
   return namespace
 
 def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
@@ -593,28 +594,30 @@ def call_service(service, request, verbose = True):
 
 EXAMPLE_PARAMS_DICT = {'threshold': 0.3,'max_rate': 5}
 
-def upload_params(namespace, params, verbose=False):
+def upload_params(namespace, params_dict, verbose=False):
+    namespace = get_full_namespace(namespace)
     try:
-        rospy.upload_params(namespace, params, verbose=verbose)
+        rospy.upload_params(namespace, params_dict, verbose=verbose)
     except rosparam.RosParamException as e:
         rospy.logerr("Error uploading parameters from param " + str(e))
 
-def load_params_from_dict(params_dict, params_namespace):
+def set_params_from_dict(params_dict, namespace):
     for key in params_dict:
       val = params_dict[key]
-      namespace = create_namespace(params_namespace,key)
+      namespace = create_namespace(namespace,key)
     try:
         rospy.set_param(namespace,val)
     except rosparam.RosParamException as e:
         rospy.logerr("Error creating parameters from param key: " + str(key) + " " + str(e))
 
 
-def load_params_from_file(file_path, params_namespace = None):
-    if params_namespace is not None:
-      if params_namespace[-1] != "/":
-        params_namespace += "/"
+def load_params_from_file(file_path, namespace = None):
+    if namespace is not None:
+      if namespace[-1] != "/":
+        namespace += "/"
     else:
-      params_namespace = "~/"
+      namespace = "~/"
+    namespace = get_full_namespace(namespace)
     rospy.logwarn("Will try loading parameters from file: " + file_path)
     try:
         params_input = rosparam.load_file(file_path)
@@ -622,19 +625,31 @@ def load_params_from_file(file_path, params_namespace = None):
         rospy.logwarn("Error loading parameters from file: " + file_path + " " + str(e))
     try:
         if params_input != []:
-          #rospy.logwarn("nepi_sdk: loaded params" + str(params_input) + " for " + params_namespace)
+          #rospy.logwarn("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)
           params = params_input[0][0]
-          for key in params.keys():
-              value = params[key]
-              param_namesapce = params_namespace + key
-              #rospy.logwarn("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
-              rospy.set_param(param_namesapce, value)
-          rospy.loginfo("Parameters loaded successfully for " + params_namespace)
+          if params is not None:
+            for key in params.keys():
+                value = params[key]
+                param_namesapce = namespace + key
+                #rospy.logwarn("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + namespace)
+                rospy.set_param(param_namesapce, value)
+            rospy.loginfo("Parameters loaded successfully for " + namespace)
     except rosparam.RosParamException as e:
         rospy.logwarn("Error updating parameters: " + file_path + " " + str(e))
 
 
-def save_params_to_file(file_path, namespace):
+def save_params_to_file(file_path, namespace, save_all = False):
+    namespace = get_full_namespace(namespace)
+    params_dict = dict()
+    params = get_params(namespace,dict())
+    if save_all == False: # Use only base ns level
+      if params is not None:
+        for key in params.keys():
+          key = key.replace(namespace + '/','')
+          if '/' not in key:
+            params_dict[key] = params[key]
+    else:
+      params_dict = params
     #Try and initialize app param values
     try:
       rosparam.dump_params(file_path, namespace)
@@ -642,30 +657,46 @@ def save_params_to_file(file_path, namespace):
       print("Could not create params file: " + str(e))
   
 
-def has_param(param_namespace):
-  #param_namespace = get_full_namespace(param_namespace)
-  return rospy.has_param(param_namespace)
+def has_param(namespace,param_name = None):
+  if param_name is not None:
+    namespace = create_namespace(namespace,param_name)
+  #namespace = get_full_namespace(namespace)
+  return rospy.has_param(namespace)
 
-def get_param(param_namespace,fallback_param = None):
-  param = None
-  #param_namespace = get_full_namespace(param_namespace)
+
+def get_params(namespace,fallback_param = dict()):
+  params = None
+  namespace = get_full_namespace(namespace)
   try:
     if fallback_param is None:
-      param = rospy.get_param(param_namespace)
+      params = rospy.get_param(namespace)
     else:
-      param = rospy.get_param(param_namespace,fallback_param)
+      params = rospy.get_param(namespace,fallback_param)
   except Exception as e:
-    rospy.logerr("Failed to get param for: " + param_namespace + " " + str(e))
+    rospy.logerr("Failed to get param for: " + namespace + " " + str(e))
+  return params
+
+
+def get_param(namespace,fallback_param = None):
+  param = None
+  namespace = get_full_namespace(namespace)
+  try:
+    if fallback_param is None:
+      param = rospy.get_param(namespace)
+    else:
+      param = rospy.get_param(namespace,fallback_param)
+  except Exception as e:
+    rospy.logerr("Failed to get param for: " + namespace + " " + str(e))
   return param
 
-def set_param(param_namespace,param_val):
+def set_param(namespace,param_val):
   success = False
-  #param_namespace = get_full_namespace(param_namespace)
+  namespace = get_full_namespace(namespace)
   try:
-    rospy.set_param(param_namespace,param_val)
+    rospy.set_param(namespace,param_val)
     success = True
   except Exception as e:
-    rospy.logerr("Failed to set param for: " + param_namespace + " "  + param_val + " " + str(e))
+    rospy.logerr("Failed to set param for: " + namespace + " "  + param_val + " " + str(e))
   return success
 
 
@@ -684,26 +715,6 @@ def print_node_params():
   else:
       print(f"No parameters found for node '{node_name}'.")
 
-
-def load_params_from_file(file_path, params_namespace = None):
-    if params_namespace is not None:
-      if params_namespace[-1] != "/":
-        params_namespace += "/"
-    else:
-      params_namespace = ""
-    try:
-        params_input = rosparam.load_file(file_path)
-        if params_input != []:
-          #rospy.logwarn("NEPI_ROS: loaded params" + str(params_input) + " for " + params_namespace)
-          params = params_input[0][0]
-          for key in params.keys():
-              value = params[key]
-              param_namesapce = params_namespace + key
-              #rospy.logwarn("NEPI_ROS: setting param " + key + " value: " + str(value)  + " for " + params_namespace)
-              rospy.set_param(param_namesapce, value)
-          rospy.loginfo("Parameters loaded successfully for " + params_namespace)
-    except rosparam.RosParamException as e:
-        rospy.logerr("Error loading parameters from file: " + file_path + " " + str(e))
 
 #########################
 ### Publisher, Subscriber, and Service Utility Functions

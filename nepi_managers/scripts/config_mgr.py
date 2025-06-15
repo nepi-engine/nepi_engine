@@ -22,7 +22,7 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+from nepi_sdk_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -103,17 +103,17 @@ class config_mgr(object):
             'factory_reset': {
                 'namespace': self.base_namespace,
                 'topic': 'factory_reset',
-                'srv': FileReset,
-                'req': FileResetRequest(),
-                'resp': FileResetResponse(),
+                'srv': ParamsReset,
+                'req': ParamsResetRequest(),
+                'resp': ParamsResetResponse(),
                 'callback': self.factory_reset
             },
             'user_reset': {
                 'namespace': self.base_namespace,
                 'topic': 'user_reset',
-                'srv': FileReset,
-                'req': FileResetRequest(),
-                'resp': FileResetResponse(),
+                'srv': ParamsReset,
+                'req': ParamsResetRequest(),
+                'resp': ParamsResetResponse(),
                 'callback': self.user_reset
             }
         }
@@ -143,7 +143,7 @@ class config_mgr(object):
                 'topic': 'save_config',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.save_non_ros_cfgs_Cb, 
+                'callback': self.save_system_cfgs_Cb, 
                 'callback_args': ()
             },
             'save_system_config': {
@@ -151,7 +151,7 @@ class config_mgr(object):
                 'topic': 'save_system_config',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.save_non_ros_cfgs_Cb, 
+                'callback': self.save_system_cfgs_Cb, 
                 'callback_args': ()
             },
             'store_params': {
@@ -162,20 +162,12 @@ class config_mgr(object):
                 'callback': self.store_params, 
                 'callback_args': ()
             },
-            'full_user_restore': {
-                'namespace': self.base_namespace,
-                'topic': 'full_user_restore',
-                'msg': Empty,
-                'qsize': None,
-                'callback': self.restore_user_cfgs_all, 
-                'callback_args': ()
-            },
             'full_factory_restore': {
                 'namespace': self.base_namespace,
-                'topic': 'full_user_restore',
+                'topic': 'full_factory_restore',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.restore_factory_cfgs_all, 
+                'callback': self.restore_factory_cfgs, 
                 'callback_args': ()
             }
         }
@@ -203,10 +195,10 @@ class config_mgr(object):
         ## Complete Initialization
 
         # Restore user configurations
-        self.restore_user_cfgs()
-        self.msg_if.pub_warn("System & User config files restored")
+        self.restore_system_cfgs()
+        self.msg_if.pub_warn("System config files restored")
         time.sleep(1)
-        self.save_non_ros_cfgs()
+        self.save_system_cfgs()
         self.msg_if.pub_warn("System config files saved")
         
         self.node_if.publish_pub('status_pub', Empty())
@@ -219,37 +211,16 @@ class config_mgr(object):
         #########################################################
 
 
-    # Moving symlinks is typically faster and more robust than copying files, so to reduce the
-    # chance of filesystem corruption in the event of e.g., power failure, we use a symlink-based config
-    # file scheme.
-    def symlink_force(self,target, link_name):
-        self.msg_if.pub_info("Will try link update for link " +  link_name  + " with target: " + target )
-        link_dirname = os.path.dirname(link_name)
-        if not os.path.exists(link_dirname):
-            self.msg_if.pub_info("Skipping symlink for " + link_name + " because path does not exist... missing factory config?")
-            return False
-        if os.path.exists(link_name) == False:
-            return False
-        if os.path.islink(link_name) == False:
-            return False
-        try:
-            os.symlink(target, link_name)
-            self.msg_if.pub_info("Updated link " +  link_name  + " with target: " + target )
-        except OSError as e:
-            self.msg_if.pub_info("Got error updating existing link " +  link_name  + " with target: " + target)
-            if e.errno == errno.EEXIST:
-                self.msg_if.pub_info("Recreating link" +  link_name  + " with target: " + target)
-                os.remove(link_name)
-                os.symlink(target, link_name)
-            else:
-                nepi_sdk.log_msg_error("Unable to create symlink " + str(e))
-                return False
-        link = nepi_utils.get_symlink_target(link_name)
-        self.msg_if.pub_info("File " + target + " updated with link: " + str(link))
-        return True
-
-    def separate_node_name_in_msg(self,qualified_node_name):
-        return qualified_node_name.split("/")[-1]
+    def get_filename_from_namespace(self,namespace):
+        if namespace[-1] == '/':
+            namespace = namespace[:-1]
+        base_namespace = nepi_sdk.get_base_namespace()
+        namespace = namespace.replace(base_namespace,'')
+        if len(namespace) > 0:
+            if namespace[0] == '/':
+                namespace = namespace [1:]
+        filename = namespace.replace('/','-')
+        return filename
 
     def update_from_file(self,file_pathname, namespace):
         if os.path.exists(file_pathname) == False:
@@ -271,74 +242,70 @@ class config_mgr(object):
                 self.msg_if.pub_info("Updated Params for namespace: " + namespace )
             #if namespace == '/nepi/s2x/nexigo_23':
             #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
-
         return [True]
 
-    def get_cfg_pathname(self,qualified_node_name):
-        node_name = self.separate_node_name_in_msg(qualified_node_name)
-        self.msg_if.pub_warn("Got node_name: " + qualified_node_name + " " + node_name)
-        cfg_pathname = os.path.join(USER_CFG_PATH,'ros',node_name + CFG_SUFFIX + USER_SUFFIX)
-        mgr_file_path = os.path.join(NEPI_CFG_PATH,"nepi_managers",node_name + CFG_SUFFIX)
-        if os.path.islink(mgr_file_path): # Check if a manager config
-            #self.msg_if.pub_info("Found manager config: " + qualified_node_name)
-            cfg_pathname = mgr_file_path  
-        else:
-            pathname = os.path.join(NEPI_CFG_PATH, node_name, node_name + CFG_SUFFIX)    
-            if os.path.islink(pathname) == True:
-                cfg_pathname = pathname
-                    
-        self.msg_if.pub_warn("Got config file path: " + qualified_node_name + " " + cfg_pathname)
-        return cfg_pathname
+    def get_factory_pathname(self,namespace):
+        filename = self.get_filename_from_namespace(namespace)
+        self.msg_if.pub_warn("Got filename: " + namespace + " " + filename)
+        pathname = os.path.join(NEPI_CFG_PATH,filename + CFG_SUFFIX)
+        return pathname
 
-    def get_user_cfg_pathname(self,qualified_node_name):
-        node_name = self.separate_node_name_in_msg(qualified_node_name)
+    def get_user_pathname(self,namespace):
+        filename = self.get_filename_from_namespace(namespace)
         user_cfg_dirname = os.path.join(USER_CFG_PATH, 'ros')
         
         # Ensure the path we report actually exists
         if not os.path.isdir(user_cfg_dirname):
             os.makedirs(user_cfg_dirname)
 
-        user_cfg_pathname = os.path.join(user_cfg_dirname, node_name + CFG_SUFFIX + USER_SUFFIX)
-        return user_cfg_pathname
+        pathname = os.path.join(user_cfg_dirname, filename + CFG_SUFFIX + USER_SUFFIX)
+        return pathname
 
     def user_reset(self,req):
-        qualified_node_name = req.node_name
-        cfg_pathname = self.get_cfg_pathname(qualified_node_name)
-        self.msg_if.pub_info("Reseting params for node_name: " + qualified_node_name  + " from file " + cfg_pathname)
+        namespace = req.namespace
+        success = False
+        user_pathname = self.get_user_pathname(namespace)
+        if os.path.exists(user_pathname):
+            self.msg_if.pub_info("Reseting params for namespace from user cfg file: " + namespace  + " from file " + user_pathname)
+            success = self.update_from_file(user_pathname, namespace)
         # Now update the param server
-        return self.update_from_file(cfg_pathname, qualified_node_name)
+        return success
 
     def factory_reset(self,req):
-        qualified_node_name = req.node_name
-        cfg_pathname = self.get_cfg_pathname(qualified_node_name)
-        factory_cfg_pathname = cfg_pathname + FACTORY_SUFFIX
-
-        # First, move the symlink
-        if os.path.islink(cfg_pathname):
-            if False == self.symlink_force(factory_cfg_pathname, cfg_pathname):
-                return [False] # Error logged upstream
-        # Now update the param server
-        return self.update_from_file(cfg_pathname, qualified_node_name)
+        namespace = req.namespace
+        success = False
+        # First delete user config file if it exists
+        user_pathname = self.get_user_pathname(namespace)
+        if os.path.exists(user_pathname):
+            try:
+                os.remove(user_pathname)
+                print(f"File '{user_pathname}' deleted successfully.")
+                success = True
+            except FileNotFoundError:
+                print(f"File '{user_pathname}' not found.")
+            except PermissionError:
+                print(f"Permission denied to delete '{user_pathname}'.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+        # Restore factory config if exits
+        factory_pathname = self.get_factory_pathname(namespace)
+        if os.path.exists(factory_pathname):
+            success = self.update_from_file(factory_pathname, namespace)
+        return success
 
     def store_params(self,msg):
-        qualified_node_name = msg.data
-        user_cfg_pathname = self.get_user_cfg_pathname(qualified_node_name)
-        self.msg_if.pub_info("Storing Params for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
+        namespace = msg.data
+        user_pathname = self.get_user_pathname(namespace)
+        self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + user_pathname )
         # First, write to the user file
-        nepi_sdk.save_params_to_file(user_cfg_pathname, qualified_node_name)
-        self.msg_if.pub_info("Params saved for node_name: " + qualified_node_name  + " in file " + user_cfg_pathname )
-        # Now, ensure the link points to the correct file
-        cfg_pathname = self.get_cfg_pathname(qualified_node_name)
-        self.msg_if.pub_info("Updating system file link : " + qualified_node_name  + " in file " + cfg_pathname )
-        if os.path.exists(cfg_pathname):
-            if os.path.islink(cfg_pathname):
-                self.symlink_force(user_cfg_pathname, cfg_pathname) # Error logged upstream
+        nepi_sdk.save_params_to_file(user_pathname, namespace)
+        self.msg_if.pub_info("Params saved for namespace: " + namespace  + " in file " + user_pathname )
 
-    def save_non_ros_cfgs_Cb(self,msg):
-        self.save_non_ros_cfgs()
+    def save_system_cfgs_Cb(self,msg):
+        self.save_system_cfgs()
 
 
-    def save_non_ros_cfgs(self):
+    def save_system_cfgs(self):
         target_dir = os.path.join(USER_CFG_PATH, 'sys')
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
@@ -363,29 +330,13 @@ class config_mgr(object):
     def factoryResetCb(self):
         pass
 
-    def restore_user_cfgs_all(self,msg):
-        self.restore_user_cfgs()
+    def restore_system_cfgs_all(self,msg):
+        self.restore_system_cfgs()
         time.sleep(1)
         os.system('reboot')
 
-    def restore_user_cfgs(self):
-        # First handle the NEPI-ROS user configs.
-        for root, dirs, files in os.walk(NEPI_CFG_PATH):
-            for name in files:
-                full_name = os.path.join(root, name)
-                if full_name.endswith(CFG_SUFFIX) and os.path.islink(full_name):
-                    #self.msg_if.pub_warn("Will attempt to update link for " + full_name)
-                    user_cfg_name = os.path.join(USER_CFG_PATH, 'ros', name + USER_SUFFIX)
-                    #self.msg_if.pub_warn("Looking for user config file: " + user_cfg_name)
-                    if os.path.exists(user_cfg_name): # Restrict to those with present user configs
-                        link_name = full_name
-                        self.msg_if.pub_info("Updating " + link_name + " to user config: " + user_cfg_name)
-                        self.symlink_force(user_cfg_name, link_name)
-                    else:
-                    	self.msg_if.pub_info("User config file does not exist at " + user_cfg_name)    
-                        #pass
-
-        # Now handle non-ROS user system configs.        
+    def restore_system_cfgs(self):
+        # Handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
             full_name = os.path.join(USER_CFG_PATH, 'sys', name)
             if os.path.exists(full_name):
@@ -428,28 +379,19 @@ class config_mgr(object):
         os.system('reboot')
 
     def restore_factory_cfgs(self):
-        # First handle the NEPI-ROS user configs.
-        for root, dirs, files in os.walk(USER_CFG_PATH):
-            for name in files:
-                full_name = os.path.join(root, name)
-                if full_name.endswith(USER_SUFFIX) and os.path.islink(full_name):
-                    #self.msg_if.pub_warn("Will attempt to update link for " + full_name)
-                    factory_cfg_name = os.path.join(NEPI_CFG_PATH, 'ros', name + CFG_SUFFIX)
-                    #self.msg_if.pub_warn("Looking for user config file: " + factory_cfg_name)
-                    if os.path.exists(factory_cfg_name): # Restrict to those with present user configs
-                        link_name = full_name
-                        self.msg_if.pub_info("Updating " + link_name + " to user config: " + factory_cfg_name)
-                        self.symlink_force(factory_cfg_name, link_name)
-                    else:
-                    	self.msg_if.pub_info("User config file does not exist at " + factory_cfg_name)    
-                        #pass
+        # First handle the ROS user configs.
+        for name in SYS_CFGS_TO_PRESERVE.keys():
+            full_name = os.path.join(USER_CFG_PATH, 'ros', name)
+            if os.path.exists(full_name):
                 os.system('rm ' + full_name)
 
+        '''
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
             full_name = os.path.join(USER_CFG_PATH, 'sys', name)
             if os.path.exists(full_name):
                 os.system('rm ' + full_name)
+        '''
                 
 
 if __name__ == '__main__':

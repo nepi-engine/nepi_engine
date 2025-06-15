@@ -8,6 +8,8 @@ string serial_num
 string hw_version
 string sw_version
 
+string data_ref_description
+
 # user updatable device name
 string user_name
 

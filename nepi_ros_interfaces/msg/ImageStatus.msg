@@ -1,5 +1,7 @@
 # This is an optional status message for image publishers
 
+string node_namespace
+string data_ref_description
 
 # Image data product type
 # SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',

@@ -210,7 +210,14 @@ class SaveDataIF:
 
         ##############################    
         # Node Setup
-
+        # Configs Config Dict ####################
+        self.CONFIGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
 
 
         # Params Config Dict ####################
@@ -312,7 +319,7 @@ class SaveDataIF:
             'reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
-                'topic': 'reset',
+                'topic': 'reset_save_data',
                 'qsize': 1,
                 'callback': self._resetCb,  
                 'callback_args': ()
@@ -370,6 +377,7 @@ class SaveDataIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -381,17 +389,7 @@ class SaveDataIF:
         #self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
-        save_rate_dict = self.node_if.get_param('save_rate_dict')
-        for data_product in self.save_rate_dict.keys():
-            if data_product in save_rate_dict.keys():
-                self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
-            self.save_rate_dict[data_product][1] = 0.0 # Reset timer
-        self.node_if.set_param('save_rate_dict',self.save_rate_dict)
-        #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
-
-        self.save_data = self.node_if.get_param('save_data')
-        filename_dict =  self.node_if.get_param('filename_dict')
-        self.update_filename_dict(filename_dict)
+        self.reset()
         
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
         ##############################
@@ -608,8 +606,6 @@ class SaveDataIF:
 
 
 
-    
-
     #***************************
     # NEPI data saving utility functions
     def save(self,data_product,data,timestamp = None,save_check=True):
@@ -677,21 +673,45 @@ class SaveDataIF:
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', status_msg)
 
+    def init(self):
+        #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
+        if self.node_if is not None:
+            save_rate_dict = self.node_if.get_param('save_rate_dict')
+            for data_product in self.save_rate_dict.keys():
+                if data_product in save_rate_dict.keys():
+                    self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
+                self.save_rate_dict[data_product][1] = 0.0 # Reset timer
+            self.node_if.set_param('save_rate_dict',self.save_rate_dict)
+            self.save_data = self.node_if.get_param('save_data')
+            filename_dict =  self.node_if.get_param('filename_dict')
+            self.update_filename_dict(filename_dict)
+
     def reset(self):
-        self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-        self.node_if.reset_params()
-        self.publish_status()
+        if self.node_if is not None:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+            self.init()
+            self.publish_status()
 
 
     def factory_reset(self):
-        self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
-        self.node_if.factory_reset_params()
-        self.publish_status()
+        if self.node_if is not None:
+            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+            self.init()
+            self.publish_status()
 
     ###############################
     # Class Private Methods
     ###############################
+    def initCb(self, do_updates = False):
+        self.init()
 
+    def resetCb(self):
+        self.reset()
+
+    def factoryResetCb(self):
+        self.factory_reset()
 
     def updaterCb(self,timer):
         time_status_dict = self.mgr_time_if.get_time_status()
@@ -893,7 +913,15 @@ class SettingsIF:
 
         ##############################  
         # Create NodeClassIF Class  
-
+        # Configs Config Dict ####################
+        self.CONFIGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
+        
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'settings': {
@@ -938,7 +966,7 @@ class SettingsIF:
             'reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'reset',
+                'topic': 'reset_settings',
                 'qsize': 1,
                 'callback': self._resetSettingsCb,
                 'callback_args': None
@@ -958,6 +986,7 @@ class SettingsIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
+                                    configs_dict = self.CONFIGS_DICT,
                                     params_dict = self.PARAMS_DICT,
                                     services_dict = self.SRVS_DICT,
                                     pubs_dict = self.PUBS_DICT,
@@ -972,7 +1001,7 @@ class SettingsIF:
 
         ##############################
         # Run Initialization Processes
-        self.initialize_settings(do_updates = True)     
+        self.init(do_updates = True)     
     
         nepi_sdk.start_timer_process(1.0, self._publishSettingsCb)
 
@@ -1057,9 +1086,10 @@ class SettingsIF:
         return success
 
 
-    def initialize_settings(self, do_updates = True):
+    def init(self, do_updates = True):
         current_settings = self.getSettingsFunction()
-        self.init_settings = self.node_if.get_param('settings')
+        if self.node_if is not None:
+            self.init_settings = self.node_if.get_param('settings')
         #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
         if do_updates:
             self.reset_settings()
@@ -1075,7 +1105,7 @@ class SettingsIF:
         if update_status:
             self.publish_status()
 
-    def factory_reset_settings(self, update_params = True, update_status = True):
+    def factory_reset(self, update_params = True, update_status = True):
         self.msg_if.pub_info("Applying Factory Settings", log_name_list = self.log_name_list)
         self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
         for setting_name in self.factory_settings.keys():
@@ -1087,13 +1117,21 @@ class SettingsIF:
     ###############################
     # Class Private Methods
     ###############################
+    def initCb(self, do_updates = False):
+        self.init
+
+    def resetCb(self):
+        self.reset()
+
+    def factoryResetCb(self):
+        self.factory_reset()
 
 
     def _resetCb(self,msg):
         self.reset()
 
     def _factoryResetCb(self,msg):
-        self.factory_reset_settings()
+        self.factory_reset()
 
 
     def _provideCapabilitiesHandler(self, req):
@@ -1114,11 +1152,11 @@ class SettingsIF:
         cap_setting_dict = nepi_settings.parse_cap_setting_msg(msg)
         self.update_cap_setting(cap_setting_dict, update_status = True, update_param = True)
 
-    def _resetSettingsCb(self,msg):
+    def _resetCb(self,msg):
         self.reset()
 
-    def _resetFactorySettingsCb(self,msg):
-        self.factory_reset_settings()
+    def _resetFactoryCb(self,msg):
+        self.factory_reset()
 
 
 

@@ -28,15 +28,15 @@ from nav_msgs.msg import Odometry
 
 from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
 
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
 from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
-from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
+from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -67,7 +67,7 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    msg_type = 'nepi_sdk_interfaces/NavPoseData'
+    msg_type = 'nepi_sdk_interfaces/NavPose'
     return nepi_sdk.find_topics_by_msg(msg_type)
 
 ###############
@@ -359,7 +359,7 @@ def transform_navpose_dict(npdata_dict, transform, frame_3d_name = 'nepi_frame')
           npdata_dict['depth_m'] = npdata_dict['depth_m'] - z
 
       except Exception as e:
-        logger.log_warn("Failed to transfrom NavPoseData dict: " + str(e), throttle_s = 5.0)
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
   return npdata_dict
 
 
@@ -459,6 +459,22 @@ BLANK_NAVPOSE_DICT = {
 }
 
 
+BLANK_NAVPOSE_TRACK_DICT = {
+    # altitude in 'WGS84' frame
+    # depth in 'DEPTH' frame
+    'timestamp': nepi_utils.get_time(),
+    # Location Lat,Long
+    'latitude': 0.0,
+    'longitude': 0.0,
+    'heading_deg': 0.0,
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+    'altitude_m': 0.0,
+    'depth_m': 0.0
+}
+
+
 def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
     if npdata_dict_org is not None and npdata_dict_new is not None:
       try:
@@ -546,7 +562,7 @@ def convert_navposedata_dict2msg(npdata_dict):
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     try:
-      npdata_msg = NavPoseData()
+      npdata_msg = NavPose()
       npdata_msg.header.stamp = nepi_sdk.get_msg_stamp()
 
       npdata_msg.frame_3d = npdata_dict['frame_3d']
@@ -709,6 +725,24 @@ def get_navpose_geoid_height(navpose_response):
   geoid_height =  geoid_height
   return geoid_height
   
+def get_navpose_track_msg_from_dict(navpose_dict):
+  track = BLANK_NAVPOSE_TRACK
+  for key in track.keys():
+    if key in navpose_dict.keys():
+      track[key] = navpose_dict[key]
+  track_msg = NavPoseTrack()
+  timestamp = self.nepi_utils.get_time()
+  track_msg.timestamp = timestamp
+  track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+  track_msg.latitude = track['latitude']
+  track_msg.longitude = track['longitude']
+  track_msg.heading_m = track['heading_m']
+  track_msg.roll_deg = track['roll_deg']
+  track_msg.pitch_deg = track['pitch_deg']
+  track_msg.yaw_deg = track['yaw_deg']
+  track_msg.altitude_m = track['altitude_m']
+  track_msg.depth_m = track['depth_m']
+  return track_msg
 
 
 #######################

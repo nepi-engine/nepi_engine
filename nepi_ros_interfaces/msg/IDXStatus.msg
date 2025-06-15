@@ -11,6 +11,8 @@ string serial_num
 string hw_version
 string sw_version
 
+string data_ref_description
+
 # URL to RTSP video stream if exists
 string rtsp_url
 string rtsp_username

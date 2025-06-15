@@ -26,7 +26,6 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_sdk_interfaces.msg import SystemStatus
 from nepi_sdk_interfaces.msg import Reset, WifiCredentials
 from nepi_sdk_interfaces.srv import IPAddrQuery, IPAddrQueryRequest, IPAddrQueryResponse
-from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
 from nepi_sdk_interfaces.srv import BandwidthUsageQueryRequest, BandwidthUsageQuery, BandwidthUsageQueryResponse
 from nepi_sdk_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
 
@@ -159,7 +158,6 @@ class NetworkMgr:
         # Configs Config Dict ####################
         self.CFGS_DICT = {
             'init_callback': self.initCb,
-            'system_reset_callback': self.sysResetCb,
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
@@ -588,23 +586,9 @@ class NetworkMgr:
         pass
 
     def resetCb(self):
-        user_reset_proxy = nepi_sdk.create_service('user_reset', FileReset)
-        try:
-            resp = user_reset_proxy(self.node_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Unable to execute user reset" + " " + str(e))
-            return
         self.set_dhcp_from_params()
 
     def factoryResetCb(self):
-        factory_reset_proxy = nepi_sdk.create_service('factory_reset', FileReset)
-        try:
-            resp = factory_reset_proxy(self.node_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Unable to execute factory reset" + " " + str(e))
-            return
-
-        # Overwrite the user static IP file with the blank version
         self.msg_if.pub_warn("Reseting Factory Config")
         with open(self.USER_IP_ALIASES_FILE, "w") as f:
             f.write(self.USER_IP_ALIASES_FILE_PREFACE)
@@ -615,21 +599,6 @@ class NetworkMgr:
         self.set_dhcp_from_params()
         self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
 
-    def sysResetCb(self, reset_type = 0):
-        if Reset.USER_RESET == reset_type:
-            pass # resetCb called by node_if
-
-        elif Reset.FACTORY_RESET == reset_type:
-            pass # factoryResetCb called by node_if
-
-        elif Reset.SOFTWARE_RESET:
-            nepi_sdk.signal_shutdown("{}: shutdown by request".format(self.node_name))
-        elif Reset.HARDWARE_RESET:
-            # Reset the interface
-            subprocess.call(['ifdown', self.NET_IFACE])
-            nepi_sdk.wait()
-            subprocess.call(['ifup', self.NET_IFACE])
-        success = self.save_config()
 
     def save_network_config(self):
         success = False

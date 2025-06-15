@@ -7,6 +7,8 @@
 #    where the rotation axes are fixed to the Device's Frame of Reference (DFoR) throughout the rotation sequence
 # 4) Heading is optional offset to navpose configured solution output
 
+string source_ref_description
+string end_ref_description
 
 # X,Y,Z translation transform vector in meters
 geometry_msgs/Vector3 translate_vector

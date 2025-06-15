@@ -1,5 +1,8 @@
 # This message contains status information for the navigation/positioning
 
+string node_namespace
+string data_ref_description
+
 # Output frame names
 string frame_3d
 
@@ -19,6 +22,6 @@ float32 avg_pub_rate
 int32 track_length
 int32 track_sec
 int32 track_next_sec
-NavPoseDataTrack[] track_list
+NavPoseTrack[] track_list
 
 

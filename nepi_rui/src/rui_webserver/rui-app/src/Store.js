@@ -169,7 +169,7 @@ class ROSConnectionStore {
   @observable clockNTP = false
   @observable clockPPS = false
 
-  @observable blankNavPoseData = {
+  @observable blankNavPose = {
       frame_3d: 'nepi_frame',
       frame_nav: 'ENU',
       frame_altitude: 'WGS84',
@@ -232,6 +232,8 @@ class ROSConnectionStore {
   @observable appNamesLast = []
   @observable appNameList = []
   @observable appStatusList = []
+  @observable navPoseTopics = []
+  @observable navPoseCaps = {}
   @observable imageTopics = []
   @observable imageCaps = {}
   @observable imageDetectionTopics = []
@@ -503,6 +505,30 @@ class ROSConnectionStore {
     }
   }
 
+
+  @action.bound
+  updateNavPoseTopics() {
+    // Function for updating image topics list
+    var newNavPoseTopics = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicTypes[i] === "sensor_msgs/NavPose" && this.topicNames[i].indexOf("zed_node") === -1) {
+        newNavPoseTopics.push(this.topicNames[i])
+      }
+    }
+
+    // sort the image topics for comparison to work
+    newNavPoseTopics.sort()    
+
+    if (!this.navposeTopic.equals(newNavPoseTopics)) {
+      this.navposeTopics = newNavPoseTopics
+      for (var i = 0; i < this.navposeTopics.length; i++) {
+            this.callNavPoseCapabilitiesQueryService(this.NavPoseTopics[i])
+          }
+      return true
+    } else {
+      return false
+    }
+  }
 
   @action.bound
   updateImageTopics() {
@@ -1508,60 +1534,60 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
 
   @action.bound
-  sendNavPoseDataMsg(namespace,navpose_data){
+  sendNavPoseMsg(namespace,navpose_data){
       this.publishMessage({
         name: namespace + '/set_navpose/',
-        messageType: "nepi_sdk_interfaces/NavPoseData",
+        messageType: "nepi_sdk_interfaces/NavPose",
         data: navpose_data,
         noPrefix: true
       })
     }
 
     @action.bound
-    sendInitNavPoseDataMsg(namespace,navpose_data){
+    sendInitNavPoseMsg(namespace,navpose_data){
       this.publishMessage({
         name: namespace + '/set_init_navpose/',
-        messageType: "nepi_sdk_interfaces/NavPoseData",
+        messageType: "nepi_sdk_interfaces/NavPose",
         data: navpose_data,
         noPrefix: true
       })
     }
 
     @action.bound
-    sendNavPoseDataLocationMsg(namespace,lat,long,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPoseLocationMsg(namespace,lat,long,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_location = true
       np_msg.time_location = moment.utc().unix()
       np_msg.latitude = parseFloat(lat)
       np_msg.longitude = parseFloat(long)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
     @action.bound
-    sendNavPoseDataHeadingMsg(namespace,heading,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPoseHeadingMsg(namespace,heading,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_heading = true
       np_msg.time_heading = moment.utc().unix()
       np_msg.heading_deg = parseFloat(heading)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
 
     @action.bound
-    sendNavPoseDataOrienationMsg(namespace,roll,pitch,yaw,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPoseOrienationMsg(namespace,roll,pitch,yaw,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_orientation = true
       np_msg.time_orientation = moment.utc().unix()
       np_msg.roll_deg = parseFloat(roll)
@@ -1569,18 +1595,18 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       np_msg.yaw_deg = parseFloat(yaw)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
 
 
     @action.bound
-    sendNavPoseDataPositionMsg(namespace,x,y,z,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPosePositionMsg(namespace,x,y,z,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_position = true
       np_msg.time_position = moment.utc().unix()
       np_msg.x_m = parseFloat(x)
@@ -1588,10 +1614,10 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       np_msg.z_m = parseFloat(z)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
@@ -1600,33 +1626,33 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
 
     @action.bound
-    sendNavPoseDataAltitudeMsg(namespace,alt,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPoseAltitudeMsg(namespace,alt,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_altitude = true
       np_msg.time_altitude = moment.utc().unix()
       np_msg.altitude_m = parseFloat(alt)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
 
     @action.bound
-    sendNavPoseDataDepthMsg(namespace,depth,init_np){
-      var np_msg = this.blankNavPoseData
+    sendNavPoseDepthMsg(namespace,depth,init_np){
+      var np_msg = this.blankNavPose
       np_msg.has_depth = true
       np_msg.time_depth = moment.utc().unix()
       np_msg.depth_m = parseFloat(depth)
       const init = init_np ? init_np : false
       if (init === false){
-        this.sendNavPoseDataMsg(namespace,np_msg)
+        this.sendNavPoseMsg(namespace,np_msg)
       }
       else {
-        this.sendInitNavPoseDataMsg(namespace,np_msg)
+        this.sendInitNavPoseMsg(namespace,np_msg)
       }
     }
 
@@ -1657,22 +1683,6 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       }
     }
   
-    @action.bound
-    sendPanTiltMsg(namespace, offsetFloatList) {
-      if (offsetFloatList.length === 3){
-        this.publishMessage({
-          name: namespace,
-          messageType: "nepi_sdk_interfaces/PanTiltOffsets",
-          data: { 
-            x_from_base_center: offsetFloatList[0],
-            y_from_base_center: offsetFloatList[1],
-            z_from_base_center: offsetFloatList[2]
-          },
-          noPrefix: true
-        })
-      }
-    }
-
     
     @action.bound
     sendFrame3DTransformUpdateMsg(namespace, name, transformFloatList) {
@@ -1750,6 +1760,15 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     this.imageCaps[namespace] = capabilities
   }
 
+  @action.bound
+  async callNavPoseCapabilitiesQueryService(namespace) {
+    const capabilities = await this.callService({
+      name: namespace + "/capabilities_query",
+      messageType: "nepi_sdk_interfaces/NavPoseCapabilitiesQuery",  
+    })
+    this.navPoseCapsCaps[namespace] = capabilities
+  }
+  
 
   @action.bound
   async callIDXCapabilitiesQueryService(idxDeviceNamespace) {

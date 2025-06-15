@@ -112,11 +112,6 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
-      pantilt_offsets: [0,0,0],
-
-      pantilt_offset_x: 0,
-      pantilt_offset_y: 0,
-      pantilt_offset_z: 0,
 
       listener: null,
       disabled: true
@@ -342,26 +337,6 @@ class NepiDevicePTX extends Component {
                      tiltScanMax: message.auto_tilt_range_window.stop_range
       })
     }
-
-    const pantilt_offsets = [
-      message.x_from_base_center,
-      message.y_from_base_center,
-      message.z_from_base_center]
-      const cur_offsets = this.state.pantilt_offsets
-      const offsetsChanged = (
-        pantilt_offsets[0] !== cur_offsets[0] ||
-        pantilt_offsets[1] !== cur_offsets[1] ||
-        pantilt_offsets[2] !== cur_offsets[2]
-      )
-      
-      if (offsetsChanged) {
-        this.setState({
-          pantilt_offsets: pantilt_offsets,
-          pantilt_offset_x: pantilt_offsets[0],
-          pantilt_offset_y: pantilt_offsets[1],
-          pantilt_offset_z: pantilt_offsets[2]
-        })
-      }
     
   }
 
@@ -458,26 +433,6 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
     }
     document.getElementById(event.target.id).style.color = Styles.vars.colors.black
   }
-}
-
-sendPanTiltMessage(){
-  const {sendPanTiltMsg} = this.props.ros
-  const namespace = this.state.namespace + "/set_pt_offsets"
-  const OX = parseFloat(this.state.pantilt_offset_x)
-  const OY = parseFloat(this.state.pantilt_offset_y)
-  const OZ = parseFloat(this.state.pantilt_offset_z)
-  const offsetList = [OX, OY, OZ]
-  sendPanTiltMsg(namespace,offsetList)
-}
-
-sendClearPanTiltMessage(){
-  const {sendPanTiltMsg} = this.props.ros
-  const namespace = this.state.namespace + "/set_pt_offsets"
-  const OX = 0
-  const OY = 0
-  const OZ = 0
-  const offsetList = [OX, OY, OZ]
-  sendPanTiltMsg(namespace,offsetList)
 }
 
   renderControlPanel() {
@@ -830,45 +785,6 @@ sendClearPanTiltMessage(){
         </Label>
 
         </div>
-
-              <Label title={"x Offset"}>
-                <Input
-                  value={this.state.pantilt_offset_x}
-                  id="XOffset"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event, "pantilt_offset_x")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event, "pantilt_offset_x")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-              <Label title={"y Offset"}>
-                <Input
-                  value={this.state.pantilt_offset_y}
-                  id="YOffset"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event, "pantilt_offset_y")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event, "pantilt_offset_y")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-                  <Label title={"z Offset"}>
-                    <Input
-                      value={this.state.pantilt_offset_z}
-                      id="Offset"
-                      onChange= {(event) => onUpdateSetStateValue.bind(this)(event, "pantilt_offset_z")}
-                      onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event, "pantilt_offset_z")}
-                      style={{ width: "80%" }}
-                    />
-                  </Label>
-
-                  <ButtonMenu>
-                    <Button onClick={() => this.sendPanTiltMessage()}>{"Update Offsets"}</Button>
-
-                  </ButtonMenu>
-
-                  <ButtonMenu>
-                    <Button onClick={() => this.sendClearPanTiltMessage()}>{"Clear Offsets"}</Button>
-                  </ButtonMenu>
 
       </Section>
     )

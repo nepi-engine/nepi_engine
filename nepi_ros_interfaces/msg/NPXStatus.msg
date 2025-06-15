@@ -8,6 +8,8 @@ string serial_num
 string hw_version
 string sw_version
 
+string data_ref_description
+
 float32 update_rate
 
 string frame_3d

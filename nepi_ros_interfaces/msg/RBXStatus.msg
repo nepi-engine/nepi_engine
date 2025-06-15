@@ -1,5 +1,7 @@
 # This message provides the Numurus RBX Device Status Information
 
+string data_ref_description
+
 # Current nav_pose info
 float32 current_lat
 float32 current_long

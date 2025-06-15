@@ -161,7 +161,7 @@ class ConnectAiDetectorIF:
         ### Node Connect Class
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
                 'namespace': '~'
         }
 
@@ -228,7 +228,7 @@ class ConnectAiDetectorIF:
         # Create Node Class ####################
         
         self.con_node_if = NodeClassIF(
-                        configs_dict = self.CFGS_DICT,
+                        configs_dict = self.CONFIGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,

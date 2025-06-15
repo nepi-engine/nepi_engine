@@ -16,22 +16,16 @@ import Select, { Option } from "./Select"
 import Button, { ButtonMenu } from "./Button"
 import Styles from "./Styles"
 
-import NepiDeviceNPXControls from "./NepiDeviceNPX-Controls"
-
-import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
-import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NavPoseData from "./Nepi_IF_NavPoseData"
-import NepiIFConfig from "./Nepi_IF_Config"
-import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import {createShortUniqueValues} from "./Utilities"
 
 @inject("ros")
 @observer
 
-// NPX Application page
-class NepiDeviceNPX extends Component {
+
+class NepiDataNavPose extends Component {
   constructor(props) {
     super(props)
 
@@ -46,6 +40,7 @@ class NepiDeviceNPX extends Component {
       
       // NPX Device topic to subscribe to and update
       namespace: null,
+      node_namespace: null,
 
       listener: null,
 
@@ -108,7 +103,7 @@ updateStatusListener() {
   const statusTopic = namespace + "/status"
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
-    "nepi_sdk_interfaces/NPXStatus",
+    "nepi_sdk_interfaces/NavPoseStatus",
     this.statusListener 
   )
   
@@ -164,7 +159,7 @@ updateNavposeListener() {
 
 
     // Function for creating topic options for Select input
-    createDeviceOptions(topics) {
+    createDataOptions(topics) {
 
       var items = []
       items.push(<Option>{"None"}</Option>)
@@ -177,14 +172,14 @@ updateNavposeListener() {
       // Check that our current selection hasn't disappeard as an available option
       const { namespace } = this.state
       if ((namespace != null) && (! topics.includes(namespace))) {
-        this.clearDeviceSelection()
+        this.clearDataSelection()
       }
   
       return items
     }
   
   
-    clearDeviceSelection() {
+    clearDataSelection() {
       this.setState({
         namespace: null,
         namespaceText: "No sensor selected",
@@ -199,7 +194,7 @@ updateNavposeListener() {
   
       // Handle the "None" option -- always index 0
       if (index === 0) {
-        this.clearDeviceSelection()
+        this.clearDataSelection()
         return
       }
       else{
@@ -216,7 +211,7 @@ updateNavposeListener() {
     }
 
 
-  renderDeviceSelection() {
+  renderDataSelection() {
     const { npxDevices, sendTriggerMsg, saveConfigTriggered  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const deviceSelected = (this.state.namespace != null)
@@ -231,12 +226,12 @@ updateNavposeListener() {
               <Columns>
               <Column>
               
-                <Label title={"Device"}>
+                <Label title={"NavPose"}>
                   <Select
                     onChange={this.ondeviceSelected}
                     value={namespace}
                   >
-                    {this.createDeviceOptions(Object.keys(npxDevices))}
+                    {this.createDataOptions(Object.keys(npxDevices))}
                   </Select>
                 </Label>
                
@@ -278,17 +273,6 @@ updateNavposeListener() {
 
           <div style={{ width: "65%" }}>
 
-                    <div hidden={(!deviceSelected)}>
-                      <NepiDeviceInfo
-                            deviceNamespace={namespace}
-                            status_topic={"npx/status"}
-                            status_msg_type={"nepi_sdk_interfaces/NPXStatus"}
-                            name_update_topic={"/update_device_name"}
-                            name_reset_topic={"/reset_device_name"}
-                            title={"NepiDeviceNPXInfo"}
-                        />
-
-                    </div>
 
                     <NavPoseData
                       namespace={namespace}
@@ -327,7 +311,7 @@ updateNavposeListener() {
           <div style={{ width: "30%"}}>
 
 
-                    {this.renderDeviceSelection()}
+                    {this.renderDataSelection()}
 
 
                     <div hidden={(!deviceSelected)}>
@@ -358,4 +342,4 @@ updateNavposeListener() {
   }
 }
 
-export default NepiDeviceNPX
+export default NepiDataNavPose

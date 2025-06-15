@@ -42,12 +42,12 @@ from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
 from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
 from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
 from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
@@ -57,6 +57,8 @@ from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQue
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
 from nepi_api.system_if import SaveDataIF
+
+from nepi_api.data_if import NavPoseIF
 
 #########################################
 # Node Class
@@ -70,7 +72,7 @@ class NavPoseMgr(object):
     NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
     NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
 
-    FACTORY_PUB_RATE_HZ = 5.0
+    FACTORY_PUB_RATE_HZ = 10.0
     FACTORY_3D_FRAME = 'nepi_frame' 
     FACTORY_NAV_FRAME = 'ENU'
     FACTORY_ALT_FRAME = 'WGS84'
@@ -143,8 +145,6 @@ class NavPoseMgr(object):
         'depth': BLANK_AVIAL_TOPIC
     }
 
- 
-    np_status_msg = NavPoseDataStatus()
 
     frame_desc = 'Undefined'
 
@@ -168,18 +168,6 @@ class NavPoseMgr(object):
         # Initialize Class Variables
         self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
-        self.np_status_msg.frame_3d = 'nepi_frame'
-
-        self.np_status_msg.source_frame_nav = 'ENU'
-        self.np_status_msg.source_frame_altitude = 'WGS84'
-        self.np_status_msg.source_frame_depth = 'DEPTH'
-
-        self.np_status_msg.pub_frame_nav = 'ENU'
-        self.np_status_msg.pub_frame_altitude = 'WGS84'
-        self.np_status_msg.pub_frame_depth = 'DEPTH'
-
-        self.np_status_msg.publishing = False
-        self.np_status_msg.avg_pub_rate = 0.0
 
         self.cb_dict = {
             'location': self._locationSubCb,
@@ -236,9 +224,9 @@ class NavPoseMgr(object):
             'navpose_query': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose_query',
-                'srv': NavPoseDataQuery,
-                'req': NavPoseDataQueryRequest(),
-                'resp': NavPoseDataQueryResponse(),
+                'srv': NavPoseQuery,
+                'req': NavPoseQueryRequest(),
+                'resp': NavPoseQueryResponse(),
                 'callback': self._navposeDataQueryHandler
             }
         }
@@ -253,21 +241,6 @@ class NavPoseMgr(object):
                 'qsize': 1,
                 'latch': True
             },
-            'navpose_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPoseData,
-                'qsize': 1,
-                'latch': True
-            },
-            'navpose_status_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPoseDataStatus,
-                'qsize': 1,
-                'latch': True
-            },
-
         }
 
         # Subscribers Config Dict ####################
@@ -323,7 +296,7 @@ class NavPoseMgr(object):
             'set_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_navpose',
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'qsize': 1,
                 'callback': self._setNavPoseCb, 
                 'callback_args': ()
@@ -339,7 +312,7 @@ class NavPoseMgr(object):
             'set_init_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_init_navpose',
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'qsize': 1,
                 'callback': self._setInitNavPoseCb, 
                 'callback_args': ()
@@ -367,7 +340,13 @@ class NavPoseMgr(object):
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
-
+        # Setup navpose data IF
+        np_namespace = self.base_namespace
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        log_name = 'navpose',
+                        log_name_list = [],
+                        msg_if = self.msg_if
+                        )
 
         ##############################
         # Set up save data services ########################################################
@@ -436,6 +415,14 @@ class NavPoseMgr(object):
                 self.connect_dict[name]['transform'] = transform
                 if topic != '':
                     self.transforms_dict[topic] = transform
+
+    def setFrameDescription(self,desc = ''):
+        self.frame_desc = desc
+        self.publish_status()
+        self.node_if.set_param('frame_desc',desc)
+
+    def getFrameDescription(self):
+        return self.frame_desc
 
     def clearTranform(self,name):
         if name in self.connect_dict.keys():
@@ -509,16 +496,12 @@ class NavPoseMgr(object):
 
 
     def publish_navpose(self):
-        self.np_status_msg.publishing = True
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict)
-        self.node_if.publish_pub('navpose_pub',navpose_msg)
-
-    def publish_navpose_status(self):
-        self.np_status_msg.avg_pub_rate = self.set_pub_rate
-        self.node_if.publish_pub('navpose_status_pub', self.np_status_msg)
+        self.status_msg.publishing = True
+        if self.navpose_if is not None:
+            self.navpose_if.publish_navpose(self.navpose_dict)
 
     def publish_status(self, do_updates = False):
-        self.msg_if.pub_warn("========publish_status called========")
+        #self.msg_if.pub_warn("========publish_status called========")
 
         connect_dict = copy.deepcopy(self.connect_dict)
         subs_dict = copy.deepcopy(self.subs_dict)
@@ -566,7 +549,7 @@ class NavPoseMgr(object):
     #######################
 
     def _navposeDataQueryHandler(self,req):
-        response = NavPoseDataQueryResponse()
+        response = NavPoseQueryResponse()
         self.navpose_dict_lock.acquire()
         npdata_dict = copy.deepcopy(self.navpose_dict)
         self.navpose_dict_lock.release()
@@ -697,6 +680,10 @@ class NavPoseMgr(object):
         self.clearTopic(msg.data)
         
 
+    def _setFrameDescCb(self,msg):
+        desc = msg.data
+        self.setFrameDescription(desc) 
+
     def _setTransformCb(self,msg):
         self.setTransform(msg.name, msg.transform)
 
@@ -763,12 +750,24 @@ class NavPoseMgr(object):
 
     def _publishStatusCb(self,timer):
         self.publish_status()
-        self.publish_navpose_status()
+
+
+    def get_navpose_dict(self):
+        self.navpose_dict_lock.acquire() 
+        navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        return navpose_dict
+
+        
+    def publish_navpose(self):
+        self.status_msg.publishing = True
+        if self.navpose_if is not None:
+            np_dict = self.get_navpose_dict()
+            self.navpose_if.publish_navpose(np_dict)
+
 
     def _publishNavPoseCb(self,timer):
-        self.publish_navpose()
-        np_pub_delay = float(1.0)/self.set_pub_rate
-        nepi_sdk.start_timer_process(np_pub_delay, self._publishNavPoseCb, oneshot = True)       
+        self.publish_navpose()   
 
     def _cleanupActions(self):
         self.msg_if.pub_info("Shutting down: Executing script cleanup actions")

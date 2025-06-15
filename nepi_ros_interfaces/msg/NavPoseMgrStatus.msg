@@ -7,7 +7,7 @@ string[] comp_names
 NavPoseMgrCompInfo[] comp_infos
 
 
-NavPoseData init_navpose
+NavPose init_navpose
 
 bool publishing
 

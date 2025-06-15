@@ -1,5 +1,8 @@
 # This is an optional status message for image publishers
 
+string node_namespace
+string data_ref_description
+
 bool publishing
 float32 last_pub_sec
 float32 fps

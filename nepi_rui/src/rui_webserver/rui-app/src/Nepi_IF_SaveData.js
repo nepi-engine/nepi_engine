@@ -21,7 +21,7 @@ import Select, { Option } from "./Select"
 import Input from "./Input"
 
 
-import NepiIFReset from "./Nepi_IF_Reset"
+import NepiIFConfig from "./Nepi_IF_Config"
 
 function roundWithSuffix(value, decimals, suffix) {
   return value && (value.toFixed(decimals) + " " + suffix)
@@ -510,9 +510,9 @@ class NepiIFSaveData extends Component {
 
           <div align={"left"} textAlign={"left"} hidden={namespace === 'None'}>
 
-                  <NepiIFReset
+                  <NepiIFConfig
                         namespace={namespace}
-                        title={"Nepi_IF_Reset"}
+                        title={"Nepi_IF_Config"}
                   />
 
           </div>

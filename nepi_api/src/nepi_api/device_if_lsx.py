@@ -25,6 +25,9 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 from nepi_api.system_if import SettingsIF
 
+#from nepi_api.data_if import NavPoseIF
+#from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
+
 class LSXDeviceIF:
     STATUS_UPDATE_RATE_HZ = 1
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
@@ -60,9 +63,10 @@ class LSXDeviceIF:
     reports_power = False
 
 
-
+    node_if = None
     settings_if = None
-    save_cfg_if = None
+    save_data_if = None
+  
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
@@ -71,6 +75,7 @@ class LSXDeviceIF:
     def __init__(self, device_info, getStatusFunction, capSettings, 
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  factoryControls = None, 
+                 data_ref_description = 'sensor',
                  standbyEnableFunction = None, turnOnOffFunction = None,
                  setIntensityRatioFunction = None, 
                  color_options_list =  None, setColorFunction = None,
@@ -100,7 +105,11 @@ class LSXDeviceIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting LSX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
-
+        '''
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        ready = self.nav_mgr_if.wait_for_ready()
+        '''
         ##############################
         # Initialize Class Variables
 
@@ -111,6 +120,8 @@ class LSXDeviceIF:
         self.sw_version = device_info["sw_version"]
 
         self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
+
+        self.data_ref_description = data_ref_description
 
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
@@ -205,7 +216,7 @@ class LSXDeviceIF:
 
         self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
                 'init_callback': self.initCb,
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
@@ -367,7 +378,7 @@ class LSXDeviceIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CFGS_DICT,
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -429,10 +440,16 @@ class LSXDeviceIF:
         # Finish Initialization
         self.initCb(do_updates = True)
         status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
-        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb)      
+        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
+        #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
+
         self.publishStatus()
+
+        
+        ####################################
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ####################################
 
 
         nepi_sdk.sleep
@@ -510,6 +527,10 @@ class LSXDeviceIF:
           self.settings_if.reset_settings()
         if do_updates:
             self.UpdateDevice()
+        if self.save_data_if is not None:
+            self.save_data_if.reset()
+        if self.settings_if is not None:
+            self.settings_if.reset_settings(update_status = False, update_params = True)
         self.publishStatus()
 
     def factoryResetCb(self, do_updates = True):
@@ -537,6 +558,7 @@ class LSXDeviceIF:
     def publishStatus(self):
       # update status values from device
       blink_interval = self.node_if.get_param('blink_interval_sec')
+      self.status_msg = self.data_ref_description
       if self.getStatusFunction is not None:
         status_msg=self.getStatusFunction()
         status_msg.user_name = self.node_if.get_param('device_name')
@@ -545,6 +567,31 @@ class LSXDeviceIF:
           self.node_if.publish_pub('status_pub',status_msg)
         except Exception as e:
           self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
+
+
+    '''
+    def get_navpose_dict(self):
+        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if self.nav_mgr_if is not None:
+            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        return navpose_dict
+
+        
+    def publish_navpose(self):
+        self.np_status_msg.publishing = True
+        if self.navpose_if is not None:
+            np_dict = self.get_navpose_dict()
+            self.navpose_if.publish_navpose(np_dict)
+
+
+    def _publishNavPoseCb(self,timer):
+        self.publish_navpose()
+        rate = 1
+        if self.nav_mgr_if is not None:
+            rate = self.nav_mgr_if.get_pub_rate()
+        delay = float(1.0) / rate
+        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
+    '''
 
 
     ### Capabilities callback

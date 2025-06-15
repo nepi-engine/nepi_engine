@@ -22,7 +22,7 @@ import Styles from "./Styles"
 import Select from "./Select"
 import Input from "./Input"
 
-import NepiIFReset from "./Nepi_IF_Reset"
+import NepiIFConfig from "./Nepi_IF_Config"
 
 import { createMenuListFromStrList, onChangeSwitchStateValue, onEnterSendFloatValue } from "./Utilities"
 
@@ -844,9 +844,9 @@ class ImageViewer extends Component {
           </Column>
         </Columns>
         
-          <NepiIFReset
+          <NepiIFConfig
               namespace={namespace}
-              title={"Nepi_IF_Reset"}
+              title={"Nepi_IF_Config"}
           />
 
       </div>

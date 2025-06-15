@@ -26,7 +26,7 @@ import { round, onUpdateSetStateValue, onEnterSetStateFloatValue, createShortUni
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
-import NavPoseDataViewer from "./Nepi_IF_NavPoseDataViewer"
+import NavPoseData from "./Nepi_IF_NavPoseData"
 
 @inject("ros")
 @observer
@@ -62,27 +62,27 @@ class NavPoseMgr extends Component {
       fixedDict: {
         location: {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         },
         heading:  {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         },
         orientation:  {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         },
         position:  {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         },
         altitude:  {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         },
         depth:  {
           fixed: false,
-          npData: this.props.ros.blankNavPoseData
+          npData: this.props.ros.blankNavPose
         }
       },
 
@@ -267,7 +267,7 @@ class NavPoseMgr extends Component {
   navposeListener(message) {
     console.log("=====navposeListener called=====" + message)
     console.log("navposeListener msg: " + message)
-    // Transform the data to match what NavPoseDataViewer expects
+    // Transform the data to match what NavPoseData expects
     const last_navpose_msg = this.state.navpose_msg
     const navpose_data = {
       latitude: message.lat,
@@ -409,7 +409,7 @@ updateNavposeListener() {
   
   var navposeListener = this.props.ros.setupStatusListener(
     navposeTopic,
-    "nepi_sdk_interfaces/NavPoseData",
+    "nepi_sdk_interfaces/NavPose",
     this.navposeListener 
   )
   
@@ -547,7 +547,7 @@ updateNavposeListener() {
 
     
 
-    const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
+    const {sendTriggerMsg, sendNavPoseMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
     const status_msg = this.state.status_msg
@@ -627,7 +627,7 @@ updateNavposeListener() {
   }
 
   renderMgrFixedControls(name,comp_info) {
-    const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
+    const {sendTriggerMsg, sendNavPoseMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
     const status_msg = null //this.state.status_msg
@@ -686,12 +686,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataLocationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataLocationMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -727,12 +727,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataHeadingMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataHeadingMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -792,12 +792,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataOrientationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataOrientationMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -857,12 +857,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataPositionMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPosePositionMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataPositionMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPosePositionMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -899,12 +899,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataAltitudeMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataAltitudeMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -941,12 +941,12 @@ updateNavposeListener() {
                   <Columns>
                   <Column>
                         <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDataDepthMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
+                            <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   <Column>
                         <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDataDepthMsg(namespace,this.props.ros.blankNavPoseData)}>{"Clear Fix"}</Button>
+                          <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
                         </ButtonMenu>
                   </Column>
                   </Columns>
@@ -973,7 +973,7 @@ updateNavposeListener() {
 
 
   renderMgrTopicControls(name, comp_info) {
-    const {sendTriggerMsg, sendNavPoseDataMsg} = this.props.ros
+    const {sendTriggerMsg, sendNavPoseMsg} = this.props.ros
     const namespace = this.state.namespace
     ////////////////
     const status_msg = this.state.status_msg
@@ -1236,7 +1236,7 @@ updateNavposeListener() {
 
           <div style={{ width: "65%" }}>
 
-                    <NavPoseDataViewer
+                    <NavPoseData
                       namespace={namespace}
                       navposeData={navpose_data}
                       title={"NavPose Data"}

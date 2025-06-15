@@ -35,12 +35,12 @@ from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
 from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseDataStatus
+from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
 from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_sdk_interfaces.srv import NavPoseDataQuery, NavPoseDataQueryRequest, NavPoseDataQueryResponse
+from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
 from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
@@ -112,9 +112,9 @@ class ConnectMgrNavPoseIF:
             'navpose_query': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose_query',
-                'srv': NavPoseDataQuery,
-                'req': NavPoseDataQueryRequest(),
-                'resp': NavPoseDataQueryResponse()
+                'srv': NavPoseQuery,
+                'req': NavPoseQueryRequest(),
+                'resp': NavPoseQueryResponse()
             }
         }
 
@@ -160,7 +160,7 @@ class ConnectMgrNavPoseIF:
             'set_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_navpose',
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'qsize': 1,
                 'latch': False,
             },
@@ -174,7 +174,7 @@ class ConnectMgrNavPoseIF:
             'set_init_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_init_navpose',
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'qsize': 1,
                 'latch': False
             },
@@ -221,7 +221,7 @@ class ConnectMgrNavPoseIF:
             'navpose_sub': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose',
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'qsize': 1,
                 'callback': self._navposeDataCb
             }
@@ -330,6 +330,12 @@ class ConnectMgrNavPoseIF:
             else:
                 self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
         return self.status_connected
+
+    def get_pub_rate(self):
+        rate = 10.0
+        if self.status_dict is not None:
+            rate = self.status_dict['pub_rate']
+
 
     def set_pub_rate(self,pub_rate):
         pub_name = 'set_pub_rate'

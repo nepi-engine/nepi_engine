@@ -23,7 +23,7 @@ from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
 # from nepi_sdk_interfaces.msg import
-from nepi_sdk_interfaces.srv import FileReset, FileResetRequest, FileResetResponse
+from nepi_sdk_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -32,14 +32,13 @@ from nepi_api.messages_if import MsgIF
 ### Node Config Class
 
 '''
-EXAMPLE_CFGS_DICT = {
+EXAMPLE_CONFIGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
         'software_reset_callback': None,
         'hardware_reset_callback': None,
-        'init_configs': True,
-        'namespace':  self.node_namespace
+        'init_configs': True
 }
 '''
 
@@ -51,8 +50,8 @@ class NodeConfigsIF:
     namespace = '~'
 
     reset_sub = None
-    request_msg = FileResetRequest()
-    response_msg = FileResetResponse()
+    request_msg = ParamsResetRequest()
+    response_msg = ParamsResetResponse()
 
 
     initCb = None
@@ -109,12 +108,12 @@ class NodeConfigsIF:
         self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         # Create reset serivces
-        self.request_msg.node_name = self.namespace
-        self.reset_service = nepi_sdk.connect_service(self.namespace + '/user_reset', FileReset)
-        self.factory_reset_service = nepi_sdk.connect_service(self.namespace + '/factory_reset', FileReset)
+        self.request_msg.namespace = self.namespace
+        self.reset_service = nepi_sdk.connect_service(self.namespace + '/user_reset', ParamsReset)
+        self.factory_reset_service = nepi_sdk.connect_service(self.namespace + '/factory_reset', ParamsReset)
 
-        self.reset_service = nepi_sdk.connect_service('user_reset', FileReset)
-        self.factory_reset_service = nepi_sdk.connect_service('factory_reset', FileReset)
+        self.reset_service = nepi_sdk.connect_service('user_reset', ParamsReset)
+        self.factory_reset_service = nepi_sdk.connect_service('factory_reset', ParamsReset)
 
         time.sleep(1)
 
@@ -353,12 +352,12 @@ class NodeParamsIF:
                 self.set_param(param_name, init_val)
 
     def reset_params(self):
-        for param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
+        for param_name in self.params_dict.keys():
             init_val = self.params_dict[param_name]['init_val']
             self.set_param(param_name, init_val)
 
     def factory_reset_params(self):
-        for param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
+        for param_name in self.params_dict.keys():
             factory_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, factory_val)
 
@@ -891,7 +890,7 @@ class NodeSubscribersIF:
 
 # Configs Dict ####################
 '''
-EXAMPLE_CFGS_DICT = {
+EXAMPLE_CONFIGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
@@ -955,7 +954,7 @@ EXAMPLE_SUBS_DICT = {
 # Create Node Class ####################
 
 EXAMPLE_NODE_IF = NodeClassIF(
-                configs_dict = EXAMPLE_CFGS_DICT,
+                configs_dict = EXAMPLE_CONFIGS_DICT,
                 params_dict = EXAMPLE_PARAMS_DICT,
                 services_dict = EXAMPLE_SRVS_DICT,
                 pubs_dict = EXAMPLE_PUBS_DICT,

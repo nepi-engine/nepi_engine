@@ -75,9 +75,9 @@ add_message_files(FILES
     HwTrigOutCfg.msg
     TestPatternCfg.msg
     PeriodicSwTrig.msg
-    NavPoseData.msg
-    NavPoseDataTrack.msg
-    NavPoseDataStatus.msg
+    NavPose.msg
+    NavPoseTrack.msg
+    NavPoseStatus.msg
     NavPoseLocation.msg    
     NavPoseHeading.msg
     NavPoseOrientation.msg
@@ -174,7 +174,7 @@ add_message_files(FILES
 add_service_files(
     FILES
     ConvertRawTstamp.srv
-    FileReset.srv
+    ParamsReset.srv
     SystemDefsQuery.srv
     TimeStatusQuery.srv
     IPAddrQuery.srv
@@ -214,7 +214,7 @@ add_service_files(
     DebugQuery.srv
     ImageCapabilitiesQuery.srv
     NavPoseCapabilitiesQuery.srv
-    NavPoseDataQuery.srv
+    NavPoseQuery.srv
     Frame3DTransformsQuery.srv
     Frame3DTransformRegister.srv
     Frame3DTransformDelete.srv

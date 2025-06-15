@@ -21,7 +21,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from nepi_sdk_interfaces.msg import RangeWindow
-from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltOffsets, PanTiltPosition, SingleAxisTimedMove
+from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
 from nepi_sdk_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
@@ -30,6 +30,9 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.device_if_npx import NPXDeviceIF
+
+from nepi_api.data_if import NavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 #from nepi_api.device_if_npx import NPXDeviceIF
 
@@ -51,8 +54,6 @@ class PTXActuatorIF:
     AUTO_SCAN_SWITCH_DEG = 5 # If angle withing this bound, switch dir
     AUTO_SCAN_UPDATE_INTERVAL = 1
 
-    data_products_list = ['orientation']
-
     orientation_dict = {
         'time_orientation': nepi_utils.get_time(),
         # Orientation should be provided in Degrees ENU
@@ -62,6 +63,10 @@ class PTXActuatorIF:
     }
 
     ready = False
+
+    node_if = None
+    settings_if = None
+    save_data_if = None
 
     status_msg = PTXStatus()
     joint_state_msg = JointState()    
@@ -133,10 +138,6 @@ class PTXActuatorIF:
     auto_tilt_sec = 5
 
 
-    offsets_dict = dict()
-    offsets_dict['x'] = 0
-    offsets_dict['y'] = 0
-    offsets_dict['z'] = 0
     
     is_moving = False
     ### IF Initialization
@@ -145,7 +146,7 @@ class PTXActuatorIF:
                  settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
                  factoryLimits = None,
-                 factoryOffsets = None,
+                 data_ref_description = 'tilt axis center',
                  stopMovingCb = None, # Required; no args
                  movePanCb = None, # Required; direction and time args
                  moveTiltCb = None, # Required; direction and time args
@@ -188,6 +189,10 @@ class PTXActuatorIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting PTX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        ready = self.nav_mgr_if.wait_for_ready()
+
 
         ############################## 
         # Initialize Class Variables
@@ -196,6 +201,8 @@ class PTXActuatorIF:
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+
+        self.data_ref_description = data_ref_description
 
         # Update status update rate
         if max_navpose_update_rate == None:
@@ -215,13 +222,6 @@ class PTXActuatorIF:
             for control in controls:
                 if self.factory_controls_dict.get(control) != None and factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
-
-        # update offset controls dictionary
-        if factoryOffsets is not None:
-            for key in factoryOffsets.keys():
-                if key in self.offsets_dict.keys():
-                    self.offsets_dict[key] = factoryOffsets[key]
-
 
         self.deviceResetCb = deviceResetCb
         self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
@@ -376,7 +376,7 @@ class PTXActuatorIF:
 
         self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self.initCb,
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
@@ -475,10 +475,6 @@ class PTXActuatorIF:
             'max_auto_tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
-            },            
-            'offsets': {
-                'namespace': self.node_namespace,
-                'factory_val': self.offsets_dict
             }
         }
         
@@ -669,14 +665,6 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.setAutoTiltWindowHandler, 
                 'callback_args': ()
-            },
-            'set_pt_offsets': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_pt_offsets',
-                'msg': PanTiltOffsets,
-                'qsize': 1,
-                'callback': self.setOffsetsHandler, 
-                'callback_args': ()
             }
         }
         
@@ -685,7 +673,7 @@ class PTXActuatorIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CFGS_DICT,
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -716,19 +704,20 @@ class PTXActuatorIF:
 
 
         # Setup System IF Classes ####################
-        ''' # PT saving handled by navpose IF class
+        # PT saving handled by navpose IF class
         if getNpOrientationCb is not None:
+            self.data_products_list.append('navpose')
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
             for d in self.data_products_list:
-                factory_data_rates[d] = [10.0, 0.0, 100.0] # Default to 10Hz save rate, set last save = 0.0, max rate = 100.0Hz
+                factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 10Hz save rate, set last save = 0.0, max rate = 100.0Hz
 
             factory_filename_dict = {
                 'prefix': "", 
                 'add_timestamp': True, 
                 'add_ms': True,
                 'add_us': False,
-                'suffix': "",
+                'suffix': "ptx",
                 'add_node_name': True
                 }
                 
@@ -741,7 +730,6 @@ class PTXActuatorIF:
                         msg_if = self.msg_if
                         )
             time.sleep(1)
-        '''
 
         if getNpOrientationCb is not None:
             # Create a NavPose Device IF
@@ -783,6 +771,14 @@ class PTXActuatorIF:
                         msg_if = self.msg_if
                         )
 
+        # Setup navpose data IF
+        np_namespace = self.node_namespace
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_ref_description = self.data_ref_description,
+                        log_name = 'navpose',
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         time.sleep(1)
    
@@ -825,7 +821,6 @@ class PTXActuatorIF:
         self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
         self.auto_tilt_max = self.node_if.get_param('max_tilt_softstop_deg')
        
-        self.offsets_dict = self.node_if.get_param('offsets')
    
         # Set reverse int values
         rpi = 1
@@ -856,9 +851,6 @@ class PTXActuatorIF:
 
         # Init everything
         self.initCb(do_updates = True)
-        self.publish_status(do_updates = True)
-
-
 
         # Periodic publishing
         status_update_rate = self.position_update_rate  
@@ -879,11 +871,16 @@ class PTXActuatorIF:
             # Start Auto Pan Process
             self.msg_if.pub_info("Starting auto tilt scanning process")
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
-        self.publish_status()
+
+        ##############################
+        # Start Node Processes
+        nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
+
+        self.publish_status(do_updates = True)
+        ####################################
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete", log_name_list = self.log_name_list)
-
-
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ####################################
 
     ###############################
     # Class Methods
@@ -963,9 +960,9 @@ class PTXActuatorIF:
         z = 0.0
         if orien_dict is not None:
             
-            ho = self.offsets_dict['z']
-            xo = self.offsets_dict['x']
-            yo = self.offsets_dict['y']
+            ho = 0
+            xo = 0
+            yo = 0
             zo = 0
 
             # calculate pos from tilt axis
@@ -993,8 +990,7 @@ class PTXActuatorIF:
         pos_dict['y_m'] = 0.0     
         pos_dict['z_m'] = 0.0
 
-        if self.getNpOrientationCb is not None:
-            orien_dict = self.getNpOrientationCb()
+        if self.getNpPositionCb is not None:
             [x,y,z] = self.getPtPosition(orien_dict)
             pos_dict['x_m'] = round(x,5)
             pos_dict['y_m'] = round(y,5)   
@@ -1428,16 +1424,6 @@ class PTXActuatorIF:
         self.setAutoTiltWindow(adj_min_deg,adj_max_deg)
 
 
-    def setOffsetsHandler(self, msg):
-        self.msg_if.pub_info("Setting offsets to: " + str(msg))
-        self.offsets_dict['x'] = msg.x_from_base_center
-        self.offsets_dict['y'] = msg.y_from_base_center
-        self.offsets_dict['z'] = msg.z_from_base_center
-        self.publish_status()
-        self.node_if.set_param('offsets', self.offsets_dict)
-
-
-
     def setAutoTiltWindow(self, min_deg, max_deg):
         if max_deg > min_deg:
             if max_deg > self.max_tilt_softstop_deg:
@@ -1452,6 +1438,27 @@ class PTXActuatorIF:
             self.node_if.set_param('max_tilt_softstop_deg', max_deg)
 
 
+    def get_navpose_dict(self):
+        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if self.nav_mgr_if is not None:
+            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        return navpose_dict
+
+        
+    def publish_navpose(self):
+        self.np_status_msg.publishing = True
+        if self.navpose_if is not None:
+            np_dict = self.get_navpose_dict()
+            self.navpose_if.publish_navpose(np_dict)
+
+
+    def _publishNavPoseCb(self,timer):
+        self.publish_navpose()
+        rate = 1
+        if self.nav_mgr_if is not None:
+            rate = self.nav_mgr_if.get_pub_rate()
+        delay = float(1.0) / rate
+        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
 
     def provideCapabilities(self, _):
@@ -1478,6 +1485,10 @@ class PTXActuatorIF:
         self.min_tilt_hardstop_deg = self.node_if.get_param('min_tilt_hardstop_deg')
         self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
         self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
+        if self.save_data_if is not None:
+            self.save_data_if.reset()
+        if self.settings_if is not None:
+            self.settings_if.reset_settings(update_status = False, update_params = True)
 
         #**********************
         # This one comes from the parent
@@ -1510,6 +1521,10 @@ class PTXActuatorIF:
         if self.deviceResetCb is not None:
             self.deviceResetCb()
             nepi_sdk.sleep(2)
+        if self.save_data_if is not None:
+            self.save_data_if.factory_reset()
+        if self.settings_if is not None:
+            self.settings_if.factory_reset(update_status = False, update_params = True)
         self.resetCb()
 
 
@@ -1536,7 +1551,9 @@ class PTXActuatorIF:
 
             if pan_deg != -999 and tilt_deg != -999:
                 self.current_position = [pan_deg,tilt_deg]
-            
+
+        self.status_msg = self.data_ref_description
+
         # Update Status Info
         got_time = nepi_utils.get_time() - start_time
         got_time = round(got_time, 3)
@@ -1607,10 +1624,6 @@ class PTXActuatorIF:
         tilt_changed = self.last_position[1] != self.current_position[1]
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
-
-        self.status_msg.x_from_base_center = self.offsets_dict['x']
-        self.status_msg.y_from_base_center = self.offsets_dict['y']
-        self.status_msg.z_from_base_center = self.offsets_dict['z']
 
         if do_updates == True:
             if self.getSoftLimitsCb is not None:

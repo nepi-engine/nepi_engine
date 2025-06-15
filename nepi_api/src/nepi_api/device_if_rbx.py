@@ -47,7 +47,8 @@ from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
-
+from nepi_api.data_if import NavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 
@@ -125,11 +126,11 @@ class RBXRobotIF:
     go_actions = []
     data_products_list = ['image']
 
+    node_if = None
     settings_if = None
     save_data_if = None
-    save_cfg_if = None
     
-    rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
+    status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
     check_save_data_interval_sec = float(1)/CHECK_SAVE_DATA_RATE_HZ
     update_navpose_interval_sec = float(1)/UPDATE_NAVPOSE_RATE_HZ
 
@@ -164,6 +165,7 @@ class RBXRobotIF:
                  checkStopFunction,
                  setup_actions, setSetupActionIndFunction,
                  go_actions, setGoActionIndFunction,
+                 data_ref_description = 'sensor',
                  getHomeFunction=None,setHomeFunction=None,
                  manualControlsReadyFunction=None,
                  getMotorControlRatios=None,
@@ -199,6 +201,9 @@ class RBXRobotIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        ready = self.nav_mgr_if.wait_for_ready()
 
         ############################## 
         # Initialize Class Variables
@@ -210,6 +215,8 @@ class RBXRobotIF:
         self.sw_version = device_info["sw_version"]
 
         self.factory_device_name = device_info["robot_name"] + "_" + device_info["identifier"]
+
+        self.data_ref_description = data_ref_description
 
         self.states = states
         self.getStateIndFunction = getStateIndFunction
@@ -226,11 +233,11 @@ class RBXRobotIF:
 
         self.getMotorControlRatios = getMotorControlRatios
         # Create and start initializing Status values
-        self.rbx_status=RBXStatus()
-        self.rbx_status.process_current = "None"
-        self.rbx_status.process_last = "None"
-        self.rbx_status.ready = False
-        self.rbx_status.battery = 0
+        self.status_msg=RBXStatus()
+        self.status_msg.process_current = "None"
+        self.status_msg.process_last = "None"
+        self.status_msg.ready = False
+        self.status_msg.battery = 0
         errors_msg = RBXGotoErrors()
         errors_msg.x_m = 0
         errors_msg.y_m = 0
@@ -239,9 +246,9 @@ class RBXRobotIF:
         errors_msg.roll_deg = 0
         errors_msg.pitch_deg = 0
         errors_msg.yaw_deg = 0
-        self.rbx_status.errors_current = errors_msg
-        self.rbx_status.errors_prev = errors_msg
-        self.rbx_status.last_error_message = ""
+        self.status_msg.errors_current = errors_msg
+        self.status_msg.errors_prev = errors_msg
+        self.status_msg.last_error_message = ""
 
         self.rbx_info=RBXInfo()
         self.rbx_info.connected = False
@@ -295,7 +302,7 @@ class RBXRobotIF:
         ## Setup Manual Controls
         self.manualControlsReadyFunction = manualControlsReadyFunction
         if self.manualControlsReadyFunction is not None:
-          self.rbx_status.manual_control_mode_ready = self.manualControlsReadyFunction()
+          self.status_msg.manual_control_mode_ready = self.manualControlsReadyFunction()
           manual_controls_ready = self.manualControlsReadyFunction()
           if manual_controls_ready:
             if self.setMotorControlRatio is not None:
@@ -305,13 +312,13 @@ class RBXRobotIF:
                 mc.motor_ind = i
                 self.setMotorControlRatio(mc)
         else:
-          self.rbx_status.manual_control_mode_ready = False
+          self.status_msg.manual_control_mode_ready = False
 
         if self.getMotorControlRatios is not None:
           motor_controls_status_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
         else:
           motor_controls_status_msg = self.get_motor_controls_status_msg([])
-        self.rbx_status.current_motor_control_settings = motor_controls_status_msg
+        self.status_msg.current_motor_control_settings = motor_controls_status_msg
 
         self.setMotorControlRatio = setMotorControlRatio
         if self.setMotorControlRatio is None:
@@ -327,10 +334,10 @@ class RBXRobotIF:
         # Setup Autonomous Contros
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
         if self.autonomousControlsReadyFunction is not None:
-          self.rbx_status.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
+          self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
           self.capabilities_report.has_autonomous_controls = True
         else:
-          self.rbx_status.autonomous_control_mode_ready = False
+          self.status_msg.autonomous_control_mode_ready = False
           self.capabilities_report.has_autonomous_controls = False
 
 
@@ -378,7 +385,7 @@ class RBXRobotIF:
         else:
             self.capabilities_report.has_goto_location = True
 
-        self.rbx_status.cmd_success = False
+        self.status_msg.cmd_success = False
 
 
 
@@ -387,7 +394,7 @@ class RBXRobotIF:
 
         self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
                 'init_callback': self.initCb,
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
@@ -457,14 +464,14 @@ class RBXRobotIF:
                 'qsize': 1,
                 'latch': True
             },
-            'rbx_status_pub': {
+            'status_msg_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/status',
                 'msg': RBXStatus,
                 'qsize': 1,
                 'latch': True
             },
-            'rbx_status_str_pub': {
+            'status_msg_str_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/status_str',
                 'msg': String,
@@ -668,7 +675,7 @@ class RBXRobotIF:
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        configs_dict = self.CFGS_DICT,
+                        configs_dict = self.CONFIGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -710,16 +717,17 @@ class RBXRobotIF:
 
         # Setup Save Data IF Class ####################
         self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+        self.data_products_list.append('navpose')
         factory_data_rates = {}
         for d in self.data_products_list:
-            factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
 
         factory_filename_dict = {
             'prefix': "", 
             'add_timestamp': True, 
             'add_ms': True,
             'add_us': False,
-            'suffix': "",
+            'suffix': "rbx",
             'add_node_name': True
             }
 
@@ -773,6 +781,15 @@ class RBXRobotIF:
                         msg_if = self.msg_if
                         )
 
+        # Setup navpose data IF
+        np_namespace = self.node_namespace
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_ref_description = self.data_ref_description,
+                        log_name = 'navpose',
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
 
         time.sleep(1)
 
@@ -793,13 +810,22 @@ class RBXRobotIF:
         ####################################
         ## Initiation Complete
         self.rbx_info.connected = True
-        self.rbx_status.ready = True 
+        self.status_msg.ready = True 
         self.initCb(do_updates = True)
-        nepi_sdk.start_timer_process(self.rbx_status_pub_interval, self.statusPublishCb)
+
+        ##############################
+        # Start Node Processes
+        nepi_sdk.start_timer_process(self.status_msg_pub_interval, self.statusPublishCb)
+        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True) 
+
+
         self.publishInfo()
         self.publishStatus()
+        
+        ####################################
         self.ready = True
-        self.msg_if.pub_info("RBX IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ####################################
          
 
     def initConfig(self):
@@ -812,6 +838,10 @@ class RBXRobotIF:
     def resetCb(self, do_updates = True):
         if do_updates == True:  
           self.ApplyConfigUpdates()
+        if self.save_data_if is not None:
+            self.save_data_if.reset()
+        if self.settings_if is not None:
+            self.settings_if.reset_settings(update_status = False, update_params = True)
         self.publishInfo()
 
     def factoryResetCb(self):
@@ -823,6 +853,10 @@ class RBXRobotIF:
             mc.motor_ind = i
             self.setMotorControlRatio(mc)
         self.ApplyConfigUpdates()
+        if self.save_data_if is not None:
+            self.save_data_if.factory_reset()
+        if self.settings_if is not None:
+            self.settings_if.factory_reset(update_status = False, update_params = True)
         self.publishInfo()
 
     def updateDeviceNameCb(self, msg):
@@ -882,14 +916,14 @@ class RBXRobotIF:
             self.update_error_msg("No matching rbx state found")
         else:
             self.update_current_errors( [0,0,0,0,0,0,0] )
-            self.rbx_status.process_current = self.states[new_state_ind]
+            self.status_msg.process_current = self.states[new_state_ind]
             self.rbx_state_last = self.rbx_info.state
             self.msg_if.pub_info("Waiting for rbx state " + self.states[new_state_ind] + " to set", log_name_list = self.log_name_list)
             self.setStateIndFunction(new_state_ind)
             time.sleep(1)
             self.msg_if.pub_info("Current rbx state is " + self.states[self.getStateIndFunction()])
-            self.rbx_status.process_last = self.states[new_state_ind]
-            self.rbx_status.process_current = "None"
+            self.status_msg.process_last = self.states[new_state_ind]
+            self.status_msg.process_current = "None"
             str_val = self.states[new_state_ind]
             self.last_cmd_string = "set_rbx_state(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
         self.publishInfo()
@@ -908,12 +942,12 @@ class RBXRobotIF:
             self.update_error_msg("No matching rbx mode found")
         else:
             self.update_current_errors( [0,0,0,0,0,0,0] )
-            self.rbx_status.process_current = self.modes[new_mode_ind]
+            self.status_msg.process_current = self.modes[new_mode_ind]
             self.msg_if.pub_info("Setting rbx mode to : " + self.modes[new_mode_ind])
             self.setModeIndFunction(new_mode_ind)
             self.msg_if.pub_info("Current rbx mode is " + self.modes[self.getModeIndFunction()])
-            self.rbx_status.process_last = self.modes[new_mode_ind]
-            self.rbx_status.process_current = "None"
+            self.status_msg.process_last = self.modes[new_mode_ind]
+            self.status_msg.process_current = "None"
             str_val = self.modes[new_mode_ind]
             self.last_cmd_string = "set_rbx_mode(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
         self.publishInfo()
@@ -927,12 +961,12 @@ class RBXRobotIF:
             if action_ind < 0 or action_ind > (len(self.setup_actions)-1):
                 self.update_error_msg("No matching rbx action found")
             else:
-                if self.rbx_status.ready is False:
+                if self.status_msg.ready is False:
                     self.update_error_msg("Another Command Process is Active")
                     self.update_error_msg("Ignoring this Request")
                 else:
-                    self.rbx_status.process_current = self.setup_actions[action_ind]
-                    self.rbx_status.ready = False
+                    self.status_msg.process_current = self.setup_actions[action_ind]
+                    self.status_msg.ready = False
                     self.rbx_cmd_success_current = False
                     self.msg_if.pub_info("Starting action: " + self.setup_actions[action_ind])
                     success = self.setSetupActionIndFunction(action_ind)
@@ -941,11 +975,11 @@ class RBXRobotIF:
                       self.msg_if.pub_info("Finished action: " + self.setup_actions[action_ind])
                     else:
                       self.msg_if.pub_info("Action: " + self.setup_actions[action_ind] + " Failed to complete", log_name_list = self.log_name_list)
-                    self.rbx_status.process_last = self.setup_actions[action_ind]
-                    self.rbx_status.process_current = "None"
-                    self.rbx_status.cmd_success = self.rbx_cmd_success_current
+                    self.status_msg.process_last = self.setup_actions[action_ind]
+                    self.status_msg.process_current = "None"
+                    self.status_msg.cmd_success = self.rbx_cmd_success_current
                     time.sleep(0.5)
-                    self.rbx_status.ready = True
+                    self.status_msg.ready = True
 
                     str_val = self.setup_actions[action_ind]
                     self.last_cmd_string = "setup_rbx_action(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
@@ -992,7 +1026,7 @@ class RBXRobotIF:
     def setProcessNameCb(self,set_process_name_msg):
         self.msg_if.pub_info("Received set process name message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(set_process_name_msg)
-        self.rbx_status.process_current = (set_process_name_msg.data)
+        self.status_msg.process_current = (set_process_name_msg.data)
 
          
     
@@ -1056,17 +1090,17 @@ class RBXRobotIF:
     def goHomeCb(self,home_msg):
         self.msg_if.pub_info("Received go home message", log_name_list = self.log_name_list)
         if self.goHomeFunction is not None:
-            self.rbx_status.process_current = "Go Home"
+            self.status_msg.process_current = "Go Home"
             self.rbx_cmd_success_current = False
-            self.rbx_status.ready = False
+            self.status_msg.ready = False
             self.update_prev_errors()
             self.update_current_errors( [0,0,0,0,0,0,0] )
             self.rbx_cmd_success_current = self.goHomeFunction()
-            self.rbx_status.process_last = "Go Home"
-            self.rbx_status.process_current = "None"
-            self.rbx_status.cmd_success = self.rbx_cmd_success_current
+            self.status_msg.process_last = "Go Home"
+            self.status_msg.process_current = "None"
+            self.status_msg.cmd_success = self.rbx_cmd_success_current
             time.sleep(0.5)
-            self.rbx_status.ready = True
+            self.status_msg.ready = True
             self.last_cmd_string = "go_rbx_home(self,timeout_sec = " + str(self.rbx_info.cmd_timeout)
             self.publishInfo()
 
@@ -1076,17 +1110,17 @@ class RBXRobotIF:
         self.msg_if.pub_info(stop_msg)
         time.sleep(1)
         if self.goStopFunction is not None:
-            self.rbx_status.process_current = "Stop"
+            self.status_msg.process_current = "Stop"
             self.rbx_cmd_success_current = False
-            self.rbx_status.ready = False
+            self.status_msg.ready = False
             self.update_prev_errors()
             self.update_current_errors( [0,0,0,0,0,0,0] )
             self.rbx_cmd_success_current = self.goStopFunction()
-            self.rbx_status.process_last = "Stop"
-            self.rbx_status.process_current = "None"
-            self.rbx_status.cmd_success = self.rbx_cmd_success_current
+            self.status_msg.process_last = "Stop"
+            self.status_msg.process_current = "None"
+            self.status_msg.cmd_success = self.rbx_cmd_success_current
             time.sleep(0.5)
-            self.rbx_status.ready = True
+            self.status_msg.ready = True
             self.last_cmd_string = "go_rbx_stop(self,timeout_sec = " + str(self.rbx_info.cmd_timeout)
             self.publishInfo()
 
@@ -1100,12 +1134,12 @@ class RBXRobotIF:
             if action_ind < 0 or action_ind > (len(self.go_actions)-1):
                 self.update_error_msg("No matching rbx action found")
             else:
-                if self.rbx_status.ready is False:
+                if self.status_msg.ready is False:
                     self.update_error_msg("Another GoTo Command Process is Active")
                     self.update_error_msg("Ignoring this Request")
                 else:
-                    self.rbx_status.process_current = self.go_actions[action_ind]
-                    self.rbx_status.ready = False
+                    self.status_msg.process_current = self.go_actions[action_ind]
+                    self.status_msg.ready = False
                     self.rbx_cmd_success_current = False
                     self.msg_if.pub_info("Starting action: " + self.go_actions[action_ind])
                     success = self.setGoActionIndFunction(action_ind)
@@ -1114,11 +1148,11 @@ class RBXRobotIF:
                       self.msg_if.pub_info("Finished action: " + self.go_actions[action_ind])
                     else:
                       self.msg_if.pub_info("Action: " + self.go_actions[action_ind] + " Failed to complete", log_name_list = self.log_name_list)
-                    self.rbx_status.process_last = self.go_actions[action_ind]
-                    self.rbx_status.process_current = "None"
-                    self.rbx_status.cmd_success = self.rbx_cmd_success_current
+                    self.status_msg.process_last = self.go_actions[action_ind]
+                    self.status_msg.process_current = "None"
+                    self.status_msg.cmd_success = self.rbx_cmd_success_current
                     time.sleep(0.5)
-                    self.rbx_status.ready = True
+                    self.status_msg.ready = True
 
                     str_val = self.go_actions[action_ind]
                     self.last_cmd_string = "go_rbx_action(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
@@ -1134,19 +1168,19 @@ class RBXRobotIF:
         time.sleep(1)
         if self.autonomousControlsReadyFunction() is True:
             setpoint_data=[pose_cmd_msg.roll_deg,pose_cmd_msg.pitch_deg,pose_cmd_msg.yaw_deg]
-            if self.rbx_status.ready is False:
+            if self.status_msg.ready is False:
                 self.update_error_msg("Ignoring GoTo POSE Request, Another GoTo Command Process is Active")
             else:
-                self.rbx_status.process_current = "GoTo Pose"
-                self.rbx_status.ready = False
+                self.status_msg.process_current = "GoTo Pose"
+                self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_attitude_ned(setpoint_data)
-                self.rbx_status.process_last = "GoTo Pose"
-                self.rbx_status.process_current = "None"
-                self.rbx_status.cmd_success = self.rbx_cmd_success_current
+                self.status_msg.process_last = "GoTo Pose"
+                self.status_msg.process_current = "None"
+                self.status_msg.cmd_success = self.rbx_cmd_success_current
                 time.sleep(0.5)
-                self.rbx_status.ready = True
+                self.status_msg.ready = True
 
                 str_val = str(setpoint_data)
                 self.last_cmd_string = "goto_rbx_pose(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
@@ -1161,21 +1195,21 @@ class RBXRobotIF:
         self.msg_if.pub_info("Recieved GoTo Position Command Message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(position_cmd_msg)
         time.sleep(1)
-        if self.rbx_status.manual_control_mode_ready is False:
+        if self.status_msg.manual_control_mode_ready is False:
             setpoint_data=[position_cmd_msg.x_meters,position_cmd_msg.y_meters,position_cmd_msg.z_meters,position_cmd_msg.yaw_deg]
-            if self.rbx_status.ready is False:
+            if self.status_msg.ready is False:
                 self.update_error_msg("Ignoring GoTo Position Request, Another GoTo Command Process is Active")
             else:
-                self.rbx_status.process_current = "GoTo Position"
-                self.rbx_status.ready = False
+                self.status_msg.process_current = "GoTo Position"
+                self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_position_local_body(setpoint_data)
-                self.rbx_status.process_last = "GoTo Position"
-                self.rbx_status.process_current = "None"
-                self.rbx_status.cmd_success = self.rbx_cmd_success_current
+                self.status_msg.process_last = "GoTo Position"
+                self.status_msg.process_current = "None"
+                self.status_msg.cmd_success = self.rbx_cmd_success_current
                 time.sleep(0.5)
-                self.rbx_status.ready = True
+                self.status_msg.ready = True
                 
                 str_val = str(setpoint_data)
                 self.last_cmd_string = "goto_rbx_position(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
@@ -1189,19 +1223,19 @@ class RBXRobotIF:
         self.msg_if.pub_info(location_cmd_msg)
         if self.autonomousControlsReadyFunction() is True:
             setpoint_data=[location_cmd_msg.lat,location_cmd_msg.long,location_cmd_msg.altitude_meters,location_cmd_msg.yaw_deg]
-            if self.rbx_status.ready is False:
+            if self.status_msg.ready is False:
                 self.update_error_msg("Ignoring GoTo Location Request, Another GoTo Command Process is Active")
             else:
-                self.rbx_status.process_current = "GoTo Location"
-                self.rbx_status.ready = False
+                self.status_msg.process_current = "GoTo Location"
+                self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_location_global_wgs84(setpoint_data)
-                self.rbx_status.process_last = "GoTo Location"
-                self.rbx_status.process_current = "None"
-                self.rbx_status.cmd_success = self.rbx_cmd_success_current
+                self.status_msg.process_last = "GoTo Location"
+                self.status_msg.process_current = "None"
+                self.status_msg.cmd_success = self.rbx_cmd_success_current
                 time.sleep(0.5)
-                self.rbx_status.ready = True
+                self.status_msg.ready = True
 
                 str_val = str(setpoint_data)
                 self.last_cmd_string = "goto_rbx_location(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
@@ -1319,41 +1353,41 @@ class RBXRobotIF:
           self.rbx_battery = self.getBatteryPercentFunction()
         else:
           self.rbx_battery = -999
-        self.rbx_status.current_lat = self.current_location_wgs84_geo[0]
-        self.rbx_status.current_long  = self.current_location_wgs84_geo[1]
-        self.rbx_status.current_altitude  = self.current_location_wgs84_geo[2]
-        self.rbx_status.current_heading = self.current_heading_deg
-        self.rbx_status.current_roll = self.current_orientation_ned_degs[0]
-        self.rbx_status.current_pitch  = self.current_orientation_ned_degs[1]
-        self.rbx_status.current_yaw = self.current_orientation_ned_degs[2]
+        self.status_msg.current_lat = self.current_location_wgs84_geo[0]
+        self.status_msg.current_long  = self.current_location_wgs84_geo[1]
+        self.status_msg.current_altitude  = self.current_location_wgs84_geo[2]
+        self.status_msg.current_heading = self.current_heading_deg
+        self.status_msg.current_roll = self.current_orientation_ned_degs[0]
+        self.status_msg.current_pitch  = self.current_orientation_ned_degs[1]
+        self.status_msg.current_yaw = self.current_orientation_ned_degs[2]
 
-        self.rbx_status.last_cmd_string = self.last_cmd_string
-        self.rbx_status.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
+        self.status_msg.last_cmd_string = self.last_cmd_string
+        self.status_msg.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
 
         ## Update Control Info
         if self.manualControlsReadyFunction is not None:
-          self.rbx_status.manual_control_mode_ready = self.manualControlsReadyFunction()
+          self.status_msg.manual_control_mode_ready = self.manualControlsReadyFunction()
         else:
-          self.rbx_status.manual_control_mode_ready = False
+          self.status_msg.manual_control_mode_ready = False
 
         if self.getMotorControlRatios is not None:
             motor_controls_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
         else:
             motor_controls_msg = self.get_motor_controls_status_msg([])
-        self.rbx_status.current_motor_control_settings = motor_controls_msg
+        self.status_msg.current_motor_control_settings = motor_controls_msg
 
 
         if self.autonomousControlsReadyFunction is not None:
-          self.rbx_status.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
+          self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
         else:
-          self.rbx_status.autonomous_control_mode_ready = False
+          self.status_msg.autonomous_control_mode_ready = False
 
          # Create Status Info Text List
         status_str_msg = []
-        if self.rbx_status.battery < 0.1:
+        if self.status_msg.battery < 0.1:
             battery_string = "No Reading"
         else:
-            battery_string = '%.2f' % self.rbx_status.battery
+            battery_string = '%.2f' % self.status_msg.battery
 
         state_ind = self.getStateIndFunction()
         if len(self.states) > 0 and state_ind >= 0 and state_ind <= (len(self.states)):
@@ -1374,28 +1408,29 @@ class RBXRobotIF:
           status_str_msg.append("Mode Last: " + self.modes[self.rbx_mode_last])
         else:
           status_str_msg.append("Mode Last: None")
-        status_str_msg.append("Ready: " + str(self.rbx_status.ready))
+        status_str_msg.append("Ready: " + str(self.status_msg.ready))
         status_str_msg.append("")
-        status_str_msg.append("Current Process: " + self.rbx_status.process_current)
+        status_str_msg.append("Current Process: " + self.status_msg.process_current)
         status_str_msg.append(" XYZ Errors Meters: ")
-        status_str_msg.append(" " + '%.2f' % self.rbx_status.errors_current.x_m + "  " + '%.2f' % self.rbx_status.errors_current.y_m + "  " + '%.2f' % self.rbx_status.errors_current.z_m)
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.x_m + "  " + '%.2f' % self.status_msg.errors_current.y_m + "  " + '%.2f' % self.status_msg.errors_current.z_m)
         status_str_msg.append(" RPY Errors Degrees: ")
-        status_str_msg.append(" " + '%.2f' % self.rbx_status.errors_current.roll_deg + "  " + '%.2f' % self.rbx_status.errors_current.pitch_deg + "  " + '%.2f' % self.rbx_status.errors_current.yaw_deg)
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.roll_deg + "  " + '%.2f' % self.status_msg.errors_current.pitch_deg + "  " + '%.2f' % self.status_msg.errors_current.yaw_deg)
         status_str_msg.append("")
-        status_str_msg.append("Last Process: " + self.rbx_status.process_last)
-        status_str_msg.append(" Success: " + str(self.rbx_status.cmd_success))
+        status_str_msg.append("Last Process: " + self.status_msg.process_last)
+        status_str_msg.append(" Success: " + str(self.status_msg.cmd_success))
         status_str_msg.append(" XYZ Errors Meters: ")
-        status_str_msg.append(" " + '%.2f' % self.rbx_status.errors_prev.x_m + "  " + '%.2f' % self.rbx_status.errors_prev.y_m + "  " + '%.2f' % self.rbx_status.errors_prev.z_m)
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.x_m + "  " + '%.2f' % self.status_msg.errors_prev.y_m + "  " + '%.2f' % self.status_msg.errors_prev.z_m)
         status_str_msg.append(" RPY Errors Degrees: ")
-        status_str_msg.append(" " + '%.2f' % self.rbx_status.errors_prev.roll_deg + "  " + '%.2f' % self.rbx_status.errors_prev.pitch_deg + "  " + '%.2f' % self.rbx_status.errors_prev.yaw_deg)
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.roll_deg + "  " + '%.2f' % self.status_msg.errors_prev.pitch_deg + "  " + '%.2f' % self.status_msg.errors_prev.yaw_deg)
         status_str_msg.append("")
 
    
 
         self.status_str_msg = status_str_msg
         if not nepi_sdk.is_shutdown():
-            self.node_if.publish_pub('rbx_status_pub', self.rbx_status)
-            self.node_if.publish_pub('rbx_status_str_pub', str(status_str_msg))
+            self.status_msg.data_ref_description = self.data_ref_description
+            self.node_if.publish_pub('status_msg_pub', self.status_msg)
+            self.node_if.publish_pub('status_msg_str_pub', str(status_str_msg))
 
         # Create ROS Image message
         cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
@@ -1563,6 +1598,32 @@ class RBXRobotIF:
       self.update_current_errors( [0,0,0,0,attitude_errors_degs[0],attitude_errors_degs[1],attitude_errors_degs[2]]  )
       return cmd_success
       
+
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        elif self.nav_mgr_if is not None:
+            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
+
+        
+    def publish_navpose(self):
+        self.np_status_msg.publishing = True
+        if self.navpose_if is not None:
+            np_dict = self.get_navpose_dict()
+            self.navpose_if.publish_navpose(np_dict)
+
+
+    def _publishNavPoseCb(self,timer):
+        self.publish_navpose()
+        rate = 1
+        if self.nav_mgr_if is not None:
+            rate = self.nav_mgr_if.get_pub_rate()
+        delay = float(1.0) / rate
+        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
 
     ### Function to set and check setpoint position local body command
@@ -1897,26 +1958,26 @@ class RBXRobotIF:
         errors_msg.pitch_deg = error_list[5]
         errors_msg.yaw_deg = error_list[6]
 
-        self.rbx_status.errors_current = errors_msg
+        self.status_msg.errors_current = errors_msg
       else:
         self.msg_if.pub_info("Skipping current error update. Error list to short", log_name_list = self.log_name_list)
 
     ### Function for updating last goto error values
     def update_prev_errors(self):
         errors_msg = RBXGotoErrors()
-        errors_msg.x_m = self.rbx_status.errors_current.x_m
-        errors_msg.y_m = self.rbx_status.errors_current.y_m
-        errors_msg.z_m = self.rbx_status.errors_current.z_m
-        errors_msg.heading_deg = self.rbx_status.errors_current.heading_deg
-        errors_msg.roll_deg = self.rbx_status.errors_current.roll_deg
-        errors_msg.pitch_deg = self.rbx_status.errors_current.pitch_deg
-        errors_msg.yaw_deg = self.rbx_status.errors_current.yaw_deg
-        self.rbx_status.errors_prev = errors_msg
+        errors_msg.x_m = self.status_msg.errors_current.x_m
+        errors_msg.y_m = self.status_msg.errors_current.y_m
+        errors_msg.z_m = self.status_msg.errors_current.z_m
+        errors_msg.heading_deg = self.status_msg.errors_current.heading_deg
+        errors_msg.roll_deg = self.status_msg.errors_current.roll_deg
+        errors_msg.pitch_deg = self.status_msg.errors_current.pitch_deg
+        errors_msg.yaw_deg = self.status_msg.errors_current.yaw_deg
+        self.status_msg.errors_prev = errors_msg
 
 
     def update_error_msg(self,error_msg):
       self.msg_if.pub_info(error_msg)
-      self.rbx_status.last_error_message = error_msg
+      self.status_msg.last_error_message = error_msg
 
     def get_motor_controls_status_msg(self,motor_controls):
       mcs = []

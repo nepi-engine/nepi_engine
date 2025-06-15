@@ -18,7 +18,7 @@ import Styles from "./Styles"
 import Select from "./Select"
 import Input from "./Input"
 
-import NepiIFReset from "./Nepi_IF_Reset"
+import NepiIFConfig from "./Nepi_IF_Config"
 
 import { createMenuListFromStrList } from "./Utilities"
 
@@ -78,7 +78,7 @@ class Nepi_IF_Settings extends Component {
 
     this.renderSettings = this.renderSettings.bind(this)
     this.renderSetting = this.renderSetting.bind(this)
-    this.renderResets = this.renderResets.bind(this)
+    this.renderConfigs = this.renderConfigs.bind(this)
   }
 
   // Callback for handling ROS Settings Status messages
@@ -353,7 +353,7 @@ class Nepi_IF_Settings extends Component {
                 </Column>
               </Columns>
 
-              {this.renderResets()}
+              {this.renderConfigs()}
 
           </Column>
           </Columns>
@@ -443,7 +443,7 @@ class Nepi_IF_Settings extends Component {
 
   }
 
-  renderResets(){
+  renderConfigs(){
     const { sendTriggerMsg } = this.props.ros
     const namespace = this.state.namespace
     return(
@@ -451,9 +451,9 @@ class Nepi_IF_Settings extends Component {
       <Column>
 
 
-          <NepiIFReset
+          <NepiIFConfig
                         namespace={namespace}
-                        title={"Nepi_IF_Reset"}
+                        title={"Nepi_IF_Config"}
           />
 
         </Column>

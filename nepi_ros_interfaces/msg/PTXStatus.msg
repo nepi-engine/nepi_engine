@@ -8,6 +8,8 @@ string  serial_num
 string  hw_version
 string  sw_version
 
+string data_ref_description
+
 bool has_absolute_positioning
 bool has_timed_positioning
 bool has_seperate_pan_tilt_control

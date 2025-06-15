@@ -31,7 +31,7 @@ from nepi_sdk_interfaces.msg import ImageStatus
 from sensor_msgs.msg import PointCloud2
 from nepi_sdk_interfaces.msg import PointcloudStatus
 
-from nepi_sdk_interfaces.msg import NavPoseData, NavPoseStatus
+from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
@@ -756,7 +756,7 @@ class ConnectNavPoseIF:
         # Pubs Config Dict ####################
         self.SUBS_DICT = {
             'navpose_sub': {
-                'msg': NavPoseData,
+                'msg': NavPose,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
