@@ -1114,6 +1114,9 @@ class SettingsIF:
         if update_status:
             self.publish_status()
 
+    def reset_settings(self):
+        self.reset()
+        
     ###############################
     # Class Private Methods
     ###############################
@@ -1158,6 +1161,8 @@ class SettingsIF:
     def _resetFactoryCb(self,msg):
         self.factory_reset()
 
+    def _resetSettingsCb(self, msg):
+        self.reset()
 
 
 

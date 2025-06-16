@@ -176,6 +176,8 @@ class PTXActuatorIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.data_products_list = []
+
 
         ##############################  
         # Create Msg Class
