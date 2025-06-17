@@ -104,7 +104,7 @@ class NavPoseData extends Component {
     })
   }
 
-  orientationListener(message) {
+  positionListener(message) {
     this.setState({
     x_m: message.x,
     y_m: message.y,
@@ -153,7 +153,7 @@ class NavPoseData extends Component {
     }
     var posListener = this.props.ros.setupVector3Listener(
           posNamespace,
-          this.posistionListener
+          this.positionListener
         )
     this.setState({ posListener: posListener})
   }

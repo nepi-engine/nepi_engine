@@ -20,8 +20,9 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
+from nepi_sdk import nepi_nav
 from nepi_sdk_interfaces.msg import RangeWindow
-from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, NavPoseStatus
 from nepi_sdk_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
@@ -68,7 +69,6 @@ class PTXActuatorIF:
     settings_if = None
     save_data_if = None
 
-    status_msg = PTXStatus()
     joint_state_msg = JointState()    
 
     has_position_feedback = False
@@ -348,7 +348,11 @@ class PTXActuatorIF:
 
 
         ########################
+        # Initialize the navpose status message
+        self.np_status_msg = NavPoseStatus()
+        
         # Set up status message static values
+        self.status_msg = PTXStatus()
         self.status_msg.serial_num = self.serial_num
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
@@ -1443,7 +1447,7 @@ class PTXActuatorIF:
     def get_navpose_dict(self):
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         if self.nav_mgr_if is not None:
-            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+            navpose_dict = self.nav_mgr_if.get_navpose_dict()
         return navpose_dict
 
         
@@ -1458,7 +1462,9 @@ class PTXActuatorIF:
         self.publish_navpose()
         rate = 1
         if self.nav_mgr_if is not None:
-            rate = self.nav_mgr_if.get_pub_rate()
+            pub_rate = self.nav_mgr_if.get_pub_rate()
+            if pub_rate is not None and pub_rate > 0:
+                rate = pub_rate
         delay = float(1.0) / rate
         nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
@@ -1490,7 +1496,7 @@ class PTXActuatorIF:
         if self.save_data_if is not None:
             self.save_data_if.reset()
         if self.settings_if is not None:
-            self.settings_if.reset_settings(update_status = False, update_params = True)
+            self.settings_if.reset_settings()
 
         #**********************
         # This one comes from the parent
@@ -1554,7 +1560,7 @@ class PTXActuatorIF:
             if pan_deg != -999 and tilt_deg != -999:
                 self.current_position = [pan_deg,tilt_deg]
 
-        self.status_msg = self.data_ref_description
+        self.status_msg.data_ref_description = self.data_ref_description
 
         # Update Status Info
         got_time = nepi_utils.get_time() - start_time

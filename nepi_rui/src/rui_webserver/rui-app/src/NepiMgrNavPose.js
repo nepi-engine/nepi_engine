@@ -378,24 +378,30 @@ class NavPoseMgr extends Component {
 
   }
 
-updateStatusListener() {
-  console.log("=====updateStatusListener called=====")
-
-  const namespace = this.state.base_namespace + "/" + this.state.mgrName 
-  const topic = namespace + "/status";
-  console.log("Subscribing to:", topic);
-
-  var statusListener = this.props.ros.setupStatusListener(
-    namespace + "/status",
-    "nepi_sdk_interfaces/NavPoseMgrStatus",
-    this.statusListener 
-  )
-  
-  this.setState({ 
-    statusListener: statusListener,
-    needs_update: false 
-  })
-}
+  updateStatusListener() {
+    console.log("=====updateStatusListener called=====");
+    const namespace = this.state.base_namespace + "/" + this.state.mgrName;
+    const topic = namespace + "/status";
+    console.log("Attempting to subscribe to:", topic);
+    console.log("Expected message type: nepi_sdk_interfaces/NavPoseMgrStatus");
+    
+    // Add error handling
+    try {
+      var statusListener = this.props.ros.setupStatusListener(
+        topic,
+        "nepi_sdk_interfaces/NavPoseMgrStatus",
+        this.statusListener 
+      );
+      
+      this.setState({ 
+        statusListener: statusListener,
+        needs_update: false 
+      });
+      console.log("Status listener setup successful");
+    } catch (error) {
+      console.error("Failed to setup status listener:", error);
+    }
+  }
 
 updateNavposeListener() {
   console.log("=====updateNavposeListener called=====")
@@ -441,8 +447,12 @@ updateNavposeListener() {
   }
 
   componentDidMount() {
+    console.log("Component mounted, checking connection...");
+    console.log("namespacePrefix:", this.props.ros.namespacePrefix);
+    console.log("deviceId:", this.props.ros.deviceId);
     this.checkConnection();
   }
+  
   
   async checkConnection() {
     const { namespacePrefix, deviceId } = this.props.ros;

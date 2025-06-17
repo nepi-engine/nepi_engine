@@ -198,8 +198,6 @@ class NPXDeviceIF:
 
   settings_if = None
 
-  status_msg = NPXStatus()
-
   has_updated = False
 
   pub_subs = False
@@ -319,6 +317,8 @@ class NPXDeviceIF:
         self.navpose_dict['frame_depth'] = self.frame_depth
 
         # Initialize status message
+        self.status_msg = NPXStatus()
+
         self.status_msg.has_location = self.has_location
         self.status_msg.has_heading = self.has_heading
         self.status_msg.has_orientation = self.has_orientation
@@ -560,8 +560,8 @@ class NPXDeviceIF:
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'navpose' in self.data_products_save_list:
-            factory_data_rates['navpose'] = [1.0, 0.0, 100.0] 
+        if 'navpose' in self.data_products_list:
+            factory_data_rates['navpse'] = [1.0, 0.0, 100.0] 
 
         factory_filename_dict = {
             'prefix': "", 
@@ -574,9 +574,9 @@ class NPXDeviceIF:
 
         sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                factory_rate_dict = factory_data_rates,
-                                factory_filename_dict = factory_filename_dict,
-                                namespace = sd_namespace,
+                            factory_rate_dict = factory_data_rates,
+                            factory_filename_dict = factory_filename_dict,
+                            namespace = sd_namespace,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
@@ -799,7 +799,7 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-          self.settings_if.reset_settings(update_status = False, update_params = True)
+          self.settings_if.reset_settings()
 
   def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -809,7 +809,7 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-          self.settings_if.factory_reset(update_status = False, update_params = True)
+          self.settings_if.factory_reset()
 
 
 
@@ -966,26 +966,22 @@ class NPXDeviceIF:
 
 
 
-  def _publishStatusCb(self,timer):
-      self.status_msg = self.data_ref_description
+  def _publishStatusCb(self, timer):
+      self.status_msg.data_ref_description = self.data_ref_description
       self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_heading_source = self.set_heading_source
       self.status_msg.set_as_orientation_source = self.set_orientation_source
       self.status_msg.set_as_position_source = self.set_position_source
-      self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_altitude_source = self.set_altitude_source
       self.status_msg.set_as_depth_source = self.set_depth_source
       transform_msg = nepi_nav.convert_transform_list2msg(self.frame_transform)
       transform_msg.source_ref_description = self.data_ref_description
       transform_msg.end_ref_description = 'nepi_frame'
-      self.status_msg.frame_3d_transform = transform_msg
+      self.status_msg.nepi_frame_3d_transform = transform_msg
       self.status_msg.include_transform_enabled = self.include_transform_enabled
-
       self.status_msg.update_rate = self.update_rate
 
-      self.node_if.publish_pub('status_pub',self.status_msg)
-
-
+      self.node_if.publish_pub('status_pub', self.status_msg)
 
   #######################
   # Node Cleanup Function

@@ -8,7 +8,7 @@ string date_time
 
 float32 latitude
 float32 longitude
-float32 heading_m
+float32 heading_deg
 
 # Orientation degrees in 'ENU' frame
 float32 roll_deg

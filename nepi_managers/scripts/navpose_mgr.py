@@ -241,6 +241,13 @@ class NavPoseMgr(object):
                 'qsize': 1,
                 'latch': True
             },
+            'navpose_data': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose_data',
+                'msg': NavPose,  # This should be the correct message type
+                'qsize': 1,
+                'latch': False
+            }
         }
 
         # Subscribers Config Dict ####################
@@ -431,38 +438,112 @@ class NavPoseMgr(object):
             if topic != '':
                 self.transforms_dict[topic] = self.ZERO_TRANSFORM
 
-    def setNavPoseCb(self,npdata_dict):
+    def _updateConnectionsCb(self, timer):
+        # Register new topic requests
+        self.subs_dict_lock.acquire()
+        subs_dict = copy.deepcopy(self.subs_dict)
+        self.subs_dict_lock.release()
+        for name in self.connect_dict.keys():
+            topic = self.connect_dict[name]['topic']
+            if topic != subs_dict[name]['topic']:
+                transform = self.ZERO_TRANSFORM
+                # Fixed: Use self.transforms_dict instead of undefined transform_dict 
+                if topic in self.transforms_dict.keys():
+                    transform = self.transforms_dict[topic]
+                self._connectTopic(name, topic, transform=transform)
+        nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot=True)
+
+    def _connectTopic(self, name, topic, transform=None):
+        if name in self.avail_topics_dict.keys():
+            self.connect_dict[name]['fixed'] = False
+            if topic == 'None' or topic == '':
+                success = self._unregisterTopic(name)
+            elif topic in self.avail_topics_dict[name]['topics']:
+                if self.subs_dict[name]['topic'] != '':
+                    success = self._unregisterTopic(name)
+                # Fixed: Get message index properly
+                topic_index = self.avail_topics_dict[name]['topics'].index(topic)
+                msg_str = self.avail_topics_dict[name]['msgs'][topic_index]
+                
+                if msg_str in nepi_nav.NAVPOSE_MSG_DICT[name].keys():
+                    msg = nepi_nav.NAVPOSE_MSG_DICT[name][msg_str]
+                    cb = self.cb_dict[name]
+
+                    self.subs_dict_lock.acquire()
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args=(name,))
+                    self.subs_dict[name]['topic'] = topic
+                    self.subs_dict[name]['msg'] = msg_str
+                    self.connect_dict[name]['msg'] = msg_str
+                    self.subs_dict[name]['sub'] = sub  # Fixed: assign to 'sub' key
+                    self.connect_dict[name]['topic'] = topic
+                    self.subs_dict_lock.release()
+                    
+                    new_transform = self.ZERO_TRANSFORM
+                    if transform is not None:
+                        new_transform = transform
+                        self.transforms_dict[topic] = new_transform
+                    elif topic in self.transforms_dict.keys():
+                        new_transform = self.transforms_dict[topic]
+                    # Fixed: assign transform properly
+                    self.connect_dict[name]['transform'] = new_transform
+
+    def _compSubCb(self, msg, args):
+        name = args
+        self.connect_dict[name]['connected'] = True
+        # Update copy of dict
+        self.navpose_dict_lock.acquire()
+        npdata_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        transform = self.connect_dict[name]['transform']
+        # Fixed: typo in 'transform' parameter name
+        npdata_dict = nepi_nav.update_navpose_dict_from_msg(name, npdata_dict, msg, transform=transform)
+
+        # Now update class dict
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = npdata_dict
+        self.navpose_dict_lock.release()            
+        
+        # Update time info - Fixed list manipulation
+        last_time = self.connect_dict[name]['last_time']
+        cur_time = nepi_utils.get_time()
+        times = self.connect_dict[name]['times']
+        times.pop(0)  # Remove first element
+        times.append(cur_time - last_time)  # Add new time difference
+        self.connect_dict[name]['times'] = times  # Assign back to dict
+        self.connect_dict[name]['last_time'] = cur_time
+
+    def setNavPoseCb(self, npdata_dict):
         if npdata_dict is not None:
             if npdata_dict['has_location'] == True:
-                success = self._unregisterTopic(self,'location')
+                success = self._unregisterTopic('location')  # Fixed: removed self parameter
                 self.connect_dict['location']['fixed'] = True
                 self.transforms_dict['location'] = self.ZERO_TRANSFORM
             if npdata_dict['has_heading'] == True:
-                success = self._unregisterTopic(self,'heading')
+                success = self._unregisterTopic('heading')  # Fixed: removed self parameter
                 self.connect_dict['heading']['fixed'] = True
                 self.transforms_dict['heading'] = self.ZERO_TRANSFORM
             if npdata_dict['has_orientation'] == True:
-                success = self._unregisterTopic(self,'orientation')
+                success = self._unregisterTopic('orientation')  # Fixed: removed self parameter
                 self.connect_dict['orientation']['fixed'] = True
                 self.transforms_dict['orientation'] = self.ZERO_TRANSFORM
             if npdata_dict['has_position'] == True:
-                success = self._unregisterTopic(self,'position')
+                success = self._unregisterTopic('position')  # Fixed: removed self parameter
                 self.connect_dict['position']['fixed'] = True
                 self.transforms_dict['position'] = self.ZERO_TRANSFORM
             if npdata_dict['has_altitude'] == True:
-                success = self._unregisterTopic(self,'altitude')
+                success = self._unregisterTopic('altitude')  # Fixed: removed self parameter
                 self.connect_dict['altitude']['fixed'] = True
                 self.transforms_dict['altitude'] = self.ZERO_TRANSFORM
             if npdata_dict['has_depth'] == True:
-                success = self._unregisterTopic(self,'depth')
+                success = self._unregisterTopic('depth')  # Fixed: removed self parameter
                 self.connect_dict['depth']['fixed'] = True
                 self.transforms_dict['depth'] = self.ZERO_TRANSFORM
             navpose_dict = copy.deepcopy(self.navpose_dict)
-            navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict,npdata_dict)
+            navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict, npdata_dict)
             self.navpose_dict_lock.acquire()
             self.navpose_dict = navpose_dict
             self.navpose_dict_lock.release()
-            
+
 
     def resetNavPose(self):
         self.navpose_dict_lock.acquire()
@@ -579,9 +660,7 @@ class NavPoseMgr(object):
 
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
-
-
-    def _updateConnectionsCb(self,timer):
+    def _updateConnectionsCb(self, timer):
         # Register new topic requests
         self.subs_dict_lock.acquire()
         subs_dict = copy.deepcopy(self.subs_dict)
@@ -590,12 +669,12 @@ class NavPoseMgr(object):
             topic = self.connect_dict[name]['topic']
             if topic != subs_dict[name]['topic']:
                 transform = self.ZERO_TRANSFORM
-                if topic in transform_dict.keys():
-                    transform = transform_dict[topic]
-                self._connectTopic(name,topic,transform = transform)
-        nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)        
+                if topic in self.transforms_dict.keys():
+                    transform = self.transforms_dict[topic]
+                self._connectTopic(name, topic, transform=transform)
+        nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot=True)
 
-    def _connectTopic(self,name,topic,transform = None):
+    def _connectTopic(self, name, topic, transform=None):
         if name in self.avail_topics_dict.keys():
             self.connect_dict[name]['fixed'] = False
             if topic == 'None' or topic == '':
@@ -603,26 +682,31 @@ class NavPoseMgr(object):
             elif topic in self.avail_topics_dict[name]['topics']:
                 if self.subs_dict[name]['topic'] != '':
                     success = self._unregisterTopic(name)
-                msg_str = self.avail_topics_dict[name]['msg']
+                # Fixed: Get message index properly
+                topic_index = self.avail_topics_dict[name]['topics'].index(topic)
+                msg_str = self.avail_topics_dict[name]['msgs'][topic_index]
+                
                 if msg_str in nepi_nav.NAVPOSE_MSG_DICT[name].keys():
                     msg = nepi_nav.NAVPOSE_MSG_DICT[name][msg_str]
                     cb = self.cb_dict[name]
 
                     self.subs_dict_lock.acquire()
-                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args = (name))
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args=(name,))
                     self.subs_dict[name]['topic'] = topic
                     self.subs_dict[name]['msg'] = msg_str
                     self.connect_dict[name]['msg'] = msg_str
-                    self.subs_dict[name] = sub
+                    self.subs_dict[name]['sub'] = sub  # Fixed: assign to 'sub' key
                     self.connect_dict[name]['topic'] = topic
                     self.subs_dict_lock.release()
+                    
                     new_transform = self.ZERO_TRANSFORM
                     if transform is not None:
                         new_transform = transform
                         self.transforms_dict[topic] = new_transform
                     elif topic in self.transforms_dict.keys():
                         new_transform = self.transforms_dict[topic]
-                    self.connect_dict[name] = new_transform
+                    # Fixed: assign transform properly
+                    self.connect_dict[name]['transform'] = new_transform
 
 
     def _unregisterTopic(self,name):
@@ -636,7 +720,7 @@ class NavPoseMgr(object):
             
 
 
-    def _compSubCb(self,msg,args):
+    def _compSubCb(self, msg, args):
         name = args
         self.connect_dict[name]['connected'] = True
         # Update copy of dict
@@ -644,20 +728,20 @@ class NavPoseMgr(object):
         npdata_dict = copy.deepcopy(self.navpose_dict)
         self.navpose_dict_lock.release()
         transform = self.connect_dict[name]['transform']
-        npdata_dict = nepi_nav.update_navpose_dict_from_msg(name, npdata_dict, msg, transfrom = transform)
+        npdata_dict = nepi_nav.update_navpose_dict_from_msg(name, npdata_dict, msg, transform=transform)
 
         # Now update class dict
         self.navpose_dict_lock.acquire()
         self.navpose_dict = npdata_dict
         self.navpose_dict_lock.release()            
         
-        # Update time info
+        # Update time info - Fixed list manipulation
         last_time = self.connect_dict[name]['last_time']
         cur_time = nepi_utils.get_time()
         times = self.connect_dict[name]['times']
-        times = times.pop(0)
-        times = times.append(cur_time - last_time)
-        self.connect_dict[name]['times']
+        times.pop(0)  # Remove first element
+        times.append(cur_time - last_time)  # Add new time difference
+        self.connect_dict[name]['times'] = times  # Assign back to dict
         self.connect_dict[name]['last_time'] = cur_time
 
 
