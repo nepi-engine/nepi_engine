@@ -1,33 +1,27 @@
 # This is an optional status message for pointcloud publishers
 
-string node_namespace
+string data_source_description
 string data_ref_description
+string device_mount_description
 
-bool publishing
-float32 last_pub_sec
-float32 fps
+### Data Info
+string frame_id
 
 bool has_rgb
 bool has_intensity
 
-int32 width_m
-int32 height_m
-int32 depth_m
-
 int32 point_count
 
-string frame_id
+float32 width_deg
+float32 height_deg
 
-float32 get_latency_time
-float32 pub_latency_time
-float32 process_time
-float32 avg_fps
+float32 width_m
+float32 height_m
+float32 depth_m
 
-bool image_pub_enabled
-int32 max_image_pub_rate
-######################################
-# Pointcloud Render Controls if image publishing is enabled
 
+
+### Data Controls
 # Standard Image Size Opions string list
 string[] standard_image_sizes
 
@@ -37,7 +31,7 @@ int32 image_height
 
 # The range_window field provides the start and stop range as currently configured for the device
 # Each range is expressed as a multiplier on the sensor's max range (0.0 - 1.0)
-nepi_sdk_interfaces/RangeWindow range_ratios
+nepi_interfaces/RangeWindow range_ratios
 
 # Zoom Ratio 0.0 - 1.0
 float32 zoom_ratio
@@ -61,5 +55,16 @@ geometry_msgs/Vector3 camera_position
 geometry_msgs/Vector3 camera_rotation
 
 bool white_background
+
+### Data Stats
+
+float32 get_latency_time
+float32 pub_latency_time
+float32 process_time
+float32 avg_pub_rate
+float32 last_pub_sec
+
+bool publishing
+
 
 

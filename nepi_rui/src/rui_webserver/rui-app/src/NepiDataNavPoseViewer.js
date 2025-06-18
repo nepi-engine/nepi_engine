@@ -103,7 +103,7 @@ updateStatusListener() {
   const statusTopic = namespace + "/status"
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
-    "nepi_sdk_interfaces/NavPoseStatus",
+    "nepi_interfaces/NavPoseStatus",
     this.statusListener 
   )
   
@@ -122,7 +122,7 @@ updateNavposeListener() {
   
   var navposeListener = this.props.ros.setupStatusListener(
     navposeTopic,
-    "nepi_sdk_interfaces/NavPose",
+    "nepi_interfaces/NavPose",
     this.navposeListener 
   )
   

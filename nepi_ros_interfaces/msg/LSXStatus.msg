@@ -3,12 +3,15 @@
 
 # Device Identifiers
 string device_name
+string device_id
 string identifier
 string serial_num
 string hw_version
 string sw_version
 
+string data_source_description
 string data_ref_description
+string device_mount_description
 
 # user updatable device name
 string user_name
@@ -36,4 +39,8 @@ uint8 temp_c
 
 # Device reported power draw in Watts
 float32 power_w
+
+# Transform from device native ref frame to the nepi_frame,
+# Or PanTilt center tilt axis if panTilt mounted
+nepi_interfaces/Frame3DTransform frame_3d_transform
 

@@ -387,7 +387,7 @@ updateStatusListener() {
 
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
-    "nepi_sdk_interfaces/NavPoseMgrStatus",
+    "nepi_interfaces/NavPoseMgrStatus",
     this.statusListener 
   )
   
@@ -409,7 +409,7 @@ updateNavposeListener() {
   
   var navposeListener = this.props.ros.setupStatusListener(
     navposeTopic,
-    "nepi_sdk_interfaces/NavPose",
+    "nepi_interfaces/NavPose",
     this.navposeListener 
   )
   

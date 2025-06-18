@@ -11,3 +11,4 @@ bool has_auto_pan
 bool has_auto_tilt
 bool has_homing
 bool has_set_home
+

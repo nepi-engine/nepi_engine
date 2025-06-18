@@ -17,13 +17,13 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
-from nepi_sdk_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse
-from nepi_sdk_interfaces.srv import OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse                      
-from nepi_sdk_interfaces.srv import SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
-from nepi_sdk_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
-from nepi_sdk_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
+from nepi_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
+from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse
+from nepi_interfaces.srv import OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse                      
+from nepi_interfaces.srv import SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse
+from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
+from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 from nepi_api.connect_node_if import ConnectNodeServicesIF, ConnectNodeClassIF
 from nepi_api.messages_if import MsgIF

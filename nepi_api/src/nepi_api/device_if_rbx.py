@@ -34,15 +34,16 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from pygeodesy.ellipsoidalKarney import LatLon
 
-from nepi_sdk_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
+from nepi_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
      RBXGotoPose, RBXGotoPosition, RBXGotoLocation, RBXMotorControl
-from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
-from nepi_sdk_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
+from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
+from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, SettingsIF
+from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
@@ -114,10 +115,11 @@ class RBXRobotIF:
 
     # Define class variables
     ready = False
+    status_msg=RBXStatus()
 
-    factory_device_name = None
-    init_device_name = None
-    factory_controls = None
+    factory_device_name = ''
+
+    factory_controls = dict()
  
 
     states = []
@@ -155,6 +157,11 @@ class RBXRobotIF:
     rbx_image_source_last = "None"
     init_image_status_overlay = False
 
+  data_source_description = 'imaging_sensor'
+  data_description = 'sensor'
+  device_mount_description = 'fixed'
+  mount_desc = 'None'
+
     ### IF Initialization
     log_name = "RBXRobotIF"
     def __init__(self, device_info, capSettings, 
@@ -165,7 +172,8 @@ class RBXRobotIF:
                  checkStopFunction,
                  setup_actions, setSetupActionIndFunction,
                  go_actions, setGoActionIndFunction,
-                 data_ref_description = 'sensor',
+                 date_source_description = 'control_system',
+                 data_description = 'body_fixed',
                  getHomeFunction=None,setHomeFunction=None,
                  manualControlsReadyFunction=None,
                  getMotorControlRatios=None,
@@ -208,15 +216,16 @@ class RBXRobotIF:
         ############################## 
         # Initialize Class Variables
         
-        self.robot_name = device_info["robot_name"]
+        self.device_id = device_info["device_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
 
-        self.factory_device_name = device_info["robot_name"] + "_" + device_info["identifier"]
+        self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
 
-        self.data_ref_description = data_ref_description
+        self.data_source_description = data_source_description
+        self.data_description = data_description
 
         self.states = states
         self.getStateIndFunction = getStateIndFunction
@@ -232,8 +241,13 @@ class RBXRobotIF:
         self.setSetupActionIndFunction = setSetupActionIndFunction
 
         self.getMotorControlRatios = getMotorControlRatios
-        # Create and start initializing Status values
-        self.status_msg=RBXStatus()
+
+        # Initialize status message
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_description = self.data_description
+        self.status_msg.device_mount_description = self.get_mount_description() 
+
+
         self.status_msg.process_current = "None"
         self.status_msg.process_last = "None"
         self.status_msg.ready = False
@@ -331,7 +345,7 @@ class RBXRobotIF:
         else:
             motor_controls_info_msg = self.get_motor_controls_status_msg([])
 
-        # Setup Autonomous Contros
+        # Setup Autonomous Controls
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
         if self.autonomousControlsReadyFunction is not None:
           self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
@@ -387,6 +401,11 @@ class RBXRobotIF:
 
         self.status_msg.cmd_success = False
 
+        self.status_msg.device_id = self.device_id
+        self.status_msg.identifier = self.identifier
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
 
         ##################################################
@@ -405,7 +424,7 @@ class RBXRobotIF:
         self.PARAMS_DICT = {
             'device_name': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_device_name
+                'factory_val': self.device_name
             },
             'cmd_timeout': {
                 'namespace': self.node_namespace,
@@ -439,6 +458,10 @@ class RBXRobotIF:
                 'namespace': self.node_namespace,
                 'factory_val': False
             },
+            'mount_desc': {
+                'namespace': self.node_namespace,
+                'factory_val': 'None'
+            }
 
         }
         
@@ -481,24 +504,14 @@ class RBXRobotIF:
         }
      
         self.SUBS_DICT = {
-            'set_goto_error_bounds': {
+            'set_device_name': {
                 'namespace': self.node_namespace,
-                'topic': 'rbx/set_goto_error_bounds',
-                'msg': RBXErrorBounds,
-                'qsize': None,
-                'callback': self.setErrorBoundsCb, 
-                'callback_args': ()
-            },
-
-            'update_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/update_device_name',
+                'topic': 'rbx/set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
-
             'reset_device_name': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/reset_device_name',
@@ -507,7 +520,14 @@ class RBXRobotIF:
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
-
+            'set_goto_error_bounds': {
+                'namespace': self.node_namespace,
+                'topic': 'rbx/set_goto_error_bounds',
+                'msg': RBXErrorBounds,
+                'qsize': None,
+                'callback': self.setErrorBoundsCb, 
+                'callback_args': ()
+            },
             'enable_fake_gps': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/enable_fake_gps',
@@ -669,6 +689,22 @@ class RBXRobotIF:
                 'qsize': None,
                 'callback': self.setProcessNameCb, 
                 'callback_args': ()
+            },
+            'set_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'rbx/set_mount_description',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setMountDescCb, 
+                'callback_args': ()
+            },
+            'reset_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'rbx/reset_mount_description',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetMountDescCb, 
+                'callback_args': ()
             }
         }
 
@@ -784,7 +820,7 @@ class RBXRobotIF:
         # Setup navpose data IF
         np_namespace = self.node_namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_ref_description = self.data_ref_description,
+                        data_description = self.data_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -832,6 +868,8 @@ class RBXRobotIF:
         self.initCb(do_updates = True)
 
     def initCb(self, do_updates = False):
+      if self.node_if is not None:
+        self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
         self.resetCb(do_updates)
 
@@ -884,7 +922,7 @@ class RBXRobotIF:
         self.resetDeviceName()
 
     def resetDeviceName(self):
-        self.node_if.set_param('device_name', self.factory_device_name)
+        self.node_if.set_param('device_name', self.device_name)
         self.node_if.save_config()
         self.publishInfo()
 
@@ -1028,7 +1066,17 @@ class RBXRobotIF:
         self.msg_if.pub_info(set_process_name_msg)
         self.status_msg.process_current = (set_process_name_msg.data)
 
-         
+    def setMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
+        self.mount_desc = msg.data
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)
+
+    def resetMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
+        self.mount_desc = 'None'
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)         
     
 
     ##############################
@@ -1340,166 +1388,13 @@ class RBXRobotIF:
             #self.msg_if.pub_info(self.rbx_info)
             self.node_if.publish_pub('rbx_info_pub',self.rbx_info)
 
-    ### Callback for rbx status publisher
-    def statusPublishCb(self,timer):
-        self.publishStatus()
+    def get_mount_description(self):
+      desc = self.device_mount_description
+      if self.mount_desc != 'None':
+          desc = self.mount_desc
+      return desc
 
-    def publishStatusCb(self, msg):
-        self.publishStatus()
-
-    def publishStatus(self):
-        # Update NavPose Info
-        if self.getBatteryPercentFunction is not None:
-          self.rbx_battery = self.getBatteryPercentFunction()
-        else:
-          self.rbx_battery = -999
-        self.status_msg.current_lat = self.current_location_wgs84_geo[0]
-        self.status_msg.current_long  = self.current_location_wgs84_geo[1]
-        self.status_msg.current_altitude  = self.current_location_wgs84_geo[2]
-        self.status_msg.current_heading = self.current_heading_deg
-        self.status_msg.current_roll = self.current_orientation_ned_degs[0]
-        self.status_msg.current_pitch  = self.current_orientation_ned_degs[1]
-        self.status_msg.current_yaw = self.current_orientation_ned_degs[2]
-
-        self.status_msg.last_cmd_string = self.last_cmd_string
-        self.status_msg.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
-
-        ## Update Control Info
-        if self.manualControlsReadyFunction is not None:
-          self.status_msg.manual_control_mode_ready = self.manualControlsReadyFunction()
-        else:
-          self.status_msg.manual_control_mode_ready = False
-
-        if self.getMotorControlRatios is not None:
-            motor_controls_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
-        else:
-            motor_controls_msg = self.get_motor_controls_status_msg([])
-        self.status_msg.current_motor_control_settings = motor_controls_msg
-
-
-        if self.autonomousControlsReadyFunction is not None:
-          self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
-        else:
-          self.status_msg.autonomous_control_mode_ready = False
-
-         # Create Status Info Text List
-        status_str_msg = []
-        if self.status_msg.battery < 0.1:
-            battery_string = "No Reading"
-        else:
-            battery_string = '%.2f' % self.status_msg.battery
-
-        state_ind = self.getStateIndFunction()
-        if len(self.states) > 0 and state_ind >= 0 and state_ind <= (len(self.states)):
-              state_name = self.states[state_ind]
-        else:
-              state_name = "Not Set"
-        status_str_msg.append("State Current: " + state_name)
-
-        	
-        mode_ind = self.getModeIndFunction()
-        if len(self.modes) > 0 and mode_ind >= 0 and mode_ind < (len(self.modes) ):
-              mode_name = self.modes[mode_ind]
-        else:
-              mode_name = "Not Set"
-        status_str_msg.append("Mode Current: " + mode_name)
-        
-        if self.rbx_mode_last is not None:
-          status_str_msg.append("Mode Last: " + self.modes[self.rbx_mode_last])
-        else:
-          status_str_msg.append("Mode Last: None")
-        status_str_msg.append("Ready: " + str(self.status_msg.ready))
-        status_str_msg.append("")
-        status_str_msg.append("Current Process: " + self.status_msg.process_current)
-        status_str_msg.append(" XYZ Errors Meters: ")
-        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.x_m + "  " + '%.2f' % self.status_msg.errors_current.y_m + "  " + '%.2f' % self.status_msg.errors_current.z_m)
-        status_str_msg.append(" RPY Errors Degrees: ")
-        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.roll_deg + "  " + '%.2f' % self.status_msg.errors_current.pitch_deg + "  " + '%.2f' % self.status_msg.errors_current.yaw_deg)
-        status_str_msg.append("")
-        status_str_msg.append("Last Process: " + self.status_msg.process_last)
-        status_str_msg.append(" Success: " + str(self.status_msg.cmd_success))
-        status_str_msg.append(" XYZ Errors Meters: ")
-        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.x_m + "  " + '%.2f' % self.status_msg.errors_prev.y_m + "  " + '%.2f' % self.status_msg.errors_prev.z_m)
-        status_str_msg.append(" RPY Errors Degrees: ")
-        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.roll_deg + "  " + '%.2f' % self.status_msg.errors_prev.pitch_deg + "  " + '%.2f' % self.status_msg.errors_prev.yaw_deg)
-        status_str_msg.append("")
-
-   
-
-        self.status_str_msg = status_str_msg
-        if not nepi_sdk.is_shutdown():
-            self.status_msg.data_ref_description = self.data_ref_description
-            self.node_if.publish_pub('status_msg_pub', self.status_msg)
-            self.node_if.publish_pub('status_msg_str_pub', str(status_str_msg))
-
-        # Create ROS Image message
-        cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
-        # Overlay status info on image
-        if self.rbx_info.image_status_overlay:
-            box_x = 10
-            box_y = 10
-            box_w = 350
-            box_h = 450
-            # Add status box overlay
-            cv2.rectangle(cv2_img, (box_x, box_y), (box_w, box_h), (255, 255, 255), -1)
-            # Overlay Status Text List
-            x=box_x+10 
-            y=box_y+20
-            status_str_msg = self.status_str_msg
-            for text in status_str_msg:
-                self.statusTextOverlay(cv2_img,text,x, y)
-                y = y + 20
-        # Publish new image to ros
-        if not nepi_sdk.is_shutdown():
-            self.image_if.publish_cv2_img(cv2_img)
-            # You can view the enhanced_2D_image topic at 
-            # //192.168.179.103:9091/ in a connected web browser
-        timestamp = nepi_utils.get_time()
-        self.save_data_if.save('image',cv2_img,timestamp = timestamp)
-
-        ## Update image source topic and subscriber if changed from last time.
-        image_source = self.node_if.get_param('image_source')
-        image_topic = nepi_sdk.find_topic(image_source)
-        if image_topic != "":
-          if image_topic != self.rbx_image_source_last:
-              if self.rbx_image_sub != None:
-                  try:
-                    self.msg_if.pub_info("Unsubscribing from image source: " + image_topic)
-                    self.rbx_image_sub.unregister()
-                    self.rbx_image_sub = None
-                    time.sleep(1)
-                  except Exception as e:
-                    self.msg_if.pub_info(e)
-          if self.rbx_image_sub == None:
-            self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
-            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
-            self.node_if.set_param('image_source', image_topic)
-        else:
-              image_topic = "None"
-        if image_topic == "None":
-              self.cv2_img = self.rbx_image_blank # Set to blank image if source topic is cleared.
-        # Set info.image_source value
-        self.rbx_info.image_source = image_topic
-        self.rbx_image_source_last = image_topic
  
- 
-        
-    ## Status Text Overlay Function
-    def statusTextOverlay(self,cv_image,status_text,x,y):
-        font                   = cv2.FONT_HERSHEY_SIMPLEX
-        bottomLeftCornerOfText = (x,y)
-        fontScale              = 0.5
-        fontColor              = (0, 0, 0)
-        thickness              = 1
-        lineType               = 1
-        cv2.putText(cv_image,status_text, 
-            bottomLeftCornerOfText, 
-            font, 
-            fontScale,
-            fontColor,
-            thickness,
-            lineType)
-
 
     #######################
     # RBX IF Methods
@@ -1614,7 +1509,7 @@ class RBXRobotIF:
         self.np_status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict)
+            self.navpose_if.publish_navpose(np_dict, device_mount_description = self.get_mount_description())
 
 
     def _publishNavPoseCb(self,timer):
@@ -1990,6 +1885,166 @@ class RBXRobotIF:
 
 
        
+   ### Callback for rbx status publisher
+    def statusPublishCb(self,timer):
+        self.publishStatus()
+
+    def publishStatusCb(self, msg):
+        self.publishStatus()
+
+    def publishStatus(self):
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_mount_description = self.get_mount_description()
+        if self.getBatteryPercentFunction is not None:
+          self.rbx_battery = self.getBatteryPercentFunction()
+        else:
+          self.rbx_battery = -999
+        self.status_msg.current_lat = self.current_location_wgs84_geo[0]
+        self.status_msg.current_long  = self.current_location_wgs84_geo[1]
+        self.status_msg.current_altitude  = self.current_location_wgs84_geo[2]
+        self.status_msg.current_heading = self.current_heading_deg
+        self.status_msg.current_roll = self.current_orientation_ned_degs[0]
+        self.status_msg.current_pitch  = self.current_orientation_ned_degs[1]
+        self.status_msg.current_yaw = self.current_orientation_ned_degs[2]
+
+        self.status_msg.last_cmd_string = self.last_cmd_string
+        self.status_msg.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
+
+        ## Update Control Info
+        if self.manualControlsReadyFunction is not None:
+          self.status_msg.manual_control_mode_ready = self.manualControlsReadyFunction()
+        else:
+          self.status_msg.manual_control_mode_ready = False
+
+        if self.getMotorControlRatios is not None:
+            motor_controls_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
+        else:
+            motor_controls_msg = self.get_motor_controls_status_msg([])
+        self.status_msg.current_motor_control_settings = motor_controls_msg
+
+
+        if self.autonomousControlsReadyFunction is not None:
+          self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
+        else:
+          self.status_msg.autonomous_control_mode_ready = False
+
+         # Create Status Info Text List
+        status_str_msg = []
+        if self.status_msg.battery < 0.1:
+            battery_string = "No Reading"
+        else:
+            battery_string = '%.2f' % self.status_msg.battery
+
+        state_ind = self.getStateIndFunction()
+        if len(self.states) > 0 and state_ind >= 0 and state_ind <= (len(self.states)):
+              state_name = self.states[state_ind]
+        else:
+              state_name = "Not Set"
+        status_str_msg.append("State Current: " + state_name)
+
+        	
+        mode_ind = self.getModeIndFunction()
+        if len(self.modes) > 0 and mode_ind >= 0 and mode_ind < (len(self.modes) ):
+              mode_name = self.modes[mode_ind]
+        else:
+              mode_name = "Not Set"
+        status_str_msg.append("Mode Current: " + mode_name)
+        
+        if self.rbx_mode_last is not None:
+          status_str_msg.append("Mode Last: " + self.modes[self.rbx_mode_last])
+        else:
+          status_str_msg.append("Mode Last: None")
+        status_str_msg.append("Ready: " + str(self.status_msg.ready))
+        status_str_msg.append("")
+        status_str_msg.append("Current Process: " + self.status_msg.process_current)
+        status_str_msg.append(" XYZ Errors Meters: ")
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.x_m + "  " + '%.2f' % self.status_msg.errors_current.y_m + "  " + '%.2f' % self.status_msg.errors_current.z_m)
+        status_str_msg.append(" RPY Errors Degrees: ")
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_current.roll_deg + "  " + '%.2f' % self.status_msg.errors_current.pitch_deg + "  " + '%.2f' % self.status_msg.errors_current.yaw_deg)
+        status_str_msg.append("")
+        status_str_msg.append("Last Process: " + self.status_msg.process_last)
+        status_str_msg.append(" Success: " + str(self.status_msg.cmd_success))
+        status_str_msg.append(" XYZ Errors Meters: ")
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.x_m + "  " + '%.2f' % self.status_msg.errors_prev.y_m + "  " + '%.2f' % self.status_msg.errors_prev.z_m)
+        status_str_msg.append(" RPY Errors Degrees: ")
+        status_str_msg.append(" " + '%.2f' % self.status_msg.errors_prev.roll_deg + "  " + '%.2f' % self.status_msg.errors_prev.pitch_deg + "  " + '%.2f' % self.status_msg.errors_prev.yaw_deg)
+        status_str_msg.append("")
+
+   
+
+        self.status_str_msg = status_str_msg
+        if not nepi_sdk.is_shutdown():
+            self.status_msg.data_description = self.data_description
+            self.node_if.publish_pub('status_msg_pub', self.status_msg)
+            self.node_if.publish_pub('status_msg_str_pub', str(status_str_msg))
+
+        # Create ROS Image message
+        cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
+        # Overlay status info on image
+        if self.rbx_info.image_status_overlay:
+            box_x = 10
+            box_y = 10
+            box_w = 350
+            box_h = 450
+            # Add status box overlay
+            cv2.rectangle(cv2_img, (box_x, box_y), (box_w, box_h), (255, 255, 255), -1)
+            # Overlay Status Text List
+            x=box_x+10 
+            y=box_y+20
+            status_str_msg = self.status_str_msg
+            for text in status_str_msg:
+                self.statusTextOverlay(cv2_img,text,x, y)
+                y = y + 20
+        # Publish new image to ros
+        if not nepi_sdk.is_shutdown():
+            self.image_if.publish_cv2_img(cv2_img)
+            # You can view the enhanced_2D_image topic at 
+            # //192.168.179.103:9091/ in a connected web browser
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('image',cv2_img,timestamp = timestamp)
+
+        ## Update image source topic and subscriber if changed from last time.
+        image_source = self.node_if.get_param('image_source')
+        image_topic = nepi_sdk.find_topic(image_source)
+        if image_topic != "":
+          if image_topic != self.rbx_image_source_last:
+              if self.rbx_image_sub != None:
+                  try:
+                    self.msg_if.pub_info("Unsubscribing from image source: " + image_topic)
+                    self.rbx_image_sub.unregister()
+                    self.rbx_image_sub = None
+                    time.sleep(1)
+                  except Exception as e:
+                    self.msg_if.pub_info(e)
+          if self.rbx_image_sub == None:
+            self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
+            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
+            self.node_if.set_param('image_source', image_topic)
+        else:
+              image_topic = "None"
+        if image_topic == "None":
+              self.cv2_img = self.rbx_image_blank # Set to blank image if source topic is cleared.
+        # Set info.image_source value
+        self.rbx_info.image_source = image_topic
+        self.rbx_image_source_last = image_topic
+ 
+ 
+        
+    ## Status Text Overlay Function
+    def statusTextOverlay(self,cv_image,status_text,x,y):
+        font                   = cv2.FONT_HERSHEY_SIMPLEX
+        bottomLeftCornerOfText = (x,y)
+        fontScale              = 0.5
+        fontColor              = (0, 0, 0)
+        thickness              = 1
+        lineType               = 1
+        cv2.putText(cv_image,status_text, 
+            bottomLeftCornerOfText, 
+            font, 
+            fontScale,
+            fontColor,
+            thickness,
+            lineType)
 
 
     

@@ -35,6 +35,10 @@ log_name = "nepi_img"
 logger = Logger(log_name = log_name)
 
 
+
+
+STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
+
 def get_image_publisher_namespaces(name):
     msg_type = 'sensor_msgs/Image'
     return nepi_sdk.find_topics_by_msg(msg_type)

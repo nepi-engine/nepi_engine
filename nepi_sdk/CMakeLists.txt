@@ -27,7 +27,7 @@ set(OpenCV_DIR /usr/share/OpenCV)
 find_package(catkin REQUIRED
     COMPONENTS
     message_generation
-    nepi_sdk_interfaces
+    nepi_interfaces
     roscpp
     image_transport
     cv_bridge
@@ -81,7 +81,7 @@ generate_messages(
      DEPENDENCIES
      std_msgs  # Or other packages containing msgs
      sensor_msgs
-     nepi_sdk_interfaces
+     nepi_interfaces
 )
 
 
@@ -95,7 +95,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS image_transport nepi_sdk_interfaces
+  CATKIN_DEPENDS image_transport nepi_interfaces
 )
 
 

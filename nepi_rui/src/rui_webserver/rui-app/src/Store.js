@@ -464,7 +464,7 @@ class ROSConnectionStore {
       var topic_name_parts = this.topicNames[i].split("/")
       if (
         topic_name_parts[topic_name_parts.length - 1] === "system_status" &&
-        this.topicTypes[i] === "nepi_sdk_interfaces/SystemStatus"
+        this.topicTypes[i] === "nepi_interfaces/SystemStatus"
       ) {
         if (
           this.namespacePrefix !== topic_name_parts[1] &&
@@ -489,7 +489,7 @@ class ROSConnectionStore {
     // Function for updating image topics list
     var newMessageTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_sdk_interfaces/Message") {
+      if (this.topicTypes[i] === "nepi_interfaces/Message") {
         newMessageTopics.push(this.topicNames[i])
       }
     }
@@ -564,7 +564,7 @@ class ROSConnectionStore {
     // Function for updating image topics list
     var newSaveDataTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_sdk_interfaces/SaveDataStatus"){
+      if (this.topicTypes[i] === "nepi_interfaces/SaveDataStatus"){
         newSaveDataTopics.push(this.topicNames[i].replace('status',''))
       }
     }
@@ -782,7 +782,7 @@ class ROSConnectionStore {
       var topic_base = topic_name_parts.join("/")
       if (
         last_element === "system_reset" &&
-        this.topicTypes[i] === "nepi_sdk_interfaces/Reset"
+        this.topicTypes[i] === "nepi_interfaces/Reset"
       ) {
         newResetTopics.push(topic_base)
       }
@@ -989,7 +989,7 @@ class ROSConnectionStore {
   setupSystemStatusListener() {
     this.addListener({
       name: "system_status",
-      messageType: "nepi_sdk_interfaces/SystemStatus",
+      messageType: "nepi_interfaces/SystemStatus",
       callback: message => {
         // turn heartbeat on for half a second
         this.heartbeat = true
@@ -1030,7 +1030,7 @@ class ROSConnectionStore {
     if (ptxNamespace) {
       return this.addListener({
         name: ptxNamespace + "/status",
-        messageType: "nepi_sdk_interfaces/PTXStatus",
+        messageType: "nepi_interfaces/PTXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1043,7 +1043,7 @@ class ROSConnectionStore {
     if (lsxNamespace) {
       return this.addListener({
         name: lsxNamespace + "/status",
-        messageType: "nepi_sdk_interfaces/LSXStatus",
+        messageType: "nepi_interfaces/LSXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1054,7 +1054,7 @@ class ROSConnectionStore {
   setupRUISettingsListener() {
     this.addListener({
       name: "rui_config_mgr/settings",
-      messageType: "nepi_sdk_interfaces/RUISettings",
+      messageType: "nepi_interfaces/RUISettings",
       callback: message => {
         this.streamingImageQuality = message.streaming_image_quality
         this.nepiLinkHbAutoDataOffloadingCheckboxVisible = message.nepi_hb_auto_offload_visible
@@ -1068,7 +1068,7 @@ class ROSConnectionStore {
     if (idxDeviceNamespace) {
       return this.addListener({
         name: idxDeviceNamespace + "/status",
-        messageType: "nepi_sdk_interfaces/IDXStatus",
+        messageType: "nepi_interfaces/IDXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1081,7 +1081,7 @@ class ROSConnectionStore {
     if (npxDeviceNamespace) {
       return this.addListener({
         name: npxDeviceNamespace + "/status",
-        messageType: "nepi_sdk_interfaces/NPXStatus",
+        messageType: "nepi_interfaces/NPXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1096,7 +1096,7 @@ class ROSConnectionStore {
     if (namespace) {
       return this.addListener({
         name: namespace + "/status",
-        messageType: "nepi_sdk_interfaces/SaveDataStatus",
+        messageType: "nepi_interfaces/SaveDataStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1109,7 +1109,20 @@ class ROSConnectionStore {
     if (namespace) {
       return this.addListener({
         name: namespace,
-        messageType: "nepi_sdk_interfaces/SettingsStatus",
+        messageType: "nepi_interfaces/SettingsStatus",
+        noPrefix: true,
+        callback: callback,
+        manageListener: false
+      })
+    }
+  }
+
+  @action.bound
+  setupFrame3DTransformListener(namespace, callback) {
+    if (namespace) {
+      return this.addListener({
+        name: namespace,
+        messageType: "nepi_interfaces/Frame3DTransform",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1157,7 +1170,7 @@ class ROSConnectionStore {
   sendStringArrayMsg(namespace,strArray) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/StringArray",
+      messageType: "nepi_interfaces/StringArray",
       data: {'entries':strArray},
       noPrefix: true
     })
@@ -1208,7 +1221,7 @@ class ROSConnectionStore {
   sendErrorBoundsMsg(namespace, max_m,max_d,min_stab) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/RBXErrorBounds",
+      messageType: "nepi_interfaces/RBXErrorBounds",
       data: { 
         data: {
           max_distance_error_m: max_m,
@@ -1224,7 +1237,7 @@ class ROSConnectionStore {
   sendUpdateOptionMsg(namespace, comp_name, option_str) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/UpdateOption",
+      messageType: "nepi_interfaces/UpdateOption",
 
         data: {
         name: comp_name,
@@ -1238,7 +1251,7 @@ class ROSConnectionStore {
   sendUpdateOrderMsg(namespace, comp_name, move_cmd) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/UpdateOrder",
+      messageType: "nepi_interfaces/UpdateOrder",
       data: {    
         name: comp_name,
         move_cmd: move_cmd
@@ -1251,7 +1264,7 @@ class ROSConnectionStore {
   sendUpdateStateMsg(namespace, comp_name, active_state) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/UpdateState",
+      messageType: "nepi_interfaces/UpdateState",
       data: {
         name: comp_name,
         active_state: active_state
@@ -1264,7 +1277,7 @@ class ROSConnectionStore {
   sendUpdateRatioMsg(namespace, comp_name, ratio) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/UpdateRatio",
+      messageType: "nepi_interfaces/UpdateRatio",
       data: {
         name: comp_name,
         active_state: ratio
@@ -1283,7 +1296,7 @@ class ROSConnectionStore {
     if (namespace) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_sdk_interfaces/UpdateRangeWindow",
+        messageType: "nepi_interfaces/UpdateRangeWindow",
         noPrefix: true,
         data: {
           name: comp_name,
@@ -1300,7 +1313,7 @@ class ROSConnectionStore {
   sendImageSelectionMsg(namespace, image_index, image_topic) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/ImageSelection",
+      messageType: "nepi_interfaces/ImageSelection",
       data: {
         image_index: image_index,
         image_topic: image_topic
@@ -1358,7 +1371,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_sdk_interfaces/RBXGotoPose",
+        messageType: "nepi_interfaces/RBXGotoPose",
         data: { 
           roll_deg: float1Val,
           pitch_deg: float2Val,
@@ -1378,7 +1391,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val) && !isNaN(float4Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_sdk_interfaces/RBXGotoPosition",
+        messageType: "nepi_interfaces/RBXGotoPosition",
         data: { 
           x_meters: float1Val,
           y_meters: float2Val,
@@ -1399,7 +1412,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val) && !isNaN(float4Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_sdk_interfaces/RBXGotoLocation",
+        messageType: "nepi_interfaces/RBXGotoLocation",
         data: { 
           lat: float1Val,
           long: float2Val,
@@ -1448,7 +1461,7 @@ sendSaveConfigTrigger(namespace) {
 updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   this.publishMessage({
     name: namespace + "/update_setting",
-    messageType: "nepi_sdk_interfaces/SettingCap",
+    messageType: "nepi_interfaces/SettingCap",
     data: {type_str:typeStr,
       name_str:nameStr,
       options_list:optionsStrList,
@@ -1462,7 +1475,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   updateSetting(namespace,nameStr,typeStr,valueStr) {
     this.publishMessage({
       name: namespace + "/update_setting",
-      messageType: "nepi_sdk_interfaces/Setting",
+      messageType: "nepi_interfaces/Setting",
       data: {type_str:typeStr,
         name_str:nameStr,
         value_str:valueStr
@@ -1486,7 +1499,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   updateSaveDataRate(namespace,data_product,rate_hz) {
     this.publishMessage({
       name: namespace + "/save_data_rate",
-      messageType: "nepi_sdk_interfaces/SaveDataRate",
+      messageType: "nepi_interfaces/SaveDataRate",
       data: {
         data_product: data_product,
         save_rate_hz: rate_hz,
@@ -1509,7 +1522,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_sdk_interfaces/UpdateNavPoseTopic",
+      messageType: "nepi_interfaces/UpdateNavPoseTopic",
       data: { 
           name: name,
           topic: topic,
@@ -1537,7 +1550,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   sendNavPoseMsg(namespace,navpose_data){
       this.publishMessage({
         name: namespace + '/set_navpose/',
-        messageType: "nepi_sdk_interfaces/NavPose",
+        messageType: "nepi_interfaces/NavPose",
         data: navpose_data,
         noPrefix: true
       })
@@ -1547,7 +1560,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     sendInitNavPoseMsg(namespace,navpose_data){
       this.publishMessage({
         name: namespace + '/set_init_navpose/',
-        messageType: "nepi_sdk_interfaces/NavPose",
+        messageType: "nepi_interfaces/NavPose",
         data: navpose_data,
         noPrefix: true
       })
@@ -1663,7 +1676,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       if (transformFloatList.length === 7){
         this.publishMessage({
           name: namespace,
-          messageType: "nepi_sdk_interfaces/Frame3DTransform",
+          messageType: "nepi_interfaces/Frame3DTransform",
           data: { 
               translate_vector: {
                 x: transformFloatList[0],
@@ -1689,7 +1702,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       if (transformFloatList.length === 7){
         this.publishMessage({
           name: namespace,
-          messageType: "nepi_sdk_interfaces/UpdateFrame3DTransform",
+          messageType: "nepi_interfaces/UpdateFrame3DTransform",
           data: { 
             name: name,
             transform: {
@@ -1722,7 +1735,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     this.saveDataCaps[namespace] = []
     const capabilities = await this.callService({
       name: namespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/SaveDataCapabilitiesQuery",  
+      messageType: "nepi_interfaces/SaveDataCapabilitiesQuery",  
       args: {namespace : namespace},
     })
     this.saveDataCaps[namespace] = capabilities
@@ -1731,7 +1744,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callSystemDefsService() {
     this.systemDefs = await this.callService({
       name: "system_defs_query",
-      messageType: "nepi_sdk_interfaces/SystemDefs",
+      messageType: "nepi_interfaces/SystemDefs",
       msgKey: "defs"
     })
     this.deviceType = this.systemDefs.device_type
@@ -1745,7 +1758,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     this.settingCaps[namespace] = []
     const capabilities = await this.callService({
       name: namespace + "/settings/capabilities_query",
-      messageType: "nepi_sdk_interfaces/SettingsCapabilitiesQuery",  
+      messageType: "nepi_interfaces/SettingsCapabilitiesQuery",  
       args: {namespace : namespace},
     })
     this.settingCaps[namespace] = capabilities
@@ -1755,7 +1768,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callImageCapabilitiesQueryService(namespace) {
     const capabilities = await this.callService({
       name: namespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/ImageCapabilitiesQuery",  
+      messageType: "nepi_interfaces/ImageCapabilitiesQuery",  
     })
     this.imageCaps[namespace] = capabilities
   }
@@ -1764,7 +1777,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callNavPoseCapabilitiesQueryService(namespace) {
     const capabilities = await this.callService({
       name: namespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/NavPoseCapabilitiesQuery",  
+      messageType: "nepi_interfaces/NavPoseCapabilitiesQuery",  
     })
     this.navPoseCapsCaps[namespace] = capabilities
   }
@@ -1774,7 +1787,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callIDXCapabilitiesQueryService(idxDeviceNamespace) {
     const capabilities = await this.callService({
       name: idxDeviceNamespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/IDXCapabilitiesQuery",  
+      messageType: "nepi_interfaces/IDXCapabilitiesQuery",  
     })
     this.idxDevices[idxDeviceNamespace] = capabilities
   }
@@ -1784,7 +1797,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callPTXCapabilitiesQueryService(ptxDeviceNamespace) {
     const capabilities = await this.callService({
       name: ptxDeviceNamespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/PTXCapabilitiesQuery",
+      messageType: "nepi_interfaces/PTXCapabilitiesQuery",
     })
     this.ptxDevices[ptxDeviceNamespace] = capabilities
   }
@@ -1793,7 +1806,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callLSXCapabilitiesQueryService(lsxDeviceNamespace) {
     const capabilities = await this.callService({
       name: lsxDeviceNamespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/LSXCapabilitiesQuery",
+      messageType: "nepi_interfaces/LSXCapabilitiesQuery",
     })
     this.lsxDevices[lsxDeviceNamespace] = capabilities
   }
@@ -1803,7 +1816,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callRBXCapabilitiesQueryService(rbxDeviceNamespace) {
     const capabilities = await this.callService({
       name: rbxDeviceNamespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/RBXCapabilitiesQuery",  
+      messageType: "nepi_interfaces/RBXCapabilitiesQuery",  
     })
     this.rbxDevices[rbxDeviceNamespace] = capabilities
   }
@@ -1812,7 +1825,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callNPXCapabilitiesQueryService(npxDeviceNamespace) {
     const capabilities = await this.callService({
       name: npxDeviceNamespace + "/capabilities_query",
-      messageType: "nepi_sdk_interfaces/NPXCapabilitiesQuery",  
+      messageType: "nepi_interfaces/NPXCapabilitiesQuery",  
     })
     this.npxDevices[npxDeviceNamespace] = capabilities
   }
@@ -1821,7 +1834,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callSystemSoftwareStatusQueryService() {
     this.systemSoftwareStatus = await this.callService({
       name: "sw_update_status_query",
-      messageType: "nepi_sdk_interfaces/SystemSoftwareStatusQuery"
+      messageType: "nepi_interfaces/SystemSoftwareStatusQuery"
     })
   }
 
@@ -1829,7 +1842,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   async callAppStatusQueryService(appName) {
     const appStatus = await this.callService({
       name: 'apps_mgr/app_status_query',
-      messageType: "nepi_sdk_interfaces/AppStatusQuery",
+      messageType: "nepi_interfaces/AppStatusQuery",
       args: {app_name : appName},
     })
     const appNames = this.appNameList
@@ -1877,7 +1890,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.ip_query_response = await this.callService({
         name: "ip_addr_query",
-        messageType: "nepi_sdk_interfaces/IPAddrQuery"
+        messageType: "nepi_interfaces/IPAddrQuery"
       })
 
       if (this.connectedToROS) {
@@ -1892,7 +1905,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.bandwidth_usage_query_response = await this.callService({
         name: "bandwidth_usage_query",
-        messageType: "nepi_sdk_interfaces/BandwidthUsageQuery",
+        messageType: "nepi_interfaces/BandwidthUsageQuery",
       })
 
       if (this.connectedToROS) {
@@ -1907,7 +1920,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.wifi_query_response = await this.callService({
         name: "wifi_query",
-        messageType: "nepi_sdk_interfaces/WifiQuery",
+        messageType: "nepi_interfaces/WifiQuery",
       })
 
       if (this.connectedToROS) {
@@ -1922,7 +1935,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.opEnv = await this.callService({
         name: "op_environment_query",
-        messageType: "nepi_sdk_interfaces/OpEnvironmentQuery",
+        messageType: "nepi_interfaces/OpEnvironmentQuery",
         msgKey: "op_env"
       })
 
@@ -1941,7 +1954,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.timeStatus = await this.callService({
         name: "time_status_query",
-        messageType: "nepi_sdk_interfaces/SystemTriggersQuery",
+        messageType: "nepi_interfaces/SystemTriggersQuery",
       })
 
       // if last_ntp_sync is 10y, no sync has happened
@@ -1981,7 +1994,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.scripts = await this.callService({
         name: "get_scripts",
-        messageType: "nepi_sdk_interfaces/GetScriptsQuery"
+        messageType: "nepi_interfaces/GetScriptsQuery"
       })
 
       if (this.connectedToROS) {
@@ -1996,7 +2009,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.running_scripts = await this.callService({
         name: "get_running_scripts",
-        messageType: "nepi_sdk_interfaces/GetRunningScriptsQuery"
+        messageType: "nepi_interfaces/GetRunningScriptsQuery"
       })
 
       if (this.connectedToROS) {
@@ -2011,7 +2024,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.launchScript = await this.callService({
         name: "launch_script",
-        messageType: "nepi_sdk_interfaces/LaunchScript",
+        messageType: "nepi_interfaces/LaunchScript",
         args: {script : item}
       })
     }
@@ -2023,7 +2036,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.stopScript = await this.callService({
         name: "stop_script",
-        messageType: "nepi_sdk_interfaces/StopScript",
+        messageType: "nepi_interfaces/StopScript",
         args: {script : item}
       })
     }
@@ -2034,7 +2047,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     const _pollOnce = async () => {
       this.systemStats = await this.callService({
         name: "get_system_stats",
-        messageType: "nepi_sdk_interfaces/GetSystemStatsQuery",
+        messageType: "nepi_interfaces/GetSystemStatsQuery",
         args: {script : this.scriptForPolledStats}
       })
 
@@ -2103,7 +2116,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onSyncTimezone() {
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: false,
           secs: 0,
@@ -2118,7 +2131,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   setTimezone(timezone) {
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: false,
           secs: 0,
@@ -2133,7 +2146,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   setTimezoneUTC() {
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: false,
           secs: 0,
@@ -2152,7 +2165,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
       .unix()
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: true,
           secs: Math.floor(utcTS),
@@ -2169,7 +2182,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     this.clockTZ = this.get_timezone_desc()
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: false,
           secs: 0,
@@ -2186,7 +2199,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     this.clockTZ = this.get_timezone_desc()
     this.publishMessage({
       name: "set_time",
-      messageType: "nepi_sdk_interfaces/TimeUpdate",
+      messageType: "nepi_interfaces/TimeUpdate",
       data: {
           update_time: true,
           secs: Math.floor(utcTS),
@@ -2207,7 +2220,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "set_periodic_sw_trig",
-      messageType: "nepi_sdk_interfaces/PeriodicSwTrig",
+      messageType: "nepi_interfaces/PeriodicSwTrig",
       data: {
         enabled: freq > 0,
         sw_trig_mask: this.triggerMask,
@@ -2307,7 +2320,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "set_wifi_client_credentials",
-      messageType: "nepi_sdk_interfaces/WifiCredentials",
+      messageType: "nepi_interfaces/WifiCredentials",
       data: { ssid: new_ssid, passphrase: new_passphrase }
     })
   }
@@ -2317,7 +2330,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "set_wifi_access_point_credentials",
-      messageType: "nepi_sdk_interfaces/WifiCredentials",
+      messageType: "nepi_interfaces/WifiCredentials",
       data: { ssid: new_ssid, passphrase: new_passphrase }
     })
   }  
@@ -2384,7 +2397,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "save_data/save_data_rate",
-      messageType: "nepi_sdk_interfaces/SaveDataRate",
+      messageType: "nepi_interfaces/SaveDataRate",
       data: {
         data_product: "Active",
         save_rate_hz: freq,
@@ -2429,7 +2442,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   systemReset(baseTopic, reset_type) {
     this.publishMessage({
       name: baseTopic + "/factory_reset_config",
-      messageType: "nepi_sdk_interfaces/Reset",
+      messageType: "nepi_interfaces/Reset",
       data: {
         reset_type: reset_type
       },
@@ -2477,7 +2490,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onToggleAutoStartEnabled(autoStartScriptName, isEnabled) {
     this.publishMessage({
       name: "enable_script_autostart",
-      messageType: "nepi_sdk_interfaces/AutoStartEnabled",
+      messageType: "nepi_interfaces/AutoStartEnabled",
       data: { 
         script: autoStartScriptName,
         enabled: isEnabled
@@ -2527,7 +2540,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     if (topic) {
       this.publishMessage({
         name: topic,
-        messageType: "nepi_sdk_interfaces/RangeWindow",
+        messageType: "nepi_interfaces/RangeWindow",
         noPrefix: true,
         data: {
           start_range: min,
@@ -2601,7 +2614,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onSetPTXHomePos(ptxNamespace, panHomePos, tiltHomePos) {
     this.publishMessage({
       name: ptxNamespace + "/set_home_position",
-      messageType: "nepi_sdk_interfaces/PanTiltPosition",
+      messageType: "nepi_interfaces/PanTiltPosition",
       data: {"pan_deg": panHomePos, "tilt_deg": tiltHomePos},
       noPrefix: true
     })
@@ -2611,7 +2624,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onSetPTXGotoPos(ptxNamespace, panPos, tiltPos) {
     this.publishMessage({
       name: ptxNamespace + "/goto_position",
-      messageType: "nepi_sdk_interfaces/PanTiltPosition",
+      messageType: "nepi_interfaces/PanTiltPosition",
       data: {"pan_deg": panPos, "tilt_deg": tiltPos},
       noPrefix: true
     })
@@ -2641,7 +2654,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onSetPTXSoftStopPos(ptxNamespace, panMin, panMax, tiltMin, tiltMax) {
     this.publishMessage({
       name: ptxNamespace + "/set_soft_limits",
-      messageType: "nepi_sdk_interfaces/PanTiltLimits",
+      messageType: "nepi_interfaces/PanTiltLimits",
       data: {"min_pan_deg": panMin,
              "max_pan_deg": panMax,
              "min_tilt_deg": tiltMin,
@@ -2654,7 +2667,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onSetPTXHardStopPos(ptxNamespace, panMin, panMax, tiltMin, tiltMax) {
     this.publishMessage({
       name: ptxNamespace + "/set_hard_limits",
-      messageType: "nepi_sdk_interfaces/PanTiltLimits",
+      messageType: "nepi_interfaces/PanTiltLimits",
       data: {"min_pan_deg": panMin,
              "max_pan_deg": panMax,
              "min_tilt_deg": tiltMin,
@@ -2667,7 +2680,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onPTXJogPan(ptxNamespace, direction) {
     this.publishMessage({
       name: ptxNamespace + "/jog_timed_pan",
-      messageType: "nepi_sdk_interfaces/SingleAxisTimedMove",
+      messageType: "nepi_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
       noPrefix: true
@@ -2678,7 +2691,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   onPTXJogTilt(ptxNamespace, direction) {
     this.publishMessage({
       name: ptxNamespace + "/jog_timed_tilt",
-      messageType: "nepi_sdk_interfaces/SingleAxisTimedMove",
+      messageType: "nepi_interfaces/SingleAxisTimedMove",
       data: {"direction": direction,
              "duration_s": -1},
       noPrefix: true

@@ -1,13 +1,6 @@
-# This service definition provides the capabilities report for a NEPI IDX sensor
+# This service definition provides the capabilities report for image type data
 
 ---
-
-# Image data source type
-# SUPPORTED_SOURCE_TYPES = ['image','color_image','bw_image',
-#                            'intensity_map','depth_map','pointcloud']
-string data_source_type
-string data_product_name
-
 bool has_resolution
 bool has_auto_adjust
 bool has_contrast
@@ -22,8 +15,6 @@ bool has_tilt
 
 bool has_enhances
 string[] enhance_options
-
-bool has_navpose
 
 # If supported
 

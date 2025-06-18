@@ -1,0 +1,2 @@
+bool supports_transform_updates
+

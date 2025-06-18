@@ -21,8 +21,8 @@ import rospy
 import os
 import copy
 
-from nepi_sdk_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
-from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
+from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_sdk import nepi_sdk
 

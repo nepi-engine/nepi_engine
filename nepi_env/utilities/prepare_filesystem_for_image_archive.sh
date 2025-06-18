@@ -55,7 +55,7 @@ echo "... done"
 
 echo "Reverting to factory settings"
 source NEPI_ROS_FOLDER/setup.bash
-rostopic pub -1 /nepi/s2x/reset nepi_sdk_interfaces/Reset "reset_type: 1" 
+rostopic pub -1 /nepi/s2x/reset nepi_interfaces/Reset "reset_type: 1" 
 
 echo "Clearing out NEPI-Bot temporary files"
 rm -rf $NEPI_BOT_LOG_CONTENTS $NEPI_BOT_DB_CONTENTS $NEPI_BOT_HB_CONTENTS $NEPI_BOT_LB_CONTENTS

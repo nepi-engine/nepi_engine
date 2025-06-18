@@ -16,14 +16,14 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_sdk_interfaces.msg import LSXStatus
-from nepi_sdk_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
+from nepi_interfaces.msg import LSXStatus
+from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
+from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
-from nepi_api.system_if import SettingsIF
+from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 #from nepi_api.data_if import NavPoseIF
 #from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
@@ -46,9 +46,10 @@ class LSXDeviceIF:
 
     ready = False
 
+    status_msg = LSXStatus()
+
     getStatusFunction = None
-    factory_device_name = "None"
-    init_device_name = "None"
+    device_name = ""
   
     has_standby_mode = False
     has_on_off_control = False
@@ -70,11 +71,18 @@ class LSXDeviceIF:
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
+    data_source_description = 'lighting_device'
+    data_ref_description = 'sensor'
+    device_mount_description = 'fixed'
+
+    mount_desc = 'None'
+
     #######################
     ### IF Initialization    
     def __init__(self, device_info, getStatusFunction, capSettings, 
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  factoryControls = None, 
+                 data_source_description = 'lighting_device',
                  data_ref_description = 'sensor',
                  standbyEnableFunction = None, turnOnOffFunction = None,
                  setIntensityRatioFunction = None, 
@@ -113,14 +121,15 @@ class LSXDeviceIF:
         ##############################
         # Initialize Class Variables
 
-        self.device_name = device_info["device_name"]
+        self.device_id = device_info["device_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
 
-        self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
+        self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
 
+        self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
         # Create and update factory controls dictionary
@@ -205,12 +214,20 @@ class LSXDeviceIF:
         self.capabilities_report.reports_power = self.reports_power
 
 
-        self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
+        self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
         self.getStatusFunction = getStatusFunction
 
-        self.status_msg = LSXStatus()
+        # Initialize status message
+        self.status_msg.device_id = self.device_id
+        self.status_msg.identifier = self.identifier
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+        self.status_msg.device_mount_description = self.get_mount_description() 
         ##################################################
         ### Node Class Setup
 
@@ -231,7 +248,7 @@ class LSXDeviceIF:
         self.PARAMS_DICT = {
             'device_name': {
                 'namespace': self.node_namespace,
-                'factory_val': self.factory_device_name
+                'factory_val': self.device_name
             },
             'standby_enabled': {
                 'namespace': self.node_namespace,
@@ -260,6 +277,10 @@ class LSXDeviceIF:
             'blink_interval_sec': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
+            },
+            'mount_desc': {
+                'namespace': self.node_namespace,
+                'factory_val': 'None'
             }
         }
 
@@ -291,6 +312,22 @@ class LSXDeviceIF:
 
 
         self.SUBS_DICT = {
+            'set_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_device_name',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.updateDeviceNameCb, 
+                'callback_args': ()
+            },
+            'reset_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/reset_device_name',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetDeviceNameCb, 
+                'callback_args': ()
+            },
             'set_standby': {
                 'namespace': self.node_namespace,
                 'topic': 'lsx/set_empty',
@@ -347,28 +384,28 @@ class LSXDeviceIF:
                 'callback': self.setStrobeEnableCb, 
                 'callback_args': ()
             },
-            'update_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/update_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'reset_controls': {
                 'namespace': self.node_namespace,
                 'topic': 'lsx/reset_controls',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
+                'callback_args': ()
+            },
+            'set_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/set_mount_description',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setMountDescCb, 
+                'callback_args': ()
+            },
+            'reset_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'lsx/reset_mount_description',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetMountDescCb, 
                 'callback_args': ()
             }
 
@@ -443,7 +480,7 @@ class LSXDeviceIF:
         nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
         #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
-        self.publishStatus()
+        self.publish_status()
 
         
         ####################################
@@ -477,7 +514,61 @@ class LSXDeviceIF:
 
 
 
-    def UpdateDevice(self):
+    nepi_sdk.sleep
+    def resetControlsCb(self, msg):
+        self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
+        self.node_if.set_param('standby_enabled', self.init_standby_enabled)
+        self.node_if.set_param('on_off_state', self.init_on_off_state)
+        self.node_if.set_param('intensity_ratio', self.init_intensity_ratio)
+        self.node_if.set_param('color_selection', self.init_color_selection)
+        self.node_if.set_param('kelvin_val', self.init_kelvin_val)
+        self.node_if.set_param('strobe_enbled', self.init_strobe_enbled)
+        self.node_if.set_param('blink_interval_sec', self.init_blink_interval_sec)
+        self.updateDevice()
+        self.publish_status()
+
+
+    def setMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
+        self.mount_desc = msg.data
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)
+
+    def resetMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
+        self.mount_desc = 'None'
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)
+
+
+  def initCb(self,do_updates = False):
+      if self.node_if is not None:
+        self.device_name = self.node_if.get_param('device_name')
+      if do_updates == True:
+        self.updateDevice()
+      self.publish_status()
+
+
+
+  def resetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.reset_params()
+      if self.save_data_if is not None:
+          self.save_data_if.reset()
+      if self.settings_if is not None:
+          self.settings_if.reset_settings(update_status = False, update_params = True)
+      self.initCb()
+
+  def factoryResetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.factory_reset_params()
+      if self.save_data_if is not None:
+          self.save_data_if.factory_reset()
+      if self.settings_if is not None:
+          self.settings_if.factory_reset(update_status = False, update_params = True)
+      self.initCb()
+
+    def updateDevice(self):
         if self.standbyEnableFunction is not None:
           val = self.node_if.get_param('standby_enabled')
           self.standbyEnableFunction(val)
@@ -496,51 +587,6 @@ class LSXDeviceIF:
         if self.enableStrobeFunction is not None:
           val = self.node_if.get_param('strobe_enbled')
           self.enableStrobeFunction(val)
-
-    nepi_sdk.sleep
-    def resetControlsCb(self, msg):
-        self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
-        self.node_if.set_param('standby_enabled', self.init_standby_enabled)
-        self.node_if.set_param('on_off_state', self.init_on_off_state)
-        self.node_if.set_param('intensity_ratio', self.init_intensity_ratio)
-        self.node_if.set_param('color_selection', self.init_color_selection)
-        self.node_if.set_param('kelvin_val', self.init_kelvin_val)
-        self.node_if.set_param('strobe_enbled', self.init_strobe_enbled)
-        self.node_if.set_param('blink_interval_sec', self.init_blink_interval_sec)
-        self.UpdateDevice()
-        self.publishStatus()
-
-
-    def initConfig(self):
-        self.initCb(do_updates = True)
-
-    def initCb(self,do_updates = False):
-        if self.settings_if is not None:
-            self.settings_if.initialize_settings(do_updates)
-        if do_updates == True:
-          self.resetCb(do_updates)
-
-
-
-    def resetCb(self,do_updates = True):
-        if self.settings_if is not None:
-          self.settings_if.reset_settings()
-        if do_updates:
-            self.UpdateDevice()
-        if self.save_data_if is not None:
-            self.save_data_if.reset()
-        if self.settings_if is not None:
-            self.settings_if.reset_settings(update_status = False, update_params = True)
-        self.publishStatus()
-
-    def factoryResetCb(self, do_updates = True):
-        if self.settings_if is not None:
-          self.settings_if.factory_reset_settings()
-        if do_updates:
-            self.UpdateDevice()
-        self.publishStatus()
-
-
         
 
 
@@ -552,13 +598,14 @@ class LSXDeviceIF:
     ## Callback to regulary check device comms, track failures, and kill unresponsive device connections
     def statusTimerCb(self,timer):
       #Update the status message
-      self.publishStatus()
+      self.publish_status()
 
     ### Status callback
-    def publishStatus(self):
+    def publish_status(self):
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_mount_description = self.get_mount_description()
       # update status values from device
       blink_interval = self.node_if.get_param('blink_interval_sec')
-      self.status_msg = self.data_ref_description
       if self.getStatusFunction is not None:
         status_msg=self.getStatusFunction()
         status_msg.user_name = self.node_if.get_param('device_name')
@@ -581,7 +628,7 @@ class LSXDeviceIF:
         self.np_status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict)
+            self.navpose_if.publish_navpose(np_dict, device_mount_description = self.get_mount_description())
 
 
     def _publishNavPoseCb(self,timer):
@@ -592,7 +639,11 @@ class LSXDeviceIF:
         delay = float(1.0) / rate
         nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
     '''
-
+    def get_mount_description(self):
+      desc = self.device_mount_description
+      if self.mount_desc != 'None':
+          desc = self.mount_desc
+      return desc
 
     ### Capabilities callback
     def capabilities_query_callback(self, _):
@@ -613,7 +664,7 @@ class LSXDeviceIF:
             self.msg_if.pub_error("Received invalid device name update: " + new_device_name, log_name_list = self.log_name_list)
         else:
             self.node_if.set_param('device_name', new_device_name)
-        self.publishStatus()
+        self.publish_status()
 
 
     def resetDeviceNameCb(self,msg):
@@ -621,8 +672,8 @@ class LSXDeviceIF:
         self.resetDeviceName()
 
     def resetDeviceName(self):
-        self.node_if.set_param('device_name', self.factory_device_name)
-        self.publishStatus()
+        self.node_if.set_param('device_name', self.device_name)
+        self.publish_status()
 
     ### LSX callbacks
     def setStandbyCb(self, standby_msg):
@@ -631,7 +682,7 @@ class LSXDeviceIF:
       if self.standbyEnableFunction is not None:
         self.standbyEnableFunction(standby)
       self.node_if.set_param('standby_enabled', standby)
-      self.publishStatus()
+      self.publish_status()
 
 
     def turnOnOffCb(self, on_off_msg):
@@ -640,7 +691,7 @@ class LSXDeviceIF:
       if self.turnOnOffFunction is not None:
         self.turnOnOffFunction(on_off)
       self.node_if.set_param('on_off_state', on_off)
-      self.publishStatus()
+      self.publish_status()
 
     ### Set intensity callback
     def setIntensityRatioCb(self, intensity_msg):
@@ -649,7 +700,7 @@ class LSXDeviceIF:
       if self.setIntensityRatioFunction is not None:
         self.setIntensityRatioFunction(intensity)
       self.node_if.set_param('intensity_ratio', intensity)
-      self.publishStatus()
+      self.publish_status()
 
     ### Set color selection callback
     def setColorCb(self, color_msg):
@@ -659,7 +710,7 @@ class LSXDeviceIF:
         if self.setColorFunction is not None:
           self.setColorFunction(color)
         self.node_if.set_param('color_selection', color)
-      self.publishStatus()
+      self.publish_status()
 
     ### Set kelvin value callback
     def setKelvinCb(self, kelvin_msg):
@@ -669,7 +720,7 @@ class LSXDeviceIF:
         if self.setKelvinFunction is not None:
           self.setKelvinFunction(kelvin)
         self.node_if.set_param('kelvin_val', kelvin)
-      self.publishStatus()
+      self.publish_status()
 
     def setStrobeEnableCb(self, strobe_enable_msg):
       self.msg_if.pub_info("Recieved strobe enable message: " + str(strobe_enable_msg), log_name_list = self.log_name_list)
@@ -677,7 +728,7 @@ class LSXDeviceIF:
       if self.enableStrobeFunction is not None:
         self.enableStrobeFunction(strobe_enable)
       self.node_if.set_param('strobe_enbled', strobe_enable)
-      self.publishStatus()
+      self.publish_status()
 
 
     ### Set blink interval callback
@@ -687,7 +738,7 @@ class LSXDeviceIF:
       if self.blinkOnOffFunction is not None:
         self.blinkOnOffFunction(blink_interval)
       self.node_if.set_param('blink_interval_sec', blink_interval)
-      self.publishStatus()
+      self.publish_status()
 
 
 

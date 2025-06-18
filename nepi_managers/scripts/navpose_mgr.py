@@ -38,21 +38,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
-from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
-from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.msg import NavPose, NavPoseStatus
+from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
-from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-#from nepi_sdk_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
-#from nepi_sdk_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
+from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+#from nepi_interfaces.srv import Frame3DTransformsRegister, Frame3DTransformsRegisterRequest, Frame3DTransformsRegisterResponse
+#from nepi_interfaces.srv import Frame3DTransformsDelete, Frame3DTransformsDeleteRequest, Frame3DTransformsDeleteResponse
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
@@ -105,9 +105,10 @@ class NavPoseMgr(object):
 
     data_products_list = ['navpose']
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict['frame_3d'] = 'nepi_frame'
     navpose_dict_lock = threading.Lock()
-    init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    last_npdata_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    init_navpose_dict = nepi_nav.navpose_dict
+    last_npdata_dict = nepi_nav.navpose_dict
 
     mgr_namespace = ""
     status_msg = NavPoseMgrStatus()
@@ -146,7 +147,12 @@ class NavPoseMgr(object):
     }
 
 
-    frame_desc = 'Undefined'
+    nepi_frame_desc = 'Undefined'
+
+    data_source_description = 'nepi_navpose_solution'
+    data_ref_description = 'nepi_frame'
+    device_mount_description = 'fixed'
+    add_mount_description = ''
 
     #######################
     ### Node Initialization
@@ -196,9 +202,9 @@ class NavPoseMgr(object):
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'frame_desc': {
+            'nepi_frame_desc': {
                 'namespace': self.mgr_namespace,
-                'factory_val': self.frame_desc
+                'factory_val': self.nepi_frame_desc
             },
             'pub_rate': {
                 'namespace': self.mgr_namespace,
@@ -215,7 +221,8 @@ class NavPoseMgr(object):
             'init_navpose_dict': {
                 'namespace': self.mgr_namespace,
                 'factory_val': self.init_navpose_dict
-            }
+            },
+
 
         }
 
@@ -308,22 +315,6 @@ class NavPoseMgr(object):
                 'qsize': 1,
                 'callback': self._resetNavPoseCb, 
                 'callback_args': ()
-            },
-            'set_init_navpose': {
-                'namespace': self.mgr_namespace,
-                'topic': 'set_init_navpose',
-                'msg': NavPose,
-                'qsize': 1,
-                'callback': self._setInitNavPoseCb, 
-                'callback_args': ()
-            },
-            'reset_init_navpose': {
-                'namespace': self.mgr_namespace,
-                'topic': 'reset_init_navpose',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetInitNavPoseCb, 
-                'callback_args': ()
             }
         }
 
@@ -343,6 +334,8 @@ class NavPoseMgr(object):
         # Setup navpose data IF
         np_namespace = self.base_namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = [],
                         msg_if = self.msg_if
@@ -360,10 +353,6 @@ class NavPoseMgr(object):
 
         ######################
         # initialize variables from param server
-        self.frame_desc = self.node_if.get_param('frame_desc')
-        self.set_pub_rate = self.node_if.get_param('pub_rate')
-        self.connect_dict = self.node_if.get_param('connect_dict')
-        self.transforms_dict = self.node_if.get_param('transforms_dict')
 
         self.initCb(do_updates = True)
         ##############################
@@ -386,9 +375,9 @@ class NavPoseMgr(object):
     ### Node Methods
 
     def setFrameDesc(self,description):
-        self.frame_desc = description
+        self.nepi_frame_desc = description
         self.publish_status(do_updates = False)
-        self.node_if.set_param('frame_desc',description)      
+        self.node_if.set_param('nepi_frame_desc',description)      
 
     def setPublishRateCb(self,rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
@@ -416,22 +405,24 @@ class NavPoseMgr(object):
                 if topic != '':
                     self.transforms_dict[topic] = transform
 
-    def setFrameDescription(self,desc = ''):
-        self.frame_desc = desc
-        self.publish_status()
-        self.node_if.set_param('frame_desc',desc)
-
-    def getFrameDescription(self):
-        return self.frame_desc
-
-    def clearTranform(self,name):
+    def clearTransform(self,name):
         if name in self.connect_dict.keys():
             self.connect_dict[name]['transform'] = self.ZERO_TRANSFORM
             topic = self.connect_dict[name]['topic']
             if topic != '':
                 self.transforms_dict[topic] = self.ZERO_TRANSFORM
 
-    def setNavPoseCb(self,npdata_dict):
+    def setFrameDescription(self,desc = ''):
+        self.nepi_frame_desc = desc
+        self.publish_status()
+        self.node_if.set_param('nepi_frame_desc',desc)
+
+    def getFrameDescription(self):
+        return self.nepi_frame_desc
+
+
+
+    def setNavPose(self,npdata_dict):
         if npdata_dict is not None:
             if npdata_dict['has_location'] == True:
                 success = self._unregisterTopic(self,'location')
@@ -458,6 +449,8 @@ class NavPoseMgr(object):
                 self.connect_dict['depth']['fixed'] = True
                 self.transforms_dict['depth'] = self.ZERO_TRANSFORM
             navpose_dict = copy.deepcopy(self.navpose_dict)
+            if self.node_if is not None:
+                self.node_if.set_param('init_nav_pose',navpose_dict)
             navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict,npdata_dict)
             self.navpose_dict_lock.acquire()
             self.navpose_dict = navpose_dict
@@ -467,32 +460,40 @@ class NavPoseMgr(object):
     def resetNavPose(self):
         self.navpose_dict_lock.acquire()
         self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        self.navpose_dict['frame_3d'] = 'nepi_frame'
         self.navpose_dict_lock.release()
-
-    def setInitNavPoseCb(self,npdata_dict):
-        self.init_navpose_dict = npdata_dict
-            
-
-    def resetInitNavPose(self):
-        self.init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if self.node_if is not None:
+            self.node_if.set_param('init_nav_pose',navpose_dict)
 
     def applyInitNavPose(self,npdata_dict):
         # Need to add 
         return npdata_dict
 
     def initCb(self,do_updates = False):
+        if self.node_if is not None:
+            self.nepi_frame_desc = self.node_if.get_param('nepi_frame_desc')
+            self.set_pub_rate = self.node_if.get_param('pub_rate')
+            self.connect_dict = self.node_if.get_param('connect_dict')
+            self.transforms_dict = self.node_if.get_param('transforms_dict')
+            self.init_navpose = self.node_if.get_param('init_navpose')
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = self.init_navpose
+        self.navpose_dict_lock.release()
         if do_updates == True:
-            self.resetCb(do_updates)
+            pass
+        self.publish_status()
 
     def resetCb(self,do_updates = False):
-        self.navpose_dict_lock.acquire()
-        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        self.navpose_dict_lock.release()
+        if self.node_if is not None:
+            self.node_if.reset_params()
+        self.initCb(do_updates == True)
+
         
     def factoryResetCb(self,do_updates = False):
-        self.navpose_dict_lock.acquire()
-        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        self.navpose_dict_lock.release()
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
+        self.initCb(do_updates == True)
+
 
 
     def publish_navpose(self):
@@ -507,7 +508,7 @@ class NavPoseMgr(object):
         subs_dict = copy.deepcopy(self.subs_dict)
         avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
 
-        self.status_msg.nepi_frame_description = self.frame_desc
+        self.status_msg.nepi_frame_description = self.nepi_frame_desc
 
         comp_names = []
         comp_infos = []
@@ -537,9 +538,6 @@ class NavPoseMgr(object):
         self.status_msg.comp_infos = comp_infos
 
 
-        init_np_msg = nepi_nav.convert_navposedata_dict2msg(self.init_navpose_dict)
-        self.status_msg.init_navpose = init_np_msg
-
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
         self.node_if.publish_pub('status_pub',self.status_msg)
@@ -553,7 +551,7 @@ class NavPoseMgr(object):
         self.navpose_dict_lock.acquire()
         npdata_dict = copy.deepcopy(self.navpose_dict)
         self.navpose_dict_lock.release()
-        npdata_msg = nepi_nav.convert_navposedata_dict2msg(npdata_dict) 
+        npdata_msg = nepi_nav.convert_navpose_dict2msg(npdata_dict) 
         response.navpose_data = npdata_msg
         return response
 
@@ -692,7 +690,7 @@ class NavPoseMgr(object):
 
     def _setNavPoseCb(self,msg):
         npdata_dict = nepi_nav.convert_navpose_msg2data(msg)
-        self.setNavPoseCb(npdata_dict)
+        self.setNavPose(npdata_dict)
        
     def _resetNavPoseCb(self,msg):
         self.resetNavPose()
@@ -735,7 +733,7 @@ class NavPoseMgr(object):
 
         if npdata_dict is not None:
             #self.msg_if.pub_warn("Got navpose data dict: " + str(npdata_dict))
-            npdata_msg = nepi_nav.convert_navposedata_dict2msg(npdata_dict)
+            npdata_msg = nepi_nav.convert_navpose_dict2msg(npdata_dict)
             #self.msg_if.pub_warn("Got navpose data msg: " + str(npdata_msg))
             if npdata_msg is not None:
                 self.status_msg.publishing = True
@@ -763,7 +761,8 @@ class NavPoseMgr(object):
         self.status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict)
+            self.navpose_if.publish_navpose(np_dict,
+                        device_mount_description = self.device_mount_description + self.add_mount_description)
 
 
     def _publishNavPoseCb(self,timer):

@@ -1,6 +1,14 @@
 # This message provides the Numurus RBX Device Status Information
+string device_name
+string device_id
+string identifier
+string serial_num
+string hw_version
+string sw_version
 
+string data_source_description
 string data_ref_description
+string device_mount_description
 
 # Current nav_pose info
 float32 current_lat
@@ -52,3 +60,7 @@ string last_cmd_string
 string last_error_message
 
 bool fake_gps_enabled
+
+# Transform from device native ref frame to the nepi_frame,
+# Or PanTilt center tilt axis if panTilt mounted
+nepi_interfaces/Frame3DTransform frame_3d_transform

@@ -16,8 +16,8 @@
 import os
 import time
 
-from nepi_sdk_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryResponse
+from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryResponse
 
 from nepi_sdk import nepi_utils
 

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>nepi_sdk_interfaces</name>
+  <name>nepi_interfaces</name>
   <version>0.0.0</version>
   <description>NEPI Edge ROS service, message, and utility config files</description>
 

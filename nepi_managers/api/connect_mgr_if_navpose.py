@@ -31,21 +31,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_sdk_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
 
-from nepi_sdk_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
-from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.msg import NavPose, NavPoseStatus
+from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
-from nepi_sdk_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
-from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_sdk_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
+from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
 
-from nepi_sdk_interfaces.msg import SaveDataRate
+from nepi_interfaces.msg import SaveDataRate
 
 from nepi_api.messages_if import MsgIF
 
@@ -310,7 +310,7 @@ class ConnectMgrNavPoseIF:
                 pass
         if response is not None:
             navpose_msg = response.navpose_dict
-            navpose_dict = nepi_nav.convert_navposedata_msg2dict(navpose_msg)
+            navpose_dict = nepi_nav.convert_navpose_msg2dict(navpose_msg)
         return navpose_dict
 
 
@@ -451,5 +451,5 @@ class ConnectMgrNavPoseIF:
         self.status_dict = nepi_sdk.convert_msg2dict(status_msg)
 
     def _navposeDataCb(self,data_msg):      
-        self.navpose_dict = nepi_nav.convert_navposedata_msg2dict(data_msg)
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(data_msg)
 

@@ -2,5 +2,5 @@
 
 ---
 # Array of data product names
-nepi_sdk_interfaces/SaveDataRate[] save_data_rates
+nepi_interfaces/SaveDataRate[] save_data_rates
 

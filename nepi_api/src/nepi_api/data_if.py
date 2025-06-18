@@ -31,21 +31,21 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_sdk_interfaces.msg import NavPose, NavPoseTrack, NavPoseStatus
-from nepi_sdk_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_sdk_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_sdk_interfaces.msg import NavPoseAltitude, NavPoseDepth
-from nepi_sdk_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
+from nepi_interfaces.msg import NavPose, NavPoseTrack, NavPoseStatus
+from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 
 
 from sensor_msgs.msg import Image
-from nepi_sdk_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
-from nepi_sdk_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
+from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
+from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
-from nepi_sdk_interfaces.msg import DepthMapStatus, RangeWindow
+from nepi_interfaces.msg import DepthMapStatus, RangeWindow
 
 from sensor_msgs.msg import PointCloud2
-from nepi_sdk_interfaces.msg import PointcloudStatus
+from nepi_interfaces.msg import PointcloudStatus
 
 
 from nepi_api.messages_if import MsgIF
@@ -512,8 +512,6 @@ class NavPoseIF:
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    data_products_list = ['navpose']
-
     frame_3d = 'sensor_frame'
     frame_nav = 'ENU'
     frame_altitude = 'WGS84'
@@ -526,10 +524,11 @@ class NavPoseIF:
     track_sec_last = 0.0
     track_msg_list = []
 
-    data_ref_description = 'sensor'
+    data_product = 'navpose'
 
     def __init__(self, namespace = None,
-                data_ref_description = 'sensor',
+                data_source_description = 'navpose',
+                data_ref_description = 'sensor_center',
                 pub_location = False, pub_heading = False,
                 pub_orientation = False, pub_position = False,
                 pub_altitude = False, pub_depth = False,
@@ -562,7 +561,6 @@ class NavPoseIF:
         namespace = nepi_sdk.create_namespace(namespace,'navpose')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         
-        self.data_ref_description = data_ref_description
 
         self.pub_location = pub_location
         self.pub_heading = pub_heading
@@ -579,8 +577,22 @@ class NavPoseIF:
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
 
+        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
+        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
 
-        self.status_msg.node_namespace = self.node_namespace
+
+
+        # Initialize status message
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+        
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
         ##############################   
         ## Node Setup
 
@@ -788,7 +800,7 @@ class NavPoseIF:
         return NAVPOSE_DEPTH_FRAME_OPTIONS
 
     def get_data_products(self):
-        return self.data_products_list
+        return [self.data_product]
 
     def get_blank_navpose_dict(self):
         return nepi_nav.BLANK_NAVPOSE_DICT
@@ -807,11 +819,12 @@ class NavPoseIF:
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, timestamp = None):      
+    def publish_navpose(self,navpose_dict, timestamp = None, device_mount_description = 'fixed'):      
         success = True
         if navpose_dict is None:
             success = False
         else:
+            self.status_msg.device_mount_description = device_mount_description
             self.status_msg.frame_3d = navpose_dict['frame_3d']
             self.status_msg.source_frame_nav = navpose_dict['frame_nav']
             self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
@@ -839,13 +852,18 @@ class NavPoseIF:
 
                 # Start Img Pub Process
                 start_time = nepi_utils.get_time()   
+
                 try:
-                    msg = nepi_nav.convert_navposedata_dict2msg(np_dict)
-                    if msg is not None:
-                        self.node_if.publish_pub('navpose_pub', msg)
+                    msg = nepi_nav.convert_navpose_dict2msg(np_dict)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                     success = False
+                if msg is not None:
+                    try:
+                       self.node_if.publish_pub('navpose_pub', msg)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        success = False
 
                 current_time = nepi_utils.get_time()
                 pub_latency = (current_time - timestamp)
@@ -872,10 +890,10 @@ class NavPoseIF:
                 # Transform navpose data frames to nepi standard frames
                 if np_dict['frame_nav'] != 'ENU':
                     if np_dict['frame_nav'] == 'NED':
-                        nepi_nav.convert_navposedata_ned2enu(np_dict)
+                        nepi_nav.convert_navpose_ned2enu(np_dict)
                 if np_dict['frame_altitude'] != 'WGS84':
                     if np_dict['frame_altitude'] == 'AMSL':
-                        nepi_nav.convert_navposedata_amsl2wgs84(np_dict)
+                        nepi_nav.convert_navpose_amsl2wgs84(np_dict)
                 if np_dict['frame_depth'] != 'MSL':
                     if np_dict['frame_depth'] == 'DEPTH':
                         pass # need to add conversions                 
@@ -954,29 +972,6 @@ class NavPoseIF:
                     self.msg_if.pub_warn("Failed to convert navpose data to track msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
 
 
-    def get_frame_nav_options(self):
-        return NAVPOSE_NAV_FRAME_OPTIONS
-
-    def get_frame_altitude_options(self):
-        return NAVPOSE_NAV_FRAME_OPTIONS
-
-    def get_frame_depth_options(self):
-        return NAVPOSE_DEPTH_FRAME_OPTIONS
-
-    def get_data_products(self):
-        return self.data_products_list
-
-    def get_blank_navpose_dict(self):
-        return nepi_nav.BLANK_NAVPOSE_DICT
-
-    def get_status_dict(self):
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-        return success
-
 
     def unsubsribe(self):
         self.ready = False
@@ -1040,6 +1035,7 @@ class NavPoseIF:
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
+           
             self.status_msg.track_length = self.track_length
             self.status_msg.track_sec = self.track_sec
             self.status_msg.track_next_sec = self.get_next_track_sec()
@@ -1113,18 +1109,16 @@ class NavPoseIF:
 # ImageIF
 
 
-def get_image_data_product(data_name):
-    if data_name is None:
-        data_name = 'image'
-    elif data_name.find('image') == -1:
-        data_name = data_name + '_image'
-    return data_name
+def get_image_data_product(data_product):
+    if data_product is None:
+        data_product = 'image'
+    elif data_product.find('image') == -1:
+        data_product = data_product + '_image'
+    return data_product
 
 
 SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
-SUPPORTED_SOURCE_TYPES = ['image','camera_2d','camera_3d','sonar_2d','sonar_3d',
-                        'laser_2d','laser_3d','lidar_2d','lidar_3d']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
 
 
@@ -1165,14 +1159,16 @@ EXAMPLE_CONTROLS_DICT = dict(
     tilt_ratio = 0.5       
     )
 
-DEFUALT_IMG_WIDTH = 700
-DEFUALT_IMG_HEIGHT = 400
+
 
 class ImageIF:
 
+    DEFUALT_IMG_WIDTH_PX = 700
+    DEFUALT_IMG_HEIGHT_PX = 400
 
+    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFUALT_IMG_HEIGHT_DEG = 70
 
-    FRAME_3D_OPTIONS = ['nepi_frame','sensor_frame']
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -1216,10 +1212,11 @@ class ImageIF:
 
     status_msg = ImageStatus()
 
-    last_width = DEFUALT_IMG_WIDTH
-    last_height = DEFUALT_IMG_HEIGHT
+    last_width = DEFUALT_IMG_WIDTH_PX
+    last_height = DEFUALT_IMG_HEIGHT_PX
 
-    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
+
+    blank_img = nepi_img.create_cv2_blank_img(last_width, last_height, color = (0, 0, 0) )
 
     last_pub_time = None
 
@@ -1234,8 +1231,7 @@ class ImageIF:
     controls_dict = DEFAULT_CONTROLS_DICT
     init_controls_dict = controls_dict
 
-    data_source_type = 'image'
-    data_product = 'image'
+
 
     caps_report = ImageCapabilitiesQueryResponse()
 
@@ -1257,12 +1253,18 @@ class ImageIF:
     has_navpose = False
     navpose_if = None
 
+
+    data_source_description = 'imaging_sensor'
     data_ref_description = 'sensor'
 
+    data_product = 'image'
+
     def __init__(self, namespace , 
-                data_name ,
-                data_source_type,
+                data_product_name,
+                data_source_description,
                 data_ref_description,
+                width_deg,
+                hieight_deg,
                 caps_dict,
                 controls_dict, 
                 enhance_dict,
@@ -1297,26 +1299,16 @@ class ImageIF:
         ##############################    
         # Initialize Class Variables
 
-        if data_name is None:
-            data_name = self.data_source_type
-        self.data_name = data_name
-
-        data_product = get_image_data_product(data_name)
-        self.data_product = data_product
-
-        if data_source_type is None:
-            data_source_type = self.data_source_type
-        self.data_source_type = data_source_type
-
-        self.data_ref_description = data_ref_description
+        if data_product_name is not None:
+            self.data_product = data_product_name
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = copy.deepcopy(self.namespace)
         namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
+        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-
+          
 
         # Setup enhance dict
         if enhance_dict is not None:
@@ -1338,9 +1330,6 @@ class ImageIF:
             self.has_navpose = True
 
 
-        self.caps_report.data_source_type = self.data_source_type
-        self.caps_report.data_product_name = self.data_product
-
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
         self.caps_report.has_brightness = self.caps_dict['has_brightness']
@@ -1355,8 +1344,6 @@ class ImageIF:
 
         self.caps_report.has_enhances = self.has_enhance
         self.caps_report.enhance_options = self.enhance_options
-
-        self.caps_report.has_navpose = self.has_navpose
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         dm_topic = nepi_sdk.find_topic(dm_ns)
@@ -1384,16 +1371,26 @@ class ImageIF:
 
  
         # Initialize Status Msg.  Updated on each publish
-        status_msg = ImageStatus()
-        status_msg.node_namespace = self.node_namespace
-        status_msg.publishing = False
-        status_msg.encoding = 'bgr8'
-        status_msg.width = 0
-        status_msg.height = 0
-        status_msg.get_latency_time = 0
-        status_msg.pub_latency_time = 0
-        status_msg.process_time = 0
-        self.status_msg = status_msg
+
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+        self.status_msg.publishing = False
+        self.status_msg.encoding = 'bgr8'
+        self.status_msg.width_px = 0
+        self.status_msg.height_px = 0
+        self.status_msg.width_deg = 0
+        self.status_msg.height_deg = 0
+        self.status_msg.get_latency_time = 0
+        self.status_msg.pub_latency_time = 0
+        self.status_msg.process_time = 0
 
         ####################
         # Connect to navpose_mgr for data
@@ -1810,11 +1807,11 @@ class ImageIF:
         return self.ready  
 
 
-    def get_data_source_type(self):
-        return self.data_source_type
+    def get_data_source_description(self):
+        return self.data_source_description
 
-    def get_data_product_name(self):
-        return self.data_product
+    def get_data_products(self):
+        return [self.data_product]
 
     def get_status_dict(self):
         status_dict = None
@@ -1837,12 +1834,16 @@ class ImageIF:
         return navpose_dict
 
 
+
     def publish_cv2_img(self,cv2_img, 
                         encoding = "bgr8", 
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
+                        width_deg = self.DEFUALT_IMG_WIDTH_DEG,
+                        height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
                         add_overlay_list = [],
-                        do_subscriber_check = True
+                        do_subscriber_check = True,
+                        device_mount_description = 'fixed'
                         ):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
@@ -1851,6 +1852,11 @@ class ImageIF:
             return cv2_img
 
         # Process 
+
+        self.data_ref_description = data_ref_description
+        self.data_description = get_data_description(self.data_source_description,data_ref_description)
+        self.status_msg.data_description = self.data_description
+
         self.status_msg.encoding = encoding
         if timestamp == None:
             timestamp = nepi_utils.get_time()
@@ -1867,12 +1873,15 @@ class ImageIF:
         start_time = nepi_utils.get_time()   
  
         [height,width] = cv2_img.shape[0:2]
-        last_width = self.status_msg.width
-        last_height = self.status_msg.height
-        self.status_msg.width = width
-        self.status_msg.height = height
+        last_width = self.status_msg.width_px
+        last_height = self.status_msg.height_px
+        self.status_msg.width_px = width
+        self.status_msg.height_px = height
         res_str = str(width) + ":" + str(height)
         self.status_msg.resolution_current = res_str
+
+        self.status_msg.width_deg = width_deg
+        self.status_msg.height_deg = height_deg
 
         self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
 
@@ -1936,7 +1945,7 @@ class ImageIF:
             self.time_list.append(pub_time_sec)
 
         # Update blank image if needed
-        if last_width != self.status_msg.width or last_height != self.status_msg.height:
+        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
         return cv2_img
 
@@ -2262,7 +2271,7 @@ class ImageIF:
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
-            self.status_msg.avg_fps = avg_rate
+            self.status_msg.avg_pub_rate = avg_rate
 
             self.node_if.publish_pub('status_pub',self.status_msg)
 
@@ -2532,11 +2541,12 @@ class ColorImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
-    data_source_type = 'color_image'
+    data_product = 'color_image'
+
 
     
     def __init__(self, namespace = None , 
-                data_name = 'color_image',
+                data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
                 init_overlay_list = [],
                 get_navpose_function = None,
@@ -2547,8 +2557,8 @@ class ColorImageIF(ImageIF):
 
         # Call the parent class constructor
         super().__init__(namespace , 
-                data_name ,
-                self.data_source_type,
+                self.data_product_name,
+                data_source_description,
                 data_ref_description,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
@@ -2652,11 +2662,11 @@ class DepthMapImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
-    data_source_type = 'depth_map'
+    data_product = 'depth_map'
 
     def __init__(self, namespace = None , 
-                data_name = 'depth_map',
-                data_ref_description = 'sensor',
+                data_source_description = 'depth_map_sensor',
+                data_ref_description = 'sensor'
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -2666,8 +2676,8 @@ class DepthMapImageIF(ImageIF):
         # Call the parent class constructor
         # Call the parent class constructor
         super().__init__(namespace , 
-                data_name ,
-                self.data_source_type,
+                self.data_product,
+                data_source_description,
                 data_ref_description,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
@@ -2735,12 +2745,13 @@ class DepthMapImageIF(ImageIF):
 ##################################################
 # DepthMapIF
 
-ENCODING_OPTIONS = ['32FC1']
-FRAME_IDS = ['nepi_frame','sensor_frame']
-DEFUALT_IMG_WIDTH = 700
-DEFUALT_IMG_HEIGHT = 400
-
 class DepthMapIF:
+
+    DEFUALT_IMG_WIDTH_PX = 700
+    DEFUALT_IMG_HEIGHT_PX = 400
+
+    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFUALT_IMG_HEIGHT_DEG = 70
 
     ready = False
     namespace = '~'
@@ -2749,10 +2760,10 @@ class DepthMapIF:
 
     status_msg = DepthMapStatus()
 
-    last_width = DEFUALT_IMG_WIDTH
-    last_height = DEFUALT_IMG_HEIGHT
+    last_width = DEFUALT_IMG_WIDTH_PX
+    last_height = DEFUALT_IMG_HEIGHT_PX
 
-    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH, DEFUALT_IMG_HEIGHT, color = (0, 0, 0) )
+    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH_PX, DEFUALT_IMG_HEIGHT_PX, color = (0, 0, 0) )
 
     last_pub_time = None
 
@@ -2768,17 +2779,18 @@ class DepthMapIF:
     min_range_m = 0.0
     max_range_m = 20.0
 
-    data_products_list = []
 
-    data_source_type = 'depth_map'
+
+    data_source_description = 'depth_map_sensor'
     data_ref_description = 'sensor'
 
+    data_product = 'depth_map'
+    data_products_list = [data_product]
+
     def __init__(self, namespace = None,
-                data_name = 'depth_map',
+                data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
                 enable_image_pub = True,
-                default_min_meters = 0.0,
-                default_max_meters = 20.0,
                 max_image_pub_rate = 5,
                 init_overlay_list = [],
                 log_name = None,
@@ -2805,17 +2817,22 @@ class DepthMapIF:
 
         ##############################    
         # Initialize Class Variables
-        if data_name is None:
-            data_name = self.data_source_type
-        self.data_products_list = [data_name] + [get_image_data_product(data_name)]
 
-        self.data_ref_description = data_ref_description
+        self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
+
+
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = self.namespace
         namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
+        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+
+        '''
+                default_min_meters = 0.0,
+                default_max_meters = 20.0,
+        self._updateRangesM(default_min_meters,default_max_meters)
+        '''
 
         ###############################
         if enable_image_pub == True:
@@ -2863,22 +2880,30 @@ class DepthMapIF:
                 self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
 
 
-
-        self._updateRangesM(default_min_meters,default_max_meters)
         # Initialize Status Msg.  Updated on each publish
-        status_msg = DepthMapStatus()
-        status_msg.node_namespace = self.node_namespace
-        status_msg.publishing = False
-        status_msg.encoding = '32FC1'
-        status_msg.width = 0
-        status_msg.height = 0
-        status_msg.frame_3d = "sensor_frame"
-        status_msg.get_latency_time = 0
-        status_msg.pub_latency_time = 0
-        status_msg.process_time = 0
-        status_msg.image_pub_enabled = enable_image_pub
-        status_msg.max_image_pub_rate = max_image_pub_rate
-        self.status_msg = status_msg
+
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+
+        self.status_msg.publishing = False
+        self.status_msg.encoding = '32FC1'
+        self.status_msg.width_px = 0
+        self.status_msg.height_px = 0
+        self.status_msg.frame_3d = "sensor_frame"
+        self.status_msg.get_latency_time = 0
+        self.status_msg.pub_latency_time = 0
+        self.status_msg.process_time = 0
+        self.status_msg.image_pub_enabled = enable_image_pub
+        self.status_msg.max_image_pub_rate = max_image_pub_rate
+
 
 
         ##############################   
@@ -2998,8 +3023,8 @@ class DepthMapIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
-    def get_data_source_type(self):
-        return self.data_source_type
+    def get_data_source_description(self):
+        return self.data_source_description
 
 
     def get_data_products(self):
@@ -3016,12 +3041,21 @@ class DepthMapIF:
         return self.has_subs
 
 
-    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1', min_range_m = None, max_range_m = None, timestamp = None, frame_3d = 'sensor_frame'):
+    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1',
+                             min_range_m = None, 
+                             max_range_m = None,
+                             timestamp = None,
+                             frame_3d = 'sensor_frame',
+                             width_deg = self.DEFUALT_IMG_WIDTH_DEG,
+                             height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
+                             device_mount_description = 'fixed'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
+
+        self.status_msg.device_mount_description = device_mount_description
 
         self.status_msg.encoding = encoding
 
@@ -3041,10 +3075,13 @@ class DepthMapIF:
 
         # Publish and Save Raw Image Data if Required  
         [height,width] = cv2_img.shape[0:2]
-        last_width = self.status_msg.width
-        last_height = self.status_msg.height
-        self.status_msg.width = width
-        self.status_msg.height = height
+        last_width = self.status_msg.width_px
+        last_height = self.status_msg.height_px
+        self.status_msg.width_px = width
+        self.status_msg.height_px = height
+
+        self.status_msg.width_deg = width_deg
+        self.status_msg.height_deg = height_deg
 
         if (min_range_m is not None and max_range_m is not None):
             self._updateRangesM(min_range_m,max_range_m)
@@ -3084,10 +3121,9 @@ class DepthMapIF:
 
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
-                self.last_detect_time = nepi_utils.get_time()
 
         # Update blank image if needed
-        if last_width != self.status_msg.width or last_height != self.status_msg.height:
+        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
         return True
 
@@ -3115,7 +3151,7 @@ class DepthMapIF:
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
-            self.status_msg.avg_fps = avg_rate
+            self.status_msg.avg_pub_rate = avg_rate
 
             self.node_if.publish_pub('status_pub',self.status_msg)
 
@@ -3178,14 +3214,10 @@ class DepthMapIF:
 
 
 
-ZERO_TRANSFORM = [0,0,0,0,0,0,0]
-
-STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
-
-FRAME_IDS = ['nepi_frame','sensor_frame']
-
-
 class PointcloudIF:
+
+    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFUALT_IMG_HEIGHT_DEG = 70
 
     Factory_Image_Width = 955
     Factory_Image_Height = 600
@@ -3214,16 +3246,20 @@ class PointcloudIF:
 
     img_pub_file = 'nepi_pointcloud_img_pub_node.py'
 
-    data_products_list = []
 
-    data_source_type = 'pointcloud'
+
+    data_source_description = 'pointcloud_sensor'
     data_ref_description = 'sensor'
 
+    data_product = 'pointcloud'
+    data_products_list = [data_product]
+
     def __init__(self, namespace = None,
-                data_name = 'pointcloud',
+                data_source_description = 'pointcloud_sensor',
                 data_ref_description = 'sensor',
                 enable_image_pub = True,
                 max_image_pub_rate = 5,
+                init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3249,20 +3285,17 @@ class PointcloudIF:
         ##############################    
         # Initialize Class Variables
 
-        if data_name is None:
-            data_name = self.data_source_type
-        self.data_products_list = [data_name] + [get_image_data_product(data_name)]
+        self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
 
-        self.data_ref_description = data_ref_description
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = self.namespace
         namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,data_name)
+        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
-        ###############################
+
         '''
         if enable_image_pub == True:
             ## Get folder info
@@ -3313,23 +3346,33 @@ class PointcloudIF:
 
 
         # Initialize Status Msg.  Updated on each publish
-        status_msg = PointcloudStatus()
-        status_msg.node_namespace = self.node_namespace
-        status_msg.publishing = False
-        status_msg.has_rgb = False
-        status_msg.has_intensity = False
-        status_msg.width = 0
-        status_msg.height = 0
-        status_msg.depth = 0
-        status_msg.point_count = 0,
-        status_msg.frame_3d = "sensor_frame"
-        status_msg.get_latency_time
-        status_msg.pub_latency_time
-        status_msg.process_time
-        status_msg.image_pub_enabled = enable_image_pub
-        status_msg.max_image_pub_rate = max_image_pub_rate
-        status_msg.standard_image_sizes = (STANDARD_IMAGE_SIZES)
-        self.status_msg = status_msg
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+
+        self.status_msg.node_namespace = self.node_namespace
+        self.status_msg.publishing = False
+        self.status_msg.has_rgb = False
+        self.status_msg.has_intensity = False
+        self.status_msg.width = 0
+        self.status_msg.height = 0
+        self.status_msg.depth = 0
+        self.status_msg.point_count = 0,
+        self.status_msg.frame_3d = "sensor_frame"
+        self.status_msg.get_latency_time
+        self.status_msg.pub_latency_time
+        self.status_msg.process_time
+        self.status_msg.image_pub_enabled = enable_image_pub
+        self.status_msg.max_image_pub_rate = max_image_pub_rate
+        self.status_msg.standard_image_sizes = nepi_img.STANDARD_IMAGE_SIZES
+
 
 
         ##############################   
@@ -3549,8 +3592,8 @@ class PointcloudIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
-    def get_data_source_type(self):
-        return self.data_source_type
+    def get_data_source_description(self):
+        return self.data_source_description
 
 
     def get_data_products(self):
@@ -3568,7 +3611,15 @@ class PointcloudIF:
         self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         return has_subs
 
-    def publish_o3d_pc(self,o3d_pc, timestamp = None, frame_3d = 'sensor_frame'):
+
+
+    def publish_o3d_pc(self,o3d_pc,
+                        timestamp = None, 
+                        frame_3d = 'sensor_frame', 
+                        width_deg = self.DEFUALT_IMG_WIDTH_DEG,
+                        height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
+                        device_mount_description = 'fixed'):
+
         if self.node_if is None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
             return False
@@ -3576,13 +3627,19 @@ class PointcloudIF:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
 
+        self.status_msg.device_mount_description = device_mount_description
+
         if timestamp == None:
             timestamp = nepi_utils.get_time()
         else:
             timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
         self.status_msg.has_rgb = o3d_pc.has_colors()
+        self.status_msg.has_intensity = False # Need to add
         #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
+
+        self.status_msg.width_deg = width_deg
+        self.status_msg.height_deg = height_deg
 
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
@@ -3591,10 +3648,6 @@ class PointcloudIF:
 
         # Start Img Pub Process
         start_time = nepi_utils.get_time()   
-        
-        self.status_msg.has_rgb = o3d_pc.has_colors() 
-        self.status_msg.has_intensity = False # Need to add
-
 
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
@@ -3632,7 +3685,6 @@ class PointcloudIF:
 
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
-                self.last_detect_time = nepi_utils.get_time()
 
                 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -3697,7 +3749,7 @@ class PointcloudIF:
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
                 avg_rate = float(1) / avg_time
-            self.status_msg.avg_fps = avg_rate
+            self.status_msg.avg_pub_rate = avg_rate
 
             self.node_if.publish_pub('status_pub',self.status_msg)
 

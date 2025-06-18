@@ -108,7 +108,7 @@ updateStatusListener() {
   const statusTopic = namespace + "/status"
   var statusListener = this.props.ros.setupStatusListener(
     namespace + "/status",
-    "nepi_sdk_interfaces/NPXStatus",
+    "nepi_interfaces/NPXStatus",
     this.statusListener 
   )
   
@@ -127,7 +127,7 @@ updateNavposeListener() {
   
   var navposeListener = this.props.ros.setupStatusListener(
     navposeTopic,
-    "nepi_sdk_interfaces/NavPose",
+    "nepi_interfaces/NavPose",
     this.navposeListener 
   )
   
@@ -282,7 +282,7 @@ updateNavposeListener() {
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"npx/status"}
-                            status_msg_type={"nepi_sdk_interfaces/NPXStatus"}
+                            status_msg_type={"nepi_interfaces/NPXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
                             title={"NepiDeviceNPXInfo"}

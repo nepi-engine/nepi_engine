@@ -24,8 +24,8 @@ from nepi_sdk import nepi_triggers
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
-from nepi_sdk_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
+from nepi_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
+from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
@@ -33,11 +33,11 @@ from nepi_sdk_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, Sys
                             SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
-from nepi_sdk_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus
+from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
-from nepi_sdk_interfaces.msg import SystemState, SystemStatesStatus
-from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 
 from nepi_api.messages_if import MsgIF

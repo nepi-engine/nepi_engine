@@ -29,8 +29,8 @@ from nepi_sdk import nepi_img
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 
-from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_sdk_interfaces.msg import DepthMapStatus
+from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_interfaces.msg import DepthMapStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

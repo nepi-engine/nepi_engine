@@ -6,11 +6,7 @@ string[] comp_names
 
 NavPoseMgrCompInfo[] comp_infos
 
-
-NavPose init_navpose
-
 bool publishing
-
 
 float32 pub_rate
 

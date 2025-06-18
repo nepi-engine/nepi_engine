@@ -7,7 +7,7 @@
  * License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
  */
 #include "lord_ahrs_ros_wrapper.h"
-#include "nepi_sdk_interfaces/Heading.h"
+#include "nepi_interfaces/Heading.h"
 
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Odometry.h"
@@ -83,7 +83,7 @@ void LORDAHRSRosWrapper::initPublishers()
 {
   imu_pub = n_priv.advertise<sensor_msgs::Imu>("~imu", 10);
   odom_pub = n_priv.advertise<nav_msgs::Odometry>("~odom", 10);
-  heading_pub = n.advertise<nepi_sdk_interfaces::Heading>("nav_pose_mgr/set_heading_override", 10);
+  heading_pub = n.advertise<nepi_interfaces::Heading>("nav_pose_mgr/set_heading_override", 10);
 }
 
 void LORDAHRSRosWrapper::publishIMUandOdom()
@@ -155,7 +155,7 @@ void LORDAHRSRosWrapper::publishIMUandOdom()
 
   if (data.heading_valid)
   {
-    nepi_sdk_interfaces::Heading heading_msg;
+    nepi_interfaces::Heading heading_msg;
     heading_msg.heading = data.heading;
     heading_msg.true_north = data.heading_true_north;
     heading_pub.publish(heading_msg);

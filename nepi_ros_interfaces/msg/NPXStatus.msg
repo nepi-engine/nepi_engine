@@ -2,23 +2,24 @@
 
 # Device Identifiers
 string device_name
-string sensor_name
+string device_id
 string identifier
 string serial_num
 string hw_version
 string sw_version
 
+string data_source_description
 string data_ref_description
+string device_mount_description
 
 float32 update_rate
 
 string frame_3d
 
-# Provides the transform to the system 3D frame 'nepi_frame'
-# (Not applied by NPX driver)
-Frame3DTransform nepi_frame_3d_transform
+bool supports_transform_updates
 
-bool include_transform_enabled
+# Transform from device native ref frame to the nepi_frame,
+nepi_interfaces/Frame3DTransform frame_3d_transform
 
 # Actual data will be in the nepi standard frames 
 string source_frame_nav

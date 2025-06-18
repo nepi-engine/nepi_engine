@@ -143,7 +143,7 @@ class NepiRBXMessages extends Component {
     }
     var listener = this.props.ros.setupStatusListener(
           Namespace + "/status",
-          "nepi_sdk_interfaces/RBXStatus",
+          "nepi_interfaces/RBXStatus",
           this.MessagesStatusListener
         )
     this.setState({ MessagesStatusListener : listener})

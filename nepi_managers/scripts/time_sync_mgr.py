@@ -25,13 +25,13 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Empty, Time
-from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import SystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
-from nepi_sdk_interfaces.msg import Reset, TimeUpdate
-from nepi_sdk_interfaces.msg import TimeStatus
+from nepi_interfaces.msg import Reset, TimeUpdate
+from nepi_interfaces.msg import TimeStatus
 
-from nepi_sdk_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
+from nepi_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
 
 from nepi_api.messages_if import MsgIF

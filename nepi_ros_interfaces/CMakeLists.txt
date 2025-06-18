@@ -7,7 +7,7 @@ This file is part of nepi-engine
 License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ]]
 cmake_minimum_required(VERSION 2.8.3)
-project(nepi_sdk_interfaces)
+project(nepi_interfaces)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -69,6 +69,7 @@ add_message_files(FILES
     BoundingBoxes.msg
     BoundingBoxes3D.msg
     Frame3DTransform.msg
+    Frame3DTransformStatus.msg
     Frame3DTransforms.msg
     IDXStatus.msg
     HwTrigInCfg.msg
@@ -213,6 +214,8 @@ add_service_files(
     SystemStatusQuery.srv
     DebugQuery.srv
     ImageCapabilitiesQuery.srv
+    DepthMapCapabilitiesQuery.srv
+    PointcloudCapabilitiesQuery.srv
     NavPoseCapabilitiesQuery.srv
     NavPoseQuery.srv
     Frame3DTransformsQuery.srv

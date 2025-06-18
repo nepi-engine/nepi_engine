@@ -20,10 +20,10 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
-from nepi_sdk_interfaces.msg import SystemStatus
-from nepi_sdk_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOrder
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
-from nepi_sdk_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
+from nepi_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOrder
+from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

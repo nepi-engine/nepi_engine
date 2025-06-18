@@ -162,7 +162,7 @@ class NepiDeviceRBX extends Component {
     }
     var listener = this.props.ros.setupStatusListener(
           deviceNamespace + "/info" ,
-          "nepi_sdk_interfaces/RBXInfo",
+          "nepi_interfaces/RBXInfo",
           this.infoListener
         )
 
@@ -589,7 +589,7 @@ class NepiDeviceRBX extends Component {
             <NepiDeviceInfo
                   deviceNamespace={namespace}
                   status_topic={"/info"}
-                  status_msg_type={"nepi_sdk_interfaces/RBXInfo"}
+                  status_msg_type={"nepi_interfaces/RBXInfo"}
                   name_update_topic={"/update_device_name"}
                   name_reset_topic={"/reset_device_name"}
                   title={"Device Info"}

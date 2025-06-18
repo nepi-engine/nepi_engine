@@ -27,18 +27,20 @@ from nepi_sdk import nepi_triggers
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_sdk_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
-from nepi_sdk_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
+from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
+from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_sdk_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
-from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_interfaces.msg import Frame3DTransform, Frame3DTransformStatus
 
-from nepi_sdk_interfaces.msg import SystemState
-from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_sdk_interfaces.msg import SystemTrigger
-from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+from nepi_interfaces.msg import SystemState
+from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+
+from nepi_interfaces.msg import SystemTrigger
+from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
@@ -112,10 +114,10 @@ class SaveDataIF:
 
     ### IF Initialization
     def __init__(self, 
+                namespace = None,
                 data_products = [], 
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
-                namespace = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -781,8 +783,319 @@ class SaveDataIF:
 
 
 
+#######################################
+# Transform3DIF
+
+# Transform_List = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
+
+ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+
+class Transform3DIF:
 
 
+    # Class Vars ####################
+
+    msg_if = None
+    ready = False
+    namespace = '~'
+
+    node_if = None
+
+    transform = ZERO_TRANSFORM
+    source = ''
+    end = ''
+    supports_updates = True
+
+    status_msg = Frame3DTransformStatus()
+    
+    #######################
+    ### IF Initialization
+    def __init__(self, 
+                namespace = None,
+                source_description = '',
+                end_description = '',
+                supports_updates = True,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes", log_name_list = self.log_name_list)
+        
+
+        #############################
+        # Initialize Class Variables
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = nepi_sdk.create_namespace(namespace,'frame_3d_transform')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
+
+        self.source = source_description
+        self.end = end_description
+        self.supports_updates = supports_updates
+
+        self.status_msg = self.supports_updates
+        ##############################  
+        # Create NodeClassIF Class  
+        # Configs Config Dict ####################
+        self.CONFIGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
+        
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'transform': {
+                'namespace': self.namespace,
+                'factory_val': self.transform
+            },
+            'source': {
+                'namespace': self.namespace,
+                'factory_val': self.source
+            },
+            'end': {
+                'namespace': self.namespace,
+                'factory_val': self.end
+            }
+        }
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = None
+        
+
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.namespace,
+                'msg': Frame3DTransformStatus,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            },
+            'tranform_pub': {
+                'namespace': self.namespace,
+                'msg': Frame3DTransform,
+                'topic': '',
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+        # Subs Config Dict ####################
+
+        if supports_updates == False:
+            self.SUBS_DICT = None
+        else:
+            self.SUBS_DICT = {
+                'clear_frame_3d_transform': {
+                    'namespace': self.namespace,
+                    'topic': 'clear_3d_transform',
+                    'msg': Empty,
+                    'qsize': 1,
+                    'callback': self._clearFrame3dTransformCb, 
+                    'callback_args': ()
+                },
+                'set_frame_3d_transform': {
+                    'namespace': self.namespace,
+                    'topic': 'set_3d_transform',
+                    'msg': Frame3DTransform,
+                    'qsize': 1,
+                    'callback': self._setFrame3dTransformCb, 
+                    'callback_args': ()
+                }
+        }
+
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                                    configs_dict = self.CONFIGS_DICT,
+                                    params_dict = self.PARAMS_DICT,
+                                    services_dict = self.SRVS_DICT,
+                                    pubs_dict = self.PUBS_DICT,
+                                    subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list
+        )
+   
+
+        #self.node_if.wait_for_ready()
+        nepi_sdk.wait()
+
+
+        ##############################
+        # Run Initialization Processes
+        self.init(do_updates = True)     
+    
+        nepi_sdk.start_timer_process(1.0, self._publishTransformCb)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+
+  
+        ##############################
+        # Complete Initialization
+        self.publish_status()
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ###############################
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+        return self.ready  
+
+    def get_3d_transform(self):
+        return self.transform
+    
+    def get_3d_transform_msg(self):
+        tr = self.get_3d_transform()
+        tr_msg = nepi_nav.convert_transform_list2msg(tr,
+                source_ref_description = self.source,
+                end_ref_description = self.end)
+        return tr_msg
+
+    def set_3d_transform(self,transform_list):
+        if len(tranform_list) == 7:
+            self.transform = transform_list
+            self.publish_transform()
+            self.node_if.set_param('transform',transform_list)
+
+    def clear_3d_transform(self):
+        self.transform = ZERO_TRANSFORM
+        self.publish_transform()
+        self.node_if.set_param('transform',transform_list)
+
+
+    def get_source_description(self):
+        return self.source
+
+    def set_source_description(self,source):
+        self.source = source
+        self.publish_transform()
+        self.node_if.set_param('source',source)
+
+    def get_end_description(self):
+        return self.end
+
+    def set_end_description(self,source):
+        self.end = end
+        self.publish_transform()
+        self.node_if.set_param('end',end)
+
+
+    def publish_transform(self):
+        transform_msg = nepi_nav.convert_transform_list2msg(self.transform,
+                                                source_description = self.source,
+                                                end_description = self.end)
+        if self.node_if is not None:
+            if self.node_if.publish_pub('transform_pub',transform_msg)
+
+    def publish_status(self):
+        if self.node_if is not None:
+            if self.node_if.publish_pub('status_pub',self.status_msg)
+
+    def init(self, do_updates = True):
+        if self.node_if is not None:
+            self.transform = self.node_if.get_param('transform')
+            self.source = self.node_if.get_param('source')
+            self.end = self.node_if.get_param('end')
+        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+        if do_updates:
+            pass
+        self.publish_status()
+
+
+    def reset(self, do_updates = True):
+        if self.node_if is not None:
+            self.node_if.reset_params()
+        self.init(do_updates = True)
+
+    def factory_reset(self,):
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
+    def initCb(self, do_updates = False):
+        self.init
+
+    def resetCb(self):
+        self.reset()
+
+    def factoryResetCb(self):
+        self.factory_reset()
+
+
+    def _resetCb(self,msg):
+        self.reset()
+
+    def _factoryResetCb(self,msg):
+        self.factory_reset()
+
+
+    def _setFrame3dTransformCb(self, msg):
+        self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
+        transform_msg = msg
+        x = transform_msg.translate_vector.x
+        y = transform_msg.translate_vector.y
+        z = transform_msg.translate_vector.z
+        roll = transform_msg.rotate_vector.x
+        pitch = transform_msg.rotate_vector.y
+        yaw = transform_msg.rotate_vector.z
+        heading = transform_msg.heading_offset
+        transform = [x,y,z,roll,pitch,yaw,heading]
+        self.set_3d_transform(transform)
+
+
+    def _clearFrame3dTransformCb(self, msg):
+        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
+        self.clear_3d_transform()
+
+    def _publishTransformCb(self, timer):
+        self.publish_transform()
+
+    def _publishStatusCb(self, timer):
+        self.publish_status()
+
+
+
+#######################################
+# SettingsIF
 
 
 
@@ -1161,6 +1474,18 @@ class SettingsIF:
 
 
 
+
+
+
+
+
+
+
+
+
+
+############################################
+# StatesIF
 
 
 STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]

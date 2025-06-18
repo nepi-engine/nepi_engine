@@ -17,9 +17,9 @@ import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
-from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,  AiDetectorInfoQueryResponse
+from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,  AiDetectorInfoQueryResponse
 
 
 from nepi_sdk import nepi_sdk

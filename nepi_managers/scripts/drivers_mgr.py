@@ -24,12 +24,12 @@ from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_sdk_interfaces.msg import SystemStatus
-from nepi_sdk_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
-from nepi_sdk_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
+from nepi_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
+from nepi_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
-from nepi_sdk_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
-from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
+from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

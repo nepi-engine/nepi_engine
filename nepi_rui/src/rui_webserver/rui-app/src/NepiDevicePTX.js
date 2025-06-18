@@ -28,6 +28,8 @@ import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
+import NepiIF3DTransform from "./Nepi_IF_3DTransform"
+
 
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
@@ -111,7 +113,6 @@ class NepiDevicePTX extends Component {
       panScanMax: null,
       tiltScanMin: null,
       tiltScanMax: null,
-
 
       listener: null,
       disabled: true
@@ -434,6 +435,8 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
     document.getElementById(event.target.id).style.color = Styles.vars.colors.black
   }
 }
+
+
 
   renderControlPanel() {
     const { ptxDevices, sendBoolMsg, onPTXGoHome, onPTXSetHomeHere } = this.props.ros
@@ -786,6 +789,22 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
         </div>
 
+
+            <Columns>
+                  <Column>
+
+                          <NepiIF3DTransform
+                              namespace={namespace}
+                              supports_updates={true}
+                              title={"Nepi_IF_3DTransform"}
+                          />
+
+                  </Column>
+              </Columns>
+
+
+
+
       </Section>
     )
   }
@@ -813,7 +832,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
                       <NepiDeviceInfo
                             deviceNamespace={namespace}
                             status_topic={"/status"}
-                            status_msg_type={"nepi_sdk_interfaces/PTXStatus"}
+                            status_msg_type={"nepi_interfaces/PTXStatus"}
                             name_update_topic={"/update_device_name"}
                             name_reset_topic={"/reset_device_name"}
                             title={"NepiSensorsImagingInfo"}

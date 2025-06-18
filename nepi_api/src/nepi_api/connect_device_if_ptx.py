@@ -22,9 +22,9 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
-from nepi_sdk_interfaces.msg import RangeWindow
-from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltOffsets, PanTiltPosition, SingleAxisTimedMove
-from nepi_sdk_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
+from nepi_interfaces.msg import RangeWindow, NavPose
+from nepi_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
 
@@ -33,15 +33,14 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
+
 from nepi_api.connect_node_if import ConnectNodeClassIF
 
 #########################################
 # Node Class
 #########################################
 
-APP_NODE_NAME = 'app_file_pub_img'
-
-class ConnectAppFilePubImgIF:
+class ConnectPTXDeviceIF:
     msg_if = None
     ready = False
     namespace = '~'
@@ -51,12 +50,16 @@ class ConnectAppFilePubImgIF:
     connected = False
     status_msg = None
     status_connected = False
+    navpose_msg = None
 
- 
+    statusCb = None
+    navposeCb = None
     #######################
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
+                statusCb = None,
+                navposeCb = None,
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -79,6 +82,8 @@ class ConnectAppFilePubImgIF:
             namespace = namespace
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+        self.statusCb = statusCb
+        self.navposeCb = navposeCb
 
         ##############################   
         ## Node Setup
@@ -208,12 +213,6 @@ class ConnectAppFilePubImgIF:
                 'topic': 'ptx/set_auto_tilt_window',
                 'msg': RangeWindow,
                 'qsize': 1,
-            },
-            'set_pt_offsets': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_pt_offsets',
-                'msg': PanTiltOffsets,
-                'qsize': 1,
             }
 
 
@@ -221,20 +220,20 @@ class ConnectAppFilePubImgIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'joint_pub': {
+            'status_sub': {
                 'namespace': self.node_namespace,
-                'topic': 'ptx/joint_states',
-                'msg': JointState,
-                'qsize': 10,
-                'callback': self._statusCb
-            }
-            'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/joint_states',
+                'topic': 'ptx/status',
                 'msg': PTXStatus,
                 'qsize': 10,
                 'callback': self._statusCb
-            }
+            },
+            'navpose_sub': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/navpose',
+                'msg': NavPose,
+                'qsize': 10,
+                'callback': self._navposeCb
+            },
         }
 
 
@@ -324,10 +323,16 @@ class ConnectAppFilePubImgIF:
         return self.status_connected
 
     def get_status_dict(self):
-        img_status_dict = None
+        status_dict = None
         if self.status_msg is not None:
-            img_status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return self.img_status_dict
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
+
+    def get_navpose_dict(self)
+        navpose_dict = None
+        if self.navpose_msg is not None:
+            navpose_dict = nepi_nav.convert_navpose_msg2dict(self.navpose_msg)
+        return navpose_dict
 
     def unregister(self):
         self._unsubscribeTopic()
@@ -444,15 +449,15 @@ class ConnectAppFilePubImgIF:
     #################
     ## Save Data Functions
 
-    def get_data_products(self):
+    def get_save_data_products(self):
         data_products = self.con_save_data_if.get_data_products()
         return data_products
 
-    def get_status_dict(self):
+    def get_save_data_status_dict(self):
         status_dict = self.con_save_data_if.get_status_dict()
         return status_dict
 
-    def save_data_pub(self,enable):
+    def save_data_enable_pub(self,enable):
         self.con_save_data_if.save_data_pub(enable)
 
     def save_data_prefix_pub(self,prefix):
@@ -461,13 +466,13 @@ class ConnectAppFilePubImgIF:
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
         self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
 
-    def snapshot_pub(self):
+    def save_data_snapshot_pub(self):
         self.con_save_data_if.publish_pub()
 
-    def reset_pub(self):
+    def save_data_reset_pub(self):
         self.con_save_data_if.publish_pub(pub_name,msg)
 
-    def factory_reset_pub(self):
+    def save_data_factory_reset_pub(self):
         pub_name = 'factory_reset'
         msg = Empty()
         self.con_save_data_if.publish_pub(pub_name,msg)
@@ -498,3 +503,12 @@ class ConnectAppFilePubImgIF:
     def _statusCb(self,status_msg):      
         self.status_connected = True
         self.status_msg = status_msg
+        if self.statusCb is not None:
+            status_dict = self.get_status_dict()
+            self.statusCb(status_dict)
+
+    def _navposeCb(self,navpose_msg):      
+        self.navpose_msg = navpose_msg
+        if self.navposeCb is not None:
+            navpose_dict = self.get_navpose_dict()
+            self.navposeCb(navpose_dict)

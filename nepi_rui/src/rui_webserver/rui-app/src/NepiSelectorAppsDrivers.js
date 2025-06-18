@@ -106,7 +106,7 @@ class DriversSelector extends Component {
     }
     var appsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_sdk_interfaces/AppsStatus",
+          "nepi_interfaces/AppsStatus",
           this.appsStatusListener
         )
     this.setState({ appsListener: appsListener,

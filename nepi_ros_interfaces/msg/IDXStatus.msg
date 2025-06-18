@@ -5,13 +5,18 @@
 
 # Device Identifiers
 string device_name
-string sensor_name
+string device_id
 string identifier
 string serial_num
 string hw_version
 string sw_version
 
+string data_source_description
 string data_ref_description
+string device_mount_description
+
+float32 width_deg
+float32 height_deg
 
 # URL to RTSP video stream if exists
 string rtsp_url
@@ -57,18 +62,16 @@ bool pantilt_mounted
 # Selected Pan Tilt Device and NavPose Topic
 string sel_pantilt_name
 string sel_pantilt_device_topic
-string sel_pantilt_navpose_topic
 bool sel_pantilt_connected
 
-# Input Transform for data from sensor's native sensor frame to the nepi_frame,
-# Or PanTilt center tilt axis if panTilt mounted
-nepi_sdk_interfaces/Frame3DTransform frame_3d_transform
+# Output transform into which 3D data (pointclouds...) are published
+string output_frame_3d
 
-# Output transform into which 3D data (navpose,pointclouds...) are published
-# Options ['nepi_frame','sensor_frame']
-# If frame_3d_transform is set to no zero values -> nepi_frame
-# If frame_3d_transform is set to all zeros values -> sensor_frame
-string frame_3d
+# Transform from device native ref frame to the nepi_frame,
+# Or PanTilt center tilt axis if panTilt mounted
+nepi_interfaces/Frame3DTransform frame_3d_transform
+
+
 
 
 

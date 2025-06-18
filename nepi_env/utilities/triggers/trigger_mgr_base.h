@@ -17,12 +17,12 @@
 #include "std_msgs/UInt32.h"
 #include "std_msgs/Bool.h"
 
-#include "nepi_sdk_interfaces/HwTrigInCfg.h"
-#include "nepi_sdk_interfaces/HwTrigOutCfg.h"
-#include "nepi_sdk_interfaces/PeriodicSwTrig.h"
-#include "nepi_sdk_interfaces/TriggerIndexSettings.h"
-#include "nepi_sdk_interfaces/TriggerStatusQuery.h"
-#include "nepi_sdk_interfaces/TriggerDefs.h"
+#include "nepi_interfaces/HwTrigInCfg.h"
+#include "nepi_interfaces/HwTrigOutCfg.h"
+#include "nepi_interfaces/PeriodicSwTrig.h"
+#include "nepi_interfaces/TriggerIndexSettings.h"
+#include "nepi_interfaces/TriggerStatusQuery.h"
+#include "nepi_interfaces/TriggerDefs.h"
 #include "sdk_node.h"
 
 namespace Numurus
@@ -52,9 +52,9 @@ protected:
 	virtual void executeSwTrig(const std_msgs::UInt32::ConstPtr& trig_mask);
 	// Pure virtual h/w capability functions
 	virtual void setHwTrigInEnab(const std_msgs::UInt32::ConstPtr& enab_mask) = 0;
-	virtual void configureHwTrigIn(const nepi_sdk_interfaces::HwTrigInCfg::ConstPtr& cfg) = 0;
+	virtual void configureHwTrigIn(const nepi_interfaces::HwTrigInCfg::ConstPtr& cfg) = 0;
 	virtual void setHwTrigOutEnab(const std_msgs::Bool::ConstPtr& enable) = 0;
-	virtual void configureHwTrigOut(const nepi_sdk_interfaces::HwTrigOutCfg::ConstPtr& cfg) = 0;
+	virtual void configureHwTrigOut(const nepi_interfaces::HwTrigOutCfg::ConstPtr& cfg) = 0;
 	virtual void setHwTrigOutDly(const std_msgs::UInt32::ConstPtr& dly_usecs) = 0;
 
 private:
@@ -101,7 +101,7 @@ private:
 	 *
 	 * @param[in]  trig_cfg  The trig configuration message
 	 */
-	void setPeriodicSwTrig(const nepi_sdk_interfaces::PeriodicSwTrig::ConstPtr& trig_cfg);
+	void setPeriodicSwTrig(const nepi_interfaces::PeriodicSwTrig::ConstPtr& trig_cfg);
 
 	void setPeriodicSwTrigImpl(bool enabled, uint32_t sw_trig_mask, float rate_hz);
 
@@ -119,7 +119,7 @@ private:
 	 *
 	 * @param[in]  trig_idx_settings  The trig index settings message
 	 */
-	void updateTriggerIndexSet(const nepi_sdk_interfaces::TriggerIndexSettings::ConstPtr& trig_idx_settings);
+	void updateTriggerIndexSet(const nepi_interfaces::TriggerIndexSettings::ConstPtr& trig_idx_settings);
 
 	/**
 	 * @brief      Provide the trigger status
@@ -131,7 +131,7 @@ private:
 	 *
 	 * @return     true if successful, false otherwise
 	 */
-	bool provideTriggerStatus(nepi_sdk_interfaces::TriggerStatusQuery::Request &req, nepi_sdk_interfaces::TriggerStatusQuery::Response &resp);
+	bool provideTriggerStatus(nepi_interfaces::TriggerStatusQuery::Request &req, nepi_interfaces::TriggerStatusQuery::Response &resp);
 
 	/**
 	 * @brief      Provide the trigger defs
@@ -143,7 +143,7 @@ private:
 	 *
 	 * @return     true
 	 */
-	bool provideTriggerDefs(nepi_sdk_interfaces::TriggerDefs::Request &req, nepi_sdk_interfaces::TriggerDefs::Response &resp);
+	bool provideTriggerDefs(nepi_interfaces::TriggerDefs::Request &req, nepi_interfaces::TriggerDefs::Response &resp);
 
 };
 

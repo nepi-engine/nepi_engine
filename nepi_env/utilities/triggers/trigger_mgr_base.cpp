@@ -95,7 +95,7 @@ void TriggerMgrBase::executeSwTrig(const std_msgs::UInt32::ConstPtr& trig_val)
 	last_trig_time_map[trig_val->data] = ros::Time::now();
 }
 
-void TriggerMgrBase::setPeriodicSwTrig(const nepi_sdk_interfaces::PeriodicSwTrig::ConstPtr& trig_cfg)
+void TriggerMgrBase::setPeriodicSwTrig(const nepi_interfaces::PeriodicSwTrig::ConstPtr& trig_cfg)
 {
 	setPeriodicSwTrigImpl(trig_cfg->enabled, trig_cfg->sw_trig_mask, trig_cfg->rate_hz);
 }
@@ -199,7 +199,7 @@ void TriggerMgrBase::runPeriodicTrig(uint32_t trig_mask)
 	}
 }
 
-void TriggerMgrBase::updateTriggerIndexSet(const nepi_sdk_interfaces::TriggerIndexSettings::ConstPtr& trig_idx_settings)
+void TriggerMgrBase::updateTriggerIndexSet(const nepi_interfaces::TriggerIndexSettings::ConstPtr& trig_idx_settings)
 {
 	// Copy the settings out of the message
 	const uint32_t index = trig_idx_settings->index;
@@ -234,7 +234,7 @@ void TriggerMgrBase::updateTriggerIndexSet(const nepi_sdk_interfaces::TriggerInd
 	trig_indices[index] = trig_name;
 }
 
-bool TriggerMgrBase::provideTriggerStatus(nepi_sdk_interfaces::TriggerStatusQuery::Request &req, nepi_sdk_interfaces::TriggerStatusQuery::Response &resp)
+bool TriggerMgrBase::provideTriggerStatus(nepi_interfaces::TriggerStatusQuery::Request &req, nepi_interfaces::TriggerStatusQuery::Response &resp)
 {
 	resp.status.trig_val = req.trig_val;
 
@@ -279,7 +279,7 @@ bool TriggerMgrBase::provideTriggerStatus(nepi_sdk_interfaces::TriggerStatusQuer
 	return true;
 }
 
-bool TriggerMgrBase::provideTriggerDefs(nepi_sdk_interfaces::TriggerDefs::Request &req, nepi_sdk_interfaces::TriggerDefs::Response &resp)
+bool TriggerMgrBase::provideTriggerDefs(nepi_interfaces::TriggerDefs::Request &req, nepi_interfaces::TriggerDefs::Response &resp)
 {
 	for (size_t i = 0; i <= MAX_TRIG_IDX; ++i)
 	{

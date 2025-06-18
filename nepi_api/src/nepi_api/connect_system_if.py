@@ -20,21 +20,21 @@ from nepi_sdk import nepi_triggers
 from nepi_sdk import nepi_states
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.msg import Reset
+from nepi_interfaces.msg import Reset
 
-from nepi_sdk_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
-from nepi_sdk_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
+from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
+from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
 
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_sdk_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
-from nepi_sdk_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_sdk_interfaces.msg import SystemState
-from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_interfaces.msg import SystemState
+from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
-from nepi_sdk_interfaces.msg import SystemTrigger
-from nepi_sdk_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+from nepi_interfaces.msg import SystemTrigger
+from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 
 from nepi_api.messages_if import MsgIF

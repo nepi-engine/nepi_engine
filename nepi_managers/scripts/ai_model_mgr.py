@@ -26,17 +26,17 @@ from nepi_sdk import nepi_img
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-from nepi_sdk_interfaces.msg import UpdateState, AiModelMgrStatus
-from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_sdk_interfaces.msg import BoundingBoxes, ObjectCount
+from nepi_interfaces.msg import UpdateState, AiModelMgrStatus
+from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_interfaces.msg import BoundingBoxes, ObjectCount
 
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery
-from nepi_sdk_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
-from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
+from nepi_interfaces.srv import SystemStorageFolderQuery
+from nepi_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
 
 
 from nepi_api.messages_if import MsgIF

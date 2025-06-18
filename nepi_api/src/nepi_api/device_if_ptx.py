@@ -18,17 +18,18 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
-from nepi_sdk_interfaces.msg import RangeWindow
-from nepi_sdk_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
-from nepi_sdk_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
+from nepi_interfaces.msg import RangeWindow
+from nepi_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
+
+from nepi_interfaces.msg import Frame3DTransform
 
 from tf.transformations import quaternion_from_euler
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, SettingsIF
+from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
 from nepi_api.data_if import NavPoseIF
@@ -43,9 +44,6 @@ class PTXActuatorIF:
 
     # Backup Factory Control Values 
     FACTORY_CONTROLS_DICT = {
-                'frame_id' : 'ptx_frame',
-                'pan_joint_name' : 'ptx_pan_joint',
-                'tilt_joint_name' : 'ptx_tilt_joint',
                 'reverse_pan_enabled' : False,
                 'reverse_tilt_enabled' : False,
                 'speed_ratio' : 0.5
@@ -69,7 +67,6 @@ class PTXActuatorIF:
     save_data_if = None
 
     status_msg = PTXStatus()
-    joint_state_msg = JointState()    
 
     has_position_feedback = False
     has_absolute_positioning = False
@@ -137,7 +134,17 @@ class PTXActuatorIF:
     auto_tilt_max = 10
     auto_tilt_sec = 5
 
+    frame_3d = 'nepi_frame'
+    frame_3d_transform = ZERO_TRANSFORM
+    tr_source_ref_description = 'sensor'
+    tr_end_ref_description = 'nepi_frame'
 
+
+    date_source_description = 'pan_tilt'
+    data_ref_description = 'tilt_axis_center'
+    end_description = 'nepi_frame'
+    device_mount_description = 'fixed'
+    mount_desc = 'None'
     
     is_moving = False
     ### IF Initialization
@@ -146,7 +153,8 @@ class PTXActuatorIF:
                  settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
                  factoryLimits = None,
-                 data_ref_description = 'tilt axis center',
+                 date_source_description = 'pan_tilt',
+                 data_ref_description = 'tilt_axis_center',
                  stopMovingCb = None, # Required; no args
                  movePanCb = None, # Required; direction and time args
                  moveTiltCb = None, # Required; direction and time args
@@ -196,12 +204,15 @@ class PTXActuatorIF:
 
         ############################## 
         # Initialize Class Variables
-        self.device_name = device_info["device_name"]
+        self.device_id = device_info["device_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
 
+        self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
+
+        self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
         # Update status update rate
@@ -224,7 +235,7 @@ class PTXActuatorIF:
                     self.factory_controls_dict[control] = factoryControls[control]
 
         self.deviceResetCb = deviceResetCb
-        self.factory_device_name = device_info["device_name"] + "_" + device_info["identifier"]
+        self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
 
        # Configure PTX Capabilities
@@ -347,9 +358,16 @@ class PTXActuatorIF:
 
         ########################
         # Set up status message static values
+        self.status_msg.device_id = self.device_id
+        self.status_msg.identifier = self.identifier
         self.status_msg.serial_num = self.serial_num
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
+
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+        self.status_msg.device_mount_description = self.get_mount_description() 
+
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_timed_positioning = self.has_timed_positioning
         self.status_msg.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
@@ -360,16 +378,6 @@ class PTXActuatorIF:
         self.status_msg.has_auto_tilt = self.has_auto_tilt
         self.status_msg.has_homing = self.has_homing
         self.status_msg.has_set_home = self.has_set_home
-
-        # And joint state status static values
-        # Skip the header -- we just copy it from the status message each time
-        self.joint_state_msg.position.append(0.0) # pan
-        self.joint_state_msg.position.append(0.0) # Tilt
-
-        # And odom static values
-        self.odom_msg = Odometry()
-        self.odom_msg.header.frame_id = self.device_name + '_fixed_frame'
-        self.odom_msg.child_frame_id = self.device_name + '_rotating_frame'
 
         ##################################################
         ### Node Class Setup
@@ -388,6 +396,10 @@ class PTXActuatorIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
+            'device_name': {
+                'namespace': self.node_namespace,
+                'factory_val': self.device_name
+            },
             'speed_ratio': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
@@ -399,19 +411,7 @@ class PTXActuatorIF:
             'home_position/tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
-            }, 
-            'frame_id': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['frame_id']
-            },            
-            'pan_joint_name': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['pan_joint_name']
-            },            
-            'tilt_joint_name': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factory_controls_dict['tilt_joint_name']
-            },            
+            }
             'reverse_pan_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_pan_enabled']
@@ -419,23 +419,7 @@ class PTXActuatorIF:
             'reverse_tilt_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_tilt_enabled']
-            },            
-            'max_pan_hardstop_deg': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_pan_hardstop_deg']
-            },            
-            'min_pan_hardstop_deg': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_pan_hardstop_deg']
-            },            
-            'max_tilt_hardstop_deg': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['max_tilt_hardstop_deg']
-            },            
-            'min_tilt_hardstop_deg': {
-                'namespace': self.node_namespace,
-                'factory_val': self.factoryLimits['min_tilt_hardstop_deg']
-            },            
+            },
             'max_pan_softstop_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_pan_softstop_deg']
@@ -475,6 +459,14 @@ class PTXActuatorIF:
             'max_auto_tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
+            },
+            'frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'factory_val': self.ZERO_TRANSFORM
+            }
+            'mount_desc': {
+                'namespace': self.node_namespace,
+                'factory_val': 'None'
             }
         }
         
@@ -494,13 +486,6 @@ class PTXActuatorIF:
 
 
         self.PUBS_DICT = {
-            'joint_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/joint_states',
-                'msg': JointState,
-                'qsize': 10,
-                'latch': False
-            },
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/status',
@@ -514,6 +499,22 @@ class PTXActuatorIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'set_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_device_name',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.updateDeviceNameCb, 
+                'callback_args': ()
+            },
+            'reset_device_name': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/reset_device_name',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetDeviceNameCb, 
+                'callback_args': ()
+            },
             'speed_ratio': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/set_speed_ratio',
@@ -665,6 +666,38 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.setAutoTiltWindowHandler, 
                 'callback_args': ()
+            },
+            'set_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_mount_description',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.setMountDescCb, 
+                'callback_args': ()
+            },
+            'clear_frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/clear_3d_transform',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.clearFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'set_frame_3d_transform': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/set_3d_transform',
+                'msg': Frame3DTransform,
+                'qsize': 1,
+                'callback': self.setFrame3dTransformCb, 
+                'callback_args': ()
+            },
+            'reset_mount_desc': {
+                'namespace': self.node_namespace,
+                'topic': 'ptx/reset_mount_description',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self.resetMountDescCb, 
+                'callback_args': ()
             }
         }
         
@@ -766,6 +799,7 @@ class PTXActuatorIF:
                     getLocationCb = self.getNpLocationCb, 
                     getAltitudeCb = self.getNpAltitudeCb, 
                     getDepthCb = self.getNpDepthCb,
+                    getTransformCb = self.get_3d_transform,
                     max_navpose_update_rate = self.max_navpose_update_rate,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -774,6 +808,7 @@ class PTXActuatorIF:
         # Setup navpose data IF
         np_namespace = self.node_namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
@@ -784,70 +819,7 @@ class PTXActuatorIF:
    
         ###############################
         # Finish Initialization
-        self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
-        self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
-
-        self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
-        self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
-
-
-        if self.setSoftLimitsCb is not None:
-            self.setSoftLimitsCb(self.min_pan_softstop_deg,
-                                self.max_pan_softstop_deg,
-                                self.min_tilt_softstop_deg,
-                                self.max_tilt_softstop_deg)
-
-        if self.has_adjustable_speed == False:
-            if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                speed_ratio = self.node_if.get_param('speed_ratio')
-                self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
-                self.setSpeedRatioCb(speed_ratio)
-                nepi_sdk.sleep(1)
-                self.speed_ratio = self.getSpeedRatioCb()
-                self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
-
-                
-        self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
-        self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
-
-        self.goHome()
-
-        # Auto Scan Settings Update
-        self.auto_pan_enabled = self.node_if.get_param('auto_pan_enabled')
-        self.auto_pan_min = self.node_if.get_param('min_pan_softstop_deg')
-        self.auto_pan_max = self.node_if.get_param('max_pan_softstop_deg')
-
-        self.auto_tilt_enabled = self.node_if.get_param('auto_tilt_enabled')
-        self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
-        self.auto_tilt_max = self.node_if.get_param('max_tilt_softstop_deg')
        
-   
-        # Set reverse int values
-        rpi = 1
-        if self.reverse_pan_enabled:
-            rpi = -1
-        self.rpi = rpi
-        rti = 1
-        if self.reverse_tilt_enabled:
-            rti = -1
-        self.rti = rti
-
-
-
-        # Setup Joint Info
-        self.frame_id = self.node_if.get_param('frame_id')
-        self.pan_joint_name = self.node_if.get_param('pan_joint_name')
-        self.tilt_joint_name = self.node_if.get_param('tilt_joint_name')
-        self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
-        self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
-        self.msg_if.pub_debug("Factory Controls Dict: " + str(self.factory_controls_dict))
-        self.msg_if.pub_debug("reverse_pan_enabled: " + str(self.reverse_pan_enabled))
-
-        self.status_msg.header.frame_id = self.frame_id
-
-        self.joint_state_msg.name = (self.pan_joint_name, self.tilt_joint_name)
-
-        
 
         # Init everything
         self.initCb(do_updates = True)
@@ -859,8 +831,6 @@ class PTXActuatorIF:
         self.status_update_rate = status_update_rate
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
-        self.msg_if.pub_info("Starting pt status publisher at sec delay: " + str(status_pub_delay))
-        nepi_sdk.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
         if self.has_auto_pan:
             # Start Auto Pan Process
@@ -884,6 +854,10 @@ class PTXActuatorIF:
 
     ###############################
     # Class Methods
+
+    def get_3d_transform(self):
+        transform = self.frame_3d_transform
+        return transform
 
     def getPanAdj(self,pan_deg):
         return pan_deg * self.rpi
@@ -1152,7 +1126,35 @@ class PTXActuatorIF:
             self.msg_if.pub_warn("Invalid softstop requested " + str(msg))
         
 
+
+    def updateDeviceNameCb(self, msg):
+        self.msg_if.pub_info("Recived update message: " + str(msg))
+        new_device_name = msg.data
+        self.updateDeviceName(new_device_name)
+
+    def updateDeviceName(self, new_device_name):
+        valid_name = True
+        for char in self.BAD_NAME_CHAR_LIST:
+            if new_device_name.find(char) != -1:
+                valid_name = False
+        if valid_name is False:
+            self.msg_if.pub_info("Received invalid device name update: " + new_device_name)
+        else:
+            self.status_msg.device_name = new_device_name
+            self.publish_status(do_updates=False) # Updated inline here 
+            self.node_if.set_param('device_name', new_device_name)
    
+ 
+    def resetDeviceNameCb(self,msg):
+        self.msg_if.pub_info("Recived update message: " + str(msg))
+        self.resetDeviceName()
+
+    def resetDeviceName(self):
+        self.status_msg.device_name = self.device_name
+        self.publish_status(do_updates=False) # Updated inline here
+        self.node_if.set_param('device_name', self.device_name)
+
+  
     def setSpeedRatioHandler(self, msg):
         if self.capabilities_report.has_adjustable_speed == True:
             speed_cur = self.getSpeedRatioCb()
@@ -1437,19 +1439,81 @@ class PTXActuatorIF:
             self.node_if.set_param('min_tilt_softstop_deg', min_deg)
             self.node_if.set_param('max_tilt_softstop_deg', max_deg)
 
+    def setMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
+        self.mount_desc = msg.data
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)
+
+    def resetMountDescCb(self,msg):
+        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
+        self.mount_desc = 'None'
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('mount_desc', self.mount_desc)
+
+
+
+    def setFrame3dTransformCb(self, msg):
+        self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
+        transform_msg = msg
+        x = transform_msg.translate_vector.x
+        y = transform_msg.translate_vector.y
+        z = transform_msg.translate_vector.z
+        roll = transform_msg.rotate_vector.x
+        pitch = transform_msg.rotate_vector.y
+        yaw = transform_msg.rotate_vector.z
+        heading = transform_msg.heading_offset
+        transform = [x,y,z,roll,pitch,yaw,heading]
+        self.setFrame3dTransform(transform)
+
+    def setFrame3dTransform(self, transform):
+        self.frame_3d_transform = [x,y,z,roll,pitch,yaw,heading]
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('frame_3d_transform',  self.frame_3d_transform)
+
+
+    def clearFrame3dTransformCb(self, msg):
+        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
+        self.clearFrame3dTransform()
+
+    def clearFrame3dTransform(self):
+        self.frame_3d_transform = self.ZERO_TRANSFORM
+        self.publish_status(do_updates=False) # Updated inline here 
+        self.node_if.set_param('frame_3d_transform',  self.frame_3d_transform)
+
+    def get_3d_transform(self):
+        return self.frame_3d_transform
 
     def get_navpose_dict(self):
-        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        if self.nav_mgr_if is not None:
-            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        navpose_dict = None
+        if navpose_dict is None:
+            if self.nav_mgr_if is not None:
+                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+        if navpose_dict is not None:
+            output_frame_3d = 'nepi_frame'
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            output_frame_3d = 'sensor_frame'
+        transform = self.get_3d_transform()
+        navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict, transform, output_frame_3d = output_frame_3d)
+        self.frame_3d = output_frame_3d
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
         return navpose_dict
+
+    def get_mount_description(self):
+        desc = self.device_mount_description
+        if self.mount_desc != 'None':
+            desc = self.mount_desc
+        return desc
 
         
     def publish_navpose(self):
         self.np_status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict)
+            self.navpose_if.publish_navpose(np_dict,
+                                            device_mount_description = self.get_mount_description())
 
 
     def _publishNavPoseCb(self,timer):
@@ -1465,57 +1529,101 @@ class PTXActuatorIF:
         return self.capabilities_report
     
 
-    def initConfig(self):
-        self.initCb(do_updates = True)
-
     def initCb(self, do_updates = False):
-        if do_updates == True:
-            self.resetCb()
+        if do_updates == True and self.node_if is not None:
+            # This one comes from the parent
+            if self.getSoftLimitsCb is not None:
+                    [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
+                    if min_pan != -999:
+                        self.min_pan_softstop_deg = min_pan
+                        self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
+                    if max_pan != -999:
+                        self.max_pan_softstop_deg = max_pan
+                        self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
+
+                    if min_tilt != -999:
+                        self.min_tilt_softstop_deg = min_tilt
+                        self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
+                    if max_tilt != -999:
+                        self.max_tilt_softstop_deg = max_tilt
+                        self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
+
+            if self.getSpeedRatioCb is not None:
+                self.speed_ratio = self.getSpeedRatioCb()
+                self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
+                self.node_if.set_param('speed_ratio', self.speed_ratio)      
+
+
+        if self.node_if is not None:
+            self.device_name = self.node_if.get_param('device_name')
+            self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
+            self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
+
+            self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
+            self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
+
+            if self.setSoftLimitsCb is not None:
+                self.setSoftLimitsCb(self.min_pan_softstop_deg,
+                                    self.max_pan_softstop_deg,
+                                    self.min_tilt_softstop_deg,
+                                    self.max_tilt_softstop_deg)
+
+            if self.has_adjustable_speed == False:
+                if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
+                    speed_ratio = self.node_if.get_param('speed_ratio')
+                    self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
+                    self.setSpeedRatioCb(speed_ratio)
+                    nepi_sdk.sleep(1)
+                    self.speed_ratio = self.getSpeedRatioCb()
+                    self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
+
+                    
+            self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
+            self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
+
+            self.goHome()
+
+            # Auto Scan Settings Update
+            self.auto_pan_enabled = self.node_if.get_param('auto_pan_enabled')
+            self.auto_pan_min = self.node_if.get_param('min_pan_softstop_deg')
+            self.auto_pan_max = self.node_if.get_param('max_pan_softstop_deg')
+
+            self.auto_tilt_enabled = self.node_if.get_param('auto_tilt_enabled')
+            self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
+            self.auto_tilt_max = self.node_if.get_param('max_tilt_softstop_deg')
+        
+    
+            # Set reverse int values
+            rpi = 1
+            if self.reverse_pan_enabled:
+                rpi = -1
+            self.rpi = rpi
+            rti = 1
+            if self.reverse_tilt_enabled:
+                rti = -1
+            self.rti = rti
+
+            # Setup Joint Info
+            self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
+            self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
+
+            self.frame_3d_transform = self.node_if.get_param('frame_3d_transform') 
+
+        self.publish_status()
 
 
 
     def resetCb(self, do_updates = True):
         self.msg_if.pub_warn("Reseting System to Current Values")
-        self.max_pan_hardstop_deg = self.node_if.get_param('max_pan_hardstop_deg')
-        self.min_pan_hardstop_deg = self.node_if.get_param('min_pan_hardstop_deg')
-        self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
-        self.min_pan_softstop_deg = self.node_if.get_param('min_pan_softstop_deg')
-
-        self.max_tilt_hardstop_deg = self.node_if.get_param('max_tilt_hardstop_deg')
-        self.min_tilt_hardstop_deg = self.node_if.get_param('min_tilt_hardstop_deg')
-        self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
-        self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
+        if do_updates == True:
+            pass
         if self.save_data_if is not None:
             self.save_data_if.reset()
         if self.settings_if is not None:
             self.settings_if.reset_settings(update_status = False, update_params = True)
-
-        #**********************
-        # This one comes from the parent
-        if self.getSoftLimitsCb is not None:
-                [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
-                if min_pan != -999:
-                    self.min_pan_softstop_deg = min_pan
-                    self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
-                if max_pan != -999:
-                    self.max_pan_softstop_deg = max_pan
-                    self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
-
-                if min_tilt != -999:
-                    self.min_tilt_softstop_deg = min_tilt
-                    self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
-                if max_tilt != -999:
-                    self.max_tilt_softstop_deg = max_tilt
-                    self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
-
-        if self.getSpeedRatioCb is not None:
-            self.speed_ratio = self.getSpeedRatioCb()
-            self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
-            self.node_if.set_param('speed_ratio', self.speed_ratio) 
+        self.initCb(do_updates = do_updates)
         #**********************
         
-
-
 
     def factoryResetCb(self, do_updates = True):
         if self.deviceResetCb is not None:
@@ -1525,25 +1633,14 @@ class PTXActuatorIF:
             self.save_data_if.factory_reset()
         if self.settings_if is not None:
             self.settings_if.factory_reset(update_status = False, update_params = True)
-        self.resetCb()
+        self.initCb(do_updates = True)
 
 
-    def publishJointStateAndStatus(self, Timer):
-        self.msg_if.pub_debug("Publishing status", log_name_list = self.log_name_list)
-        pub_time = self.publish_status()
-        pub_time = round(pub_time, 3)
-        self.msg_if.pub_debug("Published status with process time: " + str(pub_time))
 
-        status_pub_delay = float(1.0) / self.status_update_rate
-        if pub_time > status_pub_delay:
-            status_pub_delay = 0.01
-        else:
-            status_pub_delay = status_pub_delay - pub_time
-        nepi_sdk.start_timer_process(status_pub_delay, self.publishJointStateAndStatus, oneshot = True)
 
     def publish_status(self, do_updates = False):
-        start_time = nepi_utils.get_time()
-        self.status_msg.header.stamp = nepi_sdk.get_msg_stamp()
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_mount_description = self.get_mount_description()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             [pan_deg,tilt_deg] = self.getPositionCb()
@@ -1551,13 +1648,6 @@ class PTXActuatorIF:
 
             if pan_deg != -999 and tilt_deg != -999:
                 self.current_position = [pan_deg,tilt_deg]
-
-        self.status_msg = self.data_ref_description
-
-        # Update Status Info
-        got_time = nepi_utils.get_time() - start_time
-        got_time = round(got_time, 3)
-        #self.msg_if.pub_debug("Got PT status with time: " + str(got_time))
     
         #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
         [pan_deg,tilt_deg] = self.current_position
@@ -1625,47 +1715,24 @@ class PTXActuatorIF:
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
 
-        if do_updates == True:
-            if self.getSoftLimitsCb is not None:
-                [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
-                if min_pan != -999:
-                    self.min_pan_softstop_deg = min_pan
-                    self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
-                if max_pan != -999:
-                    self.max_pan_softstop_deg = max_pan
-                    self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
+        self.status_msg.frame_3d = self.frame_3d
+        frame_3d_transform = self.get_3d_transform()
 
-                if min_tilt != -999:
-                    self.min_tilt_softstop_deg = min_tilt
-                    self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
-                if max_tilt != -999:
-                    self.max_tilt_softstop_deg = max_tilt
-                    self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
 
-            if self.getSpeedRatioCb is not None:
-                self.status_msg.speed_ratio = self.getSpeedRatioCb()
-                self.speed_ratio = self.status_msg.speed_ratio
-                self.msg_if.pub_warn("Status updated speed ratio: " + str(self.speed_ratio))
-                self.node_if.set_param('speed_ratio', self.speed_ratio) 
+        transform_msg = nepi_nav.convert_transform_list2msg(self.frame_3d_transform)
+        transform_msg.source_description = self.data_ref_description
+        transform_msg.end_description = self.end_description
+        self.status_msg.frame_3d_transform = transform_msg
+        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
+
+        if do_updates == True and self.node_if is not None:
+            pass
 
 
 
     
-        self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
-
+        #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         self.node_if.publish_pub('status_pub',self.status_msg)
-
-
-        pan_rad = 0.01745329 * self.status_msg.pan_now_deg
-        tilt_rad = 0.01745329 * self.status_msg.tilt_now_deg
-
-        # And joint state if appropriate
-        self.joint_state_msg.header.stamp = self.status_msg.header.stamp
-        self.joint_state_msg.position[0] = pan_rad
-        self.joint_state_msg.position[1] = tilt_rad
-        self.msg_if.pub_debug("Publishing Joint", log_name_list = self.log_name_list)
-        self.node_if.publish_pub('joint_pub',self.joint_state_msg)
-
         pub_time = nepi_utils.get_time() - start_time
 
 

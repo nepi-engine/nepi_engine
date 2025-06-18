@@ -22,7 +22,7 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_sdk_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
+from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

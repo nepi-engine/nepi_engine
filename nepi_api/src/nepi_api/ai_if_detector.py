@@ -21,11 +21,11 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
-from nepi_sdk_interfaces.msg import AiDetectorMgrStatus
-from nepi_sdk_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
-from nepi_sdk_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_sdk_interfaces.srv import SystemStorageFolderQuery
-from nepi_sdk_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+from nepi_interfaces.msg import AiDetectorMgrStatus
+from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
+from nepi_interfaces.srv import SystemStorageFolderQuery
+from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils

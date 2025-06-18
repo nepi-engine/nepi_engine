@@ -18,7 +18,7 @@ from rospy import loginfo, logwarn, logdebug, logerr, logfatal
 from rospy import loginfo_throttle, logwarn_throttle, logdebug_throttle, logerr_throttle, logfatal_throttle
 from rospy import get_name, Publisher
 from std_msgs.msg import String
-from nepi_sdk_interfaces.msg import Message
+from nepi_interfaces.msg import Message
 
 #################################
 ## DEPRICIATED

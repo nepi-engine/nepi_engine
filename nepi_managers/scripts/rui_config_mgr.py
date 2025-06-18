@@ -10,7 +10,7 @@
 
 
 from std_msgs.msg import UInt8
-from nepi_sdk_interfaces.msg import RUISettings
+from nepi_interfaces.msg import RUISettings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

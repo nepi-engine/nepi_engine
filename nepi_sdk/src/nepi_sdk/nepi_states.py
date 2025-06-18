@@ -17,8 +17,8 @@ import rospy
 import time
 import copy
 
-from nepi_sdk_interfaces.msg import SystemState, SystemStatesStatus
-from nepi_sdk_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
+from nepi_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 from nepi_sdk.nepi_sdk import find_topics_by_msg
 

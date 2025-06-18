@@ -56,6 +56,7 @@ class ImageViewer extends Component {
     super(props)
 
     this.state = {
+      show_info: false,
       show_controls: false,
 
       hasInitialized: false,
@@ -167,7 +168,7 @@ class ImageViewer extends Component {
     }
     var status_listenter = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_sdk_interfaces/ImageStatus",
+          "nepi_interfaces/ImageStatus",
           this.statusListener
         )
     this.setState({ status_listenter: status_listenter})
@@ -239,6 +240,62 @@ class ImageViewer extends Component {
   }
 
 
+
+
+  getImgInfoText(){
+    const status_msg = this.state.status_msg
+    var msg = ""
+    if (status_msg != null){
+      const frame_3d = round(status_msg.frame_3d, 3)
+      const encoding = round(status_msg.encoding, 3)
+      const width_px = round(status_msg.width_px, 3)
+      const height_px = round(status_msg.height_px, 3)
+      msg = ("\n\n3D Frame: " + frame_3d + 
+      "\n\nEncoding: " + encoding + 
+      "\n\nWidth (Pixals): " + width_px +
+      "\nHeight (Pixals): " + height_px 
+      "\n\nWidth (Deg): " + width_deg +
+      "\nHeight (Deg): " + height_deg )
+    }
+    else {
+      msg = "No Stats Available"
+
+    }
+    return msg
+  }
+
+
+  renderInfo() {
+   
+    if (this.state.status_msg != null){
+      const msg = this.getImgInfoText()
+      return (
+        <Columns>
+        <Column>
+         <pre style={{ height: "200px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
+                  {msg}
+                  </pre>
+    
+        </Column>
+        </Columns>
+
+      )
+    }
+    else {
+      return (
+        <Columns>
+        <Column>
+
+        </Column>
+        </Columns>
+      )
+
+    }
+
+  }
+
+
+
   getImgStatsText(){
     const status_msg = this.state.status_msg
     var msg = ""
@@ -246,9 +303,11 @@ class ImageViewer extends Component {
       const get_lat = round(status_msg.get_latency_time, 3)
       const pub_lat = round(status_msg.pub_latency_time, 3)
       const proc_time = round(status_msg.process_time, 3)
+      const avg_fps = round(status_msg.avg_pub_rate, 3)
       msg = ("\n\nGet Latency: " + get_lat + 
       "\n\nPublish Latency: " + pub_lat + 
-      "\n\nProcess Times (Image): " + proc_time)
+      "\n\nProcess Times (Image): " + proc_time +
+      "\n\nAvg FPS: " + avg_fps )
     }
     else {
       msg = "No Stats Available"
@@ -260,12 +319,12 @@ class ImageViewer extends Component {
   renderStats() {
    
     if (this.state.status_msg != null){
-      const img_stats_text = this.getImgStatsText()
+      const msg = this.getImgStatsText()
       return (
         <Columns>
         <Column>
          <pre style={{ height: "200px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-                  {img_stats_text}
+                  {msg}
                   </pre>
     
         </Column>
@@ -740,12 +799,52 @@ class ImageViewer extends Component {
 
     
     const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
+    const show_info = this.state.show_info
     const show_controls = this.state.show_controls
     return (
       <Section title={this.props.title}>
 
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
 
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <Label title="Show Info">
+                  <Toggle
+                    checked={this.state.show_info===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
+                  </Toggle>
+        </Label>
+
+
+
+        <div align={"left"} textAlign={"left"} hidden={(show_info !== true || namespace === 'None')}>
+
+
+              <Columns>
+                <Column>
+
+                <Label title={"Info"} />
+                    {this.renderInfo()}
+
+                </Column>
+                <Column>
+
+
+
+                </Column>
+                <Column>
+
+
+                    <Label title={"Stats"} />
+                    {this.renderStats()}
+
+
+                </Column>
+              </Columns>
+
+
+
+        </div>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -771,21 +870,18 @@ class ImageViewer extends Component {
                 </Column>
                 <Column>
 
-                      <Label title={"Overlays"} />
-                      {this.renderOverlays()}
+
 
                 </Column>
                 <Column>
 
 
-                    <Label title={"Stats"} />
-                    {this.renderStats()}
+                <Label title={"Overlays"} />
+                      {this.renderOverlays()}
 
 
                 </Column>
               </Columns>
-
-
 
 
 
@@ -850,6 +946,9 @@ class ImageViewer extends Component {
           />
 
       </div>
+
+
+
 
 
               

@@ -43,8 +43,8 @@ from geometry_msgs.msg import *
 from nav_msgs.msg import *
 from geographic_msgs.msg import *
 
-from nepi_sdk_interfaces.srv import *
-from nepi_sdk_interfaces.msg import *
+from nepi_interfaces.srv import *
+from nepi_interfaces.msg import *
 
 
 #######################

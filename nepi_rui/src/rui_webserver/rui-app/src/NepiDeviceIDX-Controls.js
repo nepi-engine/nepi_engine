@@ -21,6 +21,7 @@ import { Column, Columns } from "./Columns"
 import { round, onUpdateSetStateValue, onEnterSetStateFloatValue} from "./Utilities"
 
 import NepiIFReset from "./Nepi_IF_Reset"
+import NepiIF3DTransform from "./Nepi_IF_3DTransform"
 
 @inject("ros")
 @observer
@@ -55,15 +56,6 @@ class NepiDeviceIDXControls extends Component {
       tiltAdjustment: null,
       frame3D: null,
 
-      showTransform: false,
-      transfroms_msg: null,
-      transformTX: 0,
-      transformTY: 0,
-      transformTZ: 0,
-      transformRX: 0,
-      transformRY: 0,
-      transformRZ: 0,
-      transformHO: 0,
       age_filter_s: null,
 
       listener: null,
@@ -80,9 +72,8 @@ class NepiDeviceIDXControls extends Component {
     }
 
 
-    this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
-    this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
-    this.sendTransformClearMessage = this.sendTransformClearMessage.bind(this)
+    
+
 
 
     this.updateListener = this.updateListener.bind(this)
@@ -96,7 +87,6 @@ class NepiDeviceIDXControls extends Component {
 
   // Callback for handling ROS StatusIDX messages
   statusListener(message) {
-    const transform = this.state.transform_msg
     this.setState({
       rtsp_url: message.rtsp_url,
       rtsp_username: message.rtsp_username,
@@ -121,21 +111,9 @@ class NepiDeviceIDXControls extends Component {
       sel_pantilt_name: message.sel_pantilt_name,
       sel_pantilt_device_topic: message.sel_pantilt_device_topic,
       sel_pantilt_navpose_topic: message.sel_pantilt_navpose_topic,
-      sel_pantilt_connected: message.sel_pantilt_connected
+      sel_pantilt_connected: message.sel_pantilt_connected,
     })
-
-    if (transform !== message.frame_3d_transform){
-      const new_transform = message.frame_3d_transform
-      this.setState({
-        transformTX: new_transform.translate_vector.x,
-        transformTY: new_transform.translate_vector.y,
-        transformTZ: new_transform.translate_vector.z,
-        transformRX: new_transform.rotate_vector.x,
-        transformRY: new_transform.rotate_vector.y,
-        transformRZ: new_transform.rotate_vector.z,
-        transformHO: new_transform.heading_offset
-      })
-    }
+   
   }
 
   // Function for configuring and subscribing to StatusIDX
@@ -173,49 +151,8 @@ class NepiDeviceIDXControls extends Component {
     }
   }
 
-  onClickToggleShowTransform(){
-    const newVal = this.state.showTransform === false
-    this.setState({showTransform: newVal})
-    this.render()
-  }
-
-  sendTransformUpdateMessage(){
-    const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_3d_transform"
-    const TX = parseFloat(this.state.transformTX)
-    const TY = parseFloat(this.state.transformTY)
-    const TZ = parseFloat(this.state.transformTZ)
-    const RX = parseFloat(this.state.transformRX)
-    const RY = parseFloat(this.state.transformRY)
-    const RZ = parseFloat(this.state.transformRZ)
-    const HO = parseFloat(this.state.transformHO)
-    const transformList = [TX,TY,TZ,RX,RY,RZ,HO]
-    sendFrame3DTransformMsg(namespace,transformList)
-  }
 
 
-  sendTransformUZeroMessage(){
-    this.setState({
-      transformTX: 0,
-      transformTY: 0,
-      transformTZ: 0,
-      transformRX: 0,
-      transformRY: 0,
-      transformRZ: 0,
-      transformHO: 0,      
-    })
-    const {sendClearFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_3d_transform"
-    const transformList = [0,0,0,0,0,0,0]
-    sendClearFrame3DTransformMsg(namespace,transformList)
-  }
-
-
-  sendTransformClearMessage(){
-    const {sendTriggerMsg} = this.props.ros
-    const namespace = this.props.namespace + "/clear_3d_transform"
-    sendTriggerMsg(namespace)
-  }
 
  renderLive() {
     const rtsp_url = this.state.rtsp_url
@@ -467,113 +404,26 @@ class NepiDeviceIDXControls extends Component {
 
 
 
-      <Columns>
-        <Column>
-        <Label title="Show 3D Transform">
-                        <Toggle
-                          checked={this.state.showTransform}
-                          onClick={this.onClickToggleShowTransform}>
-                        </Toggle>
-                      </Label>
 
-        </Column>
-        <Column>
-        </Column>
-        </Columns>
+            <Columns>
+                  <Column>
 
+                          <NepiIF3DTransform
+                              namespace={namespace}
+                              supports_updates={true}
+                              title={"Nepi_IF_3DTransform"}
+                          />
 
-
-        <div hidden={ this.state.showTransform === false}>
-
-              <Columns>
-              <Column>
-
-              <Label title={"X (m)"}>
-                <Input
-                  value={this.state.transformTX}
-                  id="XTranslation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-              <Label title={"Y (m)"}>
-                <Input
-                  value={this.state.transformTY}
-                  id="YTranslation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-              <Label title={"Z (m)"}>
-                <Input
-                  value={this.state.transformTZ}
-                  id="ZTranslation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-
-              <ButtonMenu>
-                <Button onClick={() => this.sendTransformUpdateMessage()}>{"Update Transform"}</Button>
-              </ButtonMenu>
-
-
-
-
-            </Column>
-            <Column>
-
-              <Label title={"Roll (deg)"}>
-                <Input
-                  value={this.state.transformRX}
-                  id="XRotation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-              <Label title={"Pitch (deg)"}>
-                <Input
-                  value={this.state.transformRY}
-                  id="YRotation"
-                  onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
-                  onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
-                  style={{ width: "80%" }}
-                />
-              </Label>
-
-                  <Label title={"Yaw (deg)"}>
-                    <Input
-                      value={this.state.transformRZ}
-                      id="ZRotation"
-                      onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
-                      onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
-                      style={{ width: "80%" }}
-                    />
-                  </Label>
-
-
-                      <ButtonMenu>
-                          <Button onClick={() => sendTriggerMsg( namespace + "/clear_3d_transform")}>{"Clear Transform"}</Button>
-                      </ButtonMenu>
-
-
-                </Column>
+                  </Column>
               </Columns>
 
-    
+
+
                             
                   <Columns>
                     <Column>
                     <div align={"left"} textAlign={"left"}>
-                        <Label title={"Current Frame"}>
+                        <Label title={"Data Output Frame"}>
                         <Input value = {this.state.frame_3d} />
                         </Label>
                       </div>
@@ -584,7 +434,6 @@ class NepiDeviceIDXControls extends Component {
                   </Columns>
 
 
-            </div>
                <NepiIFReset
                         namespace={namespace}
                         title={"Nepi_IF_Reset"}

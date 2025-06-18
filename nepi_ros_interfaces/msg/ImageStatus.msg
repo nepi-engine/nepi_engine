@@ -1,25 +1,22 @@
 # This is an optional status message for image publishers
 
-string node_namespace
+string data_source_description
 string data_ref_description
+string device_mount_description
 
-# Image data product type
-# SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
-#                            'intensity_map','depth_map','pointcloud']
-string data_product_type
-
-bool publishing
-float32 last_pub_sec
-float32 fps
+### Data Info
+string frame_3d
 
 string encoding
-int32 width
-int32 height
 
-string frame_id
+int32 width_px
+int32 height_px
 
-# Render Controls
+float32 width_deg
+float32 height_deg
 
+
+### Data Controls
 # The resolution field indicates the 0.0 - 1.0 brightness setting of the device
 float32 resolution_ratio
 string resolution_current
@@ -61,7 +58,7 @@ string[] enhance_options
 bool[] enhance_states
 float32[] enhance_ratios
 
-# Overlay Controls
+### Overlay Controls
 bool overlay_img_name
 bool overlay_date_time
 bool overlay_nav
@@ -69,12 +66,13 @@ bool overlay_pose
 string[] base_overlay_list
 string[] add_overlay_list
 
-
-# Render Stats
+### Data Stats
 float32 get_latency_time
 float32 pub_latency_time
 float32 process_time
-float32 avg_fps
+float32 avg_pub_rate
+float32 last_pub_sec
 
+bool publishing
 
 

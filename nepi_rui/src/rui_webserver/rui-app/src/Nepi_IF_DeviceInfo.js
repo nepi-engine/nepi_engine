@@ -68,12 +68,12 @@ class NepiDeviceInfo extends Component {
   // Function for configuring and subscribing to Status
   updateListener() {
     const {setupStatusListener} = this.props.ros
-    const { deviceNamespace, status_topic, status_msg_type } = this.props
+    const { namespace, status_topic, status_msg_type } = this.props
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
     var listener = setupStatusListener(
-      deviceNamespace + status_topic,
+      namespace + status_topic,
       status_msg_type,
       this.statusListener
     )
@@ -84,10 +84,10 @@ class NepiDeviceInfo extends Component {
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const { deviceNamespace } = this.props
-    if (prevProps.deviceNamespace !== deviceNamespace && deviceNamespace != null) {
+    const { namespace } = this.props
+    if (prevProps.namespace !== namespace && namespace != null) {
       this.updateListener()
-    } else if (deviceNamespace == null){
+    } else if (namespace == null){
       this.setState({ disabled: true })
     }
   }
@@ -124,7 +124,7 @@ class NepiDeviceInfo extends Component {
 
   onKeySaveInputDeviceNameValue(event) {
     const {sendStringMsg}  = this.props.ros
-    const device_name_update_topic = this.props.deviceNamespace + this.props.name_update_topic
+    const device_name_update_topic = this.props.namespace + this.props.name_update_topic
     const BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
     if(event.key === 'Enter'){
       const value = event.target.value
@@ -144,7 +144,9 @@ class NepiDeviceInfo extends Component {
 
   render() {
     const {sendTriggerMsg}  = this.props.ros
-    const device_name_reset_topic = this.props.deviceNamespace + this.props.name_reset_topic
+    const device_name_reset_topic = this.props.namespace + '/reset_device_name'
+    const device_mount_reset_topic = this.props.namespace + '/reset_mount_description'
+
     return (
       <Section title={"Device Name"}>
         <Columns>

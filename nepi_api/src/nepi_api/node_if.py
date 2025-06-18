@@ -15,15 +15,15 @@ from nepi_sdk import nepi_sdk
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_sdk_interfaces.msg import Reset
+from nepi_interfaces.msg import Reset
 
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
 from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
-# from nepi_sdk_interfaces.msg import
-from nepi_sdk_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
+# from nepi_interfaces.msg import
+from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_api.messages_if import MsgIF
 

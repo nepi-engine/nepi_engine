@@ -26,12 +26,12 @@ from nepi_sdk import nepi_nav
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
 
-from nepi_sdk_interfaces.msg import ImageStatus
+from nepi_interfaces.msg import ImageStatus
 
 from sensor_msgs.msg import PointCloud2
-from nepi_sdk_interfaces.msg import PointcloudStatus
+from nepi_interfaces.msg import PointcloudStatus
 
-from nepi_sdk_interfaces.msg import NavPose, NavPoseStatus
+from nepi_interfaces.msg import NavPose, NavPoseStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
@@ -926,7 +926,7 @@ class ConnectNavPoseIF:
             ##############################
             ### Preprocess NavPose
             
-            data_dict = nepi_nav.convert_navposedata_msg2dict(data_mgs)
+            data_dict = nepi_nav.convert_navpose_msg2dict(data_mgs)
 
 
             process_time = round( (nepi_sdk.get_time() - start_time) , 3)

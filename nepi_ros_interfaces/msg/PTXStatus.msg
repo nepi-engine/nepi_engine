@@ -2,13 +2,16 @@
 ## All data provided in the current reverse pan and tilt frames
 ## Reverse axis conversions are handled by the PTX IF class
 
-Header  header
+string device_name
+string device_id
+string identifier
+string serial_num
+string hw_version
+string sw_version
 
-string  serial_num
-string  hw_version
-string  sw_version
-
+string data_source_description
 string data_ref_description
+string device_mount_description
 
 bool has_absolute_positioning
 bool has_timed_positioning
@@ -75,3 +78,9 @@ float32 z_from_base_center
 bool is_moving
 
 string[] error_msgs
+
+# Transform from device native ref frame to the nepi_frame,
+nepi_interfaces/Frame3DTransform frame_3d_transform
+
+
+
