@@ -198,8 +198,6 @@ class NPXDeviceIF:
 
   settings_if = None
 
-  status_msg = NPXStatus()
-
   has_updated = False
 
   pub_subs = False
@@ -632,8 +630,8 @@ class NPXDeviceIF:
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
-        if 'navpose' in self.data_products_save_list:
-            factory_data_rates['navpose'] = [1.0, 0.0, 100.0] 
+        if 'navpose' in self.data_products_list:
+            factory_data_rates['navpse'] = [1.0, 0.0, 100.0] 
 
         factory_filename_dict = {
             'prefix': "", 
@@ -646,9 +644,9 @@ class NPXDeviceIF:
 
         sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                factory_rate_dict = factory_data_rates,
-                                factory_filename_dict = factory_filename_dict,
-                                namespace = sd_namespace,
+                            factory_rate_dict = factory_data_rates,
+                            factory_filename_dict = factory_filename_dict,
+                            namespace = sd_namespace,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
@@ -903,8 +901,12 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
+<<<<<<< HEAD
           self.settings_if.reset_settings(update_status = False, update_params = True)
       self.initCb()
+=======
+          self.settings_if.reset_settings()
+>>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
   def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -912,8 +914,12 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
+<<<<<<< HEAD
           self.settings_if.factory_reset(update_status = False, update_params = True)
       self.initCb()
+=======
+          self.settings_if.factory_reset()
+>>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
 
 
@@ -1078,9 +1084,14 @@ class NPXDeviceIF:
 
 
 
+<<<<<<< HEAD
   def _publishStatusCb(self,timer):
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
+=======
+  def _publishStatusCb(self, timer):
+      self.status_msg.data_ref_description = self.data_ref_description
+>>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
       self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_heading_source = self.set_heading_source
       self.status_msg.set_as_orientation_source = self.set_orientation_source
@@ -1091,15 +1102,18 @@ class NPXDeviceIF:
       transform_msg = nepi_nav.convert_transform_list2msg(self.frame_transform)
       transform_msg.source_ref_description = self.data_ref_description
       transform_msg.end_ref_description = 'nepi_frame'
+<<<<<<< HEAD
       self.status_msg.frame_3d_transform = transform_msg
       updates = self.get_frame_transform_function is None
       self.status_msg.supports_transform_updates = updates
 
+=======
+      self.status_msg.nepi_frame_3d_transform = transform_msg
+      self.status_msg.include_transform_enabled = self.include_transform_enabled
+>>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
       self.status_msg.update_rate = self.update_rate
 
-      self.node_if.publish_pub('status_pub',self.status_msg)
-
-
+      self.node_if.publish_pub('status_pub', self.status_msg)
 
   #######################
   # Node Cleanup Function

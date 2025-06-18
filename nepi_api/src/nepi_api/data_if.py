@@ -830,16 +830,18 @@ class NavPoseIF:
             self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
             self.status_msg.source_frame_depth = navpose_dict['frame_depth']
             has_subs = copy.deepcopy(self.has_subs)
+            
+            # Initialize np_dict here so it's available in both branches
+            np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            for key in np_dict.keys():
+                if key in navpose_dict.keys():
+                    np_dict[key] = navpose_dict[key]
+            
             if has_subs == False:
                 self.status_msg.publishing = False
             # Pub NavPose
             else: 
-                np_dict = nepi_nav.BLANK_NAVPOSE_DICT
                 self.msg_if.pub_debug("Blank navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
-                for key in np_dict.keys():
-                    if key in navpose_dict.keys():
-                        np_dict[key] = navpose_dict[key]
-
 
                 if timestamp == None:
                     timestamp = nepi_utils.get_time()
@@ -882,10 +884,8 @@ class NavPoseIF:
                 self.time_list.pop(0)
                 self.time_list.append(pub_time_sec)
 
-                
                 # Update Status Info
                 self.status_msg.publishing = True
-
 
                 # Transform navpose data frames to nepi standard frames
                 if np_dict['frame_nav'] != 'ENU':
@@ -898,11 +898,9 @@ class NavPoseIF:
                     if np_dict['frame_depth'] == 'DEPTH':
                         pass # need to add conversions                 
 
-
                 self.status_msg.pub_frame_nav = np_dict['frame_nav']
                 self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
                 self.status_msg.pub_frame_depth = np_dict['frame_depth']
-
 
                 # Publish nav pose subs
                 if self.pub_location == True:
@@ -957,8 +955,8 @@ class NavPoseIF:
                     msg.timestamp = np_dict['time_depth']
                     msg.depth_m = np_dict['depth_m']
                     self.node_if.publish_pub(pub_name,msg)
-        
-            # Update tracks if needed
+
+            # Update tracks if needed (this code runs regardless of has_subs value)
             next_sec = self.get_next_track_sec()
             if next_sec <= 0:
                 try:

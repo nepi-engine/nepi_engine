@@ -184,6 +184,8 @@ class PTXActuatorIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.data_products_list = []
+
 
         ##############################  
         # Create Msg Class
@@ -357,6 +359,9 @@ class PTXActuatorIF:
 
 
         ########################
+        # Initialize the navpose status message
+        self.np_status_msg = NavPoseStatus()
+        
         # Set up status message static values
         self.status_msg.device_id = self.device_id
         self.status_msg.identifier = self.identifier
@@ -1520,7 +1525,9 @@ class PTXActuatorIF:
         self.publish_navpose()
         rate = 1
         if self.nav_mgr_if is not None:
-            rate = self.nav_mgr_if.get_pub_rate()
+            pub_rate = self.nav_mgr_if.get_pub_rate()
+            if pub_rate is not None and pub_rate > 0:
+                rate = pub_rate
         delay = float(1.0) / rate
         nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 

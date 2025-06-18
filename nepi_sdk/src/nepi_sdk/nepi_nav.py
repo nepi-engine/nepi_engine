@@ -26,7 +26,11 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
+<<<<<<< HEAD
 from nepi_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
+=======
+from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
+>>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
 from nepi_interfaces.msg import NavPose, NavPoseStatus
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -738,23 +742,23 @@ def get_navpose_geoid_height(navpose_response):
   return geoid_height
   
 def get_navpose_track_msg_from_dict(navpose_dict):
-  track = BLANK_NAVPOSE_TRACK
-  for key in track.keys():
-    if key in navpose_dict.keys():
-      track[key] = navpose_dict[key]
-  track_msg = NavPoseTrack()
-  timestamp = self.nepi_utils.get_time()
-  track_msg.timestamp = timestamp
-  track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-  track_msg.latitude = track['latitude']
-  track_msg.longitude = track['longitude']
-  track_msg.heading_m = track['heading_m']
-  track_msg.roll_deg = track['roll_deg']
-  track_msg.pitch_deg = track['pitch_deg']
-  track_msg.yaw_deg = track['yaw_deg']
-  track_msg.altitude_m = track['altitude_m']
-  track_msg.depth_m = track['depth_m']
-  return track_msg
+    track = BLANK_NAVPOSE_TRACK_DICT
+    for key in track.keys():
+        if key in navpose_dict.keys():
+            track[key] = navpose_dict[key]
+    track_msg = NavPoseTrack()
+    timestamp = nepi_utils.get_time() 
+    track_msg.timestamp = timestamp
+    track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+    track_msg.latitude = track['latitude']
+    track_msg.longitude = track['longitude']
+    track_msg.heading_deg = track['heading_deg']
+    track_msg.roll_deg = track['roll_deg']
+    track_msg.pitch_deg = track['pitch_deg']
+    track_msg.yaw_deg = track['yaw_deg']
+    track_msg.altitude_m = track['altitude_m']
+    track_msg.depth_m = track['depth_m']
+    return track_msg
 
 
 #######################
