@@ -901,12 +901,8 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-<<<<<<< HEAD
           self.settings_if.reset_settings(update_status = False, update_params = True)
       self.initCb()
-=======
-          self.settings_if.reset_settings()
->>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
   def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -914,12 +910,8 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-<<<<<<< HEAD
           self.settings_if.factory_reset(update_status = False, update_params = True)
       self.initCb()
-=======
-          self.settings_if.factory_reset()
->>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
 
 
