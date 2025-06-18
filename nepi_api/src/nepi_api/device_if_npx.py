@@ -1076,14 +1076,9 @@ class NPXDeviceIF:
 
 
 
-<<<<<<< HEAD
   def _publishStatusCb(self,timer):
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
-=======
-  def _publishStatusCb(self, timer):
-      self.status_msg.data_ref_description = self.data_ref_description
->>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
       self.status_msg.set_as_location_source = self.set_location_source
       self.status_msg.set_as_heading_source = self.set_heading_source
       self.status_msg.set_as_orientation_source = self.set_orientation_source
@@ -1094,15 +1089,10 @@ class NPXDeviceIF:
       transform_msg = nepi_nav.convert_transform_list2msg(self.frame_transform)
       transform_msg.source_ref_description = self.data_ref_description
       transform_msg.end_ref_description = 'nepi_frame'
-<<<<<<< HEAD
       self.status_msg.frame_3d_transform = transform_msg
       updates = self.get_frame_transform_function is None
       self.status_msg.supports_transform_updates = updates
 
-=======
-      self.status_msg.nepi_frame_3d_transform = transform_msg
-      self.status_msg.include_transform_enabled = self.include_transform_enabled
->>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
       self.status_msg.update_rate = self.update_rate
 
       self.node_if.publish_pub('status_pub', self.status_msg)
