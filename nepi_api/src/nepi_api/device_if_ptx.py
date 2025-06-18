@@ -416,7 +416,7 @@ class PTXActuatorIF:
             'home_position/tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
-            }
+            },
             'reverse_pan_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_pan_enabled']
@@ -468,7 +468,7 @@ class PTXActuatorIF:
             'frame_3d_transform': {
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
-            }
+            },
             'mount_desc': {
                 'namespace': self.node_namespace,
                 'factory_val': 'None'

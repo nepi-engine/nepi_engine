@@ -226,8 +226,6 @@ class NPXDeviceIF:
                 device_info,
                 capSettings=None, factorySettings=None, 
                 settingUpdateFunction=None, getSettingsFunction=None,
-                data_source_description = 'imaging_sensor',
-                data_ref_description = 'sensor',
                 frame_3d = 'sensor_frame', frame_nav = 'ENU',
                 frame_altitude = 'WGS84', frame_depth = 'DEPTH',
                 data_source_description = 'navpose_sensor',
@@ -305,31 +303,31 @@ class NPXDeviceIF:
         if self.getNavPoseCb is None:
             self.getLocationCb = getLocationCb
             if self.getLocationCb is not None:
-            self.has_location = True  
+                self.has_location = True  
 
             self.getHeadingCb = getHeadingCb
             if self.getHeadingCb is not None:
-            self.has_heading = True
+                self.has_heading = True
 
             self.getPositionCb = getPositionCb
             if self.getPositionCb is not None:
-            self.has_position = True
+                self.has_position = True
 
             self.getOrientationCb = getOrientationCb
             if self.getOrientationCb is not None:
-            self.has_orientation = True
+                self.has_orientation = True
 
             self.getAltitudeCb = getAltitudeCb
             if self.getAltitudeCb is not None:
-            self.has_altitude = True
+                self.has_altitude = True
 
             self.getDepthCb = getDepthCb
             if self.getDepthCb is not None:
-            self.has_depth = True
+                self.has_depth = True
 
             self.getTransformCb = getTransformCb
             if self.getTransformCb is not None:
-            self.supports_transform_updates = False
+                self.supports_transform_updates = False
 
         # Create capabilities report
         self.caps_report = NPXCapabilitiesQueryResponse()
@@ -450,7 +448,7 @@ class NPXDeviceIF:
             'frame_transform': {
                 'namespace': self.node_namespace,
                 'factory_val': self.ZERO_TRANSFORM
-            }
+            },
             'mount_desc': {
                 'namespace': self.node_namespace,
                 'factory_val': 'None'
@@ -929,57 +927,57 @@ class NPXDeviceIF:
     else:
         # Update Location
         if self.has_location == True:
-        try:
-            data_dict = self.getLocationCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Location Cb: " + str(e), throttle_s = 5.0)
+            try:
+                data_dict = self.getLocationCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Location Cb: " + str(e), throttle_s = 5.0)
 
         # Update Heading
         if self.has_heading == True:
-        try:
-            data_dict = self.getHeadingCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Heading Cb: " + str(e), throttle_s = 5.0)
+            try:
+                data_dict = self.getHeadingCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Heading Cb: " + str(e), throttle_s = 5.0)
 
         # Update Orientation
         if self.has_orientation == True:
-        try:
-            data_dict = self.getOrientationCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Orientation Cb: " + str(e), throttle_s = 5.0)
+            try:
+                data_dict = self.getOrientationCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Orientation Cb: " + str(e), throttle_s = 5.0)
 
         # Update Position
         if self.has_position == True:
-        try:
-            data_dict = self.getPositionCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Position Cb: " + str(e), throttle_s = 5.0)
+            try:
+                data_dict = self.getPositionCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Position Cb: " + str(e), throttle_s = 5.0)
 
         # Update Altitude
         if self.has_altitude == True:
-        try:
-            data_dict = self.getAltitudeCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Altitude Cb: " + str(e), throttle_s = 5.0)
+            try:
+                data_dict = self.getAltitudeCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Altitude Cb: " + str(e), throttle_s = 5.0)
 
         # Update Depth
         if self.has_depth == True:
-        try:
-            data_dict = self.getDepthCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Depth Cb: " + str(e), throttle_s = 5.0)      
+            try:
+                data_dict = self.getDepthCb()
+                for key in data_dict.keys():
+                    self.navpose_dict[key] = data_dict[key]
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call get Depth Cb: " + str(e), throttle_s = 5.0)      
 
 
     if self.navpose_dict is None:

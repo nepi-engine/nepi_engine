@@ -250,10 +250,13 @@ class ImageViewer extends Component {
       const encoding = round(status_msg.encoding, 3)
       const width_px = round(status_msg.width_px, 3)
       const height_px = round(status_msg.height_px, 3)
+      const width_deg = round(status_msg.width_deg, 3)
+      const height_deg = round(status_msg.height_deg, 3)
+
       msg = ("\n\n3D Frame: " + frame_3d + 
       "\n\nEncoding: " + encoding + 
       "\n\nWidth (Pixals): " + width_px +
-      "\nHeight (Pixals): " + height_px 
+      "\nHeight (Pixals): " + height_px +
       "\n\nWidth (Deg): " + width_deg +
       "\nHeight (Deg): " + height_deg )
     }

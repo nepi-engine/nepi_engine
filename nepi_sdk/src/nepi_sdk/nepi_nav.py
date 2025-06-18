@@ -26,11 +26,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-<<<<<<< HEAD
-from nepi_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo
-=======
 from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
->>>>>>> 0bfcb348cb354857703ab0fe3396dd263f4629b0
 
 from nepi_interfaces.msg import NavPose, NavPoseStatus
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -218,9 +214,9 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           data = msg.pose.pose.position
           pos = [data.x,data.y,data.z]
           npdata_dict['time_position'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          npdata_dict['roll_deg'] = pos.x
-          npdata_dict['pitch_deg'] = pos.y
-          npdata_dict['yaw_deg'] = pos.z
+          npdata_dict['roll_deg'] = pos[0]
+          npdata_dict['pitch_deg'] = pos[1]
+          npdata_dict['yaw_deg'] = pos[2]
         except:
           pass
       elif msg_type == 'geometry_msgs/Pose':
@@ -228,9 +224,9 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           data = msg.position
           pos = [data.x,data.y,data.z]
           npdata_dict['time_position'] = nepi_utils.get_time()
-          npdata_dict['roll_deg'] = pos.x
-          npdata_dict['pitch_deg'] = pos.y
-          npdata_dict['yaw_deg'] = pos.z
+          npdata_dict['roll_deg'] = pos[0]
+          npdata_dict['pitch_deg'] = pos[1]
+          npdata_dict['yaw_deg'] = pos[2]
         except:
           pass
       elif msg_type == 'geometry_msgs/Point':
@@ -238,9 +234,9 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
           data = msg
           pos = [data.x,data.y,data.z]
           npdata_dict['time_position'] = nepi_utils.get_time()
-          npdata_dict['roll_deg'] = pos.x
-          npdata_dict['pitch_deg'] = pos.y
-          npdata_dict['yaw_deg'] = pos.z
+          npdata_dict['roll_deg'] = pos[0]
+          npdata_dict['pitch_deg'] = pos[1]
+          npdata_dict['yaw_deg'] = pos[2]
         except:
           pass
 

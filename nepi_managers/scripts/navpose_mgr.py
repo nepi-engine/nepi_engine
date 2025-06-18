@@ -107,8 +107,8 @@ class NavPoseMgr(object):
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     navpose_dict['frame_3d'] = 'nepi_frame'
     navpose_dict_lock = threading.Lock()
-    init_navpose_dict = nepi_nav.navpose_dict
-    last_npdata_dict = nepi_nav.navpose_dict
+    init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    last_npdata_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     mgr_namespace = ""
     status_msg = NavPoseMgrStatus()
