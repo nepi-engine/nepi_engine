@@ -601,7 +601,9 @@ class NavPoseMgr(object):
                 avg_rate = 0
             comp_info.avg_rate = avg_rate
             comp_info.last_time = connect_dict[name]['last_time']
-            comp_info.transform = connect_dict[name]['transform']
+            transform = connect_dict[name]['transform']
+
+            comp_info.transform = convert_transform_list2msg(transform, source_ref_description = 'data_source', end_ref_description = 'nepi_frame')
 
             comp_infos.append(comp_info)
         self.status_msg.comp_names = comp_names

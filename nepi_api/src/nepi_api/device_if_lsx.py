@@ -135,7 +135,7 @@ class LSXDeviceIF:
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
 
-        self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
+        self.device_name = self.device_id + "_" + self.identifier
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description

@@ -550,7 +550,7 @@ class NodeServicesIF:
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e), throttle_s = 5.0) 
                 if srv_callback is not None and not nepi_sdk.is_shutdown():
                     self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
                     service = None
@@ -559,7 +559,7 @@ class NodeServicesIF:
                         self.srvs_dict[service_name]['service'] = service
                         self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
+                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), throttle_s = 5.0)  
                     
 
     def _unregister_service(self, service_name):
@@ -691,7 +691,7 @@ class NodePublishersIF:
                         pub_dict['pub'].publish(pub_msg)
                         success = True
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish msg: " + pub_name + " " + str(e))  
+                        self.msg_if.pub_warn("Failed to publish msg: " + pub_name + " " + str(pub_msg) + str(e), throttle_s = 5.0)  
         return success
                     
     def register_pub(self,pub_name, pub_dict):
