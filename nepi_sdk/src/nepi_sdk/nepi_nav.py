@@ -292,10 +292,10 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
 ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
 
-def convert_transform_list2msg(transform_list, source_description = '', end_description = ''):
+def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = ''):
   transform_msg = Frame3DTransform()
-  transform_msg.source_description = source_description
-  transform_msg.end_description = end_description
+  transform_msg.source_ref_description = source_ref_description
+  transform_msg.end_ref_description = end_ref_description
   if len(transform_list) == 7:
       transform_msg.translate_vector.x = transform_list[0]
       transform_msg.translate_vector.y = transform_list[1]

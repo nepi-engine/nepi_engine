@@ -14,6 +14,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nepi_interfaces.msg import DeviceLSXStatus
@@ -69,6 +70,8 @@ class LSXDeviceIF:
     settings_if = None
     save_data_if = None
     transform_if = None
+    npx_if = None
+    navpose_if = None
 
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)

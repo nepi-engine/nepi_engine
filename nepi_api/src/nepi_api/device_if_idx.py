@@ -85,10 +85,13 @@ class IDXDeviceIF:
     ready = False
 
     status_msg = DeviceIDXStatus()
+    
     node_if = None
     settings_if = None
     save_data_if = None
     transform_if = None
+    npx_if = None
+    navpose_if = None
 
 
     device_name = ''
