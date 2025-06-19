@@ -260,7 +260,7 @@ class NPXDeviceIF:
         self.get3DTransformCb = get3DTransformCb
         ###
         self.getNavPoseCb = getNavPoseCb
-        if self.getNavPose is not None:
+        if self.getNavPoseCb is not None:
             navpose_dict = None
             try:
                 navpose_dict = self.getNavPoseCb()
