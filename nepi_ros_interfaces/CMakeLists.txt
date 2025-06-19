@@ -80,7 +80,7 @@ add_message_files(FILES
     DataNavPoseStatus.msg
     DataPointcloud.msg
     DataPointcloudStatus.msg
-    DataIntensityMapStatus.msg
+    DataIntensityMap.msg
     DataIntensityMapStatus.msg
     DeviceIDXStatus.msg
     DeviceLSXStatus.msg

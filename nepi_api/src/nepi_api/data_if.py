@@ -510,7 +510,7 @@ class NavPoseIF:
 
     node_if = None
 
-    status_msg = NavPoseStatus()
+    status_msg = DataNavPoseStatus()
 
     last_pub_time = None
 
@@ -639,14 +639,14 @@ class NavPoseIF:
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
-                'msg': NavPoseStatus,
+                'msg': DataNavPoseStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'navpose_pub': {
-                'msg': NavPose,
+                'msg': DataNavPose,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
