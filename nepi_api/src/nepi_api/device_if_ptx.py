@@ -68,6 +68,8 @@ class PTXActuatorIF:
     settings_if = None
     save_data_if = None
     transform_if = None
+    npx_if = None
+    navpose_if = None
 
     status_msg = DevicePTXStatus()
 
@@ -706,7 +708,7 @@ class PTXActuatorIF:
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
 
-        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
+        self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -764,7 +766,7 @@ class PTXActuatorIF:
         # Create a NPX Device IF
         if self.getNavPoseCb is not None:
             self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            npx_if = NPXDeviceIF(device_info, 
+            self.npx_if = NPXDeviceIF(device_info, 
                 data_source_description = self.data_source_description,
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
@@ -1598,6 +1600,7 @@ class PTXActuatorIF:
 
 
     def publish_status(self, do_updates = False):
+        start_time = nepi_utils.get_time()
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
@@ -1691,9 +1694,8 @@ class PTXActuatorIF:
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
+
         pub_time = nepi_utils.get_time() - start_time
-
-
         return pub_time
 
 

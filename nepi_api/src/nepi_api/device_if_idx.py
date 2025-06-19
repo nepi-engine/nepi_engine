@@ -85,7 +85,7 @@ class IDXDeviceIF:
     ready = False
 
     status_msg = DeviceIDXStatus()
-    
+
     node_if = None
     settings_if = None
     save_data_if = None
@@ -569,7 +569,7 @@ class IDXDeviceIF:
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
-        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
+        self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
