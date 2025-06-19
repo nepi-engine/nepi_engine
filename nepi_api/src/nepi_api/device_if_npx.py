@@ -811,6 +811,9 @@ class NPXDeviceIF:
 
 
   def _publishStatusCb(self,timer):
+    self.publish_status()
+
+  def publish_status(self): 
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
 
