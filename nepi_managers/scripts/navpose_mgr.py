@@ -545,9 +545,9 @@ class NavPoseMgr(object):
             self.set_pub_rate = self.node_if.get_param('pub_rate')
             self.connect_dict = self.node_if.get_param('connect_dict')
             self.transforms_dict = self.node_if.get_param('transforms_dict')
-            self.init_navpose = self.node_if.get_param('init_navpose')
+            self.init_navpose_dict = self.node_if.get_param('init_navpose_dict')
         self.navpose_dict_lock.acquire()
-        self.navpose_dict = self.init_navpose
+        self.navpose_dict = self.init_navpose_dict
         self.navpose_dict_lock.release()
         if do_updates == True:
             pass
