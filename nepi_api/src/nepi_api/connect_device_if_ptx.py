@@ -22,8 +22,8 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
-from nepi_interfaces.msg import RangeWindow, NavPose
-from nepi_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.msg import RangeWindow, NavPose, SaveDataRate
+from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
@@ -223,7 +223,7 @@ class ConnectPTXDeviceIF:
             'status_sub': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/status',
-                'msg': PTXStatus,
+                'msg': DevicePTXStatus,
                 'qsize': 10,
                 'callback': self._statusCb
             },
@@ -298,7 +298,7 @@ class ConnectPTXDeviceIF:
             while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:folder_name
+            if self.connected == False:
                 self.msg_if.pub_info("Failed to Connect")
             else:
                 self.msg_if.pub_info("Connected")
@@ -328,7 +328,7 @@ class ConnectPTXDeviceIF:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
-    def get_navpose_dict(self)
+    def get_navpose_dict(self):
         navpose_dict = None
         if self.navpose_msg is not None:
             navpose_dict = nepi_nav.convert_navpose_msg2dict(self.navpose_msg)

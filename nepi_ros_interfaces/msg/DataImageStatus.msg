@@ -1,4 +1,4 @@
-# This is an optional status message for image publishers
+# This is the status message for image publishers
 
 string data_source_description
 string data_ref_description

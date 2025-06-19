@@ -14,7 +14,7 @@ import copy
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
-from nepi_interfaces.msg import AiModelMgrStatus
+from nepi_interfaces.msg import MgrAiModelStatus
 from nepi_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
 from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
@@ -122,7 +122,7 @@ class ConnectMgrAiModelIF:
             'status_sub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
-                'msg': AiModelMgrStatus,
+                'msg': MgrAiModelStatus,
                 'qsize': 10,
                 'callback': self._statusCb, 
                 'callback_args': ()

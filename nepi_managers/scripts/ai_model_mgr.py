@@ -30,7 +30,7 @@ from nepi_interfaces.msg import SystemStatus
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-from nepi_interfaces.msg import UpdateState, AiModelMgrStatus
+from nepi_interfaces.msg import UpdateState, MgrAiModelStatus
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_interfaces.msg import BoundingBoxes, ObjectCount
 
@@ -178,7 +178,7 @@ class AIDetectorManager:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'status',
-                'msg': AiModelMgrStatus,
+                'msg': MgrAiModelStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -716,7 +716,7 @@ class AIDetectorManager:
         aifs_dict = self.node_if.get_param("aifs_dict",)
         models_dict = self.node_if.get_param("models_dict")
 
-        status_msg = AiModelMgrStatus()
+        status_msg = MgrAiModelStatus()
         status_msg.ai_frameworks = nepi_aifs.getAIFsSortedList(aifs_dict)
 
 

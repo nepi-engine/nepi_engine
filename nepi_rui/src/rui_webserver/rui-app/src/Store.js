@@ -536,7 +536,7 @@ class ROSConnectionStore {
     var newImageTopics = []
     var newImageDetectionTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
+      if (this.topicTypes[i] === "nepi_interfaces/DataImage") {
         newImageTopics.push(this.topicNames[i])
         if (this.topicNames[i].indexOf('detection_image') !== -1){
           newImageDetectionTopics.push(this.topicNames[i])
@@ -590,7 +590,7 @@ class ROSConnectionStore {
     // Function for updating image topics list
     var newPointcloudTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "sensor_msgs/PointCloud2") {
+      if (this.topicTypes[i] === "nepi_interfaces/DataPointcloud") {
         newPointcloudTopics.push(this.topicNames[i])
       }
     }
@@ -1030,7 +1030,7 @@ class ROSConnectionStore {
     if (ptxNamespace) {
       return this.addListener({
         name: ptxNamespace + "/status",
-        messageType: "nepi_interfaces/PTXStatus",
+        messageType: "nepi_interfaces/DevicePTXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1043,7 +1043,7 @@ class ROSConnectionStore {
     if (lsxNamespace) {
       return this.addListener({
         name: lsxNamespace + "/status",
-        messageType: "nepi_interfaces/LSXStatus",
+        messageType: "nepi_interfaces/DeviceLSXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1068,7 +1068,7 @@ class ROSConnectionStore {
     if (idxDeviceNamespace) {
       return this.addListener({
         name: idxDeviceNamespace + "/status",
-        messageType: "nepi_interfaces/IDXStatus",
+        messageType: "nepi_interfaces/DeviceIDXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1081,7 +1081,7 @@ class ROSConnectionStore {
     if (npxDeviceNamespace) {
       return this.addListener({
         name: npxDeviceNamespace + "/status",
-        messageType: "nepi_interfaces/NPXStatus",
+        messageType: "nepi_interfaces/DeviceNPXStatus",
         noPrefix: true,
         callback: callback,
         manageListener: false
@@ -1221,7 +1221,7 @@ class ROSConnectionStore {
   sendErrorBoundsMsg(namespace, max_m,max_d,min_stab) {
     this.publishMessage({
       name: namespace,
-      messageType: "nepi_interfaces/RBXErrorBounds",
+      messageType: "nepi_interfaces/ErrorBounds",
       data: { 
         data: {
           max_distance_error_m: max_m,
@@ -1371,7 +1371,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_interfaces/RBXGotoPose",
+        messageType: "nepi_interfaces/GotoPose",
         data: { 
           roll_deg: float1Val,
           pitch_deg: float2Val,
@@ -1391,7 +1391,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val) && !isNaN(float4Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_interfaces/RBXGotoPosition",
+        messageType: "nepi_interfaces/GotoPosition",
         data: { 
           x_meters: float1Val,
           y_meters: float2Val,
@@ -1412,7 +1412,7 @@ class ROSConnectionStore {
     if (!isNaN(float1Val) && !isNaN(float2Val) && !isNaN(float3Val) && !isNaN(float4Val)) {
       this.publishMessage({
         name: namespace,
-        messageType: "nepi_interfaces/RBXGotoLocation",
+        messageType: "nepi_interfaces/GotoLocation",
         data: { 
           lat: float1Val,
           long: float2Val,

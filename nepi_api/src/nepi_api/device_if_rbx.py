@@ -34,8 +34,10 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from pygeodesy.ellipsoidalKarney import LatLon
 
-from nepi_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, RBXMotorControl, \
-     RBXGotoPose, RBXGotoPosition, RBXGotoLocation, RBXMotorControl
+from nepi_interfaces.msg import DeviceRBXInfo, DeviceRBXStatus 
+from nepi_interfaces.msg import AxisControls, ErrorBounds
+from nepi_interfaces.msg import MotorControl
+from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorControl, GotoErrors
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
@@ -115,7 +117,7 @@ class RBXRobotIF:
 
     # Define class variables
     ready = False
-    status_msg=RBXStatus()
+    status_msg=DeviceRBXStatus()
 
     factory_device_name = ''
 
@@ -172,14 +174,12 @@ class RBXRobotIF:
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  axisControls,getBatteryPercentFunction,
                  states,getStateIndFunction,setStateIndFunction,
-                 data_source_description = 'control_system',
-                 data_ref_description = 'control_system',
                  modes,getModeIndFunction,setModeIndFunction,
                  checkStopFunction,
                  setup_actions, setSetupActionIndFunction,
                  go_actions, setGoActionIndFunction,
-                 date_source_description = 'control_system',
-                 data_ref_description = 'body_fixed',
+                 data_source_description = 'control_system',
+                 data_ref_description = 'control_system',
                  getHomeFunction=None,setHomeFunction=None,
                  manualControlsReadyFunction=None,
                  getMotorControlRatios=None,
@@ -255,7 +255,7 @@ class RBXRobotIF:
         self.status_msg.process_last = "None"
         self.status_msg.ready = False
         self.status_msg.battery = 0
-        errors_msg = RBXGotoErrors()
+        errors_msg = GotoErrors()
         errors_msg.x_m = 0
         errors_msg.y_m = 0
         errors_msg.z_m = 0
@@ -267,7 +267,7 @@ class RBXRobotIF:
         self.status_msg.errors_prev = errors_msg
         self.status_msg.last_error_message = ""
 
-        self.rbx_info=RBXInfo()
+        self.rbx_info=DeviceRBXInfo()
         self.rbx_info.connected = False
         self.rbx_info.serial_num = self.serial_num
         self.rbx_info.hw_version = self.hw_version
@@ -323,7 +323,7 @@ class RBXRobotIF:
           manual_controls_ready = self.manualControlsReadyFunction()
           if manual_controls_ready:
             if self.setMotorControlRatio is not None:
-              mc = RBXMotorControl()
+              mc = MotorControl()
               mc.speed_ratio = 0.0
               for i in range(len(self.getMotorControlRatios())):
                 mc.motor_ind = i
@@ -486,14 +486,14 @@ class RBXRobotIF:
             'rbx_info_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/info',
-                'msg': RBXInfo,
+                'msg': DeviceRBXInfo,
                 'qsize': 1,
                 'latch': True
             },
             'status_msg_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/status',
-                'msg': RBXStatus,
+                'msg': DeviceRBXStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -526,7 +526,7 @@ class RBXRobotIF:
             'set_goto_error_bounds': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/set_goto_error_bounds',
-                'msg': RBXErrorBounds,
+                'msg': ErrorBounds,
                 'qsize': None,
                 'callback': self.setErrorBoundsCb, 
                 'callback_args': ()
@@ -561,7 +561,7 @@ class RBXRobotIF:
             'setup_action': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/setup_action',
-                'msg': RBXMotorControl,
+                'msg': MotorControl,
                 'qsize': None,
                 'callback': self.setupActionCb, 
                 'callback_args': ()
@@ -570,7 +570,7 @@ class RBXRobotIF:
             'set_motor_control': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/set_motor_control',
-                'msg': RBXMotorControl,
+                'msg': MotorControl,
                 'qsize': None,
                 'callback': self.setMotorControlCb, 
                 'callback_args': ()
@@ -615,7 +615,7 @@ class RBXRobotIF:
             'set_home_current': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/set_home_current',
-                'msg': RBXGotoLocation,
+                'msg': GotoLocation,
                 'qsize': None,
                 'callback': self.setHomeCurrentCb, 
                 'callback_args': ()
@@ -624,7 +624,7 @@ class RBXRobotIF:
             'goto_location': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/goto_location',
-                'msg': RBXGotoLocation,
+                'msg': GotoLocation,
                 'qsize': None,
                 'callback': self.gotoLocationCb, 
                 'callback_args': ()
@@ -632,7 +632,7 @@ class RBXRobotIF:
             'goto_position': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/goto_position',
-                'msg': RBXGotoPosition,
+                'msg': GotoPosition,
                 'qsize': None,
                 'callback': self.gotoPositionCb, 
                 'callback_args': ()
@@ -640,7 +640,7 @@ class RBXRobotIF:
             'goto_pose': {
                 'namespace': self.node_namespace,
                 'topic': 'rbx/goto_pose',
-                'msg': RBXGotoPose,
+                'msg': GotoPose,
                 'qsize': None,
                 'callback': self.gotoPoseCb, 
                 'callback_args': ()
@@ -900,7 +900,7 @@ class RBXRobotIF:
     def factoryResetCb(self):
         self.settings_if.factory_reset_settings()
         if self.setMotorControlRatio is not None:
-          mc = RBXMotorControl()
+          mc = MotorControl()
           mc.speed_ratio = 0.0
           for i in range(len(self.getMotorControlRatios())):
             mc.motor_ind = i
@@ -1380,7 +1380,7 @@ class RBXRobotIF:
     
     def publishInfo(self):
         self.rbx_info.device_name = self.node_if.get_param('device_name')
-        error_bounds = RBXErrorBounds()
+        error_bounds = ErrorBounds()
         error_bounds.max_distance_error_m = self.node_if.get_param('max_error_m')
         error_bounds.max_rotation_error_deg = self.node_if.get_param('max_error_deg')
         error_bounds.min_stabilize_time_s = self.node_if.get_param('stabilized_sec')
@@ -1859,7 +1859,7 @@ class RBXRobotIF:
     ### Function for updating current goto error values
     def update_current_errors(self,error_list):
       if len(error_list) == 7:
-        errors_msg = RBXGotoErrors()
+        errors_msg = GotoErrors()
         errors_msg.x_m = error_list[0]
         errors_msg.y_m = error_list[1]
         errors_msg.z_m = error_list[2]
@@ -1874,7 +1874,7 @@ class RBXRobotIF:
 
     ### Function for updating last goto error values
     def update_prev_errors(self):
-        errors_msg = RBXGotoErrors()
+        errors_msg = GotoErrors()
         errors_msg.x_m = self.status_msg.errors_current.x_m
         errors_msg.y_m = self.status_msg.errors_current.y_m
         errors_msg.z_m = self.status_msg.errors_current.z_m
@@ -1892,7 +1892,7 @@ class RBXRobotIF:
     def get_motor_controls_status_msg(self,motor_controls):
       mcs = []
       for i in range(len(motor_controls)):
-        mc = RBXMotorControl()
+        mc = MotorControl()
         mc.motor_ind = i
         mc.speed_ratio = motor_controls[i]
         mcs.append(mc)

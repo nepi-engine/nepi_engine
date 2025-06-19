@@ -209,7 +209,7 @@ class NepiDeviceControls extends Component {
     }
     var listener = this.props.ros.setupStatusListener(
           namespace + "/status",
-          "nepi_interfaces/RBXStatus",
+          "nepi_interfaces/DeviceRBXStatus",
           this.controlsStatusListener
         )
     this.setState({ controlsStatusListener : listener})

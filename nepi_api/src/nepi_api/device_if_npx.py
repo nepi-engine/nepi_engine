@@ -32,7 +32,7 @@ from nepi_interfaces.msg import UpdateNavPoseTopic
 
 from geometry_msgs.msg import Vector3
 
-from nepi_interfaces.msg import NPXStatus
+from nepi_interfaces.msg import DeviceNPXStatus
 from nepi_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
 
@@ -122,6 +122,8 @@ class NPXDeviceIF:
   settings_if = None
   save_data_if = None
 
+  status_msg = DeviceNPXStatus()
+  
   update_rate = DEFAULT_UPDATE_RATE
   frame_3d = DEFAULT_3D_FRAME
   frame_nav = DEFAULT_NAV_FRAME
@@ -170,8 +172,8 @@ class NPXDeviceIF:
   tr_source_ref_description = 'data_reference'
   tr_end_ref_description = 'nepi_frame'
 
-  data_source_description = 'imaging_sensor'
-  data_ref_description = 'sensor'
+  data_source_description = 'navpose_sensor'
+  data_ref_description = 'data_reference'
   device_mount_description = 'fixed'
   mount_desc = 'None'
 
@@ -185,12 +187,10 @@ class NPXDeviceIF:
                 device_info,
                 capSettings=None, factorySettings=None, 
                 settingUpdateFunction=None, getSettingsFunction=None,
-                data_source_description = 'imaging_sensor',
-                data_ref_description = 'sensor',
+                data_source_description = 'navpose_sensor',
+                data_ref_description = 'data_reference',
                 frame_3d = 'sensor_frame', frame_nav = 'ENU',
                 frame_altitude = 'WGS84', frame_depth = 'DEPTH',
-                data_source_description = 'navpose_sensor',
-                data_ref_description = 'sensor',
                 getNavPoseCb = None,
                 get3DTransformCb = None,
                 max_navpose_update_rate = DEFAULT_UPDATE_RATE,
@@ -392,7 +392,7 @@ class NPXDeviceIF:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/status',
-                'msg': NPXStatus,
+                'msg': DeviceNPXStatus,
                 'qsize': 1,
                 'latch': True
             }

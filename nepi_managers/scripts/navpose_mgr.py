@@ -38,7 +38,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
@@ -103,6 +103,7 @@ class NavPoseMgr(object):
             'msgs': [],
         }
 
+    node_if = None
     data_products_list = ['navpose']
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     navpose_dict['frame_3d'] = 'nepi_frame'
@@ -111,7 +112,7 @@ class NavPoseMgr(object):
     last_npdata_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     mgr_namespace = ""
-    status_msg = NavPoseMgrStatus()
+    status_msg = MgrNavPoseStatus()
 
     set_pub_rate = FACTORY_PUB_RATE_HZ
 
@@ -244,7 +245,7 @@ class NavPoseMgr(object):
             'status_pub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
-                'msg': NavPoseMgrStatus,
+                'msg': MgrNavPoseStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -584,7 +585,7 @@ class NavPoseMgr(object):
         for name in self.connect_dict.keys():
             comp_names.append(name)
 
-            comp_info = NavPoseMgrCompInfo()
+            comp_info = MgrNavPoseCompInfo()
             comp_info.name = name
             comp_info.available_topics = avail_topics_dict[name]['topics']
             comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']

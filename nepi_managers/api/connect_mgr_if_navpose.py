@@ -31,7 +31,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_interfaces.msg import NavPoseMgrStatus,NavPoseMgrCompInfo
+from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
@@ -214,7 +214,7 @@ class ConnectMgrNavPoseIF:
             'status_sub': {
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
-                'msg': NavPoseMgrStatus,
+                'msg': MgrNavPoseStatus,
                 'qsize': 1,
                 'callback': self._navposeDataStatusCb
             },

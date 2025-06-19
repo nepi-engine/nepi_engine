@@ -21,7 +21,7 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
-from nepi_interfaces.msg import AiDetectorMgrStatus
+from nepi_interfaces.msg import MgrAiDetectorStatus
 from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_interfaces.srv import SystemStorageFolderQuery
@@ -184,7 +184,7 @@ class AiDetectorIF:
  
  
 
-        self.status_msg = AiDetectorMgrStatus()
+        self.status_msg = MgrAiDetectorStatus()
         self.det_status_msg = AiDetectorStatus()
 
 
@@ -351,7 +351,7 @@ class AiDetectorIF:
                 'latch': False
             },
             'status_pub': {
-                'msg': AiDetectorMgrStatus,
+                'msg': MgrAiDetectorStatus,
                 'namespace': self.node_namespace,
                 'topic': 'status',
                 'qsize': 1,

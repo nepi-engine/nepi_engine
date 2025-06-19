@@ -16,7 +16,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import LSXStatus
+from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
@@ -47,7 +47,7 @@ class LSXDeviceIF:
 
     ready = False
 
-    status_msg = LSXStatus()
+    status_msg = DeviceLSXStatus()
 
     getStatusFunction = None
     device_name = ""
@@ -307,7 +307,7 @@ class LSXDeviceIF:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'lsx/status',
-                'msg': LSXStatus,
+                'msg': DeviceLSXStatus,
                 'qsize': 1,
                 'latch': True
             }
@@ -539,8 +539,9 @@ class LSXDeviceIF:
         return self.ready   
 
 
+    def get_blank_status_msg(self):
+        return DeviceLSXStatus()
 
-    nepi_sdk.sleep
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
         self.node_if.set_param('standby_enabled', self.init_standby_enabled)
@@ -567,7 +568,7 @@ class LSXDeviceIF:
         self.node_if.set_param('mount_desc', self.mount_desc)
 
 
-  def initCb(self,do_updates = False):
+    def initCb(self,do_updates = False):
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
@@ -576,7 +577,7 @@ class LSXDeviceIF:
 
 
 
-  def resetCb(self,do_updates = True):
+    def resetCb(self,do_updates = True):
       if self.node_if is not None:
         self.node_if.reset_params()
       if self.save_data_if is not None:
@@ -585,7 +586,7 @@ class LSXDeviceIF:
           self.settings_if.reset_settings(update_status = False, update_params = True)
       self.initCb()
 
-  def factoryResetCb(self,do_updates = True):
+    def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
         self.node_if.factory_reset_params()
       if self.save_data_if is not None:
@@ -630,16 +631,16 @@ class LSXDeviceIF:
     def publish_status(self):
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
-      # update status values from device
-      blink_interval = self.node_if.get_param('blink_interval_sec')
-      if self.getStatusFunction is not None:
-        status_msg=self.getStatusFunction()
-        status_msg.user_name = self.node_if.get_param('device_name')
-        status_msg.on_off_state = self.node_if.get_param('on_off_state')
-        try:
-          self.node_if.publish_pub('status_pub',status_msg)
-        except Exception as e:
-          self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
+        # update status values from device
+        blink_interval = self.node_if.get_param('blink_interval_sec')
+        if self.getStatusFunction is not None:
+            status_msg=self.getStatusFunction()
+            status_msg.user_name = self.node_if.get_param('device_name')
+            status_msg.on_off_state = self.node_if.get_param('on_off_state')
+            try:
+                self.node_if.publish_pub('status_pub',status_msg)
+            except Exception as e:
+                self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
 
     '''

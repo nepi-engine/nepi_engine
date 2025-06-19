@@ -55,125 +55,126 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs 
 
 ## Generate messages in the 'msg' folder
 add_message_files(FILES
-    AiModelMgrStatus.msg
-    Annotation.msg
-    Reset.msg
-    SaveDataStatus.msg
-    SaveDataRate.msg
-    DatafileCtrl3DX.msg
-    RangeWindow.msg
+    AbsolutePanTiltWaypoint.msg
+    AiDetectorInfo.msg
+    AiDetectorStatus.msg
+    AiPoseStatus.msg
+    AiSegmentorStatus.msg
     Angle3DX.msg
+    Annotation.msg
+    AppsStatus.msg
+    AppStatus.msg
     AutoManualSelection3DX.msg
+    AutoStartEnabled.msg
+    AxisControls.msg
     BoundingBox.msg
     BoundingBox3D.msg
     BoundingBoxes.msg
     BoundingBoxes3D.msg
-    Frame3DTransform.msg
-    Frame3DTransformStatus.msg
-    Frame3DTransforms.msg
-    IDXStatus.msg
-    HwTrigInCfg.msg
-    HwTrigOutCfg.msg
-    TestPatternCfg.msg
-    PeriodicSwTrig.msg
-    NavPose.msg
-    NavPoseTrack.msg
-    NavPoseStatus.msg
-    NavPoseLocation.msg    
-    NavPoseHeading.msg
-    NavPoseOrientation.msg
-    NavPosePosition.msg
-    NavPoseAltitude.msg
-    NavPoseDepth.msg
-    NavPoseMgrStatus.msg
-    NavPoseMgrCompInfo.msg
-    StampedString.msg
-    SystemStatus.msg
-    SystemDefs.msg
-    WarningFlags.msg
-    TimeUpdate.msg
-    TimeStatus.msg
-    OotStatus.msg
-    NEPILinkStatus.msg
-    ObjectCount.msg
-    Setting.msg
-    Settings.msg
-    SettingsStatus.msg
-    SettingCap.msg
-    SettingCaps.msg
-    StringArray.msg
-    StringArrays.msg
-    StringEnable.msg
-    Offset.msg
-    RUISettings.msg
-    SonarFieldOfView.msg
-    TargetData.msg
-    TargetsData.msg
-    TargetLocalization.msg
-    TargetLocalizations.msg
-    ImageSize.msg
-    AutoStartEnabled.msg
-    WifiCredentials.msg
-    PanTiltPosition.msg
-    PanTiltLimits.msg
-    PanTiltOffsets.msg
-    PTXStatus.msg
-    SingleAxisTimedMove.msg
-    AbsolutePanTiltWaypoint.msg
-    AxisControls.msg
-    RBXErrorBounds.msg
-    RBXGotoErrors.msg
-    RBXGotoPose.msg
-    RBXGotoPosition.msg
-    RBXGotoLocation.msg
-    RBXMotorControl.msg
-    RBXInfo.msg
-    RBXStatus.msg
-    LSXStatus.msg
+    DataDepthMap.msg
+    DataDepthMapStatus.msg
+    DatafileCtrl3DX.msg
+    DataImage.msg
+    DataImageStatus.msg
+    DataNavPose.msg
+    DataNavPoseStatus.msg
+    DataPointcloud.msg
+    DataPointcloudStatus.msg
+    DataIntensityMapStatus.msg
+    DataIntensityMapStatus.msg
+    DeviceIDXStatus.msg
+    DeviceLSXStatus.msg
+    DeviceNPXStatus.msg
+    DevicePTXStatus.msg
+    DeviceRBXInfo.msg
+    DeviceRBXStatus.msg
     DriversStatus.msg
     DriverStatus.msg
-    UpdateState.msg
-    UpdateRatio.msg
-    UpdateRangeWindow.msg
-    UpdateOrder.msg
-    UpdateOption.msg
-    UpdateFrame3DTransform.msg
-    UpdateTopic.msg
-    UpdateNavPoseTopic.msg
-    AppsStatus.msg
-    AppStatus.msg
-    AiDetectorMgrStatus.msg
-    AiDetectorInfo.msg
-    AiDetectorStatus.msg
-    AiSegmentorStatus.msg
-    AiPoseStatus.msg
-    ImageMuxInput.msg
-    ImageMuxSequence.msg
+    ErrorBounds.msg
+    FilenameConfig.msg
+    Frame3DTransform.msg
+    Frame3DTransforms.msg
+    Frame3DTransformStatus.msg
+    GotoErrors.msg
+    GotoLocation.msg
+    GotoPose.msg
+    GotoPosition.msg
+    HwTrigInCfg.msg
+    HwTrigOutCfg.msg
     ImageSelection.msg
+    ImageSize.msg
+    ImageWindow.msg
+    ImageWindowRatios.msg
+    Message.msg
+    MgrAiDetectorStatus.msg
+    MgrAiModelStatus.msg
+    MgrNavPoseCompInfo.msg
+    MgrNavPoseStatus.msg
+    MotorControl.msg
+    NavPose.msg
+    NavPoseAltitude.msg
+    NavPoseDepth.msg
+    NavPoseHeading.msg
+    NavPoseLocation.msg
+    NavPoseOrientation.msg
+    NavPosePosition.msg
+    NavPoseTrack.msg
+    ObjectCount.msg
+    Offset.msg
     OnvifDeviceCfg.msg
     OnvifDeviceStatus.msg
+    OotStatus.msg
+    PanTiltLimits.msg
+    PanTiltOffsets.msg
+    PanTiltPosition.msg
+    PeriodicSwTrig.msg
     PointcloudProcessStatus.msg
     PointcloudRenderStatus.msg
     PointcloudSelectionStatus.msg
-    Message.msg
+    RangeWindow.msg
+    Reset.msg
+    RUISettings.msg
+    SaveDataRate.msg
+    SaveDataStatus.msg
+    Setting.msg
+    SettingCap.msg
+    SettingCaps.msg
+    Settings.msg
+    SettingsStatus.msg
+    SingleAxisTimedMove.msg
+    FieldOfView.msg
+    StampedString.msg
+    StringArray.msg
+    StringArrays.msg
+    StringEnable.msg
+    SystemDefs.msg
     SystemState.msg
     SystemStatesStatus.msg
+    SystemStatus.msg
     SystemTrigger.msg
     SystemTriggersStatus.msg
-    NPXStatus.msg
-    FilenameConfig.msg
-    ImageStatus.msg
-    DepthMapStatus.msg
-    PointcloudStatus.msg
-    SonarStatus.msg
-    ImageWindow.msg
-    ImageWindowRatios.msg
+    TargetData.msg
+    TargetLocalization.msg
+    TargetLocalizations.msg
+    TargetsData.msg
+    TestPatternCfg.msg
+    TimeStatus.msg
+    TimeUpdate.msg
+    UpdateFrame3DTransform.msg
+    UpdateNavPoseTopic.msg
+    UpdateOption.msg
+    UpdateOrder.msg
+    UpdateRangeWindow.msg
+    UpdateRatio.msg
+    UpdateState.msg
+    UpdateTopic.msg
+    WarningFlags.msg
+    WifiCredentials.msg
 
 )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-    FILES
+add_service_files(FILES
     ConvertRawTstamp.srv
     ParamsReset.srv
     SystemDefsQuery.srv

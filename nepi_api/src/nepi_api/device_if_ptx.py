@@ -20,7 +20,7 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow
-from nepi_interfaces.msg import PTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
@@ -66,7 +66,7 @@ class PTXActuatorIF:
     settings_if = None
     save_data_if = None
 
-    status_msg = PTXStatus()
+    status_msg = DevicePTXStatus()
 
     has_position_feedback = False
     has_absolute_positioning = False
@@ -412,7 +412,7 @@ class PTXActuatorIF:
             'home_position/tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': 0.0
-            }
+            },
             'reverse_pan_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factory_controls_dict['reverse_pan_enabled']
@@ -460,7 +460,7 @@ class PTXActuatorIF:
             'max_auto_tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
-            }
+            },
             'mount_desc': {
                 'namespace': self.node_namespace,
                 'factory_val': 'None'
@@ -486,7 +486,7 @@ class PTXActuatorIF:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/status',
-                'msg': PTXStatus,
+                'msg': DevicePTXStatus,
                 'qsize': 10,
                 'latch': False
             }
@@ -671,7 +671,7 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
-            }
+            },
             'reset_mount_desc': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/reset_mount_description',

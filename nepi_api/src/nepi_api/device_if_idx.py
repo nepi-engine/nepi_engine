@@ -26,7 +26,7 @@ from nepi_sdk import nepi_devices
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
 
-from nepi_interfaces.msg import IDXStatus, RangeWindow
+from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_interfaces.msg import Frame3DTransform
@@ -84,7 +84,7 @@ class IDXDeviceIF:
     # Define class variables
     ready = False
 
-    status_msg = IDXStatus()
+    status_msg = DeviceIDXStatus()
     node_if = None
     settings_if = None
     save_data_if = None
@@ -349,7 +349,7 @@ class IDXDeviceIF:
             'frame_3d': {
                 'namespace': self.node_namespace,
                 'factory_val': self.frame_3d
-            }
+            },
             'pt_mounted': {
                 'namespace': self.node_namespace,
                 'factory_val': False
@@ -387,7 +387,7 @@ class IDXDeviceIF:
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/status',
-                'msg': IDXStatus,
+                'msg': DeviceIDXStatus,
                 'qsize': 1,
                 'latch': True
             }
@@ -1486,7 +1486,7 @@ class IDXDeviceIF:
                         #********************
                         frame_3d = self.frame_3d
                             if frame_3d != 'sensor_frame'
-                            transform = self.get_3d_transform()
+                                transform = self.get_3d_transform()
                             if transform != self.ZERO_TRANSFORM:   
                                 o3d_pc = self.transformPointcloud(o3d_pc,transform)
                             if frame_3d == 'world_frame':
