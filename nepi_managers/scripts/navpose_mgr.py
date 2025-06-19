@@ -610,7 +610,8 @@ class NavPoseMgr(object):
 
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
-        self.node_if.publish_pub('status_pub',self.status_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub',self.status_msg)
 
     #######################
     # Private Members
