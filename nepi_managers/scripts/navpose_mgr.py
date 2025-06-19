@@ -603,7 +603,7 @@ class NavPoseMgr(object):
             comp_info.last_time = connect_dict[name]['last_time']
             transform = connect_dict[name]['transform']
 
-            comp_info.transform = convert_transform_list2msg(transform, source_ref_description = 'data_source', end_ref_description = 'nepi_frame')
+            comp_info.transform = nepi_nav.convert_transform_list2msg(transform, source_ref_description = 'data_source', end_ref_description = 'nepi_frame')
 
             comp_infos.append(comp_info)
         self.status_msg.comp_names = comp_names
