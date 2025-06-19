@@ -144,7 +144,7 @@ class PTXActuatorIF:
 
     data_source_description = 'pan_tilt'
     data_ref_description = 'tilt_axis_center'
-    end_description = 'nepi_frame'
+    data_end_description = 'nepi_frame'
     device_mount_description = 'fixed'
     mount_desc = 'None'
     
@@ -1677,8 +1677,8 @@ class PTXActuatorIF:
         #self.status_msg.frame_3d = self.frame_3d
         transform = self.get_3d_transform()
         transform_msg = nepi_nav.convert_transform_list2msg(transform)
-        transform_msg.source_description = self.tr_source_ref_description
-        transform_msg.end_description = self.tr_end_ref_description
+        transform_msg.source_ref_description = self.tr_source_ref_description
+        transform_msg.end_ref_description = self.tr_end_ref_description
         self.status_msg.frame_3d_transform = transform_msg
         #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
 
@@ -1689,7 +1689,8 @@ class PTXActuatorIF:
 
     
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
-        self.node_if.publish_pub('status_pub',self.status_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub',self.status_msg)
         pub_time = nepi_utils.get_time() - start_time
 
 

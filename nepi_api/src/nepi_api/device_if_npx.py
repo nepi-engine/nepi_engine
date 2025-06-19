@@ -122,6 +122,8 @@ class NPXDeviceIF:
   settings_if = None
   save_data_if = None
   transform_if = None
+  npx_if = None
+  navpose_if = None
 
   status_msg = DeviceNPXStatus()
   
@@ -608,11 +610,11 @@ class NPXDeviceIF:
       return desc
 
 
-    def get_3d_transform(self):
-        transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
-        return transform
+  def get_3d_transform(self):
+      transform = nepi_nav.ZERO_TRANSFORM
+      if self.transform_if is not None:
+          transform = self.transform_if.get_3d_transform()
+      return transform
 
 
   def get_navpose_dict(self):

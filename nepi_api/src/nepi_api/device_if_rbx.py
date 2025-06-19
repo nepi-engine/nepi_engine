@@ -134,6 +134,8 @@ class RBXRobotIF:
     settings_if = None
     save_data_if = None
     transform_if = None
+    npx_if = None
+    navpose_if = None
 
     status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
     check_save_data_interval_sec = float(1)/CHECK_SAVE_DATA_RATE_HZ
