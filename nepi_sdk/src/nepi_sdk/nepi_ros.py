@@ -760,7 +760,7 @@ def sec_from_msg_stamp(msg_stamp):
   if hasattr(msg_stamp,'sec'):
     sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
     time_sec = float(sec_str)
-  elif isinstance(timestamp,int) == True:
+  elif isinstance(msg_stamp,int) == True:
     msg_stamp_str = str(msg_stamp)
     if len(msg_stamp_str) > 9:
       sec_str = msg_stamp_str[0:-9]
