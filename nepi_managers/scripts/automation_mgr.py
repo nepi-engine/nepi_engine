@@ -65,6 +65,7 @@ class AutomationManager(object):
     scripts_log_folder = SCRIPTS_LOG_FOLDER
 
     processes = {}
+    scripts = []
     script_counters = {}
     script_configs = {} # Dictionary of dictionaries  
 

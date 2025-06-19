@@ -24,14 +24,14 @@ from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from nav_msgs.msg import Odometry
 from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_interfaces.msg import DataNavPose, DataNavPoseStatus
+from nepi_interfaces.msg import NavPose, DataNavPose, DataNavPoseStatus
 from nepi_interfaces.msg import DataImage, DataImageStatus
 from nepi_interfaces.msg import DataDepthMap, DataDepthMapStatus
 from nepi_interfaces.msg import DataIntensityMap, DataIntensityMapStatus
@@ -636,20 +636,28 @@ class NavPoseIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'status_pub': {
-                'msg': DataNavPoseStatus,
-                'namespace': self.namespace,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            },
             'navpose_pub': {
                 'msg': DataNavPose,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
+            },
+            'data_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'data',
+                'qsize': 1,
+                'latch': False
+            },
+            'status_pub': {
+                'msg': DataNavPoseStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
             }
+
         }
 
         if self.pub_location == True:
@@ -935,10 +943,11 @@ class NavPoseIF:
                 success = False
             if data_msg is not None:
                 msg = DataNavPose()
-                #msg.status = self.status_msg
+                msg.status = self.status_msg
                 msg.data = data_msg
                 try:
                     self.node_if.publish_pub('navpose_pub', msg)
+                    self.node_if.publish_pub('data_pub', data_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                     success = False
@@ -1084,6 +1093,7 @@ class NavPoseIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('navpose_pub')
+        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -1505,10 +1515,17 @@ class ImageIF:
 
         # Pubs Config Dict ####################
         PUBS_DICT = {
-            'image_pub_': {
+            'image_pub': {
                 'msg': DataImage,
                 'namespace': self.namespace,
                 'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'data_pub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': 'data',
                 'qsize': 1,
                 'latch': False
             },
@@ -1927,9 +1944,10 @@ class ImageIF:
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
         self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
         msg = DataImage()
-        #msg.status = self.status_msg
+        msg.status = self.status_msg
         msg.data = ros_img
         self.node_if.publish_pub('image_pub', msg)
+        self.node_if.publish_pub('data_pub', ros_img)
 
         if navpose_dict is not None and self.navpose_if is not None:
             self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
@@ -1968,9 +1986,10 @@ class ImageIF:
         sec = nepi_sdk.sec_from_timestamp(timestamp)
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
         msg = DataImage()
-        #msg.status = self.status_msg
+        msg.status = self.status_msg
         msg.data = ros_img
         self.node_if.publish_pub('image_pub', msg)
+        self.node_if.publish_pub('data_pub', ros_img)
 
 
     def unregister(self):
@@ -2341,6 +2360,7 @@ class ImageIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('image_pub')
+        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -2801,8 +2821,8 @@ class DepthMapIF:
     def __init__(self, namespace = None,
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
-                enable_image_pub = True,
-                max_image_pub_rate = 5,
+                enable_data_pub = True,
+                max_data_pub_rate = 5,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -2846,7 +2866,7 @@ class DepthMapIF:
         '''
 
         ###############################
-        if enable_image_pub == True:
+        if enable_data_pub == True:
             ## Get folder info
             #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
             #success = self.mgr_sys_srv_if.wait_for_services()
@@ -2865,7 +2885,7 @@ class DepthMapIF:
             img_pub_file = self.img_pub_file
             img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
         
-            if os.path.exists(img_pub_file_path) == False or enable_image_pub == False:
+            if os.path.exists(img_pub_file_path) == False or enable_data_pub == False:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
             else: 
                 #Try and launch node
@@ -2912,8 +2932,8 @@ class DepthMapIF:
         self.status_msg.get_latency_time = 0
         self.status_msg.pub_latency_time = 0
         self.status_msg.process_time = 0
-        self.status_msg.image_pub_enabled = enable_image_pub
-        self.status_msg.max_image_pub_rate = max_image_pub_rate
+        self.status_msg.data_pub_enabled = enable_data_pub
+        self.status_msg.max_data_pub_rate = max_data_pub_rate
 
 
 
@@ -2933,7 +2953,7 @@ class DepthMapIF:
         self.PARAMS_DICT = {
             'max_img_pub_rate': {
                 'namespace': self.node_namespace,
-                'factory_val': max_image_pub_rate
+                'factory_val': max_data_pub_rate
             },
             'render_start_range_ratio': {
                 'namespace': self.node_namespace,
@@ -2952,6 +2972,13 @@ class DepthMapIF:
                 'msg': DataDepthMap,
                 'namespace': self.namespace,
                 'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'data_pub': {
+                'msg': Image,
+                'namespace': self.namespace,
+                'topic': 'data',
                 'qsize': 1,
                 'latch': False
             },
@@ -3116,9 +3143,10 @@ class DepthMapIF:
             ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
             self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             msg = DataDepthMap()
-            #msg.status = self.status_msg
+            msg.status = self.status_msg
             msg.data = ros_img
             self.node_if.publish_pub('depth_map_pub', msg)
+            self.node_if.publish_pub('data_pub', ros_img)
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
             latency = (current_time - timestamp)
@@ -3157,7 +3185,7 @@ class DepthMapIF:
             self.status_msg.max_range_m = self.max_range_m
 
             if do_updates == True:
-                self.status_msg.max_image_pub_rate = self.node_if.get_param('max_img_pub_rate')
+                self.status_msg.max_data_pub_rate = self.node_if.get_param('max_img_pub_rate')
                 self.status_msg.range_ratios.start_range = self.node_if.get_param('start_range_ratio')
                 self.status_msg.range_ratios.stop_range = self.node_if.get_param('stop_range_ratio')
 
@@ -3201,6 +3229,7 @@ class DepthMapIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('depth_map_pub')
+        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -3271,8 +3300,8 @@ class PointcloudIF:
     def __init__(self, namespace = None,
                 data_source_description = 'pointcloud_sensor',
                 data_ref_description = 'sensor',
-                enable_image_pub = True,
-                max_image_pub_rate = 5,
+                enable_data_pub = True,
+                max_data_pub_rate = 5,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -3311,7 +3340,7 @@ class PointcloudIF:
 
 
         '''
-        if enable_image_pub == True:
+        if enable_data_pub == True:
             ## Get folder info
             #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
             #success = self.mgr_sys_srv_if.wait_for_services()
@@ -3332,7 +3361,7 @@ class PointcloudIF:
             img_pub_file = self.img_pub_file
             img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
         
-            if os.path.exists(img_pub_file_path) == False or enable_image_pub == False:
+            if os.path.exists(img_pub_file_path) == False or enable_data_pub == False:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
             else: 
                 #Try and launch node
@@ -3383,8 +3412,8 @@ class PointcloudIF:
         self.status_msg.get_latency_time
         self.status_msg.pub_latency_time
         self.status_msg.process_time
-        self.status_msg.image_pub_enabled = enable_image_pub
-        self.status_msg.max_image_pub_rate = max_image_pub_rate
+        self.status_msg.data_pub_enabled = enable_data_pub
+        self.status_msg.max_data_pub_rate = max_data_pub_rate
         self.status_msg.standard_image_sizes = nepi_img.STANDARD_IMAGE_SIZES
 
 
@@ -3405,7 +3434,7 @@ class PointcloudIF:
         self.PARAMS_DICT = {
             'max_img_pub_rate': {
                 'namespace': self.node_namespace,
-                'factory_val': max_image_pub_rate
+                'factory_val': max_data_pub_rate
             },
             'render_image_width': {
                 'namespace': self.node_namespace,
@@ -3459,6 +3488,13 @@ class PointcloudIF:
                 'msg': DataPointcloud,
                 'namespace': self.namespace,
                 'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'data_pub': {
+                'msg': PointCloud2,
+                'namespace': self.namespace,
+                'topic': 'data',
                 'qsize': 1,
                 'latch': False
             },
@@ -3688,9 +3724,10 @@ class PointcloudIF:
 
             if not nepi_sdk.is_shutdown():
                 msg = DataPointcloud()
-                #msg.status = self.status_msg
-                msg.data = ros_img
-                self.node_if.publish_pub('pointcloud_pub', msg)
+                msg.status = self.status_msg
+                msg.data = ros_pc
+                self.node_if.publish_pub('data_pub', msg)
+                self.node_if.publish_pub('data_pub', ros_pc)
 
             if self.last_pub_time is None:
                 self.last_pub_time = nepi_utils.get_time()
@@ -3722,7 +3759,7 @@ class PointcloudIF:
             if self.status_msg is None:
                 self.status_msg =  DataPointcloudStatus()
             if do_updates == True:
-                self.status_msg.max_image_pub_rate = self.node_if.get_param('max_img_pub_rate')
+                self.status_msg.max_data_pub_rate = self.node_if.get_param('max_img_pub_rate')
                 self.status_msg.image_width = self.node_if.get_param('render_image_width')
                 self.status_msg.image_height = self.node_if.get_param('render_image_height')
 
@@ -3803,6 +3840,7 @@ class PointcloudIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
+        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs

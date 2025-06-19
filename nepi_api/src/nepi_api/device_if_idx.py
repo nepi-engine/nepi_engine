@@ -1490,16 +1490,14 @@ class IDXDeviceIF:
                     acquiring = True
                     status, msg, o3d_pc, timestamp, frame_3d = dp_get_data()
                     if o3d_pc is not None:
-
-
                         #********************
                         frame_3d = self.frame_3d
-                            if frame_3d != 'sensor_frame'
-                                transform = self.get_3d_transform()
-                            if transform != self.ZERO_TRANSFORM:   
-                                o3d_pc = self.transformPointcloud(o3d_pc,transform)
-                            if frame_3d == 'world_frame':
-                                pass #  Need to implement
+                        if frame_3d != 'sensor_frame':
+                            transform = self.get_3d_transform()
+                        if transform != self.ZERO_TRANSFORM:   
+                            o3d_pc = self.transformPointcloud(o3d_pc,transform)
+                        if frame_3d == 'world_frame':
+                            pass #  Need to implement
                         
                         #********************
 
@@ -1596,7 +1594,7 @@ class IDXDeviceIF:
         self.status_msg.avail_pantilt_topics = self.avail_pts
 
         self.status_msg.pantilt_mounted = self.pt_mounted
-        if self.pt_topic is in self.avail_pts and self.pt_mounted == True:
+        if self.pt_topic in self.avail_pts and self.pt_mounted == True:
             pt_topic = self.pt_topic
             pt_name = self.pt_topic.split('/ptx')[0]
             pt_name = pt_name.replace(self.base_namespace)
@@ -1638,7 +1636,7 @@ class IDXDeviceIF:
 
     def registerPTX(self,pt_topic):
         success = False
-        if self.connect_ptx_if not None and pt_topic in self.avail_pts:
+        if self.connect_ptx_if is not None and pt_topic in self.avail_pts:
             self.connect_ptx_if = ConnectPTXDeviceIF(pt_topic)
             self.device_mount_description = 'pan_tilt'
             success = True
@@ -1657,7 +1655,7 @@ class IDXDeviceIF:
                 pass
         return success
 
-    def getPtStatus(self,status_dict)
+    def getPtStatus(self,status_dict):
         self.pt_connected = True
         self.pt_pan_deg = status_dict['pan_now_deg']
         self.pt_tilt_deg = status_dict['tilt_now_deg']
