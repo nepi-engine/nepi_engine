@@ -824,7 +824,8 @@ class NPXDeviceIF:
       self.status_msg.frame_3d_transform = transform_msg
       self.status_msg.update_rate = self.update_rate
 
-      self.node_if.publish_pub('status_pub', self.status_msg)
+      if self.node_if is not None:
+        self.node_if.publish_pub('status_pub', self.status_msg)
 
   #######################
   # Node Cleanup Function

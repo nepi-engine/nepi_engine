@@ -815,7 +815,7 @@ class Transform3DIF:
                 namespace = None,
                 source_ref_description = '',
                 end_ref_description = '',
-                get_3d_tranform_function = None,
+                get_3d_transform_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -848,7 +848,7 @@ class Transform3DIF:
 
         self.source = source_ref_description
         self.end = end_ref_description
-        self.get_tr = get_3d_tranform_function
+        self.get_tr = get_3d_transform_function
         if self.get_tr is not None:
             self.supports_updates = False
 
@@ -893,7 +893,7 @@ class Transform3DIF:
                 'qsize': 1,
                 'latch': True
             },
-            'tranform_pub': {
+            'transform_pub': {
                 'namespace': self.namespace,
                 'msg': Frame3DTransform,
                 'topic': '',
@@ -999,7 +999,7 @@ class Transform3DIF:
 
     def set_3d_transform(self,transform_list):
         if self.supports_updates == True:
-            if len(tranform_list) == 7:
+            if len(transform_list) == 7:
                 self.transform = transform_list
                 self.publish_transform()
                 self.node_if.set_param('transform',transform_list)
