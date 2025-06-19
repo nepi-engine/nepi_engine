@@ -28,7 +28,7 @@ from nav_msgs.msg import Odometry
 
 from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
 
-from nepi_interfaces.msg import DataNavPose
+from nepi_interfaces.msg import NavPose, DataNavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -573,44 +573,46 @@ def convert_navpose_dict2msg(npdata_dict):
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     try:
+      np_msg = NavPose()
+      np_msg.header.stamp = nepi_sdk.get_msg_stamp()
+
+      np_msg.frame_3d = npdata_dict['frame_3d']
+      np_msg.frame_nav = npdata_dict['frame_nav']
+      np_msg.frame_altitude = npdata_dict['frame_altitude']
+      np_msg.frame_depth = npdata_dict['frame_depth']
+
+      np_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
+
+      np_msg.has_heading = npdata_dict['has_heading']
+      np_msg.time_heading = npdata_dict['time_heading']
+      np_msg.heading_deg = npdata_dict['heading_deg']
+
+      np_msg.has_orientation = npdata_dict['has_orientation']
+      np_msg.time_orientation = npdata_dict['time_orientation']
+      np_msg.roll_deg = npdata_dict['roll_deg']
+      np_msg.pitch_deg = npdata_dict['pitch_deg']
+      np_msg.yaw_deg = npdata_dict['yaw_deg']
+
+      np_msg.has_position = npdata_dict['has_position']
+      np_msg.time_position = npdata_dict['time_position']
+      np_msg.x_m = npdata_dict['x_m']
+      np_msg.y_m = npdata_dict['y_m']
+      np_msg.z_m = npdata_dict['z_m']
+
+      np_msg.has_location = npdata_dict['has_location']
+      np_msg.time_location = npdata_dict['time_location']
+      np_msg.latitude = npdata_dict['latitude']
+      np_msg.longitude = npdata_dict['longitude']
+
+      np_msg.has_altitude = npdata_dict['has_altitude']
+      np_msg.time_altitude = npdata_dict['time_altitude']
+      np_msg.altitude_m = npdata_dict['altitude_m']
+
+      np_msg.has_depth = npdata_dict['has_depth']
+      np_msg.time_depth = npdata_dict['time_depth']
+      np_msg.depth_m = npdata_dict['depth_m']
       npdata_msg = DataNavPose()
-      npdata_msg.header.stamp = nepi_sdk.get_msg_stamp()
-
-      npdata_msg.frame_3d = npdata_dict['frame_3d']
-      npdata_msg.frame_nav = npdata_dict['frame_nav']
-      npdata_msg.frame_altitude = npdata_dict['frame_altitude']
-      npdata_msg.frame_depth = npdata_dict['frame_depth']
-
-      npdata_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
-
-      npdata_msg.has_heading = npdata_dict['has_heading']
-      npdata_msg.time_heading = npdata_dict['time_heading']
-      npdata_msg.heading_deg = npdata_dict['heading_deg']
-
-      npdata_msg.has_orientation = npdata_dict['has_orientation']
-      npdata_msg.time_orientation = npdata_dict['time_orientation']
-      npdata_msg.roll_deg = npdata_dict['roll_deg']
-      npdata_msg.pitch_deg = npdata_dict['pitch_deg']
-      npdata_msg.yaw_deg = npdata_dict['yaw_deg']
-
-      npdata_msg.has_position = npdata_dict['has_position']
-      npdata_msg.time_position = npdata_dict['time_position']
-      npdata_msg.x_m = npdata_dict['x_m']
-      npdata_msg.y_m = npdata_dict['y_m']
-      npdata_msg.z_m = npdata_dict['z_m']
-
-      npdata_msg.has_location = npdata_dict['has_location']
-      npdata_msg.time_location = npdata_dict['time_location']
-      npdata_msg.latitude = npdata_dict['latitude']
-      npdata_msg.longitude = npdata_dict['longitude']
-
-      npdata_msg.has_altitude = npdata_dict['has_altitude']
-      npdata_msg.time_altitude = npdata_dict['time_altitude']
-      npdata_msg.altitude_m = npdata_dict['altitude_m']
-
-      npdata_msg.has_depth = npdata_dict['has_depth']
-      npdata_msg.time_depth = npdata_dict['time_depth']
-      npdata_msg.depth_m = npdata_dict['depth_m']
+      npdata_msg.data = np_msg
     except Exception as e:
       npdata_msg = None
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
