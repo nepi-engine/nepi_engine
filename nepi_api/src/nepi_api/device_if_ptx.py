@@ -1447,7 +1447,7 @@ class PTXActuatorIF:
         navpose_dict = None
         if navpose_dict is None:
             if self.nav_mgr_if is not None:
-                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                navpose_dict = self.nav_mgr_if.get_navpose_dict()
         if navpose_dict is not None:
             output_frame_3d = 'nepi_frame'
         else:

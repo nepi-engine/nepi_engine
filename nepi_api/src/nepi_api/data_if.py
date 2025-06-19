@@ -1850,7 +1850,7 @@ class ImageIF:
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
         elif self.nav_mgr_ready == True:
-            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+            navpose_dict = self.nav_mgr_if.get_navpose_dict()
         else:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         return navpose_dict

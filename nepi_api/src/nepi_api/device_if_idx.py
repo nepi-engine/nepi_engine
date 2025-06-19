@@ -766,7 +766,7 @@ class IDXDeviceIF:
                 self.transform_if.set_end_ref_description('pantilt_center_tilt_axis')
         if navpose_dict is None:
             if self.nav_mgr_if is not None:
-                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                navpose_dict = self.nav_mgr_if.get_navpose_dict()
                 if navpose_dict is not None:
                     frame_3d = 'nepi_frame'
                     self.transform_if.set_end_ref_description('nepi_frame')
