@@ -29,6 +29,9 @@ import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
+
+import NepiIF3DTransform from "./Nepi_IF_3DTransform"
+
 import {  createShortValuesFromNamespaces, createMenuListFromStrList, onDropdownSelectedSendIndex,
   onUpdateSetStateValue, onEnterSendFloatValue} from "./Utilities"
 
@@ -319,7 +322,7 @@ class NepiDeviceRBX extends Component {
       const NoneOption = <Option>None</Option>
       const deviceSelected = (this.state.currentRBXNamespace != null)
       const has_fake_gps = (this.state.rbx_capabilities !== null)? this.state.rbx_capabilities.has_fake_gps : false
-  
+      const namespace = this.state.currentRBXNamespace
       return (
         <React.Fragment>
         <Section title={"Device Slection and Configuration"}>
@@ -329,7 +332,7 @@ class NepiDeviceRBX extends Component {
               <Label title={"Device"}>
                     <Select
                       onChange={this.onTopicRBXSelected}
-                      value={this.state.currentRBXNamespace}
+                      value={namespace}
                     >
                       {this.createTopicOptions(Object.keys(rbxDevices))}
                     </Select>
@@ -353,7 +356,7 @@ class NepiDeviceRBX extends Component {
                       <Label title="Enable Fake GPS">
                         <Toggle
                         checked={this.state.fake_gps_enabled===true}
-                        onClick={() => sendBoolMsg(this.state.currentRBXNamespace + "/enable_fake_gps", this.state.fake_gps_enabled === false)}>
+                        onClick={() => sendBoolMsg(namespace + "/enable_fake_gps", this.state.fake_gps_enabled === false)}>
                         </Toggle>
                       </Label>
                     </div>
@@ -361,11 +364,11 @@ class NepiDeviceRBX extends Component {
                 <Label title={"Image_Source"}>
                           <Select
                             id="image_source"
-                            onChange={(event) => sendStringMsg(this.state.currentRBXNamespace + "/set_image_topic",event.target.value)}
+                            onChange={(event) => sendStringMsg(namespace + "/set_image_topic",event.target.value)}
                             value={this.state.image_source}
                             >
-                            {this.state.currentRBXNamespace
-                            ? this.createImageOptions(this.state.currentRBXNamespace)
+                            {namespace
+                            ? this.createImageOptions(namespace)
                             : NoneOption}
                           </Select>
                           </Label>
@@ -380,7 +383,7 @@ class NepiDeviceRBX extends Component {
                           <Label title="Image Status Overlay">
                             <Toggle
                             checked={this.state.image_status_overlay===true}
-                            onClick={() => sendBoolMsg(this.state.currentRBXNamespace + "/enable_image_overlay", this.state.image_status_overlay === false)}>
+                            onClick={() => sendBoolMsg(namespace + "/enable_image_overlay", this.state.image_status_overlay === false)}>
                             </Toggle>
                           </Label>
   
@@ -488,12 +491,24 @@ class NepiDeviceRBX extends Component {
                     </Label>
   
                     <ButtonMenu>
-                      <Button onClick={() => sendGeoPointMsg(this.state.currentRBXNamespace + "/set_home", this.state.home_lat, this.state.home_long, this.state.home_alt )}>{"Set Home"}</Button>
+                      <Button onClick={() => sendGeoPointMsg(namespace + "/set_home", this.state.home_lat, this.state.home_long, this.state.home_alt )}>{"Set Home"}</Button>
                     </ButtonMenu>
   
                     </Column>
                     </Columns>
   
+                    <Columns>
+                  <Column>
+
+                          <NepiIF3DTransform
+                              namespace={namespace}
+                              supports_updates={true}
+                              title={"Nepi_IF_3DTransform"}
+                          />
+
+                  </Column>
+              </Columns>
+
   
              </div>
           </Section>
@@ -506,6 +521,7 @@ class NepiDeviceRBX extends Component {
     const NoneOption = <Option>None</Option>
     const current_state = (this.state.rbx_capabilities !== null && this.state.states_list !== null)? this.state.states_list[this.state.state_index] : "None"
     const current_mode = (this.state.rbx_capabilities !== null && this.state.modes_list !== null)? this.state.modes_list[this.state.mode_index] : "None"
+    const namespace = this.state.currentRBXNamespace
     return (
       <React.Fragment>
       <Section title={"Setup Controls"}>
@@ -516,7 +532,7 @@ class NepiDeviceRBX extends Component {
              <Label title={"Set Mode"}>
              <Select
                id="device_mode"
-               onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,this.state.currentRBXNamespace + "/set_mode")}
+               onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,namespace + "/set_mode")}
                value={current_mode}
              >
                {this.state.modes_list ? this.state.modes_menu : NoneOption}
@@ -527,7 +543,7 @@ class NepiDeviceRBX extends Component {
              <Label title={"Set State"}>
              <Select
                id="device_state"
-               onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,this.state.currentRBXNamespace + "/set_state")}
+               onChange={(event) => onDropdownSelectedSendIndex.bind(this)(event,namespace + "/set_state")}
                value={current_state}
              >
                {this.state.states_list ? this.state.states_menu : NoneOption}

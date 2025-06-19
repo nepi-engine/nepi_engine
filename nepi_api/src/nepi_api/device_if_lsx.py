@@ -25,8 +25,9 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
-#from nepi_api.data_if import NavPoseIF
-#from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
+from nepi_api.data_if import NavPoseIF
+from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
+
 
 class LSXDeviceIF:
     STATUS_UPDATE_RATE_HZ = 1
@@ -71,6 +72,10 @@ class LSXDeviceIF:
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
+    frame_3d = 'nepi_frame'
+    tr_source_ref_description = 'light_center'
+    tr_end_ref_description = 'nepi_frame'
+
     data_source_description = 'lighting_device'
     data_ref_description = 'sensor'
     device_mount_description = 'fixed'
@@ -113,11 +118,10 @@ class LSXDeviceIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting LSX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
-        '''
         ## Connect NEPI NavPose Manager
         self.nav_mgr_if = ConnectMgrNavPoseIF()
         ready = self.nav_mgr_if.wait_for_ready()
-        '''
+
         ##############################
         # Initialize Class Variables
 
@@ -426,6 +430,18 @@ class LSXDeviceIF:
 
         ready = self.node_if.wait_for_ready()
 
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+
+        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+                        supports_updates = True,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
@@ -471,6 +487,16 @@ class LSXDeviceIF:
                         )
         '''
  
+        # Setup navpose data IF
+        nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        log_name = 'navpose',
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
         time.sleep(1)
 
         ###############################

@@ -56,75 +56,19 @@ class NepiDeviceNPXControls extends Component {
       const frame_altitude = message.frame_altitude
       const frame_depth = message.frame_depth
       const has_loc = message.has_location
-      const set_loc = message.set_as_location_source
       const has_head = message.has_heading
-      const set_head = message.set_as_heading_source
       const has_orien = message.has_orientation
-      const set_orien = message.set_as_orientation_source
       const has_pos = message.has_position
-      const set_pos = message.set_as_position_source
       const has_alt = message.has_altitude
-      const set_alt = message.set_as_altitude_source
       const has_depth = message.has_depth
-      const set_depth = message.set_as_depth_source
 
       const has_transform = message.has_transform
+      const updates = message.supports_transform_updates
     
       return (
         <Section title={"NavPose Controls"}>
           
-          <div hidden={!has_loc}>    
-            <Label title="Set as Location Source">
-              <Toggle
-                checked={set_loc===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_location_source",!set_loc)}>
-              </Toggle>
-            </Label>
-          </div>
 
-          <div hidden={!has_head}>    
-            <Label title="Set as Heading Source">
-              <Toggle
-                checked={set_head===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_heading_source",!set_head)}>
-              </Toggle>
-            </Label>
-          </div>
-
-          <div hidden={!has_orien}>    
-            <Label title="Set as Orientation Source">
-              <Toggle
-                checked={set_orien===true}
-                onClick={() => {this.props.ros.sendBoolMsg(namespace + "/set_as_orientation_source", !set_orien);}}>
-              </Toggle>
-            </Label>
-          </div>
-          <div hidden={!has_pos}>    
-            <Label title="Set as Position Source">
-              <Toggle
-                checked={set_pos===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_position_source",!set_pos)}>
-              </Toggle>
-            </Label>
-          </div>
-
-          <div hidden={!has_alt}>    
-            <Label title="Set as Altitude Source">
-              <Toggle
-                checked={set_alt===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_altitude_source",!set_alt)}>
-              </Toggle>
-            </Label>
-          </div>
-
-          <div hidden={!has_depth}>    
-            <Label title="Set as Depth Source">
-              <Toggle
-                checked={set_depth===true}
-                onClick={() => this.props.ros.sendBoolMsg(namespace + "/set_as_depth_source",!set_depth)}>
-              </Toggle>
-            </Label>
-          </div>
 
 
           <Columns>
@@ -133,6 +77,7 @@ class NepiDeviceNPXControls extends Component {
                           <NepiIF3DTransform
                               namespace={namespace}
                               has_transform={has_transform}
+                              supports_transform_updates={updates}
                               title={"Nepi_IF_3DTransform"}
                           />
 
@@ -140,16 +85,35 @@ class NepiDeviceNPXControls extends Component {
             </Columns>
 
 
+                  <ButtonMenu>
+                        <div hidden={!has_loc}>    
+                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_location_source")}>{"Set as Location Source"}</Button>
+                        </div>
 
-          <Columns>
-            <Column>
-            </Column>
-            <Column>
-              <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(namespace + "/reset_controls")}>{"Reset Controls"}</Button>
-              </ButtonMenu>
-            </Column>
-          </Columns>
+                        <div hidden={!has_head}>    
+                               <Button onClick={() => sendTriggerMsg(namespace + "/set_as_heading_source")}>{"Set as Heading Source"}</Button>
+                        </div>
+
+                        <div hidden={!has_orien}>    
+                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_orientation_source")}>{"Set as Orientation Source"}</Button>
+                        </div>
+                  </ButtonMenu>
+
+
+                  <ButtonMenu>
+                       <div hidden={!has_pos}>    
+                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_position_source")}>{"Set as Position Source"}</Button>
+                        </div>
+
+
+                        <div hidden={!has_alt}>    
+                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_altitude_source")}>{"Set as Altitude Source"}</Button>
+                        </div>
+
+                        <div hidden={!has_depth}>    
+                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_depth_source")}>{"Set as Depth Source"}</Button>
+                        </div>
+                  </ButtonMenu>
 
         </Section>
       )

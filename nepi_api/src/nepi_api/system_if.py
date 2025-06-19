@@ -814,7 +814,7 @@ class Transform3DIF:
                 namespace = None,
                 source_description = '',
                 end_description = '',
-                supports_updates = True,
+                get_3d_tranform_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -847,7 +847,9 @@ class Transform3DIF:
 
         self.source = source_description
         self.end = end_description
-        self.supports_updates = supports_updates
+        self.get_tr = get_3d_tranform_function
+        if self.get_tr is not None:
+            self.supports_updates = False
 
         self.status_msg = self.supports_updates
         ##############################  
@@ -901,7 +903,7 @@ class Transform3DIF:
 
         # Subs Config Dict ####################
 
-        if supports_updates == False:
+        if self.supports_updates == False:
             self.SUBS_DICT = None
         else:
             self.SUBS_DICT = {
@@ -976,8 +978,16 @@ class Transform3DIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def get_zero_3d_transform(self):
+        return ZERO_TRANSFORM
+
     def get_3d_transform(self):
-        return self.transform
+        transform = None
+        if self.get_tr is not None:
+            transform = self.get_tr()
+        if transform is None:
+            transform = self.transform
+        return transform
     
     def get_3d_transform_msg(self):
         tr = self.get_3d_transform()
@@ -987,15 +997,17 @@ class Transform3DIF:
         return tr_msg
 
     def set_3d_transform(self,transform_list):
-        if len(tranform_list) == 7:
-            self.transform = transform_list
-            self.publish_transform()
-            self.node_if.set_param('transform',transform_list)
+        if self.supports_updates == True:
+            if len(tranform_list) == 7:
+                self.transform = transform_list
+                self.publish_transform()
+                self.node_if.set_param('transform',transform_list)
 
     def clear_3d_transform(self):
-        self.transform = ZERO_TRANSFORM
-        self.publish_transform()
-        self.node_if.set_param('transform',transform_list)
+        if self.supports_updates == True:
+            self.transform = ZERO_TRANSFORM
+            self.publish_transform()
+            self.node_if.set_param('transform',transform_list)
 
 
     def get_source_description(self):
@@ -1016,7 +1028,8 @@ class Transform3DIF:
 
 
     def publish_transform(self):
-        transform_msg = nepi_nav.convert_transform_list2msg(self.transform,
+        transform = self.get_3d_transform()
+        transform_msg = nepi_nav.convert_transform_list2msg(transform,
                                                 source_description = self.source,
                                                 end_description = self.end)
         if self.node_if is not None:

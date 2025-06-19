@@ -157,10 +157,14 @@ class RBXRobotIF:
     rbx_image_source_last = "None"
     init_image_status_overlay = False
 
-  data_source_description = 'imaging_sensor'
-  data_description = 'sensor'
-  device_mount_description = 'fixed'
-  mount_desc = 'None'
+    frame_3d = 'nepi_frame'
+    tr_source_ref_description = 'system_center'
+    tr_end_ref_description = 'nepi_frame'
+
+    data_source_description = 'control_system'
+    data_ref_description = 'control_system'
+    device_mount_description = 'system_mounted'
+    mount_desc = 'None'
 
     ### IF Initialization
     log_name = "RBXRobotIF"
@@ -168,12 +172,14 @@ class RBXRobotIF:
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  axisControls,getBatteryPercentFunction,
                  states,getStateIndFunction,setStateIndFunction,
+                 data_source_description = 'control_system',
+                 data_ref_description = 'control_system',
                  modes,getModeIndFunction,setModeIndFunction,
                  checkStopFunction,
                  setup_actions, setSetupActionIndFunction,
                  go_actions, setGoActionIndFunction,
                  date_source_description = 'control_system',
-                 data_description = 'body_fixed',
+                 data_ref_description = 'body_fixed',
                  getHomeFunction=None,setHomeFunction=None,
                  manualControlsReadyFunction=None,
                  getMotorControlRatios=None,
@@ -181,11 +187,8 @@ class RBXRobotIF:
                  autonomousControlsReadyFunction=None,
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
-                 capSettingsNavPose=None, factorySettingsNavPose=None, 
-                 settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
-                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
-                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
-                 navpose_update_rate = 10, 
+                 getNavPoseCb=None,
+                 max_navpose_update_rate = 10,
                  setFakeGPSFunction = None,
                 log_name = None,
                 log_name_list = [],
@@ -225,7 +228,7 @@ class RBXRobotIF:
         self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
 
         self.data_source_description = data_source_description
-        self.data_description = data_description
+        self.data_ref_description = data_ref_description
 
         self.states = states
         self.getStateIndFunction = getStateIndFunction
@@ -244,7 +247,7 @@ class RBXRobotIF:
 
         # Initialize status message
         self.status_msg.data_source_description = self.data_source_description
-        self.status_msg.data_description = self.data_description
+        self.status_msg.data_ref_description = self.data_ref_description
         self.status_msg.device_mount_description = self.get_mount_description() 
 
 
@@ -723,6 +726,18 @@ class RBXRobotIF:
         ready = self.node_if.wait_for_ready()
 
 
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'rbx')
+
+        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+                        supports_updates = True,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
         # Setup Data IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
         self.image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
@@ -818,9 +833,9 @@ class RBXRobotIF:
                         )
 
         # Setup navpose data IF
-        np_namespace = self.node_namespace
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'rbx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_description = self.data_description,
+                        data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -1974,7 +1989,7 @@ class RBXRobotIF:
 
         self.status_str_msg = status_str_msg
         if not nepi_sdk.is_shutdown():
-            self.status_msg.data_description = self.data_description
+            self.status_msg.data_ref_description = self.data_ref_description
             self.node_if.publish_pub('status_msg_pub', self.status_msg)
             self.node_if.publish_pub('status_msg_str_pub', str(status_str_msg))
 

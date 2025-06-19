@@ -19,6 +19,8 @@ import Select, { Option } from "./Select"
 import Styles from "./Styles"
 import BooleanIndicator from "./BooleanIndicator"
 
+
+
 import {convertStrToStrList, onEnterSetStateFloatValue, createMenuListFromStrList, onUpdateSetStateValue, onDropdownSelectedSetState} from "./Utilities"
 
 @inject("ros")
@@ -201,12 +203,12 @@ class NepiDeviceControls extends Component {
 
   // Function for configuring and subscribing to Status
   updateControlsStatusListener() {
-    const Namespace = this.props.rbxNamespace
+    const namespace = this.props.rbxNamespace
     if (this.state.controlsStatusListener ) {
       this.state.controlsStatusListener.unsubscribe()
     }
     var listener = this.props.ros.setupStatusListener(
-          Namespace + "/status",
+          namespace + "/status",
           "nepi_interfaces/RBXStatus",
           this.controlsStatusListener
         )
@@ -262,7 +264,7 @@ class NepiDeviceControls extends Component {
   render() {
     const {  sendTriggerMsg, sendFloatGotoPoseMsg, sendFloatGotoPositionMsg, sendFloatGotoLocationMsg } = this.props.ros
     const NoneOption = <Option>None</Option>
-
+    const namespace = this.props.rbxNamespace
     return (
       <Section title={"Process Controls"}>
 
@@ -348,7 +350,7 @@ class NepiDeviceControls extends Component {
             <Column>
 
             <ButtonMenu>
-                <Button onClick={() => sendTriggerMsg(this.props.rbxNamespace + "/go_stop")}>{"stop"}</Button>
+                <Button onClick={() => sendTriggerMsg(namespace + "/go_stop")}>{"stop"}</Button>
             </ButtonMenu>
 
             </Column>
@@ -357,7 +359,7 @@ class NepiDeviceControls extends Component {
             <div hidden={(!this.state.has_go_home)}>
             <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendTriggerMsg(this.props.rbxNamespace + "/go_home"):
+                  sendTriggerMsg(namespace + "/go_home"):
                   this.doNothing()
                 }>{"Go Home"}</Button>
               </ButtonMenu>
@@ -437,7 +439,7 @@ class NepiDeviceControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() => this.state.autonomous_ready ? 
-                  sendFloatGotoPoseMsg(this.props.rbxNamespace + "/goto_pose", this.state.roll_deg, this.state.pitch_deg, this.state.yaw_deg_pose ) :
+                  sendFloatGotoPoseMsg(namespace + "/goto_pose", this.state.roll_deg, this.state.pitch_deg, this.state.yaw_deg_pose ) :
                   this.doNothing()
                   }>{"Send"}</Button>
               </ButtonMenu>
@@ -491,7 +493,7 @@ class NepiDeviceControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendFloatGotoPositionMsg(this.props.rbxNamespace + "/goto_position", this.state.x_meters, this.state.y_meters, this.state.z_meters, this.state.yaw_deg_position ):
+                  sendFloatGotoPositionMsg(namespace + "/goto_position", this.state.x_meters, this.state.y_meters, this.state.z_meters, this.state.yaw_deg_position ):
                   this.doNothing()
                   }>{"Send"}</Button>
               </ButtonMenu>
@@ -553,7 +555,7 @@ class NepiDeviceControls extends Component {
 
               <ButtonMenu>
                 <Button onClick={() =>  this.state.autonomous_ready ? 
-                  sendFloatGotoLocationMsg(this.props.rbxNamespace + "/goto_location", this.state.location_lat, this.state.location_long, this.state.altitude_meters, this.state.yaw_deg_location ):
+                  sendFloatGotoLocationMsg(namespace + "/goto_location", this.state.location_lat, this.state.location_long, this.state.altitude_meters, this.state.yaw_deg_location ):
                   this.doNothing()
                 }>{"Send"}</Button>
               </ButtonMenu>

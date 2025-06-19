@@ -16,6 +16,8 @@ float32 update_rate
 
 string frame_3d
 
+
+bool has_transform
 bool supports_transform_updates
 
 # Transform from device native ref frame to the nepi_frame,
@@ -28,22 +30,11 @@ string source_frame_depth
 
 
 bool has_location
-bool set_as_location_source
-
 bool has_heading
-bool set_as_heading_source
-
 bool has_orientation
-bool set_as_orientation_source
-
 bool has_position
-bool set_as_position_source
-
 bool has_altitude
-bool set_as_altitude_source
-
 bool has_depth
-bool set_as_depth_source
 
 
 

@@ -44,50 +44,10 @@ from nepi_sdk import nepi_settings
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
+
 from nepi_api.data_if import NavPoseIF
 from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
-
-EXAMPLE_LOCATION_DATA_DICT = {
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long, Altitude
-    'latitude': 47.080909,
-    'longitude': -120.8787889
-}
-
-EXAMPLE_HEADING_DATA_DICT = {
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
-}
-
-EXAMPLE_POSITION_DATA_DICT = {
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
-}
-
-EXAMPLE_ORIENTATION_DATA_DICT = {
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees ENU
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
-}
-
-
-EXAMPLE_ALTITUDE_DATA_DICT = {
-    'time_altitude': nepi_utils.get_time(),
-    'altitude_m': 12.321,
-}
-
-EXAMPLE_DEPTH_DATA_DICT = {
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive distance from surface in meters
-    'depth_m': 0
-}
 
 EXAMPLE_NAVPOSE_DATA_DICT = {
     'frame_3d': 'nepi_frame',
@@ -204,8 +164,11 @@ class NPXDeviceIF:
 
   navpose_mgr_if = None
 
-  data_ref_description = 'sensor_frame'
-  end_ref_description = 'nepi_frame'
+
+
+  frame_3d = 'nepi_frame'
+  tr_source_ref_description = 'sensor'
+  tr_end_ref_description = 'nepi_frame'
 
   data_source_description = 'imaging_sensor'
   data_ref_description = 'sensor'
@@ -213,12 +176,8 @@ class NPXDeviceIF:
   mount_desc = 'None'
 
   getNavPoseCb = None
-  getLocationCb = None
-  getHeadingCb = None
-  getPositionCb = None
-  getOrientationCb = None
-  getAltitudeCb = None
-  getDepthCb = None
+  get3DTransformCb = None
+  supports_transform_updates = True
 
   #######################
   ### IF Initialization
@@ -233,9 +192,7 @@ class NPXDeviceIF:
                 data_source_description = 'navpose_sensor',
                 data_ref_description = 'sensor',
                 getNavPoseCb = None,
-                getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
-                getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
-                getTransformCb = None,
+                get3DTransformCb = None,
                 max_navpose_update_rate = DEFAULT_UPDATE_RATE,
                 log_name = None,
                 log_name_list = [],
@@ -261,8 +218,9 @@ class NPXDeviceIF:
 
 
         ##############################    
-        #  Connect to navpose manager
-        self.navpose_mgr_if = ConnectMgrNavPoseIF()
+        ## Connect NEPI NavPose Manager
+        self.nav_mgr_if = ConnectMgrNavPoseIF()
+        ready = self.nav_mgr_if.wait_for_ready()
 
         ##############################
         # Initialize Class 
@@ -277,6 +235,12 @@ class NPXDeviceIF:
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
+        self.tr_source_ref_description = data_ref_description
+
+        self.get3DTransformCb = get3DTransformCb
+
+        self.supports_transform_updates = (get3DTransformCb is None)
+        self.has_transform = True
 
         if frame_3d is not None:
           self.frame_3d = frame_3d
@@ -290,7 +254,7 @@ class NPXDeviceIF:
         if frame_depth is not None:
           self.frame_depth = frame_depth
 
-
+        self.get3DTranformCb = get3DTranformCb
         ###
         self.getNavPoseCb = getNavPoseCb
         if self.getNavPose is not None:
@@ -301,35 +265,13 @@ class NPXDeviceIF:
                 pass
             if navpose_dict is None:
                 self.getNavPoseCb = None
-
-        if self.getNavPoseCb is None:
-            self.getLocationCb = getLocationCb
-            if self.getLocationCb is not None:
-            self.has_location = True  
-
-            self.getHeadingCb = getHeadingCb
-            if self.getHeadingCb is not None:
-            self.has_heading = True
-
-            self.getPositionCb = getPositionCb
-            if self.getPositionCb is not None:
-            self.has_position = True
-
-            self.getOrientationCb = getOrientationCb
-            if self.getOrientationCb is not None:
-            self.has_orientation = True
-
-            self.getAltitudeCb = getAltitudeCb
-            if self.getAltitudeCb is not None:
-            self.has_altitude = True
-
-            self.getDepthCb = getDepthCb
-            if self.getDepthCb is not None:
-            self.has_depth = True
-
-            self.getTransformCb = getTransformCb
-            if self.getTransformCb is not None:
-            self.supports_transform_updates = False
+            else:
+                self.has_location = navpose_dict['has_location'] 
+                self.has_heading = navpose_dict['has_heading'] 
+                self.has_orientation = navpose_dict['has_orientation'] 
+                self.has_position = navpose_dict['has_position'] 
+                self.has_altitude = navpose_dict['has_altitude'] 
+                self.has_depth = navpose_dict['has_depth'] 
 
         # Create capabilities report
         self.caps_report = NPXCapabilitiesQueryResponse()
@@ -339,7 +281,9 @@ class NPXDeviceIF:
         self.caps_report.has_location = self.has_location      
         self.caps_report.has_altitude = self.has_altitude
         self.caps_report.has_depth =  self.has_depth
-        self.caps_report.supports_transform_updates =  self.supports_transform_updates
+
+        self.caps_report.has_transform = self.has_transform
+        self.caps_report.supports_transform_updates = self.supports_transform_updates
 
         self.caps_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
 
@@ -373,6 +317,7 @@ class NPXDeviceIF:
 
         self.status_msg.frame_3d = self.frame_3d
 
+        self.status_msg.supports_transform_updates = self.supports_transform_updates
 
         self.status_msg.source_frame_nav = self.frame_nav
         self.status_msg.source_frame_altitude = self.frame_altitude
@@ -423,34 +368,6 @@ class NPXDeviceIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.update_rate
             },
-            'set_location_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_location_source
-            },
-            'set_heading_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_heading_source
-            },
-            'set_orientation_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_orientation_source
-            },
-            'set_position_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_position_source
-            },
-            'set_altitude_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_altitude_source
-            },
-            'set_depth_source': {
-                'namespace': self.node_namespace,
-                'factory_val': self.set_depth_source
-            },
-            'frame_transform': {
-                'namespace': self.node_namespace,
-                'factory_val': self.ZERO_TRANSFORM
-            }
             'mount_desc': {
                 'namespace': self.node_namespace,
                 'factory_val': 'None'
@@ -511,7 +428,7 @@ class NPXDeviceIF:
             'set_as_heading_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_heading_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setHeadSourceCb, 
                 'callback_args': ()
@@ -519,7 +436,7 @@ class NPXDeviceIF:
             'set_as_location_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_location_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setLocSourceCb, 
                 'callback_args': ()
@@ -527,7 +444,7 @@ class NPXDeviceIF:
             'set_as_position_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_position_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setPosSourceCb, 
                 'callback_args': ()
@@ -535,7 +452,7 @@ class NPXDeviceIF:
             'set_as_altitude_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_altitude_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setAltSourceCb, 
                 'callback_args': ()
@@ -543,7 +460,7 @@ class NPXDeviceIF:
             'set_as_orientation_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_orientation_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setOrienSourceCb, 
                 'callback_args': ()
@@ -551,7 +468,7 @@ class NPXDeviceIF:
             'set_as_depth_source': {
                 'namespace': self.node_namespace,
                 'topic': 'npx/set_as_depth_source',
-                'msg': Bool,
+                'msg': Empty,
                 'qsize': 1,
                 'callback': self._setDepthSourceCb, 
                 'callback_args': ()
@@ -573,24 +490,6 @@ class NPXDeviceIF:
                 'callback_args': ()
             }
         }
-
-        if self.supports_transform_updates == True:
-            self.SUBS_DICT['clear_frame_3d_transform'] = {
-                'namespace': self.node_namespace,
-                'topic': 'npx/clear_3d_transform',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._clearFrame3dTransformCb, 
-                'callback_args': ()
-            }
-            self.SUBS_DICT['set_frame_transform'] = {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_3d_transform',
-                'msg': Frame3DTransform,
-                'qsize': 1,
-                'callback': self._setFrame3dTransformCb, 
-                'callback_args': ()
-            },
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -605,6 +504,17 @@ class NPXDeviceIF:
 
         ready = self.node_if.wait_for_ready()
 
+
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+                        get_3d_tranform_function = self.get3DTransformCb,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
@@ -659,7 +569,6 @@ class NPXDeviceIF:
         self.initCb(do_updates = True)
 
         nepi_sdk.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
         ###############################
         # Finish Initialization
@@ -698,14 +607,9 @@ class NPXDeviceIF:
       return desc
 
 
-  def getFrame3dTransform(self):
-    return self.frame_transform
+  def get_3d_transform(self):
+    return self.transform_if.get_3d_transform()
 
-  def setFrame3dTransform(self, transform_list):
-      self.frame_transform = transform_list
-      self.publishStatus(do_updates=False) # Updated inline here 
-
-      self.node_if.set_param('frame_transform',  self.frame_transform)
 
   def get_navpose_dict(self):
     return self.navpose_dict
@@ -716,12 +620,12 @@ class NPXDeviceIF:
 
 
 
-    def updateDeviceNameCb(self, msg):
+  def updateDeviceNameCb(self, msg):
         self.msg_if.pub_info("Recived update message: " + str(msg))
         new_device_name = msg.data
         self.updateDeviceName(new_device_name)
 
-    def updateDeviceName(self, new_device_name):
+  def updateDeviceName(self, new_device_name):
         valid_name = True
         for char in self.BAD_NAME_CHAR_LIST:
             if new_device_name.find(char) != -1:
@@ -733,11 +637,11 @@ class NPXDeviceIF:
             self.publish_status(do_updates=False) # Updated inline here 
             self.node_if.set_param('device_name', new_device_name)
 
-    def resetDeviceNameCb(self,msg):
+  def resetDeviceNameCb(self,msg):
         self.msg_if.pub_info("Recived update message: " + str(msg))
         self.resetDeviceName()
 
-    def resetDeviceName(self):
+  def resetDeviceName(self):
         self.status_msg.device_name = self.device_name
         self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('device_name', self.device_name)
@@ -774,32 +678,6 @@ class NPXDeviceIF:
       self.node_if.set_param('frame_altitude',frame)
 
 
-  def _setFrame3dTransformCb(self, msg):
-      self.msg_if.pub_info("Recived 3D frame_transform update message: " + str(msg))
-      transform_msg = msg
-      x = transform_msg.translate_vector.x
-      y = transform_msg.translate_vector.y
-      z = transform_msg.translate_vector.z
-      roll = transform_msg.rotate_vector.x
-      pitch = transform_msg.rotate_vector.y
-      yaw = transform_msg.rotate_vector.z
-      heading = transform_msg.heading_offset
-      transform = transform_list
-      self.setFrame3dTransform(transform)
-
-
-
-
-  def _clearFrame3dTransformCb(self, msg):
-      self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
-      self.clearFrame3dTransform()
-
-  def clearFrame3dTransform(self):
-        self.frame_transform = self.ZERO_TRANSFORM
-        self.publishStatus(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_transform',  self.frame_transform)
-
-
   def setMountDescCb(self,msg):
       self.msg_if.pub_info("Recived set mount description message: " + str(msg))
       self.mount_desc = msg.data
@@ -815,63 +693,46 @@ class NPXDeviceIF:
 
   def _setLocSourceCb(self, msg):
       self.msg_if.pub_info("Recived set location source update message: " + str(msg))
-      enabled = msg.data
-      self.setLocSource(enabled)
+      self.setLocSource()
 
-  def setLocSource(self, enabled):
-      self.set_location_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_location_source',  enabled)
+  def setLocSource(self):
+      self._setNavPoseSource('location')
 
   def _setHeadSourceCb(self, msg):
       self.msg_if.pub_info("Recived set heading source update message: " + str(msg))
-      enabled = msg.data
-      self.setHeadSource(enabled)
+      self.setHeadSource()
 
-  def setHeadSource(self, enabled):
-      self.set_heading_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_heading_source',  enabled)
+  def setHeadSource(self):
+      self._setNavPoseSource('heading')
 
   def _setOrienSourceCb(self, msg):
       self.msg_if.pub_info("Recived set orientation source update message: " + str(msg))
-      enabled = msg.data
-      self.setOrienSource(enabled)
+      self.setOrienSource()
 
-  def setOrienSource(self, enabled):
-      self.set_orientation_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_orientation_source',  enabled)
+  def setOrienSource(self):
+      self._setNavPoseSource('orientation')
 
   def _setPosSourceCb(self, msg):
       self.msg_if.pub_info("Recived set position source update message: " + str(msg))
-      enabled = msg.data
-      self.setPosSource(enabled)
+      self.setPosSource()
 
-  def setPosSource(self, enabled):
-      self.set_position_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_position_source',  enabled)
+  def setPosSource(self):
+       self._setNavPoseSource('position')
+
 
   def _setAltSourceCb(self, msg):
       self.msg_if.pub_info("Recived set altitude source update message: " + str(msg))
-      enabled = msg.data
-      self.setAltSource(enabled)
+      self.setAltSource()
 
-  def setAltSource(self, enabled):
-      self.set_altitude_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_altitude_source',  enabled)
+  def setAltSource(self):
+      self._setNavPoseSource('altitude')
 
   def _setDepthSourceCb(self, msg):
       self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
-      enabled = msg.data
-      self.setDepthSource(enabled)
+      self.setDepthSource()
 
-  def setDepthSource(self, enabled):
-      self.set_depth_source = enabled
-      self.publishStatus(do_updates=False) # Updated inline here 
-      self.node_if.set_param('set_depth_source',  enabled)
+  def setDepthSource(self):
+      self._setNavPoseSource('depth')
 
   def publishStatus(self, do_updates=True):
       self._publishStatusCb(None)
@@ -880,17 +741,8 @@ class NPXDeviceIF:
       #self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
-        self.set_location_source = self.node_if.get_param('set_location_source')
-        self.set_heading_source = self.node_if.get_param('set_heading_source')
-        self.set_orientation_source = self.node_if.get_param('set_orientation_source')
-        self.set_position_source = self.node_if.get_param('set_position_source')
-        self.set_altitude_source = self.node_if.get_param('set_altitude_source')
-        self.set_depth_source = self.node_if.get_param('set_depth_source')
-
-        self.frame_transform = self.node_if.get_param('frame_transform')
-
+        self.update_rate = self.node_if.get_param('update_rate')
         self.mount_desc = self.node_if.get_param('mount_desc')
-
       if do_updates == True:
         pass
       self.publish_status()
@@ -920,72 +772,19 @@ class NPXDeviceIF:
 
 
   def _updateNavPoseDictCb(self,timer):     
-    
     if self.getNavPoseCb is not None:
         try:
-            self.navpose_dict = self.getNavPoseCb()
+            navpose_dict = self.getNavPoseCb()
         except:
             pass
-    else:
-        # Update Location
-        if self.has_location == True:
-        try:
-            data_dict = self.getLocationCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Location Cb: " + str(e), throttle_s = 5.0)
 
-        # Update Heading
-        if self.has_heading == True:
-        try:
-            data_dict = self.getHeadingCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Heading Cb: " + str(e), throttle_s = 5.0)
-
-        # Update Orientation
-        if self.has_orientation == True:
-        try:
-            data_dict = self.getOrientationCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Orientation Cb: " + str(e), throttle_s = 5.0)
-
-        # Update Position
-        if self.has_position == True:
-        try:
-            data_dict = self.getPositionCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Position Cb: " + str(e), throttle_s = 5.0)
-
-        # Update Altitude
-        if self.has_altitude == True:
-        try:
-            data_dict = self.getAltitudeCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Altitude Cb: " + str(e), throttle_s = 5.0)
-
-        # Update Depth
-        if self.has_depth == True:
-        try:
-            data_dict = self.getDepthCb()
-            for key in data_dict.keys():
-                self.navpose_dict[key] = data_dict[key]
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call get Depth Cb: " + str(e), throttle_s = 5.0)      
-
-
-    if self.navpose_dict is None:
-        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    if navpose_dict is None:
+        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     # publish navpose data
-    self.navpose_if.publish_navpose(self.navpose_dict, device_mount_description = self.get_mount_description())
+    transform = self.get_3d_transform()
+    self.navpose_dict = self.navpose_if.publish_navpose(self.navpose_dict, 
+                                            frame_3d_transform = transform,
+                                            device_mount_description = self.get_mount_description())
 
     # save data if needed
     timestamp = nepi_utils.get_time()
@@ -996,103 +795,24 @@ class NPXDeviceIF:
     nepi_sdk.start_timer_process(delay, self._updateNavPoseDictCb, oneshot = True)
 
 
-  def _updateNavPoseConnectCb(self,timer):     
+  def _setNavPoseSource(self,comp_name):     
     if self.navpose_mgr_if is not None:
-    
-        if self.get_frame_transform_function is not None:
-            self.frame_transform = self.getTransformCb()
-        transform = self.frame_transform
-
-        # Update Location
-        name = 'location'
+        name = comp_name
         topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_location_source)
-        is_set = copy.deepcopy(self.set_location_source)
-        self.was_location_source = is_set
-        if is_set == True:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif is_set == False and was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-
-        # Update Heading
-        name = 'heading'
-        topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_heading_source)
-        is_set = copy.deepcopy(self.set_heading_source)
-        self.was_heading_source = is_set
-        if is_set == True:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif is_set == False and was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-
-        # Update Orientation
-        name = 'orientation'
-        topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_orientation_source)
-        is_set = copy.deepcopy(self.set_orientation_source)
-        self.was_orientation_source = is_set
-        if is_set == True and was_set == False:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-
-
-        # Update position
-        name = 'position'
-        topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_position_source)
-        is_set = copy.deepcopy(self.set_position_source)
-        self.was_position_source = is_set
-        if is_set == True and was_set == False:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif is_set == False and was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-
-
-        # Update altitude
-        name = 'altitude'
-        topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_altitude_source)
-        is_set = copy.deepcopy(self.set_altitude_source)
-        self.was_altitude_source = is_set
-        if is_set == True and was_set == False:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif is_set == False and was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-
-
-        # Update depth
-        name = 'depth'
-        topic = self.node_name + '/navpose/' + name
-        was_set = copy.deepcopy(self.was_depth_source)
-        is_set = copy.deepcopy(self.set_depth_source)
-        self.was_depth_source = is_set
-        if is_set == True and was_set == False:
-            self.navpose_mgr_if.set_comp_topic(name,topic,transform_list = transform)
-        elif is_set == False and was_set == True:
-            self.navpose_mgr_if.clear_comp_topic(name)
-  
-    nepi_sdk.start_timer_process(1.0, self._updateNavPoseConnectCb, oneshot = True)
+        transform = self.get_3d_transform()
+        self.navpose_mgr_if.set_navpose_source(name,topic,transform_list = transform)
 
 
 
   def _publishStatusCb(self,timer):
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
-      self.status_msg.set_as_location_source = self.set_location_source
-      self.status_msg.set_as_heading_source = self.set_heading_source
-      self.status_msg.set_as_orientation_source = self.set_orientation_source
-      self.status_msg.set_as_position_source = self.set_position_source
-      self.status_msg.set_as_altitude_source = self.set_altitude_source
-      self.status_msg.set_as_depth_source = self.set_depth_source
 
-      transform_msg = nepi_nav.convert_transform_list2msg(self.frame_transform)
+      transform = self.get_3d_transform()
+      transform_msg = nepi_nav.convert_transform_list2msg(transform)
       transform_msg.source_ref_description = self.data_ref_description
       transform_msg.end_ref_description = 'nepi_frame'
       self.status_msg.frame_3d_transform = transform_msg
-      updates = self.get_frame_transform_function is None
-      self.status_msg.supports_transform_updates = updates
-
       self.status_msg.update_rate = self.update_rate
 
       self.node_if.publish_pub('status_pub', self.status_msg)

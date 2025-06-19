@@ -346,7 +346,7 @@ class ConnectMgrNavPoseIF:
     def get_comp_names(self):
         return nepi_nav.NAVPOSE_COMPONENTS
 
-    def set_comp_topic(self,name,topic,transform_list = None):
+    def set_navpose_source(self,name,topic,transform_list = None):
         if name in nepi_nav.NAVPOSE_COMPONENTS:
             msg = UpdateNavPoseTopic()
             msg.name = name

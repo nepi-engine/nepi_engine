@@ -561,7 +561,6 @@ class NavPoseIF:
         namespace = nepi_sdk.create_namespace(namespace,'navpose')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         
-
         self.pub_location = pub_location
         self.pub_heading = pub_heading
         self.pub_orientation = pub_orientation
@@ -819,144 +818,144 @@ class NavPoseIF:
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, timestamp = None, device_mount_description = 'fixed'):      
-        success = True
+    def publish_navpose(self,navpose_dict, 
+                        timestamp = None, 
+                        frame_3d_transform = None,
+                        device_mount_description = 'fixed'):      
+        np_dict = nepi_nav.BLANK_NAVPOSE_DICT
         if navpose_dict is None:
-            success = False
+            return np_dict
         else:
-            self.status_msg.device_mount_description = device_mount_description
-            self.status_msg.frame_3d = navpose_dict['frame_3d']
+            # Initialize np_dict here so it's available in both branches
             self.status_msg.source_frame_nav = navpose_dict['frame_nav']
             self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
             self.status_msg.source_frame_depth = navpose_dict['frame_depth']
-            has_subs = copy.deepcopy(self.has_subs)
-            
-            # Initialize np_dict here so it's available in both branches
-            np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            self.status_msg.device_mount_description = device_mount_description
+
             for key in np_dict.keys():
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
             
-            if has_subs == False:
-                self.status_msg.publishing = False
-            # Pub NavPose
-            else: 
-                self.msg_if.pub_debug("Blank navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-                if timestamp == None:
-                    timestamp = nepi_utils.get_time()
-                else:
-                    timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
-                current_time = nepi_utils.get_time()
-                get_latency = (current_time - timestamp)
-                self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+            current_time = nepi_utils.get_time()
+            get_latency = (current_time - timestamp)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-                # Start Img Pub Process
-                start_time = nepi_utils.get_time()   
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
 
+
+            # Transform navpose data frames to nepi standard frames
+            if np_dict['frame_nav'] != 'ENU':
+                if np_dict['frame_nav'] == 'NED':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+            if np_dict['frame_altitude'] != 'WGS84':
+                if np_dict['frame_altitude'] == 'AMSL':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+            if np_dict['frame_depth'] != 'MSL':
+                if np_dict['frame_depth'] == 'DEPTH':
+                    pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+            # Publish nav pose subs
+            if self.pub_location == True:
+                pub_name = 'location_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_location']
+                msg.latitude = np_dict['latitude']
+                msg.longitude = np_dict['longitude']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_heading == True:
+                pub_name = 'heading_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_heading']
+                msg.heading_deg = np_dict['heading_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_orientation == True:
+                pub_name = 'orientation_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_orientation']
+                msg.roll_deg = np_dict['roll_deg']
+                msg.pitch_deg = np_dict['pitch_deg']
+                msg.yaw_deg = np_dict['yaw_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_position == True:
+                pub_name = 'position_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_position']
+                msg.x_m = np_dict['x_m']
+                msg.y_m = np_dict['y_m']
+                msg.z_m = np_dict['z_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_altitude == True:
+                pub_name = 'altitude_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_altitude']
+                msg.altitude_m = np_dict['altitude_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_depth == True:
+                pub_name = 'depth_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.depth_m = np_dict['depth_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if frame_3d_transform is not None:
+                np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
+                        
+            try:
+                msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                success = False
+            if msg is not None:
                 try:
-                    msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+                    self.node_if.publish_pub('navpose_pub', msg)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                     success = False
-                if msg is not None:
-                    try:
-                       self.node_if.publish_pub('navpose_pub', msg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                        success = False
 
-                current_time = nepi_utils.get_time()
-                pub_latency = (current_time - timestamp)
-                process_time = (current_time - start_time)
-                self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+            current_time = nepi_utils.get_time()
+            pub_latency = (current_time - timestamp)
+            process_time = (current_time - start_time)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-                # Update Pub Stats
-                if self.last_pub_time is None:
-                    pub_time_sec = 1.0
-                    self.last_pub_time = nepi_utils.get_time()
-                else:
-                    cur_time = nepi_utils.get_time()
-                    pub_time_sec = cur_time - self.last_pub_time
-                    self.last_pub_time = cur_time
+            # Update Pub Stats
+            if self.last_pub_time is None:
+                pub_time_sec = 1.0
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
 
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
+            self.status_msg.frame_3d = navpose_dict['frame_3d']
+            self.status_msg.publishing = True
 
-                # Update Status Info
-                self.status_msg.publishing = True
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
 
-                # Transform navpose data frames to nepi standard frames
-                if np_dict['frame_nav'] != 'ENU':
-                    if np_dict['frame_nav'] == 'NED':
-                        nepi_nav.convert_navpose_ned2enu(np_dict)
-                if np_dict['frame_altitude'] != 'WGS84':
-                    if np_dict['frame_altitude'] == 'AMSL':
-                        nepi_nav.convert_navpose_amsl2wgs84(np_dict)
-                if np_dict['frame_depth'] != 'MSL':
-                    if np_dict['frame_depth'] == 'DEPTH':
-                        pass # need to add conversions                 
-
-                self.status_msg.pub_frame_nav = np_dict['frame_nav']
-                self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-                self.status_msg.pub_frame_depth = np_dict['frame_depth']
-
-                # Publish nav pose subs
-                if self.pub_location == True:
-                    pub_name = 'location_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_location']
-                    msg.latitude = np_dict['latitude']
-                    msg.longitude = np_dict['longitude']
-                    self.node_if.publish_pub(pub_name,msg)
-
-                if self.pub_heading == True:
-                    pub_name = 'heading_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_heading']
-                    msg.heading_deg = np_dict['heading_deg']
-                    self.node_if.publish_pub(pub_name,msg)
-
-                if self.pub_orientation == True:
-                    pub_name = 'orientation_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_orientation']
-                    msg.roll_deg = np_dict['roll_deg']
-                    msg.pitch_deg = np_dict['pitch_deg']
-                    msg.yaw_deg = np_dict['yaw_deg']
-                    self.node_if.publish_pub(pub_name,msg)
-
-                if self.pub_position == True:
-                    pub_name = 'position_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_position']
-                    msg.x_m = np_dict['x_m']
-                    msg.y_m = np_dict['y_m']
-                    msg.z_m = np_dict['z_m']
-                    self.node_if.publish_pub(pub_name,msg)
-
-                if self.pub_altitude == True:
-                    pub_name = 'altitude_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_altitude']
-                    msg.altitude_m = np_dict['altitude_m']
-                    self.node_if.publish_pub(pub_name,msg)
-
-                if self.pub_depth == True:
-                    pub_name = 'depth_pub'
-                    msg = self.PUBS_DICT[pub_name]['msg']()
-                    # gps_fix pub
-                    msg.timestamp = np_dict['time_depth']
-                    msg.depth_m = np_dict['depth_m']
-                    self.node_if.publish_pub(pub_name,msg)
-
-            # Update tracks if needed (this code runs regardless of has_subs value)
+            # Update tracks if needed 
             next_sec = self.get_next_track_sec()
             if next_sec <= 0:
                 try:
@@ -968,7 +967,7 @@ class NavPoseIF:
                         self.track_sec_last = nepi_utils.get_time()
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to convert navpose data to track msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-
+        return np_dict
 
 
     def unsubsribe(self):

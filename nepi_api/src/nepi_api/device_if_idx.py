@@ -137,7 +137,7 @@ class IDXDeviceIF:
     tr_source_ref_description = 'sensor'
     tr_end_ref_description = 'nepi_frame'
 
-    data_source_ref_description = 'imaging_sensor'
+    data_source_description = 'imaging_sensor'
     data_ref_description = 'sensor'
     device_mount_description = 'fixed'
     mount_desc = 'None'
@@ -156,7 +156,7 @@ class IDXDeviceIF:
                  capSettings=None, factorySettings=None, 
                  settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
-                 data_source_ref_description = 'imaging_sensor',
+                 data_source_description = 'imaging_sensor',
                  data_ref_description = 'sensor',
                  getFOV=None,
                  get_rtsp_url = None,
@@ -166,10 +166,7 @@ class IDXDeviceIF:
                  getColorImage=None, stopColorImageAcquisition=None, 
                  getDepthMap=None, stopDepthMapAcquisition=None, 
                  getPointcloud=None, stopPointcloudAcquisition=None, 
-                 capSettingsNavPose=None, factorySettingsNavPose=None, 
-                 settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
-                 getHeadingCb = None, getPositionCb = None, getOrientationCb = None,
-                 getLocationCb = None, getAltitudeCb = None, getDepthCb = None,
+                 getNavPoseCb = None,
                  navpose_update_rate = 10,
                  data_products =  [],
                 log_name = None,
@@ -208,7 +205,7 @@ class IDXDeviceIF:
 
         self.device_name = device_info["device_id"] + "_" + device_info["identifier"]
 
-        self.data_source_ref_description = data_source_ref_description
+        self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
         self.tr_source_ref_description = data_ref_description
 
@@ -247,6 +244,8 @@ class IDXDeviceIF:
 
         self.get_rtsp_url = get_rtsp_url
 
+        self.getNavPoseCb = getNavPoseCb
+        self.navpose_update_rate = navpose_update_rate
 
         ## Set None Capabilities Variables
         self.setControlsEnable = setControlsEnable
@@ -565,7 +564,7 @@ class IDXDeviceIF:
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
-        self.tranform_if = Frame3DTransformIF(namespace = tranform_ns,
+        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -594,40 +593,22 @@ class IDXDeviceIF:
                         )
 
         # Create a NPX Device IF
-        self.capSettingsNavPose = capSettingsNavPose
-        self.factorySettingsNavPose=factorySettingsNavPose
-        self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
-        self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
-
-        
-        self.navpose_update_rate = navpose_update_rate
-
-        has_navpose = ( getHeadingCb is not None or \
-        getPositionCb is not None or \
-        getOrientationCb is not None or \
-        getLocationCb is not None or \
-        getAltitudeCb is not None or \
-        getDepthCb is not None )
-        
-        if has_navpose == True:
+        if self.getNavPoseCb is not None:
             self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
             npx_if = NPXDeviceIF(device_info, 
-                capSettings = self.capSettingsNavPose,
-                factorySettings = self.factorySettingsNavPose,
-                settingUpdateFunction = self.settingUpdateFunctionNavPose, 
-                getSettingsFunction = self.getSettingsFunctionNavPose,
-                getNavPoseCb = self.get_navpose_dict,
-                getTransformCb = self.transform_if.get_3d_transform,
+                data_source_description = self.data_source_description,
+                data_ref_description = self.data_ref_description,
+                getNavPoseCb = self.getNavPoseCb,
                 navpose_update_rate = self.navpose_update_rate,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if
+                )
 
 
         # Setup navpose data IF
-        np_namespace = self.node_namespace
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_ref_description = self.data_source_ref_description,
+                        data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
@@ -763,6 +744,9 @@ class IDXDeviceIF:
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
 
+    def get_3d_transform(self):
+        transform = self.transform_if.get_3d_transform()
+        return transform
 
     def get_navpose_dict(self):
         navpose_dict = None
@@ -781,11 +765,8 @@ class IDXDeviceIF:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
             frame_3d = 'sensor_frame'
             self.transform_if.set_end_ref_description('sensor_frame')
+
         self.end_ref_description = self.transform_if.get_end_ref_description()
-        transform = self.transform_if.get_3d_transform()
-        navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict, transform, frame_3d = frame_3d)
-        timestamp = nepi_utils.get_time()
-        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
         return navpose_dict
 
     def get_mount_description(self):
@@ -797,10 +778,14 @@ class IDXDeviceIF:
         
     def publish_navpose(self):
         self.np_status_msg.publishing = True
+        np_dict = self.get_navpose_dict()
         if self.navpose_if is not None:
-            np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict,
+            transform = self.get_3d_transform()
+            np_dict = self.navpose_if.publish_navpose(np_dict,
+                                            frame_3d_transform = transform,
                                             device_mount_description = self.get_mount_description())
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
 
 
     def _publishNavPoseCb(self,timer):
@@ -1283,7 +1268,7 @@ class IDXDeviceIF:
                 dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
                 dp_if = ColorImageIF(namespace = dp_namespace, 
                             data_product_name = data_product, 
-                            data_source_ref_description = self.data_source_ref_description,
+                            data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             get_navpose_function = self.get_navpose_dict,
                             log_name = data_product,
@@ -1373,7 +1358,7 @@ class IDXDeviceIF:
             max_range_m = self.status_msg.range_window.stop_range
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = DepthMapIF(namespace = dp_namespace, 
-                        data_source_ref_description = self.data_source_ref_description,
+                        data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         enable_image_pub = True,
                         max_image_pub_rate = 5,
@@ -1473,7 +1458,7 @@ class IDXDeviceIF:
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
             dp_if = PointcloudIF(namespace = dp_namespace, 
-                        data_source_ref_description = self.data_source_ref_description,
+                        data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         enable_image_pub = True,
                         max_image_pub_rate = 5,
@@ -1501,7 +1486,7 @@ class IDXDeviceIF:
                         #********************
                         frame_3d = self.frame_3d
                             if frame_3d != 'sensor_frame'
-                            transform = self.transform_if.get_3d_transform()
+                            transform = self.get_3d_transform()
                             if transform != self.ZERO_TRANSFORM:   
                                 o3d_pc = self.transformPointcloud(o3d_pc,transform)
                             if frame_3d == 'world_frame':
@@ -1623,7 +1608,7 @@ class IDXDeviceIF:
         
         self.status_msg.output_frame_3d = self.frame_3d
         
-        self.status_msg.frame_3d_transform = self.transform_if.get_3d_transform_msg()
+        self.status_msg.frame_3d_transform = self.get_3d_transform_msg()
 
         if do_updates == True:
            

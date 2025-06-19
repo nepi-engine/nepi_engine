@@ -168,7 +168,7 @@ class NepiIF3DTransform extends Component {
   render() {
     namespace = this.props.namespace ? this.props.namespace + '/frame_3d_transform' : 'None'
     has_transform = this.props.has_transform ? this.props.has_transform : true
-
+    updates = this.props.supports_transform_updates ? this.props.supports_transform_updates : true
     if (namespace === 'None' && this.props.transform != null){
       return (
             <Columns>
@@ -179,7 +179,6 @@ class NepiIF3DTransform extends Component {
       )
     }
     else if (has_transform === false){
-      const updates_msg = updates ? "" : "Transform Set By Parent"
 
       const msg = ("\n\nData Transformed by Parent")
 

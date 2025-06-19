@@ -26,6 +26,8 @@ import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
+import NepiIF3DTransform from "./Nepi_IF_3DTransform"
+
 import {createShortUniqueValues, onDropdownSelectedSendStr, createMenuListFromStrList} from "./Utilities"
 import {createShortValuesFromNamespaces} from "./Utilities"
 
@@ -381,6 +383,18 @@ class NepiControlsLights extends Component {
                   </Toggle>
             </Label>
             </div>
+
+            <Columns>
+                  <Column>
+
+                          <NepiIF3DTransform
+                              namespace={namespace}
+                              supports_updates={true}
+                              title={"Nepi_IF_3DTransform"}
+                          />
+
+                  </Column>
+              </Columns>
 
                </Section>
     )

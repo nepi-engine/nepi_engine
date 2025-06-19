@@ -135,12 +135,11 @@ class PTXActuatorIF:
     auto_tilt_sec = 5
 
     frame_3d = 'nepi_frame'
-    frame_3d_transform = ZERO_TRANSFORM
-    tr_source_ref_description = 'sensor'
+    tr_source_ref_description = 'tilt_axis_center'
     tr_end_ref_description = 'nepi_frame'
 
 
-    date_source_description = 'pan_tilt'
+    data_source_description = 'pan_tilt'
     data_ref_description = 'tilt_axis_center'
     end_description = 'nepi_frame'
     device_mount_description = 'fixed'
@@ -153,7 +152,7 @@ class PTXActuatorIF:
                  settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
                  factoryLimits = None,
-                 date_source_description = 'pan_tilt',
+                 data_source_description = 'pan_tilt',
                  data_ref_description = 'tilt_axis_center',
                  stopMovingCb = None, # Required; no args
                  movePanCb = None, # Required; direction and time args
@@ -169,10 +168,7 @@ class PTXActuatorIF:
                  goHomeCb=None, # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
                  setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
                  setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
-                 capSettingsNavPose=None, factorySettingsNavPose=None, 
-                 settingUpdateFunctionNavPose=None, getSettingsFunctionNavPose=None,
-                 getNpHeadingCb = None, getNpPositionCb = None, getNpOrientationCb = None,
-                 getNpLocationCb = None, getNpAltitudeCb = None, getNpDepthCb = None,
+                 getNavPoseCb=None,
                  max_navpose_update_rate = 10,
                  deviceResetCb = None,
                  log_name = None,
@@ -216,7 +212,7 @@ class PTXActuatorIF:
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
-
+        self.tr_source_ref_description = data_ref_description
         # Update status update rate
         if max_navpose_update_rate == None:
             rate = 1.0
@@ -239,7 +235,8 @@ class PTXActuatorIF:
         self.deviceResetCb = deviceResetCb
         self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
-
+        self.getNavPoseFunction = getNavPoseFunction
+        self.navpose_update_rate = navpose_update_rate
        # Configure PTX Capabilities
 
         # STOP MOVE #############
@@ -464,10 +461,6 @@ class PTXActuatorIF:
             'max_auto_tilt_deg': {
                 'namespace': self.node_namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
-            },
-            'frame_3d_transform': {
-                'namespace': self.node_namespace,
-                'factory_val': self.ZERO_TRANSFORM
             }
             'mount_desc': {
                 'namespace': self.node_namespace,
@@ -679,23 +672,7 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
-            },
-            'clear_frame_3d_transform': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/clear_3d_transform',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.clearFrame3dTransformCb, 
-                'callback_args': ()
-            },
-            'set_frame_3d_transform': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_3d_transform',
-                'msg': Frame3DTransform,
-                'qsize': 1,
-                'callback': self.setFrame3dTransformCb, 
-                'callback_args': ()
-            },
+            }
             'reset_mount_desc': {
                 'namespace': self.node_namespace,
                 'topic': 'ptx/reset_mount_description',
@@ -723,6 +700,19 @@ class PTXActuatorIF:
         ready = self.node_if.wait_for_ready()
 
 
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+
+        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+                        supports_updates = True,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
+
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
@@ -743,7 +733,7 @@ class PTXActuatorIF:
 
         # Setup System IF Classes ####################
         # PT saving handled by navpose IF class
-        if getNpOrientationCb is not None:
+        if getNavPoseCb is not None:
             self.data_products_list.append('navpose')
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
@@ -769,49 +759,20 @@ class PTXActuatorIF:
                         )
             time.sleep(1)
 
-        if getNpOrientationCb is not None:
-            # Create a NavPose Device IF
-            self.capSettingsNavPose = capSettingsNavPose
-            self.factorySettingsNavPose=factorySettingsNavPose
-            self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
-            self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
-
-            self.getNpHeadingCb = getNpHeadingCb  
-            self.getNpPositionCb = getNpPositionCb
-            self.getNpOrientationCb = getNpOrientationCb
-            self.getNpLocationCb = getNpLocationCb
-            self.getNpAltitudeCb = getNpAltitudeCb
-            self.getNpDepthCb = getNpDepthCb
-            self.max_navpose_update_rate = max_navpose_update_rate
-
-            has_navpose = ( getNpHeadingCb is not None or \
-            getNpPositionCb is not None or \
-            getNpOrientationCb is not None or \
-            getNpLocationCb is not None or \
-            getNpAltitudeCb is not None or \
-            getNpDepthCb is not None )
-            
-            if has_navpose == True:
-                self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-                self.npx_if = NPXDeviceIF(device_info, 
-                    capSettings = self.capSettingsNavPose,
-                    factorySettings = self.factorySettingsNavPose,
-                    settingUpdateFunction = self.settingUpdateFunctionNavPose, 
-                    getSettingsFunction = self.getSettingsFunctionNavPose,
-                    getHeadingCb = self.getNpHeadingCb, 
-                    getPositionCb = self.getNpPositionAdjustedCb, 
-                    getOrientationCb = self.getNpOrientationAdjustedCb,
-                    getLocationCb = self.getNpLocationCb, 
-                    getAltitudeCb = self.getNpAltitudeCb, 
-                    getDepthCb = self.getNpDepthCb,
-                    getTransformCb = self.get_3d_transform,
-                    max_navpose_update_rate = self.max_navpose_update_rate,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
-
+        # Create a NPX Device IF
+        if self.getNavPoseCb is not None:
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
+            npx_if = NPXDeviceIF(device_info, 
+                data_source_description = self.data_source_description,
+                data_ref_description = self.data_ref_description,
+                getNavPoseCb = self.getNavPoseCb,
+                get3DTransformCb = self.transform_if.get_3d_transform,
+                navpose_update_rate = self.navpose_update_rate,
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if
+                )
         # Setup navpose data IF
-        np_namespace = self.node_namespace
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
@@ -861,7 +822,7 @@ class PTXActuatorIF:
     # Class Methods
 
     def get_3d_transform(self):
-        transform = self.frame_3d_transform
+        transform = self.transform_if.get_3d_transform()
         return transform
 
     def getPanAdj(self,pan_deg):
@@ -1471,23 +1432,9 @@ class PTXActuatorIF:
         transform = [x,y,z,roll,pitch,yaw,heading]
         self.setFrame3dTransform(transform)
 
-    def setFrame3dTransform(self, transform):
-        self.frame_3d_transform = [x,y,z,roll,pitch,yaw,heading]
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_3d_transform',  self.frame_3d_transform)
-
-
-    def clearFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
-        self.clearFrame3dTransform()
-
-    def clearFrame3dTransform(self):
-        self.frame_3d_transform = self.ZERO_TRANSFORM
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('frame_3d_transform',  self.frame_3d_transform)
 
     def get_3d_transform(self):
-        return self.frame_3d_transform
+        return self.transform_if.get_3d_transform()
 
     def get_navpose_dict(self):
         navpose_dict = None
@@ -1614,7 +1561,7 @@ class PTXActuatorIF:
             self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
             self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
 
-            self.frame_3d_transform = self.node_if.get_param('frame_3d_transform') 
+ 
 
         self.publish_status()
 
@@ -1628,6 +1575,8 @@ class PTXActuatorIF:
             self.save_data_if.reset()
         if self.settings_if is not None:
             self.settings_if.reset_settings(update_status = False, update_params = True)
+        if self.transform_if is not None:
+            self.transform_if.reset()
         self.initCb(do_updates = do_updates)
         #**********************
         
@@ -1640,6 +1589,8 @@ class PTXActuatorIF:
             self.save_data_if.factory_reset()
         if self.settings_if is not None:
             self.settings_if.factory_reset(update_status = False, update_params = True)
+        if self.transform_if is not None:
+            self.transform_if.factory_reset()
         self.initCb(do_updates = True)
 
 
@@ -1723,12 +1674,10 @@ class PTXActuatorIF:
         self.status_msg.is_moving = pan_changed or tilt_changed
 
         self.status_msg.frame_3d = self.frame_3d
-        frame_3d_transform = self.get_3d_transform()
-
-
-        transform_msg = nepi_nav.convert_transform_list2msg(self.frame_3d_transform)
-        transform_msg.source_description = self.data_ref_description
-        transform_msg.end_description = self.end_description
+        transform = self.get_3d_transform()
+        transform_msg = nepi_nav.convert_transform_list2msg(transform)
+        transform_msg.source_description = self.tr_source_ref_description
+        transform_msg.end_description = self.tr_end_ref_description
         self.status_msg.frame_3d_transform = transform_msg
         #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
 
