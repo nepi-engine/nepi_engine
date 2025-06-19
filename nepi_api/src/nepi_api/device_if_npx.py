@@ -121,6 +121,7 @@ class NPXDeviceIF:
   node_if = None
   settings_if = None
   save_data_if = None
+  transform_if = None
 
   status_msg = DeviceNPXStatus()
   
@@ -254,7 +255,7 @@ class NPXDeviceIF:
         if frame_depth is not None:
           self.frame_depth = frame_depth
 
-        self.get3DTranformCb = get3DTranformCb
+        self.get3DTransformCb = get3DTransformCb
         ###
         self.getNavPoseCb = getNavPoseCb
         if self.getNavPose is not None:
@@ -507,11 +508,11 @@ class NPXDeviceIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
-        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        get_3d_tranform_function = self.get3DTransformCb,
+                        get_3d_transform_function = self.get3DTransformCb,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -607,8 +608,11 @@ class NPXDeviceIF:
       return desc
 
 
-  def get_3d_transform(self):
-    return self.transform_if.get_3d_transform()
+    def get_3d_transform(self):
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
+        return transform
 
 
   def get_navpose_dict(self):

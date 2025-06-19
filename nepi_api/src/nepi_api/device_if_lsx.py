@@ -68,7 +68,8 @@ class LSXDeviceIF:
     node_if = None
     settings_if = None
     save_data_if = None
-  
+    transform_if = None
+
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
@@ -432,9 +433,9 @@ class LSXDeviceIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
 
-        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -642,7 +643,12 @@ class LSXDeviceIF:
             except Exception as e:
                 self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
-
+    def get_3d_transform(self):
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
+        return transform
+        
     '''
     def get_navpose_dict(self):
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT

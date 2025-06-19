@@ -16,11 +16,13 @@ import numpy as np
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow
 from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.msg import DataNavPoseStatus
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
@@ -65,6 +67,7 @@ class PTXActuatorIF:
     node_if = None
     settings_if = None
     save_data_if = None
+    transform_if = None
 
     status_msg = DevicePTXStatus()
 
@@ -234,8 +237,8 @@ class PTXActuatorIF:
         self.deviceResetCb = deviceResetCb
         self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
-        self.getNavPoseFunction = getNavPoseFunction
-        self.navpose_update_rate = navpose_update_rate
+#        self.getNavPoseFunction = getNavPoseFunction
+#        self.navpose_update_rate = navpose_update_rate
        # Configure PTX Capabilities
 
         # STOP MOVE #############
@@ -356,7 +359,7 @@ class PTXActuatorIF:
 
         ########################
         # Initialize the navpose status message
-        self.np_status_msg = NavPoseStatus()
+        self.np_status_msg = DataNavPoseStatus()
         
         # Set up status message static values
         self.status_msg.device_id = self.device_id
@@ -701,9 +704,9 @@ class PTXActuatorIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
 
-        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -819,10 +822,6 @@ class PTXActuatorIF:
 
     ###############################
     # Class Methods
-
-    def get_3d_transform(self):
-        transform = self.transform_if.get_3d_transform()
-        return transform
 
     def getPanAdj(self,pan_deg):
         return pan_deg * self.rpi
@@ -1433,7 +1432,10 @@ class PTXActuatorIF:
 
 
     def get_3d_transform(self):
-        return self.transform_if.get_3d_transform()
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
+        return transform
 
     def get_navpose_dict(self):
         navpose_dict = None
@@ -1672,7 +1674,7 @@ class PTXActuatorIF:
         self.last_position = copy.deepcopy(self.current_position)
         self.status_msg.is_moving = pan_changed or tilt_changed
 
-        self.status_msg.frame_3d = self.frame_3d
+        #self.status_msg.frame_3d = self.frame_3d
         transform = self.get_3d_transform()
         transform_msg = nepi_nav.convert_transform_list2msg(transform)
         transform_msg.source_description = self.tr_source_ref_description

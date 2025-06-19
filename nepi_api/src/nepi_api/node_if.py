@@ -1264,11 +1264,11 @@ class NodeClassIF:
     # Class Private Methods
     ###############################
 
-    def _initConfigCb(self):
+    def _initConfigCb(self, do_updates = False):
         self.initialize_params()
         if self.configs_dict is not None:
             if self.configs_dict['init_callback'] is not None:
-                self.configs_dict['init_callback']()
+                self.configs_dict['init_callback'](do_updates = do_updates)
             
 
     def _resetConfigCb(self):

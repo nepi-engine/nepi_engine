@@ -133,7 +133,8 @@ class RBXRobotIF:
     node_if = None
     settings_if = None
     save_data_if = None
-    
+    transform_if = None
+
     status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
     check_save_data_interval_sec = float(1)/CHECK_SAVE_DATA_RATE_HZ
     update_navpose_interval_sec = float(1)/UPDATE_NAVPOSE_RATE_HZ
@@ -728,9 +729,9 @@ class RBXRobotIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'rbx')
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'rbx')
 
-        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -871,7 +872,7 @@ class RBXRobotIF:
 
 
         self.publishInfo()
-        self.publishStatus()
+        self.publish_status()
         
         ####################################
         self.ready = True
@@ -1312,7 +1313,7 @@ class RBXRobotIF:
         self.msg_if.pub_info(msg)
         self.node_if.set_param('fake_gps_enabled', msg.data)
         self.setFakeGPSFunction(msg.data)
-        self.publishStatus()
+        self.publish_status()
         self.publishInfo()
 
     ### Setup a regular background navpose get and update navpose data
@@ -1898,16 +1899,20 @@ class RBXRobotIF:
         mcs.append(mc)
       return mcs
 
-
+    def get_3d_transform(self):
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
+        return transform
        
    ### Callback for rbx status publisher
     def statusPublishCb(self,timer):
-        self.publishStatus()
+        self.publish_status()
 
     def publishStatusCb(self, msg):
-        self.publishStatus()
+        self.publish_status()
 
-    def publishStatus(self):
+    def publish_status(self):
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
         if self.getBatteryPercentFunction is not None:

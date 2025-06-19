@@ -88,6 +88,8 @@ class IDXDeviceIF:
     node_if = None
     settings_if = None
     save_data_if = None
+    transform_if = None
+
 
     device_name = ''
 
@@ -562,9 +564,9 @@ class IDXDeviceIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        tranform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
-        self.transform_if = Frame3DTransformIF(namespace = tranform_ns,
+        self.transform_if = Frame3DTransformIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
@@ -747,7 +749,9 @@ class IDXDeviceIF:
         ####################################
 
     def get_3d_transform(self):
-        transform = self.transform_if.get_3d_transform()
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
         return transform
 
     def get_navpose_dict(self):
