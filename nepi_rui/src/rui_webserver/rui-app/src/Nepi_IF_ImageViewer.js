@@ -200,7 +200,7 @@ class ImageViewer extends Component {
     }
     if (this.image) {
       const { streamingImageQuality } = this.props.ros
-      this.image.src = ROS_WEBCAM_URL_BASE + this.props.imageTopic + '&quality=' + streamingImageQuality
+      this.image.src = ROS_WEBCAM_URL_BASE + this.props.imageTopic + '/data' + '&quality=' + streamingImageQuality
     }
   }
 
