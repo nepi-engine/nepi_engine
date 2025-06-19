@@ -33,7 +33,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 
 from nepi_interfaces.msg import NavPose, DataNavPose, DataNavPoseStatus
 from nepi_interfaces.msg import DataImage, DataImageStatus
-from nepi_interfaces.msg import DepthMap, DataDepthMap, DataDepthMapStatus
+from nepi_interfaces.msg import DataDepthMap, DataDepthMapStatus
 from nepi_interfaces.msg import DataIntensityMap, DataIntensityMapStatus
 from nepi_interfaces.msg import DataPointcloud, DataPointcloudStatus
 
@@ -2976,7 +2976,7 @@ class DepthMapIF:
                 'latch': False
             },
             'data_pub': {
-                'msg': DepthMap,
+                'msg': Image,
                 'namespace': self.namespace,
                 'topic': 'data',
                 'qsize': 1,
