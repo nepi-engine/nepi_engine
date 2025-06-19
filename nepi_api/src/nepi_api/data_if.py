@@ -24,16 +24,16 @@ from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from nav_msgs.msg import Odometry
 from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_interfaces.msg import DataNavPose, DataNavPoseStatus
+from nepi_interfaces.msg import NavPose, DataNavPose, DataNavPoseStatus
 from nepi_interfaces.msg import DataImage, DataImageStatus
-from nepi_interfaces.msg import DataDepthMap, DataDepthMapStatus
+from nepi_interfaces.msg import DepthMap, DataDepthMap, DataDepthMapStatus
 from nepi_interfaces.msg import DataIntensityMap, DataIntensityMapStatus
 from nepi_interfaces.msg import DataPointcloud, DataPointcloudStatus
 
