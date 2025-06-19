@@ -212,7 +212,6 @@ class PTXActuatorIF:
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
-        self.tr_source_ref_description = data_ref_description
         # Update status update rate
         if max_navpose_update_rate == None:
             rate = 1.0

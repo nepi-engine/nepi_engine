@@ -61,16 +61,21 @@ class NepiIF3DTransform extends Component {
     this.statusListener = this.statusListener.bind(this)
   }
 
+  // Add the missing toggle method
+  onClickToggleShowTransform() {
+    this.setState({ showTransform: !this.state.showTransform })
+  }
+
   // Callback for handling ROS StatusIDX messages
   statusListener(message) {
-    last_msg = this.state.transform_msg
+    const last_msg = this.state.transform_msg
     this.setState({
       transform_msg: message,
       source: message.frame_3d_transform.source_ref_description,
       end: message.frame_3d_transform.end_ref_description
     })
 
-    if (message != last_msg) {
+    if (message !== last_msg) {
       this.setState({
         transformTX: message.translate_vector.x,
         transformTY: message.translate_vector.y,
@@ -78,7 +83,7 @@ class NepiIF3DTransform extends Component {
         transformRX: message.rotate_vector.x,
         transformRY: message.rotate_vector.y,
         transformRZ: message.rotate_vector.z,
-        transformHO: message..heading_offset,
+        transformHO: message.heading_offset,
       })
     }
 
@@ -103,7 +108,7 @@ class NepiIF3DTransform extends Component {
   componentDidUpdate(prevProps, prevState, snapshot) {
     const { namespace } = this.props
     if (prevProps.namespace !== namespace){
-      if (namespace != null) {
+      if (namespace !== null) {
         this.updateListener()
       } else if (namespace === null){
         this.setState({ disabled: true })
@@ -123,7 +128,7 @@ class NepiIF3DTransform extends Component {
 
   renderConfigs(){
     const { sendTriggerMsg } = this.props.ros
-    const namespace = this.state.namespace
+    const namespace = this.props.namespace
     return(
       <Columns>
       <Column>
@@ -166,6 +171,7 @@ class NepiIF3DTransform extends Component {
   }
 
   render() {
+    const { sendTriggerMsg } = this.props.ros
     namespace = this.props.namespace ? this.props.namespace + '/frame_3d_transform' : 'None'
     has_transform = this.props.has_transform ? this.props.has_transform : true
     updates = this.props.supports_transform_updates ? this.props.supports_transform_updates : true
@@ -206,12 +212,9 @@ class NepiIF3DTransform extends Component {
       const msg = ("\n\nSource: " + source + 
       "\n\nEnd: " + end + 
       "\n\n" + updates_msg)
-    }
 
-
-
-        return (
-
+      return (
+        <div>
           <Columns>
           <Column>
           <Label title="Show 3D Transform">
@@ -226,13 +229,7 @@ class NepiIF3DTransform extends Component {
           </Column>
           </Columns>
 
-  
-  
-  
           <div hidden={ this.state.showTransform === false}>
-
-
-
             <Columns>
             <Column>
 
@@ -240,7 +237,7 @@ class NepiIF3DTransform extends Component {
               <Input
                 value={this.state.transformTX}
                 id="XTranslation"
-                disabled={updates}
+                disabled={!updates}
                 onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTX")}
                 onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTX")}
                 style={{ width: "80%" }}
@@ -251,7 +248,7 @@ class NepiIF3DTransform extends Component {
               <Input
                 value={this.state.transformTY}
                 id="YTranslation"
-                disabled={updates}
+                disabled={!updates}
                 onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTY")}
                 onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTY")}
                 style={{ width: "80%" }}
@@ -262,7 +259,7 @@ class NepiIF3DTransform extends Component {
               <Input
                 value={this.state.transformTZ}
                 id="ZTranslation"
-                disabled={updates}
+                disabled={!updates}
                 onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformTZ")}
                 onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformTZ")}
                 style={{ width: "80%" }}
@@ -285,7 +282,7 @@ class NepiIF3DTransform extends Component {
               <Input
                 value={this.state.transformRX}
                 id="XRotation"
-                disabled={updates}
+                disabled={!updates}
                 onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRX")}
                 onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRX")}
                 style={{ width: "80%" }}
@@ -296,7 +293,7 @@ class NepiIF3DTransform extends Component {
               <Input
                 value={this.state.transformRY}
                 id="YRotation"
-                disabled={updates}
+                disabled={!updates}
                 onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRY")}
                 onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRY")}
                 style={{ width: "80%" }}
@@ -307,7 +304,7 @@ class NepiIF3DTransform extends Component {
                   <Input
                     value={this.state.transformRZ}
                     id="ZRotation"
-                    disabled={updates}
+                    disabled={!updates}
                     onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"transformRZ")}
                     onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,"transformRZ")}
                     style={{ width: "80%" }}
@@ -336,8 +333,8 @@ class NepiIF3DTransform extends Component {
             </Column>
             </Columns>
         </div>
-
-        )
+        </div>
+      )
     }
   }
 

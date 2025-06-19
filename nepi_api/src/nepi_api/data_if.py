@@ -1163,7 +1163,7 @@ class ImageIF:
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFAULT_IMG_WIDTH_DEG = 100
     DEFUALT_IMG_HEIGHT_DEG = 70
 
 
@@ -1836,8 +1836,8 @@ class ImageIF:
                         encoding = "bgr8", 
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = self.DEFUALT_IMG_WIDTH_DEG,
-                        height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
+                        width_deg = DEFAULT_IMG_WIDTH_DEG,
+                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
                         add_overlay_list = [],
                         do_subscriber_check = True,
                         device_mount_description = 'fixed'
@@ -2663,7 +2663,7 @@ class DepthMapImageIF(ImageIF):
 
     def __init__(self, namespace = None , 
                 data_source_description = 'depth_map_sensor',
-                data_ref_description = 'sensor'
+                data_ref_description = 'sensor',
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -2747,7 +2747,7 @@ class DepthMapIF:
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFAULT_IMG_WIDTH_DEG = 100
     DEFUALT_IMG_HEIGHT_DEG = 70
 
     ready = False
@@ -3043,8 +3043,8 @@ class DepthMapIF:
                              max_range_m = None,
                              timestamp = None,
                              frame_3d = 'sensor_frame',
-                             width_deg = self.DEFUALT_IMG_WIDTH_DEG,
-                             height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
+                             width_deg = ImageIF.DEFAULT_IMG_WIDTH_DEG,
+                             height_deg = ImageIF.DEFUALT_IMG_HEIGHT_DEG,
                              device_mount_description = 'fixed'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
@@ -3213,7 +3213,7 @@ class DepthMapIF:
 
 class PointcloudIF:
 
-    DEFUALT_IMG_WIDTH_DEG = 100
+    DEFAULT_IMG_WIDTH_DEG = 100
     DEFUALT_IMG_HEIGHT_DEG = 70
 
     Factory_Image_Width = 955
@@ -3613,8 +3613,8 @@ class PointcloudIF:
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = self.DEFUALT_IMG_WIDTH_DEG,
-                        height_deg = self.DEFUALT_IMG_HEIGHT_DEG,
+                        width_deg = DEFAULT_IMG_WIDTH_DEG,
+                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
                         device_mount_description = 'fixed'):
 
         if self.node_if is None:

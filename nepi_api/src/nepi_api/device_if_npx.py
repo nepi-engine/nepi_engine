@@ -167,7 +167,7 @@ class NPXDeviceIF:
 
 
   frame_3d = 'nepi_frame'
-  tr_source_ref_description = 'sensor'
+  tr_source_ref_description = 'data_reference'
   tr_end_ref_description = 'nepi_frame'
 
   data_source_description = 'imaging_sensor'

@@ -1033,11 +1033,11 @@ class Transform3DIF:
                                                 source_description = self.source,
                                                 end_description = self.end)
         if self.node_if is not None:
-            if self.node_if.publish_pub('transform_pub',transform_msg)
+            self.node_if.publish_pub('transform_pub',transform_msg)
 
     def publish_status(self):
         if self.node_if is not None:
-            if self.node_if.publish_pub('status_pub',self.status_msg)
+            self.node_if.publish_pub('status_pub',self.status_msg)
 
     def init(self, do_updates = True):
         if self.node_if is not None:
