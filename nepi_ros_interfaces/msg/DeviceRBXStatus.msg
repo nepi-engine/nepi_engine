@@ -35,11 +35,11 @@ float32 battery
 
 # Signed error values for current control process 
 # Updated during active command control action, reset after completion or timeout
-RBXGotoErrors errors_current
+GotoErrors errors_current
 
 # Signed error values for previous control process 
 # Updated after completion or timeout of last command control action
-RBXGotoErrors errors_prev
+GotoErrors errors_prev
 
 # Success or failure of last command control (met movement error bounds before cmd_timeout time)
 # Updated after ready status goes from busy to ready value
@@ -50,7 +50,7 @@ bool manual_control_mode_ready
 bool autonomous_control_mode_ready
 
 # Current Motor Controls string for Manual motor control mode. Returns a string "[['motor_index','motor_speed_ratio'],...]
-RBXMotorControl[] current_motor_control_settings
+MotorControl[] current_motor_control_settings
 
 
 # Last Command String. Can be added to rbx automation script file

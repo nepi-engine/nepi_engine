@@ -19,7 +19,7 @@ int32 state
 int32 mode
 
 # Abs error bounds for command controls
-RBXErrorBounds error_bounds
+ErrorBounds error_bounds
 
 # Timeout time for goto commands
 float32 cmd_timeout

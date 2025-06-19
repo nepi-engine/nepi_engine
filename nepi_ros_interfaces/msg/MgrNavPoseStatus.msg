@@ -4,7 +4,7 @@ string nepi_frame_description
 
 string[] comp_names
 
-NavPoseMgrCompInfo[] comp_infos
+MgrNavPoseCompInfo[] comp_infos
 
 bool publishing
 

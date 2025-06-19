@@ -200,7 +200,6 @@ add_service_files(FILES
     RBXCapabilitiesQuery.srv
     NPXCapabilitiesQuery.srv
     LSXCapabilitiesQuery.srv
-    ImageMuxSequenceQuery.srv
     OnvifDeviceCfgDelete.srv
     OnvifDeviceCfgUpdate.srv
     OnvifDeviceDriverListQuery.srv

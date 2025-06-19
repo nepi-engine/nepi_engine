@@ -28,14 +28,13 @@ from nav_msgs.msg import Odometry
 
 from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
 
-from nepi_interfaces.msg import NavPose, NavPoseStatus
+from nepi_interfaces.msg import DataNavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
-from nepi_interfaces.msg import NavPose, NavPoseStatus
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
 from nepi_sdk import nepi_sdk
@@ -67,7 +66,7 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    msg_type = 'nepi_interfaces/NavPose'
+    msg_type = 'nepi_interfaces/DataNavPose'
     return nepi_sdk.find_topics_by_msg(msg_type)
 
 ###############
@@ -574,7 +573,7 @@ def convert_navpose_dict2msg(npdata_dict):
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     try:
-      npdata_msg = NavPose()
+      npdata_msg = DataNavPose()
       npdata_msg.header.stamp = nepi_sdk.get_msg_stamp()
 
       npdata_msg.frame_3d = npdata_dict['frame_3d']

@@ -45,14 +45,12 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios, ImageStatus
+from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
-from nepi_interfaces.msg import DepthMapStatus, RangeWindow
+from nepi_interfaces.msg import RangeWindow
 
 from sensor_msgs.msg import PointCloud2
-from nepi_interfaces.msg import PointcloudStatus
-
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -2771,7 +2769,7 @@ class DepthMapIF:
 
     node_if = None
 
-    status_msg = DepthMapStatus()
+    status_msg = DataDepthMapStatus()
 
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
@@ -2958,7 +2956,7 @@ class DepthMapIF:
                 'latch': False
             },
             'status_pub': {
-                'msg': DepthMapStatus,
+                'msg': DataDepthMapStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
@@ -3154,7 +3152,7 @@ class DepthMapIF:
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
             if self.status_msg is None:
-                self.status_msg = DepthMapStatus()
+                self.status_msg = DataDepthMapStatus()
             self.status_msg.min_range_m = self.min_range_m
             self.status_msg.max_range_m = self.max_range_m
 
