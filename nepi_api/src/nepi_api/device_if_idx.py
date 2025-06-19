@@ -641,7 +641,9 @@ class IDXDeviceIF:
         else:
             self.caps_report.has_color_image = False
         
-
+        self.caps_report.has_depth_map = False
+        self.caps_report.has_pointcloud = False
+        '''
         if (getDepthMap is not None and 'depth_map' in self.data_products_base_list):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
@@ -680,7 +682,7 @@ class IDXDeviceIF:
             self.caps_report.has_pointcloud = True
         else:
             self.caps_report.has_pointcloud = False
-
+        '''
         self.caps_report.data_products = self.data_products_base_list
 
         self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_base_list))
