@@ -23,6 +23,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_settings
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
+from nepi_sdk import nepi_nav
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -813,9 +814,9 @@ class Transform3DIF:
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
-                source_description = '',
-                end_description = '',
-                get_3d_tranform_function = None,
+                source_ref_description = '',
+                end_ref_description = '',
+                get_3d_transform_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -846,9 +847,9 @@ class Transform3DIF:
         namespace = nepi_sdk.create_namespace(namespace,'frame_3d_transform')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.source = source_description
-        self.end = end_description
-        self.get_tr = get_3d_tranform_function
+        self.source = source_ref_description
+        self.end = end_ref_description
+        self.get_tr = get_3d_transform_function
         if self.get_tr is not None:
             self.supports_updates = False
 
@@ -894,7 +895,7 @@ class Transform3DIF:
                 'qsize': 1,
                 'latch': True
             },
-            'tranform_pub': {
+            'transform_pub': {
                 'namespace': self.namespace,
                 'msg': Frame3DTransform,
                 'topic': '',
@@ -1000,7 +1001,7 @@ class Transform3DIF:
 
     def set_3d_transform(self,transform_list):
         if self.supports_updates == True:
-            if len(tranform_list) == 7:
+            if len(transform_list) == 7:
                 self.transform = transform_list
                 self.publish_transform()
                 self.node_if.set_param('transform',transform_list)
@@ -1038,8 +1039,8 @@ class Transform3DIF:
     def publish_transform(self):
         transform = self.get_3d_transform()
         transform_msg = nepi_nav.convert_transform_list2msg(transform,
-                                                source_description = self.source,
-                                                end_description = self.end)
+                                                source_ref_description = self.source,
+                                                end_ref_description = self.end)
         if self.node_if is not None:
             self.node_if.publish_pub('transform_pub',transform_msg)
 

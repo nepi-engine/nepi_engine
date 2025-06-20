@@ -656,7 +656,7 @@ class LSXDeviceIF:
     def get_navpose_dict(self):
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         if self.nav_mgr_if is not None:
-            navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+            navpose_dict = self.nav_mgr_if.get_navpose_dict()
         return navpose_dict
 
         

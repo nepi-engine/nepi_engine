@@ -259,7 +259,7 @@ class NPXDeviceIF:
         self.get3DTransformCb = get3DTransformCb
         ###
         self.getNavPoseCb = getNavPoseCb
-        if self.getNavPose is not None:
+        if self.getNavPoseCb is not None:
             navpose_dict = None
             try:
                 navpose_dict = self.getNavPoseCb()
@@ -819,6 +819,9 @@ class NPXDeviceIF:
 
 
   def _publishStatusCb(self,timer):
+    self.publish_status()
+
+  def publish_status(self): 
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
 
@@ -830,7 +833,8 @@ class NPXDeviceIF:
       self.status_msg.frame_3d_transform = transform_msg
       self.status_msg.update_rate = self.update_rate
 
-      self.node_if.publish_pub('status_pub', self.status_msg)
+      if self.node_if is not None:
+        self.node_if.publish_pub('status_pub', self.status_msg)
 
   #######################
   # Node Cleanup Function

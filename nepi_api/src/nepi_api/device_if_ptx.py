@@ -227,7 +227,7 @@ class PTXActuatorIF:
         else:
             rate = max_navpose_update_rate
         self.position_update_rate = rate
-
+        self.max_navpose_update_rate = rate
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
         if factoryControls is not None:
@@ -239,8 +239,7 @@ class PTXActuatorIF:
         self.deviceResetCb = deviceResetCb
         self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
-#        self.getNavPoseFunction = getNavPoseFunction
-#        self.navpose_update_rate = navpose_update_rate
+
        # Configure PTX Capabilities
 
         # STOP MOVE #############
@@ -252,6 +251,11 @@ class PTXActuatorIF:
         if self.getPositionCb is not None:
             self.has_position_feedback = True
             self.has_limit_controls = True
+
+        # GET NavPose #############
+        self.getNavPoseCb = getNavPoseCb
+
+
 
         # Soft Limits are handled by PTX IF at top level, 
         # these are for updating the hardware if required
@@ -711,7 +715,7 @@ class PTXActuatorIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        supports_updates = True,
+#                        supports_updates = True,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -737,7 +741,7 @@ class PTXActuatorIF:
 
         # Setup System IF Classes ####################
         # PT saving handled by navpose IF class
-        if getNavPoseCb is not None:
+        if self.getNavPoseCb is not None:
             self.data_products_list.append('navpose')
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
@@ -771,7 +775,7 @@ class PTXActuatorIF:
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
                 get3DTransformCb = self.transform_if.get_3d_transform,
-                navpose_update_rate = self.navpose_update_rate,
+                max_navpose_update_rate = self.max_navpose_update_rate,
                 log_name_list = self.log_name_list,
                 msg_if = self.msg_if
                 )
@@ -1443,7 +1447,7 @@ class PTXActuatorIF:
         navpose_dict = None
         if navpose_dict is None:
             if self.nav_mgr_if is not None:
-                navpose_dict = self.nav_mgr_if.get_navpose_data_dict()
+                navpose_dict = self.nav_mgr_if.get_navpose_dict()
         if navpose_dict is not None:
             output_frame_3d = 'nepi_frame'
         else:

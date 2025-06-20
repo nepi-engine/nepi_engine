@@ -611,12 +611,10 @@ def convert_navpose_dict2msg(npdata_dict):
       np_msg.has_depth = npdata_dict['has_depth']
       np_msg.time_depth = npdata_dict['time_depth']
       np_msg.depth_m = npdata_dict['depth_m']
-      npdata_msg = DataNavPose()
-      npdata_msg.data = np_msg
     except Exception as e:
-      npdata_msg = None
+      np_msg = None
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
-  return npdata_msg
+  return np_msg
 
 def convert_navpose_msg2dict(npdata_msg):
   npdata_dict = None
