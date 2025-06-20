@@ -24,7 +24,7 @@ from nepi_sdk import nepi_triggers
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
+from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
 from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
@@ -53,13 +53,14 @@ class SystemMgrNode():
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
+    SYS_CONFIG_PATH = "/opt/nepi/config"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
     FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
 
     STATES_DICT = dict()
 
     node_if = None
-    status_msg = SystemStatus()
+    status_msg = MgrSystemStatus()
     system_defs_msg = SystemDefs()
 
     storage_mountpoint = "/mnt/nepi_storage"
@@ -307,7 +308,7 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             },
-            'debug_enabled': {
+            'debug_mode': {
                 'namespace': self.base_namespace,
                 'factory_val': False
             }
@@ -365,7 +366,7 @@ class SystemMgrNode():
             'status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status',
-                'msg': SystemStatus,
+                'msg': MgrSystemStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -574,7 +575,7 @@ class SystemMgrNode():
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
-        self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_enabled')
+        self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_mode')
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -891,7 +892,7 @@ class SystemMgrNode():
     def enable_debug_callback(self, msg):
         self.status_msg.sys_debug_enabled = msg.data
         if self.node_if is not None:
-            self.node_if.set_param('debug_enabled',msg.data)
+            self.node_if.set_param('debug_mode',msg.data)
             self.node_if.save_config()
 
     def ensure_reqd_storage_subdirs(self):
@@ -914,9 +915,17 @@ class SystemMgrNode():
 
 
         # Check system folders
+        self.msg_if.pub_warn("Checking nepi config folder")
+        if not os.path.isdir(self.SYS_CONFIG_PATH):
+                self.msg_if.pub_warn("Folder " + self.SYS_CONFIG_PATH + " not present... will create")
+                os.makedirs(self.SYS_CONFIG_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SYS_CONFIG_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SYS_CONFIG_PATH)
+        self.storage_subdirs['config'] = self.SYS_CONFIG_PATH
+
         self.msg_if.pub_warn("Checking nepi_sdk share folder")
         if not os.path.isdir(self.SDK_SHARE_PATH):
-                self.msg_if.pub_warn("Driver folder " + self.SDK_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Folder " + self.SDK_SHARE_PATH + " not present... will create")
                 os.makedirs(self.SDK_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.SDK_SHARE_PATH)
@@ -924,7 +933,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi_api share folder")
         if not os.path.isdir(self.API_SHARE_PATH):
-                self.msg_if.pub_warn("Driver folder " + self.API_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Folder " + self.API_SHARE_PATH + " not present... will create")
                 os.makedirs(self.API_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.API_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.API_SHARE_PATH)
@@ -934,7 +943,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi_drivers lib folder")
         if not os.path.isdir(self.DRIVERS_SHARE_PATH):
-                self.msg_if.pub_warn("Driver folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.DRIVERS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.DRIVERS_SHARE_PATH)
@@ -942,7 +951,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi_apps param folder")
         if not os.path.isdir(self.APPS_SHARE_PATH):
-                self.msg_if.pub_warn("Apps folder " + self.APPS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Folder " + self.APPS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.APPS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.APPS_SHARE_PATH)
@@ -950,7 +959,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi_aifs param folder")
         if not os.path.isdir(self.AIFS_SHARE_PATH):
-                self.msg_if.pub_warn("AIF folder " + self.AIFS_SHARE_PATH + " not present... will create")
+                self.msg_if.pub_warn("Folder " + self.AIFS_SHARE_PATH + " not present... will create")
                 os.makedirs(self.AIFS_SHARE_PATH)
         os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AIFS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.AIFS_SHARE_PATH)
@@ -1011,6 +1020,7 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
         self.add_info_string(
             "Device ID updated - Requires device reboot", StampedString.PRI_ELEVATED)
+        self.node_if.save_config()
 
     def handle_system_error_msg(self, msg):
         self.add_info_string(msg.data, StampedString.PRI_HIGH)

@@ -21,7 +21,7 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import MgrSystemStatus
 from nepi_interfaces.srv import (
     GetScriptsQuery,
     GetScriptsQueryRequest,

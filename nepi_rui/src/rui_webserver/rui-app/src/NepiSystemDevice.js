@@ -227,6 +227,8 @@ class NepiSystemDevice extends Component {
 
   renderDeviceSettings() {
     const {deviceId} = this.props.ros
+    const sys_debug = this.props.ros.systemDebugEnabled
+    const debug_mode = sys_debug ? sys_debug : false
     return (
       <Section title={"Device"}>
         <Label title={this.state.advancedConfigDisabled? "Device ID" : "Updated Device ID"}>
@@ -238,6 +240,21 @@ class NepiSystemDevice extends Component {
             onKeyDown={this.onDeviceIdKey}
           />
         </Label>
+
+
+        <Columns>
+              <Column>
+
+              <Label title="System Debug Mode"> </Label>
+              <Toggle
+              checked={debug_mode}
+              onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !debug_mode)}>
+              </Toggle>
+                
+
+              </Column>
+              </Columns>
+
       </Section>
     )
   }

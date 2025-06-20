@@ -1,7 +1,7 @@
 # This message provides static info about the running system.
 # It includes identifier strings userful to U/Is and factory-fixed settings.
 # It can be queried once at the start of a new U/I run and used in conjunction
-# with the periodic SystemStatus message to provide human-readable attributes
+# with the periodic MgrSystemStatus message to provide human-readable attributes
 # for the dynamic status elements
 
 # Firmware version string
@@ -13,7 +13,7 @@ string device_sn
 # Device type
 string device_type
 
-# Array of names that correspond to values in SystemStatus.temperatures
+# Array of names that correspond to values in MgrSystemStatus.temperatures
 string[] temperature_sensor_names
 
 # Temperature limits at which thermal throttling begins (C)

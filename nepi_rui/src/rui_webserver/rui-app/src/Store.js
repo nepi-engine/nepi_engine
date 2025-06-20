@@ -464,7 +464,7 @@ class ROSConnectionStore {
       var topic_name_parts = this.topicNames[i].split("/")
       if (
         topic_name_parts[topic_name_parts.length - 1] === "system_status" &&
-        this.topicTypes[i] === "nepi_interfaces/SystemStatus"
+        this.topicTypes[i] === "nepi_interfaces/MgrSystemStatus"
       ) {
         if (
           this.namespacePrefix !== topic_name_parts[1] &&
@@ -885,7 +885,7 @@ class ROSConnectionStore {
     })
 
     // listeners
-    this.setupSystemStatusListener()
+    this.setupMgrSystemStatusListener()
     this.setupRUISettingsListener()
 
     // services
@@ -895,7 +895,7 @@ class ROSConnectionStore {
     this.startPollingBandwidthUsageService()
     this.startPollingWifiQueryService()
     this.startPollingOpEnvironmentQueryService()
-    this.startPollingTimeStatusService()
+    this.startPollingMgrTimeStatusService()
     
     // automation manager services
     this.startPollingGetScriptsService()  // populate listbox with files
@@ -986,10 +986,10 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  setupSystemStatusListener() {
+  setupMgrSystemStatusListener() {
     this.addListener({
       name: "system_status",
-      messageType: "nepi_interfaces/SystemStatus",
+      messageType: "nepi_interfaces/MgrSystemStatus",
       callback: message => {
         // turn heartbeat on for half a second
         this.heartbeat = true
@@ -1950,7 +1950,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   }
 
 
-  startPollingTimeStatusService() {
+  startPollingMgrTimeStatusService() {
     const _pollOnce = async () => {
       this.timeStatus = await this.callService({
         name: "time_status_query",
@@ -2320,7 +2320,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "set_wifi_client_credentials",
-      messageType: "nepi_interfaces/WifiCredentials",
+      messageType: "nepi_interfaces/NetworkWifiCredentials",
       data: { ssid: new_ssid, passphrase: new_passphrase }
     })
   }
@@ -2330,7 +2330,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
     this.publishMessage({
       name: "set_wifi_access_point_credentials",
-      messageType: "nepi_interfaces/WifiCredentials",
+      messageType: "nepi_interfaces/NetworkWifiCredentials",
       data: { ssid: new_ssid, passphrase: new_passphrase }
     })
   }  

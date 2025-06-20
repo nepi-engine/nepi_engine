@@ -24,8 +24,8 @@ from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import SystemStatus
-from nepi_interfaces.msg import DriversStatus, DriverStatus, UpdateState, UpdateOrder 
+from nepi_interfaces.msg import MgrSystemStatus
+from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateState, UpdateOrder 
 from nepi_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
 from nepi_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
@@ -74,8 +74,8 @@ class NepiDriversMgr(object):
   discovery_settings_dict = dict()
 
 
-  status_drivers_msg = DriversStatus()
-  last_status_drivers_msg = DriversStatus()
+  status_drivers_msg = MgrDriversStatus()
+  last_status_drivers_msg = MgrDriversStatus()
   status_driver_msg = DriverStatus()
 
   active_node_dict = dict()
@@ -171,7 +171,7 @@ class NepiDriversMgr(object):
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'status',
-                'msg': DriversStatus,
+                'msg': MgrDriversStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -742,7 +742,7 @@ class NepiDriversMgr(object):
 
   def publish_drivers_status(self):
     self.last_status_drivers_msg = self.status_drivers_msg
-    self.status_drivers_msg = self.getDriversStatusMsg()
+    self.status_drivers_msg = self.getMgrDriversStatusMsg()
     self.node_if.publish_pub('status_pub', self.status_drivers_msg)
     if self.last_status_drivers_msg != self.status_drivers_msg:
       drvs_dict = self.node_if.get_param("drvs_dict")
@@ -751,14 +751,14 @@ class NepiDriversMgr(object):
       drvs_dict = self.node_if.get_param("drvs_dict")
       #self.msg_if.pub_warn("Got publish status post save drvs keys: " + str(drvs_dict.keys()))
 
-  def getDriversStatusMsg(self):
+  def getMgrDriversStatusMsg(self):
     drvs_dict = self.node_if.get_param("drvs_dict")
     #self.msg_if.pub_warn("Got drivers status start drvs keys: " + str(drvs_dict.keys()))
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
-    #self.msg_if.pub_warn("DriversStatus Drv List: " + str(drvs_ordered_list))
+    #self.msg_if.pub_warn("MgrDriversStatus Drv List: " + str(drvs_ordered_list))
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    #self.msg_if.pub_warn("DriversStatus Active List: " + str(drvs_active_list))
-    status_drivers_msg = DriversStatus()
+    #self.msg_if.pub_warn("MgrDriversStatus Active List: " + str(drvs_active_list))
+    status_drivers_msg = MgrDriversStatus()
     status_drivers_msg.pkg_list = drvs_ordered_list
     name_list = []
     type_list = []

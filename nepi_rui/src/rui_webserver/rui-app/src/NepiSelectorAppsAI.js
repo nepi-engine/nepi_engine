@@ -83,7 +83,7 @@ class AppsAiSelector extends Component {
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
     this.getAiMgrNamespace = this.getAiMgrNamespace.bind(this)
 
-    this.updateAppsStatusListener = this.updateAppsStatusListener.bind(this)
+    this.updateMgrAppsStatusListener = this.updateMgrAppsStatusListener.bind(this)
     this.appsStatusListener = this.appsStatusListener.bind(this)
 
     this.updateAiMgrStatusListener = this.updateAiMgrStatusListener.bind(this)
@@ -135,14 +135,14 @@ class AppsAiSelector extends Component {
   }
 
   // Function for configuring and subscribing to Status
-  updateAppsStatusListener() {
+  updateMgrAppsStatusListener() {
     const statusNamespace = this.getMgrNamespace() + '/status'
     if (this.state.appsListener) {
       this.state.appsListener.unsubscribe()
     }
     var appsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_interfaces/AppsStatus",
+          "nepi_interfaces/MgrAppsStatus",
           this.appsStatusListener
         )
     this.setState({ appsListener: appsListener,
@@ -207,7 +207,7 @@ class AppsAiSelector extends Component {
         this.setState({
           mgrNamespace: namespace,
         })
-        this.updateAppsStatusListener()
+        this.updateMgrAppsStatusListener()
       } 
     }
 

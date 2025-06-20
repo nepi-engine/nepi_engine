@@ -51,7 +51,7 @@ class NepiDashboard extends Component {
   
     this.renderDeviceInfo = this.renderDeviceInfo.bind(this)
     this.renderSystemClock = this.renderSystemClock.bind(this)
-    this.renderSystemStatus = this.renderSystemStatus.bind(this)
+    this.renderMgrSystemStatus = this.renderMgrSystemStatus.bind(this)
 
     this.toggleViewableMessages = this.toggleViewableMessages.bind(this)
     this.onToggleMessagesSelection = this.onToggleMessagesSelection.bind(this)
@@ -357,7 +357,7 @@ class NepiDashboard extends Component {
     )
   }
 
-  renderSystemStatus() {
+  renderMgrSystemStatus() {
     const {
       heartbeat,
       systemStatusDiskUsageMB,
@@ -366,6 +366,11 @@ class NepiDashboard extends Component {
       diskUsagePercent
     } = this.props.ros
 
+    const { wifi_query_response } = this.props.ros
+    const internet_connected = (wifi_query_response !== null)? wifi_query_response.internet_connected : false
+    
+    const sys_debug = this.props.ros.systemDebugEnabled
+    const debug_mode = sys_debug ? sys_debug : false
     return (
       <Section title={"System Status"}>
         <Label title={"Heartbeat"}>
@@ -383,10 +388,20 @@ class NepiDashboard extends Component {
         <Label title={"Capacity"}>
           <Input disabled value={roundWithSuffix(systemDefsDiskCapacityMB / 1000.0, 1, "GB")} />
         </Label>
-
+        {/*
         <Label title={"Used"}>
           <Input disabled value={roundWithSuffix(systemStatusDiskUsageMB / 1000.0, 1, "GB")} />
         </Label>
+      */}
+
+        <Label title={"Internet Connected"}>
+          <BooleanIndicator value={internet_connected} />
+        </Label>
+
+        <Label title={"Debug Mode Enabled"}>
+          <BooleanIndicator value={debug_mode} />
+        </Label>
+
 
         <pre style={{ height: "8px", overflowY: "auto" }}>
             {""}
@@ -409,7 +424,7 @@ class NepiDashboard extends Component {
 
         </Column>
         <Column>
-          {this.renderSystemStatus()}
+          {this.renderMgrSystemStatus()}
 
 
         </Column>

@@ -14,7 +14,7 @@ import Section from "./Section"
 import Toggle from "react-toggle"
 import Label from "./Label"
 import { Column, Columns } from "./Columns"
-
+import BooleanIndicator from "./BooleanIndicator"
 import {Queue, onChangeSwitchStateValue} from "./Utilities"
 
 
@@ -28,6 +28,8 @@ class NepiSystemMessages extends Component {
 
     const show_control = this.props.hide_control ? !this.props.hide_control : true
     const show_messages = (show_control === false)
+
+
     // these states track the values through  Status messages
     this.state = {
 
@@ -152,6 +154,8 @@ class NepiSystemMessages extends Component {
   const show_control = this.state.show_control
   const show_messages = this.state.show_messages
 
+  const sys_debug = this.props.ros.systemDebugEnabled
+  const debug_mode = sys_debug ? sys_debug : false
     if (show_control === false){
       return(
         <Columns>
@@ -179,6 +183,13 @@ class NepiSystemMessages extends Component {
         </Column>
         <Column>
 
+        </Column>
+        <Column>
+
+        <Label title={"Debug Mode Enabled"}>
+        <BooleanIndicator value={debug_mode} />
+      </Label>
+
       </Column>
       </Columns>
       )
@@ -188,7 +199,6 @@ class NepiSystemMessages extends Component {
 
 
   renderMessages() {
-    const show_debug = this.props.ros.systemDebugEnabled
     const connected = this.state.connected
     const msg_str_list = (connected === true && this.msg_queue.getLength() > 0) ? this.msg_queue.getItems() : ["Waiting for message to publish"]
     const msg_str = this.convertStrListToJoinedStr(msg_str_list.reverse())
@@ -249,24 +259,6 @@ class NepiSystemMessages extends Component {
             </Column>
             </Columns>
 
-            <Columns>
-              <Column>
-
-              <Label title="Show Debug Messages"> </Label>
-              <Toggle
-              checked={show_debug}
-              onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !show_debug)}>
-              </Toggle>
-                
-              </Column>
-              <Column>
-
-
-              </Column>
-              <Column>
-
-              </Column>
-              </Columns>
       </Column>
       </Columns>
 

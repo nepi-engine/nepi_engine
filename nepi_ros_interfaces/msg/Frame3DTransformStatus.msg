@@ -1,2 +1,3 @@
-bool supports_transform_updates
+bool has_transform
+bool supports_updates
 

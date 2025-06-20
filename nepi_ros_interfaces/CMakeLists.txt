@@ -55,14 +55,14 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs 
 
 ## Generate messages in the 'msg' folder
 add_message_files(FILES
-    AbsolutePanTiltWaypoint.msg
+    PanTiltAbsoluteWaypoint.msg
     AiDetectorInfo.msg
     AiDetectorStatus.msg
     AiPoseStatus.msg
     AiSegmentorStatus.msg
     Angle3DX.msg
     Annotation.msg
-    AppsStatus.msg
+    MgrAppsStatus.msg
     AppStatus.msg
     AutoManualSelection3DX.msg
     AutoStartEnabled.msg
@@ -88,7 +88,7 @@ add_message_files(FILES
     DevicePTXStatus.msg
     DeviceRBXInfo.msg
     DeviceRBXStatus.msg
-    DriversStatus.msg
+    MgrDriversStatus.msg
     DriverStatus.msg
     ErrorBounds.msg
     FilenameConfig.msg
@@ -120,10 +120,7 @@ add_message_files(FILES
     NavPosePosition.msg
     NavPoseTrack.msg
     ObjectCount.msg
-    Offset.msg
-    OnvifDeviceCfg.msg
-    OnvifDeviceStatus.msg
-    OotStatus.msg
+    NavPoseOffset.msg
     PanTiltLimits.msg
     PanTiltOffsets.msg
     PanTiltPosition.msg
@@ -150,7 +147,7 @@ add_message_files(FILES
     SystemDefs.msg
     SystemState.msg
     SystemStatesStatus.msg
-    SystemStatus.msg
+    MgrSystemStatus.msg
     SystemTrigger.msg
     SystemTriggersStatus.msg
     TargetData.msg
@@ -158,7 +155,7 @@ add_message_files(FILES
     TargetLocalizations.msg
     TargetsData.msg
     TestPatternCfg.msg
-    TimeStatus.msg
+    MgrTimeStatus.msg
     TimeUpdate.msg
     UpdateFrame3DTransform.msg
     UpdateNavPoseTopic.msg
@@ -169,7 +166,7 @@ add_message_files(FILES
     UpdateState.msg
     UpdateTopic.msg
     WarningFlags.msg
-    WifiCredentials.msg
+    NetworkWifiCredentials.msg
 
 )
 
@@ -200,14 +197,10 @@ add_service_files(FILES
     RBXCapabilitiesQuery.srv
     NPXCapabilitiesQuery.srv
     LSXCapabilitiesQuery.srv
-    OnvifDeviceCfgDelete.srv
-    OnvifDeviceCfgUpdate.srv
-    OnvifDeviceDriverListQuery.srv
-    OnvifDeviceListQuery.srv
     AppStatusQuery.srv
     DriverStatusQuery.srv
     SetBoolState.srv
-    AiMgrActiveModelsInfoQuery.srv
+    AiModelsInfoQuery.srv
     AiDetectorInfoQuery.srv
     SystemStatesQuery.srv
     SystemTriggersQuery.srv

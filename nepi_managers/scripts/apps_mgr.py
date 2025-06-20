@@ -20,8 +20,8 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
-from nepi_interfaces.msg import SystemStatus
-from nepi_interfaces.msg import AppsStatus, AppStatus, UpdateState, UpdateOrder
+from nepi_interfaces.msg import MgrSystemStatus
+from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateState, UpdateOrder
 from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
@@ -55,7 +55,7 @@ class NepiAppsMgr(object):
   apps_install_files = []
   apps_install_list = []
   apps_active_dict = dict()
-  status_apps_msg = AppsStatus()
+  status_apps_msg = MgrAppsStatus()
   status_app_msg = AppStatus()
 
   failed_app_list = []
@@ -156,7 +156,7 @@ class NepiAppsMgr(object):
           'status_pub': {
               'namespace': self.node_namespace,
               'topic': 'status', #self.all_namespace + '/all_detectors/detection_image
-              'msg': AppsStatus,
+              'msg': MgrAppsStatus,
               'qsize': 1,
               'latch': True
           },
@@ -486,17 +486,17 @@ class NepiAppsMgr(object):
 
   def publish_apps_status(self):
     self.last_status_apps_msg = self.status_apps_msg
-    self.status_apps_msg = self.getAppsStatusMsg()
+    self.status_apps_msg = self.getMgrAppsStatusMsg()
     self.node_if.publish_pub('status_pub', self.status_apps_msg)
     if self.last_status_apps_msg != self.status_apps_msg:
       self.node_if.save_config() # Save config
 
-  def getAppsStatusMsg(self):
+  def getMgrAppsStatusMsg(self):
     apps_dict = self.node_if.get_param("apps_dict")
     self.apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     self.apps_group_list = nepi_apps.getAppsGroupList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
-    status_apps_msg = AppsStatus()
+    status_apps_msg = MgrAppsStatus()
     status_apps_msg.apps_path = self.apps_param_folder
     status_apps_msg.apps_ordered_list = self.apps_ordered_list
     apps_group_list = []

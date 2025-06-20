@@ -107,7 +107,7 @@ class DevicesSelector extends Component {
     }
     var drvsListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_interfaces/DriversStatus",
+          "nepi_interfaces/MgrDriversStatus",
           this.drvsStatusListener
         )
     this.setState({ drvsListener: drvsListener,

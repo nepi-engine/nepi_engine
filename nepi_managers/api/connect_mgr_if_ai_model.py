@@ -15,7 +15,7 @@ import copy
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 from nepi_interfaces.msg import MgrAiModelStatus
-from nepi_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_interfaces.srv import AiModelsInfoQuery, AiModelsInfoQueryRequest, AiModelsInfoQueryResponse
 from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 from nepi_sdk import nepi_sdk
@@ -107,9 +107,9 @@ class ConnectMgrAiModelIF:
             'active_models_query': {
                 'namespace': self.mgr_namespace,
                 'topic': 'active_models_info_query',
-                'srv': AiMgrActiveModelsInfoQuery,
-                'req': AiMgrActiveModelsInfoQueryRequest(),
-                'resp': AiMgrActiveModelsInfoQueryResponse(),
+                'srv': AiModelsInfoQuery,
+                'req': AiModelsInfoQueryRequest(),
+                'resp': AiModelsInfoQueryResponse(),
             }
         }
 
@@ -237,7 +237,7 @@ class ConnectMgrAiModelIF:
 
     def getActiveModelsInfo(self):
         if self.ai_models_info_query_service is not None:
-            req = AiMgrActiveModelsInfoQueryRequest()
+            req = AiModelsInfoQueryRequest()
             try:
                 response = self.ai_models_info_query_service(req)
                 self.ai_models_info_response = response

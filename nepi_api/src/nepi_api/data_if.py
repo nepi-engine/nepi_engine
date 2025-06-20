@@ -1781,6 +1781,15 @@ class ImageIF:
 
         # Setup navpose data IF if needed
 
+       # Setup navpose data IF
+        np_namespace = self.namespace
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        log_name = 'navpose',
+                        log_name_list = [],
+                        msg_if = self.msg_if
+                        )
            
 
 

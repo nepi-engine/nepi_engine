@@ -23,8 +23,8 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import SystemStatus
-from nepi_interfaces.msg import Reset, WifiCredentials
+from nepi_interfaces.msg import MgrSystemStatus
+from nepi_interfaces.msg import Reset, NetworkWifiCredentials
 from nepi_interfaces.srv import IPAddrQuery, IPAddrQueryRequest, IPAddrQueryResponse
 from nepi_interfaces.srv import BandwidthUsageQueryRequest, BandwidthUsageQuery, BandwidthUsageQueryResponse
 from nepi_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
@@ -304,7 +304,7 @@ class NetworkMgr:
             'set_wifi_access_point_credentials': {
                 'namespace': self.base_namespace,
                 'topic': 'set_wifi_access_point_credentials',
-                'msg': WifiCredentials,
+                'msg': NetworkWifiCredentials,
                 'qsize': 10,
                 'callback': self.set_wifi_ap_credentials_handler, 
                 'callback_args': ()
@@ -320,7 +320,7 @@ class NetworkMgr:
             'set_wifi_client_credentials': {
                 'namespace': self.base_namespace,
                 'topic': 'set_wifi_client_credentials',
-                'msg': WifiCredentials,
+                'msg': NetworkWifiCredentials,
                 'qsize': 10,
                 'callback': self.set_wifi_client_credentials_handler, 
                 'callback_args': ()

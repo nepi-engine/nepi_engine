@@ -14,7 +14,7 @@ import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_interfaces.msg import TimeStatus, TimeUpdate
+from nepi_interfaces.msg import MgrTimeStatus, TimeUpdate
 from nepi_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
 from nepi_sdk import nepi_sdk

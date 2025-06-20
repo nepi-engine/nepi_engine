@@ -227,6 +227,23 @@ install(DIRECTORY etc/
   USE_SOURCE_PERMISSIONS
 )
 
+# Install factory config files to the nepi config destination
+set( NEPI_CONFIG_FOLDER 
+  # Must hard-coded 
+  /opt/nepi/config
+)
+
+install(DIRECTORY config/
+  DESTINATION ${NEPI_CONFIG_FOLDER}
+  USE_SOURCE_PERMISSIONS
+)
+
+install(DIRECTORY etc/
+  DESTINATION ${NEPI_CONFIG_FOLDER}/etc/nepi
+  USE_SOURCE_PERMISSIONS
+)
+
+
 # Install sys_env file in case it doesn't yet exist
 #install(FILES etc/sys_env.bash
 #  DESTINATION ${SYS_ENV_DIR}

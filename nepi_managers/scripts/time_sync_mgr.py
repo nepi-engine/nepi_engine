@@ -25,11 +25,11 @@ from nepi_sdk import nepi_utils
  
 
 from std_msgs.msg import String, Empty, Time
-from nepi_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import MgrSystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
 from nepi_interfaces.msg import Reset, TimeUpdate
-from nepi_interfaces.msg import TimeStatus
+from nepi_interfaces.msg import MgrTimeStatus
 
 from nepi_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeStatusQueryResponse
 
@@ -98,7 +98,7 @@ class time_sync_mgr(object):
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
 
-        self.time_status = TimeStatus()
+        self.time_status = MgrTimeStatus()
         self.set_timezone(FACTORY_TIMEZONE)
 
         ##############################

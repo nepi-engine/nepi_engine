@@ -585,7 +585,7 @@ def create_message_image(message, image_size = (350, 700, 3),color_rgb = (0, 255
 ###########################################
 ### Image saving functions
 
-def read_image_file(file_path):
+def read_image_file(file_path, log_name_list = []):
     cv2_img = None
     if os.path.exists(file_path):
         try:
@@ -593,21 +593,21 @@ def read_image_file(file_path):
             if cv2_img is not None:
                 success = True
         except:
-            nepi_msg.publishMsgWarn(self,"Failed to get cv2_img from file: " + file_path + " " + str(e))
+            logger.log_warn("Failed to get cv2_img from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
-        nepi_msg.publishMsgWarn(self,"Failed to find image file: " + file_path)
+        logger.log_warn("Failed to find image file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
     return cv2_img
 
-def write_image_file(cv2_img,file_path):
+def write_image_file(cv2_img,file_path, log_name_list = []):
     success = False
     path = os.path.dirname(file_path)
     if os.path.exists(path):
         try:
             success = cv2.imwrite(file_path, cv2_img)
         except:
-            nepi_msg.publishMsgWarn(self,"Failed to write image to file: " + file_path + " " + str(e))
+            logger.log_warn("Failed to write image to file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
-        nepi_msg.publishMsgWarn(self,"Failed to find file path: " + path)
+        logger.log_warn("Failed to find file path: " + path, log_name_list = log_name_list, throttle_s = 5.0)
     return success
 
 

@@ -17,7 +17,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import SystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
+from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
 from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse
 from nepi_interfaces.srv import OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse                      
 from nepi_interfaces.srv import SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse
@@ -406,7 +406,7 @@ class ConnectMgrSystemIF:
             'status_sub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status',
-                'msg': SystemStatus,
+                'msg': MgrSystemStatus,
                 'qsize': 10,
                 'callback': self._statusCb, 
                 'callback_args': ()

@@ -49,7 +49,7 @@ class NepiDashboardData extends Component {
     }
 
 
-    this.renderSystemStatus = this.renderSystemStatus.bind(this)
+    this.renderMgrSystemStatus = this.renderMgrSystemStatus.bind(this)
     this.renderSaveData = this.renderSaveData.bind(this)
     this.renderDeleteData = this.renderDeleteData.bind(this)
 
@@ -67,7 +67,7 @@ class NepiDashboardData extends Component {
 
 
 
-  renderSystemStatus() {
+  renderMgrSystemStatus() {
     const {
       systemStatusDiskUsageMB,
       systemDefsDiskCapacityMB,
@@ -230,7 +230,7 @@ class NepiDashboardData extends Component {
       <React.Fragment>
       <Columns>
         <Column>
-        {this.renderSystemStatus()}
+        {this.renderMgrSystemStatus()}
         </Column>
         <Column>
           {this.renderSaveData()}

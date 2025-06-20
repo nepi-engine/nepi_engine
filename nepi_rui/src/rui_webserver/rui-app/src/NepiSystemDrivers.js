@@ -89,7 +89,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
     this.onChangetypeSelection = this.onChangetypeSelection.bind(this)
     this.onToggleDriverSelection = this.onToggleDriverSelection.bind(this)
 
-    this.updateDriversStatusListener = this.updateDriversStatusListener.bind(this)
+    this.updateMgrDriversStatusListener = this.updateMgrDriversStatusListener.bind(this)
     this.driversStatusListener = this.driversStatusListener.bind(this)
 
     this.updateDriverStatusListener = this.updateDriverStatusListener.bind(this)
@@ -139,14 +139,14 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
   }
 
   // Function for configuring and subscribing to Status
-  updateDriversStatusListener() {
+  updateMgrDriversStatusListener() {
     const statusNamespace = this.getMgrNamespace() + '/status'
     if (this.state.driversListener) {
       this.state.driversListener.unsubscribe()
     }
     var driversListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_interfaces/DriversStatus",
+          "nepi_interfaces/MgrDriversStatus",
           this.driversStatusListener
         )
     this.setState({ driversListener: driversListener})
@@ -215,7 +215,7 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
         this.setState({
           mgrNamespace: namespace
         })
-        this.updateDriversStatusListener()
+        this.updateMgrDriversStatusListener()
         this.updateDriverStatusListener()
       } 
     }

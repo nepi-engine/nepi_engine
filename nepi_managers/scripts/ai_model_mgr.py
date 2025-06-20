@@ -26,7 +26,7 @@ from nepi_sdk import nepi_img
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import SystemStatus
+from nepi_interfaces.msg import MgrSystemStatus
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
@@ -35,7 +35,7 @@ from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_interfaces.msg import BoundingBoxes, ObjectCount
 
 from nepi_interfaces.srv import SystemStorageFolderQuery
-from nepi_interfaces.srv import AiMgrActiveModelsInfoQuery, AiMgrActiveModelsInfoQueryRequest, AiMgrActiveModelsInfoQueryResponse
+from nepi_interfaces.srv import AiModelsInfoQuery, AiModelsInfoQueryRequest, AiModelsInfoQueryResponse
 from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse, AiDetectorInfoQueryRequest
 
 
@@ -166,9 +166,9 @@ class AIDetectorManager:
             'active_models_info_query': {
                 'namespace': self.node_namespace,
                 'topic': 'active_models_info_query',
-                'srv': AiMgrActiveModelsInfoQuery,
-                'req': AiMgrActiveModelsInfoQueryRequest(),
-                'resp': AiMgrActiveModelsInfoQueryResponse(),
+                'srv': AiModelsInfoQuery,
+                'req': AiModelsInfoQueryRequest(),
+                'resp': AiModelsInfoQueryResponse(),
                 'callback': self.handleInfoRequest
             }
         }
@@ -524,7 +524,7 @@ class AIDetectorManager:
 
 
     def handleInfoRequest(self,_):
-        resp = AiMgrActiveModelsInfoQueryResponse()
+        resp = AiModelsInfoQueryResponse()
         model_name_list = []
         model_info_list = []
         for model_name in self.detector_info_dict.keys():

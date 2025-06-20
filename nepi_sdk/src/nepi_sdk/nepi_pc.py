@@ -25,6 +25,7 @@ import open3d as o3d
 import math
 import cv2
 
+
 from nepi_sdk import open3d_ros_helper 
 
 from sensor_msgs.msg import PointCloud2
@@ -562,7 +563,7 @@ def write_pointcloud_image_file(open3d_image,filename):
     return ret
     
 
-def read_pointcloud_file(file_path):
+def read_pointcloud_file(file_path, log_name_list = []):
     data_from_file = dict()
     if os.path.exists(file_path):
         try:
@@ -570,21 +571,21 @@ def read_pointcloud_file(file_path):
             if data_from_file is not None:
                 success = True
         except:
-            nepi_msg.publishMsgWarn(self,"Failed to get dict from file: " + file_path + " " + str(e))
+            logger.log_warn("Failed to get dict from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
-        nepi_msg.publishMsgWarn(self,"Failed to find dict file: " + file_path)
+        logger.log_warn("Failed to find dict file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
     return data_from_file
 
-def write_o3dpc_2_pcd(data_2_save,file_path):
+def write_o3dpc_2_pcd(data_2_save,file_path, log_name_list = []):
     success = False
     path = os.path.dirname(file_path)
     if os.path.exists(path):
         try:
             success = nepi_pc.save_pointcloud(data_2_save,file_path)
         except:
-            nepi_msg.publishMsgWarn(self,"Failed to write dict: " + str(data_2_save) + " to file: " + file_path + " " + str(e))
+            logger.log_warn("Failed to write dict: " + str(data_2_save) + " to file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
-        nepi_msg.publishMsgWarn(self,"Failed to find file path: " + path)
+        logger.log_warn("Failed to find file path: " + path, log_name_list = log_name_list, throttle_s = 5.0)
     return success
 
 
