@@ -804,6 +804,7 @@ class Transform3DIF:
     transform = ZERO_TRANSFORM
     source = ''
     end = ''
+    has_transform = True
     supports_updates = True
 
     status_msg = Frame3DTransformStatus()
@@ -851,7 +852,8 @@ class Transform3DIF:
         if self.get_tr is not None:
             self.supports_updates = False
 
-        self.status_msg = self.supports_updates
+        self.status_msg.has_transform = self.has_transform
+        self.status_msg.supports_updates = self.supports_updates
         ##############################  
         # Create NodeClassIF Class  
         # Configs Config Dict ####################
@@ -1009,6 +1011,12 @@ class Transform3DIF:
             self.publish_transform()
             self.node_if.set_param('transform',transform_list)
 
+    def set_has_transform(self,has_transform):
+        self.has_trasform = has_transform
+
+    def get_has_transform(self):
+        return self.has_transform
+
 
     def get_source_description(self):
         return self.source
@@ -1036,6 +1044,7 @@ class Transform3DIF:
             self.node_if.publish_pub('transform_pub',transform_msg)
 
     def publish_status(self):
+        self.status_msg.has_transform = self.has_transform
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
 

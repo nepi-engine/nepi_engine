@@ -169,8 +169,7 @@ class NPXDeviceIF:
 
   navpose_mgr_if = None
 
-
-
+  has_transform = True
   frame_3d = 'nepi_frame'
   tr_source_ref_description = 'data_reference'
   tr_end_ref_description = 'nepi_frame'
@@ -243,7 +242,7 @@ class NPXDeviceIF:
         self.get3DTransformCb = get3DTransformCb
 
         self.supports_transform_updates = (get3DTransformCb is None)
-        self.has_transform = True
+        
 
         if frame_3d is not None:
           self.frame_3d = frame_3d
@@ -285,7 +284,7 @@ class NPXDeviceIF:
         self.caps_report.has_altitude = self.has_altitude
         self.caps_report.has_depth =  self.has_depth
 
-        self.caps_report.has_transform = self.has_transform
+
         self.caps_report.supports_transform_updates = self.supports_transform_updates
 
         self.caps_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
@@ -787,8 +786,17 @@ class NPXDeviceIF:
     if navpose_dict is None:
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     # publish navpose data
+    has_tranform = True
+    if 'frame_3d' in navpose_dict:
+        if navpose_dict['frame_3d'] = 'nepi_frame':
+            has_tranform = False
+    self.has_tranform = has_tranform
+    if self.tranform_if is not None:
+        self.tranform_if.set_has_tranform(has_tranform)
+
     transform = self.get_3d_transform()
-    self.navpose_dict = self.navpose_if.publish_navpose(self.navpose_dict, 
+    if self.navpose_if is not None:
+        self.navpose_dict = self.navpose_if.publish_navpose(self.navpose_dict, 
                                             frame_3d_transform = transform,
                                             device_mount_description = self.get_mount_description())
 
@@ -814,6 +822,7 @@ class NPXDeviceIF:
       self.status_msg.device_name = self.device_name
       self.status_msg.device_mount_description = self.get_mount_description()
 
+      self.status_msg.has_transform = self.has_transform
       transform = self.get_3d_transform()
       transform_msg = nepi_nav.convert_transform_list2msg(transform)
       transform_msg.source_ref_description = self.data_ref_description
