@@ -349,7 +349,7 @@ class ConnectNodeServicesIF:
             if 'service' in srv_dict.keys():
                 service = srv_dict['service']
                 if service is not None:
-                    resp = nepi_sdk.call_service(service, request, verbose = verbose)
+                    resp = nepi_sdk.call_service(service, request, verbose = verbose, log_name_list = self.log_name_list)
         return resp
 
 
@@ -505,10 +505,12 @@ class ConnectNodePublishersIF:
             if 'pub' in pub_dict.keys():
                 if pub_dict['pub'] is not None and not nepi_sdk.is_shutdown():
                     try:
-                        pub_dict['pub'].publish(pub_msg)
+                        nepi_sdk.publish_pub(pub_dict['pub'], pub_msg, log_name_list = self.log_name_list)
                         success = True
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish msg: " + pub_name + " " + str(e))  
+                        namespace =  pub_dict['namespace']
+                        self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
+                            " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
         return success
                     
     def register_pub(self,pub_name, pub_dict):
@@ -953,12 +955,12 @@ class ConnectNodeClassIF:
 
 
 
-    def publish_pub(self, pub_name, pub_msg):
-        if self.pubs_if is not None:
-            try:
-                self.pubs_if.publish(pub_name, pub_msg)
-            except:
-                pass 
+   def publish_pub(self,pub_name, pub_msg):
+        success = False
+        if self.pubs_if is not None and not nepi_sdk.is_shutdown():
+            succes = self.pubs_if.publish_pub(pub_name, pub_msg)   
+        return success
+
 
     def register_pub(self,pub_name, pub_dict):
         if self.services_if is not None:

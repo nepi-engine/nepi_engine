@@ -549,7 +549,7 @@ class SystemMgrNode():
                             "value": str(self.in_container)
                             }
         }
-        self.sys_if_states = StatesIF(self.getStatesDictCb,
+        self.states_if = StatesIF(self.getStatesDictCb,
                         msg_if = self.msg_if)
         time.sleep(1)
 
@@ -709,7 +709,7 @@ class SystemMgrNode():
                         self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
             try:
                 msg = nepi_states.create_states_status_msg(states_list)
-            except:
+            except Exception as e:
                 self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
             if self.node_if is not None:
                 self.node_if.publish_pub('states_status_pub', msg)

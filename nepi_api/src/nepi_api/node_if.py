@@ -345,7 +345,7 @@ class NodeParamsIF:
                     init_val = param_dict['current_val']
                 else:
                     init_val = self.get_param(param_name)
-                    self.msg_if.pub_debug("Got init param value: " + param_name + " : " + str(init_val))
+                    self.msg_if.pub_debug("Got init param value: " + param_name + " : " + str(init_val), log_name_list = self.log_name_list)
                 if init_val is None:
                     init_val = factory_val
                 self.params_dict[param_name]['init_val'] = init_val
@@ -546,21 +546,22 @@ class NodeServicesIF:
             if 'service' not in srv_dict.keys() and srv_dict['callback'] is not None:
                 srv_callback = None
                 try:
-                    srv_namespace = nepi_sdk.create_namespace(srv_dict['namespace'],srv_dict['topic'], log_name_list = self.log_name_list)
+                    srv_namespace = nepi_sdk.create_namespace(srv_dict['namespace'],srv_dict['topic'])
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e), throttle_s = 5.0) 
+                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list) 
                 if srv_callback is not None and not nepi_sdk.is_shutdown():
-                    self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))
+                    self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace), log_name_list = self.log_name_list)
                     service = None
                     try:
-                        service = nepi_sdk.create_service(srv_namespace, srv_msg, srv_callback)   
+                        service = nepi_sdk.create_service(srv_namespace, srv_msg, srv_callback, log_name_list = self.log_name_list)   
                         self.srvs_dict[service_name]['service'] = service
                         self.srvs_dict[service_name]['namespace'] = srv_namespace
-                        self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace))                 
+                        self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace), \
+                                        throttle_s = 5.0, log_name_list = self.log_name_list)                 
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), throttle_s = 5.0)  
+                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list)  
                     
 
     def _unregister_service(self, service_name):
@@ -572,7 +573,7 @@ class NodeServicesIF:
                 try:
                     self.srvs_dict[service_name]['service'].shutdown()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
         if purge == True:
             del self.srvs_dict[service_name]
                     
@@ -679,7 +680,8 @@ class NodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
-                self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), throttle_s = 5.0)
+                self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), \
+                                        throttle_s = 5.0, log_name_list = self.log_name_list) 
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -689,12 +691,12 @@ class NodePublishersIF:
             if 'pub' in pub_dict.keys():
                 if pub_dict['pub'] is not None and not nepi_sdk.is_shutdown():
                     try:
-                        nepi_sdk.publish_pub(pub_dict['pub'], pub_msg, log_name_list = log_name_list)
+                        nepi_sdk.publish_pub(pub_dict['pub'], pub_msg, log_name_list = self.log_name_list)
                         success = True
                     except Exception as e:
                         namespace =  pub_dict['namespace']
                         self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
-                            " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0)  
+                            " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
         return success
 
     def register_pub(self,pub_name, pub_dict):
@@ -719,13 +721,14 @@ class NodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' not in pub_dict.keys():
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
-                    pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'], log_name_list = self.log_name_list)
-                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
+                    pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
+                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
                     pub = None
                     try:
-                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
+                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'], \
+                                latch = pub_dict['latch'], log_name_list = self.log_name_list)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
+                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['namespace'] = pub_namespace
                     self.pubs_dict[pub_name]['pub'] = pub
 
@@ -739,7 +742,7 @@ class NodePublishersIF:
                 try:
                     self.pubs_dict[pub_name]['pub'].unregister()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
         if purge == True:
             del self.pubs_dict[pub_name]
 
@@ -857,7 +860,7 @@ class NodeSubscribersIF:
             self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
                 sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
-                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
+                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list) 
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
@@ -872,9 +875,9 @@ class NodeSubscribersIF:
                     self.subs_dict[sub_name]['sub'] = sub
                     self.subs_dict[sub_name]['namespace'] = sub_namespace
                     success = True
-                    self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
+                    self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list) 
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e))  
+                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)   
                     self.subs_dict[sub_name]['sub'] = None
             
 
@@ -1233,9 +1236,11 @@ class NodeClassIF:
         if self.pubs_if is not None:
             self.pubs_if.unregister_pubs()
 
-    def publish_pub(self,pub_name, pub_msg):
+   def publish_pub(self,pub_name, pub_msg):
+        success = False
         if self.pubs_if is not None and not nepi_sdk.is_shutdown():
-            self.pubs_if.publish_pub(pub_name, pub_msg)   
+            succes = self.pubs_if.publish_pub(pub_name, pub_msg)   
+        return success
             
     # Subscriber Methods ####################
     def get_subs(self):
