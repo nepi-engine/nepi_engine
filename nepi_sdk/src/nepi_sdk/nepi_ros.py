@@ -93,7 +93,7 @@ def log_msg_warn(msg, throttle_s = None, log_name_list = []):
   if len(log_name_list) > 0:
       msg_str = str(log_name_list) + ": " + msg_str
   if throttle_s is None:
-    log_msg_warn(msg_str)
+    rospy.logwarn(msg_str)
   else:
     rospy.logwarn_throttle(throttle_s,msg_str)
 
