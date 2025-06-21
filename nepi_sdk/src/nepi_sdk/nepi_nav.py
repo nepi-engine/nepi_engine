@@ -318,7 +318,7 @@ def convert_transform_msg2list(transform_msg):
       transform_list[6] = transform_msg.heading_offset
   return transform_list
 
-def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame'):
+def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame', log_name_list = []):
   success = True
   if npdata_dict is None:
     success = False
@@ -364,7 +364,7 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     if success == True:
       pass
   return npdata_dict
@@ -567,10 +567,10 @@ def convert_navpose_ned2edu(npdata_dict):
 
 
 
-def convert_navpose_dict2msg(npdata_dict):
+def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
   npdata_msg = None
   if npdata_dict is None:
-    logger.log_info("Got None navpose dict", throttle_s = 5.0)
+    logger.log_info("Got None navpose dict", throttle_s = 5.0, log_name_list = log_name_list)
   else:
     try:
       np_msg = NavPose()
@@ -613,16 +613,16 @@ def convert_navpose_dict2msg(npdata_dict):
       np_msg.depth_m = npdata_dict['depth_m']
     except Exception as e:
       np_msg = None
-      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
+      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
 
-def convert_navpose_msg2dict(npdata_msg):
+def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
   npdata_dict = None
   try:
     npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
-    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)
+    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return npdata_dict
 
 
