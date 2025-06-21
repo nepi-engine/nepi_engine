@@ -1,5 +1,33 @@
-# Some helpful aliases for NEPI
+#############
+# SETUP
+# 1) Open a terminal on PC in this folder
+# 2) Copy the file to the nepi user drive's 'tmp' 
+# 3) SSH into your nepi device and type
+# cp /mnt/nepi_storage/tmp/nepi_bash_aliases ~/.nepi_aliases
 
+# 4) In the same ssh session add the following to your .bashrc file
+# - nano ~/.bashrc
+# NEPI bashrc aliases
+#if [ -f ~/.nepi_aliases ]; then
+#    . ~/.nepi_aliases
+#fi
+
+
+###################################
+#Dev Shortcuts
+# Function to search for text
+# Example call: find 'nepi_sdk.parse_header_msg'
+function ftext(){
+grep -r "$@" ./*
+}
+
+#Dev Shortcuts
+# Function to search for text
+# Example call: find 'nepi_sdk.parse_header_msg'
+function ffile(){
+find ./* -iname  "*$@*" 
+}
+###################################
 #NEPI folder shortcuts
 export AUTO="/mnt/nepi_storage/automation_scripts"
 export DATA="/mnt/nepi_storage/data"

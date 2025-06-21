@@ -26,7 +26,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
+from nepi_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
 
 from nepi_interfaces.msg import NavPose, DataNavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -58,7 +58,7 @@ if os.path.exists(GEOID_DATABASE_FILE):
     ginterpolator = pygeodesy.GeoidKarney(GEOID_DATABASE_FILE)
     file_loaded = True
   except Exception as e:
-    logger.log_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
+    nepi_sdk.log_msg_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
 if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
@@ -364,7 +364,7 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+        nepi_sdk.log_msg_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     if success == True:
       pass
   return npdata_dict
@@ -613,7 +613,7 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.depth_m = npdata_dict['depth_m']
     except Exception as e:
       np_msg = None
-      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      nepi_sdk.log_msg_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
 
 def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
@@ -622,7 +622,7 @@ def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
     npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
-    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+    nepi_sdk.log_msg_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return npdata_dict
 
 
@@ -736,12 +736,13 @@ def get_navpose_geoid_height(navpose_response):
   geoid_height =  geoid_height
   return geoid_height
   
-def get_navpose_track_msg_from_dict(navpose_dict):
+def get_navpose_track_msg_from_dict(navpose_dict, log_name_list = []):
     track = BLANK_NAVPOSE_TRACK_DICT
     for key in track.keys():
         if key in navpose_dict.keys():
             track[key] = navpose_dict[key]
     track_msg = NavPoseTrack()
+    nepi_sdk.log_msg_warn("NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0, log_name_list = log_name_list)
     timestamp = nepi_utils.get_time() 
     track_msg.timestamp = timestamp
     track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)

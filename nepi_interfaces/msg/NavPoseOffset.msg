@@ -7,7 +7,7 @@ float32 latitude
 float32 longitude
 
 # Additional heading offset if applicable
-float32 heading_m
+float32 heading_deg
 
 # Translation in meters x,y,z in ENU frame (x-forward,y-left,z-up)
 geometry_msgs/Vector3 translation

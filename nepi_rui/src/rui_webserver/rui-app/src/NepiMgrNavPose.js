@@ -383,13 +383,13 @@ class NavPoseMgr extends Component {
     const namespace = this.state.base_namespace + "/" + this.state.mgrName;
     const topic = namespace + "/status";
     console.log("Attempting to subscribe to:", topic);
-    console.log("Expected message type: nepi_sdk_interfaces/NavPoseMgrStatus");
+    console.log("Expected message type: nepi_interfaces/NavPoseMgrStatus");
     
     // Add error handling
     try {
       var statusListener = this.props.ros.setupStatusListener(
         topic,
-        "nepi_sdk_interfaces/NavPoseMgrStatus",
+        "nepi_interfaces/NavPoseMgrStatus",
         this.statusListener 
       );
       

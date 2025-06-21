@@ -4,7 +4,7 @@ std_msgs/Header header
 float32 timestamp
 string date_time
 
-# Location with 
+# Location and Heading in Degrees
 
 float32 latitude
 float32 longitude

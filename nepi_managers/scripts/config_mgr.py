@@ -37,6 +37,8 @@ CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
 USER_SUFFIX = '.user'
 
+SYSTEM_MGR_NODENAME = 'system_mgr'
+
 pending_nodes = {}
 
 # Files outside the normal NEPI-ROS cfg. scheme
@@ -203,6 +205,11 @@ class config_mgr(object):
         
         self.node_if.publish_pub('status_pub', Empty())
 
+        ################
+        # Save the current system config
+        sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
+        self.save_params(sys_ns)
+
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -295,6 +302,9 @@ class config_mgr(object):
 
     def store_params(self,msg):
         namespace = msg.data
+        self.save_params(namespace)
+    
+    def save_params(self,namespace):
         user_pathname = self.get_user_pathname(namespace)
         self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + user_pathname )
         # First, write to the user file

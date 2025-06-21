@@ -1236,7 +1236,7 @@ class NodeClassIF:
         if self.pubs_if is not None:
             self.pubs_if.unregister_pubs()
 
-   def publish_pub(self,pub_name, pub_msg):
+    def publish_pub(self,pub_name, pub_msg):
         success = False
         if self.pubs_if is not None and not nepi_sdk.is_shutdown():
             succes = self.pubs_if.publish_pub(pub_name, pub_msg)   
