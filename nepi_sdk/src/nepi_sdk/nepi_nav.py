@@ -26,7 +26,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
+from nepi_interfaces.msg import MgrNavPoseStatus, MgrNavPoseCompInfo, NavPoseTrack
 
 from nepi_interfaces.msg import NavPose, DataNavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading

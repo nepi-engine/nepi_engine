@@ -32,7 +32,7 @@ import NavPoseData from "./Nepi_IF_NavPoseData"
 @observer
 
 // NPX Application page
-class NavPoseMgr extends Component {
+class MgrNavPose extends Component {
   constructor(props) {
     super(props)
 
@@ -383,13 +383,13 @@ class NavPoseMgr extends Component {
     const namespace = this.state.base_namespace + "/" + this.state.mgrName;
     const topic = namespace + "/status";
     console.log("Attempting to subscribe to:", topic);
-    console.log("Expected message type: nepi_interfaces/NavPoseMgrStatus");
+    console.log("Expected message type: nepi_interfaces/MgrNavPoseStatus");
     
     // Add error handling
     try {
       var statusListener = this.props.ros.setupStatusListener(
         topic,
-        "nepi_interfaces/NavPoseMgrStatus",
+        "nepi_interfaces/MgrNavPoseStatus",
         this.statusListener 
       );
       
@@ -1298,4 +1298,4 @@ updateNavposeListener() {
   }
 }
 
-export default NavPoseMgr
+export default MgrNavPose
