@@ -395,7 +395,7 @@ def publish_pub(publisher, msg, log_name_list = []):
   success = False
   if publisher is not None and msg is not None:
     try:
-      publisher(msg)
+      publisher.publish(msg)
       success = True
     except Exception as e:
       log_msg_debug("nepi_sdk: Failed to publish message: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
