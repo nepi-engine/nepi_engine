@@ -28,7 +28,7 @@ from sensor_msgs.msg import Image, PointCloud2
 
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
-from nepi_interfaces.msg import ImageStatus, PointcloudStatus
+from nepi_interfaces.msg import DataImageStatus, DataPointcloudStatus
 from nepi_interfaces.msg import Frame3DTransform
 
 from geometry_msgs.msg import Vector3
@@ -572,7 +572,7 @@ class IDXDeviceIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        supports_updates = True,
+#                        supports_updates = True,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
@@ -635,7 +635,7 @@ class IDXDeviceIF:
             start_data_function = self.getColorImage
             stop_data_function = self.stopColorImageAcquisition
             data_msg = Image
-            data_status_msg = ImageStatus
+            data_status_msg = DataImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
@@ -657,7 +657,7 @@ class IDXDeviceIF:
             start_data_function = self.getDepthMap
             stop_data_function = self.stopDepthMapAcquisition
             data_msg = Image
-            data_status_msg = ImageStatus
+            data_status_msg = DataImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
@@ -677,7 +677,7 @@ class IDXDeviceIF:
             start_data_function = self.getPointcloud
             stop_data_function = self.stopPointcloudAcquisition
             data_msg = PointCloud2
-            data_status_msg = PointcloudStatus
+            data_status_msg = DataPointcloudStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
@@ -743,7 +743,7 @@ class IDXDeviceIF:
 
         ##################################
         # Start Node Processes
-        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+#        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self._publishNavPoseCb, oneshot = True) 
 
         ####################################
@@ -751,6 +751,15 @@ class IDXDeviceIF:
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
 
+    def initConfig(self):
+        self.initCb(do_updates = True)
+
+    def initCb(self, do_updates = False):
+      if self.node_if is not None:
+        self.device_name = self.node_if.get_param('device_name')
+      if do_updates == True:
+        self.resetCb(do_updates)
+        
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM
         if self.transform_if is not None:
@@ -1569,21 +1578,21 @@ class IDXDeviceIF:
         self.status_msg.min_range_m = self.min_range_m
         self.status_msg.max_range_m = self.max_range_m
         
-        self.status_msg.resolution_ratio = self.ctr_res_ratio
+        self.status_msg.resolution_ratio = self.ctl_res_ratio
         res_str = str(self.width_px) + ":" + str(self.height_px)
         self.status_msg.resolution_current = res_str
 
-        self.status_msg.framerate_ratio = self.ctr_fr_ratio
+        self.status_msg.framerate_ratio = self.ctl_fr_ratio
         self.status_msg.data_products = self.data_products_base_list
         framerates = []
         for dp in self.current_fps.keys():
             framerates.append(self.current_fps[dp])
         self.status_msg.framerates = framerates
 
-        self.status_msg.auto_adjust_enabled = self.ctr_auto_ratio
-        self.status_msg.contrast_ratio = self.ctr_contrast_ratio
-        self.status_msg.brightness_ratio = self.ctr_brightness_ratio
-        self.status_msg.threshold_ratio = self.ctr_threshold_ratio
+        self.status_msg.auto_adjust_enabled = self.ctl_auto
+        self.status_msg.contrast_ratio = self.ctl_contrast
+        self.status_msg.brightness_ratio = self.ctl_brightness
+        self.status_msg.threshold_ratio = self.ctl_threshold
         
         self.status_msg.range_window_ratios.start_range = self.ctr_start_range_ratio
         self.status_msg.range_window_ratios.stop_range =  self.ctr_stop_range_ratio
@@ -1615,7 +1624,13 @@ class IDXDeviceIF:
         
         self.status_msg.output_frame_3d = self.frame_3d
         
-        self.status_msg.frame_3d_transform = self.get_3d_transform_msg()
+        #self.status_msg.frame_3d = self.frame_3d
+        transform = self.get_3d_transform()
+        transform_msg = nepi_nav.convert_transform_list2msg(transform)
+        transform_msg.source_ref_description = self.tr_source_ref_description
+        transform_msg.end_ref_description = self.tr_end_ref_description
+        self.status_msg.frame_3d_transform = transform_msg
+        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
 
         if do_updates == True:
            
@@ -1662,6 +1677,12 @@ class IDXDeviceIF:
         tr_msg = status_dict['frame_3d_transform']
         self.pt_transform = nepi_nav.convert_transform_msg2list(tr_msg)
 
+    def get_3d_transform(self):
+        transform = nepi_nav.ZERO_TRANSFORM
+        if self.transform_if is not None:
+            transform = self.transform_if.get_3d_transform()
+        return transform
+
     def updaterCb(self,timer):
         self.avail_pts = nepi_devices.get_ptx_device_namespaces()
         sel_pt = self.pt_topic
@@ -1671,4 +1692,4 @@ class IDXDeviceIF:
             success = self.unregisterPTX()
         if sel_pt != '' and sel_pt != 'None' and sel_pt in self.avail_pts:
             success = self.registerPTX()
-        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+#        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
