@@ -11,4 +11,7 @@
 
 # This script deletes all nepi folders/files in the nepi system
 cd /opt/nepi/ros
-sudo rm -r nepi_* ./*
+sudo find . -type d -name 'nepi_*' -exec rm -rf {} +
+sudo chown -R nepi:nepi ./*
+# Run Nepi deploy and build complete scripts to rebuild system
+
