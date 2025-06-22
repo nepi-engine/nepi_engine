@@ -742,7 +742,7 @@ def get_navpose_track_msg_from_dict(navpose_dict, log_name_list = []):
         if key in navpose_dict.keys():
             track[key] = navpose_dict[key]
     track_msg = NavPoseTrack()
-    nepi_sdk.log_msg_warn("NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0, log_name_list = log_name_list)
+    nepi_sdk.log_msg_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0, log_name_list = log_name_list)
     timestamp = nepi_utils.get_time() 
     track_msg.timestamp = timestamp
     track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)

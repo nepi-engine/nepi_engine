@@ -786,13 +786,13 @@ class NPXDeviceIF:
     if navpose_dict is None:
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     # publish navpose data
-    has_tranform = True
+    has_transform = True
     if 'frame_3d' in navpose_dict:
         if navpose_dict['frame_3d'] == 'nepi_frame':
-            has_tranform = False
-    self.has_tranform = has_tranform
-    if self.tranform_if is not None:
-        self.tranform_if.set_has_tranform(has_tranform)
+            has_transform = False
+    self.has_transform = has_transform
+    if self.transform_if is not None:
+        self.transform_if.set_has_transform(has_transform)
 
     transform = self.get_3d_transform()
     if self.navpose_if is not None:

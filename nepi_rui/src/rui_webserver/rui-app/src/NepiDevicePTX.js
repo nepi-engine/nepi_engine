@@ -721,14 +721,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             id={"PTXPanHardStopMin"}
             style={{ width: "45%", float: "left" }}
             value={panHardStopMin}
-            disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
             id={"PTXTiltHardStopMin"}
             style={{ width: "45%" }}
             value={tiltHardStopMin}
-            disabled={true}
           />
         </Label>
 
@@ -738,14 +736,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             id={"PTXPanHardStopMax"}
             style={{ width: "45%", float: "left" }}
             value={panHardStopMax}
-            disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
             id={"PTXTiltHardStopMax"}
             style={{ width: "45%" }}
             value={tiltHardStopMax}
-            disabled={true}
           />
         </Label>
 
@@ -869,12 +865,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
               <ButtonMenu>
 
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(namespace, - 1)}
+                    buttonDownAction={() => onPTXJogPan(namespace,  1)}
                     buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25C0'}
                     </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(namespace, 1)}
+                    buttonDownAction={() => onPTXJogPan(namespace, - 1)}
                     buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25B6'}
                   </Button>
