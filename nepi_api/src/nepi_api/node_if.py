@@ -409,6 +409,11 @@ class NodeParamsIF:
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
 
+    def add_params(self,params_dict):
+        self.params_dict.update(params_dict)
+        self.initialize_params()
+
+
 
 
     ###############################
@@ -534,7 +539,9 @@ class NodeServicesIF:
         for service_name in self.srvs_dict.keys():
             self._unregister_service(service_name)
 
-
+    def add_services(self,services_dict):
+        self.services_dict.update(services_dict)
+        self.initialize_services()
     ###############################
     # Class Private Methods
     ###############################
@@ -711,7 +718,9 @@ class NodePublishersIF:
         for pub_name in pub_names:
             self._unregister_pub(pub_name)
 
-
+    def add_pubs(self,pubs_dict):
+        self.pubs_dict.update(pubs_dict)
+        self.initialize_pubs()
 
     ###############################
     # Class Private Methods
@@ -851,6 +860,10 @@ class NodeSubscribersIF:
         for sub_name in sub_names:
             self._unregister_sub(sub_name)
 
+
+    def add_subs(self,subs_dict):
+        self.subs_dict.update(subs_dict)
+        self._initialize_subs()
     ###############################
     # Class Private Methods
     ###############################
@@ -976,7 +989,7 @@ EXAMPLE_NODE_IF = NodeClassIF(
 class NodeClassIF:
 
     ready = False
-
+    node_if = None
     msg_if = None
     log_name = None
 
@@ -998,6 +1011,7 @@ class NodeClassIF:
                 node_name = None,
                 do_wait = False,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1009,23 +1023,31 @@ class NodeClassIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
-        # Create Msg Class
-        if msg_if is None:
-            self.msg_if = MsgIF()
+        self.node_if = node_if
+        if self.node_if is not None:
+            self.msg_if = self.node_if.msg_if
         else:
-            self.msg_if = msg_if
+            # Create Msg Class
+            if msg_if is None:
+                self.msg_if = MsgIF()
+            else:
+                self.msg_if = msg_if
         self.log_name_list = copy.deepcopy(log_name_list)
         self.log_name_list.append(self.class_name)
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
         ##############################   
         self.do_wait = do_wait
 
-
         ##############################  
         # Create Params Class
         if params_dict is not None:
             self.msg_if.pub_debug("Starting Node Params IF Initialization Processes", log_name_list = self.log_name_list)
-            self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+           if self.node_if is not None:
+                if self.node_if.params_if is not None:
+                    self.params_if = self.node_if.params_if
+                    self.params_if.add_params(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.params_if is None:            
+                self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
 
         ##############################  
@@ -1048,21 +1070,36 @@ class NodeClassIF:
         # Create Services Class
         if services_dict is not None:
             self.msg_if.pub_debug("Starting Node Services IF Initialization Processes", log_name_list = self.log_name_list)
-            self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.node_if is not None:
+                if self.node_if.services_if is not None:
+                    self.services_if = self.node_if.services_if
+                    self.services_if.add_services(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.services_if is None:
+                self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
 
         ##############################  
         # Create Publisers Class
         if pubs_dict is not None:
             self.msg_if.pub_debug("Starting Node Publishers IF Initialization Processes", log_name_list = self.log_name_list)
-            self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, do_wait = self.do_wait, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.node_if is not None:
+                if self.node_if.pubs_if is not None:
+                    self.pubs_if = self.node_if.pubs_if
+                    self.pubs_if.add_pubs(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.pubs_if is None: 
+                self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, do_wait = self.do_wait, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
 
         ##############################  
         # Create Subscribers Class
         if subs_dict is not None:
             self.msg_if.pub_debug("Starting Node Subscribers IF Initialization Processes", log_name_list = self.log_name_list)
-            self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+           if self.node_if is not None:
+                if self.node_if.subs_if is not None:
+                    self.subs_if = self.node_if.subs_if
+                    self.subs_if.add_subs(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+            if self.subs_if is None: 
+                self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
             
         ############################## 
