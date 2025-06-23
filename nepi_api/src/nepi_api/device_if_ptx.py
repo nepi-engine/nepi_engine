@@ -292,7 +292,7 @@ class PTXActuatorIF:
         else:
             self.setSpeedRatioCb = setSpeedRatioCb
         self.getSpeedRatioCb = getSpeedRatioCb
-        if self.getSpeedRatioCb is not None:
+        if getSpeedRatioCb is not None:
             self.has_adjustable_speed = True
 
 
@@ -1136,6 +1136,8 @@ class PTXActuatorIF:
         if self.capabilities_report.has_adjustable_speed == True:
             speed_cur = self.getSpeedRatioCb()
             speed_ratio = msg.data
+            self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)     
+            self.msg_if.pub_warn("cur speed ratio " + "%.2f" % speed_cur)
             if (speed_ratio < 0.0) or (speed_ratio > 1.0):
                 self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
             elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:

@@ -108,7 +108,7 @@ const styles = Styles.Create({
 // Function for sending updated state through rosbridge
 function sendUpdate(props, new_value, throttle) {
   const noPrefix = (props.topic.startsWith('/'))
-  const comp_name = this.props.comp_name ? this.props.comp_name : null
+  const comp_name = props.comp_name ? props.comp_name : null
   if (comp_name != null) {
     props.ros.sendUpdateRatioMsg(props.topic,props.comp_name,new_value)
   }
