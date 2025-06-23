@@ -385,7 +385,8 @@ class NavPoseMgr(object):
     def setFrameDesc(self,description):
         self.nepi_frame_desc = description
         self.publish_status(do_updates = False)
-        self.node_if.set_param('nepi_frame_desc',description)      
+        if self.node_if is not None:
+            self.node_if.set_param('nepi_frame_desc',description)      
 
     def setPublishRateCb(self,rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
@@ -396,7 +397,8 @@ class NavPoseMgr(object):
             rate = max
         self.set_pub_rate = rate
         self.publish_status(do_updates = False)
-        self.node_if.set_param('pub_rate',rate)
+        if self.node_if is not None:
+            self.node_if.set_param('pub_rate',rate)
 
 
     def setTopic(self,name,topic,transform = None):
@@ -813,9 +815,11 @@ class NavPoseMgr(object):
             #self.msg_if.pub_warn("Got navpose data msg: " + str(npdata_msg))
             if npdata_msg is not None:
                 self.status_msg.publishing = True
-                self.node_if.publish_pub('navpose_data',npdata_msg)  
+                if self.node_if is not None:
+                    self.node_if.publish_pub('navpose_data',npdata_msg)  
             if self.last_npdata_dict != npdata_dict:
-                self.save_data_if.save('navpose',npdata_dict,timestamp)
+                if self.save_data_if is not None:
+                    self.save_data_if.save('navpose',npdata_dict,timestamp)
             # Setup nex update check
             self.last_npdata_dict = npdata_dict
 

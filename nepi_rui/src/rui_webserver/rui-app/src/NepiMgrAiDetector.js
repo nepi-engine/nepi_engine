@@ -176,7 +176,7 @@ class AiDetectorMgr extends Component {
     }
     var modelMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_interfaces/AiModelMgrStatus",
+          "nepi_interfaces/MgrAiModelsStatus",
           this.modelMgrStatusListener
         )
     this.setState({ modelMgrListener: modelMgrListener,
@@ -238,7 +238,7 @@ class AiDetectorMgr extends Component {
       const statusNamespace = detector_namespace + '/status'
       var detectorMgrListener = this.props.ros.setupStatusListener(
         statusNamespace,
-        "nepi_interfaces/AiDetectorMgrStatus",
+        "nepi_interfaces/MgrAiDetectorStatus",
         this.detectorMgrStatusListener
       )
       this.setState({ 

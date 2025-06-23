@@ -111,6 +111,7 @@ class ReadWriteIF:
                 filename_dict = None,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -120,6 +121,7 @@ class ReadWriteIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -538,6 +540,7 @@ class NavPoseIF:
                 pub_altitude = False, pub_depth = False,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -547,6 +550,7 @@ class NavPoseIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -754,6 +758,7 @@ class NavPoseIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
+                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 
@@ -1291,6 +1296,7 @@ class ImageIF:
                 get_navpose_function,
                 log_name,
                 log_name_list,
+                node_if,
                 msg_if
                 ):
         ####  IF INIT SETUP ####
@@ -1300,6 +1306,7 @@ class ImageIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -1773,6 +1780,7 @@ class ImageIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
+                        node_if = node_if,
                         msg_if = self.msg_if
                         )
 
@@ -1788,6 +1796,7 @@ class ImageIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = [],
+                        node_if = node_if,
                         msg_if = self.msg_if
                         )
            
@@ -2592,6 +2601,7 @@ class ColorImageIF(ImageIF):
                 get_navpose_function = None,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
 
@@ -2611,6 +2621,7 @@ class ColorImageIF(ImageIF):
                 get_navpose_function,
                 log_name,
                 log_name_list,
+                node_if,
                 msg_if
                 )
 
@@ -2710,6 +2721,7 @@ class DepthMapImageIF(ImageIF):
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):     
 
@@ -2729,6 +2741,7 @@ class DepthMapImageIF(ImageIF):
                 init_overlay_list,
                 log_name,
                 log_name_list,
+                node_if,
                 msg_if
                 )
 
@@ -2835,6 +2848,7 @@ class DepthMapIF:
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -2844,6 +2858,7 @@ class DepthMapIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -3026,8 +3041,9 @@ class DepthMapIF:
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        node_if = node_if,
+                        msg_if = self.msg_if
                                             )
 
         #self.node_if.wait_for_ready()
@@ -3314,6 +3330,7 @@ class PointcloudIF:
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -3323,6 +3340,7 @@ class PointcloudIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -3606,8 +3624,9 @@ class PointcloudIF:
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        node_if = node_if,
+                        msg_if = self.msg_if
                                             )
 
         

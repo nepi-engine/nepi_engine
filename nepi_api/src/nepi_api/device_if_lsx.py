@@ -102,6 +102,7 @@ class LSXDeviceIF:
                  reports_temp = False, reports_power = False,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -429,11 +430,24 @@ class LSXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         ready = self.node_if.wait_for_ready()
 
+
+
+        ###############################
+        # Finish Initialization
+        self.initCb(do_updates = True)
+        status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
+        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
+        #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
+
+        self.publish_status()
+
+        ###############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
@@ -443,7 +457,8 @@ class LSXDeviceIF:
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
 
@@ -462,7 +477,8 @@ class LSXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         '''
@@ -487,7 +503,8 @@ class LSXDeviceIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
         '''
  
@@ -498,20 +515,11 @@ class LSXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         time.sleep(1)
-
-        ###############################
-        # Finish Initialization
-        self.initCb(do_updates = True)
-        status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
-        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
-        #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
-
-        self.publish_status()
-
         
         ####################################
         self.ready = True
@@ -571,15 +579,15 @@ class LSXDeviceIF:
         self.publish_status(do_updates=False) # Updated inline here 
         self.node_if.set_param('mount_desc', self.mount_desc)
 
+    def initConfig(self):
+        self.initCb()
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
-        self.updateDevice()
+        pass
       self.publish_status()
-
-
 
     def resetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -587,8 +595,14 @@ class LSXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-          self.settings_if.reset_settings(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if self.navpose_if is not None:
+          self.navpose_if.reset()
+      if do_updates = True:
+        pass
+      self.initCb(do_updates = True)
 
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -596,8 +610,15 @@ class LSXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-          self.settings_if.factory_reset(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if self.navpose_if is not None:
+          self.navpose_if.factory_reset()
+      if do_updates = True:
+        pass
+      self.initCb(do_updates = True)
+
 
     def updateDevice(self):
         if self.standbyEnableFunction is not None:

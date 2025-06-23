@@ -61,6 +61,11 @@ def get_debug_mode():
 #######################
 ### Log Utility Functions
 
+def set_debug_log(enabled):
+  if enabled == True:
+    rospy.logger.setLevel(logging.DEBUG)
+  else:
+    rospy.logger.setLevel(logging.INFO)
 
 def log_msg(msg, level = "None", throttle_s = None, prefix = "", log_name_list = []):
   #if msg is None:
@@ -98,15 +103,13 @@ def log_msg_warn(msg, throttle_s = None, log_name_list = []):
     rospy.logwarn_throttle(throttle_s,msg_str)
 
 def log_msg_debug(msg, throttle_s = None, log_name_list = []):
-  debug = get_debug_mode()
-  if debug == True:
-    msg_str = str(msg)
-    if len(log_name_list) > 0:
-        msg_str = str(log_name_list) + ": " + msg_str
-    if throttle_s is None:
-      rospy.logwarn(msg_str)
-    else:
-      rospy.logwarn_throttle(throttle_s,msg_str)
+  msg_str = str(msg)
+  if len(log_name_list) > 0:
+      msg_str = str(log_name_list) + ": " + msg_str
+  if throttle_s is None:
+    rospy.logdebug(msg_str)
+  else:
+    rospy.logdebug_throttle(throttle_s,msg_str)
 
 def log_msg_error(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)

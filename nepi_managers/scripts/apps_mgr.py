@@ -8,7 +8,7 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
-
+import copy
 import glob
 import sys
 import subprocess
@@ -58,6 +58,12 @@ class NepiAppsMgr(object):
   status_apps_msg = MgrAppsStatus()
   status_app_msg = AppStatus()
 
+  node_if = None
+
+  apps_dict = dict()
+  backup_enabled = False
+  restart_enabled = False
+
   failed_app_list = []
 
 
@@ -80,9 +86,14 @@ class NepiAppsMgr(object):
       self.msg_if = MsgIF(log_name = None)
       self.msg_if.pub_info("Starting IF Initialization Processes")
 
-
       ##############################
-      # Initialize Params
+      # Initialize Variables
+      # ToDo:CHANGE TO SYSTEM SERVICE CALLS
+      self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
+      self.apps_config_folder = APPS_CONFIG_FOLDER
+      self.apps_install_folder = APPS_INSTALL_FOLDER
+
+
       self.initCb(do_updates = False)
 
       ##############################
@@ -93,10 +104,7 @@ class NepiAppsMgr(object):
       if success == False:
           nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
 
-      # NEED TO CHANGE TO SYSTEM SERVICE CALLS
-      self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
-      self.apps_config_folder = APPS_CONFIG_FOLDER
-      self.apps_install_folder = APPS_INSTALL_FOLDER
+
     
 
       self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
@@ -235,17 +243,11 @@ class NepiAppsMgr(object):
       ##############################
       self.initCb(do_updates = True)
 
-      #self.msg_if.pub_info("App folder set to " + self.apps_param_folder)
-      self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-      #self.msg_if.pub_info("App folder files " + str(self.apps_files))
-
-      apps_dict = self.node_if.get_param("apps_dict")
-      apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-      
+       
       app_dict = dict()
       #self.msg_if.pub_warn("Got init apps dict: " + str(apps_dict))
-      for app_name in apps_dict:
-        app_dict[app_name] = apps_dict[app_name]['active']
+      for app_name in self.apps_dict:
+        app_dict[app_name] = self.apps_dict[app_name]['active']
       self.msg_if.pub_info("Got init app dict active list: " + str(app_dict))
 
 
@@ -289,37 +291,44 @@ class NepiAppsMgr(object):
     # refresh apps dict
     self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
-    self.node_if.set_param("restart_enabled",False)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
     
   def initCb(self,do_updates = False):
-      self.msg_if.pub_info("Setting init values to param values")
-      if do_updates == True:
+      if self.node_if is not None:
         self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
         self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
         apps_dict = self.node_if.get_param("apps_dict")
         apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-        self.node_if.set_param("apps_dict",apps_dict)
-        self.resetCb(do_updates)
-        #self.printND()
+        self.apps_dict = apps_dict
+        if self.node_if is not None:
+          self.node_if.set_param("apps_dict",apps_dict)
+          self.backup_enabled = self.node_if.get_param("backup_enabled")
+          self.restart_enabled = self.node_if.get_param("restart_enabled")   
+      if do_updates == True:
+        pass
+      self.refresh()
+      self.publish_status()
 
   def resetCb(self,do_updates = True):
-    pass
+      if self.node_if is not None:
+        self.node_if.reset_params()
+      if do_updates == True:
+        pass
+      self.initCb()
 
-  def factoryResetCb(self):
-    # reset apps dict
-    self.node_if.set_param("backup_enabled",True)
-    self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-    self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-    apps_dict = nepi_apps.getAppsgetAppsDict(self.apps_param_folder)
-    apps_dict = nepi_apps.setFactoryAppOrder(apps_dict)
-    apps_dict = activateAllApps(apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
-    self.publish_status()
+
+  def factoryResetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.factory_reset_params()
+      if do_updates == True:
+        pass
+      self.initCb()
 
   def publishStatusCb(self,timer):
     self.publish_status()
@@ -335,7 +344,7 @@ class NepiAppsMgr(object):
     if need_update:
       self.msg_if.pub_info("Need to Update App Database")
       self.initCb(do_updates = True)
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
     ## process active app processes
@@ -372,7 +381,7 @@ class NepiAppsMgr(object):
 
     ################################    
     ## Process Apps
-    restart = self.node_if.get_param("restart_enabled")
+    restart = self.restart_enabled
     for app_name in self.apps_ordered_list:
       if app_name in apps_active_list and app_name in apps_dict.keys():
         app_dict = apps_dict[app_name]
@@ -435,7 +444,7 @@ class NepiAppsMgr(object):
 
 
   def getAppStatusServiceMsg(self, app_name):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     status_app_msg = AppStatusQueryResponse()
     status_app_msg.app_name = app_name
     if app_name in apps_dict.keys() and app_name != 'NONE':
@@ -464,7 +473,7 @@ class NepiAppsMgr(object):
         
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     self.msg_if.pub_info('')
     self.msg_if.pub_info('*******************')
     self.msg_if.pub_info('Printing Apps Dictionary')
@@ -487,12 +496,13 @@ class NepiAppsMgr(object):
   def publish_apps_status(self):
     self.last_status_apps_msg = self.status_apps_msg
     self.status_apps_msg = self.getMgrAppsStatusMsg()
-    self.node_if.publish_pub('status_pub', self.status_apps_msg)
-    if self.last_status_apps_msg != self.status_apps_msg:
-      self.node_if.save_config() # Save config
+    if self.node_if is not None:
+      self.node_if.publish_pub('status_pub', self.status_apps_msg)
+      if self.last_status_apps_msg != self.status_apps_msg:
+        self.node_if.save_config() # Save config
 
   def getMgrAppsStatusMsg(self):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     self.apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
     self.apps_group_list = nepi_apps.getAppsGroupList(apps_dict)
     apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
@@ -508,22 +518,23 @@ class NepiAppsMgr(object):
     status_apps_msg.apps_install_list = self.apps_install_files
     status_apps_msg.apps_rui_list = nepi_apps.getAppsRuiActiveList(apps_dict)
     status_apps_msg.app_backup_path = self.apps_install_folder
-    status_apps_msg.backup_removed_apps = self.node_if.get_param("backup_enabled")
+    status_apps_msg.backup_removed_apps = self.backup_enabled
     status_apps_msg.selected_app = self.selected_app
-    status_apps_msg.restart_enabled = self.node_if.get_param("restart_enabled")
+    status_apps_msg.restart_enabled = self.restart_enabled
     return status_apps_msg
 
   
   def publish_app_status(self):
     self.last_status_app_msg = self.status_app_msg
     self.status_app_msg = self.getAppStatusMsg()
-    self.node_if.publish_pub('status_app', self.status_app_msg)
-    if self.last_status_app_msg != self.status_app_msg:
-      self.node_if.save_config() # Save config
+    if self.node_if is not None:
+      self.node_if.publish_pub('status_app', self.status_app_msg)
+      if self.last_status_app_msg != self.status_app_msg:
+        self.node_if.save_config() # Save config
 
 
   def getAppStatusMsg(self):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     app_name = self.selected_app
     status_app_msg = AppStatus()
     status_app_msg.name = app_name
@@ -557,22 +568,26 @@ class NepiAppsMgr(object):
   ## Apps Mgr Callbacks
 
   def enableAllCb(self,msg):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.activateAllApps(apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
   def disableAllCb(self,msg):
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.disableAllApps(apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
 
   def selectAppCb(self,msg):
     self.msg_if.pub_info(str(msg))
     app_name = msg.data
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys() or app_name == "NONE":
       self.selected_app = app_name
     self.publish_status()
@@ -581,7 +596,7 @@ class NepiAppsMgr(object):
     self.msg_if.pub_info(str(msg))
     app_name = msg.name
     new_active_state = msg.active_state
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys():
       app = apps_dict[app_name]
       active_state = app['active']
@@ -590,8 +605,11 @@ class NepiAppsMgr(object):
         apps_dict = nepi_apps.activateApp(app_name,apps_dict)
       else:
         apps_dict = nepi_apps.disableApp(app_name,apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
+   
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
 
   def updateOrderCb(self,msg):
@@ -599,17 +617,20 @@ class NepiAppsMgr(object):
     app_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys():
       apps_dict = moveFunction(app_name,apps_dict)
-    self.node_if.set_param("apps_dict",apps_dict)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
   def enableRestartCb(self,msg):
     self.msg_if.pub_info(str(msg))
-    restart_enabled = msg.data
-    self.node_if.set_param("restart_enabled",restart_enabled)
+    self.restart_enabled = msg.data
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("restart_enabled",self.restart_enabled)
 
 
   def getOrderUpdateFunction(self,move_cmd):
@@ -633,31 +654,38 @@ class NepiAppsMgr(object):
   def installAppPkgCb(self,msg):
     self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     if pkg_name in self.apps_install_files:
      [success,apps_dict]  = nepi_apps.installAppPkg(pkg_name,apps_dict,self.apps_install_folder,self.apps_install_folder)
-    self.node_if.set_param("apps_dict",apps_dict)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
+
 
   def removeAppCb(self,msg):
     self.msg_if.pub_info(str(msg))
     app_name = msg.data
-    apps_dict = self.node_if.get_param("apps_dict")
+    apps_dict = copy.deepcopy(self.apps_dict)
     backup_folder = None
-    backup_enabled = self.node_if.get_param("backup_enabled")
+    backup_enabled = self.backup_enabled
     if backup_enabled:
       backup_folder = self.apps_install_folder
     if app_name in apps_dict:
       [success,apps_dict] = nepi_apps.removeApp(app_name,apps_dict,backup_folder)
-    self.node_if.set_param("apps_dict",apps_dict)
+    self.apps_dict = apps_dict
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("apps_dict",apps_dict)
 
 
   def enableBackupCb(self,msg):
     self.msg_if.pub_info(str(msg))
-    backup_enabled = msg.data
-    self.node_if.set_param("backup_enabled",backup_enabled)
+    self.backup_enabled = msg.data
     self.publish_status()
+    if self.node_if is not None:
+      self.node_if.set_param("backup_enabled",self.backup_enabled)
+
 
 
 

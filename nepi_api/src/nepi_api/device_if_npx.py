@@ -198,6 +198,7 @@ class NPXDeviceIF:
                 max_navpose_update_rate = DEFAULT_UPDATE_RATE,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -326,23 +327,6 @@ class NPXDeviceIF:
         self.status_msg.source_frame_depth = self.frame_depth
 
    
-
-        # Create a navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                            data_source_description = self.data_source_description,
-                            data_ref_description = self.data_ref_description,
-                            pub_location = self.has_location,
-                            pub_heading = self.has_heading,
-                            pub_orientation =  self.has_orientation,
-                            pub_position = self.has_position,
-                            pub_altitude = self.has_altitude,
-                            pub_depth = self.has_depth,
-                            log_name = 'navpose',
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                            )
-
 
         ##################################################
         ### Node Class Setup
@@ -499,14 +483,18 @@ class NPXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        node_if = node_if,
+                        msg_if = self.msg_if
                             )
       
 
         ready = self.node_if.wait_for_ready()
 
+        self.initCb(do_updates = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+        ####################################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
@@ -515,6 +503,7 @@ class NPXDeviceIF:
                         end_ref_description = self.tr_end_ref_description,
                         get_3d_transform_function = self.get3DTransformCb,
                         log_name_list = self.log_name_list,
+                        node_if = self.node_if,
                         msg_if = self.msg_if
                         )
 
@@ -533,6 +522,7 @@ class NPXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                             settings_dict = self.SETTINGS_DICT,
                             log_name_list = self.log_name_list,
+                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
 
@@ -560,6 +550,26 @@ class NPXDeviceIF:
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
                             log_name_list = self.log_name_list,
+                            node_if = node_if,
+                            msg_if = self.msg_if
+                            )
+
+
+
+        # Create a navpose data IF
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            pub_location = self.has_location,
+                            pub_heading = self.has_heading,
+                            pub_orientation =  self.has_orientation,
+                            pub_position = self.has_position,
+                            pub_altitude = self.has_altitude,
+                            pub_depth = self.has_depth,
+                            log_name = 'navpose',
+                            log_name_list = self.log_name_list,
+                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
 
@@ -571,7 +581,7 @@ class NPXDeviceIF:
         self.initCb(do_updates = True)
 
         nepi_sdk.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        
         ###############################
         # Finish Initialization
 
@@ -742,6 +752,9 @@ class NPXDeviceIF:
   def publishStatus(self, do_updates=True):
       self._publishStatusCb(None)
 
+  def initConfig(self):
+      self.initCb()
+
   def initCb(self,do_updates = False):
       #self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
       if self.node_if is not None:
@@ -758,8 +771,14 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-          self.settings_if.reset_settings(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if self.navpose_if is not None:
+          self.navpose_if.reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
   def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -767,8 +786,14 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-          self.settings_if.factory_reset(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if self.navpose_if is not None:
+          self.navpose_if.factory_reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
 
 

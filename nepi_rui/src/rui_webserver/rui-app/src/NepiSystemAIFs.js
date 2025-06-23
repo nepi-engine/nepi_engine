@@ -130,7 +130,7 @@ class AisMgr extends Component {
     }
     var aiMgrListener = this.props.ros.setupStatusListener(
           statusNamespace,
-          "nepi_interfaces/AiModelMgrStatus",
+          "nepi_interfaces/MgrAiModelsStatus",
           this.aiMgrStatusListener
         )
     this.setState({ aiMgrListener: aiMgrListener,

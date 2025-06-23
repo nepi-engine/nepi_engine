@@ -75,7 +75,7 @@ class NetworkMgr:
     INTERNET_CHECK_CMD = ['nc', '-zw1', 'google.com', '443']
     UPDATER_INTERVAL_S = 1.0
 
-
+    node_if = None
     tx_bw_limit_mbps = -1.0
 
     current_ip_addrs = []
@@ -353,27 +353,6 @@ class NetworkMgr:
         ###########################
         # Complete Initialization
 
-        self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-
-        if self.wifi_iface:
-            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
-            self.set_wifi_ap_from_params()
-            self.set_wifi_client_from_params()
-
-        self.set_dhcp_from_params()
-
-        self.set_upload_bw_limit_from_params()
-
-        if self.wifi_iface:
-            self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
-            self.set_wifi_ap_from_params()
-            self.set_wifi_client_from_params()
-
-        else:
-            self.msg_if.pub_info("No WiFi detected")
-
-        success = self.save_config()
-
         nepi_sdk.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitor_bandwidth_usage)
 
         # Long duration internet check -- do oneshot and reschedule from within the callback
@@ -583,12 +562,46 @@ class NetworkMgr:
             self.enable_dhcp_impl(enabled)
 
     def initCb(self, do_updates = False):
-        pass
+        if self.node_if is not None:
+            self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
 
-    def resetCb(self):
+            if self.wifi_iface:
+                self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+                self.set_wifi_ap_from_params()
+                self.set_wifi_client_from_params()
+
+            self.set_dhcp_from_params()
+
+            self.set_upload_bw_limit_from_params()
+
+            if self.wifi_iface:
+                self.msg_if.pub_info("Detected WiFi on " + self.wifi_iface)
+                self.set_wifi_ap_from_params()
+                self.set_wifi_client_from_params()
+
+            else:
+                self.msg_if.pub_info("No WiFi detected")
+
+        if do_updates == True:
+            pass
+        success = self.save_config()
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            self.node_if.reset_params()
+        if do_updates == True:
+            pass
+        self.initCb()
         self.set_dhcp_from_params()
 
-    def factoryResetCb(self):
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
+        if do_updates == True:
+            pass
+        self.initCb()
+
         self.msg_if.pub_warn("Reseting Factory Config")
         with open(self.USER_IP_ALIASES_FILE, "w") as f:
             f.write(self.USER_IP_ALIASES_FILE_PREFACE)

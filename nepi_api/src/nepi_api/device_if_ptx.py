@@ -178,6 +178,7 @@ class PTXActuatorIF:
                  deviceResetCb = None,
                  log_name = None,
                  log_name_list = [],
+                 node_if = None,
                  msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -702,10 +703,36 @@ class PTXActuatorIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         ready = self.node_if.wait_for_ready()
+
+
+        # Init everything
+        self.initCb(do_updates = True)
+
+
+
+        # Periodic publishing
+        status_update_rate = self.position_update_rate  
+        if status_update_rate > 10:
+            status_update_rate = 10
+        self.status_update_rate = status_update_rate
+        self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
+        status_pub_delay = float(1.0) / self.status_update_rate
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = True)
+
+        if self.has_auto_pan:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto pan scanning process")
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
+
+        if self.has_auto_tilt:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto tilt scanning process")
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
 
         # Setup 3D Transform IF Class ####################
@@ -717,7 +744,8 @@ class PTXActuatorIF:
                         end_ref_description = self.tr_end_ref_description,
 #                        supports_updates = True,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
 
@@ -735,7 +763,8 @@ class PTXActuatorIF:
         self.settings_if = SettingsIF(namespace = settings_ns, 
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
 
@@ -763,7 +792,8 @@ class PTXActuatorIF:
                                     factory_filename_dict = factory_filename_dict,
                                     namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
             time.sleep(1)
 
@@ -777,7 +807,8 @@ class PTXActuatorIF:
                 get3DTransformCb = self.transform_if.get_3d_transform,
                 max_navpose_update_rate = self.max_navpose_update_rate,
                 log_name_list = self.log_name_list,
-                msg_if = self.msg_if
+                node_if = self.node_if,
+                            msg_if = self.msg_if
                 )
         # Setup navpose data IF
         np_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
@@ -786,35 +817,16 @@ class PTXActuatorIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         time.sleep(1)
    
         ###############################
         # Finish Initialization
-       
-
         # Init everything
-        self.initCb(do_updates = True)
-
-        # Periodic publishing
-        status_update_rate = self.position_update_rate  
-        if status_update_rate > 10:
-            status_update_rate = 10
-        self.status_update_rate = status_update_rate
-        self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
-        status_pub_delay = float(1.0) / self.status_update_rate
-
-        if self.has_auto_pan:
-            # Start Auto Pan Process
-            self.msg_if.pub_info("Starting auto pan scanning process")
-            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
-
-        if self.has_auto_tilt:
-            # Start Auto Pan Process
-            self.msg_if.pub_info("Starting auto tilt scanning process")
-            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
+        self.initCb(do_updates = True)  
 
         ##############################
         # Start Node Processes
@@ -1490,6 +1502,9 @@ class PTXActuatorIF:
         return self.capabilities_report
     
 
+    def initConfig(self):
+        self.initCb()
+
     def initCb(self, do_updates = False):
         if do_updates == True and self.node_if is not None:
             # This one comes from the parent
@@ -1567,40 +1582,46 @@ class PTXActuatorIF:
             # Setup Joint Info
             self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
             self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
-
- 
-
-        self.publish_status()
-
-
-
-    def resetCb(self, do_updates = True):
-        self.msg_if.pub_warn("Reseting System to Current Values")
         if do_updates == True:
             pass
+        self.publish_status()
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            self.node_if.reset_params()
         if self.save_data_if is not None:
             self.save_data_if.reset()
         if self.settings_if is not None:
-            self.settings_if.reset_settings(update_status = False, update_params = True)
+            self.settings_if.reset()
         if self.transform_if is not None:
             self.transform_if.reset()
-        self.initCb(do_updates = do_updates)
-        #**********************
-        
+        if self.navpose_if is not None:
+            self.navpose_if.reset()
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = True)
 
-    def factoryResetCb(self, do_updates = True):
-        if self.deviceResetCb is not None:
-            self.deviceResetCb()
-            nepi_sdk.sleep(2)
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
         if self.save_data_if is not None:
             self.save_data_if.factory_reset()
         if self.settings_if is not None:
-            self.settings_if.factory_reset(update_status = False, update_params = True)
+            self.settings_if.factory_reset()
         if self.transform_if is not None:
             self.transform_if.factory_reset()
+        if self.navpose_if is not None:
+            self.navpose_if.factory_reset()
+        if do_updates == True:
+            pass
         self.initCb(do_updates = True)
 
 
+
+    def _publishStatusCb(self,timer):
+        self.publish_status()
+        delay = float(1.0) / self.status_update_rate
+        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
 
     def publish_status(self, do_updates = False):

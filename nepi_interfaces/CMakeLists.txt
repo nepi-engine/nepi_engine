@@ -107,7 +107,7 @@ add_message_files(FILES
     ImageWindowRatios.msg
     Message.msg
     MgrAiDetectorStatus.msg
-    MgrAiModelStatus.msg
+    MgrAiModelsStatus.msg
     MgrNavPoseCompInfo.msg
     MgrNavPoseStatus.msg
     MotorControl.msg

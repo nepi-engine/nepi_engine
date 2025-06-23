@@ -176,6 +176,7 @@ class IDXDeviceIF:
                  data_products =  [],
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -559,69 +560,11 @@ class IDXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
+                        node_if = node_if,
                         msg_if = self.msg_if
                         )
 
         ready = self.node_if.wait_for_ready()
-
-
-        # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
-
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-#                        supports_updates = True,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
-
-
-
-        # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
-
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
-
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
-
-        # Create a NPX Device IF
-        if self.getNavPoseCb is not None:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            npx_if = NPXDeviceIF(device_info, 
-                data_source_description = self.data_source_description,
-                data_ref_description = self.data_ref_description,
-                getNavPoseCb = self.getNavPoseCb,
-                navpose_update_rate = self.navpose_update_rate,
-                log_name_list = self.log_name_list,
-                msg_if = self.msg_if
-                )
-
-
-        # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
-
-        #############################
-        # Finish Initialization
 
         self.initCb(do_updates = True)
 
@@ -718,7 +661,8 @@ class IDXDeviceIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         for data_product in self.data_products_base_list:
@@ -740,25 +684,77 @@ class IDXDeviceIF:
         self.initCb(do_updates = True)
         self.publish_status(do_updates = True)
 
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
+        self.transform_if = Transform3DIF(namespace = transform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+#                        supports_updates = True,
+                        log_name_list = self.log_name_list,
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
+                        )
+
+
+
+        # Setup Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction
+                    
+        }
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
+                        log_name_list = self.log_name_list,
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
+                        )
+
+        # Setup navpose data IF
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        log_name = 'navpose',
+                        log_name_list = self.log_name_list,
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
+                        )
+
+        self.initCb(do_updates = True)
         ##################################
         # Start Node Processes
-#        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self._publishNavPoseCb, oneshot = True) 
+
+
+        ##################################
+        if self.getNavPoseCb is not None:
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
+            npx_if = NPXDeviceIF(device_info, 
+                data_source_description = self.data_source_description,
+                data_ref_description = self.data_ref_description,
+                getNavPoseCb = self.getNavPoseCb,
+                navpose_update_rate = self.navpose_update_rate,
+                log_name_list = self.log_name_list,
+                node_if = self.node_if,
+                            msg_if = self.msg_if
+                )
+
+
 
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
-
-    def initConfig(self):
-        self.initCb(do_updates = True)
-
-    def initCb(self, do_updates = False):
-      if self.node_if is not None:
-        self.device_name = self.node_if.get_param('device_name')
-      if do_updates == True:
-        self.resetCb(do_updates)
         
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM
@@ -837,12 +833,13 @@ class IDXDeviceIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready   
 
-
+    def initConfig(self):
+        self.initCb()
 
 
     def initCb(self,do_updates = False):
 
-        if self.node_if is not None:
+      if self.node_if is not None:
             self.device_name = self.node_if.get_param('device_name')
             self.height_deg = self.node_if.get_param('width_deg')
             self.ctl_auto = self.node_if.get_param('height_deg')       
@@ -858,18 +855,13 @@ class IDXDeviceIF:
 
             self.mount_desc = self.node_if.get_param('mount_desc')
 
-            if do_updates:
-                self.ApplyConfigUpdates()
-            self.publish_status()
+      if do_updates == True:
+        pass
+      self.publish_status()
 
-    def resetCb(self,do_updates = True):  
-        if node_if is not None:
-            node_if.reset_params()
-        if self.save_data_if is not None:
-            self.save_data_if.reset()
-        if self.settings_if is not None:
-            self.settings_if.reset_settings(update_status = False, update_params = True)
-
+    def resetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.reset_params()
         if self.getFOV is not None:
             try:
                 [width_deg,height_deg] = self.getFOV()
@@ -878,19 +870,21 @@ class IDXDeviceIF:
                     self.node_if.set_param('height_deg',self.height_deg) 
             except:
                 pass
+      if self.save_data_if is not None:
+          self.save_data_if.reset()
+      if self.settings_if is not None:
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if self.navpose_if is not None:
+          self.navpose_if.reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
-        self.initCb(do_updates = True)
-
-
-
-    def factoryResetCb(self, do_updates = True):
-        if node_if is not None:
-            node_if.factory_reset_params()
-        if self.save_data_if is not None:
-            self.save_data_if.factory_reset()
-        if self.settings_if is not None:
-            self.settings_if.factory_reset(update_status = False, update_params = True)
-
+    def factoryResetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.factory_reset_params()
         if self.getFOV is not None:
             try:
                 [width_deg,height_deg] = self.getFOV()
@@ -899,8 +893,19 @@ class IDXDeviceIF:
                     self.node_if.set_param('height_deg',self.height_deg) 
             except:
                 pass
+      if self.save_data_if is not None:
+          self.save_data_if.factory_reset()
+      if self.settings_if is not None:
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if self.navpose_if is not None:
+          self.navpose_if.factory_reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
-        self.initCb(do_updates = True)
+
 
     def ApplyConfigUpdates(self):
         if self.settings_if is not None:
@@ -1291,6 +1296,7 @@ class IDXDeviceIF:
                             get_navpose_function = self.get_navpose_dict,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
+                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
             
@@ -1383,7 +1389,8 @@ class IDXDeviceIF:
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
             dp_dict['dp_if'] = dp_if
@@ -1483,7 +1490,8 @@ class IDXDeviceIF:
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
             while (not nepi_sdk.is_shutdown()):
@@ -1646,7 +1654,8 @@ class IDXDeviceIF:
             self.status_msg.rtsp_password = rtsp_password
 
         #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
-        self.node_if.publish_pub('status_pub',self.status_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub',self.status_msg)
     
 
     def registerPTX(self,pt_topic):

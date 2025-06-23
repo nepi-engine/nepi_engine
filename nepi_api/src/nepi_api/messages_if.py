@@ -24,7 +24,7 @@ class MsgIF:
     ln_str = ""
     log_name_list = []
 
-    print_debug = False
+    debug_mode = False
     #######################
     ### IF Initialization
     def __init__(self, log_name = None):
@@ -65,8 +65,7 @@ class MsgIF:
         self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s)
     
     def pub_debug(self, msg, throttle_s = None, log_name_list = []):
-        if self.print_debug == True:
-            self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s)
+        self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s)
     
     def pub_error(self, msg, throttle_s = None, log_name_list = []):
         self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s)
@@ -102,4 +101,8 @@ class MsgIF:
         return ln_str
 
     def _debugCb(self,msg):
-        self.print_debug = msg.data
+        enabled = msg.data
+        if self.debug_mode != enabled:
+            nepi_sdk.set_debug_log(enabled)
+        self.debug_mode = enabled
+

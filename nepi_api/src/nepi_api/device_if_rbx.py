@@ -195,6 +195,7 @@ class RBXRobotIF:
                  setFakeGPSFunction = None,
                 log_name = None,
                 log_name_list = [],
+                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -723,11 +724,42 @@ class RBXRobotIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         ready = self.node_if.wait_for_ready()
 
+
+  
+
+
+        ###############################
+        # Finish Initialization
+        # Start NavPose Data Updater
+        NAVPOSE_SERVICE_NAME = nepi_sdk.create_namespace(self.base_namespace,"nav_pose_query")
+        self.msg_if.pub_info("Waiting for NEPI NavPose query service on: " + NAVPOSE_SERVICE_NAME)
+        nepi_sdk.wait_for_service(NAVPOSE_SERVICE_NAME)
+        self.msg_if.pub_info("Connecting to NEPI NavPose query service at: " + NAVPOSE_SERVICE_NAME)
+        self.get_navpose_service = nepi_sdk.connect_service(NAVPOSE_SERVICE_NAME, NavPoseQuery)
+        time.sleep(1)
+        nepi_sdk.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
+
+
+        ####################################
+        ## Initiation Complete
+        self.rbx_info.connected = True
+        self.status_msg.ready = True 
+        self.initCb(do_updates = True)
+
+        ##############################
+        # Start Node Processes
+        nepi_sdk.start_timer_process(self.status_msg_pub_interval, self.statusPublishCb)
+        
+
+
+        self.publishInfo()
+        self.publish_status()
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
@@ -738,14 +770,16 @@ class RBXRobotIF:
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
         # Setup Data IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
         self.image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
 
@@ -765,7 +799,8 @@ class RBXRobotIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
 
@@ -791,96 +826,44 @@ class RBXRobotIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
-
-   
-
-        # Create a NavPose Device IF
-        self.capSettingsNavPose = capSettingsNavPose
-        self.factorySettingsNavPose=factorySettingsNavPose
-        self.settingUpdateFunctionNavPose=settingUpdateFunctionNavPose 
-        self.getSettingsFunctionNavPose=getSettingsFunctionNavPose
-
-        self.getHeadingCb = getHeadingCb  
-        self.getPositionCb = getPositionCb
-        self.getOrientationCb = getOrientationCb
-        self.getLocationCb = getLocationCb
-        self.getAltitudeCb = getAltitudeCb
-        self.getDepthCb = getDepthCb
-        self.navpose_update_rate = navpose_update_rate
-
-        has_navpose = ( getHeadingCb is not None or \
-        getPositionCb is not None or \
-        getOrientationCb is not None or \
-        getLocationCb is not None or \
-        getAltitudeCb is not None or \
-        getDepthCb is not None )
-        
-        if has_navpose == True:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            npx_if = NPXDeviceIF(device_info, 
-                capSettings = self.capSettingsNavPose,
-                factorySettings = self.factorySettingsNavPose,
-                settingUpdateFunction = self.settingUpdateFunctionNavPose, 
-                getSettingsFunction = self.getSettingsFunctionNavPose,
-                getHeadingCb = self.getHeadingCb, 
-                getPositionCb = self.getPositionCb, 
-                getOrientationCb = self.getOrientationCb,
-                getLocationCb = self.getLocationCb, 
-                getAltitudeCb = self.getAltitudeCb, 
-                getDepthCb = self.getDepthCb,
-                navpose_update_rate = self.navpose_update_rate,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
-
         # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'rbx')
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        node_if = self.node_if,
+                            msg_if = self.msg_if
                         )
 
-
-        time.sleep(1)
-
-
-
-        ###############################
-        # Finish Initialization
-        # Start NavPose Data Updater
-        NAVPOSE_SERVICE_NAME = nepi_sdk.create_namespace(self.base_namespace,"nav_pose_query")
-        self.msg_if.pub_info("Waiting for NEPI NavPose query service on: " + NAVPOSE_SERVICE_NAME)
-        nepi_sdk.wait_for_service(NAVPOSE_SERVICE_NAME)
-        self.msg_if.pub_info("Connecting to NEPI NavPose query service at: " + NAVPOSE_SERVICE_NAME)
-        self.get_navpose_service = nepi_sdk.connect_service(NAVPOSE_SERVICE_NAME, NavPoseQuery)
-        time.sleep(1)
-        nepi_sdk.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
-
-
-        ####################################
-        ## Initiation Complete
-        self.rbx_info.connected = True
-        self.status_msg.ready = True 
         self.initCb(do_updates = True)
 
-        ##############################
-        # Start Node Processes
-        nepi_sdk.start_timer_process(self.status_msg_pub_interval, self.statusPublishCb)
         nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True) 
-
-
-        self.publishInfo()
-        self.publish_status()
         
+
+        ##################################
+        if self.getNavPoseCb is not None:
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
+            npx_if = NPXDeviceIF(device_info, 
+                data_source_description = self.data_source_description,
+                data_ref_description = self.data_ref_description,
+                getNavPoseCb = self.getNavPoseCb,
+                navpose_update_rate = self.navpose_update_rate,
+                log_name_list = self.log_name_list,
+                node_if = self.node_if,
+                            msg_if = self.msg_if
+                )
+
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
-         
+    def initConfig(self):
+        self.initCb()         
 
     def initConfig(self):
         self.initCb(do_updates = True)
@@ -889,31 +872,39 @@ class RBXRobotIF:
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
-        self.resetCb(do_updates)
+        pass
+      self.publish_status()
 
-    def resetCb(self, do_updates = True):
-        if do_updates == True:  
-          self.ApplyConfigUpdates()
-        if self.save_data_if is not None:
-            self.save_data_if.reset()
-        if self.settings_if is not None:
-            self.settings_if.reset_settings(update_status = False, update_params = True)
-        self.publishInfo()
+    def resetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.reset_params()
+      if self.save_data_if is not None:
+          self.save_data_if.reset()
+      if self.settings_if is not None:
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if self.navpose_if is not None:
+          self.navpose_if.reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
-    def factoryResetCb(self):
-        self.settings_if.factory_reset_settings()
-        if self.setMotorControlRatio is not None:
-          mc = MotorControl()
-          mc.speed_ratio = 0.0
-          for i in range(len(self.getMotorControlRatios())):
-            mc.motor_ind = i
-            self.setMotorControlRatio(mc)
-        self.ApplyConfigUpdates()
-        if self.save_data_if is not None:
-            self.save_data_if.factory_reset()
-        if self.settings_if is not None:
-            self.settings_if.factory_reset(update_status = False, update_params = True)
-        self.publishInfo()
+    def factoryResetCb(self,do_updates = True):
+      if self.node_if is not None:
+        self.node_if.factory_reset_params()
+      if self.save_data_if is not None:
+          self.save_data_if.factory_reset()
+      if self.settings_if is not None:
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if self.navpose_if is not None:
+          self.navpose_if.factory_reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
+
 
     def updateDeviceNameCb(self, msg):
         self.msg_if.pub_info("Received Device Name update msg", log_name_list = self.log_name_list)
