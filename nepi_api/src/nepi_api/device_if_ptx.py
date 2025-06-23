@@ -708,6 +708,42 @@ class PTXActuatorIF:
         ready = self.node_if.wait_for_ready()
 
 
+        time.sleep(1)
+   
+        ###############################
+        # Finish Initialization
+       
+
+        # Init everything
+        self.initCb(do_updates = True)
+
+        # Periodic publishing
+        status_update_rate = self.position_update_rate  
+        if status_update_rate > 10:
+            status_update_rate = 10
+        self.status_update_rate = status_update_rate
+        self.msg_if.pub_warn("*************Starting pt status publisher at hz: " + str(self.status_update_rate))    
+        status_pub_delay = float(1.0) / self.status_update_rate
+        nepi_sdk.start_timer_process(status_pub_delay, self._publishStatusCb)
+
+        if self.has_auto_pan:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto pan scanning process")
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
+
+        if self.has_auto_tilt:
+            # Start Auto Pan Process
+            self.msg_if.pub_info("Starting auto tilt scanning process")
+            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
+
+        ##############################
+        # Start Node Processes
+
+
+        self.publish_status(do_updates = True)
+
+        ##############################
+        # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
@@ -789,38 +825,9 @@ class PTXActuatorIF:
                         msg_if = self.msg_if
                         )
 
-        time.sleep(1)
-   
-        ###############################
-        # Finish Initialization
-       
-
-        # Init everything
         self.initCb(do_updates = True)
 
-        # Periodic publishing
-        status_update_rate = self.position_update_rate  
-        if status_update_rate > 10:
-            status_update_rate = 10
-        self.status_update_rate = status_update_rate
-        self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
-        status_pub_delay = float(1.0) / self.status_update_rate
-
-        if self.has_auto_pan:
-            # Start Auto Pan Process
-            self.msg_if.pub_info("Starting auto pan scanning process")
-            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoPanProcess)
-
-        if self.has_auto_tilt:
-            # Start Auto Pan Process
-            self.msg_if.pub_info("Starting auto tilt scanning process")
-            nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
-
-        ##############################
-        # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
-
-        self.publish_status(do_updates = True)
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
@@ -1217,7 +1224,7 @@ class PTXActuatorIF:
     def gotoTiltPositionHandler(self, msg):
         self.setAutoTilt(False)
         tilt_deg_adj = self.getTiltAdj(msg.data)
-        self.gotoPanPosition(tilt_deg_adj)
+        self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
         pan_deg = self.getPanAdj(self.status_msg.pan_now_deg)
@@ -1691,18 +1698,15 @@ class PTXActuatorIF:
 
         if do_updates == True and self.node_if is not None:
             pass
-
-
-
-    
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
-
         pub_time = nepi_utils.get_time() - start_time
         return pub_time
 
 
+    def _publishStatusCb(self,timer):
+        self.publish_status()
 
     def passFunction(self):
         return 0

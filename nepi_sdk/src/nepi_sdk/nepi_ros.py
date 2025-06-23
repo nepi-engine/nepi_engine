@@ -98,7 +98,7 @@ def log_msg_warn(msg, throttle_s = None, log_name_list = []):
     rospy.logwarn_throttle(throttle_s,msg_str)
 
 def log_msg_debug(msg, throttle_s = None, log_name_list = []):
-  debug = get_debug_mode()
+  debug = False #get_debug_mode()
   if debug == True:
     msg_str = str(msg)
     if len(log_name_list) > 0:
