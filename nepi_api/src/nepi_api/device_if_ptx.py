@@ -293,7 +293,7 @@ class PTXActuatorIF:
         else:
             self.setSpeedRatioCb = setSpeedRatioCb
         self.getSpeedRatioCb = getSpeedRatioCb
-        if self.getSpeedRatioCb is not None:
+        if getSpeedRatioCb is not None:
             self.has_adjustable_speed = True
 
 
@@ -713,16 +713,17 @@ class PTXActuatorIF:
         # Init everything
         self.initCb(do_updates = True)
 
-
-
+        ##############################
+        # Start Node Processes
+        
         # Periodic publishing
         status_update_rate = self.position_update_rate  
         if status_update_rate > 10:
             status_update_rate = 10
         self.status_update_rate = status_update_rate
-        self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
+        self.msg_if.pub_warn("*************Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = True)
+        nepi_sdk.start_timer_process(status_pub_delay, self._publishStatusCb)
 
         if self.has_auto_pan:
             # Start Auto Pan Process
@@ -734,7 +735,10 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Starting auto tilt scanning process")
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
+        self.publish_status(do_updates = True)
 
+        ##############################
+        # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
@@ -797,19 +801,7 @@ class PTXActuatorIF:
                         )
             time.sleep(1)
 
-        # Create a NPX Device IF
-        if self.getNavPoseCb is not None:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            self.npx_if = NPXDeviceIF(device_info, 
-                data_source_description = self.data_source_description,
-                data_ref_description = self.data_ref_description,
-                getNavPoseCb = self.getNavPoseCb,
-                get3DTransformCb = self.transform_if.get_3d_transform,
-                max_navpose_update_rate = self.max_navpose_update_rate,
-                log_name_list = self.log_name_list,
-                node_if = self.node_if,
-                            msg_if = self.msg_if
-                )
+
         # Setup navpose data IF
         np_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
@@ -832,7 +824,24 @@ class PTXActuatorIF:
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
 
-        self.publish_status(do_updates = True)
+
+        ###############################
+        # Create a NPX Device IF
+        if self.getNavPoseCb is not None:
+            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
+            self.npx_if = NPXDeviceIF(device_info, 
+                data_source_description = self.data_source_description,
+                data_ref_description = self.data_ref_description,
+                getNavPoseCb = self.getNavPoseCb,
+                get3DTransformCb = self.transform_if.get_3d_transform,
+                max_navpose_update_rate = self.max_navpose_update_rate,
+                log_name_list = self.log_name_list,
+                node_if = self.node_if,
+                            msg_if = self.msg_if
+                )
+
+
+
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
@@ -1141,6 +1150,8 @@ class PTXActuatorIF:
         if self.capabilities_report.has_adjustable_speed == True:
             speed_cur = self.getSpeedRatioCb()
             speed_ratio = msg.data
+            self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)     
+            self.msg_if.pub_warn("cur speed ratio " + "%.2f" % speed_cur)
             if (speed_ratio < 0.0) or (speed_ratio > 1.0):
                 self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
             elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
@@ -1229,7 +1240,7 @@ class PTXActuatorIF:
     def gotoTiltPositionHandler(self, msg):
         self.setAutoTilt(False)
         tilt_deg_adj = self.getTiltAdj(msg.data)
-        self.gotoPanPosition(tilt_deg_adj)
+        self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
         pan_deg = self.getPanAdj(self.status_msg.pan_now_deg)
@@ -1712,18 +1723,15 @@ class PTXActuatorIF:
 
         if do_updates == True and self.node_if is not None:
             pass
-
-
-
-    
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
-
         pub_time = nepi_utils.get_time() - start_time
         return pub_time
 
 
+    def _publishStatusCb(self,timer):
+        self.publish_status()
 
     def passFunction(self):
         return 0
