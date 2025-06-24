@@ -71,17 +71,12 @@ add_message_files(FILES
     BoundingBox3D.msg
     BoundingBoxes.msg
     BoundingBoxes3D.msg
-    DataDepthMap.msg
-    DataDepthMapStatus.msg
+    DepthMapStatus.msg
     DatafileCtrl3DX.msg
-    DataImage.msg
-    DataImageStatus.msg
-    DataNavPose.msg
-    DataNavPoseStatus.msg
-    DataPointcloud.msg
-    DataPointcloudStatus.msg
-    DataIntensityMap.msg
-    DataIntensityMapStatus.msg
+    ImageStatus.msg
+    NavPoseStatus.msg
+    PointcloudStatus.msg
+    IntensityMapStatus.msg
     DeviceIDXStatus.msg
     DeviceLSXStatus.msg
     DeviceNPXStatus.msg

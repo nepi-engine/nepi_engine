@@ -571,6 +571,7 @@ class NepiAppsMgr(object):
   ## Apps Mgr Callbacks
 
   def enableAllCb(self,msg):
+    self.msg_if.pub_info("Got enable all msg: " + str(msg))
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.activateAllApps(apps_dict)
     self.apps_dict = apps_dict
@@ -579,6 +580,7 @@ class NepiAppsMgr(object):
       self.node_if.set_param("apps_dict",apps_dict)
 
   def disableAllCb(self,msg):
+    self.msg_if.pub_info("Got disable all msg: " + str(msg))
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.disableAllApps(apps_dict)
     self.apps_dict = apps_dict
@@ -588,7 +590,7 @@ class NepiAppsMgr(object):
 
 
   def selectAppCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got select app msg: " + str(msg))
     app_name = msg.data
     apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys() or app_name == "NONE":
@@ -596,7 +598,7 @@ class NepiAppsMgr(object):
     self.publish_status()
 
   def updateStateCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got update app state msg: " + str(msg))
     app_name = msg.name
     state = msg.active_state
     apps_dict = copy.deepcopy(self.apps_dict)
@@ -618,7 +620,7 @@ class NepiAppsMgr(object):
 
 
   def updateOrderCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got update app order msg: " + str(msg))
     app_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
@@ -631,7 +633,7 @@ class NepiAppsMgr(object):
       self.node_if.set_param("apps_dict",apps_dict)
 
   def enableRestartCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got enable restart msg: " + str(msg))
     self.restart_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:
@@ -657,7 +659,7 @@ class NepiAppsMgr(object):
 
 
   def installAppPkgCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got install app package msg: " + str(msg))
     pkg_name = msg.data
     apps_dict = copy.deepcopy(self.apps_dict)
     if pkg_name in self.apps_install_files:
@@ -669,7 +671,7 @@ class NepiAppsMgr(object):
 
 
   def removeAppCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got remove app package msg: " + str(msg))
     app_name = msg.data
     apps_dict = copy.deepcopy(self.apps_dict)
     backup_folder = None
@@ -685,7 +687,7 @@ class NepiAppsMgr(object):
 
 
   def enableBackupCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got enable backup msg: " + str(msg))
     self.backup_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:

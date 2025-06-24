@@ -536,7 +536,7 @@ class ROSConnectionStore {
     var newImageTopics = []
     var newImageDetectionTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_interfaces/DataImage") {
+      if (this.topicTypes[i] === "nepi_interfaces/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
         newImageTopics.push(this.topicNames[i])
         if (this.topicNames[i].indexOf('detection_image') !== -1){
           newImageDetectionTopics.push(this.topicNames[i])

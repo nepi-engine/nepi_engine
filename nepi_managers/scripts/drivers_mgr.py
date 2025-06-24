@@ -818,6 +818,7 @@ class NepiDriversMgr(object):
   ###################
   ## Drivers Mgr Callbacks
   def enableAllCb(self,msg):
+    self.msg_if.pub_info("Got Update enable all msg: " + str(msg))
     drvs_dict = copy.deepcopy(self.drvs_dict)
     self.drvs_dict = nepi_drvs.activateAllDrivers(drvs_dict)   
     self.publish_status()
@@ -825,6 +826,7 @@ class NepiDriversMgr(object):
       self.node_if.set_param("drvs_dict",self.drvs_dict)
 
   def disableAllCb(self,msg):
+    self.msg_if.pub_info("Got disable all msg: " + str(msg))
     drvs_dict = copy.deepcopy(self.drvs_dict)
     self.drvs_dict =  nepi_drvs.disableAllDrivers(drvs_dict)
     self.publish_status()
@@ -833,7 +835,7 @@ class NepiDriversMgr(object):
 
 
   def selectDriverCb(self,msg):
-    #self.msg_if.pub_info("Got select driver msg: " + str(msg))
+    self.msg_if.pub_info("Got select driver msg: " + str(msg))
     driver_name = msg.data
     drvs_dict = copy.deepcopy(self.drvs_dict)
     if driver_name in drvs_dict.keys() or driver_name == "NONE":
