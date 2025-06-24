@@ -439,6 +439,8 @@ class LSXDeviceIF:
         ###############################
         # Finish Initialization
         self.initCb(do_updates = True)
+
+
         status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
         nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
         #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
@@ -453,7 +455,7 @@ class LSXDeviceIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        supports_updates = True,
+                        get_3d_transform_function = self.get_3d_transform,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
@@ -504,7 +506,7 @@ class LSXDeviceIF:
         '''
  
         # Setup navpose data IF
-        nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
@@ -545,9 +547,6 @@ class LSXDeviceIF:
         return self.ready   
 
 
-    def get_blank_status_msg(self):
-        return DeviceLSXStatus()
-
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
         self.node_if.set_param('standby_enabled', self.init_standby_enabled)
@@ -580,7 +579,8 @@ class LSXDeviceIF:
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
-        pass
+        if self.node_if is not None and self.turnOnOffFunction is not None:
+            self.turnOnOffFunction(False)
       self.publish_status()
 
     def resetCb(self,do_updates = True):
@@ -651,19 +651,20 @@ class LSXDeviceIF:
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
         # update status values from device
-        #blink_interval = self.node_if.get_param('blink_interval_sec')
-        if self.getStatusFunction is not None:
-            status_msg=self.getStatusFunction()
-            status_msg.user_name = self.node_if.get_param('device_name')
-            status_msg.on_off_state = self.node_if.get_param('on_off_state')
-            try:
-                if self.node_if is not None:
-                    self.msg_if.pub_warn("*************node_if: " + str(self.node_if))    
+        if self.node_if is not None:
+            blink_interval = self.node_if.get_param('blink_interval_sec')
+            if self.getStatusFunction is not None:
+                status_msg=self.getStatusFunction()
+                status_msg.user_name = self.node_if.get_param('device_name')
+                status_msg.on_off_state = self.node_if.get_param('on_off_state')
+                try:
+                    if self.node_if is not None:
+                        self.msg_if.pub_warn("*************node_if: " + str(self.node_if))    
 
-                    self.node_if.publish_pub('status_pub',status_msg)
+                        self.node_if.publish_pub('status_pub',status_msg)
 
-            except Exception as e:
-                self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
+                except Exception as e:
+                    self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM
