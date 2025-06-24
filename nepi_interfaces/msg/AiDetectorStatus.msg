@@ -12,7 +12,7 @@ string MAX_IMG_RATE_NO_PUB=-1
 
 string ALL_IMAGES=All
 
-string detector_name
+string name
 
 string namespace
 bool enabled
@@ -23,8 +23,7 @@ float32 max_img_rate_hz
 
 string[] available_classes
 string[] selected_classes
-# Size of target x,y,z meters
-geometry_msgs/Vector3[] selected_classes_sizes
+std_msgs/ColorRGBA[] selected_classes_colors
 
 float32 threshold_filter
 float32 pixel_area_size_filter

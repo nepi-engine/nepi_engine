@@ -7,6 +7,7 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 
+import inspect
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -25,6 +26,9 @@ class MsgIF:
     log_name_list = []
 
     debug_mode = False
+
+    throttle_dict = dict()
+
     #######################
     ### IF Initialization
     def __init__(self, log_name = None):
@@ -50,11 +54,27 @@ class MsgIF:
     ###############################
     # Class Public Methods
     
-    def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None):
+    def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None, uid = None):
+
+        if throttle_s is not None:
+            ct = nepi_utils.get_time()
+            if uid is not None:
+                stack = inspect.stack()
+                frame = stack[1]
+                uid = frame.filename+frame.function+str(frame.lineno)
+            if uid not in self.throttle_dict.keys():
+             self.throttle_dict[uid] = ct
+            else:
+                lt = self.throttle_dict[uid]
+                if (ct-lt) > throttle_s:
+                    self.throttle_dict[uid] = ct
+                else:
+                    return
+            
         if msg is None:
             msg = "MSGIF got None msg"
         msg_str = self._createMsgString(msg, log_name_list = log_name_list)
-        nepi_sdk.log_msg(msg_str, level = level, throttle_s = throttle_s)
+        nepi_sdk.log_msg(msg_str, level = level)
         if level != 'debug':
             self.msg_pub.publish(msg_str)
             self.msg_pub_sys.publish(msg_str)
@@ -63,19 +83,44 @@ class MsgIF:
             self.msg_pub_sys.publish(msg_str)
     
     def pub_info(self, msg, throttle_s = None, log_name_list = []):
-        self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s)
+        uid = None
+        if throttle_s is not None:
+            stack = inspect.stack()
+            frame = stack[1]
+            uid = frame.filename+frame.function+str(frame.lineno)
+        self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_warn(self, msg, throttle_s = None, log_name_list = []):
-        self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s)
+        uid = None
+        if throttle_s is not None:
+            stack = inspect.stack()
+            frame = stack[1]
+            uid = frame.filename+frame.function+str(frame.lineno)
+        self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_debug(self, msg, throttle_s = None, log_name_list = []):
-        self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s)
+        uid = None
+        if throttle_s is not None:
+            stack = inspect.stack()
+            frame = stack[1]
+            uid = frame.filename+frame.function+str(frame.lineno)
+        self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_error(self, msg, throttle_s = None, log_name_list = []):
-        self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s)
+        uid = None
+        if throttle_s is not None:
+            stack = inspect.stack()
+            frame = stack[1]
+            uid = frame.filename+frame.function+str(frame.lineno)
+        self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_fatal(self, msg, throttle_s = None, log_name_list = []):
-        self.pub_msg(msg,level = 'fatal', log_name_list = log_name_list, throttle_s = throttle_s)
+        uid = None
+        if throttle_s is not None:
+            stack = inspect.stack()
+            frame = stack[1]
+            uid = frame.filename+frame.function+str(frame.lineno)
+        self.pub_msg(msg,level = 'fatal', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
 
 
 

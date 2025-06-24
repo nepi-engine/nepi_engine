@@ -111,7 +111,6 @@ class ReadWriteIF:
                 filename_dict = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -540,7 +539,6 @@ class NavPoseIF:
                 pub_altitude = False, pub_depth = False,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -758,8 +756,7 @@ class NavPoseIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
-                        msg_if = self.msg_if
+                         msg_if = self.msg_if
                                             )
 
         #self.node_if.wait_for_ready()
@@ -1780,7 +1777,6 @@ class ImageIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                         )
 
@@ -1796,7 +1792,6 @@ class ImageIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = [],
-                        node_if = node_if,
                         msg_if = self.msg_if
                         )
            
@@ -2602,7 +2597,6 @@ class ColorImageIF(ImageIF):
                 get_navpose_function = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
 
@@ -2725,7 +2719,6 @@ class DepthMapImageIF(ImageIF):
                 get_navpose_function = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
 
@@ -2853,7 +2846,6 @@ class DepthMapIF:
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -3047,7 +3039,6 @@ class DepthMapIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 
@@ -3336,7 +3327,6 @@ class PointcloudIF:
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -3631,7 +3621,6 @@ class PointcloudIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 

@@ -121,7 +121,6 @@ class SaveDataIF:
                 factory_filename_dict = None, 
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -388,7 +387,6 @@ class SaveDataIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 
@@ -822,7 +820,6 @@ class Transform3DIF:
                 get_3d_transform_function = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1180,7 +1177,6 @@ class SettingsIF:
                 allow_cap_updates = False,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1552,7 +1548,6 @@ class StatesIF:
                 namespace = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1601,7 +1596,6 @@ class StatesIF:
         # Create Node Class ####################
         self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 
@@ -1692,7 +1686,6 @@ class TriggersIF:
                 triggers_dict = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1752,7 +1745,6 @@ class TriggersIF:
         self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                                             )
 

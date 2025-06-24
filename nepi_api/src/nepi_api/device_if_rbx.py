@@ -195,7 +195,6 @@ class RBXRobotIF:
                  setFakeGPSFunction = None,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -724,7 +723,6 @@ class RBXRobotIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -770,7 +768,6 @@ class RBXRobotIF:
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -778,7 +775,6 @@ class RBXRobotIF:
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
         self.image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -799,7 +795,6 @@ class RBXRobotIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -826,7 +821,6 @@ class RBXRobotIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
         # Setup navpose data IF
@@ -836,7 +830,6 @@ class RBXRobotIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -854,7 +847,6 @@ class RBXRobotIF:
                 getNavPoseCb = self.getNavPoseCb,
                 navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
-                node_if = self.node_if,
                             msg_if = self.msg_if
                 )
 

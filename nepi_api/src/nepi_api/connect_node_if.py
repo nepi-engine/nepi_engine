@@ -801,7 +801,6 @@ class ConnectNodeClassIF:
                 node_name = None,
                 do_wait = False,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -813,7 +812,6 @@ class ConnectNodeClassIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
-        self.node_if = node_if
         # Create Msg Class
         if msg_if is None:
             self.msg_if = MsgIF()
@@ -824,40 +822,10 @@ class ConnectNodeClassIF:
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
   
         ##############################  
-        # Create Services Class
-        if services_dict is not None:
-            self.msg_if.pub_debug("Starting Node Services IF Initialization Processes", log_name_list = self.log_name_list)
-            if self.node_if is not None:
-                if self.node_if.services_if is not None:
-                    self.services_if = self.node_if.services_if
-                    self.services_if.add_services(services_dict = services_dict)
-            if self.services_if is None:
-                self.services_if = ConnectNodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-
-
-        ##############################  
-        # Create Publisers Class
-        if pubs_dict is not None:
-            self.msg_if.pub_debug("Starting Node Publishers IF Initialization Processes", log_name_list = self.log_name_list)
-            if self.node_if is not None:
-                if self.node_if.pubs_if is not None:
-                    self.pubs_if = self.node_if.pubs_if
-                    self.pubs_if.add_pubs(pubs_dict = pubs_dict)
-            if self.pubs_if is None: 
-                self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-
-
-        ##############################  
-        # Create Subscribers Class
-        if subs_dict is not None:
-            self.msg_if.pub_debug("Starting Node Subscribers IF Initialization Processes", log_name_list = self.log_name_list)
-            if self.node_if is not None:
-                if self.node_if.subs_if is not None:
-                    self.subs_if = self.node_if.subs_if
-                    self.subs_if.add_subs(subs_dict = subs_dict)
-            if self.subs_if is None: 
-                self.subs_if = ConnectNodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-
+        # Create Sub Classes
+        self.services_if = ConnectNodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+        self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+        self.subs_if = ConnectNodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         ############################## 
         # Wait for ready

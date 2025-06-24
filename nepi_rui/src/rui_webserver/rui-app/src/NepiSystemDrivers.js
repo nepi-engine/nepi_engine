@@ -767,8 +767,11 @@ import { onChangeSwitchStateValue,createMenuListFromStrList, onDropdownSelectedS
       </Column>
       <Column>
       
+      <div hidden={this.state.driver_pkg === 'None'}>
 
-      {this.renderDriverConfigure()}
+        {this.renderDriverConfigure()}
+
+      </div>
 
       {this.renderDriverInstall()}
 

@@ -102,7 +102,6 @@ class LSXDeviceIF:
                  reports_temp = False, reports_power = False,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -430,7 +429,6 @@ class LSXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -446,7 +444,7 @@ class LSXDeviceIF:
         #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
         self.publish_status()
-        """
+
         ###############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
@@ -457,7 +455,6 @@ class LSXDeviceIF:
                         end_ref_description = self.tr_end_ref_description,
                         supports_updates = True,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -477,7 +474,6 @@ class LSXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -503,7 +499,6 @@ class LSXDeviceIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
         '''
@@ -515,12 +510,11 @@ class LSXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
         time.sleep(1)
-        """
+        
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)

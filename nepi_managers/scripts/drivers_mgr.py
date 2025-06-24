@@ -323,7 +323,9 @@ class NepiDriversMgr(object):
     self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     drvs_dict = copy.deepcopy(self.drvs_dict)
+    #self.msg_if.pub_warn("Refresh start drvs: " + str(drvs_dict))
     drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
+    #self.msg_if.pub_warn("Refresh end drvs: " + str(drvs_dict))
     self.drvs_dict = drvs_dict
     self.publish_status()
     if self.node_if is not None:
@@ -335,10 +337,9 @@ class NepiDriversMgr(object):
   def initCb(self,do_updates = False):
       if self.node_if is not None:
         drvs_dict = self.node_if.get_param("drvs_dict")
-        self.msg_if.pub_warn("Start drvs keys: " + str(drvs_dict.keys()))
+        self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
         adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-        self.msg_if.pub_warn("Start active drvs: " + str(adrvs))
-        #self.msg_if.pub_warn("Start drvs dict: " + str(drvs_dict))
+        self.msg_if.pub_warn("Init active drvs: " + str(adrvs))
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
         self.drvs_dict = drvs_dict
         if self.node_if is not None:
@@ -383,9 +384,10 @@ class NepiDriversMgr(object):
       self.msg_if.pub_warn("Need to Update Drv Database")
       self.initCb(do_updates = True)
     drvs_dict = copy.deepcopy(self.drvs_dict)
+    #self.msg_if.pub_warn("Update start drvs: " + str(drvs_dict))
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-
+    #self.msg_if.pub_warn("Update start active drvs: " + str(drvs_active_list))
     ## Next process active driver processes
 
     ################################    
@@ -720,7 +722,7 @@ class NepiDriversMgr(object):
 
 
   def statusPublishCb(self,timer):
-      self.publish_drivers_status()
+      self.publish_status()
 
   def publish_drivers_status(self):
     self.last_status_drivers_msg = self.status_drivers_msg
@@ -732,11 +734,11 @@ class NepiDriversMgr(object):
 
   def getMgrDriversStatusMsg(self):
     drvs_dict = copy.deepcopy(self.drvs_dict)
-    #self.msg_if.pub_warn("Got drivers status start drvs keys: " + str(drvs_dict.keys()))
+    #self.msg_if.pub_warn("Got drivers status start drvs keys: " + str(drvs_dict.keys()), throttle_s = 5.0)
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
-    #self.msg_if.pub_warn("MgrDriversStatus Drv List: " + str(drvs_ordered_list))
+    #self.msg_if.pub_warn("MgrDriversStatus Drv List: " + str(drvs_ordered_list), throttle_s = 5.0)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    #self.msg_if.pub_warn("MgrDriversStatus Active List: " + str(drvs_active_list))
+    #self.msg_if.pub_warn("MgrDriversStatus Active List: " + str(drvs_active_list), throttle_s = 5.0)
     status_drivers_msg = MgrDriversStatus()
     status_drivers_msg.pkg_list = drvs_ordered_list
     name_list = []
@@ -831,7 +833,7 @@ class NepiDriversMgr(object):
 
 
   def selectDriverCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    #self.msg_if.pub_info("Got select driver msg: " + str(msg))
     driver_name = msg.data
     drvs_dict = copy.deepcopy(self.drvs_dict)
     if driver_name in drvs_dict.keys() or driver_name == "NONE":
@@ -839,37 +841,38 @@ class NepiDriversMgr(object):
     self.publish_status()
 
   def updateStateCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got Update driver state msg: " + str(msg))
     driver_name = msg.name
     new_active_state = msg.active_state
     drvs_dict = copy.deepcopy(self.drvs_dict)
     active_state = False
-    if driver_name in drvs_dict.keys():
+    if driver_name in drvs_dict.keys() and driver_name != 'None':
       driver = drvs_dict[driver_name]
       active_state = driver['active']
-    if new_active_state != active_state:
-      if new_active_state == True:
-        drvs_dict = nepi_drvs.activateDriver(driver_name,drvs_dict)
-      else:
-        drvs_dict = nepi_drvs.disableDriver(driver_name,drvs_dict)
-    self.drvs_dict = drvs_dict
-    self.publish_status()
-    if self.node_if is not None:
-      self.node_if.set_param("drvs_dict",self.drvs_dict)
+      if new_active_state != active_state:
+        if new_active_state == True:
+          drvs_dict = nepi_drvs.activateDriver(driver_name,drvs_dict)
+        else:
+          drvs_dict = nepi_drvs.disableDriver(driver_name,drvs_dict)
+      #self.msg_if.pub_warn("Update driver state dict: " + str(drvs_dict[driver_name]))
+      self.drvs_dict = drvs_dict
+      self.publish_status()
+      if self.node_if is not None:
+        self.node_if.set_param("drvs_dict",self.drvs_dict)
 
 
   def updateOrderCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got Update driver order msg: " + str(msg))
     driver_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
     drvs_dict = copy.deepcopy(self.drvs_dict)
-    if driver_name in drvs_dict.keys():
+    if driver_name in drvs_dict.keys() and driver_name != 'None':
       drvs_dict = moveFunction(driver_name,drvs_dict)
-    self.drvs_dict = drvs_dict
-    self.publish_status()
-    if self.node_if is not None:
-      self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.drvs_dict = drvs_dict
+      self.publish_status()
+      if self.node_if is not None:
+        self.node_if.set_param("drvs_dict",self.drvs_dict)
 
 
   def getOrderUpdateFunction(self,move_cmd):
@@ -889,16 +892,16 @@ class NepiDriversMgr(object):
     return drvs_dict
     
   def updateMsgCb(self,msg):
-    self.msg_if.pub_info(str(msg))
+    self.msg_if.pub_info("Got Update driver message msg: " + str(msg))
     driver_name = msg.name
     msg_data = msg.data
     drvs_dict = copy.deepcopy(self.drvs_dict)
-    if driver_name in drvs_dict.keys():
+    if driver_name in drvs_dict.keys() and driver_name != 'None':
       drvs_dict[driver_name]['msg'] = msg_data
-    self.drvs_dict = drvs_dict
-    self.publish_status()
-    if self.node_if is not None:
-      self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.drvs_dict = drvs_dict
+      self.publish_status()
+      if self.node_if is not None:
+        self.node_if.set_param("drvs_dict",self.drvs_dict)
 
  
   def enableRetryCb(self,msg):

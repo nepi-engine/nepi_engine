@@ -198,7 +198,6 @@ class NPXDeviceIF:
                 max_navpose_update_rate = DEFAULT_UPDATE_RATE,
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -484,7 +483,6 @@ class NPXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                             )
       
@@ -503,7 +501,6 @@ class NPXDeviceIF:
                         end_ref_description = self.tr_end_ref_description,
                         get_3d_transform_function = self.get3DTransformCb,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                         msg_if = self.msg_if
                         )
 
@@ -522,7 +519,6 @@ class NPXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                             settings_dict = self.SETTINGS_DICT,
                             log_name_list = self.log_name_list,
-                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
 
@@ -550,7 +546,6 @@ class NPXDeviceIF:
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
                             log_name_list = self.log_name_list,
-                            node_if = node_if,
                             msg_if = self.msg_if
                             )
 
@@ -569,7 +564,6 @@ class NPXDeviceIF:
                             pub_depth = self.has_depth,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
-                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
 

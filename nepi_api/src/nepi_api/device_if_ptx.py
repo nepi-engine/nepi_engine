@@ -178,7 +178,6 @@ class PTXActuatorIF:
                  deviceResetCb = None,
                  log_name = None,
                  log_name_list = [],
-                 node_if = None,
                  msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -703,7 +702,6 @@ class PTXActuatorIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -736,7 +734,7 @@ class PTXActuatorIF:
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
         self.publish_status(do_updates = True)
-        """
+
         ##############################
         # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
@@ -748,7 +746,6 @@ class PTXActuatorIF:
                         end_ref_description = self.tr_end_ref_description,
                         #supports_updates = True,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -767,7 +764,6 @@ class PTXActuatorIF:
         self.settings_if = SettingsIF(namespace = settings_ns, 
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -796,7 +792,6 @@ class PTXActuatorIF:
                                     factory_filename_dict = factory_filename_dict,
                                     namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
             time.sleep(1)
@@ -809,7 +804,6 @@ class PTXActuatorIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -836,12 +830,11 @@ class PTXActuatorIF:
                 get3DTransformCb = self.transform_if.get_3d_transform,
                 max_navpose_update_rate = self.max_navpose_update_rate,
                 log_name_list = self.log_name_list,
-                node_if = self.node_if,
                             msg_if = self.msg_if
                 )
 
 
-        """
+
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)

@@ -176,7 +176,6 @@ class IDXDeviceIF:
                  data_products =  [],
                 log_name = None,
                 log_name_list = [],
-                node_if = None,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -560,7 +559,6 @@ class IDXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = node_if,
                         msg_if = self.msg_if
                         )
 
@@ -661,7 +659,6 @@ class IDXDeviceIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -693,7 +690,6 @@ class IDXDeviceIF:
                         end_ref_description = self.tr_end_ref_description,
 #                        supports_updates = True,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -714,7 +710,6 @@ class IDXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -725,7 +720,6 @@ class IDXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
@@ -745,7 +739,6 @@ class IDXDeviceIF:
                 getNavPoseCb = self.getNavPoseCb,
                 navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
-                node_if = self.node_if,
                             msg_if = self.msg_if
                 )
 
@@ -1296,7 +1289,6 @@ class IDXDeviceIF:
                             get_navpose_function = self.get_navpose_dict,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
-                            node_if = self.node_if,
                             msg_if = self.msg_if
                             )
             
@@ -1389,7 +1381,6 @@ class IDXDeviceIF:
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
@@ -1490,7 +1481,6 @@ class IDXDeviceIF:
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        node_if = self.node_if,
                             msg_if = self.msg_if
                         )
 
