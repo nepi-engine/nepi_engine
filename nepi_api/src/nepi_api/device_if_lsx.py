@@ -573,14 +573,13 @@ class LSXDeviceIF:
         self.node_if.set_param('mount_desc', self.mount_desc)
 
     def initConfig(self):
-        self.initCb()
+        self.initCb(do_updates = True)
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
         self.device_name = self.node_if.get_param('device_name')
       if do_updates == True:
-        if self.node_if is not None and self.turnOnOffFunction is not None:
-            self.turnOnOffFunction(False)
+        self.updateDevice()
       self.publish_status()
 
     def resetCb(self,do_updates = True):
