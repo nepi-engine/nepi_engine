@@ -2595,6 +2595,7 @@ class ColorImageIF(ImageIF):
 
     
     def __init__(self, namespace = None , 
+                data_product_name = 'color_image',
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
                 init_overlay_list = [],
@@ -2605,9 +2606,10 @@ class ColorImageIF(ImageIF):
                 msg_if = None
                 ):
 
+        self.data_product = data_product_name
         # Call the parent class constructor
         super().__init__(namespace , 
-                self.data_product_name,
+                self.data_product,
                 data_source_description,
                 data_ref_description,
                 self.DEFAULT_CAPS_DICT,
@@ -2716,16 +2718,18 @@ class DepthMapImageIF(ImageIF):
     data_product = 'depth_map'
 
     def __init__(self, namespace = None , 
+                data_product_name = 'depth_map_image',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
                 init_overlay_list = [],
+                get_navpose_function = None,
                 log_name = None,
                 log_name_list = [],
                 node_if = None,
                 msg_if = None
-                ):     
+                ):
 
-        # Call the parent class constructor
+        self.data_product = data_product_name
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -2841,6 +2845,7 @@ class DepthMapIF:
     data_products_list = [data_product]
 
     def __init__(self, namespace = None,
+                data_product_name = 'depth_map',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
                 enable_data_pub = True,
@@ -2872,7 +2877,7 @@ class DepthMapIF:
 
         ##############################    
         # Initialize Class Variables
-
+        self.data_product = data_product_name
         self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
 
 
@@ -3323,6 +3328,7 @@ class PointcloudIF:
     data_products_list = [data_product]
 
     def __init__(self, namespace = None,
+                data_product_name = 'pointcloud',
                 data_source_description = 'pointcloud_sensor',
                 data_ref_description = 'sensor',
                 enable_data_pub = True,
@@ -3354,7 +3360,7 @@ class PointcloudIF:
 
         ##############################    
         # Initialize Class Variables
-
+        self.data_product = data_product_name
         self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
 
 
