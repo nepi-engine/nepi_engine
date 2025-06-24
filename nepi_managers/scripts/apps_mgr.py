@@ -244,13 +244,6 @@ class NepiAppsMgr(object):
       self.initCb(do_updates = True)
 
        
-      app_dict = dict()
-      #self.msg_if.pub_warn("Got init apps dict: " + str(apps_dict))
-      for app_name in self.apps_dict:
-        app_dict[app_name] = self.apps_dict[app_name]['active']
-      self.msg_if.pub_info("Got init app dict active list: " + str(app_dict))
-
-
       ###########################
       nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 
@@ -298,21 +291,31 @@ class NepiAppsMgr(object):
     if self.node_if is not None:
       self.node_if.set_param("apps_dict",apps_dict)
 
-    
+  def getActiveApps(self):
+      apps_dict = copy.deepcopy(self.apps_dict)
+      aapps = []
+      for app_name in apps_dict:
+        if apps_dict[app_name]['active'] == True:
+          aapps.append(app_name)
+      return aapps
+
   def initCb(self,do_updates = False):
+
+      self.msg_if.pub_warn("Initing apps dict keys: " + str(self.apps_dict.keys()))
+      self.msg_if.pub_info("Initing active apps: " + str(self.getActiveApps()))
+
+      self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
+      self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
       if self.node_if is not None:
-        self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
-        self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-        apps_dict = self.node_if.get_param("apps_dict")
-        apps_dict = nepi_apps.refreshAppsDict(self.apps_param_folder,apps_dict)
-        self.apps_dict = apps_dict
-        if self.node_if is not None:
-          self.node_if.set_param("apps_dict",apps_dict)
+          self.apps_dict = self.node_if.get_param("apps_dict")
           self.backup_enabled = self.node_if.get_param("backup_enabled")
           self.restart_enabled = self.node_if.get_param("restart_enabled")   
       if do_updates == True:
         pass
       self.refresh()
+      
+      self.msg_if.pub_warn("Inited apps dict keys: " + str(self.apps_dict.keys()))
+      self.msg_if.pub_info("Inited active apps: " + str(self.getActiveApps()))
       self.publish_status()
 
   def resetCb(self,do_updates = True):
@@ -595,21 +598,23 @@ class NepiAppsMgr(object):
   def updateStateCb(self,msg):
     self.msg_if.pub_info(str(msg))
     app_name = msg.name
-    new_active_state = msg.active_state
+    state = msg.active_state
     apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys():
       app = apps_dict[app_name]
       active_state = app['active']
-    if new_active_state != active_state:
-      if new_active_state == True:
-        apps_dict = nepi_apps.activateApp(app_name,apps_dict)
-      else:
-        apps_dict = nepi_apps.disableApp(app_name,apps_dict)
-   
+      if state != active_state:
+        if state == True:
+          apps_dict = nepi_apps.activateApp(app_name,apps_dict)
+        else:
+          apps_dict = nepi_apps.disableApp(app_name,apps_dict)
+      self.msg_if.pub_warn("Updated apps dict state: " + app_name + " : "  + str(apps_dict[app_name]['active']))
     self.apps_dict = apps_dict
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("apps_dict",apps_dict)
+   
+
 
 
   def updateOrderCb(self,msg):

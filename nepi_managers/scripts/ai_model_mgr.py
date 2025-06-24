@@ -64,7 +64,6 @@ class AIDetectorManager:
 
     aifs_classes_dict = dict()
     aifs_dict = dict() 
-    active_aifs = []
     models_dict = dict()
 
     running_models_list = []
@@ -153,11 +152,7 @@ class AIDetectorManager:
             'aifs_dict': {
                 'namespace': self.node_namespace,
                 'factory_val': dict()
-            },   
-            'active_aifs': {
-                'namespace': self.node_namespace,
-                'factory_val': []
-            },   
+            },  
             'models_dict': {
                 'namespace': self.node_namespace,
                 'factory_val': dict()
@@ -277,9 +272,6 @@ class AIDetectorManager:
 
 
         ###########################
-        self.refresh()
-        # Update and save settings
-        self.saveConfig() # Save config
 
         self.initCb(do_updates = True)
 
@@ -324,8 +316,6 @@ class AIDetectorManager:
     ### Mgr Config Functions
 
     def refreshCb(self,msg):
-        self.aifs_classes_dict = dict()
-        self.aif_classes_dict = dict()
         self.refresh()
 
     def refresh(self):
@@ -337,16 +327,20 @@ class AIDetectorManager:
 
             # Update AI Frameworks Dict
             aifs_dict = copy.deepcopy(self.aifs_dict)
+            #self.msg_if.pub_warn("Refreshing")
+            #self.msg_if.pub_warn("Refreshing aifs dict with keys: " + str(self.aifs_dict.keys()))
+            #self.msg_if.pub_warn("Refreshing active aifs list: " + str(self.getActiveAifs())) 
             last_aifs_keys = aifs_dict.keys()
             #self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys), throttle_s = 5.0)
             aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
-            self.aifs_dict = aifs_dict
+            #self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
+            #self.msg_if.pub_warn("Refreshed active aifs list: " + str(self.getActiveAifs())) 
             cur_aifs_keys = aifs_dict.keys()
             #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys), throttle_s = 5.0)
             if last_aifs_keys != cur_aifs_keys:
                 self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys), throttle_s = 5.0)
 
-
+            cur_models_dict = copy.deepcopy(self.models_dict)
             models_dict = dict()
             for aif_name in aifs_dict.keys():
                 aif_dict = aifs_dict[aif_name]
@@ -389,12 +383,14 @@ class AIDetectorManager:
                     else:
                         self.msg_if.pub_info("Got models for framework: " + str(aif_name) + " from param server " + str(aif_models_dict.keys()))
 
-
                     for model_name in aif_models_dict.keys():
                         try:
                             if model_name not in self.aif_classes_dict.keys():
                                 model_dict = aif_models_dict[model_name]
-                                model_dict['active'] = False
+                                if model_name in cur_models_dict.keys():
+                                    model_dict['active'] = cur_models_dict[model_name]['active']
+                                else:
+                                    model_dict['active'] = False
                                 models_dict[model_name] = model_dict
                                 self.msg_if.pub_info("Got update models dict for framework: " + str(aif_name) + " from param server " + str(models_dict.keys()))
                                 self.aif_classes_dict[model_name] = aif_if_class_instance
@@ -404,17 +400,24 @@ class AIDetectorManager:
                             continue
 
             # refresh active states from stored values
-            #self.msg_if.pub_warn("Upating models dict with keys: " + str(models_dict.keys()))
+            #self.msg_if.pub_warn("Refreshing models dict with keys: " + str(self.models_dict.keys()))
+            #self.msg_if.pub_warn("Refreshing active models list: " + str(self.getActiveModels()))
+
+            for model in models_dict.keys():
+                if model not in cur_models_dict.keys():
+                    cur_models_dict[model] = models_dict[model]
+
             last_dict = copy.deepcopy(self.models_dict)
-            self.models_dict.update(models_dict)
+            self.aifs_dict = aifs_dict
+            self.models_dict =  cur_models_dict
+            self.node_if.set_param('aifs_dict', self.aifs_dict)
+            self.node_if.set_param('models_dict', self.models_dict)
             if self.models_dict != last_dict:
-                self.msg_if.pub_warn("Upating models: " + str(self.models_dict),throttle_s = 5.0)
-                self.node_if.set_param('aifs_dict', self.aifs_dict)
-                self.node_if.set_param('models_dict', self.models_dict)
                 self.saveConfig() # Save config
                 self.publish_status()
-
-        
+       
+            #self.msg_if.pub_warn("Refreshed models dict with keys: " + str(self.models_dict.keys()))
+            #self.msg_if.pub_warn("Refreshed active models list: " + str(self.getActiveModels()))
         return success
         
 
@@ -438,16 +441,21 @@ class AIDetectorManager:
     def initCb(self, do_updates = False):
       if self.node_if is not None:
         self.aifs_dict = self.node_if.get_param('aifs_dict')
+        #self.msg_if.pub_warn("Init")
+        #self.msg_if.pub_warn("Init aifs dict with keys: " + str(self.aifs_dict.keys()))
+        #self.msg_if.pub_warn("Init active aifs list: " + str(self.getActiveAifs()))
         self.models_dict = self.node_if.get_param('models_dict')
-        self.active_aifs = self.node_if.get_param('active_aifs')
+        #self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
+        #self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
+        self.node_if.save_config()
       if do_updates == True:
         pass
       self.refresh()
       self.publish_status()
 
+
+
     def resetCb(self,do_updates = True):
-        self.aifs_classes_dict = dict()
-        self.aif_classes_dict = dict()
         if self.node_if is not None:
             self.node_if.reset_params()
         if do_updates == True:
@@ -465,15 +473,31 @@ class AIDetectorManager:
         self.initCb()
 
 
-    def setCurrentSettingsAsDefault(self):
-        self.msg_if.pub_info("Setting current values as default params")
+    def getActiveAifs(self):
+        aaifs = []
+        aifs_dict = copy.deepcopy(self.aifs_dict)
+        for aif in aifs_dict.keys():
+            if aifs_dict[aif]['active'] == True:
+                aaifs.append(aif)
+        return aaifs
 
+    def getActiveModels(self):
+        ams = []
+        models_dict = copy.deepcopy(self.models_dict)
+        for m in models_dict.keys():
+            if models_dict[m]['active'] == True:
+                ams.append(m)
+        return ams
 
     def updaterCb(self,timer):
-        active_aifs = copy.deepcopy(self.active_aifs)
+        active_aifs = self.getActiveAifs()
+        #self.msg_if.pub_warn("Update")
+        #self.msg_if.pub_warn("Updating aifs dict with keys: " + str(self.aifs_dict.keys()))
+        #self.msg_if.pub_warn("Updating active aifs list: " + str(self.getActiveAifs()))        
         models_dict = copy.deepcopy(self.models_dict)
-        active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
-
+        active_models_list = self.getActiveModels()
+        #self.msg_if.pub_warn("Updating models dict with keys: " + str(self.models_dict.keys()))
+        #self.msg_if.pub_warn("Updating active models list: " + str(self.getActiveModels()))
         for model_name in self.running_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in active_models_list or model_aif not in active_aifs:
@@ -487,7 +511,7 @@ class AIDetectorManager:
                 self.killModel(model_name)
                 nepi_sdk.wait()
 
-        active_models_list = nepi_aifs.getModelsActiveSortedList(models_dict)
+       
         for model_name in active_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in self.running_models_list and model_aif in active_aifs:
@@ -508,6 +532,9 @@ class AIDetectorManager:
                     self.msg_if.pub_warn("Setting model to disabled: " + model_name)
                     self.models_dict[model_name]['active'] = False
                     self.models_dict = models_dict
+
+        #self.msg_if.pub_warn("Updated models dict with keys: " + str(self.models_dict.keys()))
+        #self.msg_if.pub_warn("Updated active models list: " + str(self.getActiveModels()))
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_sdk.get_msg_stamp()
             if self.node_if is not None:
@@ -642,57 +669,60 @@ class AIDetectorManager:
     def updateFrameworkStateCb(self,msg):
         self.msg_if.pub_warn("Recieved Framework State Update: " + str(msg))
         framework_name = msg.name
-        new_active_state = msg.active_state
-        active_aifs = copy.deepcopy(self.active_aifs)
+        state = msg.active_state
+        active_aifs = self.getActiveAifs()
         aifs_dict = copy.deepcopy(self.aifs_dict)
-        if new_active_state == True:
+        if state == True:
             if framework_name not in active_aifs:
                 self.msg_if.pub_warn("Setting AI Framework: " + str(framework_name) + " Active")
                 if framework_name in aifs_dict.keys():
-                    active_aifs.append(framework_name)
-                    #active_aifs = [framework_name] # Just one framework for now
-                    if self.active_aifs != active_aifs:
-                        self.active_aifs = active_aifs
-                        if self.node_if is not None:
-                            self.node_if.set_param('active_aifs', active_aifs)
-                            self.saveConfig() # Save config
+                    aifs_dict[framework_name]['active'] = True
+                    self.aifs_dict = aifs_dict
+                    self.publish_status()
+                    if self.node_if is not None:
+                        self.node_if.set_param('aifs_dict', aifs_dict)
+                        self.saveConfig() # Save config
         else:
             if framework_name in active_aifs:
                 self.msg_if.pub_warn("Setting AI Framework: " + str(framework_name) + " Inctive")
-                active_aifs.remove(framework_name)
-                if self.active_aifs != active_aifs:
-                    self.active_aifs = active_aifs
-                    if self.node_if is not None:
-                        self.node_if.set_param('active_aifs', active_aifs)
-                        self.saveConfig() # Save config
-
-        self.publish_status()
+                aifs_dict[framework_name]['active'] = False
+                self.aifs_dict = aifs_dict
+                self.publish_status()
+                if self.node_if is not None:
+                    self.node_if.set_param('aifs_dict', aifs_dict)
+                    self.saveConfig() # Save config
+        
         
 
 
     def disableAllFwsCb(self,msg):
-        self.active_aifs = []
+        aifs_dict = copy.deepcopy(self.aifs_dict)
+        for aif in aifs_dict.keys():
+            aifs_dict[aif]['active'] = False
+        self.aifs_dict = aifs_dict
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('active_aifs', [])
+            self.node_if.set_param('aifs_dict', aifs_dict)
             self.saveConfig() # Save config
 
 
     def enableAllFwsCb(self,msg):
         aifs_dict = copy.deepcopy(self.aifs_dict)
         available_frameworks = list(aifs_dict.keys())
-        self.active_aifs = available_frameworks
+        for aif in aifs_dict.keys():
+            aifs_dict[aif]['active'] = True
+        self.aifs_dict = aifs_dict
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('active_aifs', available_frameworks)
+            self.node_if.set_param('aifs_dict', aifs_dict)
             self.saveConfig() # Save config
 
 
     def enableAllModelsCb(self,msg):
         self.msg_if.pub_warn("Recieved Enable All Models msg: " + str(msg))
         aif_name = msg.name
-        new_active_state = msg.active_state
-        active_aifs = copy.deepcopy(self.active_aifs)
+        state = msg.active_state
+        active_aifs = self.getActiveAifs()
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
@@ -711,8 +741,8 @@ class AIDetectorManager:
     def disableAllModelsCb(self,msg):
         self.msg_if.pub_warn("Recieved Disable All Models msg: " + str(msg))
         aif_name = msg.name
-        new_active_state = msg.active_state
-        active_aifs = copy.deepcopy(self.active_aifs)
+        state = msg.active_state
+        active_aifs = self.getActiveAifs()
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
@@ -730,24 +760,23 @@ class AIDetectorManager:
     def updateModelStateCb(self,msg):
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
         model_name = msg.name
-        new_active_state = msg.active_state
+        state = msg.active_state
         models_dict = copy.deepcopy(self.models_dict)
         if model_name in models_dict.keys():
             model_dict = models_dict[model_name]
             model_aif = model_dict['framework']
-            active_aifs = copy.deepcopy(self.active_aifs)
+            active_aifs = self.getActiveAifs()
             if model_aif not in active_aifs:
                 self.msg_if.pub_warn("Ignoring request. Model's AI Framework: " + str(model_aif) + " not enabled")
             else:
                 active_state = model_dict['active']
-                if new_active_state != active_state:
-                    if new_active_state == True:
+                if state != active_state:
+                    if state == True:
                         self.msg_if.pub_warn("Changing Model State to: True")
                         models_dict[model_name]['active'] = True
                     else:
                         self.msg_if.pub_warn("Changing Model State to: False")
                         models_dict[model_name]['active'] = False
-
         if self.models_dict != models_dict:
             self.models_dict = models_dict
             self.publish_status()
@@ -782,7 +811,7 @@ class AIDetectorManager:
         status_msg.ai_models_states = state_list
 
 
-        active_aifs = copy.deepcopy(self.active_aifs)
+        active_aifs = self.getActiveAifs()
         model_folders = []
         for aif_name in active_aifs:
             model_folders.append(aifs_dict[aif_name]['models_folder_name'])
