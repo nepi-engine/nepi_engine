@@ -744,7 +744,7 @@ class PTXActuatorIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        #supports_updates = True,
+                        get_3d_transform_function = self.get_3d_transform,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )

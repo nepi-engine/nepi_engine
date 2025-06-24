@@ -911,7 +911,7 @@ class NepiDriversMgr(object):
     self.retry_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:
-      self.node_if.set_param("retry_enabled",retry_enabled)
+      self.node_if.set_param("retry_enabled",self.retry_enabled)
     
 
   def installDriverPkgCb(self,msg):
@@ -946,7 +946,7 @@ class NepiDriversMgr(object):
     self.backup_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:
-      self.node_if.set_param("backup_enabled",backup_enabled)
+      self.node_if.set_param("backup_enabled",self.backup_enabled)
     
 
 
