@@ -55,8 +55,12 @@ class MsgIF:
             msg = "MSGIF got None msg"
         msg_str = self._createMsgString(msg, log_name_list = log_name_list)
         nepi_sdk.log_msg(msg_str, level = level, throttle_s = throttle_s)
-        self.msg_pub.publish(msg_str)
-        self.msg_pub_sys.publish(msg_str)
+        if level != 'debug':
+            self.msg_pub.publish(msg_str)
+            self.msg_pub_sys.publish(msg_str)
+        elif self.debug_mode is True:
+            self.msg_pub.publish(msg_str)
+            self.msg_pub_sys.publish(msg_str)
     
     def pub_info(self, msg, throttle_s = None, log_name_list = []):
         self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s)

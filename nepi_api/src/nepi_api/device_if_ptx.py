@@ -736,7 +736,7 @@ class PTXActuatorIF:
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
         self.publish_status(do_updates = True)
-
+        """
         ##############################
         # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
@@ -746,7 +746,7 @@ class PTXActuatorIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-#                        supports_updates = True,
+                        #supports_updates = True,
                         log_name_list = self.log_name_list,
                         node_if = self.node_if,
                             msg_if = self.msg_if
@@ -841,7 +841,7 @@ class PTXActuatorIF:
                 )
 
 
-
+        """
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
@@ -1630,12 +1630,12 @@ class PTXActuatorIF:
 
 
     def _publishStatusCb(self,timer):
+        self.msg_if.pub_warn("will call publisher status msg ", throttle_s = 5.0)
         self.publish_status()
-        delay = float(1.0) / self.status_update_rate
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
 
     def publish_status(self, do_updates = False):
+        self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
@@ -1720,9 +1720,6 @@ class PTXActuatorIF:
         transform_msg.end_ref_description = self.tr_end_ref_description
         self.status_msg.frame_3d_transform = transform_msg
         #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
-
-        if do_updates == True and self.node_if is not None:
-            pass
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)

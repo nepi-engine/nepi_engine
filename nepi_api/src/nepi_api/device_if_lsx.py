@@ -446,7 +446,7 @@ class LSXDeviceIF:
         #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
         self.publish_status()
-
+        """
         ###############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
@@ -520,7 +520,7 @@ class LSXDeviceIF:
                         )
 
         time.sleep(1)
-        
+        """
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
@@ -600,7 +600,7 @@ class LSXDeviceIF:
           self.transform_if.reset()
       if self.navpose_if is not None:
           self.navpose_if.reset()
-      if do_updates = True:
+      if do_updates == True:
         pass
       self.initCb(do_updates = True)
 
@@ -615,7 +615,7 @@ class LSXDeviceIF:
           self.transform_if.factory_reset()
       if self.navpose_if is not None:
           self.navpose_if.factory_reset()
-      if do_updates = True:
+      if do_updates == True:
         pass
       self.initCb(do_updates = True)
 
@@ -657,13 +657,17 @@ class LSXDeviceIF:
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
         # update status values from device
-        blink_interval = self.node_if.get_param('blink_interval_sec')
+        #blink_interval = self.node_if.get_param('blink_interval_sec')
         if self.getStatusFunction is not None:
             status_msg=self.getStatusFunction()
             status_msg.user_name = self.node_if.get_param('device_name')
             status_msg.on_off_state = self.node_if.get_param('on_off_state')
             try:
-                self.node_if.publish_pub('status_pub',status_msg)
+                if self.node_if is not None:
+                    self.msg_if.pub_warn("*************node_if: " + str(self.node_if))    
+
+                    self.node_if.publish_pub('status_pub',status_msg)
+
             except Exception as e:
                 self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
