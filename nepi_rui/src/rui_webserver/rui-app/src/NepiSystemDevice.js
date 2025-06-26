@@ -56,14 +56,14 @@ class NepiSystemDevice extends Component {
       advancedConfigDisabled: true,
       updatedDeviceId: "",
       selectedWifiNetwork: "",
-      wifiClientSSIDEdited: false,
       wifiClientSSID: "",
       wifiClientPassphrase: "",
       wifiAPSSIDEdited: false,
       wifiAPSSID: "",
       wifiAPPassphrase: "",
       tx_bandwidth_limit: (this.props.ros.bandwidth_usage_query_response !== null)? this.props.ros.bandwidth_usage_query_response.tx_limit_mbps : -1,
-      tx_bandwidth_user_editing: false
+      tx_bandwidth_user_editing: false,
+      wifi_query_response: null
     }
 
     this.onUpdateAutoRateText = this.onUpdateAutoRateText.bind(this)
@@ -80,14 +80,15 @@ class NepiSystemDevice extends Component {
     this.onConfigSubsysSelected = this.onConfigSubsysSelected.bind(this)
     this.onToggleAdvancedConfig = this.onToggleAdvancedConfig.bind(this)
     this.createConfigSubsysOptions = this.createConfigSubsysOptions.bind(this)
+    this.onConnectClientWifiButton = this.onConnectClientWifiButton.bind(this)
     this.createWifiNetworkOptions = this.createWifiNetworkOptions.bind(this)
     this.onWifiNetworkSelected = this.onWifiNetworkSelected.bind(this)
-    this.onUpdateClientSSIDText = this.onUpdateClientSSIDText.bind(this)
     this.onUpdateClientPassphraseText = this.onUpdateClientPassphraseText.bind(this)
-    this.onKeyClientWifi = this.onKeyClientWifi.bind(this)
+    this.onKeyClientWifiPassphrase = this.onKeyClientWifiPassphrase.bind(this)
     this.onUpdateAPSSIDText = this.onUpdateAPSSIDText.bind(this)
     this.onUpdateAPPassphraseText = this.onUpdateAPPassphraseText.bind(this)
     this.onKeyAPWifi = this.onKeyAPWifi.bind(this)
+
 
     this.onDeviceIdChange = this.onDeviceIdChange.bind(this)
     this.onDeviceIdKey = this.onDeviceIdKey.bind(this)
@@ -99,115 +100,6 @@ class NepiSystemDevice extends Component {
     this.renderNetworkInfo = this.renderNetworkInfo.bind(this)
     this.renderConfiguration = this.renderConfiguration.bind(this)
     this.renderTriggerSettings = this.renderTriggerSettings.bind(this)
-  }
-
-  onUpdateAutoRateText(e) {
-    this.setState({autoRate: e.target.value});
-    this.setState({autoRateUserEditing: true});
-    styleTextEdited(document.getElementById(e.target.id))
-  }
-
-  onKeyAutoRateText(e) {
-    const {onChangeTriggerRate, } = this.props.ros
-    if(e.key === 'Enter'){
-      this.setState({autoRateUserEditing: false});
-      onChangeTriggerRate(this.state.autoRate)
-      styleTextUnedited(document.getElementById(e.target.id))
-    }
-  }
-
-  onUpdateClientSSIDText(e) {
-    this.setState({wifiClientSSID: e.target.value, wifiClientSSIDEdited: true});
-    var client_ssid_textbox = document.getElementById("wifi_client_ssid_textbox")
-    styleTextEdited(client_ssid_textbox)
-    
-    var client_passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
-    styleTextEdited(client_passphrase_textbox)
-  }
-
-  onUpdateClientPassphraseText(e) {
-    this.setState({wifiClientPassphrase: e.target.value, wifiClientSSIDEdited: true});
-    var client_ssid_textbox = document.getElementById("wifi_client_ssid_textbox")
-    styleTextEdited(client_ssid_textbox)
-    var client_passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
-    styleTextEdited(client_passphrase_textbox)
-  }
-
-  onKeyClientWifi(e) {
-    const {onUpdateWifiClientCredentials} = this.props.ros
-    if(e.key === 'Enter'){
-      this.setState({wifiClientSSIDEdited: false})
-      onUpdateWifiClientCredentials(this.state.wifiClientSSID, this.state.wifiClientPassphrase)
-      // Reset style
-      var client_ssid_textbox = document.getElementById("wifi_client_ssid_textbox")
-      styleTextUnedited(client_ssid_textbox)
-      var client_passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
-      styleTextUnedited(client_passphrase_textbox)
-    }
-  }
-
-  onUpdateAPSSIDText(e) {
-    this.setState({wifiAPSSID: e.target.value, wifiAPSSIDEdited: true});
-    var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
-    styleTextEdited(ap_ssid_textbox)
-    var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
-    styleTextEdited(ap_passphrase_textbox)
-  }
-
-  onUpdateAPPassphraseText(e) {
-    this.setState({wifiAPPassphrase: e.target.value, wifiAPSSIDEdited: true});
-    var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
-    styleTextEdited(ap_ssid_textbox)
-    var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
-    styleTextEdited(ap_passphrase_textbox)
-  }
-
-  onKeyAPWifi(e) {
-    const {onUpdateWifiAPCredentials} = this.props.ros
-    if(e.key === 'Enter'){
-      this.setState({wifiAPSSIDEdited: false})
-      onUpdateWifiAPCredentials(this.state.wifiAPSSID, this.state.wifiAPPassphrase)
-      // Reset style
-      var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
-      styleTextUnedited(ap_ssid_textbox)
-      var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
-      styleTextUnedited(ap_passphrase_textbox)
-    }
-  }
-
-  onUpdateTXRateLimitText(e) {
-    this.setState({tx_bandwidth_limit: e.target.value});
-    this.setState({tx_bandwidth_user_editing: true});
-    var rate_limit_textbox = document.getElementById(e.target.id)
-    styleTextEdited(rate_limit_textbox)
-  }
-
-  onKeyTXRateLimitText(e) {
-    const {onChangeTXRateLimit} = this.props.ros
-    if(e.key === 'Enter'){
-      this.setState({tx_bandwidth_user_editing: false});
-      onChangeTXRateLimit(this.state.tx_bandwidth_limit)
-      var rate_limit_textbox = document.getElementById(e.target.id)
-      styleTextUnedited(rate_limit_textbox)
-    }
-  }
-
-  async onIPAddrValChange(e) {
-    await this.setState({ipAddrVal: e.target.value})
-  }
-
-  async onAddButtonPressed() {
-    const { addIPAddr } = this.props.ros
-    const { ipAddrVal } = this.state
-
-    addIPAddr(ipAddrVal)
-  }
-
-  async onRemoveButtonPressed() {
-    const { removeIPAddr } = this.props.ros
-    const { ipAddrVal } = this.state
-
-    removeIPAddr(ipAddrVal)
   }
 
   async onDeviceIdChange(e) {
@@ -429,9 +321,11 @@ class NepiSystemDevice extends Component {
     )
   }
 
+
+
   createWifiNetworkOptions(wifiNetworks) {
     var network_options = []
-    network_options.push(<Option>{""}</Option>)
+    network_options.push(<Option>{"None"}</Option>)
     for (var i = 0; i < wifiNetworks.length; i++) {
       network_options.push(<Option>{wifiNetworks[i]}</Option>)
     }
@@ -439,29 +333,57 @@ class NepiSystemDevice extends Component {
     return network_options
   }
 
-  async onWifiNetworkSelected(e) {
-    var ssid_textbox = document.getElementById("wifi_client_ssid_textbox")
-    var passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
-    if (e.target.value !== "") {
-      ssid_textbox.style.color = Styles.vars.colors.red
-      ssid_textbox.style.fontWeight = "bold"
-      passphrase_textbox.style.color = Styles.vars.colors.red
-      passphrase_textbox.style.fontWeight = "bold"
-    }
-    else {
-      ssid_textbox.style.color = Styles.vars.colors.black
-      ssid_textbox.style.fontWeight = "normal"
-      passphrase_textbox.style.color = Styles.vars.colors.black
-      passphrase_textbox.style.fontWeight = "normal"  
-    }
 
-    await this.setState({
-      selectedWifiNetwork: e.target.value,
-      wifiClientSSIDEdited: (e.target.value !== "")? true : false, 
-      wifiClientSSID: e.target.value, 
-      wifiClientPassphrase: ""
-    })
+  onUpdateAutoRateText(e) {
+    this.setState({autoRate: e.target.value});
+    this.setState({autoRateUserEditing: true});
+    styleTextEdited(document.getElementById(e.target.id))
   }
+
+  onKeyAutoRateText(e) {
+    const {onChangeTriggerRate, } = this.props.ros
+    if(e.key === 'Enter'){
+      this.setState({autoRateUserEditing: false});
+      onChangeTriggerRate(this.state.autoRate)
+      styleTextUnedited(document.getElementById(e.target.id))
+    }
+  }
+
+  onUpdateTXRateLimitText(e) {
+    this.setState({tx_bandwidth_limit: e.target.value});
+    this.setState({tx_bandwidth_user_editing: true});
+    var rate_limit_textbox = document.getElementById(e.target.id)
+    styleTextEdited(rate_limit_textbox)
+  }
+
+  onKeyTXRateLimitText(e) {
+    const {onChangeTXRateLimit} = this.props.ros
+    if(e.key === 'Enter'){
+      this.setState({tx_bandwidth_user_editing: false});
+      onChangeTXRateLimit(this.state.tx_bandwidth_limit)
+      var rate_limit_textbox = document.getElementById(e.target.id)
+      styleTextUnedited(rate_limit_textbox)
+    }
+  }
+
+  async onIPAddrValChange(e) {
+    await this.setState({ipAddrVal: e.target.value})
+  }
+
+  async onAddButtonPressed() {
+    const { addIPAddr } = this.props.ros
+    const { ipAddrVal } = this.state
+
+    addIPAddr(ipAddrVal)
+  }
+
+  async onRemoveButtonPressed() {
+    const { removeIPAddr } = this.props.ros
+    const { ipAddrVal } = this.state
+
+    removeIPAddr(ipAddrVal)
+  }
+
 
   renderNetworkInfo() {
     const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
@@ -520,9 +442,6 @@ class NepiSystemDevice extends Component {
                 />
               </Label>
 
-
-
-
         <Label title={"TX Data Rate (Mbps)"}>
           <Input disabled value={(bandwidth_usage_query_response !== null)? round(bandwidth_usage_query_response.tx_rate_mbps, 2) : -1.0} />
         </Label>
@@ -546,19 +465,131 @@ class NepiSystemDevice extends Component {
     )
   }
 
+
+  onWifiNetworkSelected(e) {
+    var passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
+    if (e.target.value !== "" && e.target.value !== "None") {
+      passphrase_textbox.style.color = Styles.vars.colors.red
+      passphrase_textbox.style.fontWeight = "bold"
+    }
+    else {
+      passphrase_textbox.style.color = Styles.vars.colors.black
+      passphrase_textbox.style.fontWeight = "normal"  
+    }
+
+    this.setState({
+      selectedWifiNetwork: e.target.value,
+      wifiClientSSID: e.target.value, 
+      wifiClientPassphrase: ""
+    })
+  }
+
+
+
+  onConnectClientWifiButton() {
+      const ssid = this.state.wifiClientSSID
+      const passphrase = this.state.wifiClientPassphrase
+      this.props.ros.onUpdateWifiClientCredentials(ssid, passphrase)
+  }
+
+
+  onUpdateClientPassphraseText(e) {
+    this.setState({wifiClientPassphrase: e.target.value});
+    var client_passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
+    styleTextEdited(client_passphrase_textbox)
+  }
+
+  onKeyClientWifiPassphrase(e) {
+    if(e.key === 'Enter'){
+      var client_passphrase_textbox = document.getElementById("wifi_client_passphrase_textbox")
+      styleTextUnedited(client_passphrase_textbox)
+      this.setState({ wifiClientPassphrase: e.target.value })
+    }
+  }
+
+
+
+
+  onUpdateAPSSIDText(e) {
+    this.setState({wifiAPSSID: e.target.value, wifiAPSSIDEdited: true});
+    var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
+    styleTextEdited(ap_ssid_textbox)
+    var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
+    styleTextEdited(ap_passphrase_textbox)
+  }
+
+  onUpdateAPPassphraseText(e) {
+    this.setState({wifiAPPassphrase: e.target.value, wifiAPSSIDEdited: true});
+    var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
+    styleTextEdited(ap_ssid_textbox)
+    var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
+    styleTextEdited(ap_passphrase_textbox)
+  }
+
+  onKeyAPWifi(e) {
+    const {onUpdateWifiAPCredentials} = this.props.ros
+    if(e.key === 'Enter'){
+      this.setState({wifiAPSSIDEdited: false})
+      onUpdateWifiAPCredentials(this.state.wifiAPSSID, this.state.wifiAPPassphrase)
+      // Reset style
+      var ap_ssid_textbox = document.getElementById("wifi_ap_ssid_textbox")
+      styleTextUnedited(ap_ssid_textbox)
+      var ap_passphrase_textbox = document.getElementById("wifi_ap_passphrase_textbox")
+      styleTextUnedited(ap_passphrase_textbox)
+    }
+  }
+
+
+
+
+
   renderWifiInfo() {
     const { systemInContainer, wifi_query_response, onToggleWifiAPEnabled, onToggleWifiClientEnabled, onRefreshWifiNetworks } = this.props.ros
-    const { wifiClientSSIDEdited, wifiClientSSID, wifiClientPassphrase,
+    const { wifiClientSSID, wifiClientPassphrase,
             wifiAPSSIDEdited, wifiAPSSID, wifiAPPassphrase } = this.state
     const wifi_enabled = (wifi_query_response !== null)? wifi_query_response.wifi_client_enabled : false
-    const client_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_client_ssid : ""
-    const client_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_client_passphrase : ""
+    const wifi_client_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_client_ssid : ""
+    const wifi_client_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_client_passphrase : ""
     const ap_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_ap_ssid : ""
     const ap_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_ap_passphrase : ""
     const available_networks = (wifi_query_response !== null)? wifi_query_response.available_networks : []
 
     const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to Connect to Internet"
+    const connected = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
+    const connecting = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
+
+    
+    const connect_text = (connected === true) ? "Connected" : (connecting === true ? "Connecting" : "Connected")
+    const connect_value = (connected === true) ? true : connecting
+    
+
+    // Update on User Change
+    var sel_wifi_ssid = 'None'
+    if (wifiClientSSID !== ''){
+      if (available_networks.indexOf(wifiClientSSID) === -1){
+        this.setState({wifiClientSSID:"",wifiClientPassphrase:""})
+      }
+      else {
+        sel_wifi_ssid = wifiClientSSID 
+      }
+    }
+
+    // Update On Manager Change
+    if (wifi_query_response !== null) {
+      if (this.state.wifi_query_response == null){
+        this.setState({wifi_query_response:wifi_query_response})
+      }
+      else if (this.state.wifi_query_response.wifi_client_ssid !== wifi_client_ssid){
+          sel_wifi_ssid = wifi_client_ssid
+          this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
+          this.setState({wifi_query_response: wifi_query_response})
+      }
+    }
+
+    
+
+    
     return (
       <Section title={"WiFi"}>
         <div hidden={systemInContainer === false}> 
@@ -593,46 +624,61 @@ class NepiSystemDevice extends Component {
             </Label>
           </Column>
           <Column>
+    
+          <div hidden={!wifi_enabled}>
 
-            <Label title={"Connected"}>
-              <BooleanIndicator value={(wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false} />
-            </Label>
+          <ButtonMenu>
+                <Button onClick={onRefreshWifiNetworks}>{"Refresh"}</Button>
+              </ButtonMenu>
+
+          </div>
+
+   
           </Column>
         </Columns>
+
         <div hidden={!wifi_enabled}>
-        <Columns>
-          <Column>
-            <Label title={"Network"} >
-              <Input 
-                id={"wifi_client_ssid_textbox"}
-                value={(wifiClientSSIDEdited === true)? wifiClientSSID : client_ssid}
-                onChange={this.onUpdateClientSSIDText} onKeyDown={this.onKeyClientWifi}
-              />
+
+          <Columns>
+            <Column>
+
+              <Label title={"Selected Network"} >
+                <Select
+                  onChange={this.onWifiNetworkSelected}
+                  value={sel_wifi_ssid}
+                >
+                  {this.createWifiNetworkOptions(available_networks)}
+                </Select>
+              </Label>
+
+              <ButtonMenu>
+              <Button onClick={this.onConnectClientWifiButton}>{"Connect"}</Button>
+              </ButtonMenu>
+
+
+            </Column>
+            <Column>
+
+              <Label title={"Passphrase"} >
+                <Input 
+                  id={"wifi_client_passphrase_textbox"}
+                  type={"password"}
+                  value={wifiClientPassphrase}
+                  onChange={this.onUpdateClientPassphraseText} onKeyDown={this.onKeyClientWifiPassphrase}
+                />
+              </Label>
+
+              <Label title={connect_text}>
+              <BooleanIndicator value={connect_value} />
             </Label>
-            <Label title={"Avail. Networks"} >
-              <Select
-                onChange={this.onWifiNetworkSelected}
-                value={this.state.selectedWifiNetwork}
-              >
-                {this.createWifiNetworkOptions(available_networks)}
-              </Select>
-            </Label>
-          </Column>
-          <Column>
-            <Label title={"Passphrase"} >
-              <Input 
-                id={"wifi_client_passphrase_textbox"}
-                type={"password"}
-                value={(wifiClientSSIDEdited === true)? wifiClientPassphrase : client_passphrase}
-                onChange={this.onUpdateClientPassphraseText} onKeyDown={this.onKeyClientWifi}
-              />
-            </Label>
-            <ButtonMenu>
-              <Button onClick={onRefreshWifiNetworks}>{"Refresh"}</Button>
-            </ButtonMenu>
-          </Column>
-        </Columns>
+
+    
+             </Column>
+          </Columns>
+ 
+
         </div>
+
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
         <Columns>
           <Column>

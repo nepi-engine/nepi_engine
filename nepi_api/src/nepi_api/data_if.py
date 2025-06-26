@@ -502,8 +502,6 @@ class NavPoseIF:
     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
-    MIN_MAX_TRACK_LENGTH = [1,100]
-    MIN_MAX_TRACK_SEC = [1,3600]
     ready = False
     namespace = '~'
 
@@ -523,11 +521,6 @@ class NavPoseIF:
     frame_depth = 'MSL'
 
     caps_report = NavPoseCapabilitiesQueryResponse()
-
-    track_length = 1
-    track_sec = 60
-    track_sec_last = 0.0
-    track_msg_list = []
 
     data_product = 'navpose'
 
@@ -582,9 +575,6 @@ class NavPoseIF:
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
 
-        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
-        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
-
 
 
         # Initialize status message
@@ -623,16 +613,7 @@ class NavPoseIF:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'track_length': {
-                'namespace': self.namespace,
-                'factory_val': self.track_length
-            },
-            'track_sec': {
-                'namespace': self.namespace,
-                'factory_val': self.track_sec
-            }
-        }
+        self.PARAMS_DICT = None
 
 
 
@@ -709,6 +690,458 @@ class NavPoseIF:
                 'latch': False
             }
 
+
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'reset': {
+                'namespace': self.namespace,
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetCb, 
+                'callback_args': ()
+            }
+        }
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                         msg_if = self.msg_if
+                                            )
+
+        #self.node_if.wait_for_ready()
+        nepi_sdk.wait()
+
+        ##############################
+        # Update vals from param server
+        self.init()
+        ##############################
+        # Start Node Processes
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ###############################
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            timer = 0
+            time_start = nepi_utils.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_utils.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+        return self.ready  
+
+
+    def get_frame_nav_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_altitude_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_depth_options(self):
+        return NAVPOSE_DEPTH_FRAME_OPTIONS
+
+    def get_data_products(self):
+        return [self.data_product]
+
+    def get_blank_navpose_dict(self):
+        return nepi_nav.BLANK_NAVPOSE_DICT
+
+    def get_status_dict(self):
+        status_dict = None
+        if self.status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
+
+
+    def has_subscribers_check(self):
+        has_subs = copy.deepcopy(self.has_subs)
+        self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        return has_subs
+
+
+    # Update System Status
+    def publish_navpose(self,navpose_dict, 
+                        timestamp = None, 
+                        frame_3d_transform = None,
+                        device_mount_description = 'fixed'):      
+        np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if navpose_dict is None:
+            return np_dict
+        else:
+            # Initialize np_dict here so it's available in both branches
+            self.status_msg.source_frame_nav = navpose_dict['frame_nav']
+            self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
+            self.status_msg.source_frame_depth = navpose_dict['frame_depth']
+            self.status_msg.device_mount_description = device_mount_description
+
+            for key in np_dict.keys():
+                if key in navpose_dict.keys():
+                    np_dict[key] = navpose_dict[key]
+            
+            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+
+            current_time = nepi_utils.get_time()
+            get_latency = (current_time - timestamp)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
+
+
+            # Transform navpose data frames to nepi standard frames
+            if np_dict['frame_nav'] != 'ENU':
+                if np_dict['frame_nav'] == 'NED':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+            if np_dict['frame_altitude'] != 'WGS84':
+                if np_dict['frame_altitude'] == 'AMSL':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+            if np_dict['frame_depth'] != 'MSL':
+                if np_dict['frame_depth'] == 'DEPTH':
+                    pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+            # Publish nav pose subs
+            if self.pub_location == True:
+                pub_name = 'location_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_location']
+                msg.latitude = np_dict['latitude']
+                msg.longitude = np_dict['longitude']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_heading == True:
+                pub_name = 'heading_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_heading']
+                msg.heading_deg = np_dict['heading_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_orientation == True:
+                pub_name = 'orientation_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_orientation']
+                msg.roll_deg = np_dict['roll_deg']
+                msg.pitch_deg = np_dict['pitch_deg']
+                msg.yaw_deg = np_dict['yaw_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_position == True:
+                pub_name = 'position_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_position']
+                msg.x_m = np_dict['x_m']
+                msg.y_m = np_dict['y_m']
+                msg.z_m = np_dict['z_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_altitude == True:
+                pub_name = 'altitude_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_altitude']
+                msg.altitude_m = np_dict['altitude_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_depth == True:
+                pub_name = 'depth_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.depth_m = np_dict['depth_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if frame_3d_transform is not None:
+                np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
+                        
+            try:
+                data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                success = False
+            if data_msg is not None:
+                msg = NavPose()
+                try:
+                    self.node_if.publish_pub('data_pub', msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    success = False
+
+            current_time = nepi_utils.get_time()
+            pub_latency = (current_time - timestamp)
+            process_time = (current_time - start_time)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Update Pub Stats
+            if self.last_pub_time is None:
+                pub_time_sec = 1.0
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+
+            self.status_msg.frame_3d = navpose_dict['frame_3d']
+            self.status_msg.publishing = True
+
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
+
+        return np_dict
+
+
+    def unsubsribe(self):
+        self.ready = False
+        if self.node_if is not None:
+            self.node_if.unregister_class()
+        time.sleep(1)
+        self.namespace = None
+        self.status_msg = NavPoseStatus()
+
+
+    def publish_status(self):
+        if self.node_if is not None:
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_pub_rate = avg_rate
+           
+            self.node_if.publish_pub('status_pub', self.status_msg)
+
+
+
+    def init(self):
+        if self.node_if is not None:
+            pass
+        self.publish_status()
+
+    def reset(self):
+        if self.node_if is not None:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+            self.init()
+            
+
+
+    def factory_reset(self):
+        if self.node_if is not None:
+            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+            self.init()
+
+    ###############################
+    # Class Private Methods
+    ###############################
+    def _initCb(self, do_updates = False):
+        self.init()
+
+    def _resetCb(self):
+        self.reset()
+
+    def _factoryResetCb(self):
+        self.factory_reset()
+
+
+    def _subscribersCheckCb(self,timer):
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        if has_subs == False:
+            self.status_msg.publishing = False
+        self.has_subs = has_subs
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+
+    def _publishStatusCb(self,timer):
+        self.publish_status()
+
+    def _provide_capabilities(self, _):
+        return self.caps_report
+
+
+
+class NavPoseTrackIF:
+
+    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+
+    MIN_MAX_TRACK_LENGTH = [1,100]
+    MIN_MAX_TRACK_SEC = [1,3600]
+    ready = False
+    namespace = '~'
+
+    node_if = None
+
+    status_msg = NavPoseStatus()
+
+    last_pub_time = None
+
+    has_subs = False
+
+    time_list = [0,0,0,0,0,0,0,0,0,0]
+
+    frame_3d = 'sensor_frame'
+    frame_nav = 'ENU'
+    frame_altitude = 'WGS84'
+    frame_depth = 'MSL'
+
+    caps_report = NavPoseCapabilitiesQueryResponse()
+
+    track_length = 1
+    track_sec = 60
+    track_sec_last = 0.0
+    track_msg_list = []
+
+    data_product = 'navpose_track'
+
+    def __init__(self, namespace = None,
+                data_source_description = 'navpose_track',
+                data_ref_description = 'sensor_center',
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+        ##############################    
+        # Initialize Class Variables
+        if namespace is not None:
+            self.namespace = namespace
+        namespace = nepi_sdk.create_namespace(namespace,'navpose')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
+        # Create Capabilities Report
+
+        self.caps_report.has_location_pub = self.pub_location
+        self.caps_report.has_heading_pub = self.pub_heading
+        self.caps_report.has_position_pub = self.pub_position
+        self.caps_report.has_orientation_pub = self.pub_orientation
+        self.caps_report.has_depth_pub = self.pub_depth
+
+        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
+        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
+
+
+
+        # Initialize status message
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+        
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+        ##############################   
+        ## Node Setup
+
+        # Configs Config Dict ####################
+        self.CFGS_DICT = {
+            'init_callback': self._initCb,
+            'reset_callback': self._resetCb,
+            'factory_reset_callback': self._factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
+
+        # Services Config Dict ####################     
+        SRVS_DICT = {
+            'navpose_caps_query': {
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
+                'srv': NavPoseCapabilitiesQuery,
+                'req': NavPoseCapabilitiesQueryRequest(),
+                'resp': NavPoseCapabilitiesQueryResponse(),
+                'callback': self._provide_capabilities
+            }
+        }
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'track_length': {
+                'namespace': self.namespace,
+                'factory_val': self.track_length
+            },
+            'track_sec': {
+                'namespace': self.namespace,
+                'factory_val': self.track_sec
+            }
+        }
+
+
+
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            'data_pub': {
+                'msg': NavPoseTrack,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'status_pub': {
+                'msg': NavPoseStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            }
+
+        }
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
@@ -825,7 +1258,7 @@ class NavPoseIF:
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, 
+    def publish_navpose_track(self,navpose_dict, 
                         timestamp = None, 
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
@@ -1084,8 +1517,7 @@ class NavPoseIF:
 
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -1110,6 +1542,7 @@ class NavPoseIF:
     
     def _clearTracksCb(self,msg):
         self.clear_tracks()
+
 
 
 ##################################################
@@ -2347,8 +2780,7 @@ class ImageIF:
         return self.caps_report
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('image_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -3213,8 +3645,7 @@ class DepthMapIF:
         self.factory_reset()
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('depth_map_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -3815,8 +4246,7 @@ class PointcloudIF:
         self.factory_reset()
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
         if has_subs == False:
             self.status_msg.publishing = False
         self.has_subs = has_subs

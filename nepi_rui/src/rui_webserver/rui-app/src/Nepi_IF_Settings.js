@@ -147,7 +147,6 @@ class Nepi_IF_Settings extends Component {
     const lastCaps = this.state.last_caps
     const cap_settings = this.state.capabilities
     this.setState({last_caps: cap_settings})
-    const set_namespace = this.state.namespace.replace('/settings','')
     var namesList = []
     var typesList = []
     var optionsLists = []

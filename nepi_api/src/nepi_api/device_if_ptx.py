@@ -22,7 +22,6 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow
 from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
-from nepi_interfaces.msg import DataNavPoseStatus
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
@@ -363,10 +362,7 @@ class PTXActuatorIF:
 
 
 
-        ########################
-        # Initialize the navpose status message
-        self.np_status_msg = DataNavPoseStatus()
-        
+        ########################       
         # Set up status message static values
         self.status_msg.device_id = self.device_id
         self.status_msg.identifier = self.identifier
@@ -1484,7 +1480,6 @@ class PTXActuatorIF:
 
         
     def publish_navpose(self):
-        self.np_status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
             self.navpose_if.publish_navpose(np_dict,

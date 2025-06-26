@@ -1271,13 +1271,13 @@ class SettingsIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'cap_settings': {
+            'capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': SettingsCapabilitiesQuery,
                 'req': SettingsCapabilitiesQueryRequest(),
                 'resp': SettingsCapabilitiesQueryResponse(),
-                'callback': self._provideCapabilitiesHandler
+                'callback': self._capabilitiesHandler
             }
         }
 
@@ -1479,7 +1479,7 @@ class SettingsIF:
     def _resetSettingsCb(self, msg):
         self.reset()
 
-    def _provideCapabilitiesHandler(self, req):
+    def _capabilitiesHandler(self, req):
         caps_response = nepi_settings.create_capabilities_response(self.cap_settings, has_cap_updates = self.allow_cap_updates)
         return caps_response
 

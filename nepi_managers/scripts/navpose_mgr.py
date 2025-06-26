@@ -42,7 +42,7 @@ from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_interfaces.msg import DataNavPose
+from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -252,7 +252,7 @@ class NavPoseMgr(object):
             'navpose_data': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose_data',
-                'msg': DataNavPose,  # This should be the correct message type
+                'msg': NavPose,  # This should be the correct message type
                 'qsize': 1,
                 'latch': False
             }
@@ -311,7 +311,7 @@ class NavPoseMgr(object):
             'set_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_navpose',
-                'msg': DataNavPose,
+                'msg': NavPose,
                 'qsize': 1,
                 'callback': self._setNavPoseCb, 
                 'callback_args': ()

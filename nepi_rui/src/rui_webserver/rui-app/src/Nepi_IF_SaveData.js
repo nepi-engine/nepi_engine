@@ -162,7 +162,7 @@ class NepiIFSaveData extends Component {
     const set_namespace = this.state.namespace.replace('/save_data','')
     var capabilities = null
     if (saveDataCaps){
-      capabilities = saveDataCaps[cur_namespace]
+      capabilities = saveDataCaps[set_namespace]
     }    
     if (capabilities != null && set_namespace !== cur_namespace){
       this.setState({

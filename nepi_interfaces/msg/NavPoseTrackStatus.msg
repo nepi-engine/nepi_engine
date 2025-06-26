@@ -24,3 +24,8 @@ bool publishing
 
 string stats_message
 
+### Track Queue Settings
+int32 track_length
+int32 track_sec
+int32 track_next_sec
+NavPoseTrack[] track_list

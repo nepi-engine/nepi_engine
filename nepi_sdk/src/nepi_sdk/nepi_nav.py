@@ -28,7 +28,7 @@ from nav_msgs.msg import Odometry
 
 from nepi_interfaces.msg import MgrNavPoseStatus, MgrNavPoseCompInfo, NavPoseTrack
 
-from nepi_interfaces.msg import NavPose, DataNavPose
+from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -66,7 +66,7 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    msg_type = 'nepi_interfaces/DataNavPose'
+    msg_type = 'nepi_interfaces/NavPose'
     return nepi_sdk.find_topics_by_msg(msg_type)
 
 ###############

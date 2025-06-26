@@ -242,7 +242,7 @@ class ROSConnectionStore {
   @observable pointcloudTopics = []
   @observable pointcloudCaps = {}
   @observable settingCaps = {}
-  @observable saveDataTopics = []
+  @observable SaveDataNamespaces = []
   @observable saveDataCaps = {}
   @observable idxDevices = {}
   @observable ptxDevices = {}
@@ -424,7 +424,7 @@ class ROSConnectionStore {
         this.topicTypes = result.types
         var newPrefix = this.updatePrefix()
         var newResetTopics = this.updateResetTopics()
-        var newSaveDataTopics = this.updateSaveDataTopics()
+        var newSaveDataNamespaces = this.updateSaveDataNamespaces()
         var newImageTopics = this.updateImageTopics()
         var newMessageTopics = this.updateMessageTopics()
         var newPointcloudTopics = this.updatePointcloudTopics()
@@ -435,7 +435,7 @@ class ROSConnectionStore {
         this.updateRBXDevices()
         this.updateNPXDevices()
 
-        if (newPrefix || newResetTopics || newSaveDataTopics || newMessageTopics || newImageTopics || newPointcloudTopics) {
+        if (newPrefix || newResetTopics || newSaveDataNamespaces || newMessageTopics || newImageTopics || newPointcloudTopics) {
           this.initalizeListeners()
         }
         this.topicQueryLock = false
@@ -560,22 +560,23 @@ class ROSConnectionStore {
   }
 
   @action.bound
-  updateSaveDataTopics() {
+  updateSaveDataNamespaces() {
     // Function for updating image topics list
-    var newSaveDataTopics = []
+    var newSaveDataNamespaces = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "nepi_interfaces/SaveDataStatus"){
-        newSaveDataTopics.push(this.topicNames[i].replace('status',''))
+        newSaveDataNamespaces.push(this.topicNames[i].replace('/status',''))
+        newSaveDataNamespaces.push(this.topicNames[i].replace('/save_data',''))
       }
     }
 
     // sort the save topics for comparison to work
-    newSaveDataTopics.sort()    
+    newSaveDataNamespaces.sort()    
 
-    if (!this.saveDataTopics.equals(newSaveDataTopics)) {
-      this.saveDataTopics = newSaveDataTopics
-      for (var i = 0; i < this.saveDataTopics.length; i++) {
-            this.callSaveDataCapabilitiesQueryService(this.saveDataTopics[i])
+    if (!this.SaveDataNamespaces.equals(newSaveDataNamespaces)) {
+      this.SaveDataNamespaces = newSaveDataNamespaces
+      for (var i = 0; i < this.SaveDataNamespaces.length; i++) {
+            this.callSaveDataCapabilitiesQueryService(this.SaveDataNamespaces[i])
           }
       return true
     } else {
@@ -629,7 +630,7 @@ class ROSConnectionStore {
         const idx_device_namespace = this.topicNames[i].replace("/status","")
         if (!(devices_detected.includes(idx_device_namespace))) {
           this.callIDXCapabilitiesQueryService(idx_device_namespace) // Testing
-          this.callSettingsCapabilitiesQueryService(idx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(idx_device_namespace + "/settings")
           const idxDevices = this.idxDevices[idx_device_namespace]
           if (idxDevices) { // Testing
             devices_detected.push(idx_device_namespace)
@@ -659,7 +660,7 @@ class ROSConnectionStore {
         const ptx_device_namespace = this.topicNames[i].replace("/status","")
         if (!(ptx_devices_detected.includes(ptx_device_namespace))) {
           this.callPTXCapabilitiesQueryService(ptx_device_namespace)
-          this.callSettingsCapabilitiesQueryService(ptx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(ptx_device_namespace + "/settings")
           const ptxUnit = this.ptxDevices[ptx_device_namespace]
           if (ptxUnit)
           {
@@ -690,7 +691,7 @@ class ROSConnectionStore {
         const lsx_device_namespace = this.topicNames[i].replace("/status","")
         if (!(lsx_devices_detected.includes(lsx_device_namespace))) {
           this.callLSXCapabilitiesQueryService(lsx_device_namespace)
-          this.callSettingsCapabilitiesQueryService(lsx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(lsx_device_namespace + "/settings")
           const lsxDevices = this.lsxDevices[lsx_device_namespace]
           if (lsxDevices)
           {
@@ -721,7 +722,7 @@ class ROSConnectionStore {
         const rbx_device_namespace = this.topicNames[i].replace("/status","")
         if (!(devices_detected.includes(rbx_device_namespace))) {
           this.callRBXCapabilitiesQueryService(rbx_device_namespace)
-          this.callSettingsCapabilitiesQueryService(rbx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(rbx_device_namespace + "/settings")
           const rbxDevice = this.rbxDevices[rbx_device_namespace]
           if (rbxDevice) {
             devices_detected.push(rbx_device_namespace)
@@ -751,7 +752,7 @@ class ROSConnectionStore {
         const npx_device_namespace = this.topicNames[i].replace("/status","")
         if (!(devices_detected.includes(npx_device_namespace))) {
           this.callNPXCapabilitiesQueryService(npx_device_namespace) // Testing
-          this.callSettingsCapabilitiesQueryService(npx_device_namespace)
+          this.callSettingsCapabilitiesQueryService(npx_device_namespace + "/settings")
           const npxSensor = this.npxDevices[npx_device_namespace]
           if (npxSensor) { // Testing
             devices_detected.push(npx_device_namespace)
@@ -1729,18 +1730,6 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   /////  Service Calls
   ///////////////////////////////
 
-
-  @action.bound
-  async callSaveDataCapabilitiesQueryService(namespace) {
-    this.saveDataCaps[namespace] = []
-    const capabilities = await this.callService({
-      name: namespace + "/capabilities_query",
-      messageType: "nepi_interfaces/SaveDataCapabilitiesQuery",  
-      args: {namespace : namespace},
-    })
-    this.saveDataCaps[namespace] = capabilities
-  }
-
   async callSystemDefsService() {
     this.systemDefs = await this.callService({
       name: "system_defs_query",
@@ -1754,12 +1743,23 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   }
 
   @action.bound
+  async callSaveDataCapabilitiesQueryService(namespace) {
+    this.saveDataCaps[namespace] = []
+    const capabilities = await this.callService({
+      name: namespace + "/capabilities_query",
+      messageType: "nepi_interfaces/SaveDataCapabilitiesQuery",  
+    })
+    this.saveDataCaps[namespace] = capabilities
+  }
+
+
+
+  @action.bound
   async callSettingsCapabilitiesQueryService(namespace) {
     this.settingCaps[namespace] = []
     const capabilities = await this.callService({
-      name: namespace + "/settings/capabilities_query",
+      name: namespace + "/capabilities_query",
       messageType: "nepi_interfaces/SettingsCapabilitiesQuery",  
-      args: {namespace : namespace},
     })
     this.settingCaps[namespace] = capabilities
   }
@@ -2317,7 +2317,6 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
 
   @action.bound
   onUpdateWifiClientCredentials(new_ssid, new_passphrase) {
-
     this.publishMessage({
       name: "set_wifi_client_credentials",
       messageType: "nepi_interfaces/NetworkWifiCredentials",

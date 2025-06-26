@@ -9,4 +9,7 @@ bool has_orientation_pub
 bool has_altitude_pub
 bool has_depth_pub
 
+int32[] min_max_track_length
+int32[] min_max_track_sec
+
 
