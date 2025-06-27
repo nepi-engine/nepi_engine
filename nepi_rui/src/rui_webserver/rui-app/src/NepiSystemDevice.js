@@ -561,7 +561,7 @@ class NepiSystemDevice extends Component {
 
     
     const connect_text = (connected === true) ? "Connected" : (connecting === true ? "Connecting" : "Connected")
-    const connect_value = (connected === true) ? true : connecting
+    const connect_value = (connected === true) ? true : connected
     
 
     // Update on User Change
@@ -580,7 +580,7 @@ class NepiSystemDevice extends Component {
       if (this.state.wifi_query_response == null){
         this.setState({wifi_query_response:wifi_query_response})
       }
-      else if (this.state.wifi_query_response.wifi_client_ssid !== wifi_client_ssid){
+      else if (this.state.wifi_query_response !== wifi_query_response){
           sel_wifi_ssid = wifi_client_ssid
           this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
           this.setState({wifi_query_response: wifi_query_response})

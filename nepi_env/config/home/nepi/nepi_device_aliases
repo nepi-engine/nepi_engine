@@ -3,7 +3,7 @@
 # 1) Open a terminal on PC in this folder
 # 2) Copy the file to the nepi user drive's 'tmp' 
 # 3) SSH into your nepi device and type
-# cp /mnt/nepi_storage/tmp/nepi_bash_aliases ~/.nepi_aliases
+# cp /mnt/nepi_storage/tmp/nepi_device_aliases ~/.nepi_aliases
 
 # 4) In the same ssh session add the following to your .bashrc file
 # - nano ~/.bashrc

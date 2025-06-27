@@ -137,6 +137,7 @@ sudo apt install python3.8-distutils
 sudo apt install python3.8-venv
 sudo apt-get install python3-pip
 //python3 -m pip install --upgrade pip
+sudo apt-get install minicom
 
 cd /usr/bin
 sudo ln -sfn python3 python
