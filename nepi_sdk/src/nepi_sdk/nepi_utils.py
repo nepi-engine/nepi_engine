@@ -22,6 +22,7 @@ import yaml
 import csv
 import inspect
 import numpy as np
+import string
 
 import pytz
 import datetime
@@ -450,3 +451,12 @@ def rotate_3d(vector, axis, angle_degrees):
     else:
         raise ValueError("Invalid axis. Choose 'x', 'y', or 'z'.")
     return np.dot(R, vector)
+
+##################
+## Misc String Functions
+
+def get_uppercase_letters():
+  return list(string.ascii_uppercase)
+
+def get_lowercase_letters():
+  return list(string.ascii_uppercase)

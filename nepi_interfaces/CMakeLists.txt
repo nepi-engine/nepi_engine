@@ -135,6 +135,7 @@ add_message_files(FILES
     SettingsStatus.msg
     SingleAxisTimedMove.msg
     FieldOfView.msg
+    SerialDevice.msg
     StampedString.msg
     StringArray.msg
     StringArrays.msg
