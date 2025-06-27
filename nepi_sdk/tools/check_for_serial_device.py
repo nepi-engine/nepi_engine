@@ -9,7 +9,7 @@ def response_test_function(message_str,response_str):
 
 if __name__ == '__main__':
 
-    start_str = '' 
+start_str = '' 
 addr_str_start = 'A' 
 addr_str_stop = 'B' 
 addr_length = None
