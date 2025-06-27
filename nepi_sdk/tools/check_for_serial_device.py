@@ -1,6 +1,15 @@
 from nepi_sdk import nepi_test
 
-start_str = '' 
+def response_test_function(message_str,response_str):
+    valid = False
+    if response_str == message_str:
+        valid = True
+
+    return valid
+
+if __name__ == '__main__':
+
+    start_str = '' 
 addr_str_start = 'A' 
 addr_str_stop = 'B' 
 addr_length = None
@@ -12,14 +21,6 @@ include_cr = True
 include_lf = True
 wait_time = 0.010
 verbose = True
-
-def response_test_function(message_str,response_str):
-    valid = False
-    if response_str == message_str:
-        valid = True
-
-    return valid
-
 
 
 nepi_test.test_serial_device(start_str = start_str, 
