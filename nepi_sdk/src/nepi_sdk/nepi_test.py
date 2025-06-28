@@ -115,39 +115,3 @@ def test_torch_cuda():
   return cuda_available
 
 
-
-def test_serial_device(start_str = '', 
-                    addr_str_start = '1', 
-                    addr_str_stop = '2', 
-                    addr_length = None,
-                    addr_length_prefix = '', 
-                    addr_length_suffix = '',
-                    stop_str = '',
-                    response_test_function = None, # Will use echo of command if None
-                    buadrate_list = STANDARD_BUAD_RATES,
-                    include_cr = True, 
-                    include_lf = True,
-                    wait_time = 0.010,
-                    verbose = True):
-    addr_str_list = nepi_serial.create_serial_port_addrs_list(
-                    start_str=addr_str_star, 
-                    stop_str=addr_str_stop, 
-                    length = addr_length, 
-                    length_prefix = addr_length_prefix, 
-                    length_suffix = addr_length_suffix)
-    device_dict = nepi_serial.check_for_device_on_serial_ports(
-                    message_start_str = start_str, 
-                    message_addr_str_list = addr_str_list, 
-                    message_stop_str = stop_str,
-                    response_test_function = response_test_function, # Will use echo of command if None
-                    buadrate_list = buadrate_list,
-                    include_cr = include_cr, 
-                    include_lf = include_lf,
-                    wait_time = wait_time,
-                    verbose = verbose)
-    if device_dict is not None:
-      print("Found Device: " + str(device_dict))
-    else:
-      print("Did not find Device")
-    return device_dict
-    
