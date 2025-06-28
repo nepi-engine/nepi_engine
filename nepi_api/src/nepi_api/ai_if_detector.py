@@ -75,7 +75,6 @@ GET_IMAGE_TIMEOUT_SEC = 1
 
 API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
 AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 
 class AiDetectorIF:
     
