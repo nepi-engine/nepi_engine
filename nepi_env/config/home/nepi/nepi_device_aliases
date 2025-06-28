@@ -41,6 +41,7 @@ export ETC="/opt/nepi/ros/etc"
 export INSTALLS="/mnt/nepi_storage/installs"
 export LAUNCH="/opt/nepi/ros/share/nepi_env/launch"
 export LIB="/opt/nepi/ros/lib"
+export LIBSDK="/opt/nepi/ros/lib/nepi_sdk"
 export MANAGERS="/opt/nepi/ros/lib/nepi_managers"
 export NFI="/mnt/nepi_storage/nepi_full_img"
 export NFIA="/mnt/nepi_storage/nepi_full_img_archive"
@@ -51,7 +52,7 @@ export SDK="/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk"
 export SHARE="/opt/nepi/ros/share"
 export SRC="/mnt/nepi_storage/nepi_src/nepi_engine_ws/src"
 export TMP="/mnt/nepi_storage/tmp"
-export USER="/mnt/nepi_storage"
+export DRIVE="/mnt/nepi_storage"
 
 # NEPI navigation shortcuts
 
@@ -67,6 +68,7 @@ alias etc="cd $ETC"
 alias installs="cd $INSTALLS"
 alias launch="cd $LAUNCH"
 alias lib="cd $LIB"
+alias libsdk="cd $LIBSDK"
 alias managers="cd $MANAGERS"
 alias nfi="cd $NFI"
 alias nfia="cd $NFIA"
@@ -77,7 +79,7 @@ alias sdk="cd $SDK"
 alias share="cd $SHARE"
 alias src="cd $SRC"
 alias tmp="cd $TMP"
-alias user="cd $USER"
+alias drive="cd $DRIVE"
 
 
 # NEPI build shortcuts
@@ -141,6 +143,7 @@ function nepi(){
     etc = /opt/nepi/ros/etc
     installs = /mnt/nepi_storage/installs
     lib = /opt/nepi/ros/lib
+    libsdk = /opt/nepi/ros/lib/nepi_sdk
     managers = /opt/nepi/ros/lib/nepi_managers
     ros = /opt/nepi/ros
     nfi = /mnt/nepi_storage/nepi_full_img
@@ -152,7 +155,7 @@ function nepi(){
     share = /opt/nepi/ros/share
     src = /mnt/nepi_storage/nepi_src
     tmp = /mnt/nepi_storage/tmp
-    user = /mnt/user_storage/user_cfg
+    drive = /mnt/nepi_storage
     "
     echo "$text"
 }
