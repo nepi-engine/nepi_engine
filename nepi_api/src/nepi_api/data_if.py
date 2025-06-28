@@ -62,8 +62,6 @@ from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
-AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 
 SYSTEM_DATA_FOLDER = 'mnt/nepi_storage/data'
 

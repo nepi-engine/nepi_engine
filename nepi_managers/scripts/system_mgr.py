@@ -91,7 +91,7 @@ class SystemMgrNode():
                             "nepi_full_img_archive", 
                             "nepi_src",
                             "user_cfg",
-                            "user_cfg/ros",
+                            "user_cfg/sys",
                             "sample_data",
                             "tmp"]
                             
@@ -110,7 +110,7 @@ class SystemMgrNode():
                             "logs/automation_script_logs", 
                             "nepi_src",
                             "user_cfg",
-                            "user_cfg/ros",
+                            "print",
                             "sample_data",
                             "tmp"]
     

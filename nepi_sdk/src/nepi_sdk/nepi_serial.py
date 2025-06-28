@@ -15,7 +15,7 @@
 import time
 import usb
 import copy
-from serial
+import serial
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils

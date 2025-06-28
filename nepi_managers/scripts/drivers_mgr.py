@@ -40,7 +40,7 @@ from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 DRIVERS_SHARE_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
 DRIVERS_INSTALL_FOLDER = '/mnt/nepi_storage/install/drivers'
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
+USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
 #########################################
 
 #########################################
@@ -115,7 +115,7 @@ class NepiDriversMgr(object):
         self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
         self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
         self.msg_if.pub_info("Using Drivers Install Folder: " + str(self.drivers_install_folder))
-        self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg/ros',USER_CFG_FOLDER)
+        self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg',USER_CFG_FOLDER)
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
         
         # Wait for Config Manager

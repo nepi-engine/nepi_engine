@@ -369,7 +369,7 @@ class NetworkMgr:
         # Long duration internet check -- do oneshot and reschedule from within the callback
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(3, self.auto_retry_wifi_client_connect, oneshot=True)
+        #nepi_sdk.start_timer_process(3, self.auto_retry_wifi_client_connect, oneshot=True)
 
         #########################################################
         ## Initiation Complete
@@ -405,7 +405,7 @@ class NetworkMgr:
             self.enable_dhcp_impl(self.dhcp_enabled)
             self.set_upload_bw_limit()
             self.set_wifi_ap()
-            self.set_wifi_client()
+            #self.set_wifi_client()
             
         success = self.save_config()
 
