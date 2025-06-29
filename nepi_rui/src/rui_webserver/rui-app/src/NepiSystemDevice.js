@@ -93,12 +93,11 @@ class NepiSystemDevice extends Component {
     this.onDeviceIdChange = this.onDeviceIdChange.bind(this)
     this.onDeviceIdKey = this.onDeviceIdKey.bind(this)
 
-    this.renderDeviceSettings = this.renderDeviceSettings.bind(this)
+    this.renderDeviceConfiguration = this.renderDeviceConfiguration.bind(this)
     this.renderLicense = this.renderLicense.bind(this)
     this.renderLicenseRequestInfo = this.renderLicenseRequestInfo.bind(this)
     this.renderLicenseInfo = this.renderLicenseInfo.bind(this)
     this.renderNetworkInfo = this.renderNetworkInfo.bind(this)
-    this.renderConfiguration = this.renderConfiguration.bind(this)
     this.renderTriggerSettings = this.renderTriggerSettings.bind(this)
   }
 
@@ -117,35 +116,95 @@ class NepiSystemDevice extends Component {
     }
   }
 
-  renderDeviceSettings() {
+  renderDeviceConfiguration() {
+    const { resetTopics, onUserCfgRestore, onFactoryCfgRestore } = this.props.ros
+    const { advancedConfigDisabled, configSubsys } = this.state
     const {deviceId} = this.props.ros
     const sys_debug = this.props.ros.systemDebugEnabled
     const debug_mode = sys_debug ? sys_debug : false
+    if (this.state.advancedConfigDisabled === true && deviceId !== this.state.updatedDeviceId){
+      this.setState({updatedDeviceId:deviceId})
+    }
+    const updatedDeviceId = this.state.updatedDeviceId
+      
     return (
-      <Section title={"Device"}>
-        <Label title={this.state.advancedConfigDisabled? "Device ID" : "Updated Device ID"}>
-          <Input
-            id={"device_id_update_text"}
-            value={this.state.advancedConfigDisabled? deviceId : this.state.updatedDeviceId }
-            disabled={this.state.advancedConfigDisabled}
-            onChange={this.onDeviceIdChange}
-            onKeyDown={this.onDeviceIdKey}
-          />
-        </Label>
+
+      <Section title={"System Settings"}>
 
 
-        <Columns>
+
+
+              <Columns>
               <Column>
 
-              <Label title="System Debug Mode"> </Label>
-              <Toggle
-              checked={debug_mode}
-              onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !debug_mode)}>
-              </Toggle>
-                
+                <Label title={"Device ID"}>
+                <Input
+                  id={"device_id_update_text"}
+                  value={deviceId }
+                  disabled={!advancedConfigDisabled}
+                  onChange={this.onDeviceIdChange}
+                  onKeyDown={this.onDeviceIdKey}
+                />
+              </Label>
 
-              </Column>
-              </Columns>
+              <Label title={"Show Advanced Settings"}>
+                <Toggle
+                  onClick={this.onToggleAdvancedConfig}>
+                </Toggle>
+              </Label>
+
+              <div hidden={this.onToggleAdvancedConfig}>
+
+                    <Label title="System Debug Mode"> </Label>
+                          <Toggle
+                          checked={debug_mode}
+                          onClick={() => this.props.ros.sendBoolMsg("debug_mode_enable", !debug_mode)}>
+                        </Toggle>
+                            
+
+                    <Label title={"Save/Reset Options"}>
+                      <Select
+                        onChange={this.onConfigSubsysSelected}
+                        value={configSubsys}
+                      >
+                        {this.createConfigSubsysOptions(resetTopics)}
+                      </Select>
+                    </Label>
+
+
+
+
+                      <ButtonMenu>
+                        <Button onClick={this.onSaveCfg}>{"Save"}</Button>
+                        <Button onClick={this.onUserReset}>{"Reset"}</Button>
+                        <Button onClick={this.onFactoryReset}>{"Factory Reset"}</Button>
+                        {/*
+                        <Button onClick={this.onSoftwareReset}>{"Software Reset"}</Button>
+                        <Button onClick={this.onHardwareReset}>{"Hardware Reset"}</Button>
+                      */}
+                      </ButtonMenu>
+
+
+                      <ButtonMenu>
+                        <Button onClick={this.onFactoryCfgRestore}>{"Full Factory Restore"}</Button>
+                        <Button onClick={onUserCfgRestore}>{"Full User Restore"}</Button>
+                      </ButtonMenu>
+
+                </div>
+
+                  </Column>
+                      <Column>
+
+
+   
+                </Column>
+                  </Columns>
+              
+
+
+
+
+
 
       </Section>
     )
@@ -389,78 +448,95 @@ class NepiSystemDevice extends Component {
     const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
     const { ipAddrVal } = this.state
     const { wifi_query_response } = this.props.ros
+    const internet_connected = (wifi_query_response !== null)? wifi_query_response.internet_connected : false
     const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to use DHCP"
     
     return (
       <Section title={"Ethernet"}>
 
-        <div hidden={systemInContainer === false}> 
-
-          <pre style={{ height: "88px", overflowY: "auto" }}>
-            {"NEPI Running in Container Mode.  Ethernet configuration set by host system"}
-          </pre>
-        </div>
-
-        <div hidden={systemInContainer === true}>  
-
-        <Label title={"Device IP Addresses"}>
-          <pre style={{ height: "75px", overflowY: "auto" }}>
-            {(ip_query_response !== null)? ip_query_response.ip_addrs.join('\n') : ""}
-          </pre>
-        </Label>
+          <Columns>
+            <Column>
 
 
+              <div hidden={systemInContainer === false}> 
+
+                      <pre style={{ height: "88px", overflowY: "auto" }}>
+                        {"NEPI Running in Container Mode.  Ethernet configuration set by host system"}
+                      </pre>
+                    </div>
+
+                    <div hidden={systemInContainer === true}>  
+
+                    <Label title={"Device IP Addresses"}>
+                      <pre style={{ height: "75px", overflowY: "auto" }}>
+                        {(ip_query_response !== null)? ip_query_response.ip_addrs.join('\n') : ""}
+                      </pre>
+                    </Label>
 
 
-        <Label>
-          <Input value={ipAddrVal} onChange={ this.onIPAddrValChange} />
-        </Label>
-        <ButtonMenu>
-          <Button onClick={this.onAddButtonPressed}>{"Add"}</Button>
-          <Button onClick={this.onRemoveButtonPressed}>{"Remove"}</Button>
-        </ButtonMenu>
 
-        <Columns>
-      <Column>
 
-      <div hidden={clock_skewed === false}> 
+                    <Label>
+                      <Input value={ipAddrVal} onChange={ this.onIPAddrValChange} />
+                    </Label>
+                    <ButtonMenu>
+                      <Button onClick={this.onAddButtonPressed}>{"Add"}</Button>
+                      <Button onClick={this.onRemoveButtonPressed}>{"Remove"}</Button>
+                    </ButtonMenu>
 
-        <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
-            {message}
-          </pre>
+                    <Columns>
+                  <Column>
 
-          </div>
+                  <div hidden={clock_skewed === false}> 
 
-          </Column>
+                    <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
+                        {message}
+                      </pre>
+
+                      </div>
+
+                      </Column>
+                  </Columns>
+
+                      <Label title={"DHCP Enable"}>
+                            <Toggle
+                              checked={(ip_query_response !== null)? ip_query_response.dhcp_enabled : false}
+                              onClick= {onToggleDHCPEnabled}
+                            />
+                          </Label>
+
+
+                          <Label title={"Internet Connected"}>
+                            <BooleanIndicator value={internet_connected} />
+                          </Label>
+
+
+
+                    <Label title={"TX Data Rate (Mbps)"}>
+                      <Input disabled value={(bandwidth_usage_query_response !== null)? round(bandwidth_usage_query_response.tx_rate_mbps, 2) : -1.0} />
+                    </Label>
+                    <Label title={"RX Data Rate (Mbps)"}>
+                      <Input disabled value={(bandwidth_usage_query_response !== null)? round(bandwidth_usage_query_response.rx_rate_mbps, 2) : -1.0} />
+                    </Label>
+                    <Label title={"TX Rate Limit (Mbps)"}>
+                      <Input
+                        id="txRateLimit"
+                        value={((this.state.tx_bandwidth_user_editing === true) || (bandwidth_usage_query_response === null))?
+                          this.state.tx_bandwidth_limit : bandwidth_usage_query_response.tx_limit_mbps}
+                        onChange={this.onUpdateTXRateLimitText}
+                        onKeyDown={this.onKeyTXRateLimitText}
+                      />
+                    </Label>
+
+
+                </div>
+            </Column>
+              <Column>
+
+
+            </Column>
       </Columns>
-
-          <Label title={"DHCP Enable"}>
-                <Toggle
-                  checked={(ip_query_response !== null)? ip_query_response.dhcp_enabled : false}
-                  onClick= {onToggleDHCPEnabled}
-                />
-              </Label>
-
-        <Label title={"TX Data Rate (Mbps)"}>
-          <Input disabled value={(bandwidth_usage_query_response !== null)? round(bandwidth_usage_query_response.tx_rate_mbps, 2) : -1.0} />
-        </Label>
-        <Label title={"RX Data Rate (Mbps)"}>
-          <Input disabled value={(bandwidth_usage_query_response !== null)? round(bandwidth_usage_query_response.rx_rate_mbps, 2) : -1.0} />
-        </Label>
-        <Label title={"TX Rate Limit (Mbps)"}>
-          <Input
-            id="txRateLimit"
-            value={((this.state.tx_bandwidth_user_editing === true) || (bandwidth_usage_query_response === null))?
-              this.state.tx_bandwidth_limit : bandwidth_usage_query_response.tx_limit_mbps}
-            onChange={this.onUpdateTXRateLimitText}
-            onKeyDown={this.onKeyTXRateLimitText}
-          />
-        </Label>
-
-
-       </div>
-
       </Section>
     )
   }
@@ -557,33 +633,45 @@ class NepiSystemDevice extends Component {
     const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to Connect to Internet"
     const connected = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
-    const connecting = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
+    const connecting = (wifi_query_response !== null)? wifi_query_response.wifi_client_connecting : false
 
     
-    const connect_text = (connected === true) ? "Connected" : (connecting === true ? "Connecting" : "Connected")
+    const connect_text = (connected === true) ? "WiFi Connected" : (connecting === true ? "WiFi Connecting" : "WiFi Connected")
     const connect_value = (connected === true) ? true : connected
     
 
     // Update on User Change
     var sel_wifi_ssid = 'None'
+    var sel_passphrase = ''
     if (wifiClientSSID !== ''){
       if (available_networks.indexOf(wifiClientSSID) === -1){
         this.setState({wifiClientSSID:"",wifiClientPassphrase:""})
       }
       else {
         sel_wifi_ssid = wifiClientSSID 
+        sel_passphrase = wifiClientPassphrase
       }
     }
 
+
     // Update On Manager Change
     if (wifi_query_response !== null) {
-      if (this.state.wifi_query_response == null){
-        this.setState({wifi_query_response:wifi_query_response})
+      const last_response = this.state.wifi_query_response
+      if (last_response == null){
+        this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
+        this.setState({wifi_query_response: wifi_query_response})
       }
-      else if (this.state.wifi_query_response !== wifi_query_response){
+      else{
+        if (last_response.wifi_client_ssid !== wifi_query_response.wifi_client_ssid){
           sel_wifi_ssid = wifi_client_ssid
+          this.setState({wifiClientSSID:wifi_client_ssid})
+        }
+        if (last_response.wifi_client_passphrase !== wifi_query_response.wifi_client_passphrase){
           this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
+        }
+        if (last_response !== wifi_query_response){
           this.setState({wifi_query_response: wifi_query_response})
+        }
       }
     }
 
@@ -622,20 +710,15 @@ class NepiSystemDevice extends Component {
                 onClick= {onToggleWifiClientEnabled}
               />
             </Label>
+
           </Column>
           <Column>
     
-          <div hidden={!wifi_enabled}>
-
-          <ButtonMenu>
-                <Button onClick={onRefreshWifiNetworks}>{"Refresh"}</Button>
-              </ButtonMenu>
-
-          </div>
-
-   
+  
           </Column>
         </Columns>
+
+
 
         <div hidden={!wifi_enabled}>
 
@@ -652,7 +735,7 @@ class NepiSystemDevice extends Component {
               </Label>
 
               <ButtonMenu>
-              <Button onClick={this.onConnectClientWifiButton}>{"Connect"}</Button>
+                <Button onClick={onRefreshWifiNetworks}>{"Refresh"}</Button>
               </ButtonMenu>
 
 
@@ -663,16 +746,25 @@ class NepiSystemDevice extends Component {
                 <Input 
                   id={"wifi_client_passphrase_textbox"}
                   type={"password"}
-                  value={wifiClientPassphrase}
+                  value={sel_passphrase}
                   onChange={this.onUpdateClientPassphraseText} onKeyDown={this.onKeyClientWifiPassphrase}
                 />
               </Label>
+
+              <ButtonMenu>
+              <Button onClick={this.onConnectClientWifiButton}>{"Connect"}</Button>
+              </ButtonMenu>
+
 
               <Label title={connect_text}>
               <BooleanIndicator value={connect_value} />
             </Label>
 
-    
+
+              <Label title={"Internet Connected"}>
+                            <BooleanIndicator value={internet_connected} />
+                          </Label>
+   
              </Column>
           </Columns>
  
@@ -778,76 +870,20 @@ class NepiSystemDevice extends Component {
 
 
 
-  renderConfiguration() {
-    const { resetTopics, onUserCfgRestore, onFactoryCfgRestore } = this.props.ros
-    const { advancedConfigDisabled, configSubsys } = this.state
-
-    return (
-      <Section title={"Configuration"}>
-
-        <Label title={"Subsystem"}>
-          <Select
-            onChange={this.onConfigSubsysSelected}
-            value={configSubsys}
-          >
-            {this.createConfigSubsysOptions(resetTopics)}
-          </Select>
-        </Label>
-          <ButtonMenu>
-            <Button onClick={this.onSaveCfg}>{"Save"}</Button>
-            <Button onClick={this.onUserReset}>{"Reset"}</Button>
-            <Button onClick={this.onFactoryReset}>{"Factory Reset"}</Button>
-            {/*
-            <Button onClick={this.onSoftwareReset}>{"Software Reset"}</Button>
-            <Button onClick={this.onHardwareReset}>{"Hardware Reset"}</Button>
-          */}
-          </ButtonMenu>
-
-          <Label title={"Show Advanced Settings"}>
-            <Toggle
-              onClick={this.onToggleAdvancedConfig}>
-            </Toggle>
-          </Label>
-
-          <ButtonMenu>
-            <Button hidden={advancedConfigDisabled} onClick={this.onFactoryCfgRestore}>{"Full Factory Restore"}</Button>
-            <Button hidden={advancedConfigDisabled} onClick={onUserCfgRestore}>{"Full User Restore"}</Button>
-          </ButtonMenu>
-
-      </Section>
-    )
-  }
 
   render() {
     const { wifi_query_response } = this.props.ros
     const has_wifi = wifi_query_response? wifi_query_response.has_wifi : false
-    const internet_connected = (wifi_query_response !== null)? wifi_query_response.internet_connected : false
-
     return (
       <Columns>
         <Column>
-          {this.renderDeviceSettings()}
+          {this.renderDeviceConfiguration()}
           {this.renderLicenseInfo()}
           {/*this.renderTriggerSettings()*/}
-          {this.renderConfiguration()}
+
         </Column>
         <Column>
 
-
-            <Columns>
-            <Column>
-
-              <Label title={"Internet Connected"}>
-                <BooleanIndicator value={internet_connected} />
-              </Label>
-
-
-              </Column>
-            <Column>
-
-
-            </Column>
-            </Columns>
 
           {this.renderNetworkInfo()}
           {has_wifi? this.renderWifiInfo(): null}

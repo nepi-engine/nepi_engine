@@ -110,7 +110,7 @@ class SystemMgrNode():
                             "logs/automation_script_logs", 
                             "nepi_src",
                             "user_cfg",
-                            "print",
+                            "user_cfg/sys",
                             "sample_data",
                             "tmp"]
     

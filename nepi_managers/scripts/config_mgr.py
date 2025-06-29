@@ -259,7 +259,7 @@ class config_mgr(object):
 
     def get_user_pathname(self,namespace):
         filename = self.get_filename_from_namespace(namespace)
-        user_cfg_dirname = os.path.join(USER_CFG_PATH, 'ros')
+        user_cfg_dirname = os.path.join(USER_CFG_PATH)
         
         # Ensure the path we report actually exists
         if not os.path.isdir(user_cfg_dirname):
@@ -360,8 +360,10 @@ class config_mgr(object):
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
+                    tmp_file = target + ".tmp"
+                    os.system('cp -rf ' + target + ' ' + tmp_file)
                     file_lines = []
-                    with open(target, "r") as f:
+                    with open(tmp_file, "r") as f:
                         for line in f:
                             #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
@@ -372,14 +374,11 @@ class config_mgr(object):
                                 update_line = line
                             #self.msg_if.pub_info("Update sys_env line: " + update_line)
                             file_lines.append(update_line)
-                    tmp_filename = target + ".tmp"
-                    with open(tmp_filename, "w") as f:
-                        for line in file_lines:
-                            f.write(line)
+                    
+
                     bak_filename = target + ".bak"
-                    os.system('cp -rf ' + tmp_filename + ' ' + bak_filename)
-                    os.system('cp -rf ' + tmp_filename + ' ' + target)
-                    os.system('rm ' + tmp_filename)
+                    os.system('cp -rf ' + tmp_file + ' ' + target)
+                    os.system('rm ' + tmp_file)
                 os.system('chown -R nepi:nepi ' + target)
 
 
@@ -391,7 +390,7 @@ class config_mgr(object):
     def restore_factory_cfgs(self):
         # First handle the ROS user configs.
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'ros', name)
+            full_name = os.path.join(USER_CFG_PATH, name)
             if os.path.exists(full_name):
                 os.system('rm ' + full_name)
 
