@@ -43,11 +43,15 @@ class RUICfgMgrNode:
 
         ##############################
         ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
         success = mgr_sys_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+
+
+
         
 
         ##############################

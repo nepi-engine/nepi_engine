@@ -94,6 +94,7 @@ class AIDetectorManager:
         # Initialize Variables
 
         ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemIF()
         success = mgr_sys_if.wait_for_status()
@@ -112,6 +113,7 @@ class AIDetectorManager:
         self.ai_models_folder = mgr_sys_if.get_sys_folder_path("ai_models",AI_MODELS_FOLDER)
         self.msg_if.pub_info("Using AI Models Folder: " + str(self.ai_models_folder))
         
+        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()

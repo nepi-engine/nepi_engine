@@ -79,6 +79,7 @@ class time_sync_mgr(object):
 
         ##############################
         ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_services()
@@ -91,6 +92,8 @@ class time_sync_mgr(object):
             in_container = sys_status_dict['in_container']
         self.in_container = in_container
         
+
+        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()

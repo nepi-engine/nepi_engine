@@ -93,6 +93,7 @@ class AutomationManager(object):
 
         ##############################
         ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
         # Wait for System Manager
         self.msg_if.pub_info("Starting ConnectSystemIF processes")
         mgr_sys_if = ConnectMgrSystemServicesIF()
@@ -106,6 +107,7 @@ class AutomationManager(object):
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
         
+        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()

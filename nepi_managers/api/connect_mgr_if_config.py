@@ -16,7 +16,6 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_sdk import nepi_sdk
-from nepi_sdk import nepi_utils
 
 
 from nepi_api.connect_node_if import ConnectNodeClassIF
@@ -135,7 +134,7 @@ class ConnectMgrConfigIF:
                 'namespace': self.mgr_namespace,
                 'topic': 'status',
                 'msg': Empty,
-                'qsize': 10,
+                'qsize': 1,
                 'callback': self._statusCb, 
                 'callback_args': ()
             }
@@ -155,7 +154,7 @@ class ConnectMgrConfigIF:
                                             )
 
         #ready = self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        nepi_sdk.wait(1)
         ################################
         # Complete Initialization
 
@@ -172,12 +171,13 @@ class ConnectMgrConfigIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
+            self.msg_if.pub_info("Waiting for Config Mgr ready: " + str(self.ready), log_name_list = self.log_name_list, throttle_s = 5)
         if self.ready == False:
             self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
         else:
@@ -185,12 +185,14 @@ class ConnectMgrConfigIF:
         return self.ready
 
     def wait_for_status(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
+        self.wait_for_ready()
+        self.msg_if.pub_info("Waiting for Config Mgr status connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-            nepi_sdk.sleep(.1)
+            nepi_sdk.sleep(1)
             timer = nepi_sdk.get_time() - time_start
+            self.msg_if.pub_info("Waiting for Config Mgr status connection: " + str(self.status_connected), log_name_list = self.log_name_list, throttle_s = 5)
         if self.status_connected == False:
             self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
@@ -198,7 +200,7 @@ class ConnectMgrConfigIF:
         return self.status_connected
 
     def get_status_dict(self):
-        status_dict = None
+        status_dict = dict()
 
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
@@ -212,6 +214,7 @@ class ConnectMgrConfigIF:
 
     # Update System Status
     def _statusCb(self,msg):
+        #self.msg_if.pub_warn("Got Status Msg", log_name_list = self.log_name_list)
         self.status_connected = True
-        self.status_msg = msg
+        self.status_msg = None
 

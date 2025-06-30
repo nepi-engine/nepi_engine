@@ -60,6 +60,9 @@ from nepi_api.system_if import SaveDataIF
 
 from nepi_api.data_if import NavPoseIF
 
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+
 #########################################
 # Node Class
 #########################################
@@ -174,6 +177,23 @@ class NavPoseMgr(object):
         ##############################
         # Initialize Class Variables
         self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
+
+        ##############################
+        ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemIF()
+        success = mgr_sys_if.wait_for_status()
+        if success == False:
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+
+        nepi_sdk.sleep(5)
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+
 
 
         self.cb_dict = {
