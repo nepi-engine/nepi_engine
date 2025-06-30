@@ -105,6 +105,7 @@ class NepiDriversMgr(object):
         # Initialize Class Variables
 
         ## Wait for NEPI core managers to start
+        nepi_sdk.sleep(5)
         # Wait for System Manager
         self.msg_if.pub_info("Starting ConnectSystemIF processes")
         mgr_sys_if = ConnectMgrSystemServicesIF()
@@ -118,6 +119,7 @@ class NepiDriversMgr(object):
         self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg',USER_CFG_FOLDER)
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
         
+        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
         success = mgr_cfg_if.wait_for_status()

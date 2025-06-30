@@ -203,8 +203,8 @@ class config_mgr(object):
         self.save_system_cfgs()
         self.msg_if.pub_warn("System config files saved")
         
-        self.node_if.publish_pub('status_pub', Empty())
-
+        
+        nepi_sdk.start_timer_process(1, self.statusPubCb)
         ################
         # Save the current system config
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
@@ -216,6 +216,11 @@ class config_mgr(object):
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
+
+
+    def statusPubCb(self,timer):
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', Empty())
 
 
     def get_filename_from_namespace(self,namespace):

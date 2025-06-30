@@ -98,6 +98,7 @@ class NepiAppsMgr(object):
 
       ##############################
       ## Wait for NEPI core managers to start
+      nepi_sdk.sleep(5)
       # Wait for System Manager
       mgr_sys_if = ConnectMgrSystemIF()
       success = mgr_sys_if.wait_for_status()
@@ -111,6 +112,8 @@ class NepiAppsMgr(object):
       self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
       self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
 
+
+      nepi_sdk.sleep(5)
       # Wait for Config Manager
       mgr_cfg_if = ConnectMgrConfigIF()
       success = mgr_cfg_if.wait_for_status()
