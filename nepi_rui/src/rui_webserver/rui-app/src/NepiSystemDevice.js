@@ -630,6 +630,8 @@ class NepiSystemDevice extends Component {
     const ap_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_ap_passphrase : ""
     const available_networks = (wifi_query_response !== null)? wifi_query_response.available_networks : []
 
+    const internet_connected = (wifi_query_response !== null)? wifi_query_response.internet_connected : false
+
     const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to Connect to Internet"
     const connected = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
