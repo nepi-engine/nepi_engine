@@ -1032,7 +1032,7 @@ class Transform3DIF:
     def get_end_description(self):
         return self.end
 
-    def set_end_description(self,source):
+    def set_end_description(self,end):
         self.end = end
         self.publish_transform()
         self.node_if.set_param('end',end)

@@ -250,6 +250,10 @@ class IDXDeviceIF:
         self.get_rtsp_url = get_rtsp_url
 
         self.getNavPoseCb = getNavPoseCb
+        if navpose_update_rate < 1:
+            navpose_update_rate = 1
+        if navpose_update_rate > 10:
+            navpose_update_rate = 10
         self.navpose_update_rate = navpose_update_rate
 
         ## Set None Capabilities Variables
@@ -631,7 +635,7 @@ class IDXDeviceIF:
         '''
         self.caps_report.data_products = self.data_products_base_list
 
-        self.msg_if.pub_debug("Starting data products list: " + str(self.data_products_base_list))
+        nepi_sdk.start_timer_process(1, self._publishStatusCb)
 
         # Setup Save Data IF Class ####################
         self.data_products_save_list.append('navpose')
@@ -680,6 +684,9 @@ class IDXDeviceIF:
         # Init everything
         self.initCb(do_updates = True)
         self.publish_status(do_updates = True)
+
+
+
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
@@ -761,19 +768,19 @@ class IDXDeviceIF:
             navpose_dict = self.connect_ptx_if.get_navpose_dict()
             if navpose_dict is not None:
                 frame_3d = 'nepi_frame'
-                self.transform_if.set_end_ref_description('pantilt_center_tilt_axis')
+                self.transform_if.set_end_description('pantilt_center_tilt_axis')
         if navpose_dict is None:
             if self.nav_mgr_if is not None:
                 navpose_dict = self.nav_mgr_if.get_navpose_dict()
                 if navpose_dict is not None:
                     frame_3d = 'nepi_frame'
-                    self.transform_if.set_end_ref_description('nepi_frame')
+                    self.transform_if.set_end_description('nepi_frame')
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
             frame_3d = 'sensor_frame'
-            self.transform_if.set_end_ref_description('sensor_frame')
+            self.transform_if.set_end_description('sensor_frame')
 
-        self.end_ref_description = self.transform_if.get_end_ref_description()
+        self.end_ref_description = self.transform_if.get_end_description()
         return navpose_dict
 
     def get_mount_description(self):
@@ -784,7 +791,6 @@ class IDXDeviceIF:
 
         
     def publish_navpose(self):
-        self.np_status_msg.publishing = True
         np_dict = self.get_navpose_dict()
         if self.navpose_if is not None:
             transform = self.get_3d_transform()
@@ -792,14 +798,14 @@ class IDXDeviceIF:
                                             frame_3d_transform = transform,
                                             device_mount_description = self.get_mount_description())
         timestamp = nepi_utils.get_time()
-        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
+        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
 
 
     def _publishNavPoseCb(self,timer):
         self.publish_navpose()
         rate = 1
         if self.nav_mgr_if is not None:
-            rate = self.nav_mgr_if.get_pub_rate()
+            rate = self.navpose_update_rate
         delay = float(1.0) / rate
         nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
  
@@ -1565,6 +1571,9 @@ class IDXDeviceIF:
  
 
     # Function to update and publish status message
+    def _publishStatusCb(self,timer):
+        self.publish_status()
+
 
     def publish_status(self, do_updates = True):
         self.status_msg.device_name = self.device_name

@@ -314,7 +314,7 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_utils.nepi_utils.write_yaml_2_dict(file_path)(data, file_path)
+                    success = nepi_utils.write_dict_2_yaml(data, file_path)
         return success
 
 
@@ -590,7 +590,7 @@ class NavPoseIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -1088,7 +1088,7 @@ class NavPoseTrackIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -1659,7 +1659,6 @@ class ImageIF:
     last_pub_time = None
 
     nav_mgr_if = None
-    nav_mgr_ready = False
 
     has_subs = False
 
@@ -1687,7 +1686,6 @@ class ImageIF:
     enhance_options = []
     sel_enhances = []
 
-    get_navpose_function = None
     has_navpose = False
     navpose_if = None
 
@@ -1697,7 +1695,10 @@ class ImageIF:
 
     data_product = 'image'
 
-    def __init__(self, namespace , 
+    get_navpose_function = None
+
+    def __init__(self, 
+                namespace , 
                 data_product_name,
                 data_source_description,
                 data_ref_description,
@@ -1714,7 +1715,6 @@ class ImageIF:
                 get_navpose_function,
                 log_name,
                 log_name_list,
-                node_if,
                 msg_if
                 ):
         ####  IF INIT SETUP ####
@@ -1765,9 +1765,16 @@ class ImageIF:
                 if caps_dict.get(cap) != None:
                     self.caps_dict[cap] = caps_dict[cap]
 
-        self.get_navpose_function = get_navpose_function
         if get_navpose_function is not None:
+            self.get_navpose_function = get_navpose_function
             self.has_navpose = True
+        else: 
+            ##############################
+            ## Connect NEPI NavPose Manager
+            self.nav_mgr_if = ConnectMgrNavPoseIF()
+            ready = self.nav_mgr_if.wait_for_ready()
+            self.has_navpose = True
+            self.get_navpose_function = self.nav_mgr_if.get_navpose_dict
 
 
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
@@ -1835,10 +1842,7 @@ class ImageIF:
         ####################
         # Connect to navpose_mgr for data
 
-        ##############################
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
+
 
 
 
@@ -1846,7 +1850,7 @@ class ImageIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -2276,8 +2280,6 @@ class ImageIF:
         navpose_dict = None
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
-        elif self.nav_mgr_ready == True:
-            navpose_dict = self.nav_mgr_if.get_navpose_dict()
         else:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         return navpose_dict
@@ -2302,9 +2304,9 @@ class ImageIF:
 
         # Process 
 
-        self.data_ref_description = data_ref_description
-        self.data_description = get_data_description(self.data_source_description,data_ref_description)
-        self.status_msg.data_description = self.data_description
+        self.device_mount_description = device_mount_description
+        self.status_msg.device_mount_description = self.device_mount_description
+        
 
         self.status_msg.encoding = encoding
         if timestamp == None:
@@ -2342,7 +2344,7 @@ class ImageIF:
         # Apply Overlays
         overlay_list = []
         if self.status_msg.overlay_img_name == True:
-            overlay = nepi_img.getImgShortName(self.img_namespace)
+            overlay = nepi_img.getImgShortName(self.namespace)
             overlay_list.append(overlay)
         
         if self.status_msg.overlay_date_time == True:
@@ -2990,7 +2992,15 @@ class ColorImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
     data_product = 'color_image'
+
+
+
 
 
     
@@ -2998,6 +3008,8 @@ class ColorImageIF(ImageIF):
                 data_product_name = 'color_image',
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
+                width_deg = 100,
+                hieight_deg = 70,
                 init_overlay_list = [],
                 get_navpose_function = None,
                 log_name = None,
@@ -3011,18 +3023,19 @@ class ColorImageIF(ImageIF):
                 self.data_product,
                 data_source_description,
                 data_ref_description,
+                width_deg,
+                hieight_deg,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
-                None,
-                None,
-                None,
-                None,
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
                 log_name_list,
-                node_if,
                 msg_if
                 )
 
@@ -3114,12 +3127,19 @@ class DepthMapImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
     data_product = 'depth_map'
 
     def __init__(self, namespace = None , 
                 data_product_name = 'depth_map_image',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
+                width_deg = 100,
+                hieight_deg = 70,
                 init_overlay_list = [],
                 get_navpose_function = None,
                 log_name = None,
@@ -3127,23 +3147,26 @@ class DepthMapImageIF(ImageIF):
                 msg_if = None
                 ):
 
+
         self.data_product = data_product_name
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
                 data_source_description,
                 data_ref_description,
+                width_deg,
+                hieight_deg,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
-                None,
-                None,
-                None,
-                None,
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
                 init_overlay_list,
+                get_navpose_function,
                 log_name,
                 log_name_list,
-                node_if,
                 msg_if
                 )
 
@@ -3223,7 +3246,6 @@ class DepthMapIF:
     last_pub_time = None
 
     nav_mgr_if = None
-    nav_mgr_ready = False
 
     has_subs = False
 
@@ -3242,12 +3264,15 @@ class DepthMapIF:
     data_product = 'depth_map'
     data_products_list = [data_product]
 
+    get_navpose_function = None
+
     def __init__(self, namespace = None,
                 data_product_name = 'depth_map',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
                 enable_data_pub = True,
                 max_data_pub_rate = 5,
+                get_navpose_function = None,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -3290,6 +3315,18 @@ class DepthMapIF:
                 default_max_meters = 20.0,
         self._updateRangesM(default_min_meters,default_max_meters)
         '''
+
+
+        if get_navpose_function is not None:
+            self.get_navpose_function = get_navpose_function
+            self.has_navpose = True
+        else: 
+            ##############################
+            ## Connect NEPI NavPose Manager
+            self.nav_mgr_if = ConnectMgrNavPoseIF()
+            ready = self.nav_mgr_if.wait_for_ready()
+            self.has_navpose = True
+            self.get_navpose_function = self.nav_mgr_if.get_navpose_dict
 
         ###############################
         if enable_data_pub == True:
@@ -3367,7 +3404,7 @@ class DepthMapIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -3711,12 +3748,15 @@ class PointcloudIF:
     data_product = 'pointcloud'
     data_products_list = [data_product]
 
+    get_navpose_function = None
+
     def __init__(self, namespace = None,
                 data_product_name = 'pointcloud',
                 data_source_description = 'pointcloud_sensor',
                 data_ref_description = 'sensor',
                 enable_data_pub = True,
                 max_data_pub_rate = 5,
+                get_navpose_function = None,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -3802,7 +3842,16 @@ class PointcloudIF:
                 self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
         '''
 
-
+        if get_navpose_function is not None:
+            self.get_navpose_function = get_navpose_function
+            self.has_navpose = True
+        else: 
+            ##############################
+            ## Connect NEPI NavPose Manager
+            self.nav_mgr_if = ConnectMgrNavPoseIF()
+            ready = self.nav_mgr_if.wait_for_ready()
+            self.has_navpose = True
+            self.get_navpose_function = self.nav_mgr_if.get_navpose_dict
 
         # Initialize Status Msg.  Updated on each publish
         if data_source_description is None:
@@ -3838,7 +3887,7 @@ class PointcloudIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,

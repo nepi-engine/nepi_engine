@@ -373,8 +373,8 @@ class NepiIFSaveData extends Component {
 
 
   onSnapshotTriggered(){
-    const { onSnapshotEventTriggered} = this.props.ros
-    onSnapshotEventTriggered(this.state.namespace)
+    const { sendTriggerMsg} = this.props.ros
+    sendTriggerMsg(this.state.namespace + '/snapshot_trigger')
   }
 
   render() {

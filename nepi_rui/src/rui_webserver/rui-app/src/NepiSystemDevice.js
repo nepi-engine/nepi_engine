@@ -557,9 +557,8 @@ class NepiSystemDevice extends Component {
 
 
   renderNetworkInfo() {
-    const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
+    const { systemInContainer, sendTriggerMsg, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
     const { ipAddrVal } = this.state
-    const { wifi_query_response } = this.props.ros
     const netStatus = this.state.netStatus
     const dhcp_enabled = (netStatus !== null)? netStatus.dhcp_enabled : false
     const primary_addr = (netStatus !== null)? netStatus.primary_ip_addr : ''
@@ -755,7 +754,7 @@ class NepiSystemDevice extends Component {
 
 
   renderWifiInfo() {
-    const { systemInContainer, wifi_query_response, onToggleWifiAPEnabled, onToggleWifiClientEnabled, onRefreshWifiNetworks } = this.props.ros
+    const { systemInContainer, onToggleWifiAPEnabled, onToggleWifiClientEnabled, onRefreshWifiNetworks } = this.props.ros
     const { wifiClientSSID, wifiClientPassphrase,
             wifiAPSSIDEdited, wifiAPSSID, wifiAPPassphrase } = this.state
     const netStatus = this.state.netStatus
@@ -1009,7 +1008,6 @@ class NepiSystemDevice extends Component {
 
 
   render() {
-    const { wifi_query_response } = this.props.ros
     const netStatus = this.state.netStatus
     const has_wifi = netStatus? netStatus.has_wifi : false
     const internet_connected = (netStatus !== null)? netStatus.wifi_client_connected : false
