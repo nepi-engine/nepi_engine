@@ -105,6 +105,7 @@ add_message_files(FILES
     MgrAiModelsStatus.msg
     MgrNavPoseCompInfo.msg
     MgrNavPoseStatus.msg
+    MgrNetworkStatus.msg
     MotorControl.msg
     NavPose.msg
     NavPoseAltitude.msg

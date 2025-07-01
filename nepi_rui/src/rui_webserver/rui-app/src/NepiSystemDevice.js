@@ -49,6 +49,9 @@ class NepiSystemDevice extends Component {
     super(props)
 
     this.state = {
+      mgrName: "network_mgr",
+      mgrNamespace: null,
+
       autoRate: this.props.ros.triggerAutoRateHz,
       autoRateUserEditing: false,
       ipAddrVal: "0.0.0.0/24",
@@ -63,7 +66,13 @@ class NepiSystemDevice extends Component {
       wifiAPPassphrase: "",
       tx_bandwidth_limit: (this.props.ros.bandwidth_usage_query_response !== null)? this.props.ros.bandwidth_usage_query_response.tx_limit_mbps : -1,
       tx_bandwidth_user_editing: false,
-      wifi_query_response: null
+      
+
+      netStatus: null,
+      last_netStatus: null,
+      connected: true,
+      netListener: null
+
     }
 
     this.onUpdateAutoRateText = this.onUpdateAutoRateText.bind(this)
@@ -99,7 +108,85 @@ class NepiSystemDevice extends Component {
     this.renderLicenseInfo = this.renderLicenseInfo.bind(this)
     this.renderNetworkInfo = this.renderNetworkInfo.bind(this)
     this.renderTriggerSettings = this.renderTriggerSettings.bind(this)
+
+    this.updateMgrNetStatusListener = this.updateMgrNetStatusListener.bind(this)
+    this.netStatusListener = this.netStatusListener.bind(this)
   }
+
+  getMgrNamespace(){
+    const { namespacePrefix, deviceId} = this.props.ros
+    var mgrNamespace = null
+    if (namespacePrefix !== null && deviceId !== null){
+      mgrNamespace = "/" + namespacePrefix + "/" + deviceId + "/" + this.state.mgrName
+    }
+    return mgrNamespace
+  }
+
+  // Callback for handling ROS Status messages
+  netStatusListener(message) {
+    this.setState({
+      netStatus: message,
+      connected: true
+    })    
+  }
+
+  // Function for configuring and subscribing to Status
+  updateMgrNetStatusListener() {
+    const statusNamespace = this.getMgrNamespace() + '/status'
+    if (this.state.netListener) {
+      this.state.netListener.unsubscribe()
+    }
+    var netListener = this.props.ros.setupStatusListener(
+          statusNamespace,
+          "nepi_interfaces/MgrNetworkStatus",
+          this.netStatusListener
+        )
+    this.setState({ netListener: netListener,
+      needs_update: false})
+  }
+
+   async checkConnection() {
+    const { namespacePrefix, deviceId} = this.props.ros
+    if (namespacePrefix != null && deviceId != null) {
+      this.setState({needs_update: true})
+    }
+    else {
+      setTimeout(async () => {
+        await this.checkConnection()
+      }, 1000)
+    }
+  }
+
+  componentDidMount(){
+    this.checkConnection()
+  }
+
+  // Lifecycle method called when compnent updates.
+  // Used to track changes in the topic
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    const namespace = this.getMgrNamespace()
+    const namespace_updated = (prevState.mgrNamespace !== namespace && namespace !== null)
+    if (namespace_updated) {
+      if (namespace.indexOf('null') === -1){
+        this.setState({
+          mgrNamespace: namespace
+        })
+        this.updateMgrNetStatusListener()
+      } 
+    }
+  }
+
+  // Lifecycle method called just before the component umounts.
+  // Used to unsubscribe to Status message
+  componentWillUnmount() {
+    if (this.state.netListener) {
+      this.state.netListener.unsubscribe()
+      this.state.appListener.unsubscribe()
+    }
+  }
+
+
+
 
   async onDeviceIdChange(e) {
     this.setState({ updatedDeviceId: e.target.value })
@@ -473,12 +560,13 @@ class NepiSystemDevice extends Component {
     const { systemInContainer, sendTriggerMsg, ip_query_response, onToggleDHCPEnabled, bandwidth_usage_query_response } = this.props.ros
     const { ipAddrVal } = this.state
     const { wifi_query_response } = this.props.ros
-    const dhcp_enabled = (ip_query_response !== null)? ip_query_response.dhcp_enabled : false
-    const primary_addr = (ip_query_response !== null)? ip_query_response.primary_ip_addr : ''
-    const managed_addrs = (ip_query_response !== null)? ip_query_response.managed_ip_addrs : []
-    const dhcp_addr = (ip_query_response !== null)? ip_query_response.dhcp_ip_addr : ''
-    const internet_connected = dhcp_enabled ? ((wifi_query_response !== null)? wifi_query_response.internet_connected : false):false
-    const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
+    const netStatus = this.state.netStatus
+    const dhcp_enabled = (netStatus !== null)? netStatus.dhcp_enabled : false
+    const primary_addr = (netStatus !== null)? netStatus.primary_ip_addr : ''
+    const managed_addrs = (netStatus !== null)? netStatus.managed_ip_addrs : []
+    const dhcp_addr = (netStatus !== null)? netStatus.dhcp_ip_addr : ''
+    const internet_connected = dhcp_enabled ? ((netStatus !== null)? netStatus.internet_connected : false):false
+    const clock_skewed = (netStatus !== null)? netStatus.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to use DHCP"
     
     return (
@@ -493,9 +581,9 @@ class NepiSystemDevice extends Component {
                       <pre style={{ height: "88px", overflowY: "auto" }}>
                         {"NEPI Running in Container Mode.  Ethernet configuration set by host system"}
                       </pre>
-                    </div>
+            </div>
 
-                    <div hidden={systemInContainer === true}>  
+             <div hidden={systemInContainer === true}>  
 
 
 
@@ -524,11 +612,11 @@ class NepiSystemDevice extends Component {
 
                   <div hidden={clock_skewed === false}> 
 
-                    <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
-                        {message}
-                      </pre>
+                        <pre style={{ height: "25px", overflowY: "auto" , color: Styles.vars.colors.red }}>
+                            {message}
+                          </pre>
 
-                      </div>
+                   </div>
 
                       </Column>
                   </Columns>
@@ -542,6 +630,7 @@ class NepiSystemDevice extends Component {
 
 
                         <div hidden={dhcp_enabled === false}>
+
                             <Label title={"DHCP IP Addresses"}>
                               <pre style={{ height: "25px", overflowY: "auto" }}>
                                 {dhcp_addr}
@@ -557,6 +646,8 @@ class NepiSystemDevice extends Component {
 
 
                 </div>
+
+
             </Column>
               <Column>
 
@@ -667,23 +758,23 @@ class NepiSystemDevice extends Component {
     const { systemInContainer, wifi_query_response, onToggleWifiAPEnabled, onToggleWifiClientEnabled, onRefreshWifiNetworks } = this.props.ros
     const { wifiClientSSID, wifiClientPassphrase,
             wifiAPSSIDEdited, wifiAPSSID, wifiAPPassphrase } = this.state
-    
-    const wifi_enabled = (wifi_query_response !== null)? wifi_query_response.wifi_client_enabled : false
-    const wifi_client_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_client_ssid : ""
-    const wifi_client_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_client_passphrase : ""
-    const ap_ssid = (wifi_query_response !== null)? wifi_query_response.wifi_ap_ssid : ""
-    const ap_passphrase = (wifi_query_response !== null)? wifi_query_response.wifi_ap_passphrase : ""
-    const available_networks = (wifi_query_response !== null)? wifi_query_response.available_networks : []
+    const netStatus = this.state.netStatus
+    const wifi_enabled = (netStatus !== null)? netStatus.wifi_client_enabled : false
+    const wifi_client_ssid = (netStatus !== null)? netStatus.wifi_client_ssid : ""
+    const wifi_client_passphrase = (netStatus !== null)? netStatus.wifi_client_passphrase : ""
+    const ap_ssid = (netStatus !== null)? netStatus.wifi_ap_ssid : ""
+    const ap_passphrase = (netStatus !== null)? netStatus.wifi_ap_passphrase : ""
+    const available_networks = (netStatus !== null)? netStatus.available_networks : []
 
-    const clock_skewed = (wifi_query_response !== null)? wifi_query_response.clock_skewed : false
+    const clock_skewed = (netStatus !== null)? netStatus.clock_skewed : false
     const message = clock_skewed == false ? "" : "Clock out of date. Sync Clock to Connect to Internet"
-    const connected = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
-    const connecting = (wifi_query_response !== null)? wifi_query_response.wifi_client_connecting : false
-    const internet_connected = connected ? ((wifi_query_response !== null)? wifi_query_response.internet_connected : false) : false
+    const connected = (netStatus !== null)? netStatus.wifi_client_connected : false
+    const connecting = (netStatus !== null)? netStatus.wifi_client_connecting : false
+    const internet_connected = connected ? ((netStatus !== null)? netStatus.internet_connected : false) : false
 
     
     const connect_text = (connected === true) ? "WiFi Connected" : (connecting === true ? "WiFi Connecting" : "WiFi Connected")
-    const connect_value = (connected === true) ? true : connected
+    const connect_value = (connected === true) ? true : connecting
     
 
     // Update on User Change
@@ -701,22 +792,22 @@ class NepiSystemDevice extends Component {
 
 
     // Update On Manager Change
-    if (wifi_query_response !== null) {
-      const last_response = this.state.wifi_query_response
+    if (netStatus !== null) {
+      const last_response = this.state.last_netStatus
       if (last_response == null){
         this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
-        this.setState({wifi_query_response: wifi_query_response})
+        this.setState({last_netStatus: netStatus})
       }
       else{
-        if (last_response.wifi_client_ssid !== wifi_query_response.wifi_client_ssid){
+        if (last_response.wifi_client_ssid !== netStatus.wifi_client_ssid){
           sel_wifi_ssid = wifi_client_ssid
           this.setState({wifiClientSSID:wifi_client_ssid})
         }
-        if (last_response.wifi_client_passphrase !== wifi_query_response.wifi_client_passphrase){
+        if (last_response.wifi_client_passphrase !== netStatus.wifi_client_passphrase){
           this.setState({wifiClientSSID:wifi_client_ssid,wifiClientPassphrase:wifi_client_passphrase})
         }
-        if (last_response !== wifi_query_response){
-          this.setState({wifi_query_response: wifi_query_response})
+        if (last_response !== netStatus){
+          this.setState({last_netStatus: netStatus})
         }
       }
     }
@@ -822,7 +913,7 @@ class NepiSystemDevice extends Component {
           <Column>
             <Label title={"Access Point Enable"} >
               <Toggle
-                checked={(wifi_query_response !== null)? wifi_query_response.wifi_ap_enabled : false}
+                checked={(netStatus !== null)? netStatus.wifi_ap_enabled : false}
                 onClick= {onToggleWifiAPEnabled}
               />
             </Label>
@@ -919,8 +1010,9 @@ class NepiSystemDevice extends Component {
 
   render() {
     const { wifi_query_response } = this.props.ros
-    const has_wifi = wifi_query_response? wifi_query_response.has_wifi : false
-    const internet_connected = (wifi_query_response !== null)? wifi_query_response.wifi_client_connected : false
+    const netStatus = this.state.netStatus
+    const has_wifi = netStatus? netStatus.has_wifi : false
+    const internet_connected = (netStatus !== null)? netStatus.wifi_client_connected : false
     return (
       <Columns>
         <Column>
