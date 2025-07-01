@@ -84,6 +84,136 @@ def get_serial_device_dict(serial_port):
     return device_dict
 
 
+def read_witmotion_packet(serial_port):
+    while True:
+        byte = serial_port.read(1)
+        if byte == b'\x55':  # Look for the start byte (0x55)
+            packet = byte + serial_port.read(10)  # Read the remaining 10 bytes
+            return packet
+        time.sleep(0.01) # Small delay to avoid busy waiting
+
+import struct
+
+def decode_witmotion_message(data):
+    print("Got data: " + str(data))
+    if not data or len(data) < 11 or data[0] != 0x55: # Check for start byte and minimum length
+        return None
+
+    # Calculate checksum (example - adjust based on your specific sensor's method)
+    calculated_checksum = sum(data[1:-1]) & 0xFF  # Example: sum of bytes excluding start and checksum
+    received_checksum = data[-1]
+
+    if calculated_checksum != received_checksum:
+        print("Checksum mismatch!") # Handle checksum errors
+        return None
+
+    # Decode data based on the specific WitMotion sensor model and protocol
+    # Example: Decode 3D acceleration, 3D angular velocity, 3D angle
+    # Refer to your sensor's manual for specific data format and scaling factors
+    try:
+        (accel_x, accel_y, accel_z,
+         gyro_x, gyro_y, gyro_z,
+         angle_x, angle_y, angle_z,
+         temp) = struct.unpack('<hhhhhhhhhB', data[1:-1]) # Example format string
+
+        # Apply scaling factors if necessary (refer to the sensor's manual)
+
+        decoded_data = {
+            'acceleration': (accel_x, accel_y, accel_z),
+            'angular_velocity': (gyro_x, gyro_y, gyro_z),
+            'angle': (angle_x, angle_y, angle_z),
+            'temperature': temp,
+        }
+
+        return decoded_data
+
+    except struct.error as e:
+        print(f"Error decoding data: {e}")
+        return None
+
+
+# Function for serial send/receive check
+def listen_serial_message(serial_port, 
+                        wait_time = 0.010):
+    response = None
+    try:
+        #nepi_sdk.sleep(wait_time)
+        bs = read_witmotion_packet(serial_port) #serial_port.readline()
+        response = decode_witmotion_message(bs) #bs.decode('utf-8').strip()
+        msg = ("Got a serial binary response: " + str(response))
+        print(str(msg))
+        logger.log_debug(msg)
+    except Exception as e:
+        msg = "Got a serial read/write error: " + str(e)
+        print(str(msg))
+        logger.log_debug(msg)
+    print('All Done with listen on port')
+    return response
+
+# Function for serial send/receive check
+def listen_serial_port(port_str, 
+                    baudrate = 9600, 
+                    wait_time = 0.010,
+                    verbose = False):
+    response = None
+    if verbose == True:
+            msg = ("Starting serial device product id check " + str(port_str))
+            print(msg)
+            logger.log_info(msg)
+    print('Got Here1')
+    serial_port = None
+    try:
+        # Try and open serial port
+        serial_port = serial.Serial(port_str,baudrate,timeout = wait_time)
+        nepi_sdk.sleep(0.1)
+        print('Got Here2')
+    except Exception as e:
+        msg = ("Unable to open serial port " + str(port_str) + " with baudrate: " + str(baudrate) + " " + str(e))
+        print(msg)
+        logger.log_info(msg)
+
+    if serial_port is not None:
+        print('Got Here3')
+        response = listen_serial_message(serial_port = serial_port,wait_time = wait_time)
+        msg = ("Listener got response " + str(port_str) + " with baudrate: " + str(baudrate) + " " + str(response))
+        print(msg)
+        # Clean up the serial port
+        serial_port.close()
+    return response
+# Function for tserial send/receive check for list of ports, addrs, baud_rates 
+
+
+
+def listen_serial_ports(
+                    port_str_list = None,
+                    buadrate_list = STANDARD_BUAD_RATES,
+                    wait_time = 0.010,
+                    verbose = False):
+
+    if port_str_list is None:
+        port_str_list = get_serial_ports_list()
+
+    print(str(port_str_list))
+    for port_str in port_str_list:
+        print("a")
+        for baudrate in buadrate_list:
+                if verbose == True:
+                    msg = ("Listeing for serial device " + str(port_str) + " baudrate: " + str(baudrate))
+                    print(msg)
+                    logger.log_info(msg)
+                response = listen_serial_port(
+                                        port_str, 
+                                        baudrate = baudrate, 
+                                        verbose = verbose)
+        
+                if verbose == True:
+                    msg = ("Got response: " + str(response))
+                    print(msg)
+                    logger.log_info(msg)
+
+
+
+
 
 # Function for checking if serial_port is available
 def check_for_serial_port(port_str):
@@ -122,6 +252,9 @@ def send_serial_message(serial_port,
     except Exception as e:
         logger.log_debug("Got a serial read/write error: " + str(e))
     return response
+
+
+
 
 
 # Function for serial send/receive check
