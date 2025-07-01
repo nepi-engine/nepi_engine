@@ -139,7 +139,7 @@ def listen_serial_message(serial_port,
     try:
         #nepi_sdk.sleep(wait_time)
         bs = read_witmotion_packet(serial_port) #serial_port.readline()
-        response = decode_witmotion_message(bs) #bs.decode('utf-8').strip()
+        response = bs.decode() #decode_witmotion_message(bs) #bs.decode('utf-8').strip()
         msg = ("Got a serial binary response: " + str(response))
         print(str(msg))
         logger.log_debug(msg)
