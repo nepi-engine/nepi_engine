@@ -731,12 +731,13 @@ class PTXActuatorIF:
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
         self.publish_status(do_updates = True)
-
+        '''
         ##############################
         # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = self.namespace
+
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
@@ -815,7 +816,6 @@ class PTXActuatorIF:
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
 
-
         ###############################
         # Create a NPX Device IF
         if self.getNavPoseCb is not None:
@@ -831,7 +831,7 @@ class PTXActuatorIF:
                 )
 
 
-
+        '''
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
