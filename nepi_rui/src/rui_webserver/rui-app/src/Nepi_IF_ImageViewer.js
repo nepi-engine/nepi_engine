@@ -252,13 +252,15 @@ class ImageViewer extends Component {
       const height_px = round(status_msg.height_px, 3)
       const width_deg = round(status_msg.width_deg, 3)
       const height_deg = round(status_msg.height_deg, 3)
+      const perspective = round(status_msg.perspective, 3)
 
       msg = ("\n\n3D Frame: " + frame_3d + 
       "\n\nEncoding: " + encoding + 
       "\n\nWidth (Pixals): " + width_px +
       "\nHeight (Pixals): " + height_px +
       "\n\nWidth (Deg): " + width_deg +
-      "\nHeight (Deg): " + height_deg )
+      "\nHeight (Deg): " + height_deg +
+      "\nPerspective: " + perspective )
     }
     else {
       msg = "No Stats Available"
@@ -442,12 +444,12 @@ class ImageViewer extends Component {
       const has_tilt = (capabilities && capabilities.has_tilt && !this.state.disabled)
       const has_enhances = (capabilities && capabilities.has_enhances && !this.state.disabled)
 
-
       const message = this.state.status_msg
-      const resolution_ratio = message.resolution_ratio
-      const resolution_str = message.resolution_current
       const auto_adjust_enabled = message.auto_adjust_enabled
       const auto_adjust_ratio = message.auto_adjust_ratio
+      const auto_adjust_controls = message.auto_adjust_controls
+      const resolution_ratio = message.resolution_ratio
+      const resolution_str = message.resolution_current
       const brightness_ratio = message.brightness_ratio
       const contrast_ratio = message.contrast_ratio
       const threshold_ratio = message.threshold_ratio
@@ -460,9 +462,22 @@ class ImageViewer extends Component {
       const rotate_ratio = message.rotate_ratio
       const tilt_ratio = message.tilt_ratio
 
+      const auto_controls = auto_adjust_enabled ? auto_adjust_controls : []
+      const hide_framerate = (!has_framerate || auto_controls.indexOf('framerate') != -1)
+      const hide_resolution = (!has_resolution || auto_controls.indexOf('resolution') != -1)
+      const hide_brightness = (!has_brightness || auto_controls.indexOf('brightness') != -1)
+      const hide_contrast = (!has_contrast || auto_controls.indexOf('contrast') != -1)
+      const hide_threshold = (!has_threshold || auto_controls.indexOf('threshold') != -1)
+      const hide_range = (!has_range || auto_controls.indexOf('range') != -1)
+
+
+
       const enhance_options = message.enhance_options
       const enhance_states = message.enhance_states
       const enhance_ratios = message.enhance_ratios
+
+
+
 
       return (
 
@@ -471,7 +486,7 @@ class ImageViewer extends Component {
  
  
 
-              <div hidden={(has_resolution !== true )}>
+              <div hidden={(hide_resolution)}>
 
                             <SliderAdjustment
                                   title={"Resolution"}
@@ -507,7 +522,6 @@ class ImageViewer extends Component {
 
 
             {this.renderEnhances(namespace, enhance_options, enhance_states, enhance_ratios)}
-
 
             <div hidden={(has_auto_adjust !== true )}>
             
@@ -546,7 +560,8 @@ class ImageViewer extends Component {
 
             </div>
 
-          <div hidden={(auto_adjust_enabled !== false )}>
+
+          <div hidden={(hide_brightness)}>
                       <SliderAdjustment
                           title={"Brightness"}
                           msgType={"std_msgs/Float32"}
@@ -562,7 +577,7 @@ class ImageViewer extends Component {
             </div>
 
 
-            <div hidden={(auto_adjust_enabled !== false )}>
+            <div hidden={(hide_contrast)}>
                       <SliderAdjustment
                         title={"Contrast"}
                         msgType={"std_msgs/Float32"}
@@ -577,7 +592,7 @@ class ImageViewer extends Component {
 
             </div>
 
-            <div hidden={(auto_adjust_enabled !== false )}>
+            <div hidden={(hide_threshold)}>
                       <SliderAdjustment
                           title={"Thresholding"}
                           msgType={"std_msgs/Float32"}
@@ -594,7 +609,7 @@ class ImageViewer extends Component {
 
 
 
-            <div hidden={(has_range !== true )}>
+            <div hidden={(hide_range)}>
                     <RangeAdjustment
                       title="Range Clip"
                       min={range_start_ratio}
@@ -715,6 +730,7 @@ class ImageViewer extends Component {
    
     if (this.state.status_msg != null && namespace != null){
       const message = this.state.status_msg
+      const size_ratio = message.overlay_size_ratio
       const name = message.overlay_img_name
       const date = message.overlay_date_time
       const nav = message.overlay_nav
@@ -727,6 +743,20 @@ class ImageViewer extends Component {
         <Column>
             <Columns>
             <Column>
+
+                  <SliderAdjustment
+                            title={"Overlay Size"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={size_ratio}
+                            topic={namespace + "/set_overlay_size_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Overlay size controls"}
+                            unit={"%"}
+                        />
+
 
                   <Label title={"Source Name"}>
                       <Toggle
@@ -785,10 +815,7 @@ class ImageViewer extends Component {
   }
 
 
-
-
-
-  render() {
+  renderCompression(){
     const {
       streamingImageQuality
     } = this.props.ros
@@ -801,96 +828,9 @@ class ImageViewer extends Component {
     }
 
     
-    const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
-    const show_info = this.state.show_info
-    const show_controls = this.state.show_controls
-    return (
-      <Section title={this.props.title}>
 
-        <canvas style={styles.canvas} ref={this.onCanvasRef} />
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-        <Label title="Show Info">
-                  <Toggle
-                    checked={this.state.show_info===true}
-                    onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
-                  </Toggle>
-        </Label>
-
-
-
-        <div align={"left"} textAlign={"left"} hidden={(show_info !== true || namespace === 'None')}>
-
-
-              <Columns>
-                <Column>
-
-                <Label title={"Info"} />
-                    {this.renderInfo()}
-
-                </Column>
-                <Column>
-
-
-
-                </Column>
-                <Column>
-
-
-                    <Label title={"Stats"} />
-                    {this.renderStats()}
-
-
-                </Column>
-              </Columns>
-
-
-
-        </div>
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-        <Label title="Show Controls">
-                  <Toggle
-                    checked={this.state.show_controls===true}
-                    onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
-                  </Toggle>
-        </Label>
-
-
-
-        <div align={"left"} textAlign={"left"} hidden={(show_controls !== true || namespace === 'None')}>
-
-
-              <Columns>
-                <Column>
-
-                      <Label title={"Controls"} />
-
-                      {this.renderControls()}
-
-                </Column>
-                <Column>
-
-
-
-                </Column>
-                <Column>
-
-
-                <Label title={"Overlays"} />
-                      {this.renderOverlays()}
-
-
-                </Column>
-              </Columns>
-
-
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
-
-        <Columns>
+    return(
+          <Columns>
           <Column>
           <div align={"left"} textAlign={"left"}>
             { hideQualitySelector ?
@@ -942,7 +882,114 @@ class ImageViewer extends Component {
           </div>
           </Column>
         </Columns>
-        
+
+    )
+
+  }
+
+
+
+
+
+
+  render() {
+
+    const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
+    const show_info = this.state.show_info
+    const show_controls = this.state.show_controls
+    return (
+      <Section title={this.props.title}>
+
+        <canvas style={styles.canvas} ref={this.onCanvasRef} />
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <Label title="Show Info">
+                  <Toggle
+                    checked={this.state.show_info===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
+                  </Toggle>
+        </Label>
+
+
+
+        <div align={"left"} textAlign={"left"} hidden={(show_info !== true || namespace === 'None')}>
+
+
+
+              <div style={{ display: 'flex' }}>
+                <div style={{ width: '40%' }}>
+
+
+                <Label title={"Info"} />
+                    {this.renderInfo()}
+
+
+                </div>
+
+                <div style={{ width: '20%' }}>
+                  {}
+                </div>
+
+                <div style={{ width: '40%' }}>
+
+
+                <Label title={"Stats"} />
+                    {this.renderStats()}
+
+
+                </div>
+              </div>
+
+
+
+
+        </div>
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+        <Label title="Show Controls">
+                  <Toggle
+                    checked={this.state.show_controls===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                  </Toggle>
+        </Label>
+
+
+
+        <div align={"left"} textAlign={"left"} hidden={(show_controls !== true || namespace === 'None')}>
+
+
+
+                      <div style={{ display: 'flex' }}>
+                <div style={{ width: '40%' }}>
+
+
+                    <Label title={"Overlays"} />
+                                  {this.renderOverlays()}
+
+
+                </div>
+
+                <div style={{ width: '20%' }}>
+                  {}
+                </div>
+
+                <div style={{ width: '40%' }}>
+
+                    <Label title={"Controls"} />
+                                  {this.renderControls()}
+
+
+                </div>
+              </div>
+
+
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
+
+         {this.renderCompression()}
+
           <NepiIFConfig
               namespace={namespace}
               title={"Nepi_IF_Config"}

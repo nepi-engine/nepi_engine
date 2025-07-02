@@ -52,6 +52,8 @@ from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 
+PERSPECTIVE_OPTIONS = ['pov','top']
+
 FRAME_3D_OPTIONS = ['sensor_frame','nepi_frame','world_frame']
 
 #Factory Control Values 
@@ -92,10 +94,12 @@ class IDXDeviceIF:
     transform_if = None
     npx_if = None
     navpose_if = None
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
 
     device_name = ''
 
+    auto_adjust_controls = []
     ctl_auto = False
     ctl_brightness = 0.5
     ctl_contrast = 0.5
@@ -122,6 +126,8 @@ class IDXDeviceIF:
 
     width_px = 0
     height_px = 0
+
+    perspective = 'pov'
 
     width_deg = DEFUALT_IMG_WIDTH_DEG
     height_deg = DEFUALT_IMG_WIDTH_DEG
@@ -160,14 +166,16 @@ class IDXDeviceIF:
     def __init__(self, device_info, 
                  capSettings=None, factorySettings=None, 
                  settingUpdateFunction=None, getSettingsFunction=None,
-                 factoryControls = None, setControlsEnable=None, setAutoAdjust=None,
+                 factoryControls = None, 
                  data_source_description = 'imaging_sensor',
                  data_ref_description = 'sensor',
-                 getFOV=None,
+                 getFOV=None, perspective = 'pov',
                  get_rtsp_url = None,
-                 setContrast=None, setBrightness=None, setThresholding=None,
-                 setResolutionRatio=None, setFramerateRatio=None, 
-                 setRange=None, getFramerate=None,
+                 setResolutionRatio=None, setFramerateRatio=None,
+                 setContrastRatio=None, setBrightnessRatio=None, 
+                 setThresholdingRatio=None, setRangeRatio=None, 
+                 setAutoAdjustRatio=None, autoAdjustControls=[],
+                 getFramerate=None,
                  getColorImage=None, stopColorImageAcquisition=None, 
                  getDepthMap=None, stopDepthMapAcquisition=None, 
                  getPointcloud=None, stopPointcloudAcquisition=None, 
@@ -246,40 +254,50 @@ class IDXDeviceIF:
                 [self.width_deg,self.height_deg] = self.getFOV()
             except:
                 self.getFOV = None
+        self.perspective = perspective
 
         self.get_rtsp_url = get_rtsp_url
 
         self.getNavPoseCb = getNavPoseCb
         if navpose_update_rate < 1:
-            navpose_update_rate = 1
+           navpose_update_rate = 1
         if navpose_update_rate > 10:
             navpose_update_rate = 10
         self.navpose_update_rate = navpose_update_rate
 
         ## Set None Capabilities Variables
-        self.setControlsEnable = setControlsEnable
-
-        self.setAutoAdjust = setAutoAdjust
-        self.caps_report.has_auto_adjust = True
-
-        self.setBrightness = setBrightness
-        self.caps_report.has_brightness = True
-
-        self.setContrast = setContrast
-        self.caps_report.has_contrast = True
-
-        self.setThresholding = setThresholding       
-        self.caps_report.has_threshold = True
-
-        self.setResolutionRatio = setResolutionRatio
-        self.caps_report.has_resolution = True
 
         self.setFramerateRatio = setFramerateRatio
+        if self.setFramerateRatio is not None:
+            self.caps_report.has_framerate = True
+        
         self.getFramerate = getFramerate
-        self.caps_report.has_framerate = True
 
-        self.setRange = setRange
-        self.caps_report.has_range = True
+        self.setRangeRatio = setRangeRatio
+        if self.setRangeRatio is not None:
+            self.caps_report.has_range = True
+
+
+        self.setAutoAdjustRatio = setAutoAdjustRatio
+        if self.setAutoAdjustRatio is not None:
+            self.caps_report.has_auto_adjust = True
+        self.auto_adjust_controls = autoAdjustControls
+
+        self.setBrightnessRatio = setBrightnessRatio
+        if self.setBrightnessRatio is not None:
+            self.caps_report.has_brightness = True
+
+        self.setContrastRatio = setContrastRatio
+        if self.setContrastRatio is not None:
+            self.caps_report.has_contrast = True
+
+        self.setThresholdingRatio = setThresholdingRatio       
+        if self.setThresholdingRatio is not None:
+            self.caps_report.has_threshold = True
+
+        self.setResolutionRatio = setResolutionRatio
+        if self.setResolutionRatio is not None:
+            self.caps_report.has_resolution = True
 
         self.caps_report.frame_3d_options = FRAME_3D_OPTIONS
 
@@ -434,7 +452,7 @@ class IDXDeviceIF:
             'set_width_deg': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/set_width_deg',
-                'msg': Float32,
+                'msg': Int32,
                 'qsize': 1,
                 'callback': self.setWidthDegCb, 
                 'callback_args': ()
@@ -442,7 +460,7 @@ class IDXDeviceIF:
             'set_height_deg': {
                 'namespace': self.node_namespace,
                 'topic': 'idx/set_height_deg',
-                'msg': Float32,
+                'msg': Int32,
                 'qsize': 1,
                 'callback': self.setHeightDegCb, 
                 'callback_args': ()
@@ -452,7 +470,7 @@ class IDXDeviceIF:
                 'topic': 'idx/set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setAutoAdjustCb, 
+                'callback': self.setAutoAdjustRatioCb, 
                 'callback_args': ()
             },
             'set_brightness': {
@@ -460,7 +478,7 @@ class IDXDeviceIF:
                 'topic': 'idx/set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setBrightnessCb, 
+                'callback': self.setBrightnessRatioCb, 
                 'callback_args': ()
             },
             'set_contrast': {
@@ -468,7 +486,7 @@ class IDXDeviceIF:
                 'topic': 'idx/set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setContrastCb, 
+                'callback': self.setContrastRatioCb, 
                 'callback_args': ()
             },
             'set_threshold': {
@@ -476,7 +494,7 @@ class IDXDeviceIF:
                 'topic': 'idx/set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setThresholdingCb, 
+                'callback': self.setThresholdingRatioCb, 
                 'callback_args': ()
             },
             'set_resolution_ratio': {
@@ -500,7 +518,7 @@ class IDXDeviceIF:
                 'topic': 'idx/set_range_window',
                 'msg': RangeWindow,
                 'qsize': 1,
-                'callback': self.setRangeCb, 
+                'callback': self.setRangeRatioCb, 
                 'callback_args': ()
             },
             'set_frame_3d': {
@@ -734,7 +752,7 @@ class IDXDeviceIF:
         ##################################
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self._publishNavPoseCb, oneshot = True) 
+        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
 
 
         ##################################
@@ -763,7 +781,31 @@ class IDXDeviceIF:
         return transform
 
     def get_navpose_dict(self):
+        np_dict = copy.deepcopy(self.navpose_dict)
+        return np_dict
+
+
+    def get_mount_description(self):
+        desc = self.device_mount_description
+        if self.mount_desc != 'None':
+            desc = self.mount_desc
+        return desc
+
+        
+    def publish_navpose(self):
+        np_dict = copy.deepcopy(self.navpose_dict)
+        if self.navpose_if is not None:
+            transform = self.get_3d_transform()
+            np_dict = self.navpose_if.publish_navpose(np_dict,
+                                            frame_3d_transform = transform,
+                                            device_mount_description = self.get_mount_description())
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
+
+
+    def navPoseUpdaterCb(self,timer):
         navpose_dict = None
+        start_time = nepi_utils.get_time()
         if self.connect_ptx_if is not None and self.pt_connected == True:
             navpose_dict = self.connect_ptx_if.get_navpose_dict()
             if navpose_dict is not None:
@@ -781,33 +823,18 @@ class IDXDeviceIF:
             self.transform_if.set_end_description('sensor_frame')
 
         self.end_ref_description = self.transform_if.get_end_description()
-        return navpose_dict
+        self.navpose_dict = navpose_dict
 
-    def get_mount_description(self):
-        desc = self.device_mount_description
-        if self.mount_desc != 'None':
-            desc = self.mount_desc
-        return desc
-
-        
-    def publish_navpose(self):
-        np_dict = self.get_navpose_dict()
-        if self.navpose_if is not None:
-            transform = self.get_3d_transform()
-            np_dict = self.navpose_if.publish_navpose(np_dict,
-                                            frame_3d_transform = transform,
-                                            device_mount_description = self.get_mount_description())
-        timestamp = nepi_utils.get_time()
-        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
-
-
-    def _publishNavPoseCb(self,timer):
+        # Publish the navpose solution
         self.publish_navpose()
+
+        # Repeat
+        process_time = nepi_utils.get_time() - start_time
         rate = 1
         if self.nav_mgr_if is not None:
             rate = self.navpose_update_rate
-        delay = float(1.0) / rate
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
+        delay = float(1.0) / rate - process_time
+        nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
  
 
     ###############################
@@ -840,8 +867,9 @@ class IDXDeviceIF:
 
       if self.node_if is not None:
             self.device_name = self.node_if.get_param('device_name')
-            self.height_deg = self.node_if.get_param('width_deg')
-            self.ctl_auto = self.node_if.get_param('height_deg')       
+            self.width_deg = self.node_if.get_param('width_deg')
+            self.height_deg = self.node_if.get_param('height_deg')       
+            self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled') 
             self.ctl_brightness = self.node_if.get_param('brightness_ratio')
             self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
             self.ctl_threshold = self.node_if.get_param('threshold_ratio')
@@ -911,20 +939,20 @@ class IDXDeviceIF:
             self.settings_if.reset_settings()
         param_dict = nepi_sdk.get_param('~', dict())
         self.msg_if.pub_debug("Applying Config Updates from Params: " + str(param_dict))
-        if (self.setAutoAdjust is not None and 'auto_adjust_ebabled' in param_dict):
-            self.setAutoAdjust(param_dict['auto_adjust_ebabled'])
-        if (self.setBrightness is not None and 'brightness_ratio' in param_dict):
-            self.setBrightness(param_dict['brightness_ratio'])
-        if (self.setContrast is not None and 'contrast_ratio' in param_dict):
-            self.setContrast(param_dict['contrast_ratio'])
-        if (self.setThresholding is not None and 'threshold_ratio' in param_dict):
-            self.setThresholding(param_dict['threshold_ratio'])
+        if (self.setAutoAdjustRatio is not None and 'auto_adjust_ebabled' in param_dict):
+            self.setAutoAdjustRatio(param_dict['auto_adjust_ebabled'])
+        if (self.setBrightnessRatio is not None and 'brightness_ratio' in param_dict):
+            self.setBrightnessRatio(param_dict['brightness_ratio'])
+        if (self.setContrastRatio is not None and 'contrast_ratio' in param_dict):
+            self.setContrastRatio(param_dict['contrast_ratio'])
+        if (self.setThresholdingRatio is not None and 'threshold_ratio' in param_dict):
+            self.setThresholdingRatio(param_dict['threshold_ratio'])
         if (self.setResolutionRatio is not None and 'resolution_ratio' in param_dict):
             self.setResolutionRatio(param_dict['resolution_ratio'])
         if (self.setFramerateRatio is not None and 'framerate_ratio' in param_dict):
             self.setFramerateRatio(param_dict['framerate_ratio'])
-        if (self.setRange is not None and 'start_range' in param_dict and 'stop_range' in param_dict):
-            self.setRange(param_dict['range_window']['start_range'], param_dict['range_window']['stop_range'])
+        if (self.setRangeRatio is not None and 'start_range' in param_dict and 'stop_range' in param_dict):
+            self.setRangeRatio(param_dict['range_window']['start_range'], param_dict['range_window']['stop_range'])
 
 
 
@@ -991,22 +1019,6 @@ class IDXDeviceIF:
         self.node_if.set_param('device_name', self.device_name)
 
 
-         
-
-
-    # Define local IDX Control callbacks
-    def setControlsEnableCb(self, msg):
-        self.msg_if.pub_info("Recived IDX Controls enable update message: " + str(msg))
-        new_controls_enable = msg.data
-        if self.setControlsEnable is not None:
-            # Call the parent's method and update ROS param as necessary
-            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setControlsEnable(new_controls_enable)
-        self.ctl_enabled = new_controls_enable
-        self.status_msg.controls_enable = new_controls_enable
-        self.publish_status(do_updates=False) # Updated inline here        
-        self.node_if.set_param('controls_enable', new_controls_enable)
-
 
     def setWidthDegCb(self, msg):
         self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
@@ -1024,13 +1036,13 @@ class IDXDeviceIF:
             self.publish_status(do_updates=False) # Updated inline here   
             self.node_if.set_param('height_deg', height)
             
-    def setAutoAdjustCb(self, msg):
+    def setAutoAdjustRatioCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
         new_auto_adjust = msg.data
-        if self.setAutoAdjust is not None:
+        if self.setAutoAdjustRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setAutoAdjust(new_auto_adjust)
+            status, err_str = self.setAutoAdjustRatio(new_auto_adjust)
 
         if new_auto_adjust:
             self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
@@ -1045,116 +1057,111 @@ class IDXDeviceIF:
 
 
 
-    def setBrightnessCb(self, msg):
+    def setBrightnessRatioCb(self, msg):
         self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
-        new_brightness = msg.data
-        if self.node_if.get_param('auto_adjust_ebabled'):
-            self.msg_if.pub_info("Ignoring Set Brightness request. Auto Adjust enabled", log_name_list = self.log_name_list)
-        else:
-            if self.setBrightness is not None:
-
-                if (new_brightness < 0.0 or new_brightness > 1.0):
-                    self.msg_if.pub_error("Brightness value out of bounds", log_name_list = self.log_name_list)
-                else:
-                    # Call the parent's method and update ROS param as necessary
-                    # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-                    status, err_str = self.setBrightness(new_brightness)
-
-        self.ctl_brightness = new_brightness
-        self.status_msg.brightness_ratio = new_brightness
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('brightness_ratio', new_brightness)
-
-
-    def setContrastCb(self, msg):
-        self.msg_if.pub_info("Recived Contrast update message: " + str(msg))
-        new_contrast = msg.data
-
-        if (new_contrast < 0.0 and new_contrast != -1.0) or (new_contrast > 1.0):
-            self.msg_if.pub_error("Contrast value out of bounds", log_name_list = self.log_name_list)
-            self.publish_status(do_updates=False) # No change
-            return
-
-        if self.node_if.get_param('auto_adjust_ebabled'):
-            self.msg_if.pub_info("Ignoring Set Contrast request. Auto Adjust enabled", log_name_list = self.log_name_list)
-        else:
-            if self.setContrast is not None:
-                # Call the parent's method and update ROS param as necessary
-                # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-                status, err_str = self.setContrast(new_contrast)
-
-        self.ctl_contrast = new_contrast     
-        self.status_msg.contrast_ratio = new_contrast
-        self.publish_status(do_updates=False) # Updated inline here   
+        ratio = msg.data
  
-        self.node_if.set_param('contrast_ratio', new_contrast)
+        if ratio < 0.1:
+            ratio = 0.1
+        if ratio > 1.0:
+            ratio = 1.0
+
+        self.ctl_brightness = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.setBrightnessRatio is not None:
+            # Call the parent's method and update ROS param as necessary
+            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
+            status, err_str = self.setBrightnessRatio(self.ctl_brightness)
+        if self.node_if is not None:
+            self.node_if.set_param('brightness_ratio', self.ctl_brightness)
+
+
+    def setContrastRatioCb(self, msg):
+        ratio = msg.data
+ 
+        if ratio < 0.1:
+            ratio = 0.1
+        if ratio > 1.0:
+            ratio = 1.0
+
+        self.ctl_contrast = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.setContrastRatio is not None:
+            # Call the parent's method and update ROS param as necessary
+            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
+            status, err_str = self.setContrastRatio(self.ctl_contrast)
+        if self.node_if is not None:
+            self.node_if.set_param('contrast_ratio', self.ctl_contrast)
         
 
 
-    def setThresholdingCb(self, msg):
+    def setThresholdingRatioCb(self, msg):
         self.msg_if.pub_info("Received Threshold update message: " + str(msg))
-        new_threshold = msg.data
+        ratio = msg.data
+ 
+        if ratio < 0.1:
+            ratio = 0.1
+        if ratio > 1.0:
+            ratio = 1.0
 
-        if (new_threshold < 0.0 or new_threshold > 1.0):
-            self.msg_if.pub_error("Thresholding value out of bounds", log_name_list = self.log_name_list)
-            self.publish_status(do_updates=False) # No change
-            return
-
-        if self.setThresholding is not None:
+        self.ctl_threshold = ratio
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.setThresholdingRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setThresholding(new_threshold)
-
-        self.ctl_threshold = new_threshold
-        self.status_msg.threshold_ratio = new_threshold
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('threshold_ratio', new_threshold)
+            status, err_str = self.setThresholdingRatio(self.ctl_threshold)
+        if self.node_if is not None:
+            self.node_if.set_param('threshold_ratio', self.ctl_threshold)
         
 
     def setResolutionRatioCb(self, msg):
         self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
-        new_resolution = msg.data
+        ratio = msg.data
+ 
+        if ratio < 0.1:
+            ratio = 0.1
+        if ratio > 1.0:
+            ratio = 1.0
 
-        if (new_resolution < 0.0 or new_resolution > 1.0):
-            self.msg_if.pub_error("Resolution value out of bounds", log_name_list = self.log_name_list)
-            self.publish_status(do_updates=False) # No change
-            return
-
-        else:
-            # Call the parent's method and update ROS param as necessary
-            # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            if self.setResolutionRatio is not None:
-                status, err_str = self.setResolutionRatio(new_resolution)
-        self.ctl_res_ratio = new_resolution
-        self.status_msg.resolution_ratio = new_resolution
+        self.ctl_res_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('resolution_ratio', new_resolution)
+        # Call the parent's method and update ROS param as necessary
+        # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
+        if self.setResolutionRatio is not None:
+            status, err_str = self.setResolutionRatio(self.ctl_res_ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('resolution_ratio', self.ctl_res_ratio)
         
 
 
         
     def setFramerateRatioCb(self, msg):
         self.msg_if.pub_info("Recived Framerate update message: " + str(msg))
-        new_framerate = msg.data
+        ratio = msg.data
  
-        if new_framerate < 0.1:
-            new_framerate = 0.1
-        if new_framerate > 1.0:
-            new_framerate = 1.0
+        if ratio < 0.1:
+            ratio = 0.1
+        if ratio > 1.0:
+            ratio = 1.0
 
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-        if self.setFramerateRatio is not None:
-            status, err_str = self.setFramerateRatio(new_framerate)
-        self.status_msg.framerate_ratio = new_framerate
+        self.ctl_fr_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
+
+        if self.setFramerateRatio is not None:
+            #self.msg_if.pub_warn("Sending update framerate ratio to driver: ")
+            status, err_str = self.setFramerateRatio(ratio)
+            #self.msg_if.pub_warn("Recived Framerate update: " + str(status))
+
         for data_product in self.data_products_base_list:
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
-        self.node_if.set_param('framerate_ratio', new_framerate)
+            if self.node_if is not None:
+                self.node_if.set_param('framerate_ratio', ratio)
 
 
  
-    def setRangeCb(self, msg):
+    def setRangeRatioCb(self, msg):
         self.msg_if.pub_info("Recived Range update message: " + str(msg))
         self.msg_if.pub_info("Recived update message: " + str(msg))
         new_start_range_ratio = msg.start_range
@@ -1166,8 +1173,8 @@ class IDXDeviceIF:
         else:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            if self.setRange is not None:
-                status, err_str = self.setRange(new_start_range_ratio,new_stop_range_ratio)
+            if self.setRangeRatio is not None:
+                status, err_str = self.setRangeRatio(new_start_range_ratio,new_stop_range_ratio)
 
         self.status_msg.range_window.start_range = new_start_range_ratio
         self.status_msg.range_window.stop_range = new_stop_range_ratio
@@ -1292,6 +1299,7 @@ class IDXDeviceIF:
                             data_product_name = data_product, 
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
+                            perspective = self.perspective,
                             get_navpose_function = self.get_navpose_dict,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
@@ -1329,7 +1337,7 @@ class IDXDeviceIF:
 
                         # Now process and publish image
                         frame_3d = 'sensor_frame'
-                        cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding,
+                        dp_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
                                                         frame_3d = frame_3d,
                                                         width_deg = self.width_deg,
@@ -1581,6 +1589,7 @@ class IDXDeviceIF:
 
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
+        self.status_msg.perspective = self.perspective
 
         self.status_msg.min_range_m = self.min_range_m
         self.status_msg.max_range_m = self.max_range_m
@@ -1596,7 +1605,9 @@ class IDXDeviceIF:
             framerates.append(self.current_fps[dp])
         self.status_msg.framerates = framerates
 
+
         self.status_msg.auto_adjust_enabled = self.ctl_auto
+        self.status_msg.auto_adjust_controls = self.auto_adjust_controls
         self.status_msg.contrast_ratio = self.ctl_contrast
         self.status_msg.brightness_ratio = self.ctl_brightness
         self.status_msg.threshold_ratio = self.ctl_threshold

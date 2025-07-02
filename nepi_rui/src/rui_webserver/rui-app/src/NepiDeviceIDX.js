@@ -120,6 +120,7 @@ class NepiDeviceIDX extends Component {
       this.setState({
         namespace: value,
         namespaceText: text,
+        data_product: autoSelectedImgTopicText,
         imageTopic: autoSelectedImgTopic,
         imageText: autoSelectedImgTopicText
       })

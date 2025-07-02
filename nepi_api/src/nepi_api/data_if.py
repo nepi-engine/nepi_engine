@@ -1559,6 +1559,7 @@ SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
 
+PERSPECTIVE_OPTIONS = ['pov','top']
 
 EXAMPLE_CAPS_DICT = dict( 
         has_resolution = False,
@@ -1604,9 +1605,8 @@ class ImageIF:
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
-
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -1650,9 +1650,15 @@ class ImageIF:
 
     status_msg = ImageStatus()
 
+
+
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
 
+    min_range_m = 0
+    max_range_m = 0
+
+    perspective = 'pov'
 
     blank_img = nepi_img.create_cv2_blank_img(last_width, last_height, color = (0, 0, 0) )
 
@@ -1672,6 +1678,8 @@ class ImageIF:
 
     caps_report = ImageCapabilitiesQueryResponse()
 
+
+    overlay_size_ratio = 0.5
     overlays_dict = dict(
             overlay_img_name = False,
             overlay_date_time = False,
@@ -1697,13 +1705,14 @@ class ImageIF:
 
     get_navpose_function = None
 
+    perspective = 'pov'
+
     def __init__(self, 
                 namespace , 
                 data_product_name,
                 data_source_description,
                 data_ref_description,
-                width_deg,
-                hieight_deg,
+                perspective,
                 caps_dict,
                 controls_dict, 
                 enhance_dict,
@@ -1749,6 +1758,8 @@ class ImageIF:
         self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
           
+        if perspective is not None:
+            self.perspective = perspective
 
         # Setup enhance dict
         if enhance_dict is not None:
@@ -1835,6 +1846,7 @@ class ImageIF:
         self.status_msg.height_px = 0
         self.status_msg.width_deg = 0
         self.status_msg.height_deg = 0
+        self.status_msg.perspective = self.perspective
         self.status_msg.get_latency_time = 0
         self.status_msg.pub_latency_time = 0
         self.status_msg.process_time = 0
@@ -1896,6 +1908,10 @@ class ImageIF:
             'enhance_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.enhance_dict
+            },
+            'overlay_size_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.overlay_size_ratio
             },
             'overlay_img_name': {
                 'namespace': self.namespace,
@@ -1983,6 +1999,13 @@ class ImageIF:
                 'qsize': 1,
                 'callback': self._resetControlsCb, 
                 'callback_args': ()
+            },
+            'overlay_size_ratio': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_size_ratio',
+                'qsize': 1,
+                'callback': self._setOverlaySizeCb
             },
             'overlay_img_name': {
                 'msg': Bool,
@@ -2290,8 +2313,10 @@ class ImageIF:
                         encoding = "bgr8", 
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = DEFAULT_IMG_WIDTH_DEG,
-                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
+                        width_deg = DEFAULT_WIDTH_DEG,
+                        height_deg = DEFAULT_HEIGHT_DEG,
+                        min_range_m = None,
+                        max_range_m = None,
                         add_overlay_list = [],
                         do_subscriber_check = True,
                         device_mount_description = 'fixed'
@@ -2307,6 +2332,7 @@ class ImageIF:
         self.device_mount_description = device_mount_description
         self.status_msg.device_mount_description = self.device_mount_description
         
+        self.status_msg.frame_3d = frame_3d
 
         self.status_msg.encoding = encoding
         if timestamp == None:
@@ -2334,13 +2360,24 @@ class ImageIF:
         self.status_msg.width_deg = width_deg
         self.status_msg.height_deg = height_deg
 
+        if (min_range_m is not None and max_range_m is not None):
+            self._updateRangesM(min_range_m,max_range_m)
+            self.status_msg.min_range_m = self.min_range_m
+            self.status_msg.max_range_m = self.max_range_m
+        else:
+            self.status_msg.min_range_m = 0
+            self.status_msg.max_range_m = 1
+
         self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
 
+        
         cv2_img = self._process_image(cv2_img)
 
+
+        
         navpose_dict = self.get_navpose_dict()
 
-
+        
         # Apply Overlays
         overlay_list = []
         if self.status_msg.overlay_img_name == True:
@@ -2348,11 +2385,12 @@ class ImageIF:
             overlay_list.append(overlay)
         
         if self.status_msg.overlay_date_time == True:
-            date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+            overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
             overlay_list.append(overlay)
 
-
+        
         if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                navpose_dict = self.get_navpose_dict()
                 if navpose_dict is not None:
                     if self.status_msg.overlay_nav == True and navpose_dict is not None:
                         overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
@@ -2364,9 +2402,15 @@ class ImageIF:
 
         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
-        cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
+        if len(overlay_list) > 0:
+            cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                    text_list = overlay_list, 
+                                    x_px = 10 , y_px = 10, 
+                                    color_rgb = (0, 255, 0), 
+                                    apply_shadow = True, 
+                                    size_ratio = self.overlay_size_ratio )
 
-
+        
         #Convert to ros Image message
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
         sec = nepi_sdk.sec_from_timestamp(timestamp)
@@ -2374,8 +2418,9 @@ class ImageIF:
         self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
         self.node_if.publish_pub('data_pub', ros_img)
 
-        if navpose_dict is not None and self.navpose_if is not None:
-            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
+        
+        #if navpose_dict is not None and self.navpose_if is not None:
+        #    self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
         
         # Update stats
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -2459,7 +2504,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['brightness_ratio'] = enabled
+        self.controls_dict['brightness_ratio'] = ratio
         self.status_msg.brightness_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('brightness_ratio', ratio)
@@ -2470,7 +2515,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['contrast_ratio'] = enabled
+        self.controls_dict['contrast_ratio'] = ratio
         self.status_msg.contrast_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('contrast_ratio', ratio)
@@ -2482,7 +2527,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['threshold_ratio'] = enabled
+        self.controls_dict['threshold_ratio'] = ratio
         self.status_msg.threshold_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('threshold_ratio', ratio)
@@ -2509,7 +2554,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['zoom_ratio'] = enabled
+        self.controls_dict['zoom_ratio'] = ratio
         self.status_msg.zoom_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2519,7 +2564,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['pan_left_right_ratio'] = enabled
+        self.controls_dict['pan_left_right_ratio'] = ratio
         self.status_msg.pan_left_right_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2529,7 +2574,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['pan_up_down_ratio'] = enabled
+        self.controls_dict['pan_up_down_ratio'] = ratio
         self.status_msg.pan_up_down_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2544,7 +2589,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['rotate_ratio'] = enabled
+        self.controls_dict['rotate_ratio'] = ratio
         self.status_msg.rotate_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2582,6 +2627,15 @@ class ImageIF:
             self.publish_status(do_updates=False) # Updated inline here
             self.node_if.set_param('enhance_dict', self.enhance_dict)
 
+
+    def set_overlay_size_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.overlay_size_ratio = ratio
+        self.status_msg.overlay_size_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
 
 
 
@@ -2664,6 +2718,7 @@ class ImageIF:
         self.publish_status(do_updates=False)
 
     def reset_overlays(self):
+        self.node_if.factory_reset_param('overlay_size_ratio')
         self.node_if.factory_reset_param('overlay_img_name')
         self.node_if.factory_reset_param('overlay_date_time')
         self.node_if.factory_reset_param('overlay_nav')
@@ -2711,6 +2766,7 @@ class ImageIF:
             self.status_msg.enhance_states = enhance_states
             self.status_msg.enhance_ratios = enhance_ratios
 
+            self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
             self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
             self.status_msg.overlay_nav = self.overlays_dict['overlay_nav']
@@ -2741,7 +2797,7 @@ class ImageIF:
 
 
             self.enhance_dict = self.node_if.get_param('enhance_dict')
-
+            self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
             self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
             self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
             self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
@@ -2790,7 +2846,14 @@ class ImageIF:
     def _publishStatusCb(self,timer):
         self.publish_status()
 
-
+    def _updateRangesM(self, min_m, max_m):
+        if min_m < 0:
+            min_m = 0
+        if min_m < max_m:
+          self.min_range_m = min_m  
+          self.max_range_m = max_m  
+        else:
+          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _setResolutionRatioCb(self, msg):
         self.msg_if.pub_info("Recived Resolution update message: " + str(msg), log_name_list = self.log_name_list)
@@ -2881,7 +2944,9 @@ class ImageIF:
         self.set_enhance_ratio(name,ratio) 
 
 
-
+    def _setOverlaySizeCb(self,msg):
+        ratio = msg.data
+        self.set_overlay_size_ratio(ratio)
 
 
     def _setOverlayImgNameCb(self,msg):
@@ -3008,8 +3073,7 @@ class ColorImageIF(ImageIF):
                 data_product_name = 'color_image',
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
-                width_deg = 100,
-                hieight_deg = 70,
+                perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
                 log_name = None,
@@ -3023,8 +3087,7 @@ class ColorImageIF(ImageIF):
                 self.data_product,
                 data_source_description,
                 data_ref_description,
-                width_deg,
-                hieight_deg,
+                perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
@@ -3138,8 +3201,7 @@ class DepthMapImageIF(ImageIF):
                 data_product_name = 'depth_map_image',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
-                width_deg = 100,
-                hieight_deg = 70,
+                perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
                 log_name = None,
@@ -3154,8 +3216,7 @@ class DepthMapImageIF(ImageIF):
                 self.data_product,
                 data_source_description,
                 data_ref_description,
-                width_deg,
-                hieight_deg,
+                perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
@@ -3228,8 +3289,8 @@ class DepthMapIF:
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     ready = False
     namespace = '~'
@@ -3254,9 +3315,7 @@ class DepthMapIF:
     img_pub_file = 'nepi_depth_map_img_pub_node.py'
 
     min_range_m = 0.0
-    max_range_m = 20.0
-
-
+    max_range_m = 1.0
 
     data_source_description = 'depth_map_sensor'
     data_ref_description = 'sensor'
@@ -3536,12 +3595,12 @@ class DepthMapIF:
 
 
     def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1',
+                             width_deg = DEFAULT_WIDTH_DEG,
+                             height_deg = DEFAULT_HEIGHT_DEG,
                              min_range_m = None, 
                              max_range_m = None,
                              timestamp = None,
                              frame_3d = 'sensor_frame',
-                             width_deg = ImageIF.DEFAULT_IMG_WIDTH_DEG,
-                             height_deg = ImageIF.DEFUALT_IMG_HEIGHT_DEG,
                              device_mount_description = 'fixed'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
@@ -3579,7 +3638,11 @@ class DepthMapIF:
 
         if (min_range_m is not None and max_range_m is not None):
             self._updateRangesM(min_range_m,max_range_m)
-            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.status_msg.min_range_m = self.min_range_m
+            self.status_msg.max_range_m = self.max_range_m
+        else:
+            self.status_msg.min_range_m = 0
+            self.status_msg.max_range_m = 1
 
         if self.has_subs == False:
             self.msg_if.pub_debug("Depthmap has no subscribers", log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -3633,8 +3696,6 @@ class DepthMapIF:
         if self.node_if is not None:
             if self.status_msg is None:
                 self.status_msg = DepthMapStatus()
-            self.status_msg.min_range_m = self.min_range_m
-            self.status_msg.max_range_m = self.max_range_m
 
             if do_updates == True:
                 self.status_msg.max_data_pub_rate = self.node_if.get_param('max_img_pub_rate')
@@ -3710,8 +3771,8 @@ class DepthMapIF:
 
 class PointcloudIF:
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     Factory_Image_Width = 955
     Factory_Image_Height = 600
@@ -3740,7 +3801,8 @@ class PointcloudIF:
 
     img_pub_file = 'nepi_pointcloud_img_pub_node.py'
 
-
+    min_range_m = 0
+    max_range_m = 1
 
     data_source_description = 'pointcloud_sensor'
     data_ref_description = 'sensor'
@@ -4124,8 +4186,10 @@ class PointcloudIF:
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = DEFAULT_IMG_WIDTH_DEG,
-                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
+                        width_deg = DEFAULT_WIDTH_DEG,
+                        height_deg = DEFAULT_HEIGHT_DEG,
+                        min_range_m = None,
+                        max_range_m = None,
                         device_mount_description = 'fixed'):
 
         if self.node_if is None:
@@ -4148,6 +4212,14 @@ class PointcloudIF:
 
         self.status_msg.width_deg = width_deg
         self.status_msg.height_deg = height_deg
+
+        if (min_range_m is not None and max_range_m is not None):
+            self._updateRangesM(min_range_m,max_range_m)
+            self.status_msg.min_range_m = self.min_range_m
+            self.status_msg.max_range_m = self.max_range_m
+        else:
+            self.status_msg.min_range_m = 0
+            self.status_msg.max_range_m = 1
 
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
@@ -4304,6 +4376,14 @@ class PointcloudIF:
     def _publishStatusCb(self,timer):
         self.publish_status(do_updates = True)
 
+    def _updateRangesM(self, min_m, max_m):
+        if min_m < 0:
+            min_m = 0
+        if min_m < max_m:
+          self.min_range_m = min_m  
+          self.max_range_m = max_m  
+        else:
+          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _setRenderRangeCb(self, msg):
         self.msg_if.pub_info("Recived Range update message: " + str(msg), log_name_list = self.log_name_list)

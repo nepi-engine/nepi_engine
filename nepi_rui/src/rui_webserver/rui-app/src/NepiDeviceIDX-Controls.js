@@ -16,11 +16,14 @@ import RangeAdjustment from "./RangeAdjustment"
 import {RadioButtonAdjustment, SliderAdjustment} from "./AdjustmentWidgets"
 import Toggle from "react-toggle"
 import Label from "./Label"
+import Styles from "./Styles"
+import Select from "./Select"
 import Input from "./Input"
 import { Column, Columns } from "./Columns"
-import { round, onUpdateSetStateValue, onEnterSetStateFloatValue} from "./Utilities"
+import { round, onUpdateSetStateValue, onEnterSendIntValue, onEnterSetStateFloatValue, onChangeSwitchStateValue} from "./Utilities"
 
 import NepiIFReset from "./Nepi_IF_Reset"
+import NepiIFConfig from "./Nepi_IF_Config"
 import NepiIF3DTransform from "./Nepi_IF_3DTransform"
 
 @inject("ros")
@@ -34,11 +37,14 @@ class NepiDeviceIDXControls extends Component {
     // these states track the values through IDX Status messages
     this.state = {
 
+      show_controls: false,
       rtsp_url: "",
       rtsp_username: "",
       rtsp_password: "",
-      controlsEnable: true,
+      width_deg: null,
+      height_deg: null,
       autoAdjust: null,
+      auto_adjust_controls: [],
       resolutionAdjustment: null,
       resolutionString: null,
       framerateAdjustment: null,
@@ -91,7 +97,10 @@ class NepiDeviceIDXControls extends Component {
       rtsp_url: message.rtsp_url,
       rtsp_username: message.rtsp_username,
       rtsp_password: message.rtsp_password,
+      width_deg: message.width_deg,
+      height_deg: message.height_deg,
       autoAdjust: message.auto_adjust_enabled,
+      auto_adjust_controls: message.auto_adjust_controls,
       resolutionAdjustment: message.resolution_ratio,
       resolutionString : message.resolution_current,
       framerateAdjustment: message.framerate_ratio,
@@ -230,39 +239,63 @@ class NepiDeviceIDXControls extends Component {
           framerate_str = round(framerates[dp_index],1).toString()
         }
 
+        const auto_controls = this.state.auto_adjust_enabled ? this.state.auto_adjust_controls : []
+        const hide_framerate = (!has_framerate || auto_controls.indexOf('framerate') != -1)
+        const hide_resolution = (!has_resolution || auto_controls.indexOf('resolution') != -1)
+        const hide_brightness = (!has_brightness || auto_controls.indexOf('brightness') != -1)
+        const hide_contrast = (!has_contrast || auto_controls.indexOf('contrast') != -1)
+        const hide_threshold = (!has_threshold || auto_controls.indexOf('threshold') != -1)
+        const hide_range = (!has_range || auto_controls.indexOf('range') != -1)
         return (
 
           <Section title={"Controls"}>
 
-              {/*
-              <div hidden={this.state.rtsp_url === ""}>
 
-              {this.renderLive()}
 
-              </div>
-              */}
+                  {/*
+                  <div hidden={this.state.rtsp_url === ""}>
 
-                    <div hidden={(has_framerate === false)}>
+                  {this.renderLive()}
 
-                    <SliderAdjustment
-                                  title={"Framerate"}
-                                  msgType={"std_msgs/Float32"}
-                                  adjustment={this.state.framerateAdjustment}
-                                  topic={namespace + '/set_framerate_ratio'}
-                                  scaled={0.01}
-                                  min={0}
-                                  max={100}
-                                  disabled={(capabilities && !this.state.disabled)? false : true}
-                                  tooltip={"Adjustable Framerate"}
-                                  unit={"%"}
-                              />
+                  </div>
+                  */}
+
+                        <Columns>
+                        <Column>
+
+                        <Label title={"Width (Deg)"}>
+                          <Input
+                            value={this.state.width_deg}
+                            id="image_width"
+                            onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"image_width")}
+                            onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,namespace + '/set_width_deg')}
+                            style={{ width: "80%" }}
+                          />
+                        </Label>
+
+
+                            </Column>
+                            <Column>
+
+                            <Label title={"Height (Deg)"}>
+                          <Input
+                            value={this.state.height_deg}
+                            id="image_height"
+                            onChange= {(event) => onUpdateSetStateValue.bind(this)(event,"image_height")}
+                            onKeyDown= {(event) => onEnterSendIntValue.bind(this)(event,namespace + '/set_height_deg')}
+                            style={{ width: "80%" }}
+                          />
+                        </Label>
+
+                            </Column>
+                          </Columns>  
+
+
 
                       <Columns>
                         <Column>
-          
-                          </Column>
-                          <Column>
-                          <Label title={"Current Framerate"}>
+
+                        <Label title={"Framerate"}>
                         <Input
                           value={framerate_str}
                           id="framerate"
@@ -270,37 +303,12 @@ class NepiDeviceIDXControls extends Component {
                           disabled={true}
                         />
                       </Label>
-            
-                          </Column>
-                        </Columns>
-
-                  </div>
-
-
-                  <div hidden={(has_resolution === false)}>
-
-                    <SliderAdjustment
-                                    title={"Resolution"}
-                                    msgType={"std_msgs/Float32"}
-                                    adjustment={this.state.resolutionAdjustment}
-                                    topic={namespace + '/set_resolution_ratio'}
-                                    scaled={0.01}
-                                    min={0}
-                                    max={100}
-                                    disabled={(capabilities && !this.state.disabled)? false : true}
-                                    tooltip={"Adjustable Resolution"}
-                                    unit={"%"}
-                                />
-
-                        <Columns>
-                        <Column>
-
 
 
                             </Column>
                             <Column>
 
-                            <Label title={"Current Resolution"}>
+                            <Label title={"Image Size"}>
                           <Input
                             value={this.state.resolutionString}
                             id="framerate"
@@ -310,134 +318,198 @@ class NepiDeviceIDXControls extends Component {
                         </Label>
 
                             </Column>
-                          </Columns>             
+                          </Columns>  
 
-                    </div>
 
+                  <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+                  <Columns>
+                        <Column>
+
+                          <Label title="Show Controls">
+                            <Toggle
+                              checked={this.state.show_controls===true}
+                              onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                            </Toggle>
+                        </Label>
+
+                        </Column>
+                    <Column>
+
+                    </Column>
+                          </Columns>  
+
+                    <div hidden={this.state.show_controls===false}>
 
 
                     <div align={"left"} textAlign={"left"} hidden={!has_auto_adjust}>
 
 
-                      <Columns>
-                        <Column>
+                        <Columns>
+                          <Column>
 
-                              <Label title={"Auto Adjust"}>
-                                  <Toggle
-                                    checked={this.state.autoAdjust}
-                                    onClick={() => sendBoolMsg(namespace + '/set_auto_adjust_enable' ,!this.state.autoAdjust)}
-                                  /> 
-                                </Label>
-                      
-
-                            </Column>
-                            <Column>
-
-                            </Column>
-                          </Columns>
-
-                      </div>
+                                <Label title={"Auto Adjust"}>
+                                    <Toggle
+                                      checked={this.state.autoAdjust}
+                                      onClick={() => sendBoolMsg(namespace + '/set_auto_adjust_enable' ,!this.state.autoAdjust)}
+                                    /> 
+                                  </Label>
 
 
-                      <div hidden={this.state.autoAdjust === true && has_brightness === false}>
-                        <SliderAdjustment
-                            title={"Brightness"}
-                            msgType={"std_msgs/Float32"}
-                            adjustment={this.state.brightnessAdjustment}
-                            topic={namespace + "/set_brightness_ratio"}
-                            scaled={0.01}
-                            min={0}
-                            max={100}
-                            tooltip={"Adjustable brightness"}
-                            unit={"%"}
-                        />
+                              </Column>
+                              <Column>
 
-                      </div>
+                              </Column>
+                            </Columns>
 
-
-                      <div hidden={this.state.autoAdjust === true && has_contrast === false}>
-                        <SliderAdjustment
-                          title={"Contrast"}
-                          msgType={"std_msgs/Float32"}
-                          adjustment={this.state.contrastAdjustment}
-                          topic={namespace + "/set_contrast_ratio"}
-                          scaled={0.01}
-                          min={0}
-                          max={100}
-                          tooltip={"Adjustable contrast"}
-                          unit={"%"}
-                        />
-
-                      </div>
-
-                      <div hidden={this.state.autoAdjust === true && has_threshold === false}>
-                        <SliderAdjustment
-                            title={"Thresholding"}
-                            msgType={"std_msgs/Float32"}
-                            adjustment={this.state.thresholdAdjustment}
-                            topic={namespace + "/set_threshold_ratio"}
-                            scaled={0.01}
-                            min={0}
-                            max={100}
-                            tooltip={"Adjustable threshold"}
-                            unit={"%"}
-                        />
-                      </div>
-
-
-
-
-
-
-                    <div hidden={(has_range === false)}>
-                      <RangeAdjustment
-                        title="Range Clip"
-                        min={this.state.rangeMin}
-                        max={this.state.rangeMax}
-                        min_limit_m={this.state.rangeLimitMinM}
-                        max_limit_m={this.state.rangeLimitMaxM}
-                        topic={namespace + "/set_range_window"}
-                        tooltip={"Adjustable range"}
-                        unit={"m"}
-                      />
                     </div>
 
 
 
+                        <div hidden={(hide_framerate)}>
 
-            <Columns>
-                  <Column>
+                        <SliderAdjustment
+                                      title={"Framerate"}
+                                      msgType={"std_msgs/Float32"}
+                                      adjustment={this.state.framerateAdjustment}
+                                      topic={namespace + '/set_framerate_ratio'}
+                                      scaled={0.01}
+                                      min={0}
+                                      max={100}
+                                      disabled={(capabilities && !this.state.disabled)? false : true}
+                                      tooltip={"Adjustable Framerate"}
+                                      unit={"%"}
+                                  />
 
-                          <NepiIF3DTransform
-                              namespace={namespace}
-                              supports_updates={true}
-                              title={"Nepi_IF_3DTransform"}
-                          />
-
-                  </Column>
-              </Columns>
-
-
-
-                            
-                  <Columns>
-                    <Column>
-                    <div align={"left"} textAlign={"left"}>
-                        <Label title={"Data Output Frame"}>
-                        <Input value = {this.state.frame_3d} />
-                        </Label>
                       </div>
-                    </Column>
-                    <Column>
 
-                    </Column>
+
+                      <div hidden={(hide_resolution)}>
+
+                        <SliderAdjustment
+                                        title={"Resolution"}
+                                        msgType={"std_msgs/Float32"}
+                                        adjustment={this.state.resolutionAdjustment}
+                                        topic={namespace + '/set_resolution_ratio'}
+                                        scaled={0.01}
+                                        min={0}
+                                        max={100}
+                                        disabled={(capabilities && !this.state.disabled)? false : true}
+                                        tooltip={"Adjustable Resolution"}
+                                        unit={"%"}
+                                    />
+              
+
+                        </div>
+
+
+
+
+
+
+                          <div hidden={hide_brightness}>
+                            <SliderAdjustment
+                                title={"Brightness"}
+                                msgType={"std_msgs/Float32"}
+                                adjustment={this.state.brightnessAdjustment}
+                                topic={namespace + "/set_brightness_ratio"}
+                                scaled={0.01}
+                                min={0}
+                                max={100}
+                                tooltip={"Adjustable brightness"}
+                                unit={"%"}
+                            />
+
+                          </div>
+
+
+                          <div hidden={hide_contrast}>
+                            <SliderAdjustment
+                              title={"Contrast"}
+                              msgType={"std_msgs/Float32"}
+                              adjustment={this.state.contrastAdjustment}
+                              topic={namespace + "/set_contrast_ratio"}
+                              scaled={0.01}
+                              min={0}
+                              max={100}
+                              tooltip={"Adjustable contrast"}
+                              unit={"%"}
+                            />
+
+                          </div>
+
+                          <div hidden={hide_threshold}>
+                            <SliderAdjustment
+                                title={"Thresholding"}
+                                msgType={"std_msgs/Float32"}
+                                adjustment={this.state.thresholdAdjustment}
+                                topic={namespace + "/set_threshold_ratio"}
+                                scaled={0.01}
+                                min={0}
+                                max={100}
+                                tooltip={"Adjustable threshold"}
+                                unit={"%"}
+                            />
+                          </div>
+
+
+
+
+
+
+                        <div hidden={(hide_range)}>
+                          <RangeAdjustment
+                            title="Range Clip"
+                            min={this.state.rangeMin}
+                            max={this.state.rangeMax}
+                            min_limit_m={this.state.rangeLimitMinM}
+                            max_limit_m={this.state.rangeLimitMaxM}
+                            topic={namespace + "/set_range_window"}
+                            tooltip={"Adjustable range"}
+                            unit={"m"}
+                          />
+                        </div>
+
+
+
+
+                <Columns>
+                      <Column>
+
+                              <NepiIF3DTransform
+                                  namespace={namespace}
+                                  supports_updates={true}
+                                  title={"Nepi_IF_3DTransform"}
+                              />
+
+                      </Column>
                   </Columns>
 
 
-               <NepiIFReset
-                        namespace={namespace}
-                        title={"Nepi_IF_Reset"}
-                  />
+                    {/*
+                                
+                      <Columns>
+                        <Column>
+                        <div align={"left"} textAlign={"left"}>
+                            <Label title={"Data Output Frame"}>
+                            <Input value = {this.state.frame_3d} />
+                            </Label>
+                          </div>
+                        </Column>
+                        <Column>
+
+                        </Column>
+                      </Columns>
+                */}
+
+
+                  <NepiIFReset
+                            namespace={namespace}
+                            title={"Nepi_IF_Reset"}
+                      />
+
+            </div>
+
           </Section>
         )
       }

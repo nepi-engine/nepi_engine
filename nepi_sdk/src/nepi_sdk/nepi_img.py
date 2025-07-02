@@ -496,13 +496,16 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
          logger.log_warn("Failed to apply overlay text: " + str(e), throttle_s = 5)
     return cv2_img
  
-def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
+def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0),
+    scale = None, thickness = None, size_ratio = 0.5, background_rgb = None, apply_shadow = False):
     # Add text overlay
     font = cv2.FONT_HERSHEY_SIMPLEX
     lineType = 1
     for text in text_list:
       if scale is None or thickness is None:
         scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+      scale = scale * (0.5 * size_ratio)
+      thickness = thickness * (0.5 * size_ratio)
       cv2_img = overlay_text(cv2_img, text, x_px , y_px, color_rgb, scale, thickness,background_rgb = background_rgb, apply_shadow = apply_shadow)
       text_size = cv2.getTextSize(text, 
           font, 

@@ -484,80 +484,7 @@ class ROSConnectionStore {
     return ret
   }
 
-  @action.bound
-  updateMessageTopics() {
-    // Function for updating image topics list
-    var newMessageTopics = []
-    for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_interfaces/Message") {
-        newMessageTopics.push(this.topicNames[i])
-      }
-    }
 
-    // sort the image topics for comparison to work
-    newMessageTopics.sort()
-
-    if (!this.messageTopics.equals(newMessageTopics)) {
-      this.messageTopics = newMessageTopics
-      return true
-    } else {
-      return false
-    }
-  }
-
-
-  @action.bound
-  updateNavPoseTopics() {
-    // Function for updating image topics list
-    var newNavPoseTopics = []
-    for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "sensor_msgs/NavPose" && this.topicNames[i].indexOf("zed_node") === -1) {
-        newNavPoseTopics.push(this.topicNames[i])
-      }
-    }
-
-    // sort the image topics for comparison to work
-    newNavPoseTopics.sort()    
-
-    if (!this.navposeTopic.equals(newNavPoseTopics)) {
-      this.navposeTopics = newNavPoseTopics
-      for (var i = 0; i < this.navposeTopics.length; i++) {
-            this.callNavPoseCapabilitiesQueryService(this.NavPoseTopics[i])
-          }
-      return true
-    } else {
-      return false
-    }
-  }
-
-  @action.bound
-  updateImageTopics() {
-    // Function for updating image topics list
-    var newImageTopics = []
-    var newImageDetectionTopics = []
-    for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_interfaces/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
-        newImageTopics.push(this.topicNames[i])
-        if (this.topicNames[i].indexOf('detection_image') !== -1){
-          newImageDetectionTopics.push(this.topicNames[i])
-        }
-      }
-    }
-
-    // sort the image topics for comparison to work
-    newImageTopics.sort()    
-
-    if (!this.imageTopics.equals(newImageTopics)) {
-      this.imageTopics = newImageTopics
-      this.imageDetectionTopics = newImageDetectionTopics
-      for (var i = 0; i < this.imageTopics.length; i++) {
-            this.callImageCapabilitiesQueryService(this.imageTopics[i])
-          }
-      return true
-    } else {
-      return false
-    }
-  }
 
   @action.bound
   updateSaveDataNamespaces() {
@@ -585,13 +512,89 @@ class ROSConnectionStore {
   }
 
 
+  @action.bound
+  updateMessageTopics() {
+    // Function for updating image topics list
+    var newMessageTopics = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicTypes[i] === "nepi_interfaces/Message") {
+        newMessageTopics.push(this.topicNames[i])
+      }
+    }
+
+    // sort the image topics for comparison to work
+    newMessageTopics.sort()
+
+    if (!this.messageTopics.equals(newMessageTopics)) {
+      this.messageTopics = newMessageTopics
+      return true
+    } else {
+      return false
+    }
+  }
+
+
+  @action.bound
+  updateNavPoseTopics() {
+    // Function for updating image topics list
+    var newNavPoseTopics = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicTypes[i] === "nepi_interfaces/NavPose" && this.topicNames[i].indexOf("zed_node") === -1) {
+        newNavPoseTopics.push(this.topicNames[i])
+      }
+    }
+
+    // sort the image topics for comparison to work
+    newNavPoseTopics.sort()    
+
+    if (!this.navposeTopic.equals(newNavPoseTopics)) {
+      this.navposeTopics = newNavPoseTopics
+      for (var i = 0; i < this.navposeTopics.length; i++) {
+            this.callNavPoseCapabilitiesQueryService(this.NavPoseTopics[i])
+          }
+      return true
+    } else {
+      return false
+    }
+  }
+
+  @action.bound
+  updateImageTopics() {
+    // Function for updating image topics list
+    var newImageTopics = []
+    var newImageDetectionTopics = []
+    for (var i = 0; i < this.topicNames.length; i++) {
+      if (this.topicTypes[i] === "sensor_msgs/Image" && this.topicNames[i].indexOf("zed_node") === -1) {
+        newImageTopics.push(this.topicNames[i])
+        if (this.topicNames[i].indexOf('detection_image') !== -1){
+          newImageDetectionTopics.push(this.topicNames[i])
+        }
+      }
+    }
+
+    // sort the image topics for comparison to work
+    newImageTopics.sort()    
+
+    if (!this.imageTopics.equals(newImageTopics)) {
+      this.imageTopics = newImageTopics
+      this.imageDetectionTopics = newImageDetectionTopics
+      for (var i = 0; i < this.imageTopics.length; i++) {
+            this.callImageCapabilitiesQueryService(this.imageTopics[i])
+          }
+      return true
+    } else {
+      return false
+    }
+  }
+
+
 
   @action.bound
   updatePointcloudTopics() {
     // Function for updating image topics list
     var newPointcloudTopics = []
     for (var i = 0; i < this.topicNames.length; i++) {
-      if (this.topicTypes[i] === "nepi_interfaces/DataPointcloud") {
+      if (this.topicTypes[i] === "sensor_msgs/PointCloud2") {
         newPointcloudTopics.push(this.topicNames[i])
       }
     }

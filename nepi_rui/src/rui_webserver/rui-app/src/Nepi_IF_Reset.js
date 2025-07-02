@@ -66,7 +66,7 @@ class NepiIFReset extends Component {
                     <Column>
 
                     <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset")}>{"Factory"}</Button>
+                          <Button onClick={() => this.props.ros.sendTriggerMsg( namespace + "/reset")}>{"Reset"}</Button>
                     </ButtonMenu>
 
 
