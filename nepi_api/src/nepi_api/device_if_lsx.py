@@ -109,6 +109,7 @@ class LSXDeviceIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
 
         ##############################  
         # Create Msg Class
@@ -246,7 +247,7 @@ class LSXDeviceIF:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.node_namespace
+                'namespace':  self.namespace
         }
 
 
@@ -255,39 +256,39 @@ class LSXDeviceIF:
 
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'standby_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("standby_enabled")
             },
             'on_off_state': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("on_off_state")
             },
             'intensity_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("intensity_ratio")
             },
             'color_selection': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("color_selection")
             },
             'kelvin_val': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("kelvin_val")
             }, 
             'strobe_enbled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("strobe_enbled")
             },
             'blink_interval_sec': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
         }
@@ -296,8 +297,8 @@ class LSXDeviceIF:
 
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': LSXCapabilitiesQuery,
                 'req': LSXCapabilitiesQueryRequest(),
                 'resp': LSXCapabilitiesQueryResponse(),
@@ -309,8 +310,8 @@ class LSXDeviceIF:
 
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DeviceLSXStatus,
                 'qsize': 1,
                 'latch': True
@@ -321,96 +322,96 @@ class LSXDeviceIF:
 
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_device_name',
+                'namespace': self.namespace,
+                'topic': 'set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_device_name',
+                'namespace': self.namespace,
+                'topic': 'reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
             'set_standby': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_empty',
+                'namespace': self.namespace,
+                'topic': 'set_empty',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setStandbyCb, 
                 'callback_args': ()
             },
             'turn_on_off': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/turn_on_off',
+                'namespace': self.namespace,
+                'topic': 'turn_on_off',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.turnOnOffCb, 
                 'callback_args': ()
             },
             'set_intensity_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_intensity_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_intensity_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setIntensityRatioCb, 
                 'callback_args': ()
             },
             'set_color': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_color',
+                'namespace': self.namespace,
+                'topic': 'set_color',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setColorCb, 
                 'callback_args': ()
             },
             'set_kelvin': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_kelvin',
+                'namespace': self.namespace,
+                'topic': 'set_kelvin',
                 'msg': Int32,
                 'qsize': 1,
                 'callback': self.setKelvinCb, 
                 'callback_args': ()
             },
             'set_blink_interval': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_blink_interval',
+                'namespace': self.namespace,
+                'topic': 'set_blink_interval',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setBlinkIntervalCb, 
                 'callback_args': ()
             },
             'set_strobe_enable': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_strobe_enable',
+                'namespace': self.namespace,
+                'topic': 'set_strobe_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setStrobeEnableCb, 
                 'callback_args': ()
             },
             'reset_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_controls',
+                'namespace': self.namespace,
+                'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -450,7 +451,7 @@ class LSXDeviceIF:
         ###############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        transform_ns = nepi_sdk.create_namespace(self.namespace,'lsx')
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
@@ -463,7 +464,7 @@ class LSXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        settings_ns = self.namespace
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -495,7 +496,7 @@ class LSXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -506,7 +507,7 @@ class LSXDeviceIF:
         '''
  
         # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,

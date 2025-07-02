@@ -84,6 +84,7 @@ class IDXDeviceIF:
     DEFUALT_IMG_HEIGHT_DEG = 70
 
     # Define class variables
+    namespace = '~'
     ready = False
 
     status_msg = DeviceIDXStatus()
@@ -130,7 +131,7 @@ class IDXDeviceIF:
     perspective = 'pov'
 
     width_deg = DEFUALT_IMG_WIDTH_DEG
-    height_deg = DEFUALT_IMG_WIDTH_DEG
+    height_deg = DEFUALT_IMG_HEIGHT_DEG
 
     data_product_dict = dict()
 
@@ -191,7 +192,7 @@ class IDXDeviceIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
-
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
         ##############################  
         # Create Msg Class
         if msg_if is not None:
@@ -322,7 +323,7 @@ class IDXDeviceIF:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.node_namespace
+                'namespace':  self.namespace
         }
 
 
@@ -330,63 +331,63 @@ class IDXDeviceIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'width_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.width_deg
             },
             'height_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.height_deg
             },
             'auto_adjust_ebabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["auto_adjust_ebabled"]
             },
             'brightness_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["brightness_ratio"]
             },
             'contrast_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["contrast_ratio"]
             },
             'threshold_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["threshold_ratio"]
             },
             'resolution_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["resolution_ratio"]
             },
             'framerate_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["framerate_ratio"]
             },
             'start_range_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["start_range_ratio"]
             },
             'stop_range_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["stop_range_ratio"]
             },
             'frame_3d': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.frame_3d
             },
             'pt_mounted': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'pt_topic': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': ''
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
 
@@ -400,8 +401,8 @@ class IDXDeviceIF:
 
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': IDXCapabilitiesQuery,
                 'req': IDXCapabilitiesQueryRequest(),
                 'resp': IDXCapabilitiesQueryResponse(),
@@ -412,8 +413,8 @@ class IDXDeviceIF:
 
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DeviceIDXStatus,
                 'qsize': 1,
                 'latch': True
@@ -421,8 +422,8 @@ class IDXDeviceIF:
         }
 
         '''            'image_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/test_image',
+                'namespace': self.namespace,
+                'topic': 'test_image',
                 'msg': Image,
                 'qsize': 1,
                 'latch': True
@@ -434,136 +435,136 @@ class IDXDeviceIF:
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_device_name',
+                'namespace': self.namespace,
+                'topic': 'set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/reset_device_name',
+                'namespace': self.namespace,
+                'topic': 'reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
             'set_width_deg': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_width_deg',
+                'namespace': self.namespace,
+                'topic': 'set_width_deg',
                 'msg': Int32,
                 'qsize': 1,
                 'callback': self.setWidthDegCb, 
                 'callback_args': ()
             },
             'set_height_deg': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_height_deg',
+                'namespace': self.namespace,
+                'topic': 'set_height_deg',
                 'msg': Int32,
                 'qsize': 1,
                 'callback': self.setHeightDegCb, 
                 'callback_args': ()
             },
             'set_auto_adjust': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_auto_adjust_enable',
+                'namespace': self.namespace,
+                'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setAutoAdjustRatioCb, 
                 'callback_args': ()
             },
             'set_brightness': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_brightness_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setBrightnessRatioCb, 
                 'callback_args': ()
             },
             'set_contrast': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_contrast_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setContrastRatioCb, 
                 'callback_args': ()
             },
             'set_threshold': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_threshold_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setThresholdingRatioCb, 
                 'callback_args': ()
             },
             'set_resolution_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_resolution_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_resolution_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setResolutionRatioCb, 
                 'callback_args': ()
             },
             'set_framerate_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_framerate_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_framerate_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setFramerateRatioCb, 
                 'callback_args': ()
             },
             'set_range_window': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_range_window',
+                'namespace': self.namespace,
+                'topic': 'set_range_window',
                 'msg': RangeWindow,
                 'qsize': 1,
                 'callback': self.setRangeRatioCb, 
                 'callback_args': ()
             },
             'set_frame_3d': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_frame_3d',
+                'namespace': self.namespace,
+                'topic': 'set_frame_3d',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setFrame3dCb, 
                 'callback_args': ()
             },
             'reset_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/reset',
+                'namespace': self.namespace,
+                'topic': 'reset',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
             'set_pt_mounted': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_pt_mounted',
+                'namespace': self.namespace,
+                'topic': 'set_pt_mounted',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setPtMountedCb, 
                 'callback_args': ()
             },
             'set_pt_topic': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_pt_topic',
+                'namespace': self.namespace,
+                'topic': 'set_pt_topic',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setPtTopicCb, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'idx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -675,7 +676,7 @@ class IDXDeviceIF:
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -708,7 +709,7 @@ class IDXDeviceIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        transform_ns = self.namespace
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
@@ -722,7 +723,7 @@ class IDXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        settings_ns = self.namespace
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -739,7 +740,7 @@ class IDXDeviceIF:
                         )
 
         # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
@@ -1294,7 +1295,7 @@ class IDXDeviceIF:
             dp_if = None
             if data_product == 'color_image':
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
-                dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+                dp_namespace = self.namespace
                 dp_if = ColorImageIF(namespace = dp_namespace, 
                             data_product_name = data_product, 
                             data_source_description = self.data_source_description,
@@ -1386,7 +1387,7 @@ class IDXDeviceIF:
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             min_range_m = self.status_msg.range_window.start_range
             max_range_m = self.status_msg.range_window.stop_range
-            dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+            dp_namespace = self.namespace
             dp_if = DepthMapIF(namespace = dp_namespace, 
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
@@ -1486,7 +1487,7 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
-            dp_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+            dp_namespace = self.namespace
             dp_if = PointcloudIF(namespace = dp_namespace, 
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,

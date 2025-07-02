@@ -202,6 +202,7 @@ class RBXRobotIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'rbx')
 
         ##############################  
         # Create Msg Class
@@ -424,48 +425,48 @@ class RBXRobotIF:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.node_namespace
+                'namespace':  self.namespace
         }
 
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'cmd_timeout': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_CMD_TIMEOUT_SEC
             },
             'home_location': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_HOME_LOCATION
             },
             'fake_gps_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'max_error_m': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_M
             },
             'max_error_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_DEG
             },
             'stabilized_sec': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_STABILIZED_SEC
             },
             'image_source': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.FACTORY_IMAGE_INPUT_TOPIC_NAME
             },
             'image_status_overlay': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
 
@@ -476,8 +477,8 @@ class RBXRobotIF:
 
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': RBXCapabilitiesQuery,
                 'req': RBXCapabilitiesQueryRequest(),
                 'resp': RBXCapabilitiesQueryResponse(),
@@ -487,22 +488,22 @@ class RBXRobotIF:
 
         self.PUBS_DICT = {
             'rbx_info_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/info',
+                'namespace': self.namespace,
+                'topic': 'info',
                 'msg': DeviceRBXInfo,
                 'qsize': 1,
                 'latch': True
             },
             'status_msg_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DeviceRBXStatus,
                 'qsize': 1,
                 'latch': True
             },
             'status_msg_str_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/status_str',
+                'namespace': self.namespace,
+                'topic': 'status_str',
                 'msg': String,
                 'qsize': 1,
                 'latch': True
@@ -511,32 +512,32 @@ class RBXRobotIF:
      
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_device_name',
+                'namespace': self.namespace,
+                'topic': 'set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/reset_device_name',
+                'namespace': self.namespace,
+                'topic': 'reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
             'set_goto_error_bounds': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_goto_error_bounds',
+                'namespace': self.namespace,
+                'topic': 'set_goto_error_bounds',
                 'msg': ErrorBounds,
                 'qsize': None,
                 'callback': self.setErrorBoundsCb, 
                 'callback_args': ()
             },
             'enable_fake_gps': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/enable_fake_gps',
+                'namespace': self.namespace,
+                'topic': 'enable_fake_gps',
                 'msg': Bool,
                 'qsize': None,
                 'callback': self.fakeGPSEnableCb, 
@@ -544,8 +545,8 @@ class RBXRobotIF:
             },
 
             'set_state': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_state',
+                'namespace': self.namespace,
+                'topic': 'set_state',
                 'msg': Int32,
                 'qsize': None,
                 'callback': self.setStateCb, 
@@ -553,8 +554,8 @@ class RBXRobotIF:
             },
 
             'set_mode': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_mode',
+                'namespace': self.namespace,
+                'topic': 'set_mode',
                 'msg': Int32,
                 'qsize': None,
                 'callback': self.setModeCb, 
@@ -562,8 +563,8 @@ class RBXRobotIF:
             },
 
             'setup_action': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/setup_action',
+                'namespace': self.namespace,
+                'topic': 'setup_action',
                 'msg': MotorControl,
                 'qsize': None,
                 'callback': self.setupActionCb, 
@@ -571,8 +572,8 @@ class RBXRobotIF:
             },
 
             'set_motor_control': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_motor_control',
+                'namespace': self.namespace,
+                'topic': 'set_motor_control',
                 'msg': MotorControl,
                 'qsize': None,
                 'callback': self.setMotorControlCb, 
@@ -580,8 +581,8 @@ class RBXRobotIF:
             },
 
             'go_action': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/go_action',
+                'namespace': self.namespace,
+                'topic': 'go_action',
                 'msg': UInt32,
                 'qsize': None,
                 'callback': self.setCmdTimeoutCb, 
@@ -589,8 +590,8 @@ class RBXRobotIF:
             },
 
             'set_goto_timeout': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_goto_timeout',
+                'namespace': self.namespace,
+                'topic': 'set_goto_timeout',
                 'msg': UInt32,
                 'qsize': None,
                 'callback': self.goHomeCb, 
@@ -598,8 +599,8 @@ class RBXRobotIF:
             },
 
             'go_home': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/go_home',
+                'namespace': self.namespace,
+                'topic': 'go_home',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.setHomeCb, 
@@ -607,8 +608,8 @@ class RBXRobotIF:
             },
 
             'set_home': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_home',
+                'namespace': self.namespace,
+                'topic': 'set_home',
                 'msg': GeoPoint,
                 'qsize': None,
                 'callback': self.setHomeCb, 
@@ -616,8 +617,8 @@ class RBXRobotIF:
             },
 
             'set_home_current': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_home_current',
+                'namespace': self.namespace,
+                'topic': 'set_home_current',
                 'msg': GotoLocation,
                 'qsize': None,
                 'callback': self.setHomeCurrentCb, 
@@ -625,88 +626,88 @@ class RBXRobotIF:
             },
 
             'goto_location': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/goto_location',
+                'namespace': self.namespace,
+                'topic': 'goto_location',
                 'msg': GotoLocation,
                 'qsize': None,
                 'callback': self.gotoLocationCb, 
                 'callback_args': ()
             },
             'goto_position': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/goto_position',
+                'namespace': self.namespace,
+                'topic': 'goto_position',
                 'msg': GotoPosition,
                 'qsize': None,
                 'callback': self.gotoPositionCb, 
                 'callback_args': ()
             },
             'goto_pose': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/goto_pose',
+                'namespace': self.namespace,
+                'topic': 'goto_pose',
                 'msg': GotoPose,
                 'qsize': None,
                 'callback': self.gotoPoseCb, 
                 'callback_args': ()
             },
             'go_stop': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/go_stop',
+                'namespace': self.namespace,
+                'topic': 'go_stop',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.goStopCb, 
                 'callback_args': ()
             },
             'set_image_topic': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_image_topic',
+                'namespace': self.namespace,
+                'topic': 'set_image_topic',
                 'msg': String,
                 'qsize': None,
                 'callback': self.setImageTopicCb, 
                 'callback_args': ()
             },
             'enable_image_overlay': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/enable_image_overlay',
+                'namespace': self.namespace,
+                'topic': 'enable_image_overlay',
                 'msg': Bool,
                 'qsize': None,
                 'callback': self.enableImageOverlayCb, 
                 'callback_args': ()
             },
             'publish_status': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/publish_status',
+                'namespace': self.namespace,
+                'topic': 'publish_status',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.publishStatusCb, 
                 'callback_args': ()
             },
             'publish_info': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/publish_info',
+                'namespace': self.namespace,
+                'topic': 'publish_info',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.publishInfoCb, 
                 'callback_args': ()
             },
             'set_process_name': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_process_name',
+                'namespace': self.namespace,
+                'topic': 'set_process_name',
                 'msg': String,
                 'qsize': None,
                 'callback': self.setProcessNameCb, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'rbx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -761,7 +762,7 @@ class RBXRobotIF:
 
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'rbx')
+        transform_ns = self.namespace
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
@@ -782,7 +783,7 @@ class RBXRobotIF:
 
         # Setup System IF Classes ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        settings_ns = self.namespace
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -815,7 +816,7 @@ class RBXRobotIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -824,7 +825,7 @@ class RBXRobotIF:
                             msg_if = self.msg_if
                         )
         # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+        np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,

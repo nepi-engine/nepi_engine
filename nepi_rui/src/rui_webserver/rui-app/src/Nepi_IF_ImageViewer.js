@@ -246,20 +246,18 @@ class ImageViewer extends Component {
     const status_msg = this.state.status_msg
     var msg = ""
     if (status_msg != null){
-      const frame_3d = round(status_msg.frame_3d, 3)
-      const encoding = round(status_msg.encoding, 3)
-      const width_px = round(status_msg.width_px, 3)
-      const height_px = round(status_msg.height_px, 3)
-      const width_deg = round(status_msg.width_deg, 3)
-      const height_deg = round(status_msg.height_deg, 3)
-      const perspective = round(status_msg.perspective, 3)
+      const frame_3d = status_msg.frame_3d
+      const encoding = status_msg.encoding
+      const width_px = round(status_msg.width_px, 0)
+      const height_px = round(status_msg.height_px, 0)
+      const width_deg = round(status_msg.width_deg, 0)
+      const height_deg = round(status_msg.height_deg, 0)
+      const perspective = status_msg.perspective
 
       msg = ("\n\n3D Frame: " + frame_3d + 
       "\n\nEncoding: " + encoding + 
-      "\n\nWidth (Pixals): " + width_px +
-      "\nHeight (Pixals): " + height_px +
-      "\n\nWidth (Deg): " + width_deg +
-      "\nHeight (Deg): " + height_deg +
+      "\n\nWidth/Height (Pixals): " + width_px.replace('.','') + ':' + height_px.replace('.','') +
+      "\n\nWidth/Height (Deg): " + width_deg.replace('.','') + ':' + height_deg.replace('.','') +
       "\nPerspective: " + perspective )
     }
     else {
@@ -365,25 +363,21 @@ class ImageViewer extends Component {
           <Columns>
           <Column>
 
-          <Label title={enhance_name.toUpperCase()}/>
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-                      <Columns>
-                        <Column>
+          
 
-                          <Label title={"Enabled"}>
+
+
+                        <Label title={'Filter: ' + enhance_name.toUpperCase()}>
+         
+                    
                             <Toggle
                               checked={enhance_enabled === true}
                               onClick={() => this.props.ros.sendUpdateStateMsg(namespace + "/set_enhance_enable",enhance_name,!enhance_enabled)}>
                             </Toggle>
-                          </Label>
-
-
-                          </Column>
-                          <Column>
-
-                          </Column>
-                        </Columns>
-
+                      
+                      </Label>
 
 
                   <div hidden={(enhance_enabled !== true)}>
@@ -430,7 +424,7 @@ class ImageViewer extends Component {
 
    
     if (this.state.status_msg != null && namespace != null && capabilities != null){
-      const has_auto_adjust = (capabilities && capabilities.has_auto_adjustment && !this.state.disabled)
+      const has_auto_adjust = (capabilities && capabilities.has_auto_adjust && !this.state.disabled)
       const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
       const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
       const has_threshold = (capabilities && capabilities.has_threshold && !this.state.disabled)
@@ -485,8 +479,11 @@ class ImageViewer extends Component {
         <Column>
  
  
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
               <div hidden={(hide_resolution)}>
+
+
 
                             <SliderAdjustment
                                   title={"Resolution"}
@@ -499,6 +496,8 @@ class ImageViewer extends Component {
                                   tooltip={"Adjustable Resolution"}
                                   unit={"%"}
                               />
+
+              </div>
 
                           <Columns>
                           <Column>
@@ -518,10 +517,13 @@ class ImageViewer extends Component {
                           </Column>
                         </Columns>             
 
-            </div>
+
 
 
             {this.renderEnhances(namespace, enhance_options, enhance_states, enhance_ratios)}
+
+
+            <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
             <div hidden={(has_auto_adjust !== true )}>
             
@@ -565,7 +567,7 @@ class ImageViewer extends Component {
                       <SliderAdjustment
                           title={"Brightness"}
                           msgType={"std_msgs/Float32"}
-                          adjustment={this.state.brightnessAdjustment}
+                          adjustment={brightness_ratio}
                           topic={namespace + "/set_brightness_ratio"}
                           scaled={0.01}
                           min={0}
@@ -702,6 +704,11 @@ class ImageViewer extends Component {
                         />
           </div>
 
+
+
+          <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/> 
+
+
           <ButtonMenu>
             <Button onClick={() => sendTriggerMsg( namespace + "/reset_controls")}>{"Reset Controls"}</Button>
           </ButtonMenu>
@@ -741,23 +748,12 @@ class ImageViewer extends Component {
 
         <Columns>
         <Column>
+
+
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
             <Columns>
             <Column>
-
-                  <SliderAdjustment
-                            title={"Overlay Size"}
-                            msgType={"std_msgs/Float32"}
-                            adjustment={size_ratio}
-                            topic={namespace + "/set_overlay_size_ratio"}
-                            scaled={0.01}
-                            min={0}
-                            max={100}
-                            disabled={false}
-                            tooltip={"Overlay size controls"}
-                            unit={"%"}
-                        />
-
-
                   <Label title={"Source Name"}>
                       <Toggle
                         checked={name}
@@ -792,6 +788,25 @@ class ImageViewer extends Component {
 
                 </Column>
               </Columns>
+
+
+
+              <SliderAdjustment
+                            title={"Overlay Size"}
+                            msgType={"std_msgs/Float32"}
+                            adjustment={size_ratio}
+                            topic={namespace + "/set_overlay_size_ratio"}
+                            scaled={0.01}
+                            min={0}
+                            max={100}
+                            disabled={false}
+                            tooltip={"Overlay size controls"}
+                            unit={"%"}
+                        />
+
+
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/> 
 
           <ButtonMenu>
             <Button onClick={() => sendTriggerMsg( namespace + "/reset_overlays")}>{"Reset Overlays"}</Button>
@@ -904,12 +919,26 @@ class ImageViewer extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-        <Label title="Show Info">
+              <div style={{ display: 'flex' }}>
+                <div style={{ width: '20%' }}>
+
+
+                <Label title="Show Info">
                   <Toggle
                     checked={this.state.show_info===true}
                     onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
                   </Toggle>
-        </Label>
+                </Label>
+
+                </div>
+
+                <div style={{ width: '80%' }}>
+
+                </div>
+              </div>
+
+
+
 
 
 
@@ -948,12 +977,27 @@ class ImageViewer extends Component {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-        <Label title="Show Controls">
-                  <Toggle
-                    checked={this.state.show_controls===true}
-                    onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
-                  </Toggle>
-        </Label>
+        <div style={{ display: 'flex' }}>
+                <div style={{ width: '20%' }}>
+
+
+                      <Label title="Show Controls">
+                        <Toggle
+                          checked={this.state.show_controls===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                        </Toggle>
+                    </Label>
+
+                </div>
+
+                <div style={{ width: '80%' }}>
+
+                </div>
+              </div>
+
+
+
+
 
 
 
@@ -965,7 +1009,7 @@ class ImageViewer extends Component {
                 <div style={{ width: '40%' }}>
 
 
-                    <Label title={"Overlays"} />
+                    <Label title={"OVERLAYS"} />
                                   {this.renderOverlays()}
 
 
@@ -977,7 +1021,7 @@ class ImageViewer extends Component {
 
                 <div style={{ width: '40%' }}>
 
-                    <Label title={"Controls"} />
+                    <Label title={"CONROLS"} />
                                   {this.renderControls()}
 
 

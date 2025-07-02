@@ -184,6 +184,7 @@ class PTXActuatorIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
         self.data_products_list = []
 
 
@@ -395,7 +396,7 @@ class PTXActuatorIF:
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
-            'namespace':  self.node_namespace
+            'namespace':  self.namespace
         }
 
 
@@ -403,71 +404,71 @@ class PTXActuatorIF:
 
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'speed_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
             },
             'home_position/pan_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 0.0
             },
             'home_position/tilt_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 0.0
             },
             'reverse_pan_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['reverse_pan_enabled']
             },            
             'reverse_tilt_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['reverse_tilt_enabled']
             },
             'max_pan_softstop_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_pan_softstop_deg']
             },            
             'min_pan_softstop_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['min_pan_softstop_deg']
             },            
             'max_tilt_softstop_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
             },           
             'min_tilt_softstop_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['min_tilt_softstop_deg']
             },           
             'auto_pan_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },           
             'min_auto_pan_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['min_pan_softstop_deg']
             },           
             'max_auto_pan_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_pan_softstop_deg']
             },           
             'auto_tilt_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': False
             },           
             'min_auto_tilt_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['min_tilt_softstop_deg']
             },           
             'max_auto_tilt_deg': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
         }
@@ -477,8 +478,8 @@ class PTXActuatorIF:
 
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': PTXCapabilitiesQuery,
                 'req': PTXCapabilitiesQueryRequest(),
                 'resp': PTXCapabilitiesQueryResponse(),
@@ -489,8 +490,8 @@ class PTXActuatorIF:
 
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DevicePTXStatus,
                 'qsize': 10,
                 'latch': False
@@ -502,184 +503,184 @@ class PTXActuatorIF:
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_device_name',
+                'namespace': self.namespace,
+                'topic': 'set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/reset_device_name',
+                'namespace': self.namespace,
+                'topic': 'reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
             'speed_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_speed_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setSpeedRatioHandler, 
                 'callback_args': ()
             },
             'stop_moving': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/stop_moving',
+                'namespace': self.namespace,
+                'topic': 'stop_moving',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.stopMovingHandler, 
                 'callback_args': ()
             },
             'goto_to_position': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_position',
+                'namespace': self.namespace,
+                'topic': 'goto_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
                 'callback': self.gotoPositionHandler, 
                 'callback_args': ()
             },
             'goto_to_pan_position': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_pan_position',
+                'namespace': self.namespace,
+                'topic': 'goto_pan_position',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoPanPositionHandler, 
                 'callback_args': ()
             },
             'goto_to_tilt_position': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_tilt_position',
+                'namespace': self.namespace,
+                'topic': 'goto_tilt_position',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoTiltPositionHandler, 
                 'callback_args': ()
             },
             'goto_pan_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_pan_ratio',
+                'namespace': self.namespace,
+                'topic': 'goto_pan_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoToPanRatioHandler, 
                 'callback_args': ()
             },
             'goto_tilt_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/goto_tilt_ratio',
+                'namespace': self.namespace,
+                'topic': 'goto_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.gotoToTiltRatioHandler, 
                 'callback_args': ()
             },
             'jog_timed_pan': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/jog_timed_pan',
+                'namespace': self.namespace,
+                'topic': 'jog_timed_pan',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
                 'callback': self.jogTimedPanHandler, 
                 'callback_args': ()
             },
             'jog_timed_tilt': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/jog_timed_tilt',
+                'namespace': self.namespace,
+                'topic': 'jog_timed_tilt',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
                 'callback': self.jogTimedTiltHandler, 
                 'callback_args': ()
             },
             'reverse_pan_enabled': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_reverse_pan_enable',
+                'namespace': self.namespace,
+                'topic': 'set_reverse_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setReversePanEnable, 
                 'callback_args': ()
             },
             'reverse_tilt_enabled': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_reverse_tilt_enable',
+                'namespace': self.namespace,
+                'topic': 'set_reverse_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setReverseTiltEnable, 
                 'callback_args': ()
             },
             'set_soft_limits': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_soft_limits',
+                'namespace': self.namespace,
+                'topic': 'set_soft_limits',
                 'msg': PanTiltLimits,
                 'qsize': 1,
                 'callback': self.setSoftstopHandler, 
                 'callback_args': ()
             },
             'go_home': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/go_home',
+                'namespace': self.namespace,
+                'topic': 'go_home',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.goHomeHandler, 
                 'callback_args': ()
             },
             'set_home_position': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_home_position',
+                'namespace': self.namespace,
+                'topic': 'set_home_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
                 'callback': self.setHomePositionHandler, 
                 'callback_args': ()
             },
             'set_home_position_here': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_home_position_here',
+                'namespace': self.namespace,
+                'topic': 'set_home_position_here',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.setHomePositionHereHandler, 
                 'callback_args': ()
             },
             'set_auto_pan': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_auto_pan_enable',
+                'namespace': self.namespace,
+                'topic': 'set_auto_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setAutoPanHandler, 
                 'callback_args': ()
             },
             'set_auto_pan_window': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_auto_pan_window',
+                'namespace': self.namespace,
+                'topic': 'set_auto_pan_window',
                 'msg': RangeWindow,
                 'qsize': 1,
                 'callback': self.setAutoPanWindowHandler, 
                 'callback_args': ()
             },
             'set_auto_tilt': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_auto_tilt_enable',
+                'namespace': self.namespace,
+                'topic': 'set_auto_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setAutoTiltHandler, 
                 'callback_args': ()
             },
             'set_auto_tilt_window': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_auto_tilt_window',
+                'namespace': self.namespace,
+                'topic': 'set_auto_tilt_window',
                 'msg': RangeWindow,
                 'qsize': 1,
                 'callback': self.setAutoTiltWindowHandler, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'ptx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -735,7 +736,7 @@ class PTXActuatorIF:
         # Start Additional System Processes
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+        transform_ns = self.namespace
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
@@ -748,7 +749,7 @@ class PTXActuatorIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+        settings_ns = self.namespace
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -782,7 +783,7 @@ class PTXActuatorIF:
                 'add_node_name': True
                 }
                 
-            sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+            sd_namespace = self.namespace
             self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
@@ -794,7 +795,7 @@ class PTXActuatorIF:
 
 
         # Setup navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+        np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,

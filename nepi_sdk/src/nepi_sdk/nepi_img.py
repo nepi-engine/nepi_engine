@@ -499,14 +499,15 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
 def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0),
     scale = None, thickness = None, size_ratio = 0.5, background_rgb = None, apply_shadow = False):
     # Add text overlay
+    x_px = int(x_px)
+    y_px = int(y_px)
     font = cv2.FONT_HERSHEY_SIMPLEX
     lineType = 1
-    for text in text_list:
-      if scale is None or thickness is None:
+    if scale is None or thickness is None:
         scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
-      scale = scale * (0.5 * size_ratio)
-      thickness = thickness * (0.5 * size_ratio)
-      cv2_img = overlay_text(cv2_img, text, x_px , y_px, color_rgb, scale, thickness,background_rgb = background_rgb, apply_shadow = apply_shadow)
+    scale = scale * (0.5 + size_ratio)
+    for i in range(len(text_list)):
+      text = text_list[i]
       text_size = cv2.getTextSize(text, 
           font, 
           scale,
@@ -514,7 +515,10 @@ def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0,
       # logger.log_warn("Text Size: " + str(text_size))
       line_height = text_size[0][1]
       line_width = text_size[0][0]
-      y_px = y_px + line_height * 1.5
+      y_px = int(y_px + line_height * 1.5)
+      #logger.log_warn("overlaying text: " + str(text) + ' at: ' + str([x_px,y_px]))
+      cv2_img = overlay_text(cv2_img, text, x_px , y_px, color_rgb, scale, thickness, background_rgb = background_rgb, apply_shadow = apply_shadow)
+
     return cv2_img
 
     

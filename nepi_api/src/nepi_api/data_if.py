@@ -1689,6 +1689,8 @@ class ImageIF:
             add_overlay_list = []
     )
 
+
+    auto_adjust_controls = []
     enhance_dict = dict()
     has_enhance = False
     enhance_options = []
@@ -2001,7 +2003,7 @@ class ImageIF:
                 'callback_args': ()
             },
             'overlay_size_ratio': {
-                'msg': Bool,
+                'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_size_ratio',
                 'qsize': 1,
@@ -2349,13 +2351,7 @@ class ImageIF:
         # Start Img Pub Process
         start_time = nepi_utils.get_time()   
  
-        [height,width] = cv2_img.shape[0:2]
-        last_width = self.status_msg.width_px
-        last_height = self.status_msg.height_px
-        self.status_msg.width_px = width
-        self.status_msg.height_px = height
-        res_str = str(width) + ":" + str(height)
-        self.status_msg.resolution_current = res_str
+
 
         self.status_msg.width_deg = width_deg
         self.status_msg.height_deg = height_deg
@@ -2368,11 +2364,20 @@ class ImageIF:
             self.status_msg.min_range_m = 0
             self.status_msg.max_range_m = 1
 
+        [height,width] = cv2_img.shape[0:2]
         self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
 
         
-        cv2_img = self._process_image(cv2_img)
+        [cv2_img,auto_adjust_controls] = self._process_image(cv2_img)
+        self.status_msg.auto_adjust_controls = auto_adjust_controls
 
+        [height,width] = cv2_img.shape[0:2]
+        last_width = self.status_msg.width_px
+        last_height = self.status_msg.height_px
+        self.status_msg.width_px = width
+        self.status_msg.height_px = height
+        res_str = str(width) + ":" + str(height)
+        self.status_msg.resolution_current = res_str
 
         
         navpose_dict = self.get_navpose_dict()
@@ -2386,6 +2391,8 @@ class ImageIF:
         
         if self.status_msg.overlay_date_time == True:
             overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+            overlay = overlay.replace('D','')
+            overlay = overlay.replace('T',' T')
             overlay_list.append(overlay)
 
         
@@ -2393,16 +2400,17 @@ class ImageIF:
                 navpose_dict = self.get_navpose_dict()
                 if navpose_dict is not None:
                     if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
                         overlay_list.append(overlay)
 
                     if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
                         overlay_list.append(overlay)
 
         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
         if len(overlay_list) > 0:
+            start_y = (height * 0.01)
             cv2_img = nepi_img.overlay_text_list(cv2_img, 
                                     text_list = overlay_list, 
                                     x_px = 10 , y_px = 10, 
@@ -2474,7 +2482,7 @@ class ImageIF:
         self.msg_if.pub_error("Resolution value out of bounds, using: " + str(ratio), log_name_list = self.log_name_list)
         self.controls_dict['resolution_ratio'] = ratio
         self.status_msg.resolution_ratio = ratio
-        self.publishStatus(do_updates=False) # Updated inline here
+        self.publish_status(do_updates=False) # Updated inline here
         self.node_if.set_param('resolution_ratio', ratio)
 
 
@@ -2992,7 +3000,7 @@ class ImageIF:
         self.reset_enhances()
 
     def _process_image(self, cv2_img):
-        return cv2_img
+        return cv2_img, self.auto_adjust_controls
         '''
         # Apply Controls
         enabled = self.status_msg.controls_enabled
@@ -3065,7 +3073,7 @@ class ColorImageIF(ImageIF):
     data_product = 'color_image'
 
 
-
+    auto_adjust_controls = ['brightness','contrast','threshold']
 
 
     
@@ -3142,7 +3150,7 @@ class ColorImageIF(ImageIF):
             cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
         else:
             cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-        return cv2_img
+        return cv2_img, self.auto_adjust_controls
 
 
 ##################################################
@@ -3196,6 +3204,8 @@ class DepthMapImageIF(ImageIF):
     subs_dict = None
 
     data_product = 'depth_map'
+
+    auto_adjust_controls = []
 
     def __init__(self, namespace = None , 
                 data_product_name = 'depth_map_image',
@@ -3251,32 +3261,7 @@ class DepthMapImageIF(ImageIF):
     ###############################
 
     def _process_image(self, cv2_img):
-        # Apply Resolution Controls
-        res_ratio = self.controls_dict['resolution_ratio']
-        if res_ratio < 0.9:
-            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-
-        # Apply Low Light Enhancment
-        if self.enhance_dict['low_light']['enabled'] == True:
-            ratio = self.enhance_dict['low_light']['ratio']
-            if ratio > 0.05:
-                pass
-                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
-
-        # Apply Adjustment Controls
-        auto = self.controls_dict['auto_adjust_enabled']
-        auto_ratio = self.controls_dict['auto_adjust_ratio']
-        brightness = self.controls_dict['contrast_ratio']
-        contrast = self.controls_dict['brightness_ratio']
-        threshold = self.controls_dict['threshold_ratio']
-
-        if auto is False:
-            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-        else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-        return cv2_img
+        return cv2_img, self.auto_adjust_controls
 
 
 
