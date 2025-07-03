@@ -2873,7 +2873,7 @@ class ImageIF:
     def _setAutoAdjustCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust Enable update message: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
-        self.set_auto_adjust(enabled)
+        self.set_auto_adjust_enable(enabled)
 
     def _setAutoAdjustRatioCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust Ratio update message: " + str(msg), log_name_list = self.log_name_list)

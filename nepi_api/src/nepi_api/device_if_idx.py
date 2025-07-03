@@ -641,7 +641,7 @@ class IDXDeviceIF:
             start_data_function = self.getPointcloud
             stop_data_function = self.stopPointcloudAcquisition
             data_msg = PointCloud2
-            data_status_msg = DataPointcloudStatus
+            data_status_msg = PointcloudStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
