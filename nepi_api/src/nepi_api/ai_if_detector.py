@@ -38,6 +38,7 @@ from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
+from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 
@@ -175,6 +176,33 @@ class AiDetectorIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
+
+        ##############################
+        ## Wait for NEPI core managers to start
+        # Wait for System Manager
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
+        success = mgr_sys_if.wait_for_services()
+        if success == False:
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+
+
+        #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
+        #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
+
+        self.api_lib_folder = API_LIB_FOLDER
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
+ 
+       
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
+        success = mgr_cfg_if.wait_for_status()
+        if success == False:
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+ 
+
+
         ##############################  
         # Init Class Variables 
 
@@ -183,24 +211,10 @@ class AiDetectorIF:
         namespace = nepi_sdk.create_namespace(namespace,'settings')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-
-
         self.has_img_tiling = has_img_tiling
 
-        ## Get folder info
-        self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-        success = self.mgr_sys_srv_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
 
-        #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-        #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
-
-        self.api_lib_folder = API_LIB_FOLDER
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
- 
- 
-
+        ## Init Status Messages
         self.status_msg = MgrAiDetectorStatus()
         self.det_status_msg = AiDetectorStatus()
 
@@ -261,10 +275,10 @@ class AiDetectorIF:
 
             self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg)
         
+        self.initCb(do_updates = False)
 
-
-        ##############################  
-        # Create NodeClassIF Class  
+        ##############################
+        ### Setup Node
 
         # Configs Dict ########################
         self.CONFIGS_DICT = {

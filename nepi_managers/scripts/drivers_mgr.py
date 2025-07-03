@@ -101,17 +101,16 @@ class NepiDriversMgr(object):
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
-        ##############################
-        # Initialize Class Variables
 
+        ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
         # Wait for System Manager
-        self.msg_if.pub_info("Starting ConnectSystemIF processes")
         mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
         success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+
         self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
         self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
         self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
@@ -119,15 +118,20 @@ class NepiDriversMgr(object):
         self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg',USER_CFG_FOLDER)
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
         
-        nepi_sdk.sleep(5)
+
+       
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
-
+        ##############################
+        # Initialize Class Variables
+        
         self.initCb(do_updates = False)
+
         ##############################
         ### Setup Node
 

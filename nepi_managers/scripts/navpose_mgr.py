@@ -60,7 +60,7 @@ from nepi_api.system_if import SaveDataIF
 
 from nepi_api.data_if import NavPoseIF
 
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 #########################################
@@ -174,27 +174,27 @@ class NavPoseMgr(object):
         self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
-        ##############################
-        # Initialize Class Variables
-        self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
+
 
         ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
+        success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-
-        nepi_sdk.sleep(5)
+       
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
-
+        ##############################
+        # Initialize Class Variables
+        self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
         self.cb_dict = {
             'location': self._locationSubCb,
@@ -208,6 +208,7 @@ class NavPoseMgr(object):
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
 
+        self.initCb(do_updates = False)
 
         ##############################
         ### Setup Node

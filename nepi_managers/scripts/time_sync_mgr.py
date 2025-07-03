@@ -77,14 +77,17 @@ class time_sync_mgr(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
+
         ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
         success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+       
+
         sys_status_dict = mgr_sys_if.get_system_status_dict()
         in_container = False
         if sys_status_dict is not None: 
@@ -92,18 +95,21 @@ class time_sync_mgr(object):
             in_container = sys_status_dict['in_container']
         self.in_container = in_container
         
-
-        nepi_sdk.sleep(5)
+       
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
-
+        ##############################
+        # Initialize Class Variables
         self.time_status = MgrTimeStatus()
         self.set_timezone(FACTORY_TIMEZONE)
 
+        self.initCb(do_updates = False)
+        
         ##############################
         ### Setup Node
 
@@ -146,6 +152,13 @@ class time_sync_mgr(object):
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'status',
+                'msg': Empty,
+                'qsize': 1,
+                'latch': True
+            },
             'sys_time_updated': {
                 'namespace': self.base_namespace,
                 'topic': 'sys_time_updated',
@@ -228,7 +241,7 @@ class time_sync_mgr(object):
             self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
 
 
-
+        nepi_sdk.start_timer_process(1, self.statusPubCb)
 
         #########################################################
         ## Initiation Complete
@@ -237,9 +250,9 @@ class time_sync_mgr(object):
         nepi_sdk.spin()
         #########################################################
 
-
-    def configStatusCb(self,msg):
-        self.cfg_status = True
+    def statusPubCb(self,timer):
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', Empty())
     
 
     #######################

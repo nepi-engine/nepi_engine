@@ -41,7 +41,7 @@ from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
@@ -91,15 +91,15 @@ class AIDetectorManager:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
         ##############################
-        # Initialize Variables
+        ### Setup Node
 
-        ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+        mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
+        success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+       
 
         self.aifs_param_folder = mgr_sys_if.get_sys_folder_path("aifs",AIFS_PARAM_FOLDER)
         self.msg_if.pub_info("Using AI Frameworks Params Folder: " + str(self.aifs_param_folder))
@@ -113,14 +113,15 @@ class AIDetectorManager:
         self.ai_models_folder = mgr_sys_if.get_sys_folder_path("ai_models",AI_MODELS_FOLDER)
         self.msg_if.pub_info("Using AI Models Folder: " + str(self.ai_models_folder))
         
-        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
-        ###########################
+        ##############################
+        # Initialize Variables
 
 
         message = "NO MODELS ENABLED"
@@ -136,6 +137,8 @@ class AIDetectorManager:
         self.ros_waiting_img = nepi_img.cv2img_to_rosimg(cv2_img) 
 
         self.initCb(do_updates = False)
+
+        
         ##############################
         ### Setup Node
 

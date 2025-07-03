@@ -154,9 +154,10 @@ class NetworkMgr:
         
         ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
+
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
         success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
@@ -164,26 +165,23 @@ class NetworkMgr:
         self.msg_if.pub_warn("Got System Status Dict: " + str(status_dict))
         self.in_container = status_dict['in_container']
         
-        
-        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
+        ##############################
+        # Initialize Variables
+
         self.tx_byte_cnt_deque = collections.deque(maxlen=2)
         self.rx_byte_cnt_deque = collections.deque(maxlen=2)
         
 
         self.detectWifiDevice()
 
-
-
-
-
-
-        ###########################
+        self.initCb(do_updates = False) 
 
         ##############################
         ### Setup Node

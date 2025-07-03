@@ -1722,6 +1722,7 @@ class BaseImageIF:
                 services_dict,
                 pubs_dict,
                 subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -2230,13 +2231,15 @@ class BaseImageIF:
 
        # Setup navpose data IF
         np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
+        if pub_navpose is not None:
+            if pub_navpose == True:
+                self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            log_name = 'navpose',
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
            
 
 
@@ -2397,23 +2400,22 @@ class BaseImageIF:
 
         
         if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                navpose_dict = self.get_navpose_dict()
-                if navpose_dict is not None:
-                    if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
-                        overlay_list.append(overlay)
+            if navpose_dict is not None:
+                if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                    overlay_list.append(overlay)
 
-                    if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                        overlay_list.append(overlay)
+                if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                    overlay_list.append(overlay)
 
         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
         if len(overlay_list) > 0:
-            start_y = (height * 0.005)
+            start_y = (height * 0.01)
             cv2_img = nepi_img.overlay_text_list(cv2_img, 
                                     text_list = overlay_list, 
-                                    x_px = 10 , y_px = 10, 
+                                    x_px = 10 , y_px = start_y, 
                                     color_rgb = (0, 255, 0), 
                                     apply_shadow = True, 
                                     size_ratio = self.overlay_size_ratio )
@@ -2427,8 +2429,8 @@ class BaseImageIF:
         self.node_if.publish_pub('data_pub', ros_img)
 
         
-        #if navpose_dict is not None and self.navpose_if is not None:
-        #    self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
+        if navpose_dict is not None and self.navpose_if is not None:
+            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
         
         # Update stats
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -3084,6 +3086,7 @@ class ImageIF(BaseImageIF):
                 perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
+                pub_navpose = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3103,6 +3106,7 @@ class ImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -3220,6 +3224,7 @@ class ColorImageIF(BaseImageIF):
                 perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
+                pub_navpose = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3239,6 +3244,7 @@ class ColorImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -3325,6 +3331,7 @@ class DepthMapImageIF(BaseImageIF):
                 perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
+                pub_navpose = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3345,6 +3352,7 @@ class DepthMapImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -3420,6 +3428,7 @@ class DepthMapIF:
     data_products_list = [data_product]
 
     get_navpose_function = None
+    navpose_if = None
 
     def __init__(self, namespace = None,
                 data_product_name = 'depth_map',
@@ -3428,6 +3437,7 @@ class DepthMapIF:
                 enable_data_pub = True,
                 max_data_pub_rate = 5,
                 get_navpose_function = None,
+                pub_navpose = False,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -3643,6 +3653,19 @@ class DepthMapIF:
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+
+        # Setup navpose data IF if needed
+        np_namespace = self.namespace
+        if pub_navpose is not None:
+            if pub_navpose == True:
+                self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            log_name = 'navpose',
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
+
         ##############################
         # Complete Initialization
         self.ready = True
@@ -3689,6 +3712,13 @@ class DepthMapIF:
     def has_subscribers_check(self):
         return self.has_subs
 
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
 
     def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1',
                              width_deg = DEFAULT_WIDTH_DEG,
@@ -3740,45 +3770,40 @@ class DepthMapIF:
             self.status_msg.min_range_m = 0
             self.status_msg.max_range_m = 1
 
-        if self.has_subs == False:
-            self.msg_if.pub_debug("Depthmap has no subscribers", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Depthmap has no subscribers", log_name_list = self.log_name_list)
-            self.status_msg.publishing = False
 
+        self.status_msg.publishing = True
+
+        navpose_dict = self.get_navpose_dict()
+
+        #Convert to ros Image message
+        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+        sec = nepi_sdk.sec_from_timestamp(timestamp)
+        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+        self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+        self.node_if.publish_pub('data_pub', ros_img)
+        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+        self.status_msg.process_time = process_time
+        latency = (current_time - timestamp)
+        self.status_msg.pub_latency_time = latency
+        
+
+
+
+        if self.last_pub_time is None:
+            self.last_pub_time = nepi_utils.get_time()
         else:
-            self.msg_if.pub_debug("Depthmap has subscribers, will publish", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Depthmap has subscribers, will publish", log_name_list = self.log_name_list)
-            self.status_msg.publishing = True
+            cur_time = nepi_utils.get_time()
+            pub_time_sec = cur_time - self.last_pub_time
+            self.last_pub_time = cur_time
+            self.status_msg.last_pub_sec = pub_time_sec
 
-            #Convert to ros Image message
-            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            sec = nepi_sdk.sec_from_timestamp(timestamp)
-            ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-            self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('data_pub', ros_img)
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-            
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
 
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
+        if navpose_dict is not None and self.navpose_if is not None:
+            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
 
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
-
-        # Update blank image if needed
-        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-        return True
+        return cv2_img
 
     def unregister(self):
         self.ready = False
@@ -3907,6 +3932,7 @@ class PointcloudIF:
     data_products_list = [data_product]
 
     get_navpose_function = None
+    navpose_if = None
 
     def __init__(self, namespace = None,
                 data_product_name = 'pointcloud',
@@ -3915,6 +3941,7 @@ class PointcloudIF:
                 enable_data_pub = True,
                 max_data_pub_rate = 5,
                 get_navpose_function = None,
+                pub_navpose = False,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -4228,6 +4255,20 @@ class PointcloudIF:
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+        # Setup navpose data IF if needed
+        np_namespace = self.namespace
+        if pub_navpose is not None:
+            if pub_navpose == True:
+                self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            log_name = 'navpose',
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
+
+
+
         ##############################
         # Complete Initialization
         self.ready = True
@@ -4277,7 +4318,13 @@ class PointcloudIF:
         self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         return has_subs
 
-
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
 
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
@@ -4327,45 +4374,41 @@ class PointcloudIF:
 
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        has_subs = copy.deepcopy(self.has_subs)
 
-        if self.has_subs == False:
-            if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Pointcloud has no subscribers", log_name_list = self.log_name_list)
-            self.status_msg.publishing = False
+        self.status_msg.publishing = True
+
+        navpose_dict = self.get_navpose_dict()
+
+        #Convert to ros Image message
+        ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
+        sec = nepi_sdk.sec_from_timestamp(timestamp)
+        ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+
+        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+        self.status_msg.process_time = process_time
+        latency = (current_time - timestamp)
+        self.status_msg.pub_latency_time = latency
+
+            
+
+        if not nepi_sdk.is_shutdown():
+            self.node_if.publish_pub('data_pub', ros_pc)
+
+        if self.last_pub_time is None:
+            self.last_pub_time = nepi_utils.get_time()
         else:
-            if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Pointcloud has subscribers, will publish", log_name_list = self.log_name_list)
-            self.status_msg.publishing = True
-            #Convert to ros Image message
-            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
-            sec = nepi_sdk.sec_from_timestamp(timestamp)
-            ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+            cur_time = nepi_utils.get_time()
+            pub_time_sec = cur_time - self.last_pub_time
+            self.last_pub_time = cur_time
+            self.status_msg.last_pub_sec = pub_time_sec
 
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
 
-
-            if not nepi_sdk.is_shutdown():
-                self.node_if.publish_pub('data_pub', ros_pc)
-
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
-
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
-
-                
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-        return True
+        if navpose_dict is not None and self.navpose_if is not None:
+            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
+            
+        return o3d_pc
 
     def unregister(self):
         self.ready = False

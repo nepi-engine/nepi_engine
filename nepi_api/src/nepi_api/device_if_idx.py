@@ -471,7 +471,7 @@ class IDXDeviceIF:
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setAutoAdjustRatioCb, 
+                'callback': self.setAutoAdjustEnableCb, 
                 'callback_args': ()
             },
             'set_brightness': {
@@ -869,12 +869,13 @@ class IDXDeviceIF:
       if self.node_if is not None:
             self.device_name = self.node_if.get_param('device_name')
             self.width_deg = self.node_if.get_param('width_deg')
-            self.height_deg = self.node_if.get_param('height_deg')       
+            self.height_deg = self.node_if.get_param('height_deg')  
+            self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')
+            self.ctl_fr_ratio = self.node_if.get_param('framerate_ratio')     
             self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled') 
             self.ctl_brightness = self.node_if.get_param('brightness_ratio')
             self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
-            self.ctl_threshold = self.node_if.get_param('threshold_ratio')
-            self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')  
+            self.ctl_threshold = self.node_if.get_param('threshold_ratio')  
             self.ctr_start_range_ratio = self.node_if.get_param('start_range_ratio')
             self.ctr_stop_range_ratio = self.node_if.get_param('stop_range_ratio')
 
@@ -1037,23 +1038,23 @@ class IDXDeviceIF:
             self.publish_status(do_updates=False) # Updated inline here   
             self.node_if.set_param('height_deg', height)
             
-    def setAutoAdjustRatioCb(self, msg):
+    def setAutoAdjustEnableCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
-        new_auto_adjust = msg.data
+        enabled = msg.data
         if self.setAutoAdjustRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setAutoAdjustRatio(new_auto_adjust)
+            status, err_str = self.setAutoAdjustRatio(enabled)
 
-        if new_auto_adjust:
+        if enabled:
             self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
 
-        self.ctl_auto = new_auto_adjust       
-        self.status_msg.auto_adjust_ebabled = new_auto_adjust
+        self.ctl_auto = enabled       
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust_ebabled', new_auto_adjust)
+        if self.node_if is not None:
+            self.node_if.set_param('auto_adjust_ebabled', enabled)
 
 
 
@@ -1072,9 +1073,9 @@ class IDXDeviceIF:
         if self.setBrightnessRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setBrightnessRatio(self.ctl_brightness)
+            status, err_str = self.setBrightnessRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('brightness_ratio', self.ctl_brightness)
+            self.node_if.set_param('brightness_ratio', ratio)
 
 
     def setContrastRatioCb(self, msg):
@@ -1090,9 +1091,9 @@ class IDXDeviceIF:
         if self.setContrastRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setContrastRatio(self.ctl_contrast)
+            status, err_str = self.setContrastRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('contrast_ratio', self.ctl_contrast)
+            self.node_if.set_param('contrast_ratio', ratio)
         
 
 
@@ -1110,9 +1111,9 @@ class IDXDeviceIF:
         if self.setThresholdingRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-            status, err_str = self.setThresholdingRatio(self.ctl_threshold)
+            status, err_str = self.setThresholdingRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('threshold_ratio', self.ctl_threshold)
+            self.node_if.set_param('threshold_ratio', ratio)
         
 
     def setResolutionRatioCb(self, msg):
@@ -1129,9 +1130,9 @@ class IDXDeviceIF:
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
         if self.setResolutionRatio is not None:
-            status, err_str = self.setResolutionRatio(self.ctl_res_ratio)
+            status, err_str = self.setResolutionRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('resolution_ratio', self.ctl_res_ratio)
+            self.node_if.set_param('resolution_ratio', ratio)
         
 
 
@@ -1155,10 +1156,12 @@ class IDXDeviceIF:
             status, err_str = self.setFramerateRatio(ratio)
             #self.msg_if.pub_warn("Recived Framerate update: " + str(status))
 
+
         for data_product in self.data_products_base_list:
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
-            if self.node_if is not None:
-                self.node_if.set_param('framerate_ratio', ratio)
+
+        if self.node_if is not None:
+            self.node_if.set_param('framerate_ratio', ratio)
 
 
  

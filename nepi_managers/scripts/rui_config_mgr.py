@@ -14,7 +14,7 @@ from nepi_interfaces.msg import RUISettings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 from nepi_sdk import nepi_sdk
@@ -43,16 +43,18 @@ class RUICfgMgrNode:
 
         ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemIF()
-        success = mgr_sys_if.wait_for_status()
+       
+        # Wait for Config Manager
+        mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
+        success = mgr_cfg_if.wait_for_status()
         if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
+        ##############################
+        # Initialize Variables
 
-
-        
+        self.initCb(do_updates = False)        
 
         ##############################
         ### Setup Node

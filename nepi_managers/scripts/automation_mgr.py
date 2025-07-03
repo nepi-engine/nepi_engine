@@ -85,21 +85,16 @@ class AutomationManager(object):
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
-        ##############################
-        # Initialize Class Variables
-        self.script_stop_timeout_s = self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
-        self.running_scripts = set()
-
 
         ##############################
         ## Wait for NEPI core managers to start
-        nepi_sdk.sleep(5)
         # Wait for System Manager
-        self.msg_if.pub_info("Starting ConnectSystemIF processes")
         mgr_sys_if = ConnectMgrSystemServicesIF()
+        success = mgr_sys_if.wait_for_ready()
         success = mgr_sys_if.wait_for_services()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+
         self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
         self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
 
@@ -107,14 +102,21 @@ class AutomationManager(object):
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
         
-        nepi_sdk.sleep(5)
         # Wait for Config Manager
         mgr_cfg_if = ConnectMgrConfigIF()
+        success = mgr_cfg_if.wait_for_ready()
         success = mgr_cfg_if.wait_for_status()
         if success == False:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
     
 
+        ##############################
+        # Initialize Class Variables
+        self.script_stop_timeout_s = self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
+        self.running_scripts = set()
+
+        self.initCb(do_updates = False)
+        
         ##############################
         ### Setup Node
 

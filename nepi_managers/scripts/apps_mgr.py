@@ -28,7 +28,7 @@ from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemIF
+from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
@@ -87,6 +87,30 @@ class NepiAppsMgr(object):
       self.msg_if.pub_info("Starting IF Initialization Processes")
 
       ##############################
+      ## Wait for NEPI core managers to start
+      # Wait for System Manager
+      mgr_sys_if = ConnectMgrSystemServicesIF()
+      success = mgr_sys_if.wait_for_ready()
+      success = mgr_sys_if.wait_for_services()
+      if success == False:
+          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+        
+
+      self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
+      self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
+      self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
+
+       
+      # Wait for Config Manager
+      mgr_cfg_if = ConnectMgrConfigIF()
+      success = mgr_cfg_if.wait_for_ready()
+      success = mgr_cfg_if.wait_for_status()
+      if success == False:
+          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
+
+
+
+      ##############################
       # Initialize Variables
       # ToDo:CHANGE TO SYSTEM SERVICE CALLS
       self.apps_param_folder = APPS_SHARE_FOLDER + '/params'
@@ -96,32 +120,10 @@ class NepiAppsMgr(object):
 
       self.initCb(do_updates = False)
 
+
       ##############################
-      ## Wait for NEPI core managers to start
-      nepi_sdk.sleep(5)
-      # Wait for System Manager
-      mgr_sys_if = ConnectMgrSystemIF()
-      success = mgr_sys_if.wait_for_status()
-      if success == False:
-          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg")
-
-
-    
-
-      self.msg_if.pub_info("App folder set to " + self.apps_install_folder)
-      self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
-      self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
-
-
-      nepi_sdk.sleep(5)
-      # Wait for Config Manager
-      mgr_cfg_if = ConnectMgrConfigIF()
-      success = mgr_cfg_if.wait_for_status()
-      if success == False:
-          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-
-
-
+      ### Setup Node
+      
       # Configs Config Dict ####################
       self.CFGS_DICT = {
           'init_callback': self.initCb,

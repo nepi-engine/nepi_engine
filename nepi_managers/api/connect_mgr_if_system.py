@@ -67,7 +67,11 @@ class ConnectMgrSystemServicesIF:
                 
         self.mgr_namespace = os.path.join(self.base_namespace,MGR_NODE_NAME)
         
-
+        ##############################
+        ### Wait for status to publish
+        status_topic = nepi_sdk.create_namespace(self.base_namespace,'system_status')
+        self.msg_if.pub_info("Waiting for status topic: " + status_topic, log_name_list = self.log_name_list)
+        nepi_sdk.wait_for_topic(status_topic)
         #############################
         # Connect Node IF Setup
 
@@ -157,7 +161,7 @@ class ConnectMgrSystemServicesIF:
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Waiting for service connection", log_name_list = self.log_name_list)
         timer = 0
         time_start = nepi_sdk.get_time()
         connected = False
