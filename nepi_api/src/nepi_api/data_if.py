@@ -2392,7 +2392,7 @@ class ImageIF:
         if self.status_msg.overlay_date_time == True:
             overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
             overlay = overlay.replace('D','')
-            overlay = overlay.replace('T',' T')
+            overlay = overlay.replace('T',' T: ')
             overlay_list.append(overlay)
 
         
@@ -2410,7 +2410,7 @@ class ImageIF:
         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
         if len(overlay_list) > 0:
-            start_y = (height * 0.01)
+            start_y = (height * 0.005)
             cv2_img = nepi_img.overlay_text_list(cv2_img, 
                                     text_list = overlay_list, 
                                     x_px = 10 , y_px = 10, 

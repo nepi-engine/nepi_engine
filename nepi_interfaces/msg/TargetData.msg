@@ -4,20 +4,30 @@
 int32 INT_FIELD_UNSET=-1
 float32 FLOAT_FIELD_UNSET=-999.0
 
+
+
 # Target Info
 string Class
-int32 id
-string uid
+int32 target_name
+string target_uid
 float32 confidence
 
+
+# Source Data Info
+
+
 # 2D Box
-int32 xmin
-int32 ymin
-int32 xmax
-int32 ymax
+int32 xmin_pixel
+int32 xmax_pixel
+geometry_msgs/Vector3 x_vel_pixels
+
+int32 ymin_pixel
+int32 ymax_pixel
+geometry_msgs/Vector3 y_vel_pixels
 
 float32 area_ratio 
 float32 area_pixels
+
 float32 area_meters
 
 # 3D Box
@@ -27,9 +37,10 @@ geometry_msgs/Vector3 box_rotation_rpy_deg
 
 float32 volume_meters 
 
-# 3D position
+# 3D position and velocity
 float32 range_m
 float32 azimuth_deg
+
 float32 elevation_deg
 float32[9] position_covariance
 

@@ -28,7 +28,7 @@ from sensor_msgs.msg import Image, PointCloud2
 
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
-from nepi_interfaces.msg import ImageStatus, DataPointcloudStatus
+from nepi_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_interfaces.msg import Frame3DTransform
 
 from geometry_msgs.msg import Vector3
