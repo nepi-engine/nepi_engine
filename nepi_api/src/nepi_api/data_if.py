@@ -1544,7 +1544,7 @@ class NavPoseTrackIF:
 
 
 ##################################################
-# ImageIF
+# BaseImageIF
 
 
 def get_image_data_product(data_product):
@@ -1600,7 +1600,7 @@ EXAMPLE_CONTROLS_DICT = dict(
 
 
 
-class ImageIF:
+class BaseImageIF:
 
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
@@ -3021,9 +3021,145 @@ class ImageIF:
         '''
 
 ##################################################
+# ImageIF
+
+class ImageIF(BaseImageIF):
+
+    #Default Control Values 
+    DEFAULT_CAPS_DICT = dict( 
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_threshold = False,
+        has_range = False,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate = False,
+        has_tilt = False
+        )
+
+    DEFAULT_ENHANCEMENTS_DICT = dict(
+        low_light = {
+            'enabled': False,
+            'ratio': 0.0
+        }
+    )
+
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust_enabled = False,
+        auto_adjust_ratio = 0.3,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
+        zoom_ratio = 0.5, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_ratio = 0.5,
+        tilt_ratio = 0.5
+        )
+
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
+    data_product = 'image'
+
+
+    auto_adjust_controls = []
+
+
+    
+    def __init__(self, namespace = None , 
+                data_product_name = 'image',
+                data_source_description = 'image',
+                data_ref_description = 'image',
+                perspective = 'pov',
+                init_overlay_list = [],
+                get_navpose_function = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+
+        self.data_product = data_product_name
+        # Call the parent class constructor
+        super().__init__(namespace , 
+                self.data_product,
+                data_source_description,
+                data_ref_description,
+                perspective,
+                self.DEFAULT_CAPS_DICT,
+                self.DEFAULT_CONTROLS_DICT,
+                self.DEFAULT_ENHANCEMENTS_DICT, 
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
+                init_overlay_list,
+                get_navpose_function,
+                log_name,
+                log_name_list,
+                msg_if
+                )
+
+        ###############################
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        ###############################
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+    def _process_image(self, cv2_img):
+        # Apply Resolution Controls
+        res_ratio = self.controls_dict['resolution_ratio']
+        if res_ratio < 0.9:
+            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
+        # Apply Low Light Enhancment
+        if self.enhance_dict['low_light']['enabled'] == True:
+            ratio = self.enhance_dict['low_light']['ratio']
+            if ratio > 0.05:
+                pass
+                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
+
+        # Apply Adjustment Controls
+        auto = self.controls_dict['auto_adjust_enabled']
+        auto_ratio = self.controls_dict['auto_adjust_ratio']
+        brightness = self.controls_dict['contrast_ratio']
+        contrast = self.controls_dict['brightness_ratio']
+        threshold = self.controls_dict['threshold_ratio']
+
+        if auto is False:
+            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+        else:
+            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+        return cv2_img, self.auto_adjust_controls
+
+
+
+
+
+##################################################
 # ColorImageIF
 
-class ColorImageIF(ImageIF):
+class ColorImageIF(BaseImageIF):
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -3125,38 +3261,13 @@ class ColorImageIF(ImageIF):
     ###############################
 
     def _process_image(self, cv2_img):
-        # Apply Resolution Controls
-        res_ratio = self.controls_dict['resolution_ratio']
-        if res_ratio < 0.9:
-            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-
-        # Apply Low Light Enhancment
-        if self.enhance_dict['low_light']['enabled'] == True:
-            ratio = self.enhance_dict['low_light']['ratio']
-            if ratio > 0.05:
-                pass
-                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
-
-        # Apply Adjustment Controls
-        auto = self.controls_dict['auto_adjust_enabled']
-        auto_ratio = self.controls_dict['auto_adjust_ratio']
-        brightness = self.controls_dict['contrast_ratio']
-        contrast = self.controls_dict['brightness_ratio']
-        threshold = self.controls_dict['threshold_ratio']
-
-        if auto is False:
-            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-        else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
         return cv2_img, self.auto_adjust_controls
 
 
 ##################################################
 # DepthMapImageIF
 
-class DepthMapImageIF(ImageIF):
+class DepthMapImageIF(BaseImageIF):
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 

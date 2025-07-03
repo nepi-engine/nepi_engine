@@ -21,12 +21,44 @@ function ftext(){
 grep -r "$@" ./*
 }
 
-#Dev Shortcuts
 # Function to search for text
 # Example call: find 'nepi_sdk.parse_header_msg'
 function ffile(){
 find ./* -iname  "*$@*" 
 }
+
+# Function to search for topic containing string
+function ftopic(){
+rostopic list | grep "$@" 
+}
+
+# Function to print all topics out
+function ftopics(){
+rostopic list
+}
+
+# Function to listen to topic
+function ctopic(){
+rostopic echo "$@" 
+}
+
+# Function to search for service containing string
+function fservice(){
+rosservice list | grep "$@" 
+}
+
+# Function to print all services out
+function fservices(){
+rosservice list
+}
+
+# to call service
+function cservice(){
+rosservice call "$@"
+}
+
+
+
 ###################################
 #NEPI folder shortcuts
 export AI="/mnt/nepi_storage/ai_models"
@@ -115,6 +147,12 @@ function nepi(){
     #############################
     # ftext = Find text in files recursively
     # ffile = Find filenames with text match recursively
+    # ftopics = List all active topics
+    # ftopic = Find topics containing provided string
+    # ctopic = Listen to provided topic
+    # fservices = List all active services
+    # fservice = Find services containing provided string
+    # cservice = Call service
     #
     #############################
     ## NEPI run shortcuts ##

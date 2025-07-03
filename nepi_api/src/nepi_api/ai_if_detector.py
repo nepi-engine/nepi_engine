@@ -127,8 +127,8 @@ class AiDetectorIF:
     enabled = False
     selected_classes = []
     sleep_enabled = False
-    sleep_suspend_sec = 0.0
-    sleep_run_sec = 0.0
+    sleep_suspend_sec = 0
+    sleep_run_sec = 0
     img_tiling = False
     overlay_labels = False
     overlay_clf_name = False
@@ -949,6 +949,7 @@ class AiDetectorIF:
             if img_topic != '':
                 img_topics[i] = img_topic
                 if img_topic not in active_img_topics:
+                    self.addImageTopic(img_topic)
                     success = self.subscribeImgTopic(img_topic)    
           
         purge_list = []
@@ -958,6 +959,7 @@ class AiDetectorIF:
         #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         for topic in purge_list:
             self.msg_if.pub_warn('Will unsubscribe from image topic: ' + topic)
+            self.removeImageTopic(img_topic)
             success = self.unsubscribeImgTopic(topic)
 
         # Set Image connected state
@@ -1435,15 +1437,15 @@ class AiDetectorIF:
         self.status_msg.has_sleep = self.has_sleep
 
         self.status_msg.sleep_enabled = self.sleep_enabled
-        self.status_msg.sleep_suspend_sec = self.sleep_suspend_sec
-        self.status_msg.sleep_run_sec = self.sleep_run_sec
+        self.status_msg.sleep_suspend_sec = int(self.sleep_suspend_sec)
+        self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
         self.status_msg.sleep_state = self.sleep_state
 
         self.status_msg.img_tiling = self.img_tiling
 
 
 
-        #self.msg_if.pub_warn("Sending Status Msg: " + str(self.det_status_msg))
+        #self.msg_if.pub_warn("Sending Status Msg: " + str(self.det_status_msg), throttle_s = 5.0)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
 

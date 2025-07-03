@@ -24,6 +24,7 @@ import {SliderAdjustment} from "./AdjustmentWidgets"
 
 import ImageViewer from "./Nepi_IF_ImageViewer"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
+import NepiIFConfig from "./Nepi_IF_Config"
 
 import {filterStrList, createShortImagesFromNamespaces,onChangeSwitchStateValue} from "./Utilities"
 
@@ -583,9 +584,11 @@ renderDetectorSettings() {
   const selected_detector = this.state.selected_detector
   const det_mgr_msg = this.state.det_mgr_status_msg
   const det_msg = this.state.det_status_msg
-  if (det_msg != null){
+  if (det_mgr_msg != null && det_msg != null){
     const detector_name = det_msg.name 
     if (selected_detector === detector_name){
+      const detector_namespace = det_msg.namespace
+
 
       const has_tiling = det_mgr_msg.has_tiling
       const is_tiling = det_mgr_msg.img_tiling
@@ -598,7 +601,7 @@ renderDetectorSettings() {
 
 
 
-      const detector_namespace = det_msg.namespace
+
 
       const availableClassesList = det_msg.available_classes
       const selectedClassesList = det_msg.selected_classes
@@ -610,7 +613,7 @@ renderDetectorSettings() {
       const overlay_detector_name = det_msg.overlay_clf_name
       const overlay_img_name = det_msg.overlay_img_name
 
-      const threshold = det_msg.threshold
+      const threshold = det_msg.threshold_filter
       const max_det_rate = det_msg.max_proc_rate_hz 
       const max_img_rate = det_msg.max_img_rate_hz
 
@@ -629,12 +632,6 @@ renderDetectorSettings() {
       const img_list_viewable = this.state.img_list_viewable
 
       const detector_display_name = detector_name.toUpperCase()
-
-
-
-      
-  
-      
 
       return (
 
@@ -686,33 +683,11 @@ renderDetectorSettings() {
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-                      
-        <Columns>
-          <Column>
-          
-                <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_config")}>{"Reset Config"}</Button>
-                </ButtonMenu>
-
-
-        </Column>
-        <Column>
-                  
-                <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/save_config")}>{"Save Config"}</Button>
-                </ButtonMenu>
-
-        </Column>
-        <Column>
-              
-              <ButtonMenu style={{marginTop: "10px"}}>
-                  <Button onClick={() => this.props.ros.sendTriggerMsg(detector_namespace + "/reset_factory")}>{"Factory Reset"}</Button>
-                </ButtonMenu>
-
-          </Column>
-        </Columns>
-
-
+     
+        <NepiIFConfig
+                        namespace={detector_namespace}
+                        title={"Nepi_IF_Conig"}
+        />
 
 
 
