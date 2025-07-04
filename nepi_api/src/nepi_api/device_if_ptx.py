@@ -33,10 +33,6 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
-from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
-
-#from nepi_api.device_if_npx import NPXDeviceIF
 
 
 
@@ -150,6 +146,10 @@ class PTXActuatorIF:
     mount_desc = 'None'
     
     is_moving = False
+
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+
     ### IF Initialization
     def __init__(self,  device_info, 
                  capSettings, factorySettings, 
@@ -173,7 +173,7 @@ class PTXActuatorIF:
                  setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
                  setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
                  getNavPoseCb=None,
-                 max_navpose_update_rate = 10,
+                 navpose_update_rate = 10,
                  deviceResetCb = None,
                  log_name = None,
                  log_name_list = [],
@@ -200,9 +200,6 @@ class PTXActuatorIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting PTX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
 
 
         ############################## 
@@ -217,17 +214,7 @@ class PTXActuatorIF:
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
-        # Update status update rate
-        if max_navpose_update_rate == None:
-            rate = 1.0
-        elif max_navpose_update_rate > self.MAX_STATUS_UPDATE_RATE:
-            rate = self.MAX_STATUS_UPDATE_RATE
-        elif max_navpose_update_rate < 1.0:
-            rate = 1.0
-        else:
-            rate = max_navpose_update_rate
-        self.position_update_rate = rate
-        self.max_navpose_update_rate = rate
+
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
         if factoryControls is not None:
@@ -252,8 +239,12 @@ class PTXActuatorIF:
             self.has_position_feedback = True
             self.has_limit_controls = True
 
-        # GET NavPose #############
         self.getNavPoseCb = getNavPoseCb
+        if navpose_update_rate < 1:
+           navpose_update_rate = 1
+        if navpose_update_rate > 10:
+            navpose_update_rate = 10
+        self.navpose_update_rate = navpose_update_rate
 
 
 
@@ -495,6 +486,13 @@ class PTXActuatorIF:
                 'msg': DevicePTXStatus,
                 'qsize': 10,
                 'latch': False
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
         }
 
@@ -685,6 +683,14 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
                 'callback_args': ()
+            },
+            'sys_navpose_sub': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
+                'qsize': 1,
+                'callback': self.navposeSysCb, 
+                'callback_args': ()
             }
         }
         
@@ -710,13 +716,15 @@ class PTXActuatorIF:
 
         ##############################
         # Start Node Processes
-        
+
         # Periodic publishing
-        status_update_rate = self.position_update_rate  
+        status_update_rate = self.navpose_update_rate  
+        if status_update_rate < 1:
+            status_update_rate = 1
         if status_update_rate > 10:
             status_update_rate = 10
         self.status_update_rate = status_update_rate
-        self.msg_if.pub_warn("*************Starting pt status publisher at hz: " + str(self.status_update_rate))    
+        self.msg_if.pub_warn("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
         nepi_sdk.start_timer_process(status_pub_delay, self._publishStatusCb)
 
@@ -730,24 +738,10 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Starting auto tilt scanning process")
             nepi_sdk.start_timer_process(self.AUTO_SCAN_UPDATE_INTERVAL, self.autoTiltProcess)
 
-        self.publish_status(do_updates = True)
-        '''
         ##############################
         # Start Additional System Processes
-        # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = self.namespace
 
-
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-                        get_3d_transform_function = self.get_3d_transform,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-
+        ################################
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = self.namespace
@@ -765,9 +759,8 @@ class PTXActuatorIF:
                             msg_if = self.msg_if
                         )
 
-
-        # Setup System IF Classes ####################
-        # PT saving handled by navpose IF class
+        ##############################
+        # Setup Save Data IF Classes ####################
         if self.getNavPoseCb is not None:
             self.data_products_list.append('navpose')
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
@@ -792,29 +785,28 @@ class PTXActuatorIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-            time.sleep(1)
 
 
-        # Setup navpose data IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
+        '''
+        ############################
+        # Setup 3D Transform IF Class ####################
+        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        transform_ns = self.namespace
+        self.transform_if = Transform3DIF(namespace = transform_ns,
+                        source_ref_description = self.tr_source_ref_description,
+                        end_ref_description = self.tr_end_ref_description,
+                        get_3d_transform_function = self.get_3d_transform,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
+        '''
 
-        time.sleep(1)
-   
-        ###############################
-        # Finish Initialization
-        # Init everything
-        self.initCb(do_updates = True)  
-
-        ##############################
+        ##################################
         # Start Node Processes
-        nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
+        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
+
+        '''
 
         ###############################
         # Create a NPX Device IF
@@ -825,7 +817,7 @@ class PTXActuatorIF:
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
                 get3DTransformCb = self.transform_if.get_3d_transform,
-                max_navpose_update_rate = self.max_navpose_update_rate,
+                navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                 )
@@ -1456,7 +1448,19 @@ class PTXActuatorIF:
             transform = self.transform_if.get_3d_transform()
         return transform
 
-    def get_navpose_dict(self):
+   def get_navpose_dict(self):
+        np_dict = copy.deepcopy(self.navpose_dict)
+        return np_dict
+
+        
+    def publish_navpose(self):
+        np_dict = self.get_navpose_dict()
+        timestamp = nepi_utils.get_time()
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if self.node_if is not None and navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+
+    def navPoseUpdaterCb(self,timer):
         navpose_dict = None
         if navpose_dict is None:
             if self.nav_mgr_if is not None:
@@ -1471,7 +1475,7 @@ class PTXActuatorIF:
         self.frame_3d = output_frame_3d
         timestamp = nepi_utils.get_time()
         self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
-        return navpose_dict
+        self.navpose_dict = navpose_dict
 
     def get_mount_description(self):
         desc = self.device_mount_description
@@ -1621,6 +1625,13 @@ class PTXActuatorIF:
     def _publishStatusCb(self,timer):
         self.msg_if.pub_warn("will call publisher status msg ", throttle_s = 5.0)
         self.publish_status()
+        # Publish navpose at same rate
+        np_dict = copy.deepcopy(self.navpose_dict)
+        timestamp = nepi_utils.get_time()
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if self.node_if is not None and navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
 
 
     def publish_status(self, do_updates = False):

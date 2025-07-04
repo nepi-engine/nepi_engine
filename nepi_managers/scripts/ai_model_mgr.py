@@ -42,7 +42,6 @@ from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 DEFAULT_FRAMEWORK = 'yolov5'
@@ -113,13 +112,7 @@ class AIDetectorManager:
         self.ai_models_folder = mgr_sys_if.get_sys_folder_path("ai_models",AI_MODELS_FOLDER)
         self.msg_if.pub_info("Using AI Models Folder: " + str(self.ai_models_folder))
         
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-        
+       
         ##############################
         # Initialize Variables
 
@@ -580,7 +573,7 @@ class AIDetectorManager:
                         #self.msg_if.pub_info("Got model info response: " + str(response))
                         detector_info_dict[model_name] = response.detector_info
                     except Exception as e:
-                        self.msg_if.pub_info("Failed to obtain model info, will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+                        self.msg_if.pub_info("Failed to obtain model info: " + str(model_name) + " , will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
                 else:
                     self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
         self.detector_info_dict = detector_info_dict

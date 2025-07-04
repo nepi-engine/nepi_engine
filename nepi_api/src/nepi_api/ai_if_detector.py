@@ -179,6 +179,9 @@ class AiDetectorIF:
 
         ##############################
         ## Wait for NEPI core managers to start
+        self.api_lib_folder = API_LIB_FOLDER
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
+        '''  ToDo: Replace with system mgr service call
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_ready()
@@ -187,21 +190,12 @@ class AiDetectorIF:
             nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
 
 
-        #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-        #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
+        self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
+        self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
+        '''
 
-        self.api_lib_folder = API_LIB_FOLDER
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
- 
-       
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
- 
 
+ 
 
         ##############################  
         # Init Class Variables 

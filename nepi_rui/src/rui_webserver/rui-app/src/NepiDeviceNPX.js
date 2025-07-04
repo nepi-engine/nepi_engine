@@ -21,7 +21,7 @@ import NepiDeviceNPXControls from "./NepiDeviceNPX-Controls"
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
-import NavPoseData from "./Nepi_IF_NavPoseData"
+import NepiIFNavPoseViewer from "./Nepi_IF_NavPoseViewer"
 import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
@@ -81,8 +81,7 @@ class NepiDeviceNPX extends Component {
 
   navposeListener(message) {
     
-    // Transform the data to match what NavPoseData expects
-    const navposeData = {
+    const navpose_data = {
       latitude: message.latitude,
       longitude: message.longitude,
       altitude: message.altitude_m,
@@ -98,7 +97,7 @@ class NepiDeviceNPX extends Component {
     }
         
     this.setState({
-      navpose_data: navposeData, 
+      navpose_data: navpose_data, 
       connected: true
     })
   }
@@ -290,9 +289,8 @@ updateNavposeListener() {
 
                     </div>
 
-                    <NavPoseData
+                    <NepiIFNavPoseViewer
                       namespace={namespace}
-                      navposeData={navpose_data}
                       title={"NavPose Data"}
                     />
 

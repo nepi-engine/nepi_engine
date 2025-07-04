@@ -60,8 +60,6 @@ from nepi_api.system_if import SaveDataIF
 
 from nepi_api.data_if import NavPoseIF
 
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 #########################################
 # Node Class
@@ -174,23 +172,6 @@ class NavPoseMgr(object):
         self.msg_if = MsgIF(log_name = self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
-
-
-        ##############################
-        ## Wait for NEPI core managers to start
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-       
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
         ##############################
         # Initialize Class Variables

@@ -43,8 +43,6 @@ from nepi_api.data_if import PointcloudIF
 from nepi_api.device_if_npx import NPXDeviceIF
 from nepi_api.connect_device_if_ptx import ConnectPTXDeviceIF
 
-from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 
@@ -94,7 +92,6 @@ class IDXDeviceIF:
     save_data_if = None
     transform_if = None
     npx_if = None
-    navpose_if = None
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
 
@@ -160,7 +157,9 @@ class IDXDeviceIF:
     connect_ptx_if = None
     pt_connected = False
 
-
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    pt_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     #######################
     ### IF Initialization
@@ -205,9 +204,6 @@ class IDXDeviceIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IDX IF Initialization Processes", log_name_list = self.log_name_list)
         
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
 
         ############################# 
         # Initialize Class Variables
@@ -418,17 +414,15 @@ class IDXDeviceIF:
                 'msg': DeviceIDXStatus,
                 'qsize': 1,
                 'latch': True
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
         }
-
-        '''            'image_pub': {
-                'namespace': self.namespace,
-                'topic': 'test_image',
-                'msg': Image,
-                'qsize': 1,
-                'latch': True
-            }
-        '''
         
 
 
@@ -569,9 +563,18 @@ class IDXDeviceIF:
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
                 'callback_args': ()
+            },
+            'sys_navpose_sub': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
+                'qsize': 1,
+                'callback': self.navposeSysCb, 
+                'callback_args': ()
             }
             
         }
+
 
 
         # Create Node Class ####################
@@ -652,10 +655,53 @@ class IDXDeviceIF:
         else:
             self.caps_report.has_pointcloud = False
         '''
+
+        ############################
+        # Start Data Get Threads
         self.caps_report.data_products = self.data_products_base_list
+
+        for data_product in self.data_products_base_list:
+            self.last_data_time[data_product] = nepi_utils.get_time()
+            self.current_fps[data_product] = 0
+            self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
+
+        # Launch the acquisition and saving threads
+        if self.image_thread is not None:
+            self.image_thread.start()
+
+        if self.depth_map_thread is not None:
+            self.depth_map_thread.start()
+
+        if self.pointcloud_thread is not None:
+            self.pointcloud_thread.start()
+
+        nepi_sdk.sleep(1)
 
         nepi_sdk.start_timer_process(1, self._publishStatusCb)
 
+
+        ###############################
+        # Setup Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+        settings_ns = self.namespace
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction
+                    
+        }
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
+                        log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                        )
+
+
+
+        ##################################
         # Setup Save Data IF Class ####################
         self.data_products_save_list.append('navpose')
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
@@ -685,28 +731,7 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                         )
 
-        for data_product in self.data_products_base_list:
-            self.last_data_time[data_product] = nepi_utils.get_time()
-            self.current_fps[data_product] = 0
-            self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
-
-        # Launch the acquisition and saving threads
-        if self.image_thread is not None:
-            self.image_thread.start()
-
-        if self.depth_map_thread is not None:
-            self.depth_map_thread.start()
-
-        if self.pointcloud_thread is not None:
-            self.pointcloud_thread.start()
-
-        # Init everything
-        self.initCb(do_updates = True)
-        self.publish_status(do_updates = True)
-
-
-
-
+        #############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
         transform_ns = self.namespace
@@ -720,36 +745,6 @@ class IDXDeviceIF:
                         )
 
 
-
-        # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
-
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
-
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-        # Setup navpose data IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-        self.initCb(do_updates = True)
         ##################################
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
@@ -781,10 +776,6 @@ class IDXDeviceIF:
             transform = self.transform_if.get_3d_transform()
         return transform
 
-    def get_navpose_dict(self):
-        np_dict = copy.deepcopy(self.navpose_dict)
-        return np_dict
-
 
     def get_mount_description(self):
         desc = self.device_mount_description
@@ -792,17 +783,20 @@ class IDXDeviceIF:
             desc = self.mount_desc
         return desc
 
+    def navposeSysCb(self,msg):
+        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+
+    def get_navpose_dict(self):
+        np_dict = copy.deepcopy(self.navpose_dict)
+        return np_dict
         
     def publish_navpose(self):
-        np_dict = copy.deepcopy(self.navpose_dict)
-        if self.navpose_if is not None:
-            transform = self.get_3d_transform()
-            np_dict = self.navpose_if.publish_navpose(np_dict,
-                                            frame_3d_transform = transform,
-                                            device_mount_description = self.get_mount_description())
+        np_dict = self.get_navpose_dict()
         timestamp = nepi_utils.get_time()
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if self.node_if is not None and navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
         self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
-
 
     def navPoseUpdaterCb(self,timer):
         navpose_dict = None
@@ -813,8 +807,7 @@ class IDXDeviceIF:
                 frame_3d = 'nepi_frame'
                 self.transform_if.set_end_description('pantilt_center_tilt_axis')
         if navpose_dict is None:
-            if self.nav_mgr_if is not None:
-                navpose_dict = self.nav_mgr_if.get_navpose_dict()
+            navpose_dict = copy.deepcopy(self.sys_navpose_dict)
                 if navpose_dict is not None:
                     frame_3d = 'nepi_frame'
                     self.transform_if.set_end_description('nepi_frame')
@@ -905,8 +898,6 @@ class IDXDeviceIF:
           self.settings_if.reset()
       if self.transform_if is not None:
           self.transform_if.reset()
-      if self.navpose_if is not None:
-          self.navpose_if.reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -928,8 +919,6 @@ class IDXDeviceIF:
           self.settings_if.factory_reset()
       if self.transform_if is not None:
           self.transform_if.factory_reset()
-      if self.navpose_if is not None:
-          self.navpose_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)

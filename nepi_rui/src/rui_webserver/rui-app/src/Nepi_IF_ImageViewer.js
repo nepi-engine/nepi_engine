@@ -23,6 +23,7 @@ import Select from "./Select"
 import Input from "./Input"
 
 import NepiIFConfig from "./Nepi_IF_Config"
+import NavPoseViewer from "./Nepi_IF_NavPoseViewer"
 
 import { createMenuListFromStrList, onChangeSwitchStateValue, onEnterSendFloatValue } from "./Utilities"
 
@@ -58,7 +59,7 @@ class ImageViewer extends Component {
     this.state = {
       show_info: false,
       show_controls: false,
-
+      show_navpose: false,
       hasInitialized: false,
       shouldUpdate: true,
       streamWidth: null,
@@ -912,10 +913,49 @@ class ImageViewer extends Component {
     const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
     const show_info = this.state.show_info
     const show_controls = this.state.show_controls
+    const show_navpose = this.state.show_navpose
     return (
       <Section title={this.props.title}>
 
         <canvas style={styles.canvas} ref={this.onCanvasRef} />
+
+
+        <div style={{ display: 'flex' }}>
+                <div style={{ width: '20%' }}>
+                      <Label title="Show Controls">
+                        <Toggle
+                          checked={this.state.show_controls===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
+                        </Toggle>
+                    </Label>
+                </div>
+                <div style={{ width: '10%' }}>
+                </div>
+
+                <div style={{ width: '20%' }}>
+                    <Label title="Show Info">
+                        <Toggle
+                          checked={this.state.show_info===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
+                        </Toggle>
+                      </Label>
+                </div>
+                <div style={{ width: '10%' }}>
+                </div>
+
+                <div style={{ width: '20%' }}>
+                     <Label title="Show NavPose">
+                        <Toggle
+                          checked={this.state.show_navpose===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                        </Toggle>
+                      </Label>
+                </div>
+                <div style={{ width: '20%' }}>
+                </div>
+
+              </div>
+
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
@@ -923,12 +963,10 @@ class ImageViewer extends Component {
                 <div style={{ width: '20%' }}>
 
 
-                <Label title="Show Info">
-                  <Toggle
-                    checked={this.state.show_info===true}
-                    onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
-                  </Toggle>
-                </Label>
+
+
+
+
 
                 </div>
 
@@ -938,12 +976,10 @@ class ImageViewer extends Component {
               </div>
 
 
-
-
-
-
         <div align={"left"} textAlign={"left"} hidden={(show_info !== true || namespace === 'None')}>
 
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
 
               <div style={{ display: 'flex' }}>
@@ -975,60 +1011,64 @@ class ImageViewer extends Component {
 
         </div>
 
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-        <div style={{ display: 'flex' }}>
-                <div style={{ width: '20%' }}>
-
-
-                      <Label title="Show Controls">
-                        <Toggle
-                          checked={this.state.show_controls===true}
-                          onClick={() => onChangeSwitchStateValue.bind(this)("show_controls",this.state.show_controls)}>
-                        </Toggle>
-                    </Label>
-
-                </div>
-
-                <div style={{ width: '80%' }}>
-
-                </div>
-              </div>
-
-
-
-
-
+       
 
 
         <div align={"left"} textAlign={"left"} hidden={(show_controls !== true || namespace === 'None')}>
 
+                <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
+                <div style={{ display: 'flex' }}>
+                      <div style={{ width: '40%' }}>
+
+
+                          <Label title={"OVERLAYS"} />
+                                        {this.renderOverlays()}
+
+
+                      </div>
+
+                      <div style={{ width: '20%' }}>
+                        {}
+                      </div>
+
+                      <div style={{ width: '40%' }}>
+
+                          <Label title={"CONROLS"} />
+                                        {this.renderControls()}
+                      </div>
+      
+                </div>
+
+          </div>
+
+          <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
+
+                     <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
                       <div style={{ display: 'flex' }}>
-                <div style={{ width: '40%' }}>
+                      <div style={{ width: '40%' }}>
 
 
-                    <Label title={"OVERLAYS"} />
-                                  {this.renderOverlays()}
+                          <Label title={"NAVPOSE"} />
+                            <NavPoseViewer
+                              namespace={namespace}
+                              title={"NavPose Data"}
+                            />
 
 
-                </div>
+                      </div>
 
-                <div style={{ width: '20%' }}>
-                  {}
-                </div>
+                      <div style={{ width: '20%' }}>
+                        {}
+                      </div>
 
-                <div style={{ width: '40%' }}>
+                      <div style={{ width: '40%' }}>
+                        {}
+                      </div>
+                    </div>
 
-                    <Label title={"CONROLS"} />
-                                  {this.renderControls()}
-
-
-                </div>
-              </div>
-
-
+        </div>
 
         <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
 

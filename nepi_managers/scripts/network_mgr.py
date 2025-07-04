@@ -34,7 +34,6 @@ from nepi_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 class NetworkMgr:
@@ -153,24 +152,16 @@ class NetworkMgr:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
         ##############################
-        ## Wait for NEPI core managers to start
-
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
         if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        status_dict = mgr_sys_if.get_system_status_dict()
-        self.msg_if.pub_warn("Got System Status Dict: " + str(status_dict))
-        self.in_container = status_dict['in_container']
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Ready")
+        sys_status_dict = mgr_sys_if.get_system_status_dict()
+        if sys_status_dict is None:
+            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Status")
+        self.in_container = sys_status_dict['in_container']
         
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
         
         ##############################
         # Initialize Variables

@@ -14,8 +14,6 @@ from nepi_interfaces.msg import RUISettings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 from nepi_sdk import nepi_sdk
  
@@ -40,16 +38,6 @@ class RUICfgMgrNode:
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
-
-        ##############################
-        ## Wait for NEPI core managers to start
-       
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
 
         ##############################
         # Initialize Variables

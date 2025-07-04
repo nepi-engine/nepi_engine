@@ -26,7 +26,7 @@ import { round, onUpdateSetStateValue, onEnterSetStateFloatValue, createShortUni
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
-import NavPoseData from "./Nepi_IF_NavPoseData"
+import NepiIFNavPoseViewer from "./Nepi_IF_NavPoseViewer"
 
 @inject("ros")
 @observer
@@ -267,11 +267,13 @@ class MgrNavPose extends Component {
   navposeListener(message) {
     console.log("=====navposeListener called=====" + message)
     console.log("navposeListener msg: " + message)
-    // Transform the data to match what NavPoseData expects
     const last_navpose_msg = this.state.navpose_msg
     const navpose_data = {
-      latitude: message.lat,
-      longitude: message.long,
+      frame_3d: message.frame_3d,
+      frame_nav: message.frame_nav,
+      frame_alt: message.frame_alt,
+      latitude: message.latitude,
+      longitude: message.longitude,
       altitude: message.altitude_m,
       heading: message.heading_deg,
       roll: message.roll_deg,
@@ -279,9 +281,7 @@ class MgrNavPose extends Component {
       yaw: message.yaw_deg,
       x_m: message.x_m,
       y_m: message.y_m,
-      z_m: message.z_m,
-      frame_3d: message.frame_3d,
-      frame_id: message.frame_id
+      z_m: message.z_m
     }
         
     this.setState({
@@ -1238,6 +1238,21 @@ updateNavposeListener() {
     const status_msg = this.state.status_msg
     const connected = this.state.connected
 
+
+    const frame_3d = navpose_data ? navpose_data.frame_3d : null
+    const frame_nav = navpose_data ? navpose_data.frame_nav : null
+    const frame_alt = navpose_data ? navpose_data.frame_alt : null
+    const lat = navpose_data ? navpose_data.latitude : null
+    const long = navpose_data ? navpose_data.longitude : null
+    const alt = navpose_data ? navpose_data.altitude : null
+    const head = navpose_data ? navpose_data.heading : null
+    const x_m = navpose_data ? navpose_data.x_m : null
+    const y_m = navpose_data ? navpose_data.y_m : null
+    const z_m = navpose_data ? navpose_data.z_m : null
+    const roll = navpose_data ? navpose_data.roll : null
+    const pitch = navpose_data ? navpose_data.pitch : null
+    const yaw = navpose_data ? navpose_data.yaw : null
+
     return (
 
 
@@ -1246,9 +1261,8 @@ updateNavposeListener() {
 
           <div style={{ width: "65%" }}>
 
-                    <NavPoseData
+                    <NepiIFNavPoseViewer
                       namespace={namespace}
-                      navposeData={navpose_data}
                       title={"NavPose Data"}
                     />
 

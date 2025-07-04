@@ -74,14 +74,11 @@ class config_mgr(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
-        ## Wait for NEPI core managers to start
         # Wait for System Manager
-        self.msg_if.pub_info("Starting ConnectSystemIF processes")
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        ###########################
+        self.msg_if.pub_info("Waiting for system status")
+        status_topic = nepi_sdk.create_namespace(self.base_namespace,'system_status')
+        success = nepi_sdk.wait_for_topic(status_topic)
+
 
         ##############################
         ### Setup Node
@@ -185,6 +182,7 @@ class config_mgr(object):
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        wait_cfg_mgr = False,
                         msg_if = self.msg_if
         )
 

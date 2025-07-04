@@ -49,7 +49,6 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 
@@ -87,7 +86,6 @@ class AutomationManager(object):
 
 
         ##############################
-        ## Wait for NEPI core managers to start
         # Wait for System Manager
         mgr_sys_if = ConnectMgrSystemServicesIF()
         success = mgr_sys_if.wait_for_ready()
@@ -101,14 +99,7 @@ class AutomationManager(object):
         self.scripts_log_folder = mgr_sys_if.get_sys_folder_path('logs/automation_script_logs',SCRIPTS_LOG_FOLDER)
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
-        
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_ready()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-    
+          
 
         ##############################
         # Initialize Class Variables

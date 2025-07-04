@@ -38,9 +38,10 @@ from nepi_interfaces.msg import DeviceRBXInfo, DeviceRBXStatus
 from nepi_interfaces.msg import AxisControls, ErrorBounds
 from nepi_interfaces.msg import MotorControl
 from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorControl, GotoErrors
-from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
+from nepi_interfaces.srv import NavPose
 from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF
@@ -49,10 +50,6 @@ from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
-
-from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
-
 
 
 
@@ -135,7 +132,6 @@ class RBXRobotIF:
     save_data_if = None
     transform_if = None
     npx_if = None
-    navpose_if = None
 
     status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
     check_save_data_interval_sec = float(1)/CHECK_SAVE_DATA_RATE_HZ
@@ -171,8 +167,10 @@ class RBXRobotIF:
     device_mount_description = 'system_mounted'
     mount_desc = 'None'
 
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+
     ### IF Initialization
-    log_name = "RBXRobotIF"
     def __init__(self, device_info, capSettings, 
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  axisControls,getBatteryPercentFunction,
@@ -191,8 +189,7 @@ class RBXRobotIF:
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
                  getNavPoseCb=None,
-                 max_navpose_update_rate = 10,
-                 setFakeGPSFunction = None,
+                 navpose_update_rate = 10,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -216,9 +213,6 @@ class RBXRobotIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
 
         ############################## 
         # Initialize Class Variables
@@ -248,6 +242,14 @@ class RBXRobotIF:
         self.setSetupActionIndFunction = setSetupActionIndFunction
 
         self.getMotorControlRatios = getMotorControlRatios
+
+        self.getNavPoseCb = getNavPoseCb
+        if navpose_update_rate < 1:
+           navpose_update_rate = 1
+        if navpose_update_rate > 10:
+            navpose_update_rate = 10
+        self.navpose_update_rate = navpose_update_rate
+
 
         # Initialize status message
         self.status_msg.data_source_description = self.data_source_description
@@ -307,12 +309,6 @@ class RBXRobotIF:
         self.capabilities_report.go_action_options = go_actions
         self.capabilities_report.data_products = self.data_products_list
 
-        self.setFakeGPSFunction = setFakeGPSFunction
-        if setFakeGPSFunction is not None:
-          self.capabilities_report.has_fake_gps = True        
-
-        else:
-          self.capabilities_report.has_fake_gps = False
 
         self.getBatteryPercentFunction = getBatteryPercentFunction
         if self.getBatteryPercentFunction is not None:
@@ -440,11 +436,7 @@ class RBXRobotIF:
             'home_location': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_HOME_LOCATION
-            },
-            'fake_gps_enabled': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
+            }
             'max_error_m': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_M
@@ -507,7 +499,14 @@ class RBXRobotIF:
                 'msg': String,
                 'qsize': 1,
                 'latch': True
-            }      
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
+            }
         }
      
         self.SUBS_DICT = {
@@ -534,16 +533,7 @@ class RBXRobotIF:
                 'qsize': None,
                 'callback': self.setErrorBoundsCb, 
                 'callback_args': ()
-            },
-            'enable_fake_gps': {
-                'namespace': self.namespace,
-                'topic': 'enable_fake_gps',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.fakeGPSEnableCb, 
-                'callback_args': ()
-            },
-
+            }
             'set_state': {
                 'namespace': self.namespace,
                 'topic': 'set_state',
@@ -712,6 +702,14 @@ class RBXRobotIF:
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
                 'callback_args': ()
+            },
+            'sys_navpose_sub': {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
+                'qsize': 1,
+                'callback': self.navposeSysCb, 
+                'callback_args': ()
             }
         }
 
@@ -730,19 +728,7 @@ class RBXRobotIF:
         ready = self.node_if.wait_for_ready()
 
 
-  
 
-
-        ###############################
-        # Finish Initialization
-        # Start NavPose Data Updater
-        NAVPOSE_SERVICE_NAME = nepi_sdk.create_namespace(self.base_namespace,"nav_pose_query")
-        self.msg_if.pub_info("Waiting for NEPI NavPose query service on: " + NAVPOSE_SERVICE_NAME)
-        nepi_sdk.wait_for_service(NAVPOSE_SERVICE_NAME)
-        self.msg_if.pub_info("Connecting to NEPI NavPose query service at: " + NAVPOSE_SERVICE_NAME)
-        self.get_navpose_service = nepi_sdk.connect_service(NAVPOSE_SERVICE_NAME, NavPoseQuery)
-        time.sleep(1)
-        nepi_sdk.start_timer_process(self.update_navpose_interval_sec, self.updateNavPoseCb)
 
 
         ####################################
@@ -824,19 +810,15 @@ class RBXRobotIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-        # Setup navpose data IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
 
         self.initCb(do_updates = True)
 
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True) 
+
+
+        ##################################
+        # Start Node Processes
+        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
         
 
         ##################################
@@ -877,8 +859,6 @@ class RBXRobotIF:
           self.settings_if.reset()
       if self.transform_if is not None:
           self.transform_if.reset()
-      if self.navpose_if is not None:
-          self.navpose_if.reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -892,11 +872,74 @@ class RBXRobotIF:
           self.settings_if.factory_reset()
       if self.transform_if is not None:
           self.transform_if.factory_reset()
-      if self.navpose_if is not None:
-          self.navpose_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
+
+
+
+    def navposeSysCb(self,msg):
+        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+
+    def get_navpose_dict(self):
+        np_dict = copy.deepcopy(self.navpose_dict)
+        return np_dict
+        
+    def publish_navpose(self):
+        np_dict = self.get_navpose_dict()
+        timestamp = nepi_utils.get_time()
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if self.node_if is not None and navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
+
+    def navPoseUpdaterCb(self,timer):
+        navpose_dict = None
+        start_time = nepi_utils.get_time()
+        navpose_dict = copy.deepcopy(self.sys_navpose_dict)
+            if navpose_dict is not None:
+                frame_3d = 'nepi_frame'
+                self.transform_if.set_end_description('nepi_frame')
+                
+        if navpose_dict is None:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            frame_3d = 'sensor_frame'
+            self.transform_if.set_end_description('sensor_frame')
+
+        self.end_ref_description = self.transform_if.get_end_description()
+
+   
+        ### Setup a regular background navpose get and update navpose data
+        # Get current heading in degrees
+        self.current_heading_deg = navpose_dict['heading_deg']
+        # Get current orientation vector (roll, pitch, yaw) in degrees enu frame
+        self.current_orientation_enu_degs = [navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]
+        # Get current orientation vector (roll, pitch, yaw) in degrees ned frame +-180
+        self.current_orientation_ned_degs = nepi_nav.get_navpose_orientation_ned_degs(nav_pose_response)
+        # Get current position vector (x, y, z) in meters enu frame
+        self.current_position_enu_m = [navpose_dict['x_m'], navpose_dict['y_m'], navpose_dict['z_m']]
+        # Get current position vector (x, y, z) in meters ned frame
+        self.current_position_ned_m = nepi_nav.get_navpose_position_ned_m(nav_pose_response)
+        # Get current geoid hieght
+        self.current_geoid_height_m =  navpose_dict['geiod_height_m']
+        # Get current location vector (lat, long, alt) in geopoint data with WGS84 height
+        self.current_location_wgs84_geo =  nepi_nav.get_navpose_location_wgs84_geo(nav_pose_response) 
+        # Get current location vector (lat, long, alt) in geopoint data with AMSL height
+        self.current_location_amsl_geo =  nepi_nav.get_navpose_location_amsl_geo(nav_pose_response)
+
+        # Set global navpose and publish
+        self.navpose_dict = navpose_dict
+        # Publish the navpose solution
+        self.publish_navpose()
+
+        # Repeat
+        process_time = nepi_utils.get_time() - start_time
+        rate = 1
+        if self.nav_mgr_if is not None:
+            rate = self.navpose_update_rate
+        delay = float(1.0) / rate - process_time
+        nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
+
 
 
     def updateDeviceNameCb(self, msg):
@@ -1293,50 +1336,9 @@ class RBXRobotIF:
         else:
             self.update_error_msg("Ignoring Go command, Autononous Controls not Ready")
 
-    ### Callback to enble fake gps
-    def fakeGPSEnableCb(self,msg):
-        self.msg_if.pub_info("Received set set fake gps enable message", log_name_list = self.log_name_list)
-        self.msg_if.pub_info(msg)
-        self.node_if.set_param('fake_gps_enabled', msg.data)
-        self.setFakeGPSFunction(msg.data)
-        self.publish_status()
-        self.publishInfo()
-
-    ### Setup a regular background navpose get and update navpose data
-    def updateNavPoseCb(self,timer):
-        # Get current NEPI NavPose data from NEPI ROS nav_pose_query service call
-        try:
-            nav_pose_response = self.get_navpose_service(NavPoseQueryRequest())
-            #self.msg_if.pub_info(nav_pose_response)
-            # Get current navpose
-            current_navpose = nav_pose_response.nav_pose
-            # Get current heading in degrees
-            self.current_heading_deg = nepi_nav.get_navpose_heading_deg(nav_pose_response)
-            # Get current orientation vector (roll, pitch, yaw) in degrees enu frame
-            self.current_orientation_enu_degs = nepi_nav.get_navpose_orientation_enu_degs(nav_pose_response)
-            # Get current orientation vector (roll, pitch, yaw) in degrees ned frame +-180
-            self.current_orientation_ned_degs = nepi_nav.get_navpose_orientation_ned_degs(nav_pose_response)
-            # Get current position vector (x, y, z) in meters enu frame
-            self.current_position_enu_m = nepi_nav.get_navpose_position_enu_m(nav_pose_response)
-            # Get current position vector (x, y, z) in meters ned frame
-            self.current_position_ned_m = nepi_nav.get_navpose_position_ned_m(nav_pose_response)
-            # Get current geoid hieght
-            self.current_geoid_height_m =  nepi_nav.get_navpose_geoid_height(nav_pose_response)
-            # Get current location vector (lat, long, alt) in geopoint data with WGS84 height
-            self.current_location_wgs84_geo =  nepi_nav.get_navpose_location_wgs84_geo(nav_pose_response) 
-            # Get current location vector (lat, long, alt) in geopoint data with AMSL height
-            self.current_location_amsl_geo =  nepi_nav.get_navpose_location_amsl_geo(nav_pose_response)
-    ##      self.msg_if.pub_info(self.current_geoid_height_m)
-    ##      self.msg_if.pub_info(self.current_location_wgs84_geo)
-    ##      self.msg_if.pub_info(self.current_location_amsl_geo)
-        except Exception as e:
-            self.update_error_msg("navpose service call failed: " + str(e))
 
 
     def ApplyConfigUpdates(self):
-        if self.setFakeGPSFunction is not None:
-          fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
-          self.setFakeGPSFunction(fake_gps_enabled) 
         if self.setHomeFunction is not None:
           home_location = self.node_if.get_param('home_location')
           geo_home = GeoPoint()
@@ -1384,7 +1386,7 @@ class RBXRobotIF:
         self.rbx_info.home_lat = home_location[0]
         self.rbx_info.home_long = home_location[1]
         self.rbx_info.home_alt = home_location[2]
-        self.rbx_info.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
+
 
         if not nepi_sdk.is_shutdown():
             #self.msg_if.pub_info(self.rbx_info)
@@ -1508,10 +1510,12 @@ class RBXRobotIF:
 
         
     def publish_navpose(self):
-        self.np_status_msg.publishing = True
-        if self.navpose_if is not None:
-            np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict, device_mount_description = self.get_mount_description())
+        np_dict = copy.deepcopy(self.navpose_dict)
+        timestamp = nepi_utils.get_time()
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if self.node_if is not None and navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
 
 
     def _publishNavPoseCb(self,timer):
@@ -1905,16 +1909,8 @@ class RBXRobotIF:
           self.rbx_battery = self.getBatteryPercentFunction()
         else:
           self.rbx_battery = -999
-        self.status_msg.current_lat = self.current_location_wgs84_geo[0]
-        self.status_msg.current_long  = self.current_location_wgs84_geo[1]
-        self.status_msg.current_altitude  = self.current_location_wgs84_geo[2]
-        self.status_msg.current_heading = self.current_heading_deg
-        self.status_msg.current_roll = self.current_orientation_ned_degs[0]
-        self.status_msg.current_pitch  = self.current_orientation_ned_degs[1]
-        self.status_msg.current_yaw = self.current_orientation_ned_degs[2]
 
         self.status_msg.last_cmd_string = self.last_cmd_string
-        self.status_msg.fake_gps_enabled = self.node_if.get_param('fake_gps_enabled')
 
         ## Update Control Info
         if self.manualControlsReadyFunction is not None:

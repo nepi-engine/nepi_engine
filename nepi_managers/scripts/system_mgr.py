@@ -527,6 +527,7 @@ class SystemMgrNode():
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        wait_cfg_mgr = False,
                         msg_if = self.msg_if
         )
 

@@ -29,7 +29,6 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
 from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
 APPS_SHARE_FOLDER = '/opt/nepi/ros/share/nepi_apps'
@@ -87,7 +86,6 @@ class NepiAppsMgr(object):
       self.msg_if.pub_info("Starting IF Initialization Processes")
 
       ##############################
-      ## Wait for NEPI core managers to start
       # Wait for System Manager
       mgr_sys_if = ConnectMgrSystemServicesIF()
       success = mgr_sys_if.wait_for_ready()
@@ -101,15 +99,6 @@ class NepiAppsMgr(object):
       self.msg_if.pub_info("App install packages folder files " + str(self.apps_install_files))
 
        
-      # Wait for Config Manager
-      mgr_cfg_if = ConnectMgrConfigIF()
-      success = mgr_cfg_if.wait_for_ready()
-      success = mgr_cfg_if.wait_for_status()
-      if success == False:
-          nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-
-
-
       ##############################
       # Initialize Variables
       # ToDo:CHANGE TO SYSTEM SERVICE CALLS

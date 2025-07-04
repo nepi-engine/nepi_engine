@@ -59,17 +59,14 @@ class MsgIF:
         if throttle_s is not None:
             ct = nepi_utils.get_time()
             if uid is not None:
-                stack = inspect.stack()
-                frame = stack[1]
-                uid = frame.filename+frame.function+str(frame.lineno)
-            if uid not in self.throttle_dict.keys():
-             self.throttle_dict[uid] = ct
-            else:
-                lt = self.throttle_dict[uid]
-                if (ct-lt) > throttle_s:
+                if uid not in self.throttle_dict.keys():
                     self.throttle_dict[uid] = ct
                 else:
-                    return
+                    lt = self.throttle_dict[uid]
+                    if (ct-lt) > throttle_s:
+                        self.throttle_dict[uid] = ct
+                    else:
+                        return
             
         if msg is None:
             msg = "MSGIF got None msg"
@@ -87,7 +84,10 @@ class MsgIF:
         if throttle_s is not None:
             stack = inspect.stack()
             frame = stack[1]
-            uid = frame.filename+frame.function+str(frame.lineno)
+            try:
+                uid = frame.filename+frame.function+str(frame.lineno)
+            except:
+                print("Failed to create msg uid with frame: " + str(frame))
         self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_warn(self, msg, throttle_s = None, log_name_list = []):
@@ -95,7 +95,10 @@ class MsgIF:
         if throttle_s is not None:
             stack = inspect.stack()
             frame = stack[1]
-            uid = frame.filename+frame.function+str(frame.lineno)
+            try:
+                uid = frame.filename+frame.function+str(frame.lineno)
+            except:
+                print("Failed to create msg uid with frame: " + str(frame))
         self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_debug(self, msg, throttle_s = None, log_name_list = []):
@@ -103,7 +106,10 @@ class MsgIF:
         if throttle_s is not None:
             stack = inspect.stack()
             frame = stack[1]
-            uid = frame.filename+frame.function+str(frame.lineno)
+            try:
+                uid = frame.filename+frame.function+str(frame.lineno)
+            except:
+                print("Failed to create msg uid with frame: " + str(frame))
         self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_error(self, msg, throttle_s = None, log_name_list = []):
@@ -111,7 +117,10 @@ class MsgIF:
         if throttle_s is not None:
             stack = inspect.stack()
             frame = stack[1]
-            uid = frame.filename+frame.function+str(frame.lineno)
+            try:
+                uid = frame.filename+frame.function+str(frame.lineno)
+            except:
+                print("Failed to create msg uid with frame: " + str(frame))
         self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_fatal(self, msg, throttle_s = None, log_name_list = []):
@@ -119,7 +128,10 @@ class MsgIF:
         if throttle_s is not None:
             stack = inspect.stack()
             frame = stack[1]
-            uid = frame.filename+frame.function+str(frame.lineno)
+            try:
+                uid = frame.filename+frame.function+str(frame.lineno)
+            except:
+                print("Failed to create msg uid with frame: " + str(frame))
         self.pub_msg(msg,level = 'fatal', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
 
 
