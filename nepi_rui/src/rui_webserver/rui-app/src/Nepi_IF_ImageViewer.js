@@ -1040,6 +1040,15 @@ class ImageViewer extends Component {
       
                 </div>
 
+                <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
+
+                  {this.renderCompression()}
+
+                  <NepiIFConfig
+                      namespace={namespace}
+                      title={"Nepi_IF_Config"}
+                  />
+
           </div>
 
           <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
@@ -1070,22 +1079,9 @@ class ImageViewer extends Component {
 
         </div>
 
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>      
-
-         {this.renderCompression()}
-
-          <NepiIFConfig
-              namespace={namespace}
-              title={"Nepi_IF_Config"}
-          />
-
-      </div>
 
 
-
-
-
-              
+             
       </Section>
 
     )

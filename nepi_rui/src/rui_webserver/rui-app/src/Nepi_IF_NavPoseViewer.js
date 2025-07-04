@@ -49,6 +49,7 @@ class NepiIFNavPoseViewer extends Component {
 
       navposeListener: null,
       navpose_msg: null,
+      navpose_dict: null,
 
       needs_update: true,
       nav_needs_update: true  
@@ -176,7 +177,8 @@ class NepiIFNavPoseViewer extends Component {
   render() {
     const navpose_data = this.state.navpose_data
 
-    if navpose_data =! null{
+    if (navpose_data == null) {
+
       return(
         <Columns>
           <Column>
