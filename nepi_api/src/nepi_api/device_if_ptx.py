@@ -25,6 +25,7 @@ from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition,
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
+from nepi_interfaces.msg import NavPose
 
 from tf.transformations import quaternion_from_euler
 

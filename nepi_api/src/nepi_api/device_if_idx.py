@@ -37,6 +37,8 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF, Transform3DIF
 
+
+from nepi_interfaces.msg import NavPose
 from nepi_api.data_if import ColorImageIF
 from nepi_api.data_if import DepthMapIF
 from nepi_api.data_if import PointcloudIF
@@ -808,9 +810,9 @@ class IDXDeviceIF:
                 self.transform_if.set_end_description('pantilt_center_tilt_axis')
         if navpose_dict is None:
             navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-                if navpose_dict is not None:
-                    frame_3d = 'nepi_frame'
-                    self.transform_if.set_end_description('nepi_frame')
+            if navpose_dict is not None:
+                frame_3d = 'nepi_frame'
+                self.transform_if.set_end_description('nepi_frame')
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
             frame_3d = 'sensor_frame'

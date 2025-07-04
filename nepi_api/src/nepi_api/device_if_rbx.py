@@ -41,7 +41,7 @@ from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorContr
 
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
-from nepi_interfaces.srv import NavPose
+from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF

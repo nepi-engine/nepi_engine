@@ -21,6 +21,7 @@ from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
+from nepi_interfaces.msg import NavPose
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -504,7 +505,7 @@ class LSXDeviceIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-        '''
+        
  
         # Setup navpose data IF
         np_namespace = self.namespace
@@ -517,6 +518,7 @@ class LSXDeviceIF:
                         )
 
         time.sleep(1)
+        '''
         
         ####################################
         self.ready = True
@@ -592,8 +594,6 @@ class LSXDeviceIF:
           self.settings_if.reset()
       if self.transform_if is not None:
           self.transform_if.reset()
-      if self.navpose_if is not None:
-          self.navpose_if.reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -607,8 +607,6 @@ class LSXDeviceIF:
           self.settings_if.factory_reset()
       if self.transform_if is not None:
           self.transform_if.factory_reset()
-      if self.navpose_if is not None:
-          self.navpose_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
