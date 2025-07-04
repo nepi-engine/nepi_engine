@@ -1427,7 +1427,8 @@ class PTXActuatorIF:
         self.publish_status(do_updates=False) # Updated inline here 
         self.node_if.set_param('mount_desc', self.mount_desc)
 
-
+    def navposeSysCb(self,msg):
+        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
 
     def setFrame3dTransformCb(self, msg):
         self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
@@ -1449,15 +1450,13 @@ class PTXActuatorIF:
             transform = self.transform_if.get_3d_transform()
         return transform
 
-
-
     def get_navpose_dict(self):
         np_dict = copy.deepcopy(self.navpose_dict)
         return np_dict
 
         
     def publish_navpose(self):
-        np_dict = self.get_navpose_dict()
+        navpose_dict = self.get_navpose_dict()
         timestamp = nepi_utils.get_time()
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
         if self.node_if is not None and navpose_msg is not None:
@@ -1486,12 +1485,9 @@ class PTXActuatorIF:
             desc = self.mount_desc
         return desc
 
-        
-
     def provideCapabilities(self, _):
         return self.capabilities_report
     
-
     def initConfig(self):
         self.initCb()
 
@@ -1621,7 +1617,7 @@ class PTXActuatorIF:
 
 
     def publish_status(self, do_updates = False):
-        self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
+        #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
