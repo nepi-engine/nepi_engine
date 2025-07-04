@@ -144,11 +144,11 @@ class NepiIFNavPoseViewer extends Component {
   // Lifecycle method called when compnent updates.
   // Used to track changes in the topic
   componentDidUpdate(prevProps, prevState, snapshot) {
-    const namespace = this.props.namespace
+    const namespace = this.props.namespace  + "/navpose"
     if (prevState.namespace !== namespace){
       if (namespace != null) {
         this.setState({
-          namespace: namespace + "/navpose",
+          namespace: namespace,
         })
         this.updateStatusListener()
         this.updateNavposeListener()
