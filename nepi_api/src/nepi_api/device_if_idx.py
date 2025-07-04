@@ -793,12 +793,12 @@ class IDXDeviceIF:
         return np_dict
         
     def publish_navpose(self):
-        np_dict = self.get_navpose_dict()
+        navpose_dict = self.get_navpose_dict()
         timestamp = nepi_utils.get_time()
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
         if self.node_if is not None and navpose_msg is not None:
             self.node_if.publish_pub('navpose_pub', navpose_msg)
-        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
+        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
 
     def navPoseUpdaterCb(self,timer):
         navpose_dict = None
@@ -827,8 +827,7 @@ class IDXDeviceIF:
         # Repeat
         process_time = nepi_utils.get_time() - start_time
         rate = 1
-        if self.nav_mgr_if is not None:
-            rate = self.navpose_update_rate
+        rate = self.navpose_update_rate
         delay = float(1.0) / rate - process_time
         nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
  
@@ -1300,12 +1299,17 @@ class IDXDeviceIF:
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
-            
-            # Get Data Product Dict and Data_IF
-            
-            self.msg_if.pub_debug("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
+                ready = dp_if.wait_for_ready()
+            if dp_if is None:
+                self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
+                return
 
-            while (not nepi_sdk.is_shutdown() and dp_if is not None):
+            # Get Data Product Dict and Data_IF
+            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
+            while (not nepi_sdk.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
@@ -1337,7 +1341,6 @@ class IDXDeviceIF:
                                                         frame_3d = frame_3d,
                                                         width_deg = self.width_deg,
                                                         height_deg = self.height_deg,
-                                                        do_subscriber_check = False,
                                                         device_mount_description = self.get_mount_description())
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
@@ -1393,12 +1396,16 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
-            dp_dict['dp_if'] = dp_if
+            if dp_if is None:
+                self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
+                return
+
             
             # Get Data Product Dict and Data_IF
-            
-            self.msg_if.pub_debug("Starting depth map thread with data_product dict: " + data_product + " " + str(dp_dict))
-
+            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
             while (not nepi_sdk.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
@@ -1492,7 +1499,17 @@ class IDXDeviceIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
+            ready = dp_if.wait_for_ready()
+            if dp_if is None:
+                self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
+                return
 
+            
+            # Get Data Product Dict and Data_IF
+            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
             while (not nepi_sdk.is_shutdown()):
  
                 # Get Data Product Dict and Data_IF

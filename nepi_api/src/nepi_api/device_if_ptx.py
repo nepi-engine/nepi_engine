@@ -1449,7 +1449,9 @@ class PTXActuatorIF:
             transform = self.transform_if.get_3d_transform()
         return transform
 
-   def get_navpose_dict(self):
+
+
+    def get_navpose_dict(self):
         np_dict = copy.deepcopy(self.navpose_dict)
         return np_dict
 
@@ -1464,8 +1466,7 @@ class PTXActuatorIF:
     def navPoseUpdaterCb(self,timer):
         navpose_dict = None
         if navpose_dict is None:
-            if self.nav_mgr_if is not None:
-                navpose_dict = self.nav_mgr_if.get_navpose_dict()
+            navpose_dict = copy.deepcopy(self.sys_navpose_dict)
         if navpose_dict is not None:
             output_frame_3d = 'nepi_frame'
         else:
@@ -1473,6 +1474,7 @@ class PTXActuatorIF:
             output_frame_3d = 'sensor_frame'
         transform = self.get_3d_transform()
         navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict, transform, output_frame_3d = output_frame_3d)
+        self.publish_navpose()
         self.frame_3d = output_frame_3d
         timestamp = nepi_utils.get_time()
         self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
@@ -1485,23 +1487,6 @@ class PTXActuatorIF:
         return desc
 
         
-    def publish_navpose(self):
-        if self.navpose_if is not None:
-            np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict,
-                                            device_mount_description = self.get_mount_description())
-
-
-    def _publishNavPoseCb(self,timer):
-        self.publish_navpose()
-        rate = 1
-        if self.nav_mgr_if is not None:
-            pub_rate = self.nav_mgr_if.get_pub_rate()
-            if pub_rate is not None and pub_rate > 0:
-                rate = pub_rate
-        delay = float(1.0) / rate
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
-
 
     def provideCapabilities(self, _):
         return self.capabilities_report

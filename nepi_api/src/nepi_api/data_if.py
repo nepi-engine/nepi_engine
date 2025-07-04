@@ -3129,7 +3129,7 @@ class ImageIF(BaseImageIF):
             cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
         else:
             cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-        return cv2_img, self.auto_adjust_controls
+        return cv2_img
 
 
     ###############################
@@ -3239,7 +3239,7 @@ class ColorImageIF(BaseImageIF):
     ###############################
 
     def process_cv2_img(self, cv2_img):
-        return cv2_img, self.auto_adjust_controls
+        return cv2_img
 
     ###############################
     # Class Private Methods
@@ -3348,7 +3348,7 @@ class DepthMapImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
-        return cv2_img, self.auto_adjust_controls
+        return cv2_img
 
     ###############################
     # Class Private Methods
