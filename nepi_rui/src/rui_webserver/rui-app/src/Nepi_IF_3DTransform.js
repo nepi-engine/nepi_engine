@@ -36,7 +36,7 @@ class NepiIF3DTransform extends Component {
 
     this.state = {
 
-      showTransform: false,
+      showTransform: true,
 
 
       transform_msg: null,
@@ -50,6 +50,8 @@ class NepiIF3DTransform extends Component {
       transformRY: 0,
       transformRZ: 0,
       transformHO: 0,
+      needs_update: false,
+      namespace: null
 
     }
 
@@ -91,16 +93,22 @@ class NepiIF3DTransform extends Component {
 
   // Function for configuring and subscribing to StatusIDX
   updateListener() {
-    const { namespace } = this.props
+    const namespace = this.props.namespace + '/frame_3d_transform'
     if (this.state.listener) {
       this.state.listener.unsubscribe()
     }
+    this.setState({ namespace: namespace  })
     var listener = this.props.ros.setupFrame3DTransformListener(
       namespace,
       this.statusListener
     )
     this.setState({ listener: listener, disabled: false })
 
+  }
+
+
+  componentDidMount(){
+    this.setState({needs_update: true})
   }
 
   // Lifecycle method called when compnent updates.
@@ -128,7 +136,7 @@ class NepiIF3DTransform extends Component {
 
   renderConfigs(){
     const { sendTriggerMsg } = this.props.ros
-    const namespace = this.props.namespace
+    const namespace = this.state.namespace
     return(
       <Columns>
       <Column>
@@ -151,7 +159,7 @@ class NepiIF3DTransform extends Component {
 
   sendTransformUpdateMessage(){
     const {sendFrame3DTransformMsg} = this.props.ros
-    const namespace = this.props.namespace + "/set_3d_transform"
+    const namespace = this.state.namespace + "/set_3d_transform"
     const TX = parseFloat(this.state.transformTX)
     const TY = parseFloat(this.state.transformTY)
     const TZ = parseFloat(this.state.transformTZ)
@@ -166,13 +174,13 @@ class NepiIF3DTransform extends Component {
 
   sendTransformClearMessage(){
     const {sendTriggerMsg} = this.props.ros
-    const namespace = this.props.namespace + "/clear_3d_transform"
+    const namespace = this.state.namespace + "/clear_3d_transform"
     sendTriggerMsg(namespace)
   }
 
   render() {
     const { sendTriggerMsg } = this.props.ros
-    const namespace = this.props.namespace ? this.props.namespace + '/frame_3d_transform' : 'None'
+    const namespace = this.state.namespace ? this.state.namespace : "None"
     const has_transform = this.props.has_transform ? this.props.has_transform : true
     const updates = this.props.supports_transform_updates ? this.props.supports_transform_updates : true
     if (namespace === 'None' && this.props.transform != null){
