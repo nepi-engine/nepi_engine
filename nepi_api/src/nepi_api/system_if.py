@@ -845,8 +845,8 @@ class Transform3DIF:
 
         self.source = source_ref_description
         self.end = end_ref_description
-        self.get_tr = get_3d_transform_function
-        if self.get_tr is not None:
+        self.get_3d_transform_function = get_3d_transform_function
+        if self.get_3d_transform_function is not None:
             self.supports_updates = False
 
         self.status_msg.has_transform = self.has_transform
@@ -982,8 +982,8 @@ class Transform3DIF:
 
     def get_3d_transform(self):
         transform = None
-        if self.get_tr is not None:
-            transform = self.get_tr()
+        if self.get_3d_transform_function is not None:
+            transform = self.get_3d_transform_function()
         if transform is None:
             transform = self.transform
         return transform
