@@ -145,7 +145,7 @@ class SystemMgrNode():
     DRIVERS_PATH_DICT = {
         'drivers_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_drivers',
         'drivers_lib': '/opt/nepi/ros/lib/nepi_drivers',
-        'drivers_param': '/opt/nepi/ros/share/nepi_drivers',
+        'drivers_param': '/opt/nepi/ros/lib/nepi_drivers',
         'drivers_install': '/mnt/nepi_storage/install/drivers'
         }
     AIFS_PATH_DICT = {
