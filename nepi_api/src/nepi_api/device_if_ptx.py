@@ -788,7 +788,6 @@ class PTXActuatorIF:
                         )
 
 
-        '''
         ############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
@@ -796,18 +795,16 @@ class PTXActuatorIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        get_3d_transform_function = self.get_3d_transform,
+                        get_3d_transform_function = None,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-        '''
 
         ##################################
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
 
-        '''
 
         ###############################
         # Create a NPX Device IF
@@ -817,14 +814,13 @@ class PTXActuatorIF:
                 data_source_description = self.data_source_description,
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
-                get3DTransformCb = self.transform_if.get_3d_transform,
-                navpose_update_rate = self.navpose_update_rate,
+                get3DTransformCb = self.get_3d_transform,
+                max_navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                 )
 
 
-        '''
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
@@ -1451,16 +1447,21 @@ class PTXActuatorIF:
         return transform
 
     def get_navpose_dict(self):
-        np_dict = copy.deepcopy(self.navpose_dict)
-        return np_dict
+        navpose_dict = copy.deepcopy(self.navpose_dict)
+        return navpose_dict
 
         
     def publish_navpose(self):
         navpose_dict = self.get_navpose_dict()
         timestamp = nepi_utils.get_time()
+        # Publish navpose at same rate
+        #self.msg_if.pub_warn("NavPose Dict: " + str(navpose_dict), throttle_s = 5)
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        #self.msg_if.pub_warn("NavPose Msg: " + str(navpose_msg), throttle_s = 5)
+
         if self.node_if is not None and navpose_msg is not None:
             self.node_if.publish_pub('navpose_pub', navpose_msg)
+            self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
 
     def navPoseUpdaterCb(self,timer):
         navpose_dict = None
@@ -1473,11 +1474,12 @@ class PTXActuatorIF:
             output_frame_3d = 'sensor_frame'
         transform = self.get_3d_transform()
         navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict, transform, output_frame_3d = output_frame_3d)
-        self.publish_navpose()
-        self.frame_3d = output_frame_3d
-        timestamp = nepi_utils.get_time()
-        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
         self.navpose_dict = navpose_dict
+        self.publish_navpose()
+    
+        delay = float(1.0)/self.navpose_update_rate
+        nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True) 
+
 
     def get_mount_description(self):
         desc = self.device_mount_description
@@ -1607,13 +1609,7 @@ class PTXActuatorIF:
     def _publishStatusCb(self,timer):
         self.msg_if.pub_warn("will call publisher status msg ", throttle_s = 5.0)
         self.publish_status()
-        # Publish navpose at same rate
-        np_dict = copy.deepcopy(self.navpose_dict)
-        timestamp = nepi_utils.get_time()
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
+
 
 
     def publish_status(self, do_updates = False):

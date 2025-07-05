@@ -13,7 +13,6 @@ import Section from "./Section"
 import { Columns, Column } from "./Columns"
 import Label from "./Label"
 import Select, { Option } from "./Select"
-import Button, { ButtonMenu } from "./Button"
 import Styles from "./Styles"
 
 import NepiDeviceNPXControls from "./NepiDeviceNPX-Controls"
@@ -72,6 +71,8 @@ class NepiDeviceNPX extends Component {
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
+  console.log('Status message received:', message);
+
     this.setState({
       status_msg: message, 
       connected: true

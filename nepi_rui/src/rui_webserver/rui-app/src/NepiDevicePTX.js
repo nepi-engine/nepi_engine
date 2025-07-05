@@ -29,6 +29,8 @@ import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import NepiIF3DTransform from "./Nepi_IF_3DTransform"
+import NavPoseViewer from "./Nepi_IF_NavPoseViewer"
+import {onChangeSwitchStateValue } from "./Utilities"
 
 
 function round(value, decimals = 0) {
@@ -63,7 +65,7 @@ class NepiDevicePTX extends Component {
       tiltHomePosEdited: null,
       tiltHomePosDeg: null,
 
-
+      show_navpose: false,
 
       showLimits: false,
 
@@ -794,6 +796,75 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
     )
   }
 
+  renderNavPose(){
+  const show_navpose = this.state.show_navpose
+  const namespace = this.state.namespace
+  console.log("show navpose: " + show_navpose)
+  console.log("namespace : " + namespace)
+
+  
+
+  return(
+    <Section>
+        <div style={{ display: 'flex' }}>
+                <div style={{ width: '20%' }}>
+
+
+                <Label title="Show NavPose">
+                        <Toggle
+                          checked={this.state.show_navpose===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                        </Toggle>
+                      </Label>    
+
+                </div>
+                <div style={{ width: '80%' }}>
+                  {}
+                </div>
+
+              </div>
+
+
+
+
+
+
+
+              <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+              <div style={{ display: 'flex' }}>
+              <div style={{ width: '40%' }}>
+
+
+                  <Label title={"NAVPOSE"} />
+                    <NavPoseViewer
+                      namespace={namespace}
+                      title={"NavPose Data"}
+                    />
+
+
+              </div>
+
+              <div style={{ width: '20%' }}>
+                {}
+              </div>
+
+              <div style={{ width: '40%' }}>
+                {}
+              </div>
+              </div>
+
+              </div>
+
+
+    </Section>
+  )  
+
+  }
+
+
   render() {
     const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
     const { panNowRatio, panGoalRatio, tiltNowRatio, tiltGoalRatio} = this.state
@@ -813,18 +884,9 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
         <Columns>
           <Column equalWidth = {false} >
 
-                <div hidden={(namespace === null)}>
-                      <NepiDeviceInfo
-                            deviceNamespace={namespace}
-                            status_topic={"/status"}
-                            status_msg_type={"nepi_interfaces/DevicePTXStatus"}
-                            name_update_topic={"/update_device_name"}
-                            name_reset_topic={"/reset_device_name"}
-                            title={"NepiSensorsImagingInfo"}
-                        />
 
-                </div>
 
+                
 
                 <div id="ptxImageViewer">
                   <ImageViewer
@@ -885,8 +947,22 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
                   <Button onClick={() => onPTXStop(namespace)}>{"STOP"}</Button>
                   
-                  </ButtonMenu>
+                </ButtonMenu>
 
+
+                  <div hidden={(namespace === null)}>
+                  {this.renderNavPose()}
+
+                      <NepiDeviceInfo
+                            deviceNamespace={namespace}
+                            status_topic={"/status"}
+                            status_msg_type={"nepi_interfaces/DevicePTXStatus"}
+                            name_update_topic={"/update_device_name"}
+                            name_reset_topic={"/reset_device_name"}
+                            title={"NepiSensorsImagingInfo"}
+                        />
+
+                </div>
 
                   <NepiSystemMessages
                     messagesNamespace={namespace}
