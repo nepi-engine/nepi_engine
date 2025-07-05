@@ -77,6 +77,7 @@ GET_IMAGE_TIMEOUT_SEC = 1
 API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
 AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
 
+
 class AiDetectorIF:
     
     namespace = '~'
@@ -84,7 +85,8 @@ class AiDetectorIF:
 
     IMAGE_DATA_PRODUCT = 'detection_image'
 
-    STATES_DICT = dict()
+
+    states_dict = None
     TRIGGERS_DICT = dict()
 
     node_if = None
@@ -131,7 +133,7 @@ class AiDetectorIF:
     sleep_suspend_sec = 0
     sleep_run_sec = 0
     img_tiling = False
-    overlay_labels = False
+    overlay_labels = True
     overlay_clf_name = False
     overlay_img_name = False
     threshold = DEFAULT_THRESHOLD
@@ -583,7 +585,6 @@ class AiDetectorIF:
 
         ###############################
         # Create System IFs
-
         # Setup States IF
         self.states_dict = {
                         "running": {
@@ -603,6 +604,7 @@ class AiDetectorIF:
                             "value":"False"
                             }
         }
+
         self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -647,7 +649,7 @@ class AiDetectorIF:
 
         # Start Timer Processes
         nepi_sdk.start_timer_process((1.0), self.publishStatusCb)
-        nepi_sdk.start_timer_process((1.0), self.updateDetectionState)
+        nepi_sdk.start_timer_process((1.0), self.updateStatesCb)
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
 
@@ -677,7 +679,7 @@ class AiDetectorIF:
 
 
 
-    def get_states_dict_function(self):
+    def get_states_dict_function(self):    
         return self.states_dict
 
 
@@ -953,8 +955,8 @@ class AiDetectorIF:
         self.img_ifs_lock.release()
         # Update Image subscribers
         for i,img_topic in enumerate(img_topics):
-            img_topic = nepi_sdk.find_topic(img_topic)
-            if img_topic != '':
+            found_img_topic = nepi_sdk.find_topic(img_topic)
+            if found_img_topic != '':
                 img_topics[i] = img_topic
                 if img_topic not in active_img_topics:
                     self.addImageTopic(img_topic)
@@ -1429,7 +1431,7 @@ class AiDetectorIF:
         return resp
     
 
-    def updateDetectionState(self,timer):
+    def updateStatesCb(self,timer):
         # Update and clear detection state every second
         self.states_dict['detection']['value'] = str(self.detection_state)
         self.detection_state = False
@@ -1464,10 +1466,14 @@ class AiDetectorIF:
 
         self.det_status_msg.name = self.model_name
         self.det_status_msg.namespace = self.node_namespace
-        self.det_status_msg.state = self.state
-        self.det_status_msg.available_classes = self.classes
-
         self.det_status_msg.enabled = self.enabled
+        self.det_status_msg.state = self.state
+        detection_state = False
+        if self.states_dict is not None:
+            detection_state = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
+        self.det_status_msg.detection_state = detection_state
+
+        self.det_status_msg.available_classes = self.classes
         sel_classes = self.selected_classes
         self.det_status_msg.selected_classes = sel_classes
         self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)

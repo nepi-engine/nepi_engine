@@ -105,8 +105,8 @@ class AiDetectorImgPub:
     self_managed = True
     model_name = "None"
 
-    img_image_if = None
-    img_image_if_all = None
+    img_if = None
+    img_if_all = None
 
     img_ifs_dict = dict()
     img_ifs_lock = threading.Lock()
@@ -313,8 +313,8 @@ class AiDetectorImgPub:
 
         # Manage group detector image ifs
         if len(active_img_topics) > 0:
-            if self.img_image_if == None:
-                self.img_image_if = ImageIF(namespace = self.det_namespace ,
+            if self.img_if == None:
+                self.img_if = ImageIF(namespace = self.det_namespace ,
                         data_product_name = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',
@@ -326,10 +326,10 @@ class AiDetectorImgPub:
                         msg_if = self.msg_if
                         )
 
-            self.img_image_if_all = None
+            self.img_if_all = None
             '''
-            if self.img_image_if_all == None and self.all_namespace != "":
-                self.img_image_if_all = ImageIF(namespace = self.all_namespace , 
+            if self.img_if_all == None and self.all_namespace != "":
+                self.img_if_all = ImageIF(namespace = self.all_namespace , 
                         data_product_name = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',
@@ -342,12 +342,12 @@ class AiDetectorImgPub:
                         )
             '''
         else:
-            if self.img_image_if != None:
-                self.img_image_if.unregister() 
-            if self.img_image_if_all != None:
-                self.img_image_if_all.unregister()
-            self.img_image_if = None
-            self.img_image_if_all = None
+            if self.img_if != None:
+                self.img_if.unregister() 
+            if self.img_if_all != None:
+                self.img_if_all.unregister()
+            self.img_if = None
+            self.img_if_all = None
 
         #self.msg_if.pub_warn("")
         #self.msg_if.pub_warn("Updating with image topics: " +  str(img_topics))
@@ -442,7 +442,7 @@ class AiDetectorImgPub:
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
                 self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
 
-                img_image_if = ImageIF(namespace = pub_namespace,
+                img_if = ImageIF(namespace = pub_namespace,
                         data_product_name = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',
@@ -476,7 +476,7 @@ class AiDetectorImgPub:
                 # Add Img Subs and Pubs IFs to Img IFs Dict
                 self.img_ifs_lock.acquire()
                 self.img_ifs_dict[img_topic] = {
-                                                'img_if': img_image_if,
+                                                'img_if': img_if,
                                                 'subs_if': img_subs_if
                                                 }   
 
@@ -486,33 +486,33 @@ class AiDetectorImgPub:
 
                 ####################
                 # Publish blank msg img to prime topics
-                #img_image_if
+                #img_if
  
     
             return True
 
     def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
-        if self.img_image_if is not None:
-            if self.img_image_if.has_subscribers_check():
-                self.img_image_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if self.img_image_if_all is not None:
-            if self.img_image_if_all.has_subscribers_check():
-                self.img_image_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if is not None:
+            if self.img_if.has_subscribers_check():
+                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if_all is not None:
+            if self.img_if_all.has_subscribers_check():
+                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
         if img_topic in self.img_ifs_dict.keys():
-            if self.img_ifs_dict.has_subscribers_check():
+            if self.img_ifs_dict[img_topic]['img_if'].has_subscribers_check():
                 self.img_ifs_lock.acquire()
                 self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
                 self.img_ifs_lock.release()
 
     def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
-        if self.img_image_if is not None:
-            if self.img_image_if.has_subscribers_check():
-                self.img_image_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if self.img_image_if_all is not None:
-             if self.img_image_if_all.has_subscribers_check():
-                self.img_image_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if is not None:
+            if self.img_if.has_subscribers_check():
+                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if_all is not None:
+             if self.img_if_all.has_subscribers_check():
+                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
         if img_topic in self.img_ifs_dict.keys():
-            if self.img_ifs_dict.has_subscribers_check():
+            if self.img_ifs_dict[img_topic]['img_if'].has_subscribers_check():
                 self.img_ifs_lock.acquire()
                 self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
                 self.img_ifs_lock.release()

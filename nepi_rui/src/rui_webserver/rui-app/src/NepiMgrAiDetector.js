@@ -605,9 +605,11 @@ renderDetectorSettings() {
 
       const availableClassesList = det_msg.available_classes
       const selectedClassesList = det_msg.selected_classes
+      const classes_selected = (selectedClassesList.length > 0)
 
       const detector_enabled = det_msg.enabled
       const detector_state = det_msg.state
+      const detection_state = det_msg.detection_state
 
       const overlay_labels = det_msg.overlay_labels
       const overlay_detector_name = det_msg.overlay_clf_name
@@ -662,11 +664,19 @@ renderDetectorSettings() {
                 <BooleanIndicator value={img_selected} />
               </Label>
 
+              <Label title={"Classes Selected"}>
+                <BooleanIndicator value={img_selected} />
+              </Label>
+
           </Column>
           <Column>
 
               <Label title={"Connected"}>
                 <BooleanIndicator value={img_connected} />
+              </Label>
+
+              <Label title={"Detected"}>
+                <BooleanIndicator value={detection_state} />
               </Label>
 
           </Column>
@@ -679,11 +689,6 @@ renderDetectorSettings() {
         </pre>
 
 
-
-
-        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-     
         <NepiIFConfig
                         namespace={detector_namespace}
                         title={"Nepi_IF_Conig"}
@@ -710,6 +715,45 @@ renderDetectorSettings() {
 
           </Column>
           </Columns>
+
+
+          <Columns>
+        <Column>
+
+        <label align={"left"} textAlign={"left"}>
+            {"Select Classes"}
+          </label>
+
+
+            </Column>
+          <Column>
+
+                <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+                <div onClick={this.toggleClassesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
+                      <Select style={{width: "10px"}}/>
+                    </div>
+                    <div hidden={this.state.classes_list_viewable === false}>
+                    {classOptions.map((Class) =>
+                    <div onClick={this.onToggleClassSelection}
+                      style={{
+                        textAlign: "center",
+                        padding: `${Styles.vars.spacing.xs}`,
+                        color: Styles.vars.colors.black,
+                        backgroundColor: (selectedClassesList.includes(Class.props.value))? Styles.vars.colors.blue : Styles.vars.colors.grey0,
+                        cursor: "pointer",
+                        }}>
+                        <body class_name ={Class} style={{color: Styles.vars.colors.black}}>{Class}</body>
+                    </div>
+                    )}
+                    </div>
+
+          </Column>
+          </Columns>
+
+
+
+
 
           <Columns>
         <Column>
@@ -841,39 +885,6 @@ renderDetectorSettings() {
             </Column>
             </Columns>
 
-        <Columns>
-        <Column>
-
-        <label align={"left"} textAlign={"left"}>
-            {"Select Classes"}
-          </label>
-
-
-            </Column>
-          <Column>
-
-                <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-                <div onClick={this.toggleClassesListViewable} style={{backgroundColor: Styles.vars.colors.grey0}}>
-                      <Select style={{width: "10px"}}/>
-                    </div>
-                    <div hidden={this.state.classes_list_viewable === false}>
-                    {classOptions.map((Class) =>
-                    <div onClick={this.onToggleClassSelection}
-                      style={{
-                        textAlign: "center",
-                        padding: `${Styles.vars.spacing.xs}`,
-                        color: Styles.vars.colors.black,
-                        backgroundColor: (selectedClassesList.includes(Class.props.value))? Styles.vars.colors.blue : Styles.vars.colors.grey0,
-                        cursor: "pointer",
-                        }}>
-                        <body class_name ={Class} style={{color: Styles.vars.colors.black}}>{Class}</body>
-                    </div>
-                    )}
-                    </div>
-
-          </Column>
-          </Columns>
 
 
     </Column>

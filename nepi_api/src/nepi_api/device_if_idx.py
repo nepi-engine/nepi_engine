@@ -100,14 +100,14 @@ class IDXDeviceIF:
     device_name = ''
 
     auto_adjust_controls = []
-    ctl_auto = False
-    ctl_brightness = 0.5
-    ctl_contrast = 0.5
-    ctl_threshold = 0.0
-    ctl_res_ratio = 1.0  
-    ctl_fr_ratio = 1.0
-    ctr_start_range_ratio = 0.0
-    ctr_stop_range_ratio = 1.0
+    auto_adjust_ebabled = False
+    brightness_ratio = 0.5
+    contrast_ratio = 0.5
+    threshold_ratio = 0.0
+    resolution_ratio = 1.0  
+    framerate_ratio = 1.0
+    start_range_ratio = 0.0
+    stop_range_ratio = 1.0
 
     min_range_m = 0.0
     max_range_m = 1.0
@@ -679,7 +679,7 @@ class IDXDeviceIF:
 
         nepi_sdk.sleep(1)
 
-        nepi_sdk.start_timer_process(1, self._publishStatusCb)
+        nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
 
         ###############################
@@ -741,7 +741,6 @@ class IDXDeviceIF:
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-#                        supports_updates = True,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
@@ -864,14 +863,14 @@ class IDXDeviceIF:
             self.device_name = self.node_if.get_param('device_name')
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
-            self.ctl_res_ratio = self.node_if.get_param('resolution_ratio')
-            self.ctl_fr_ratio = self.node_if.get_param('framerate_ratio')     
-            self.ctl_auto = self.node_if.get_param('auto_adjust_ebabled') 
-            self.ctl_brightness = self.node_if.get_param('brightness_ratio')
-            self.ctl_contrast = self.node_if.get_param('contrast_ratio')        
-            self.ctl_threshold = self.node_if.get_param('threshold_ratio')  
-            self.ctr_start_range_ratio = self.node_if.get_param('start_range_ratio')
-            self.ctr_stop_range_ratio = self.node_if.get_param('stop_range_ratio')
+            self.resolution_ratio = self.node_if.get_param('resolution_ratio')
+            self.framerate_ratio = self.node_if.get_param('framerate_ratio')     
+            self.auto_adjust_ebabled = self.node_if.get_param('auto_adjust_ebabled') 
+            self.brightness_ratio = self.node_if.get_param('brightness_ratio')
+            self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
+            self.threshold_ratio = self.node_if.get_param('threshold_ratio')  
+            self.start_range_ratio = self.node_if.get_param('start_range_ratio')
+            self.stop_range_ratio = self.node_if.get_param('stop_range_ratio')
 
             self.pt_mounted = self.node_if.get_param('pt_mounted')
             self.pt_topic = self.node_if.get_param('pt_topic')
@@ -879,7 +878,7 @@ class IDXDeviceIF:
             self.mount_desc = self.node_if.get_param('mount_desc')
 
       if do_updates == True:
-        pass
+        self.ApplyConfigUpdates()
       self.publish_status()
 
     def resetCb(self,do_updates = True):
@@ -927,24 +926,22 @@ class IDXDeviceIF:
 
 
     def ApplyConfigUpdates(self):
-        if self.settings_if is not None:
-            self.settings_if.reset_settings()
-        param_dict = nepi_sdk.get_param('~', dict())
-        self.msg_if.pub_debug("Applying Config Updates from Params: " + str(param_dict))
-        if (self.setAutoAdjustRatio is not None and 'auto_adjust_ebabled' in param_dict):
-            self.setAutoAdjustRatio(param_dict['auto_adjust_ebabled'])
-        if (self.setBrightnessRatio is not None and 'brightness_ratio' in param_dict):
-            self.setBrightnessRatio(param_dict['brightness_ratio'])
-        if (self.setContrastRatio is not None and 'contrast_ratio' in param_dict):
-            self.setContrastRatio(param_dict['contrast_ratio'])
-        if (self.setThresholdingRatio is not None and 'threshold_ratio' in param_dict):
-            self.setThresholdingRatio(param_dict['threshold_ratio'])
-        if (self.setResolutionRatio is not None and 'resolution_ratio' in param_dict):
-            self.setResolutionRatio(param_dict['resolution_ratio'])
-        if (self.setFramerateRatio is not None and 'framerate_ratio' in param_dict):
-            self.setFramerateRatio(param_dict['framerate_ratio'])
-        if (self.setRangeRatio is not None and 'start_range' in param_dict and 'stop_range' in param_dict):
-            self.setRangeRatio(param_dict['range_window']['start_range'], param_dict['range_window']['stop_range'])
+        self.msg_if.pub_warn("Apply Auto Updates from current values")
+        if (self.setAutoAdjustRatio is not None):
+            self.setAutoAdjustRatio(self.auto_adjust_ebabled)
+        if (self.setBrightnessRatio is not None):
+            self.setBrightnessRatio(self.brightness_ratio)
+        if (self.setContrastRatio is not None):
+            self.setContrastRatio(self.contrast_ratio)
+        if (self.setThresholdingRatio is not None):
+            self.setThresholdingRatio(self.threshold_ratio)
+        if (self.setResolutionRatio is not None):
+            self.setResolutionRatio(self.resolution_ratio)
+        if (self.setFramerateRatio is not None):
+            self.msg_if.pub_warn("Apply Config Framerate: " + str(self.framerate_ratio))
+            self.setFramerateRatio(self.framerate_ratio)
+        if (self.setRangeRatio is not None):
+            self.setRangeRatio(self.start_range_ratio, self.stop_range_ratio)
 
 
 
@@ -1041,7 +1038,7 @@ class IDXDeviceIF:
         else:
             self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
 
-        self.ctl_auto = enabled       
+        self.auto_adjust_ebabled = enabled       
         self.publish_status(do_updates=False) # Updated inline here
         if self.node_if is not None:
             self.node_if.set_param('auto_adjust_ebabled', enabled)
@@ -1058,7 +1055,7 @@ class IDXDeviceIF:
         if ratio > 1.0:
             ratio = 1.0
 
-        self.ctl_brightness = ratio
+        self.brightness_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         if self.setBrightnessRatio is not None:
             # Call the parent's method and update ROS param as necessary
@@ -1076,7 +1073,7 @@ class IDXDeviceIF:
         if ratio > 1.0:
             ratio = 1.0
 
-        self.ctl_contrast = ratio
+        self.contrast_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         if self.setContrastRatio is not None:
             # Call the parent's method and update ROS param as necessary
@@ -1096,7 +1093,7 @@ class IDXDeviceIF:
         if ratio > 1.0:
             ratio = 1.0
 
-        self.ctl_threshold = ratio
+        self.threshold_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         if self.setThresholdingRatio is not None:
             # Call the parent's method and update ROS param as necessary
@@ -1115,7 +1112,7 @@ class IDXDeviceIF:
         if ratio > 1.0:
             ratio = 1.0
 
-        self.ctl_res_ratio = ratio
+        self.resolution_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
@@ -1138,7 +1135,7 @@ class IDXDeviceIF:
 
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-        self.ctl_fr_ratio = ratio
+        self.framerate_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
         if self.setFramerateRatio is not None:
@@ -1591,7 +1588,7 @@ class IDXDeviceIF:
  
 
     # Function to update and publish status message
-    def _publishStatusCb(self,timer):
+    def publishStatusCb(self,timer):
         self.publish_status()
 
 
@@ -1606,11 +1603,11 @@ class IDXDeviceIF:
         self.status_msg.min_range_m = self.min_range_m
         self.status_msg.max_range_m = self.max_range_m
         
-        self.status_msg.resolution_ratio = self.ctl_res_ratio
+        self.status_msg.resolution_ratio = self.resolution_ratio
         res_str = str(self.width_px) + ":" + str(self.height_px)
         self.status_msg.resolution_current = res_str
 
-        self.status_msg.framerate_ratio = self.ctl_fr_ratio
+        self.status_msg.framerate_ratio = self.framerate_ratio
         self.status_msg.data_products = self.data_products_base_list
         framerates = []
         for dp in self.current_fps.keys():
@@ -1618,14 +1615,14 @@ class IDXDeviceIF:
         self.status_msg.framerates = framerates
 
 
-        self.status_msg.auto_adjust_enabled = self.ctl_auto
+        self.status_msg.auto_adjust_enabled = self.auto_adjust_ebabled
         self.status_msg.auto_adjust_controls = self.auto_adjust_controls
-        self.status_msg.contrast_ratio = self.ctl_contrast
-        self.status_msg.brightness_ratio = self.ctl_brightness
-        self.status_msg.threshold_ratio = self.ctl_threshold
+        self.status_msg.contrast_ratio = self.contrast_ratio
+        self.status_msg.brightness_ratio = self.brightness_ratio
+        self.status_msg.threshold_ratio = self.threshold_ratio
         
-        self.status_msg.range_window_ratios.start_range = self.ctr_start_range_ratio
-        self.status_msg.range_window_ratios.stop_range =  self.ctr_stop_range_ratio
+        self.status_msg.range_window_ratios.start_range = self.start_range_ratio
+        self.status_msg.range_window_ratios.stop_range =  self.stop_range_ratio
 
 
 
@@ -1633,6 +1630,7 @@ class IDXDeviceIF:
         self.status_msg.avail_pantilt_topics = self.avail_pts
 
         self.status_msg.pantilt_mounted = self.pt_mounted
+        '''
         if self.pt_topic in self.avail_pts and self.pt_mounted == True:
             pt_topic = self.pt_topic
             pt_name = self.pt_topic.split('/ptx')[0]
@@ -1647,7 +1645,7 @@ class IDXDeviceIF:
         self.status_msg.sel_pantilt_device_topic = pt_topic
         self.status_msg.sel_pantilt_name = pt_name
         self.status_msg.sel_pantilt_connected = pt_connected
-
+        '''
 
         # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
 
@@ -1675,7 +1673,7 @@ class IDXDeviceIF:
             self.status_msg.rtsp_username = rtsp_username
             self.status_msg.rtsp_password = rtsp_password
 
-        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
+        self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
     
