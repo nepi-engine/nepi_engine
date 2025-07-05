@@ -17,8 +17,10 @@ import os
 import time
 import errno
 
+
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -26,7 +28,6 @@ from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResp
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 NEPI_ENV_PACKAGE = 'nepi_env'
@@ -39,7 +40,6 @@ USER_SUFFIX = '.user'
 
 SYSTEM_MGR_NODENAME = 'system_mgr'
 
-pending_nodes = {}
 
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
@@ -56,7 +56,13 @@ SYS_CFGS_TO_PRESERVE = {
     'smb.conf' : '/opt/nepi/config/etc/samba/smb.conf'
 }
 
+
+
 class config_mgr(object):
+
+    node_if = None
+    config_folders = dict()
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "config_mgr" # Can be overwitten by luanch command
@@ -75,11 +81,13 @@ class config_mgr(object):
 
         ##############################
         # Wait for System Manager
-        self.msg_if.pub_info("Waiting for system status")
-        status_topic = nepi_sdk.create_namespace(self.base_namespace,'system_status')
-        success = nepi_sdk.wait_for_topic(status_topic)
-
-
+        self.msg_if.pub_info("Waiting for system folders")
+        folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got system folders: " + str(folders))
+        for folder in folders.keys():
+            if folder.find('user_cfg') != -1:
+                self.config_folders[folder] = folders[folder]
+        
         ##############################
         ### Setup Node
 
@@ -208,6 +216,7 @@ class config_mgr(object):
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
         self.save_params(sys_ns)
 
+        self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -215,10 +224,43 @@ class config_mgr(object):
         nepi_sdk.spin()
         #########################################################
 
+    def sysResetCb(self,reset_type):
+        pass
 
-    def statusPubCb(self,timer):
+    def initCb(self, do_updates = False):
+      if self.node_if is not None:
+        pass
+      if do_updates == True:
+        nepi_sdk.set_param('config_folders',self.config_folders)
+      self.publish_status()
+
+
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            self.node_if.reset_params()
+        if do_updates == True:
+            pass
+        self.initCb()
+
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
+        if do_updates == True:
+            pass
+        self.initCb()
+
+
+
+    def publish_status(self):
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', Empty())
+
+    def statusPubCb(self,timer):
+        self.publish_status()
 
 
     def get_filename_from_namespace(self,namespace):
@@ -329,19 +371,6 @@ class config_mgr(object):
             os.system('cp -rf ' + source + ' ' + target)
 
 
-    def initCb(self, do_updates = False):
-        if do_updates == True:
-            self.resetCb()
-
-
-    def sysResetCb(self,reset_type):
-        pass
-
-    def resetCb(self):
-        pass
-
-    def factoryResetCb(self):
-        pass
 
     def restore_system_cfgs_all(self,msg):
         self.restore_system_cfgs()

@@ -18,6 +18,7 @@ import psutil
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -48,20 +49,11 @@ from nepi_interfaces.msg import AutoStartEnabled
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
-
-
-
-SCRIPTS_FOLDER = "/mnt/nepi_storage/automation_scripts"
-SCRIPTS_LOG_FOLDER = "/mnt/nepi_storage/logs/automation_script_logs"
 
 class AutomationManager(object):
 
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
-
-    scripts_folder = SCRIPTS_FOLDER
-    scripts_log_folder = SCRIPTS_LOG_FOLDER
 
     processes = {}
     scripts = []
@@ -87,16 +79,16 @@ class AutomationManager(object):
 
         ##############################
         # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for user folders")
+        user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got user folders: " + str(user_folders))
 
-        self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
+        self.scripts_folder = user_folders['automation_scripts']
         self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
 
-        self.scripts_log_folder = mgr_sys_if.get_sys_folder_path('logs/automation_script_logs',SCRIPTS_LOG_FOLDER)
+        self.scripts_log_folder = self.scripts_folder = user_folders['logs/automation_script_logs']
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
           

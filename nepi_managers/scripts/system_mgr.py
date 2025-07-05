@@ -66,6 +66,10 @@ class SystemMgrNode():
     storage_mountpoint = "/mnt/nepi_storage"
     data_folder = storage_mountpoint + "/data"
 
+    storage_subdirs = dict()
+    user_folders = dict()
+    system_folders = dict()
+
     storage_uid = 1000 # default to nepi
     storage_gid = 130 # default to "sambashare" # TODO This is very fragile
 
@@ -92,6 +96,7 @@ class SystemMgrNode():
                             "nepi_src",
                             "user_cfg",
                             "user_cfg/sys",
+                            "user_cfg/cal",
                             "sample_data",
                             "tmp"]
                             
@@ -111,15 +116,63 @@ class SystemMgrNode():
                             "nepi_src",
                             "user_cfg",
                             "user_cfg/sys",
+                            "user_cfg/cal",
                             "sample_data",
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
-    SDK_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk'
-    API_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_api'
-    DRIVERS_SHARE_PATH = '/opt/nepi/ros/lib/nepi_drivers'
-    APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
-    AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
+    SDK_PATH_DICT = {
+        'sdk_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk',
+        'sdk_lib': '/opt/nepi/ros/lib/nepi_sdk',
+        }
+    API_PATH_DICT = {
+        'api_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_api',
+        'api_lib': '/opt/nepi/ros/lib/nepi_api',
+        }
+    ETC_PATH_DICT = {
+        'etc': '/opt/nepi/ros/etc'
+        }
+    CFG_PATH_DICT = {
+        'sys_cfg': '/opt/nepi/config',
+        'user_cfg': storage_mountpoint + '/user_cfg'
+        }
+    RUI_PATH_DICT = {
+        'rui_env': '/opt/nepi/nepi_rui/.nvm',
+        'rui_bld': '/opt/nepi/nepi_rui/src/rui_webserver/rui-app',
+        'rui_src': '/opt/nepi/nepi_rui/src/rui_webserver/rui-app/src'
+        }
+        
+    DRIVERS_PATH_DICT = {
+        'drivers_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_drivers',
+        'drivers_lib': '/opt/nepi/ros/lib/nepi_drivers',
+        'drivers_param': '/opt/nepi/ros/share/nepi_drivers',
+        'drivers_install': '/mnt/nepi_storage/install/drivers'
+        }
+    AIFS_PATH_DICT = {
+        'aifs_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_aifs',
+        'aifs_lib': '/opt/nepi/ros/lib/nepi_aifs',
+        'aifs_param': '/opt/nepi/ros/share/nepi_aifs',
+        'aifs_models': '/mnt/nepi_storage/ai_models/',
+        'aifs_install': '/mnt/nepi_storage/install/ai_frameworks'
+        }
+    APPS_PATH_DICT = {
+        'apps_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_apps',
+        'apps_lib': '/opt/nepi/ros/lib/nepi_apps',
+        'apps_param': '/opt/nepi/ros/share/nepi_apps/params',
+        'apps_install': '/mnt/nepi_storage/install/apps'
+        }
+
+
+    SYSTEM_PATH_DICT = {
+        'sdk': SDK_PATH_DICT,
+        'api': API_PATH_DICT,
+        'etc': ETC_PATH_DICT,
+        'cfg': CFG_PATH_DICT,
+        'rui': RUI_PATH_DICT,
+        'drivers': DRIVERS_PATH_DICT,
+        'aifs': AIFS_PATH_DICT,
+        'apps': APPS_PATH_DICT
+    }
 
     # disk_usage_deque = deque(maxlen=10)
     # Shorter period for more responsive updates
@@ -152,6 +205,8 @@ class SystemMgrNode():
 
     current_throttle_ratio = 1.0
 
+    debug_enabled = False
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -177,8 +232,11 @@ class SystemMgrNode():
 
         if self.first_stage_rootfs_device == "container":
             self.in_container = True
+        nepi_sdk.set_param('in_container',self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
+
+
         
 
         if self.in_container == False:
@@ -232,6 +290,12 @@ class SystemMgrNode():
             # Now can advertise the system folder query
             nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
                 self.provide_system_data_folder)
+        self.msg_if.pub_warn("Storing User Folders")
+        nepi_sdk.set_param('user_folders', self.user_folders)
+        #self.msg_if.pub_warn("Stored user folders: " + str(user_folders))
+        self.msg_if.pub_warn("Storing System Folders")
+        nepi_sdk.set_param('system_folders', self.system_folders)
+        #self.msg_if.pub_warn("Stored user folders: " + str(system_folders))
 
 
 
@@ -418,13 +482,6 @@ class SystemMgrNode():
                 'msg': SystemStatesStatus,
                 'qsize': 1,
                 'latch': True
-            },
-            'debug_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode',
-                'msg': Bool,
-                'qsize': 1,
-                'latch': True
             }
         }  
 
@@ -576,7 +633,10 @@ class SystemMgrNode():
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
-        self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_mode')
+        self.debug_enabled = self.node_if.get_param('debug_mode')
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        nepi_sdk.set_param('debug_mode',self.debug_enabled)
+
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -862,7 +922,7 @@ class SystemMgrNode():
 
     def provide_debug_status(self, req):
         response = DebugQueryResponse()
-        response.degug_enabled = self.status_msg.sys_debug_enabled
+        response.degug_enabled = self.debug_enabled
         return response
 
     def provide_system_status(self, req):
@@ -882,7 +942,6 @@ class SystemMgrNode():
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
-            self.node_if.publish_pub('debug_pub', self.status_msg.sys_debug_enabled)
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
@@ -891,7 +950,9 @@ class SystemMgrNode():
         self.status_msg.save_all_enabled = save_msg.data
 
     def enable_debug_callback(self, msg):
+        self.debug_enabled = msg.data
         self.status_msg.sys_debug_enabled = msg.data
+        nepi_sdk.set_param('debug_mode',msg.data)
         if self.node_if is not None:
             self.node_if.set_param('debug_mode',msg.data)
             self.node_if.save_config()
@@ -912,6 +973,7 @@ class SystemMgrNode():
                 #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)
                 os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
+            self.user_folders[subdir] = full_path_subdir
 
 
 
@@ -924,48 +986,23 @@ class SystemMgrNode():
         os.system('chmod -R 0775 ' + self.SYS_CONFIG_PATH)
         self.storage_subdirs['config'] = self.SYS_CONFIG_PATH
 
-        self.msg_if.pub_warn("Checking nepi_sdk share folder")
-        if not os.path.isdir(self.SDK_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.SDK_SHARE_PATH + " not present... will create")
-                os.makedirs(self.SDK_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.SDK_SHARE_PATH)
-        self.storage_subdirs['sdk'] = self.SDK_SHARE_PATH
 
-        self.msg_if.pub_warn("Checking nepi_api share folder")
-        if not os.path.isdir(self.API_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.API_SHARE_PATH + " not present... will create")
-                os.makedirs(self.API_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.API_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.API_SHARE_PATH)
-        self.storage_subdirs['api'] = self.API_SHARE_PATH
-
-
-
-        self.msg_if.pub_warn("Checking nepi_drivers lib folder")
-        if not os.path.isdir(self.DRIVERS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_SHARE_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_SHARE_PATH
-
-        self.msg_if.pub_warn("Checking nepi_apps param folder")
-        if not os.path.isdir(self.APPS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.APPS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.APPS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.APPS_SHARE_PATH)
-        self.storage_subdirs['apps'] = self.APPS_SHARE_PATH
-
-        self.msg_if.pub_warn("Checking nepi_aifs param folder")
-        if not os.path.isdir(self.AIFS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.AIFS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.AIFS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AIFS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.AIFS_SHARE_PATH)
-        self.storage_subdirs['aifs'] = self.AIFS_SHARE_PATH
+        for entry in self.SYSTEM_PATH_DICT.keys():
+            path_dict = self.SYSTEM_PATH_DICT[entry]
+            for key in path_dict:
+                path_entry = path_dict[key]
+                self.msg_if.pub_warn("Checking system folder: " + key + " at: " + path_entry)
+                if not os.path.isdir(path_entry):
+                        self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
+                        os.makedirs(path_entry)
+                os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
+                os.system('chmod -R 0775 ' + path_entry)
+                self.storage_subdirs[key] = path_entry
+                self.system_folders[key] = path_entry
         return True
+
+
+
 
     def clear_data_folder(self, msg):
         if (self.status_msg.save_all_enabled is True):

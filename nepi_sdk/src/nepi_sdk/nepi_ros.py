@@ -373,7 +373,7 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_ar
   if queue_size is None:
     queue_size = 1
   sub = None
-  sub_namespace = get_full_namespace(sub_namespace)
+  #sub_namespace = get_full_namespace(sub_namespace)
   try:
     if len(callback_args) == 0:
         sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
@@ -387,7 +387,7 @@ def create_publisher(pub_namespace, msg, queue_size = 10, latch = False, log_nam
   if queue_size is None:
     queue_size = 1
   pub = None
-  pub_namespace = get_full_namespace(pub_namespace)
+  #pub_namespace = get_full_namespace(pub_namespace)
   try:
     pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size, latch = latch)
   except Exception as e:
@@ -597,7 +597,7 @@ def wait_for_service(service_name, timeout = float('inf'), log_name_list = []):
 
 def create_service(service_namespace, srv_msg, srv_callback, log_name_list = []):
   service = None
-  service_namespace = get_full_namespace(service_namespace)
+  #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.Service(service_namespace, srv_msg, srv_callback)
   except Exception as e:
@@ -606,7 +606,7 @@ def create_service(service_namespace, srv_msg, srv_callback, log_name_list = [])
 
 def connect_service(service_namespace, service_msg, log_name_list = []):
   service = None
-  service_namespace = get_full_namespace(service_namespace)
+  #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.ServiceProxy(service_namespace, service_msg)
   except Exception as e:
@@ -702,40 +702,56 @@ def has_param(namespace,param_name = None, log_name_list = []):
   return rospy.has_param(namespace)
 
 
-def get_params(namespace,fallback_param = dict(), log_name_list = []):
+def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
   params = None
-  namespace = get_full_namespace(namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   try:
     if fallback_param is None:
-      params = rospy.get_param(namespace)
+      params = rospy.get_param(param_namespace)
     else:
-      params = rospy.get_param(namespace,fallback_param)
+      params = rospy.get_param(param_namespace,fallback_param)
   except Exception as e:
-    rospy.logwarn("Failed to get param for: " + namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    rospy.logwarn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return params
 
 
-def get_param(namespace,fallback_param = None, log_name_list = []):
+def get_param(param_namespace,fallback_param = None, log_name_list = []):
   param = None
-  namespace = get_full_namespace(namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   try:
     if fallback_param is None:
-      param = rospy.get_param(namespace)
+      param = rospy.get_param(param_namespace)
     else:
-      param = rospy.get_param(namespace,fallback_param)
+      param = rospy.get_param(param_namespace,fallback_param)
   except Exception as e:
-    rospy.logwarn("Failed to get param for: " + namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    rospy.logwarn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return param
 
-def set_param(namespace,param_val, log_name_list = []):
+def set_param(param_namespace,param_val, log_name_list = []):
   success = False
-  namespace = get_full_namespace(namespace)
+  #param_namespace = get_full_namespace(param_namespace)
   try:
-    rospy.set_param(namespace,param_val)
+    rospy.set_param(param_namespace,param_val)
     success = True
   except Exception as e:
-    rospy.logerr("Failed to set param for: " + namespace + " "  + param_val + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    rospy.logerr("Failed to set param for: " + param_namespace + " "  + param_val + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return success
+
+# Function to wait for a param
+def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
+  start_time = get_time()
+  timer = 0
+  log_msg_debug("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  param = None
+  while param is None and timer < timeout and not rospy.is_shutdown():
+    try:
+      param = rospy.get_param(param_namespace)
+    except:
+      sleep(1)
+    time.sleep(.1)
+    timer = get_time() - start_time
+  log_msg_debug("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  return param
 
 
 def print_node_params():

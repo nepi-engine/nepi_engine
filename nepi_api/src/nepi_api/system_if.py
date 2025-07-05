@@ -20,6 +20,7 @@ import inspect
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_settings
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
@@ -46,9 +47,6 @@ from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest,
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
 from nepi_api.data_if import ReadWriteIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_time_sync import ConnectMgrTimeSyncIF
-
 
 
 FALLBACK_DATA_FOLDER = '/mnt/nepi_storage/data'
@@ -155,13 +153,16 @@ class SaveDataIF:
         ###############################
         # Connect Sys Mgr Services
 
-
-        ##############################
-        ## Wait for NEPI core managers to start
-        self.sys_srv_if = ConnectMgrSystemServicesIF()
-        success = self.sys_srv_if.wait_for_services()
-        self.save_data_root_directory = self.sys_srv_if.get_sys_folder_path('data',FALLBACK_DATA_FOLDER) 
         
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for user folders")
+        user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got user folders: " + str(system_folders))
+       
+        self.save_data_root_directory = user_folders['data']
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.save_data_root_directory))
+
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
             self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled", log_name_list = self.log_name_list)
@@ -173,9 +174,6 @@ class SaveDataIF:
         self.DATA_UID = stat_info.st_uid
         self.DATA_GID = stat_info.st_gid
 
-        # Wait for Time manager to start to call timezone info
-        self.mgr_time_if = ConnectMgrTimeSyncIF()
-        #success = self.mgr_time_if.wait_for_services()
  
  
 
@@ -718,13 +716,9 @@ class SaveDataIF:
         self.factory_reset()
 
     def updaterCb(self,timer):
-        time_status_dict = self.mgr_time_if.get_time_status()
-        #self.msg_if.pub_debug("Got time status dict " + str(time_status_dict), log_name_list = self.log_name_list, throttle_s = 5)
-        if time_status_dict is not None:
-            last_tz = copy.deepcopy(self.timezone)
-            tzd = time_status_dict['timezone_description']
-            #tzd = nepi_utils.get_timezone_description(tzd)
-            self.timezone = tzd
+        tzd = nepi_system.get_timezone()
+        last_tz = copy.deepcopy(self.timezone)
+        self.timezone = tzd
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
 

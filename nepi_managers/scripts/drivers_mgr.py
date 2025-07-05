@@ -19,6 +19,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
 
@@ -33,13 +34,10 @@ from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQ
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 
-DRIVERS_SHARE_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
-DRIVERS_INSTALL_FOLDER = '/mnt/nepi_storage/install/drivers'
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
+
 #########################################
 
 #########################################
@@ -53,7 +51,7 @@ class NepiDriversMgr(object):
   UPDATE_CHECK_INTERVAL = 5
   PUBLISH_STATUS_INTERVAL = 1
   
-  drivers_share_folder = ''
+  drivers_param_folder = ''
 
   drivers_files = []
   drivers_ordered_list = []
@@ -102,20 +100,20 @@ class NepiDriversMgr(object):
 
 
         ##############################
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
 
-        self.drivers_share_folder = mgr_sys_if.get_sys_folder_path('drivers',DRIVERS_SHARE_FOLDER)
-        self.msg_if.pub_info("Using Drivers Share Folder: " + str(self.drivers_share_folder))
-        self.drivers_install_folder = mgr_sys_if.get_sys_folder_path('install/drivers',DRIVERS_INSTALL_FOLDER)
+        self.drivers_param_folder = system_folders['drivers_param']
+        self.msg_if.pub_info("Using Drivers Param Folder: " + str(self.drivers_param_folder))
+
+        self.drivers_install_folder = system_folders['drivers_install']
         self.msg_if.pub_info("Using Drivers Install Folder: " + str(self.drivers_install_folder))
-        self.user_cfg_folder = mgr_sys_if.get_sys_folder_path('user_cfg',USER_CFG_FOLDER)
+
+        self.user_cfg_folder = system_folders['user_cfg']
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
-        
+    
         
         ##############################
         # Initialize Class Variables
@@ -316,11 +314,11 @@ class NepiDriversMgr(object):
 
   def refresh(self):
     # refresh drivers dict
-    self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
+    self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_param_folder)
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     drvs_dict = copy.deepcopy(self.drvs_dict)
     #self.msg_if.pub_warn("Refresh start drvs: " + str(drvs_dict))
-    drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
+    drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
     #self.msg_if.pub_warn("Refresh end drvs: " + str(drvs_dict))
     self.drvs_dict = drvs_dict
     self.publish_status()
@@ -331,19 +329,20 @@ class NepiDriversMgr(object):
 
 
   def initCb(self,do_updates = False):
+      drvs_active_list = []
       if self.node_if is not None:
         drvs_dict = self.node_if.get_param("drvs_dict")
         self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
-        adrvs = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-        self.msg_if.pub_warn("Init active drvs: " + str(adrvs))
-        drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_share_folder,drvs_dict)
+        drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
+        drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
         self.drvs_dict = drvs_dict
         if self.node_if is not None:
           self.node_if.set_param("drvs_dict",drvs_dict)
           self.backup_enabled = self.node_if.get_param("backup_enabled")
           self.retry_enabled = self.node_if.get_param("retry_enabled")
       if do_updates == True:
-        pass
+        nepi_sdk.set_param('active_drivers', drvs_active_list)
       self.refresh()
       self.publish_status()
 
@@ -371,8 +370,8 @@ class NepiDriversMgr(object):
   def checkAndUpdateCb(self,_):
     ###############################
     ## First update Database
-    #self.msg_if.pub_warn("Driver update check checking drivers folder: " + str(self.drivers_share_folder))
-    drivers_files = nepi_drvs.getDriverFilesList(self.drivers_share_folder)
+    #self.msg_if.pub_warn("Driver update check checking drivers folder: " + str(self.drivers_param_folder))
+    drivers_files = nepi_drvs.getDriverFilesList(self.drivers_param_folder)
     #self.msg_if.pub_warn("Driver update check got driver files: " + str(drivers_files))
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     need_update = self.drivers_files != drivers_files
@@ -383,6 +382,7 @@ class NepiDriversMgr(object):
     #self.msg_if.pub_warn("Update start drvs: " + str(drvs_dict))
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    nepi_sdk.set_param('active_drivers', drvs_active_list)
     #self.msg_if.pub_warn("Update start active drvs: " + str(drvs_active_list))
     ## Next process active driver processes
 
@@ -915,7 +915,7 @@ class NepiDriversMgr(object):
     pkg_name = msg.data
     drvs_dict = copy.deepcopy(self.drvs_dict)
     if pkg_name in self.drivers_install_files:
-     [success,drvs_dict]  = nepi_drvs.installDriverPkg(pkg_name,drvs_dict,self.drivers_install_folder,self.drivers_share_folder)
+     [success,drvs_dict]  = nepi_drvs.installDriverPkg(pkg_name,drvs_dict,self.drivers_install_folder,self.drivers_param_folder)
     self.drvs_dict = drvs_dict
     self.publish_status()
     if self.node_if is not None:
@@ -930,7 +930,7 @@ class NepiDriversMgr(object):
     if backup_enabled:
       backup_folder = self.drivers_install_folder
     if driver_name in drvs_dict:
-      [success,drvs_dict] = nepi_drvs.removeDriver(driver_name,drvs_dict,self.drivers_share_folder,backup_path = backup_folder)
+      [success,drvs_dict] = nepi_drvs.removeDriver(driver_name,drvs_dict,self.drivers_param_folder,backup_path = backup_folder)
     self.drvs_dict = drvs_dict
     self.publish_status()
     if self.node_if is not None:

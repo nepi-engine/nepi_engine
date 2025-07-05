@@ -374,9 +374,9 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 # NavPose Data Helper Functions
 
 NAVPOSE_3D_FRAME_OPTIONS = ['base_frame','nepi_frame','sensor_frame','world_frame']
-NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-NAVPOSE_DEPTH_FRAME_OPTIONS = ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
+NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
 
 BLANK_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),

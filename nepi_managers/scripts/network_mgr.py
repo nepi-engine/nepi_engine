@@ -21,6 +21,7 @@ import ipaddress
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -33,7 +34,6 @@ from nepi_interfaces.srv import WifiQuery, WifiQueryRequest, WifiQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 class NetworkMgr:
@@ -152,15 +152,9 @@ class NetworkMgr:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
         ##############################
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Ready")
-        sys_status_dict = mgr_sys_if.get_system_status_dict()
-        if sys_status_dict is None:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Status")
-        self.in_container = sys_status_dict['in_container']
+        # Wait for System Info
+        self.msg_if.pub_info("Waiting for system info")
+        self.in_container = nepi_system.check_container(log_name_list = [self.node_name])
         
         
         ##############################

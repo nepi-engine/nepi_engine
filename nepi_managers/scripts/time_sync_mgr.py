@@ -22,6 +22,7 @@ import datetime
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import String, Empty, Time
@@ -36,7 +37,6 @@ from nepi_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeSta
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 FACTORY_CFG_SUFFIX = '.factory'
@@ -78,16 +78,9 @@ class time_sync_mgr(object):
 
 
         ##############################
-        ## Wait for NEPI core managers to start
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Ready")
-        sys_status_dict = mgr_sys_if.get_system_status_dict()
-        if sys_status_dict is None:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Mgr Status")
-        self.in_container = sys_status_dict['in_container']
+        # Wait for System Info
+        self.msg_if.pub_info("Waiting for system info")
+        self.in_container = nepi_system.check_container(log_name_list = [self.node_name])
         
               
         ##############################
@@ -467,6 +460,7 @@ class time_sync_mgr(object):
                     subprocess.call(["timedatectl", "set-timezone", self.timezone])
                 except:
                     pass
+            nepi_sdk.set_param('timezone',self.timezone)
 
 
     def handle_time_status_query(self,req):
@@ -497,14 +491,21 @@ class time_sync_mgr(object):
 
 
     def initCb(self, do_updates = False):
-        pass
+        if do_updates == True:
+             nepi_sdk.set_param('timezone',self.timezone)
+
 
     def resetCb(self):
-        pass
+        if do_updates == True:
+            pass
+        self.initCb()
 
     def factoryResetCb(self):
         self.msg_if.pub_info("Restoring NTP to factory config")
         self.reset_to_factory_conf()
+        if do_updates == True:
+            pass
+        self.initCb()       
 
 
     def sysResetCb(self,reset_type = 0):

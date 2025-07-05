@@ -12,6 +12,7 @@ import time
 import copy
 
 from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_system
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
@@ -121,11 +122,8 @@ class NodeConfigsIF:
         self.save_params_pub = nepi_sdk.create_publisher('store_params', String, queue_size=1)
 
         if wait_cfg_mgr == True:
-            self.msg_if.pub_debug("Waiting for config mgr", log_name_list = self.log_name_list)
-            status_topic = nepi_sdk.create_namespace(self.base_namespace,'config_mgr/status')
-            success = nepi_sdk.wait_for_topic(status_topic)
-            self.msg_if.pub_debug("Loading saved config data", log_name_list = self.log_name_list)
-            self.reset_config()
+            self.msg_if.pub_debug("Waiting for Config Mgr", log_name_list = self.log_name_list)
+            config_folders = nepi_system.get_config_folders()
 
 
         # Subscribe to save config for node namespace

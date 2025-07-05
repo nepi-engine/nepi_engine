@@ -29,6 +29,7 @@ from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
@@ -37,8 +38,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
+
 
 
 
@@ -74,8 +74,6 @@ DEFAULT_IMG_OVERLAY = False
 
 GET_IMAGE_TIMEOUT_SEC = 1 
 
-API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
-AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
 
 
 class AiDetectorIF:
@@ -183,20 +181,15 @@ class AiDetectorIF:
         ## Wait for NEPI core managers to start
         self.api_lib_folder = API_LIB_FOLDER
         self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
-        '''  ToDo: Replace with system mgr service call
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-
-
-        self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-        self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
-        '''
-
-
+  
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+       
+        self.api_lib_folder = system_folders['api_lib']
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
  
 
         ##############################  

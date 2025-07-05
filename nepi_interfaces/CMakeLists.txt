@@ -206,6 +206,7 @@ add_service_files(FILES
     ImageCapabilitiesQuery.srv
     DepthMapCapabilitiesQuery.srv
     PointcloudCapabilitiesQuery.srv
+    MgrNavPoseCapabilitiesQuery.srv
     NavPoseCapabilitiesQuery.srv
     NavPoseQuery.srv
     Frame3DTransformsQuery.srv

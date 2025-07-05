@@ -29,6 +29,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -47,7 +48,9 @@ from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
+from nepi_interfaces.srv import MgrNavPoseCapabilitiesQuery, MgrNavPoseCapabilitiesQueryRequest, MgrNavPoseCapabilitiesQueryResponse
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
+
 
 from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
 from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
@@ -70,8 +73,9 @@ class NavPoseMgr(object):
     MGR_NODE_NAME = 'navpose_mgr'
 
     NAVPOSE_PUB_RATE_OPTIONS = [1.0,20.0] 
-    NAVPOSE_3D_FRAME_OPTIONS = ['ENU','NED']
-    NAVPOSE_ALT_FRAME_OPTIONS = ['AMSL','WGS84']
+    NAVPOSE_NAV_FRAME_OPTIONS = nepi_nav.NAVPOSE_NAV_FRAME_OPTIONS 
+    NAVPOSE_ALT_FRAME_OPTIONS = nepi_nav.NAVPOSE_ALT_FRAME_OPTIONS
+    NAVPOSE_DEPTH_FRAME_OPTIONS = nepi_nav.NAVPOSE_DEPTH_FRAME_OPTIONS
 
     FACTORY_PUB_RATE_HZ = 10.0
     FACTORY_3D_FRAME = 'nepi_frame' 
@@ -114,6 +118,7 @@ class NavPoseMgr(object):
 
     mgr_namespace = ""
     status_msg = MgrNavPoseStatus()
+    caps_response = MgrNavPoseCapabilitiesQueryResponse()
 
     set_pub_rate = FACTORY_PUB_RATE_HZ
 
@@ -150,11 +155,22 @@ class NavPoseMgr(object):
 
 
     nepi_frame_desc = 'Undefined'
+    frame_nav = 'ENU'
+    frame_alt = 'WGS84'
+    frame_depth = 'DEPTH'
+
+    navpose_frames = {
+        'nepi_frame_desc': 'Undefined',
+        'frame_nav': 'ENU',
+        'frame_alt': 'WGS84',
+        'frame_depth': 'DEPTH'
+    }
 
     data_source_description = 'nepi_navpose_solution'
     data_ref_description = 'nepi_frame'
     device_mount_description = 'fixed'
     add_mount_description = ''
+
 
     #######################
     ### Node Initialization
@@ -186,6 +202,15 @@ class NavPoseMgr(object):
             'depth': self._depthSubCb,
         }
 
+
+        self.caps_response.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
+        self.caps_response.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
+        self.caps_response.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
+
+
+        self.status_msg.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
+        self.status_msg.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
+        self.status_msg.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
 
@@ -209,6 +234,18 @@ class NavPoseMgr(object):
                 'namespace': self.mgr_namespace,
                 'factory_val': self.nepi_frame_desc
             },
+            'frame_nav': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.frame_nav
+            },
+            'frame_alt': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.frame_alt
+            },
+            'frame_depth': {
+                'namespace': self.mgr_namespace,
+                'factory_val': self.frame_depth
+            },
             'pub_rate': {
                 'namespace': self.mgr_namespace,
                 'factory_val': self.FACTORY_PUB_RATE_HZ
@@ -231,6 +268,14 @@ class NavPoseMgr(object):
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
+            'capabilities_query': {
+                'namespace': self.base_namespace,
+                'topic': 'capabilities_query',
+                'srv': MgrNavPoseCapabilitiesQuery,
+                'req': MgrNavPoseCapabilitiesQueryRequest(),
+                'resp': MgrNavPoseCapabilitiesQueryResponse(),
+                'callback': self._navposeCapsQueryHandler
+            },
             'navpose_query': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose_query',
@@ -268,6 +313,30 @@ class NavPoseMgr(object):
                 'msg': String,
                 'qsize': 1,
                 'callback': self._setFrameDescCb, 
+                'callback_args': ()
+            },
+            'set_frame_nav': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_frame_nav',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setFrameNavCb, 
+                'callback_args': ()
+            },
+            'set_frame_alt': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_frame_alt',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setFrameAltCb, 
+                'callback_args': ()
+            },
+            'set_frame_depth': {
+                'namespace': self.mgr_namespace,
+                'topic': 'set_frame_depth',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setFrameDepthCb, 
                 'callback_args': ()
             },
             'pub_rate': {
@@ -380,15 +449,75 @@ class NavPoseMgr(object):
         nepi_sdk.spin()
 
 
+    def initCb(self,do_updates = False):
+        if self.node_if is not None:
+            self.nepi_frame_desc = self.node_if.get_param('nepi_frame_desc')
+            self.frame_nav = self.node_if.get_param('frame_nav')
+            self.frame_alt = self.node_if.get_param('frame_alt')
+            self.frame_depth = self.node_if.get_param('frame_depth')
+            self.set_pub_rate = self.node_if.get_param('pub_rate')
+            self.connect_dict = self.node_if.get_param('connect_dict')
+            self.transforms_dict = self.node_if.get_param('transforms_dict')
+            self.init_navpose_dict = self.node_if.get_param('init_navpose_dict')
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = self.init_navpose_dict
+        self.navpose_dict_lock.release()
+        if do_updates == True:
+            self.update_navpose_frames()
+        self.publish_status()
+
+    def resetCb(self,do_updates = False):
+        if self.node_if is not None:
+            self.node_if.reset_params()
+        self.initCb(do_updates == True)
+
+        
+    def factoryResetCb(self,do_updates = False):
+        if self.node_if is not None:
+            self.node_if.factory_reset_params()
+        self.initCb(do_updates == True)
+
+
+
+    def update_navpose_frames(self):
+        self.navpose_frames['nepi_frame_desc'] = self.nepi_frame_desc
+        self.navpose_frames['frame_nav'] = self.frame_nav
+        self.navpose_frames['frame_alt'] = self.frame_alt
+        self.navpose_frames['frame_depth'] = self.frame_depth
+        nepi_sdk.set_param('navpose_frames',self.navpose_frames)
 
     #######################
     ### Node Methods
 
-    def setFrameDesc(self,description):
-        self.nepi_frame_desc = description
+    def setFrame3dDescription(self,desc):
+        self.nepi_frame_desc = desc
         self.publish_status(do_updates = False)
+        self.update_navpose_frames()
         if self.node_if is not None:
-            self.node_if.set_param('nepi_frame_desc',description)      
+            self.node_if.set_param('nepi_frame_desc',desc)
+            
+            
+    def setFrameNav(self,frame):
+        self.frame_nav = frame
+        self.publish_status(do_updates = False)
+        self.update_navpose_frames()
+        if self.node_if is not None:
+            self.node_if.set_param('frame_nav',frame)
+
+    def setFrameAlt(self,frame):
+        self.frame_alt = frame
+        self.publish_status(do_updates = False)
+        self.update_navpose_frames()
+        if self.node_if is not None:
+            self.node_if.set_param('frame_alt',frame)
+
+    def setFrameDepth(self,frame):
+        self.frame_depth = frame
+        self.publish_status(do_updates = False)
+        self.update_navpose_frames()
+        if self.node_if is not None:
+            self.node_if.set_param('frame_depth',frame)
+     
 
     def setPublishRateCb(self,rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
@@ -543,37 +672,9 @@ class NavPoseMgr(object):
         # Need to add 
         return npdata_dict
 
-    def initCb(self,do_updates = False):
-        if self.node_if is not None:
-            self.nepi_frame_desc = self.node_if.get_param('nepi_frame_desc')
-            self.set_pub_rate = self.node_if.get_param('pub_rate')
-            self.connect_dict = self.node_if.get_param('connect_dict')
-            self.transforms_dict = self.node_if.get_param('transforms_dict')
-            self.init_navpose_dict = self.node_if.get_param('init_navpose_dict')
-        self.navpose_dict_lock.acquire()
-        self.navpose_dict = self.init_navpose_dict
-        self.navpose_dict_lock.release()
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def resetCb(self,do_updates = False):
-        if self.node_if is not None:
-            self.node_if.reset_params()
-        self.initCb(do_updates == True)
-
-        
-    def factoryResetCb(self,do_updates = False):
-        if self.node_if is not None:
-            self.node_if.factory_reset_params()
-        self.initCb(do_updates == True)
 
 
 
-    def publish_navpose(self):
-        self.status_msg.publishing = True
-        if self.navpose_if is not None:
-            self.navpose_if.publish_navpose(self.navpose_dict)
 
     def publish_status(self, do_updates = False):
         #self.msg_if.pub_warn("========publish_status called========")
@@ -619,9 +720,24 @@ class NavPoseMgr(object):
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
+
+
+    def get_navpose_dict(self):
+        self.navpose_dict_lock.acquire() 
+        navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        return navpose_dict
+
+        
+
+
+
     #######################
     # Private Members
     #######################
+
+    def _navposeCapsQueryHandler(self,req):
+        return self.caps_response
 
     def _navposeDataQueryHandler(self,req):
         response = NavPoseQueryResponse()
@@ -759,8 +875,16 @@ class NavPoseMgr(object):
         
 
     def _setFrameDescCb(self,msg):
-        desc = msg.data
-        self.setFrameDescription(desc) 
+        self.setFrame3dDescription(msg.data) 
+
+    def _setFrameNavCb(self,msg):
+        self.setFrameNav(msg.data) 
+
+    def _setFrameAltCb(self,msg):
+        self.setFrameAlt(msg.data) 
+
+    def _setFrameDepthCb(self,msg):
+        self.setFrameDepth(msg.data) 
 
     def _setTransformCb(self,msg):
         self.setTransform(msg.name, msg.transform)
@@ -832,23 +956,12 @@ class NavPoseMgr(object):
         self.publish_status()
 
 
-    def get_navpose_dict(self):
-        self.navpose_dict_lock.acquire() 
-        navpose_dict = copy.deepcopy(self.navpose_dict)
-        self.navpose_dict_lock.release()
-        return navpose_dict
-
-        
-    def publish_navpose(self):
+    def _publishNavPoseCb(self,timer):
         self.status_msg.publishing = True
         if self.navpose_if is not None:
             np_dict = self.get_navpose_dict()
             self.navpose_if.publish_navpose(np_dict,
-                        device_mount_description = self.device_mount_description + self.add_mount_description)
-
-
-    def _publishNavPoseCb(self,timer):
-        self.publish_navpose()   
+                        device_mount_description = self.device_mount_description)
 
     def _cleanupActions(self):
         self.msg_if.pub_info("Shutting down: Executing script cleanup actions")

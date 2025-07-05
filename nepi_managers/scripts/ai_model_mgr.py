@@ -21,6 +21,7 @@ import cv2
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_img
 
@@ -41,16 +42,10 @@ from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 DEFAULT_FRAMEWORK = 'yolov5'
 
-
-AIFS_PARAM_FOLDER = '/opt/nepi/ros/share/nepi_api'
-AIFS_API_FOLDER = '/opt/nepi/ros/lib/python3/dist-packages/nepi_api'
-AIFS_INSTALL_FOLDER = '/mnt/nepi_storage/install/ai_frameworks'
-AI_MODELS_FOLDER = '/mnt/nepi_storage/ai_models/'
 
 class AIDetectorManager:   
 
@@ -90,27 +85,26 @@ class AIDetectorManager:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
         ##############################
-        ### Setup Node
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
 
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_ready()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-       
-
-        self.aifs_param_folder = mgr_sys_if.get_sys_folder_path("aifs",AIFS_PARAM_FOLDER)
+        self.aifs_param_folder = system_folders['aifs_param']
         self.msg_if.pub_info("Using AI Frameworks Params Folder: " + str(self.aifs_param_folder))
 
-        self.aifs_api_folder = mgr_sys_if.get_sys_folder_path("api",AIFS_API_FOLDER)
+        self.aifs_api_folder = system_folders['api_pkg']
         self.msg_if.pub_info("Using AI Frameworks API Folder: " + str(self.aifs_api_folder))
 
-        self.aifs_install_folder = mgr_sys_if.get_sys_folder_path('install/ai_frameworks',AIFS_INSTALL_FOLDER )
+        self.aifs_install_folder = system_folders['aifs_install']
         self.msg_if.pub_info("Using AI Frameworks Install Folder: " + str(self.aifs_install_folder))
         
-        self.ai_models_folder = mgr_sys_if.get_sys_folder_path("ai_models",AI_MODELS_FOLDER)
+        self.ai_models_folder = system_folders['aifs_models']
         self.msg_if.pub_info("Using AI Models Folder: " + str(self.ai_models_folder))
+
+        self.msg_if.pub_info("Waiting for driver manager to start")
+        active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
+        nepi_sdk.sleep(5) # Some extra time for drivers to load
         
        
         ##############################

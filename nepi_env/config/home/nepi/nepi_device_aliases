@@ -4,6 +4,7 @@
 # 2) Copy the file to the nepi user drive's 'tmp' 
 # 3) SSH into your nepi device and type
 # cp /mnt/nepi_storage/tmp/nepi_device_aliases ~/.nepi_aliases
+# source ~/.nepi_aliases
 
 # 4) In the same ssh session add the following to your .bashrc file
 # - nano ~/.bashrc
@@ -11,6 +12,9 @@
 #if [ -f ~/.nepi_aliases ]; then
 #    . ~/.nepi_aliases
 #fi
+
+# 5) Source the updated bashrc
+# source ~/.bashrc
 
 
 ###################################
@@ -63,6 +67,7 @@ rosservice call "$@"
 #NEPI folder shortcuts
 export AI="/mnt/nepi_storage/ai_models"
 export AIF="/opt/nepi/ros/share/nepi_ai_ifs"
+export API="/opt/nepi/ros/lib/python3/dist-packages/nepi_api"
 export APPS="/opt/nepi/ros/share/nepi_apps"
 export AUTO="/mnt/nepi_storage/automation_scripts"
 export CFG="/mnt/nepi_storage/user_cfg"
