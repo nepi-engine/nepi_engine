@@ -798,14 +798,13 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
   renderNavPose(){
   const show_navpose = this.state.show_navpose
-  const namespace = this.state.namespace
+  const make_section = this.props.make_section ? this.props.make_section : true
+  const namespace = this.state.namespace ? this.state.namespace : 'None'
   console.log("show navpose: " + show_navpose)
   console.log("namespace : " + namespace)
-
-  
-
-  return(
-    <Section>
+  if (namespace !== 'None' && make_section === true){
+    return (
+         <Section>
         <div style={{ display: 'flex' }}>
                 <div style={{ width: '20%' }}>
 
@@ -861,6 +860,79 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
     </Section>
   )  
+}
+else if (namespace !== 'None' && make_section === false) {
+return (
+
+
+<Columns>
+  <Column>
+  <div style={{ display: 'flex' }}>
+                <div style={{ width: '20%' }}>
+
+
+                <Label title="Show NavPose">
+                        <Toggle
+                          checked={this.state.show_navpose===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                        </Toggle>
+                      </Label>    
+
+                </div>
+                <div style={{ width: '80%' }}>
+                  {}
+                </div>
+
+              </div>
+
+
+
+
+
+
+
+              <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
+
+              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+
+              <div style={{ display: 'flex' }}>
+              <div style={{ width: '40%' }}>
+
+
+                  <Label title={"NAVPOSE"} />
+                    <NavPoseViewer
+                      namespace={namespace}
+                      title={"NavPose Data"}
+                    />
+
+
+              </div>
+
+              <div style={{ width: '20%' }}>
+                {}
+              </div>
+
+              <div style={{ width: '40%' }}>
+                {}
+              </div>
+              </div>
+
+              </div>
+
+  </Column>
+</Columns>
+)
+}
+else {
+return (
+<Columns>
+  <Column>
+
+  </Column>
+</Columns>
+)
+}
+
 
   }
 
