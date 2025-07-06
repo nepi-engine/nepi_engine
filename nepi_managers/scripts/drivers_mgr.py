@@ -357,17 +357,8 @@ class NepiDriversMgr(object):
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     drvs_dict = copy.deepcopy(self.drvs_dict)
     self.msg_if.pub_warn("Refresh start drvs keys: " + str(drvs_dict.keys()))
-    #######################
-    drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    self.msg_if.pub_warn("Refresh starting with active list: " + str(drvs_active_list))
-    #######################
     drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
     self.drvs_dict = drvs_dict
-    #######################
-    self.msg_if.pub_warn("Refresh end drvs: " + str(drvs_dict.keys()))
-    drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    self.msg_if.pub_warn("Refresh ending with active list: " + str(drvs_active_list))
-    #######################
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",drvs_dict)

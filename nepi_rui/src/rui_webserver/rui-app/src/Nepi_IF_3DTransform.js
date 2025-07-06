@@ -36,9 +36,6 @@ class NepiIF3DTransform extends Component {
 
     this.state = {
 
-      showTransform: true,
-
-
       transform_msg: null,
       source: '',
       end: '',
@@ -55,17 +52,13 @@ class NepiIF3DTransform extends Component {
 
     }
 
-    this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
     this.sendTransformUpdateMessage = this.sendTransformUpdateMessage.bind(this)
     this.sendTransformClearMessage = this.sendTransformClearMessage.bind(this)
 
+    this.renderTransform = this.renderTransform.bind(this)
+
     this.updateListener = this.updateListener.bind(this)
     this.statusListener = this.statusListener.bind(this)
-  }
-
-  // Add the missing toggle method
-  onClickToggleShowTransform() {
-    this.setState({ showTransform: !this.state.showTransform })
   }
 
   // Callback for handling ROS StatusIDX messages
@@ -178,22 +171,12 @@ class NepiIF3DTransform extends Component {
     sendTriggerMsg(namespace)
   }
 
-  render() {
+  renderTransform() {
     const { sendTriggerMsg } = this.props.ros
     const namespace = this.state.namespace ? this.state.namespace : "None"
     const has_transform = this.props.has_transform ? this.props.has_transform : true
     const updates = this.props.supports_transform_updates ? this.props.supports_transform_updates : true
-    if (namespace === 'None' && this.props.transform != null){
-      return (
-            <Columns>
-            <Column>
-
-            </Column>
-          </Columns>
-      )
-    }
-    else if (has_transform === false){
-
+    if (has_transform === false){
       const msg = ("\n\nData Transformed by Parent")
 
         return (
@@ -223,21 +206,7 @@ class NepiIF3DTransform extends Component {
 
       return (
         <div>
-          <Columns>
-          <Column>
-          <Label title="Show 3D Transform">
-                          <Toggle
-                            checked={this.state.showTransform}
-                            onClick={this.onClickToggleShowTransform}>
-                          </Toggle>
-                        </Label>
-  
-          </Column>
-          <Column>
-          </Column>
-          </Columns>
 
-          <div hidden={ this.state.showTransform === false}>
             <Columns>
             <Column>
 
@@ -341,12 +310,44 @@ class NepiIF3DTransform extends Component {
             </Column>
             </Columns>
         </div>
-        </div>
       )
     }
   }
 
+  render() {
+    const make_section = this.props.make_section ? this.props.make_section : true
+    const namespace = this.state.namespace ? this.state.namespace : 'None'
+    if (namespace !== 'None' && make_section === true){
+      return (
+        <Section title={"Device Settings"}>
+          {this.renderTransform()}
+        </Section>
+      )
+    }
+    else if (namespace !== 'None' && make_section === false) {
+      return (
 
+
+        <Columns>
+          <Column>
+          {this.renderTransform()}
+
+          </Column>
+        </Columns>
+      )
+    }
+    else {
+      return (
+        <Columns>
+          <Column>
+
+          </Column>
+        </Columns>
+      )
+    }
+    
+  }
+  
 }
 
 export default NepiIF3DTransform
