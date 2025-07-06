@@ -28,8 +28,6 @@ from nepi_sdk import nepi_img
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
 
 from nepi_interfaces.msg import UpdateState, MgrAiModelsStatus
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
@@ -173,14 +171,7 @@ class AIDetectorManager:
                 'msg': MgrAiModelsStatus,
                 'qsize': 1,
                 'latch': True
-            },
-            'image_pub': {
-                'namespace': self.all_namespace,
-                'topic': 'all_detectors/detection_image', 
-                'msg': Image,
-                'qsize': 1,
-                'latch': True
-            },
+            }
         }  
 
 
@@ -274,7 +265,6 @@ class AIDetectorManager:
         self.all_namespace = os.path.join(self.base_namespace,'ai')
         self.msg_if.pub_info("Staring all detectors on namespace " + self.all_namespace)
         self.ros_loading_img.header.stamp = nepi_sdk.get_msg_stamp()
-        self.node_if.publish_pub('image_pub', self.ros_loading_img)
 
 
         self.msg_if.pub_info("Staring AI Framework and Model update process")
@@ -283,7 +273,6 @@ class AIDetectorManager:
         nepi_sdk.start_timer_process(1.0, self.modelsInfoUpdaterCb, oneshot = True)
 
         self.ros_waiting_img.header.stamp = nepi_sdk.get_msg_stamp()
-        self.node_if.publish_pub('image_pub', self.ros_waiting_img)
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -527,8 +516,6 @@ class AIDetectorManager:
         #self.msg_if.pub_warn("Updated active models list: " + str(self.getActiveModels()))
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_sdk.get_msg_stamp()
-            if self.node_if is not None:
-                self.node_if.publish_pub('image_pub', self.ros_no_models_img)
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",self.models_dict)
@@ -557,7 +544,7 @@ class AIDetectorManager:
                         #self.msg_if.pub_info("Connecting to model info service " + service_namespace)
                         info_service = nepi_sdk.connect_service(service_namespace, AiDetectorInfoQuery)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to obtain model info service: " + str(e))
+                        self.msg_if.pub_warn("Failed to call model info service: " + service_namespace + " " + str(e))
                     try:
                         #self.msg_if.pub_info("Requesting model info for service" + service_namespace)
                         request = AiDetectorInfoQueryRequest()

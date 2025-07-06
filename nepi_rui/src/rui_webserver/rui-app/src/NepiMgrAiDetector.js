@@ -479,7 +479,7 @@ class AiDetectorMgr extends Component {
     const {imageTopics, sendStringMsg, sendStringArrayMsg} = this.props.ros
     const detector_namespace = this.state.detector_namespace
     const add_img_namespace = detector_namespace + "/add_img_topic"
-    const add_imgs_namespace = detector_namespace + "/add_det_img_topics"
+    const add_imgs_namespace = detector_namespace + "/add_img_topics"
     const remove_img_namespace = detector_namespace + "/remove_img_topic"
     const remove_imgs_namespace = detector_namespace + "/remove_img_topics"
     const filter_str_list = this.state.img_filter_str_list
@@ -657,30 +657,60 @@ renderDetectorSettings() {
         </Column>
         </Columns>
 
-        <Columns>
-        <Column>
 
-          <Label title={"Images Selected"}>
-                <BooleanIndicator value={img_selected} />
-              </Label>
 
-              <Label title={"Classes Selected"}>
-                <BooleanIndicator value={img_selected} />
-              </Label>
+        <Label style={{fontWeight: 'bold'}} title={"Image"}></Label>
 
-          </Column>
-          <Column>
+        <div style={{ display: 'flex' }}>
+                      <div style={{ width: '40%' }}>
 
-              <Label title={"Connected"}>
-                <BooleanIndicator value={img_connected} />
-              </Label>
+                      <Label title={"Selected"}>
+                    <BooleanIndicator value={img_selected} />
+                    </Label>
 
-              <Label title={"Detected"}>
-                <BooleanIndicator value={detection_state} />
-              </Label>
 
-          </Column>
-          </Columns>
+                      </div>
+
+                      <div style={{ width: '20%' }}>
+                        {}
+                      </div>
+
+                      <div style={{ width: '40%' }}>
+                       
+                          <Label title={"Connected"}>
+                            <BooleanIndicator value={img_connected} />
+                          </Label>
+                      </div>
+              </div>
+
+
+    
+
+          <Label style={{fontWeight: 'bold'}} title={"Classes"}></Label>
+
+          <div style={{ display: 'flex' }}>
+                      <div style={{ width: '40%' }}>
+
+                      <Label title={"Selected"}>
+                        <BooleanIndicator value={classes_selected} />
+                      </Label>
+
+                      </div>
+
+                      <div style={{ width: '20%' }}>
+                        {}
+                      </div>
+
+                      <div style={{ width: '40%' }}>
+                       
+                      <Label title={"Detected"}>
+                        <BooleanIndicator value={detection_state} />
+                      </Label>
+
+                      </div>
+                    </div>
+
+
 
         <pre style={{ height: "100px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
         {"\n Avg Detect Latency: " + det_time +
