@@ -405,7 +405,7 @@ class AIDetectorManager:
             self.node_if.set_param('aifs_dict', self.aifs_dict)
             self.node_if.set_param('models_dict', self.models_dict)
             if self.models_dict != last_dict:
-                self.saveConfig() # Save config
+                self.save_config() # Save config
                 self.publish_status()
        
             #self.msg_if.pub_warn("Refreshed models dict with keys: " + str(self.models_dict.keys()))
@@ -439,10 +439,8 @@ class AIDetectorManager:
         self.models_dict = self.node_if.get_param('models_dict')
         #self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
         #self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
-        self.node_if.save_config()
       if do_updates == True:
-        pass
-      self.refresh()
+        self.refresh()
       self.publish_status()
 
 
@@ -637,7 +635,7 @@ class AIDetectorManager:
                     success = False
                 '''
 
-            self.saveConfig() # Save config
+            self.save_config() # Save config
             self.publish_status()
             return success
         
@@ -653,7 +651,7 @@ class AIDetectorManager:
             del self.model_namespace_dict[model_name]
             aif_class.killModel(model_name)
   
-    def saveConfig(self):
+    def save_config(self):
         # Save framework and model dictionaries
         self.node_if.save_config() # Save config after initialization
 
@@ -673,7 +671,7 @@ class AIDetectorManager:
                     self.publish_status()
                     if self.node_if is not None:
                         self.node_if.set_param('aifs_dict', aifs_dict)
-                        self.saveConfig() # Save config
+                        self.save_config() # Save config
         else:
             if framework_name in active_aifs:
                 self.msg_if.pub_warn("Setting AI Framework: " + str(framework_name) + " Inctive")
@@ -682,7 +680,7 @@ class AIDetectorManager:
                 self.publish_status()
                 if self.node_if is not None:
                     self.node_if.set_param('aifs_dict', aifs_dict)
-                    self.saveConfig() # Save config
+                    self.save_config() # Save config
         
         
 
@@ -695,7 +693,7 @@ class AIDetectorManager:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('aifs_dict', aifs_dict)
-            self.saveConfig() # Save config
+            self.save_config() # Save config
 
 
     def enableAllFwsCb(self,msg):
@@ -707,7 +705,7 @@ class AIDetectorManager:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('aifs_dict', aifs_dict)
-            self.saveConfig() # Save config
+            self.save_config() # Save config
 
 
     def enableAllModelsCb(self,msg):
@@ -727,7 +725,7 @@ class AIDetectorManager:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",models_dict)
-            self.saveConfig() # Save config
+            self.save_config() # Save config
  
 
     def disableAllModelsCb(self,msg):
@@ -747,7 +745,7 @@ class AIDetectorManager:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",models_dict)
-            self.saveConfig() # Save config
+            self.save_config() # Save config
 
     def updateModelStateCb(self,msg):
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
@@ -774,12 +772,12 @@ class AIDetectorManager:
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("models_dict",models_dict)
-                self.saveConfig() # Save config
+                self.save_config() # Save config
 
 
 
 
-    def publish_status(self):
+    def publish_status(self, do_updates = False):
         aifs_dict = copy.deepcopy(self.aifs_dict)
         models_dict = copy.deepcopy(self.models_dict)
 

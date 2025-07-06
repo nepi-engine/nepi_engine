@@ -208,14 +208,14 @@ class config_mgr(object):
         time.sleep(1)
         self.save_system_cfgs()
         self.msg_if.pub_warn("System config files saved")
-        
-        
+
         nepi_sdk.start_timer_process(1, self.statusPubCb)
         ################
         # Save the current system config
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
         self.save_params(sys_ns)
 
+        nepi_sdk.sleep(2)
         self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
@@ -318,7 +318,7 @@ class config_mgr(object):
         success = False
         user_pathname = self.get_user_pathname(namespace)
         if os.path.exists(user_pathname):
-            self.msg_if.pub_info("Reseting params for namespace from user cfg file: " + namespace  + " from file " + user_pathname)
+            self.msg_if.pub_warn("Reseting params for namespace from user cfg file: " + namespace  + " from file " + user_pathname)
             success = self.update_from_file(user_pathname, namespace)
         # Now update the param server
         return success

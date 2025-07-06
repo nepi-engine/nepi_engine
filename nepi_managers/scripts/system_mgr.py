@@ -121,6 +121,9 @@ class SystemMgrNode():
                             "tmp"]
     
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
+
+
+
     SDK_PATH_DICT = {
         'sdk_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk',
         'sdk_lib': '/opt/nepi/ros/lib/nepi_sdk',
@@ -162,7 +165,7 @@ class SystemMgrNode():
         'apps_install': '/mnt/nepi_storage/install/apps'
         }
 
-
+    SYSTEM_CHECK_SKIP_LIST = ['rui']
     SYSTEM_PATH_DICT = {
         'sdk': SDK_PATH_DICT,
         'api': API_PATH_DICT,
@@ -990,13 +993,14 @@ class SystemMgrNode():
         for entry in self.SYSTEM_PATH_DICT.keys():
             path_dict = self.SYSTEM_PATH_DICT[entry]
             for key in path_dict:
-                path_entry = path_dict[key]
-                self.msg_if.pub_warn("Checking system folder: " + key + " at: " + path_entry)
-                if not os.path.isdir(path_entry):
-                        self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
-                        os.makedirs(path_entry)
-                os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
-                os.system('chmod -R 0775 ' + path_entry)
+                if entry not in self.SYSTEM_CHECK_SKIP_LIST and key not in self.SYSTEM_CHECK_SKIP_LIST:
+                    path_entry = path_dict[key]
+                    self.msg_if.pub_warn("Checking system folder: " + key + " at: " + path_entry)
+                    if not os.path.isdir(path_entry):
+                            self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
+                            os.makedirs(path_entry)
+                    os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
+                    os.system('chmod -R 0775 ' + path_entry)
                 self.storage_subdirs[key] = path_entry
                 self.system_folders[key] = path_entry
         return True

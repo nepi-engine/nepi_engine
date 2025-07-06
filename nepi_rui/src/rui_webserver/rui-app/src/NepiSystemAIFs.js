@@ -526,11 +526,12 @@ class AisMgr extends Component {
                       </label>
 
 
-                    <Label title="Enable"> </Label>
+                    <Label title="Enable"> 
                       <Toggle
                         checked={selected_state===true}
                         onClick={() => this.props.ros.sendUpdateStateMsg(this.state.mgrNamespace + "/update_model_state", this.state.selected_model, !selected_state)}>
                     </Toggle>
+                    </Label>
 
                    </div>
 

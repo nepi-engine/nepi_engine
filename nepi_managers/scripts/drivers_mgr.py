@@ -270,7 +270,6 @@ class NepiDriversMgr(object):
                           msg_if = self.msg_if
         )
 
-        #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
         ###########################
@@ -299,6 +298,46 @@ class NepiDriversMgr(object):
         nepi_sdk.spin()
         #########################################################
 
+
+  #######################
+  ### Mgr Config Functions
+
+
+  def initCb(self,do_updates = False):
+      self.msg_if.pub_warn("Init with do_updates: " + str(do_updates))
+      drvs_active_list = []
+      if self.node_if is not None:
+        drvs_dict = self.node_if.get_param("drvs_dict")
+        self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
+        drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
+        drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
+        self.drvs_dict = drvs_dict
+      if do_updates == True:
+        self.refresh()
+        nepi_sdk.set_param('active_drivers', drvs_active_list)
+      self.publish_status(do_updates = do_updates)
+        
+
+  def resetCb(self,do_updates = True):
+      self.msg_if.pub_warn("Reseting")
+      if self.node_if is not None:
+        self.node_if.reset_params()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
+
+
+  def factoryResetCb(self,do_updates = True):
+      self.msg_if.pub_warn("Factory Reseting")
+      if self.node_if is not None:
+        self.node_if.factory_reset_params()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
+
+
+
   #######################
   # Wait for System and Config Statuses Callbacks
   def systemStatusCb(self,msg):
@@ -317,50 +356,21 @@ class NepiDriversMgr(object):
     self.drivers_files = nepi_drvs.getDriverFilesList(self.drivers_param_folder)
     self.drivers_install_files = nepi_drvs.getDriverPackagesList(self.drivers_install_folder)
     drvs_dict = copy.deepcopy(self.drvs_dict)
-    #self.msg_if.pub_warn("Refresh start drvs: " + str(drvs_dict))
+    self.msg_if.pub_warn("Refresh start drvs keys: " + str(drvs_dict.keys()))
+    #######################
+    drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    self.msg_if.pub_warn("Refresh starting with active list: " + str(drvs_active_list))
+    #######################
     drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
-    #self.msg_if.pub_warn("Refresh end drvs: " + str(drvs_dict))
     self.drvs_dict = drvs_dict
+    #######################
+    self.msg_if.pub_warn("Refresh end drvs: " + str(drvs_dict.keys()))
+    drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    self.msg_if.pub_warn("Refresh ending with active list: " + str(drvs_active_list))
+    #######################
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",drvs_dict)
-  #######################
-  ### Mgr Config Functions
-
-
-  def initCb(self,do_updates = False):
-      drvs_active_list = []
-      if self.node_if is not None:
-        drvs_dict = self.node_if.get_param("drvs_dict")
-        self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
-        drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-        self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
-        drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
-        self.drvs_dict = drvs_dict
-        if self.node_if is not None:
-          self.node_if.set_param("drvs_dict",drvs_dict)
-          self.backup_enabled = self.node_if.get_param("backup_enabled")
-          self.retry_enabled = self.node_if.get_param("retry_enabled")
-      if do_updates == True:
-        nepi_sdk.set_param('active_drivers', drvs_active_list)
-      self.refresh()
-      self.publish_status()
-
-  def resetCb(self,do_updates = True):
-      if self.node_if is not None:
-        self.node_if.reset_params()
-      if do_updates == True:
-        pass
-      self.initCb()
-
-
-  def factoryResetCb(self,do_updates = True):
-      if self.node_if is not None:
-        self.node_if.factory_reset_params()
-      if do_updates == True:
-        pass
-      self.initCb()
-
 
 
 
@@ -712,21 +722,23 @@ class NepiDriversMgr(object):
       self.msg_if.pub_info()
       self.msg_if.pub_info(str(drv_dict))
 
-  def publish_status(self):
-    self.publish_drivers_status()
-    self.publish_driver_status()
+  def publish_status(self, do_updates = True):
+    self.publish_drivers_status(do_updates = do_updates)
+    self.publish_driver_status(do_updates = do_updates)
 
 
   def statusPublishCb(self,timer):
       self.publish_status()
 
-  def publish_drivers_status(self):
+  def publish_drivers_status(self, do_updates = True):
     self.last_status_drivers_msg = self.status_drivers_msg
     self.status_drivers_msg = self.getMgrDriversStatusMsg()
     if self.node_if is not None:
       self.node_if.publish_pub('status_pub', self.status_drivers_msg)
-      if self.last_status_drivers_msg != self.status_drivers_msg:
-        self.node_if.save_config() # Save config after initialization for drvt time
+      if do_updates == True:
+        if self.last_status_drivers_msg != self.status_drivers_msg:
+          self.node_if.save_config() # Save config after initialization for drvt time
+  
 
   def getMgrDriversStatusMsg(self):
     drvs_dict = copy.deepcopy(self.drvs_dict)
@@ -771,13 +783,15 @@ class NepiDriversMgr(object):
     return status_drivers_msg
 
   
-  def publish_driver_status(self):
+  def publish_driver_status(self, do_updates = True):
     self.last_status_driver_msg = self.status_driver_msg
     self.status_driver_msg = self.getDriverStatusMsg()
     if self.node_if is not None:
       self.node_if.publish_pub('status_driver', self.status_driver_msg)
-      if self.last_status_driver_msg != self.status_driver_msg:
-        self.node_if.save_config() # Save config after initialization for drvt time
+      if do_updates == True:
+        if self.last_status_driver_msg != self.status_driver_msg:
+          self.node_if.save_config() # Save config after initialization for drvt time
+
 
 
   def getDriverStatusMsg(self):

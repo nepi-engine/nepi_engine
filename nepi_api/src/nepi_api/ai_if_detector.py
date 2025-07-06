@@ -177,11 +177,7 @@ class AiDetectorIF:
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
 
-        ##############################
-        ## Wait for NEPI core managers to start
-        self.api_lib_folder = API_LIB_FOLDER
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
-  
+ 
         ##############################
         # Get for System Folders
         self.msg_if.pub_info("Waiting for system folders")

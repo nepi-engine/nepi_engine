@@ -140,6 +140,10 @@ class NodeConfigsIF:
         nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
         nepi_sdk.create_subscriber('system_reset', Reset, self._systemResetCb)
 
+
+        self.reset_config()
+        nepi_sdk.wait()
+
         if 'init_configs' in configs_dict.keys():
             init_configs = configs_dict['init_configs']
             if init_configs == True:
@@ -181,11 +185,13 @@ class NodeConfigsIF:
                 self.initCb()
 
     def save_config(self):
+        self.msg_if.pub_debug("Saving Config: " + str(self.node_namespace))
         self.save_params_pub.publish(self.node_namespace)
         #if self.initCb is not None and not nepi_sdk.is_shutdown():
         #    self.initCb() # Callback provided by container class to update based on param server, etc.
 
     def reset_config(self):
+        self.msg_if.pub_debug("Reseting Config: " + str(self.request_msg))
         success = False
         success = nepi_sdk.call_service(self.reset_service,self.request_msg)
         nepi_sdk.sleep(1)
@@ -194,6 +200,7 @@ class NodeConfigsIF:
         return success
 
     def factory_reset_config(self):
+        self.msg_if.pub_debug("Factory Reseting Config: " + str(self.request_msg))
         success = False
         success = nepi_sdk.call_service(self.factory_reset_service,self.request_msg)
         nepi_sdk.sleep(1)
