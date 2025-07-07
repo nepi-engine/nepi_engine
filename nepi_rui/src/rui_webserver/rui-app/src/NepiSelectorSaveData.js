@@ -51,7 +51,7 @@ class NepiMessagesSelector extends Component {
     var items = []
     //items.push(<Option value={"All"}>{"All"}</Option>)
     items.push(<Option value={"None"}>{"None"}</Option>)
-    const saveData_topics = this.props.ros.SaveDataNamespaces
+    const saveData_topics = this.props.ros.saveDataNamespaces
     const shortnames = createShortUniqueValues(saveData_topics)
     var topic = ""
     for (var i = 0; i < saveData_topics.length; i++) {
