@@ -2369,7 +2369,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   @action.bound
   onToggleSaveDataAll(value) {
       this.publishMessage({
-      name: "save_data/save_data_enable",
+      name: "save_data_enable",
       messageType: "std_msgs/Bool",
       data: {data: value},
       noPrefix: true
@@ -2379,7 +2379,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
   @action.bound
   onToggleSaveUTCAll(value) {
       this.publishMessage({
-      name: "save_data/save_data_utc",
+      name: "save_data_utc",
       messageType: "std_msgs/Bool",
       data: {data: value},
       noPrefix: true
@@ -2397,7 +2397,7 @@ updateCapSetting(namespace,nameStr,typeStr,optionsStrList,default_value_str) {
     }
 
     this.publishMessage({
-      name: "save_data/save_data_rate",
+      name: "save_data_rate",
       messageType: "nepi_interfaces/SaveDataRate",
       data: {
         data_product: "Active",

@@ -98,7 +98,7 @@ class NepiMessagesSelector extends Component {
 
 
   renderApplication() {
-    const node_namespace = this.state.selected_topic.replace("/status", "")
+    const node_namespace = this.state.selected_topic.replace("/save_data/status", "")
 
     return (
       <React.Fragment>
