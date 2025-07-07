@@ -281,7 +281,7 @@ class config_mgr(object):
             self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
             paramlist = None
             try:
-                paramlist = nepi_sdk.load_params_from_file(file_pathname, namespace)
+                paramlist = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
                 self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
