@@ -107,19 +107,22 @@ class NodeConfigsIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-        self.msg_if.pub_debug("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
 
         # Create reset serivces
         self.request_msg.namespace = self.namespace
-        self.reset_service = nepi_sdk.connect_service(self.namespace + '/user_reset', ParamsReset)
-        self.factory_reset_service = nepi_sdk.connect_service(self.namespace + '/factory_reset', ParamsReset)
+        ns = nepi_sdk.create_namespace(self.namespace,'user_reset')
+        self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        ns = nepi_sdk.create_namespace(self.namespace,'factory_reset')
+        self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
 
-        self.reset_service = nepi_sdk.connect_service(self.base_namespace + '/user_reset', ParamsReset)
-        self.factory_reset_service = nepi_sdk.connect_service(self.base_namespace + '/factory_reset', ParamsReset)
-
-        time.sleep(1)
-
-        self.save_params_pub = nepi_sdk.create_publisher(self.base_namespace + '/store_params', String, queue_size=1)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'user_reset')
+        self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'factory_reset')
+        self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'store_params')
+        self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
 
         if wait_cfg_mgr == True:
             self.msg_if.pub_debug("Waiting for Config Mgr", log_name_list = self.log_name_list)
@@ -715,6 +718,12 @@ class NodePublishersIF:
                         self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
                             " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
         return success
+
+    def register_pubs(self,pubs_dict):
+        for pub_name in pubs_dict.keys():
+            pub_dict = pubs_dict[pub_name]
+            self.pubs_dict[pub_name] = pub_dict
+        self._initialize_pubs()
 
     def register_pub(self,pub_name, pub_dict):
         self.pubs_dict[pub_name] = pub_dict

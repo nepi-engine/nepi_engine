@@ -637,6 +637,8 @@ class AIDetectorManager:
             self.msg_if.pub_info("Killing model " + model_name)
             del self.model_namespace_dict[model_name]
             aif_class.killModel(model_name)
+            # Kill Img Pub Node if running
+            nepi_sdk.kill_node(model_name + '/img_pub')
   
     def save_config(self):
         # Save framework and model dictionaries

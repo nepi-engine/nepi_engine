@@ -235,7 +235,7 @@ def init_node(name,disable_signals=False):
 def get_base_namespace():
   nepi_node=find_node('nepi')
   nepi_names = nepi_node.split('/')
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] + '/')
+  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
   return base_namespace
 
 def get_node_namespace():
@@ -656,11 +656,11 @@ def load_params_from_file(file_path, namespace = None, log_name_list = []):
     else:
       namespace = "~/"
     namespace = get_full_namespace(namespace)
-    log_msg_debug("Will try loading parameters from file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Will try loading parameters from file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
     try:
         params_input = rosparam.load_file(file_path)
     except rosparam.RosParamException as e:
-        log_msg_debug("Error loading parameters from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+        log_msg_warn("Error loading parameters from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     try:
         if params_input != []:
           #log_msg_debug("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)

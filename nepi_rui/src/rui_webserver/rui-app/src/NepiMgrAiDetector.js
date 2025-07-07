@@ -610,6 +610,7 @@ renderDetectorSettings() {
       const detector_enabled = det_msg.enabled
       const detector_state = det_msg.state
       const detection_state = det_msg.detection_state
+      const det_running = (detector_state === "Running")
 
       const overlay_labels = det_msg.overlay_labels
       const overlay_detector_name = det_msg.overlay_clf_name
@@ -640,12 +641,12 @@ renderDetectorSettings() {
       <Columns>
       <Column>
 
-
+      <Label title={"DETECTOR"}></Label>
 
         <Columns>
         <Column>
 
-        <Label title="Enable Detector">
+        <Label title="Enable">
               <Toggle
               checked={detector_enabled===true}
               onClick={() => sendBoolMsg(detector_namespace + "/enable",!detector_enabled)}>
@@ -654,12 +655,15 @@ renderDetectorSettings() {
 
         </Column>
         <Column>
+        <Label title={"Running"}>
+                        <BooleanIndicator value={det_running} />
+                      </Label>
         </Column>
         </Columns>
 
 
 
-        <Label style={{fontWeight: 'bold'}} title={"Image"}></Label>
+        <Label title={"IMAGE"}></Label>
 
         <div style={{ display: 'flex' }}>
                       <div style={{ width: '40%' }}>
@@ -686,7 +690,7 @@ renderDetectorSettings() {
 
     
 
-          <Label style={{fontWeight: 'bold'}} title={"Classes"}></Label>
+          <Label title={"CLASSES"}></Label>
 
           <div style={{ display: 'flex' }}>
                       <div style={{ width: '40%' }}>
@@ -932,8 +936,13 @@ renderDetectorSettings() {
 
   onDisplayImgSelected(event){
     const img_topic = event.target.value
-    const detector_name = this.state.detector_name
-    const img_name = detector_name + img_topic.split(detector_name)[1]
+    const det_msg = this.state.det_status_msg
+    var detector_name = 'None'
+    var img_name = 'None'
+    if (det_msg != null){
+      detector_name = det_msg.name 
+      img_name = detector_name + img_topic.split(detector_name)[1]
+    }
     this.setState({selected_img_topic: img_topic,
                    selected_img_text: img_name
     })

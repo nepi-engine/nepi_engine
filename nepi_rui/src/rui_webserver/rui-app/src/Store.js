@@ -242,7 +242,7 @@ class ROSConnectionStore {
   @observable pointcloudTopics = []
   @observable pointcloudCaps = {}
   @observable settingCaps = {}
-  @observable SaveDataNamespaces = []
+  @observable saveDataNamespaces = []
   @observable saveDataCaps = {}
   @observable idxDevices = {}
   @observable ptxDevices = {}
@@ -492,18 +492,17 @@ class ROSConnectionStore {
     var newSaveDataNamespaces = []
     for (var i = 0; i < this.topicNames.length; i++) {
       if (this.topicTypes[i] === "nepi_interfaces/SaveDataStatus"){
-        newSaveDataNamespaces.push(this.topicNames[i].replace('/status',''))
-        newSaveDataNamespaces.push(this.topicNames[i].replace('/save_data',''))
+        newSaveDataNamespaces.push(this.topicNames[i].replace('/save_data/status',''))
       }
     }
 
     // sort the save topics for comparison to work
     newSaveDataNamespaces.sort()    
 
-    if (!this.SaveDataNamespaces.equals(newSaveDataNamespaces)) {
-      this.SaveDataNamespaces = newSaveDataNamespaces
-      for (var i = 0; i < this.SaveDataNamespaces.length; i++) {
-            this.callSaveDataCapabilitiesQueryService(this.SaveDataNamespaces[i])
+    if (!this.saveDataNamespaces.equals(newSaveDataNamespaces)) {
+      this.saveDataNamespaces = newSaveDataNamespaces
+      for (var i = 0; i < this.saveDataNamespaces.length; i++) {
+            this.callSaveDataCapabilitiesQueryService(this.saveDataNamespaces[i])
           }
       return true
     } else {
