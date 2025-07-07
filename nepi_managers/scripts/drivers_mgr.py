@@ -277,8 +277,6 @@ class NepiDriversMgr(object):
 
         self.initCb(do_updates = True)
 
-
-        nepi_sdk.sleep(2)
         ###########################
         nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 

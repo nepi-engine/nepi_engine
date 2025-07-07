@@ -784,7 +784,7 @@ class NavPoseIF:
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
         np_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        if navpose_dict is None:
+        if navpose_dict is None and self.status_msg is not None:
             return np_dict
         else:
             # Initialize np_dict here so it's available in both branches
@@ -930,7 +930,7 @@ class NavPoseIF:
 
 
     def publish_status(self):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
@@ -973,7 +973,7 @@ class NavPoseIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -1256,7 +1256,7 @@ class NavPoseTrackIF:
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
         np_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        if navpose_dict is None:
+        if navpose_dict is None and self.status_msg is not None:
             return np_dict
         else:
             # Initialize np_dict here so it's available in both branches
@@ -1461,7 +1461,7 @@ class NavPoseTrackIF:
         self.track_sec_last = 0.0
 
     def publish_status(self):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
@@ -1511,7 +1511,7 @@ class NavPoseTrackIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -2324,7 +2324,7 @@ class BaseImageIF:
                         ):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
-        if cv2_img is None:
+        if cv2_img is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return cv2_img
 
@@ -2742,7 +2742,7 @@ class BaseImageIF:
 
 
     def publish_status(self, do_updates = True):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
             self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
             self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
@@ -2844,7 +2844,7 @@ class BaseImageIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -3712,7 +3712,7 @@ class DepthMapIF:
                              device_mount_description = 'fixed'):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
-        if cv2_img is None:
+        if cv2_img is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
 
@@ -3797,7 +3797,7 @@ class DepthMapIF:
 
 
     def publish_status(self, do_updates = True):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             if self.status_msg is None:
                 self.status_msg = DepthMapStatus()
 
@@ -3846,7 +3846,7 @@ class DepthMapIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -4333,7 +4333,7 @@ class PointcloudIF:
                         max_range_m = None,
                         device_mount_description = 'fixed'):
 
-        if self.node_if is None:
+        if self.node_if is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
             return False
         if o3d_pc is None:
@@ -4419,7 +4419,7 @@ class PointcloudIF:
 
 
     def publish_status(self, do_updates = True):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             if self.status_msg is None:
                 self.status_msg =  PointcloudStatus()
             if do_updates == True:
@@ -4504,7 +4504,7 @@ class PointcloudIF:
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)

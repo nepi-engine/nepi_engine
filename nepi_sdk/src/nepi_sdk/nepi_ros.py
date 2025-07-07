@@ -369,7 +369,7 @@ def spin():
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args=[], log_name_list = []):
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = []):
   if queue_size is None:
     queue_size = 1
   sub = None
@@ -747,6 +747,7 @@ def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
     try:
       param = rospy.get_param(param_namespace)
     except:
+      param_namespace = get_full_namespace(param_namespace)
       sleep(1)
     time.sleep(.1)
     timer = get_time() - start_time

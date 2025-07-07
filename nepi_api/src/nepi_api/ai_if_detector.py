@@ -61,7 +61,7 @@ DEFAULT_THRESHOLD = 0.3
 MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
 DEFAULT_MAX_PROC_RATE = 5
-DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 2
+DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 1.5
 
 
 DEFAULT_WAIT_FOR_DETECT = False
@@ -78,14 +78,18 @@ GET_IMAGE_TIMEOUT_SEC = 1
 
 class AiDetectorIF:
     
+    IMAGE_DATA_PRODUCT = 'detection_image'
+    IMAGE_SUB_MSG = 'Waiting for Source Image'
+    IMAGE_PUB_MSG = 'Loading Image Publisher'
+
+    BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
+    BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
+
     namespace = '~'
     all_namespace = None
 
-    IMAGE_DATA_PRODUCT = 'detection_image'
-
-
     states_dict = None
-    TRIGGERS_DICT = dict()
+    triggers_dict = dict()
 
     node_if = None
 
@@ -180,9 +184,9 @@ class AiDetectorIF:
  
         ##############################
         # Get for System Folders
-        self.msg_if.pub_info("Waiting for system folders")
+        self.msg_if.pub_warn("Waiting for system folders")
         system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
-        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
        
         self.api_lib_folder = system_folders['api_lib']
         self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
@@ -198,7 +202,7 @@ class AiDetectorIF:
 
         self.has_img_tiling = has_img_tiling
 
-
+        
         ## Init Status Messages
         self.status_msg = MgrAiDetectorStatus()
         self.det_status_msg = AiDetectorStatus()
@@ -228,6 +232,8 @@ class AiDetectorIF:
         self.has_sleep = False
 
         self.img_data_product = self.IMAGE_DATA_PRODUCT
+
+        self.selected_classes = self.classes
 
         ###############################
         # Launch detection img pub node that handles detection image publishing
@@ -291,7 +297,7 @@ class AiDetectorIF:
             },
             'selected_classes': {
                 'namespace': self.node_namespace,
-                'factory_val': classes_list
+                'factory_val': self.selected_classes
             },
             'img_tiling': {
                 'namespace': self.node_namespace,
@@ -711,6 +717,7 @@ class AiDetectorIF:
 
 
     def enableCb(self,msg):
+        self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
         self.enabled = enabled
         self.publish_status()
@@ -970,7 +977,7 @@ class AiDetectorIF:
         img_connected = True in img_connects
        
         # Set Detector State
-        enabled = self.det_status_msg.enabled
+        enabled = self.enabled
         if enabled == True:
             if img_selected == 0:
                 self.state = "Waiting"
@@ -1048,7 +1055,15 @@ class AiDetectorIF:
                         'topic': 'bounding_boxes',
                         'qsize': 1,
                         'latch': False
+                    },
+                    'image_pub': {
+                        'msg': Image,
+                        'namespace': pub_namespace,
+                        'topic': 'detection_image',
+                        'qsize': 1,
+                        'latch': False
                     }
+
                 }
 
                 img_pubs_if = NodePublishersIF(
@@ -1090,7 +1105,12 @@ class AiDetectorIF:
                 ####################
                 # Publish blank msg to prime topics
                 img_pubs_if.publish_pub('found_object',ObjectCount())
-                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())    
+                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())   
+
+                cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
+                ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                img_pubs_if.publish_pub('image_pub',ros_img) 
+
     
             return True
 
@@ -1125,16 +1145,15 @@ class AiDetectorIF:
 
 
     def imageCb(self,image_msg, args):     
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         img_topic = args
-
-
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
+        was_connected = imgs_info_dict[img_topic]['connected']
         start_time = nepi_sdk.get_time()   
 
         if img_topic in imgs_info_dict.keys():
             if imgs_info_dict[img_topic]['active'] == True:
                 imgs_info_dict[img_topic]['connected'] = True
-                enabled = self.det_status_msg.enabled
+                enabled = self.enabled                  
                 if enabled == True and self.sleep_state == False:
                     # Process ros image message
                     current_time = nepi_sdk.get_msg_stamp()
@@ -1156,6 +1175,11 @@ class AiDetectorIF:
                         options_dict = dict()
                         options_dict['tile'] = self.status_msg.img_tiling
                         cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                        # Publish Update Image
+                        if was_connected == False:
+                            cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                            img_pubs_if.publish_pub('image_pub',ros_img) 
 
                         '''
                         img_dict = dict()
@@ -1187,9 +1211,9 @@ class AiDetectorIF:
     def updateDetectCb(self,timer):
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         start_time = nepi_sdk.get_time()
-        enabled = self.det_status_msg.enabled
+        enabled = self.enabled
         if enabled == True:
-            img_topics = self.det_status_msg.image_source_topics
+            img_topics = self.selected_img_topics
             connected_list = []
             for topic in img_topics:
                 if topic in imgs_info_dict.keys():
@@ -1199,7 +1223,7 @@ class AiDetectorIF:
                 self.get_img_topic = "None"
             else:
                 # check timer
-                max_rate = self.det_status_msg.max_proc_rate_hz
+                max_rate = self.max_proc_rate_hz
                 delay_time = float(1) / max_rate 
                 current_time = nepi_sdk.get_time()
                 timer = round((current_time - self.last_detect_time), 3)
@@ -1278,7 +1302,7 @@ class AiDetectorIF:
                                 # Process Detections
                                 detect_dict_list = []
                                 try:
-                                    threshold = self.det_status_msg.threshold_filter
+                                    threshold = self.threshold
                                     detect_dicts = self.processDetection(img_dict,threshold) 
                                     #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
@@ -1290,7 +1314,7 @@ class AiDetectorIF:
                                     self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
                                 ros_img_header = img_dict['msg_header']
                                 # Filter selected classes
-                                sel_classes = self.det_status_msg.selected_classes
+                                sel_classes = self.selected_classes
                                 sel_detect_ind = []
                                 for i, detect in enumerate(detect_dicts):
                                     if detect['name'] in sel_classes:
@@ -1416,7 +1440,7 @@ class AiDetectorIF:
         resp.image_source_topics = img_source_topics
         resp.image_detector_namespaces = img_det_namespaces
 
-
+        #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
     
 
