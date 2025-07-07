@@ -338,29 +338,29 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 
         navpose_dict['frame_3d'] = output_frame_3d
 
-        if npdata_dict['has_location'] == True:
-          navpose_dict['latitude'] = npdata_dict['latitude']
-          navpose_dict['longitude'] = npdata_dict['longitude']
+        #if npdata_dict['has_location'] == True:
+        navpose_dict['latitude'] = npdata_dict['latitude']
+        navpose_dict['longitude'] = npdata_dict['longitude']
 
-        if npdata_dict['has_heading'] == True:
-          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
+        #if npdata_dict['has_heading'] == True:
+        navpose_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
 
-        if npdata_dict['has_orientation'] == True:
-          navpose_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
-          navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
-          navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
+        #if npdata_dict['has_orientation'] == True:
+        navpose_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
+        navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
+        navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
 
-        if npdata_dict['has_position'] == True:
-          navpose_dict['x_m'] = npdata_dict['x_m'] - x
-          navpose_dict['y_m'] = npdata_dict['y_m'] - y
-          navpose_dict['z_m'] = npdata_dict['z_m'] - z
+        #if npdata_dict['has_position'] == True:
+        navpose_dict['x_m'] = npdata_dict['x_m'] - x
+        navpose_dict['y_m'] = npdata_dict['y_m'] - y
+        navpose_dict['z_m'] = npdata_dict['z_m'] - z
 
 
-        if npdata_dict['has_altitude'] == True:
-          navpose_dict['altitude_m'] = npdata_dict['altitude_m'] - z
+        #if npdata_dict['has_altitude'] == True:
+        navpose_dict['altitude_m'] = npdata_dict['altitude_m'] - z
 
-        if npdata_dict['has_depth'] == True:
-          navpose_dict['depth_m'] = npdata_dict['depth_m'] - z
+        #if npdata_dict['has_depth'] == True:
+        navpose_dict['depth_m'] = npdata_dict['depth_m'] - z
 
       except Exception as e:
         success = False
