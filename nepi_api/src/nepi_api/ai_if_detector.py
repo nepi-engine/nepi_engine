@@ -61,7 +61,7 @@ DEFAULT_THRESHOLD = 0.3
 MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
 DEFAULT_MAX_PROC_RATE = 5
-DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE
+DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 1.5
 
 
 DEFAULT_WAIT_FOR_DETECT = False
@@ -78,14 +78,18 @@ GET_IMAGE_TIMEOUT_SEC = 1
 
 class AiDetectorIF:
     
+    IMAGE_DATA_PRODUCT = 'detection_image'
+    IMAGE_SUB_MSG = 'Waiting for Source Image'
+    IMAGE_PUB_MSG = 'Loading Image Publisher'
+
+    BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
+    BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
+
     namespace = '~'
     all_namespace = None
 
-    IMAGE_DATA_PRODUCT = 'detection_image'
-
-
     states_dict = None
-    TRIGGERS_DICT = dict()
+    triggers_dict = dict()
 
     node_if = None
 
@@ -713,6 +717,7 @@ class AiDetectorIF:
 
 
     def enableCb(self,msg):
+        self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
         self.enabled = enabled
         self.publish_status()
@@ -1050,7 +1055,15 @@ class AiDetectorIF:
                         'topic': 'bounding_boxes',
                         'qsize': 1,
                         'latch': False
+                    },
+                    'image_pub': {
+                        'msg': Image,
+                        'namespace': pub_namespace,
+                        'topic': 'detection_image',
+                        'qsize': 1,
+                        'latch': False
                     }
+
                 }
 
                 img_pubs_if = NodePublishersIF(
@@ -1092,7 +1105,12 @@ class AiDetectorIF:
                 ####################
                 # Publish blank msg to prime topics
                 img_pubs_if.publish_pub('found_object',ObjectCount())
-                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())    
+                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())   
+
+                cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
+                ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                img_pubs_if.publish_pub('image_pub',ros_img) 
+
     
             return True
 
@@ -1127,16 +1145,15 @@ class AiDetectorIF:
 
 
     def imageCb(self,image_msg, args):     
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         img_topic = args
-
-
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
+        was_connected = imgs_info_dict[img_topic]['connected']
         start_time = nepi_sdk.get_time()   
 
         if img_topic in imgs_info_dict.keys():
             if imgs_info_dict[img_topic]['active'] == True:
                 imgs_info_dict[img_topic]['connected'] = True
-                enabled = self.enabled
+                enabled = self.enabled                  
                 if enabled == True and self.sleep_state == False:
                     # Process ros image message
                     current_time = nepi_sdk.get_msg_stamp()
@@ -1158,6 +1175,11 @@ class AiDetectorIF:
                         options_dict = dict()
                         options_dict['tile'] = self.status_msg.img_tiling
                         cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                        # Publish Update Image
+                        if was_connected == False:
+                            cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                            img_pubs_if.publish_pub('image_pub',ros_img) 
 
                         '''
                         img_dict = dict()

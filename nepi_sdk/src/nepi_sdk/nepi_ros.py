@@ -369,7 +369,7 @@ def spin():
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args=[], log_name_list = []):
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = []):
   if queue_size is None:
     queue_size = 1
   sub = None

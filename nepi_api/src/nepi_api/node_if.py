@@ -114,12 +114,12 @@ class NodeConfigsIF:
         self.reset_service = nepi_sdk.connect_service(self.namespace + '/user_reset', ParamsReset)
         self.factory_reset_service = nepi_sdk.connect_service(self.namespace + '/factory_reset', ParamsReset)
 
-        self.reset_service = nepi_sdk.connect_service('user_reset', ParamsReset)
-        self.factory_reset_service = nepi_sdk.connect_service('factory_reset', ParamsReset)
+        self.reset_service = nepi_sdk.connect_service(self.base_namespace + '/user_reset', ParamsReset)
+        self.factory_reset_service = nepi_sdk.connect_service(self.base_namespace + '/factory_reset', ParamsReset)
 
         time.sleep(1)
 
-        self.save_params_pub = nepi_sdk.create_publisher('store_params', String, queue_size=1)
+        self.save_params_pub = nepi_sdk.create_publisher(self.base_namespace + '/store_params', String, queue_size=1)
 
         if wait_cfg_mgr == True:
             self.msg_if.pub_debug("Waiting for Config Mgr", log_name_list = self.log_name_list)
@@ -546,7 +546,8 @@ class NodeServicesIF:
         self._unregister_service(service_name)
 
     def unregister_services(self):
-        for service_name in self.srvs_dict.keys():
+        service_names = list(self.srvs_dict.keys())
+        for service_name in service_names:
             self._unregister_service(service_name)
 
     def add_services(self,services_dict):
@@ -889,7 +890,7 @@ class NodeSubscribersIF:
                     sub_dict['callback_args'] = ()
                 try:
                     if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], \
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'], sub_dict['callback'], queue_size = sub_dict['qsize'], \
                             log_name_list = self.log_name_list)
                     else:
                         sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], \

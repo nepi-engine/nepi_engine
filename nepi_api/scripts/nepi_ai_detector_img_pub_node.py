@@ -108,8 +108,8 @@ class AiDetectorImgPub:
     img_if = None
     img_if_all = None
 
-    img_ifs_dict = dict()
-    img_ifs_lock = threading.Lock()
+    img_det_dict = dict()
+    img_det_lock = threading.Lock()
     imgs_info_dict = dict()
     imgs_img_proc_dict = dict()
 
@@ -289,26 +289,30 @@ class AiDetectorImgPub:
 
     def getActiveImgTopics(self):
         active_img_topics = []
-        img_topics = self.imgs_info_dict.keys()
+        img_topics = copy.deepcopy(self.imgs_info_dict.keys())
         for i,img_topic in enumerate(img_topics):
-            img_active =  self.imgs_info_dict[img_topic]['active']
-            if img_active == True:
+            if img_topics[img_topic]['active'] == True:
                 active_img_topics.append(img_topic)
         return active_img_topics
 
 
     def updaterCb(self,timer):
         # Clear boxes if stall
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+        img_source_topics = copy.deepcopy(self.img_source_topics)
         current_time = nepi_utils.get_time()
-        for img_topic in self.imgs_info_dict.keys():
-            last_time = self.imgs_info_dict[img_topic]['last_det_time']
+        for img_topic in imgs_info_dict.keys():
+            last_time = imgs_info_dict[img_topic]['last_det_time']
             check_time = current_time - last_time
             if check_time > self.clear_det_time or self.enabled == False or self.state != 'Running':
-                self.imgs_info_dict[img_topic]['det_dict_list'] = None
+                try:
+                    self.imgs_info_dict[img_topic]['det_dict_list'] = None
+                except:
+                    pass
 
 
          # Do Image Subs updating
-        img_topics = copy.deepcopy(self.img_source_topics)
+        
         active_img_topics = self.getActiveImgTopics()
 
         # Manage group detector image ifs
@@ -392,144 +396,80 @@ class AiDetectorImgPub:
 
 
     def subscribeImgTopic(self,img_topic):
+        success = False
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         if img_topic == "None" or img_topic == "":
-            return False
+            pass
+        if img_topic in self.img_det_dict.keys():
+            success = True    
         else:
-
-            img_sub_dict = {
-                        'namespace': img_topic,
-                        'msg': Image,
-                        'topic': '',
-                        'qsize': 1,
-                        'callback': self.imageCb,
-                        'callback_args': (img_topic)
-                    }
-
-            imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-            # Check if exists
-            if img_topic in imgs_info_dict.keys():
-                if self.img_ifs_dict[img_topic]:
-                    self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)  
-                    # Try and Reregister img_sub
-                    self.img_ifs_lock.acquire()
-                    self.img_ifs_dict[img_topic]['subs_if'].register_sub('img_sub',img_sub_dict)
-                    self.img_ifs_lock.release()
-                    self.msg_if.pub_warn('Registered : ' + img_topic +  ' ' + str(self.img_ifs_dict[img_topic]))
-                    # Set back to active
-                    self.imgs_info_dict[img_topic]['active'] = True
-            else:
-                    
-                # Create register new image topic
-                self.msg_if.pub_info('Registering to image topic: ' + img_topic)
-                img_name = img_topic.replace(self.base_namespace,"")
-                pub_namespace = os.path.join(self.det_namespace,img_name)
-                pub_img_namespace = os.path.join(pub_namespace,self.data_product)
-
-                ####################
-                # Create img info dict
-                self.imgs_info_dict[img_topic] = dict()  
-                self.imgs_info_dict[img_topic]['namespace'] = pub_img_namespace
-                self.imgs_info_dict[img_topic]['active'] = True
-                self.imgs_info_dict[img_topic]['publishing'] = False
-                self.imgs_info_dict[img_topic]['connected'] = False 
-                self.imgs_info_dict[img_topic]['get_latency_time'] = 0
-                self.imgs_info_dict[img_topic]['pub_latency_time'] = 0
-                self.imgs_info_dict[img_topic]['process_time'] = 0 
-                self.imgs_info_dict[img_topic]['last_img_time'] = 0
-                self.imgs_info_dict[img_topic]['last_det_time'] = 0
-                self.imgs_info_dict[img_topic]['det_dict_list'] = []   
-
-                self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
-                self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
-
-                img_if = ImageIF(namespace = pub_namespace,
-                        data_product_name = self.data_product,
-                        data_source_description = 'image',
-                        data_ref_description = 'image',
-                        perspective = 'pov',
-                        init_overlay_list = [],
-                        get_navpose_function = None,
-                        log_name = self.data_product,
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
+            # Subscribe to new image topic
+            self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
+            img_sub = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
+            img_name = img_topic.replace(self.base_namespace,"")
 
 
-                ####################
-                # Pubs Config Dict 
-                SUBS_DICT = {
-                    'img_sub': img_sub_dict
-                }
-
-                ####################
-                # Subs Config Dict 
-                img_subs_if = NodeClassIF(
-                                subs_dict = SUBS_DICT,
-                        msg_if = self.msg_if
-                                            )
+            pub_namespace = os.path.join(self.det_namespace,img_name)
+            pub_img_namespace = os.path.join(pub_namespace,self.data_product)
 
 
+            ####################
+            # Create img info dict
+            self.imgs_info_dict[img_topic] = dict()  
+            self.imgs_info_dict[img_topic]['namespace'] = pub_img_namespace
+            self.imgs_info_dict[img_topic]['active'] = True
+            self.imgs_info_dict[img_topic]['connected'] = False 
+            self.imgs_info_dict[img_topic]['publishing'] = False
+            self.imgs_info_dict[img_topic]['get_latency_time'] = 0
+            self.imgs_info_dict[img_topic]['pub_latency_time'] = 0
+            self.imgs_info_dict[img_topic]['process_time'] = 0 
+            self.imgs_info_dict[img_topic]['last_img_time'] = 0
+            self.imgs_info_dict[img_topic]['last_det_time'] = 0
+            self.imgs_info_dict[img_topic]['det_dict_list'] = []   
 
-                time.sleep(1)
 
-                ####################
-                # Add Img Subs and Pubs IFs to Img IFs Dict
-                self.img_ifs_lock.acquire()
-                self.img_ifs_dict[img_topic] = {
-                                                'img_if': img_if,
-                                                'subs_if': img_subs_if
-                                                }   
+            img_if = ImageIF(namespace = pub_namespace,
+                    data_product_name = self.data_product,
+                    data_source_description = 'image',
+                    data_ref_description = 'image',
+                    perspective = 'pov',
+                    init_overlay_list = [],
+                    get_navpose_function = None,
+                    log_name = self.data_product,
+                    log_name_list = [],
+                    msg_if = self.msg_if
+                    )
 
-                self.img_ifs_lock.release()
-                self.msg_if.pub_warn('Registered : ' + img_topic)
+            ####################
+            # Add Img Subs and Pubs IFs to Img IFs Dict
 
+            self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
+            self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
+            self.img_det_lock.acquire()
+            self.img_det_dict[img_topic] = {
+                                            'img_if': img_if,
+                                            'img_sub': img_sub
+                                            }   
+            self.img_det_lock.release()
 
-                ####################
-                # Publish blank msg img to prime topics
-                #img_if
- 
-    
             return True
 
-    def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
-        if self.img_if is not None:
-            if self.img_if.has_subscribers_check():
-                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if self.img_if_all is not None:
-            if self.img_if_all.has_subscribers_check():
-                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if img_topic in self.img_ifs_dict.keys():
-            if self.img_ifs_dict[img_topic]['img_if'].has_subscribers_check():
-                self.img_ifs_lock.acquire()
-                self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-                self.img_ifs_lock.release()
-
-    def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
-        if self.img_if is not None:
-            if self.img_if.has_subscribers_check():
-                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if self.img_if_all is not None:
-             if self.img_if_all.has_subscribers_check():
-                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-        if img_topic in self.img_ifs_dict.keys():
-            if self.img_ifs_dict[img_topic]['img_if'].has_subscribers_check():
-                self.img_ifs_lock.acquire()
-                self.img_ifs_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
-                self.img_ifs_lock.release()
-                 
 
     def unsubscribeImgTopic(self,img_topic):
-        self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
-        if img_topic in self.img_ifs_dict.keys():
-            self.img_ifs_lock.acquire()
-            self.img_ifs_dict[img_topic]['subs_if'].unregister_sub('img_sub')
-            self.img_ifs_lock.release()
+        self.msg_if.pub_warn('Unsubscribing from image topic: ' + img_topic)
+        if img_topic in self.img_det_dict.keys():
+            self.img_det_lock.acquire()
+            self.img_det_dict[img_topic]['img_sub'].unregister()
+            nepi_sdk.sleep(1)
+            self.img_det_dict[img_topic]['img_if'].unregister()
+            nepi_sdk.sleep(1)
+            del self.img_det_dict[img_topic]
+            self.img_det_lock.release()
 
-        #Leave img pub running in case it is switched back on
-    
         # Clear info dict
         if img_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[img_topic]['active'] = False
+            del self.imgs_info_dict[img_topic]
+            '''
             self.imgs_info_dict[img_topic]['publishing'] = False
             self.imgs_info_dict[img_topic]['connected'] = False 
             self.imgs_info_dict[img_topic]['get_latency_time'] = 0
@@ -538,8 +478,37 @@ class AiDetectorImgPub:
             self.imgs_info_dict[img_topic]['last_img_time'] = 0 
             self.imgs_info_dict[img_topic]['last_det_time'] = 0 
             self.imgs_info_dict[img_topic]['det_dict_list'] = []
+            '''
 
         return True
+
+    def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
+        if self.img_if is not None:
+            if self.img_if.has_subscribers_check():
+                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if_all is not None:
+            if self.img_if_all.has_subscribers_check():
+                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if img_topic in self.img_det_dict.keys():
+            if self.img_det_dict[img_topic]['img_if'].has_subscribers_check():
+                self.img_det_lock.acquire()
+                self.img_det_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+                self.img_det_lock.release()
+
+    def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
+        if self.img_if is not None:
+            if self.img_if.has_subscribers_check():
+                self.img_if.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if self.img_if_all is not None:
+             if self.img_if_all.has_subscribers_check():
+                self.img_if_all.publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+        if img_topic in self.img_det_dict.keys():
+            if self.img_det_dict[img_topic]['img_if'].has_subscribers_check():
+                self.img_det_lock.acquire()
+                self.img_det_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+                self.img_det_lock.release()
+                 
+
 
 
 
@@ -548,16 +517,16 @@ class AiDetectorImgPub:
         start_time = nepi_sdk.get_time()   
         img_topic = args
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
-
-
-        self.imgs_info_dict[img_topic]['connected'] = True
-        
+        sel_imgs = copy.deepcopy(self.img_source_topics)        
         max_rate = copy.deepcopy(self.max_rate)
-        if img_topic in imgs_info_dict.keys() and max_rate > .01:
+        if img_topic in imgs_info_dict.keys() and img_topic in sel_imgs and max_rate > .01:
+            try:
+                self.imgs_info_dict[img_topic]['connected'] = True
+            except:
+                return
             enabled = self.enabled
             state = self.state
-            active = imgs_info_dict[img_topic]['active']
-            if active == True and enabled == True and state == 'Running':
+            if enabled == True and state == 'Running':
                 # Process ros image message
                 imgs_info_dict[img_topic]['publishing'] = True
 
