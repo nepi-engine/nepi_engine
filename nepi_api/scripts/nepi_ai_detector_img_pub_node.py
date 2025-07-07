@@ -435,12 +435,15 @@ class AiDetectorImgPub:
                     log_name_list = [],
                     msg_if = self.msg_if
                     )
-
+            
+            self.msg_if.pub_warn('ImageIF created for image topic: ' + pub_img_namespace + '/' + self.data_product)
+            img_if.wait_for_ready()
             ####################
             # Add Img Subs and Pubs IFs to Img IFs Dict
 
             self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
             self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
+            
             self.img_det_lock.acquire()
             self.img_det_dict[img_topic] = {
                                             'img_if': img_if,
