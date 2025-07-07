@@ -99,9 +99,9 @@ class NepiDashboardData extends Component {
   }
 
   onKeySaveFreqText(e) {
-    const {onChangeSaveFreq} = this.props.ros
+    const {onChangeSaveFreqAll} = this.props.ros
     if(e.key === 'Enter'){
-      onChangeSaveFreq(this.state.saveFreq)
+      onChangeSaveFreqAll(this.state.saveFreq)
       document.getElementById(e.target.id).style.color = Styles.vars.colors.black
     }
   }
@@ -124,7 +124,7 @@ class NepiDashboardData extends Component {
   }
 
   onToggleSaveData(e){
-    const {onChangeSaveFreqAll, onToggleSaveDataAll} = this.props.ros
+    const { onToggleSaveDataAll} = this.props.ros
     const checked = e.target.checked
     onToggleSaveDataAll(checked)
   }
