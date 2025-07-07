@@ -811,7 +811,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
       </Section>
     )
-  }
+  }/*
 
   renderNavPose(){
   const show_navpose = this.state.show_navpose
@@ -929,7 +929,7 @@ return (
 
 
   }
-
+*/
 
   render() {
     const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
