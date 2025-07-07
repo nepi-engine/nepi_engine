@@ -484,6 +484,9 @@ class AiDetectorImgPub:
                 except Exception as e:
                     self.msg_if.pub_warn('Failed to publish img det image: ' + img_topic + " " + str(e))
                     pass
+            else:
+                self.msg_if.pub_warn('No subscribers for img det image: ' + img_topic, throttle_s = 2.0)
+
 
     def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
         if self.img_if is not None:
