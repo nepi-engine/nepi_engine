@@ -279,14 +279,14 @@ class config_mgr(object):
             return [False]
         else:
             self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
-            paramlist = None
+            params_list = None
             try:
-                paramlist = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
-                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
+                params_list = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
+                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_list))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
-            if paramlist is not None:
-                for params, ns in paramlist:
+            if params_list is not None:
+                for params, ns in params_list:
                     try:
                         nepi_sdk.upload_params(ns, params, verbose=True)     
                     except Exception as e:

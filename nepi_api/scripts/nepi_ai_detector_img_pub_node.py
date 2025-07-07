@@ -404,23 +404,7 @@ class AiDetectorImgPub:
             pub_img_namespace = nepi_sdk.create_namespace(pub_namespace,self.data_product)
             self.msg_if.pub_warn('Publishing on namespace: ' + pub_namespace)
 
-            ####################
-            # Create img info dict
-            imgs_info_dict[img_topic] = dict()  
-            imgs_info_dict[img_topic]['namespace'] = pub_img_namespace
-            imgs_info_dict[img_topic]['active'] = True
-            imgs_info_dict[img_topic]['connected'] = False 
-            imgs_info_dict[img_topic]['publishing'] = False
-            imgs_info_dict[img_topic]['get_latency_time'] = 0
-            imgs_info_dict[img_topic]['pub_latency_time'] = 0
-            imgs_info_dict[img_topic]['process_time'] = 0 
-            imgs_info_dict[img_topic]['last_img_time'] = 0
-            imgs_info_dict[img_topic]['last_det_time'] = 0
-            imgs_info_dict[img_topic]['det_dict_list'] = []   
 
-            self.imgs_info_lock.acquire()
-            self.imgs_info_dict = imgs_info_dict
-            self.imgs_info_lock.release()
 
 
 
@@ -443,6 +427,7 @@ class AiDetectorImgPub:
 
             self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
             self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
+
             
             self.img_det_lock.acquire()
             self.img_det_dict[img_topic] = {
@@ -450,6 +435,26 @@ class AiDetectorImgPub:
                                             'img_sub': img_sub
                                             }   
             self.img_det_lock.release()
+
+
+            ####################
+            # Create img info dict
+            imgs_info_dict[img_topic] = dict()  
+            imgs_info_dict[img_topic]['namespace'] = pub_img_namespace
+            imgs_info_dict[img_topic]['active'] = True
+            imgs_info_dict[img_topic]['connected'] = False 
+            imgs_info_dict[img_topic]['publishing'] = False
+            imgs_info_dict[img_topic]['get_latency_time'] = 0
+            imgs_info_dict[img_topic]['pub_latency_time'] = 0
+            imgs_info_dict[img_topic]['process_time'] = 0 
+            imgs_info_dict[img_topic]['last_img_time'] = 0
+            imgs_info_dict[img_topic]['last_det_time'] = 0
+            imgs_info_dict[img_topic]['det_dict_list'] = []   
+
+            self.imgs_info_lock.acquire()
+            self.imgs_info_dict = imgs_info_dict
+            self.imgs_info_lock.release()
+
 
             return True
 

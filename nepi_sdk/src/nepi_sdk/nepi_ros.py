@@ -662,15 +662,18 @@ def load_params_from_file(file_path, namespace = None, log_name_list = []):
         if params_input != []:
           log_msg_warn("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)
           params = params_input[0][0]
+          params_list=dict()
           if params is not None:
             for key in params.keys():
                 value = params[key]
                 param_namesapce = create_namespace(namespace,key)
                 #log_msg_debug("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + namespace)
                 rospy.set_param(param_namesapce, value)
+                params_list.append[key] = value
             log_msg_warn("Parameters loaded successfully for " + namespace, log_name_list = log_name_list, throttle_s = 5.0)
     except rosparam.RosParamException as e:
         log_msg_warn("Error updating parameters: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    return 
 
 
 def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
