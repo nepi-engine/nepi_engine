@@ -435,12 +435,15 @@ class AiDetectorImgPub:
                     log_name_list = [],
                     msg_if = self.msg_if
                     )
-
+            
+            self.msg_if.pub_warn('ImageIF created for image topic: ' + pub_img_namespace + '/' + self.data_product)
+            img_if.wait_for_ready()
             ####################
             # Add Img Subs and Pubs IFs to Img IFs Dict
 
             self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
             self.msg_if.pub_info('Publishing to image topic: ' + pub_img_namespace)
+            
             self.img_det_lock.acquire()
             self.img_det_dict[img_topic] = {
                                             'img_if': img_if,
@@ -479,11 +482,15 @@ class AiDetectorImgPub:
         if img_topic in self.img_det_dict.keys():
             if self.img_det_dict[img_topic]['img_if'].has_subscribers_check():
                 try:
-                    self.msg_if.pub_warn('Publishing img det image: ' + img_topic)
+                    #self.msg_if.pub_warn('Publishing img det image: ' + img_topic)
                     self.img_det_dict[img_topic]['img_if'].publish_cv2_img(cv2_img, encoding = encoding, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
                 except Exception as e:
                     self.msg_if.pub_warn('Failed to publish img det image: ' + img_topic + " " + str(e))
                     pass
+            else:
+                #self.msg_if.pub_warn('No subscribers for img det image: ' + img_topic, throttle_s = 2.0)
+                pass
+
 
     def publishImgMsg(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
         if self.img_if is not None:

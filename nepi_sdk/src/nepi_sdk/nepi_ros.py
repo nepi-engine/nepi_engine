@@ -235,7 +235,7 @@ def init_node(name,disable_signals=False):
 def get_base_namespace():
   nepi_node=find_node('nepi')
   nepi_names = nepi_node.split('/')
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] '/')
+  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] + '/')
   return base_namespace
 
 def get_node_namespace():
@@ -650,10 +650,7 @@ def set_params_from_dict(params_dict, namespace, log_name_list = []):
 
 
 def load_params_from_file(file_path, namespace = None, log_name_list = []):
-    if namespace is not None:
-      if namespace[-1] != "/":
-        namespace += "/"
-    else:
+    if namespace is None:
       namespace = "~/"
     namespace = get_full_namespace(namespace)
     log_msg_warn("Will try loading parameters from file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
@@ -663,17 +660,17 @@ def load_params_from_file(file_path, namespace = None, log_name_list = []):
         log_msg_warn("Error loading parameters from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     try:
         if params_input != []:
-          #log_msg_debug("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)
+          log_msg_warn("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)
           params = params_input[0][0]
           if params is not None:
             for key in params.keys():
                 value = params[key]
-                param_namesapce = namespace + key
+                param_namesapce = create_namespace(namespace,key)
                 #log_msg_debug("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + namespace)
                 rospy.set_param(param_namesapce, value)
-            log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list, throttle_s = 5.0)
+            log_msg_warn("Parameters loaded successfully for " + namespace, log_name_list = log_name_list, throttle_s = 5.0)
     except rosparam.RosParamException as e:
-        log_msg_debug("Error updating parameters: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+        log_msg_warn("Error updating parameters: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
 
 
 def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
