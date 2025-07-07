@@ -64,37 +64,25 @@ class NepiDeviceNPXControls extends Component {
       const has_depth = message.has_depth
 
       const has_transform = message.has_transform
-      const updates = message.supports_transform_updates
+      const updates = message.supports_updates
     
       return (
         <Section title={"NavPose Controls"}>
           
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {"Set System NavPose Source"}
+         </label>
 
-
-
-          <Columns>
-                  <Column>
-
-                          <NepiIF3DTransform
-                              namespace={namespace}
-                              has_transform={has_transform}
-                              supports_transform_updates={updates}
-                              title={"Nepi_IF_3DTransform"}
-                          />
-
-                  </Column>
-            </Columns>
-
-            <Columns equalWidth={true}>
+          <Columns equalWidth={true}>
             <Column>
                 <div hidden={!has_loc}>    
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_location_source")}>{"Set as Location Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_location_source")}>{"Location "}</Button>
                 </ButtonMenu>
                 </div>
                 <div hidden={!has_pos}>  
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_position_source")}>{"Set as Position Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_position_source")}>{"Position"}</Button>
                 </ButtonMenu>
                 </div>
 
@@ -103,13 +91,13 @@ class NepiDeviceNPXControls extends Component {
 
                 <div hidden={!has_head}>    
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_heading_source")}>{"Set as Heading Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_heading_source")}>{"Heading"}</Button>
                 </ButtonMenu>
                 </div>
 
                 <div hidden={!has_alt}>    
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_altitude_source")}>{"Set as Altitude Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_altitude_source")}>{"Altitude"}</Button>
                 </ButtonMenu>
                 </div>
 
@@ -118,51 +106,35 @@ class NepiDeviceNPXControls extends Component {
 
                 <div hidden={!has_orien}>    
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_orientation_source")}>{"Set as Orientation Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_orientation_source")}>{"Orientation"}</Button>
                 </ButtonMenu>
                 </div>
 
                 <div hidden={!has_depth}>    
                 <ButtonMenu>   
-                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_depth_source")}>{"Set as Depth Source"}</Button>
+                  <Button onClick={() => sendTriggerMsg(namespace + "/set_as_depth_source")}>{"Depth"}</Button>
                 </ButtonMenu>
                 </div>
 
                 </Column>
                 </Columns>
 
-  {/*
-                 <ButtonMenu>
-                        <div hidden={!has_loc}>    
-                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_location_source")}>{"Set as Location Source"}</Button>
-                        </div>
 
-                        <div hidden={!has_head}>    
-                               <Button onClick={() => sendTriggerMsg(namespace + "/set_as_heading_source")}>{"Set as Heading Source"}</Button>
-                        </div>
+          <Columns>
+                  <Column>
 
-                        <div hidden={!has_orien}>    
-                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_orientation_source")}>{"Set as Orientation Source"}</Button>
-                        </div>
-                  </ButtonMenu>
+                          <NepiIF3DTransform
+                              namespace={namespace}
+                              has_transform={has_transform}
+                              supports_updates={updates}
+                              title={"Nepi_IF_3DTransform"}
+                          />
 
+                  </Column>
+            </Columns>
 
 
-                  <ButtonMenu>
-                       <div hidden={!has_pos}>    
-                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_position_source")}>{"Set as Position Source"}</Button>
-                        </div>
 
-
-                        <div hidden={!has_alt}>    
-                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_altitude_source")}>{"Set as Altitude Source"}</Button>
-                        </div>
-
-                        <div hidden={!has_depth}>    
-                              <Button onClick={() => sendTriggerMsg(namespace + "/set_as_depth_source")}>{"Set as Depth Source"}</Button>
-                        </div>
-                  </ButtonMenu>
-    */}
         </Section>
       )
     }

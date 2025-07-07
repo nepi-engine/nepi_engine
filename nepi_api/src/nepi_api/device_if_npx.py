@@ -141,7 +141,7 @@ class NPXDeviceIF:
   has_position = False
   has_altitude = False
   has_depth = False
-  supports_transform_updates = True
+  supports_updates = True
 
   set_location_source = False
   set_heading_source = False
@@ -181,7 +181,7 @@ class NPXDeviceIF:
 
   getNavPoseCb = None
   get3DTransformCb = None
-  supports_transform_updates = True
+  supports_updates = True
 
   #######################
   ### IF Initialization
@@ -241,7 +241,7 @@ class NPXDeviceIF:
 
         self.get3DTransformCb = get3DTransformCb
 
-        self.supports_transform_updates = (get3DTransformCb is None)
+        self.supports_updates = (get3DTransformCb is None)
         
 
         if frame_3d is not None:
@@ -259,12 +259,15 @@ class NPXDeviceIF:
         self.get3DTransformCb = get3DTransformCb
         ###
         self.getNavPoseCb = getNavPoseCb
+
         if self.getNavPoseCb is not None:
             navpose_dict = None
             try:
                 navpose_dict = self.getNavPoseCb()
+
             except:
-                pass
+                print("ERROR in getNavPoseCb():", e)
+
             if navpose_dict is None:
                 self.getNavPoseCb = None
             else:
@@ -285,7 +288,7 @@ class NPXDeviceIF:
         self.caps_report.has_depth =  self.has_depth
 
 
-        self.caps_report.supports_transform_updates = self.supports_transform_updates
+        self.caps_report.supports_updates = self.supports_updates
 
         self.caps_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
 
@@ -319,7 +322,7 @@ class NPXDeviceIF:
 
         self.status_msg.frame_3d = self.frame_3d
 
-        self.status_msg.supports_transform_updates = self.supports_transform_updates
+        self.status_msg.supports_updates = self.supports_updates
 
         self.status_msg.source_frame_nav = self.frame_nav
         self.status_msg.source_frame_altitude = self.frame_altitude

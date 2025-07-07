@@ -47,6 +47,8 @@ class NepiDevicePTX extends Component {
     super(props)
 
     this.state = {
+      showTransform: false,
+
       imageTopic: null,
       imageText: null,
 
@@ -130,6 +132,7 @@ class NepiDevicePTX extends Component {
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createPTXOptions = this.createPTXOptions.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
+    this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
 
     this.onEnterSendScanRangeWindowValue = this.onEnterSendScanRangeWindowValue.bind(this)
   }
@@ -265,6 +268,10 @@ class NepiDevicePTX extends Component {
     }
   }
 
+  // Add the missing toggle method
+  onClickToggleShowTransform() {
+    this.setState({ showTransform: !this.state.showTransform })
+  }
 
   // Function for creating image topic options.
   createImageTopicsOptions() {
@@ -771,24 +778,34 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
         </div>
 
         <div
-                    style={{
-                      borderTop: "1px solid #ffffff",
-                      marginTop: Styles.vars.spacing.medium,
-                      marginBottom: Styles.vars.spacing.xs,
-                    }}
-                  />
+              style={{
+                borderTop: "1px solid #ffffff",
+                marginTop: Styles.vars.spacing.medium,
+                marginBottom: Styles.vars.spacing.xs,
+              }}
+            />
+            <Label title="Show 3D Transform">
+              <Toggle
+                checked={this.state.showTransform}
+                onClick={this.onClickToggleShowTransform}>
+              </Toggle>
+            </Label>
+
+            <div hidden={ this.state.showTransform === false}>
+
             <Columns>
-                  <Column>
+              <Column>
 
-                          <NepiIF3DTransform
-                              namespace={namespace}
-                              supports_updates={true}
-                              title={"Nepi_IF_3DTransform"}
-                          />
+                      <NepiIF3DTransform
+                          namespace={namespace}
+                          supports_updates={true}
+                          title={"Nepi_IF_3DTransform"}
+                      />
 
-                  </Column>
-              </Columns>
+              </Column>
+           </Columns>
 
+            </div>
 
 
 
@@ -801,12 +818,11 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
   const make_section = this.props.make_section ? this.props.make_section : true
   const namespace = this.state.namespace ? this.state.namespace : 'None'
   console.log("show navpose: " + show_navpose)
-  console.log("namespace : " + namespace)
+  console.log("renderNavPose namespace : " + namespace)
   if (namespace !== 'None' && make_section === true){
     return (
          <Section>
-        <div style={{ display: 'flex' }}>
-                <div style={{ width: '20%' }}>
+
 
 
                 <Label title="Show NavPose">
@@ -816,25 +832,10 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
                         </Toggle>
                       </Label>    
 
-                </div>
-                <div style={{ width: '80%' }}>
-                  {}
-                </div>
-
-              </div>
-
-
-
-
-
-
 
               <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
 
               <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-              <div style={{ display: 'flex' }}>
-              <div style={{ width: '40%' }}>
 
 
                   <Label title={"NAVPOSE"} />
@@ -843,17 +844,6 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
                       title={"NavPose Data"}
                     />
 
-
-              </div>
-
-              <div style={{ width: '20%' }}>
-                {}
-              </div>
-
-              <div style={{ width: '40%' }}>
-                {}
-              </div>
-              </div>
 
               </div>
 
@@ -885,7 +875,11 @@ return (
 
               </div>
 
-
+              <Label title={"NAVPOSE"} />
+                    <NavPoseViewer
+                      namespace={namespace}
+                      title={"NavPose Data"}
+                    />
 
 
 
@@ -948,6 +942,9 @@ return (
     const ptx_caps = ptxDevices[namespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning === true)
+    const show_navpose = this.state.show_navpose
+
+    console.log("render namespace : " + namespace)
 
     
 
@@ -958,6 +955,16 @@ return (
 
 
 
+                <div hidden={(namespace === null)}>
+                      <NepiDeviceInfo
+                            deviceNamespace={namespace}
+                            status_topic={"/status"}
+                            status_msg_type={"nepi_interfaces/DevicePTXStatus"}
+                            name_update_topic={"/update_device_name"}
+                            name_reset_topic={"/reset_device_name"}
+                            title={"NepiSensorsImagingInfo"}
+                        />
+                </div>
                 
 
                 <div id="ptxImageViewer">
@@ -1024,17 +1031,17 @@ return (
 
                   <div hidden={(namespace === null)}>
                   {this.renderNavPose()}
-
-                      <NepiDeviceInfo
-                            deviceNamespace={namespace}
-                            status_topic={"/status"}
-                            status_msg_type={"nepi_interfaces/DevicePTXStatus"}
-                            name_update_topic={"/update_device_name"}
-                            name_reset_topic={"/reset_device_name"}
-                            title={"NepiSensorsImagingInfo"}
-                        />
-
                 </div>
+
+
+                <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
+
+                <NavPoseViewer
+                      namespace={namespace}
+                      title={"NavPose Data"}
+                    />
+            </div>
+
 
                   <NepiSystemMessages
                     messagesNamespace={namespace}
@@ -1045,6 +1052,9 @@ return (
 
           </Column>
           <Column style={{flex: 0.05}}>
+
+          <div style={{ height: '160px' }}></div>
+
             <SliderAdjustment
               disabled={!has_abs_pos}
               title={"Tilt"}
@@ -1103,6 +1113,7 @@ return (
                 title={"Nepi_IF_Settings"}
               />
             </div>
+
 
           </Column>
         </Columns>
