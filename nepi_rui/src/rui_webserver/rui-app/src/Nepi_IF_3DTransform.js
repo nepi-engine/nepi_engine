@@ -66,11 +66,13 @@ class NepiIF3DTransform extends Component {
     const last_msg = this.state.transform_msg
     this.setState({
       transform_msg: message,
-      source: message.frame_3d_transform.source_ref_description,
-      end: message.frame_3d_transform.end_ref_description
+      source: message.source_ref_description,
+      end: message.end_ref_description
     })
-
-    if (message !== last_msg) {
+    const update_msg = message.toString()
+    console.log("new msg: "+update_msg)
+    console.log("old msg: "+last_msg.toString())
+    if (update_msg !== last_msg.toString()) {
       this.setState({
         transformTX: message.translate_vector.x,
         transformTY: message.translate_vector.y,
@@ -104,16 +106,17 @@ class NepiIF3DTransform extends Component {
     this.setState({needs_update: true})
   }
 
-  // Lifecycle method called when compnent updates.
-  // Used to track changes in the topic
-  componentDidUpdate(prevProps, prevState, snapshot) {
+
+  componentDidMount(){
+    this.setState({needs_update: true})
+    
+    // Always perform initial setup with the current namespace
     const { namespace } = this.props
-    if (prevProps.namespace !== namespace){
-      if (namespace !== null) {
-        this.updateListener()
-      } else if (namespace === null){
-        this.setState({ disabled: true })
-      }
+    if (namespace !== null) {
+      this.setState({namespace: namespace})
+      this.updateListener()
+    } else {
+      this.setState({ disabled: true })
     }
   }
 
@@ -175,7 +178,6 @@ class NepiIF3DTransform extends Component {
     const { sendTriggerMsg } = this.props.ros
     const namespace = this.state.namespace ? this.state.namespace : "None"
     const has_transform = this.props.has_transform ? this.props.has_transform : true
-    const updates = this.props.supports_transform_updates ? this.props.supports_transform_updates : true
     if (has_transform === false){
       const msg = ("\n\nData Transformed by Parent")
 
@@ -197,7 +199,7 @@ class NepiIF3DTransform extends Component {
     else {
       const source = this.state.source
       const end = this.state.end
-      const updates = this.props.supports_updates ? this.props.supports_updates : true
+      const updates = this.props.supports_updates !== null ? this.props.supports_updates : true
       const updates_msg = updates ? "" : "Transform Set by Parent"
 
       const msg = ("\n\nSource: " + source + 
@@ -301,9 +303,6 @@ class NepiIF3DTransform extends Component {
 
             <Columns>
             <Column>
-            <pre style={{ height: "200px", overflowY: "auto" }} align={"left"} textAlign={"left"}>
-                      {msg}
-                      </pre>
 
             {this.renderConfigs()}
 
@@ -317,23 +316,30 @@ class NepiIF3DTransform extends Component {
   render() {
     const make_section = this.props.make_section ? this.props.make_section : true
     const namespace = this.state.namespace ? this.state.namespace : 'None'
+
+
     if (namespace !== 'None' && make_section === true){
       return (
-        <Section title={"Device Settings"}>
-          {this.renderTransform()}
-        </Section>
-      )
-    }
-    else if (namespace !== 'None' && make_section === false) {
-      return (
-
-
         <Columns>
           <Column>
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {"3D Transforms"}
+         </label>
           {this.renderTransform()}
 
           </Column>
         </Columns>
+      )
+    }
+    else if (namespace !== 'None' && make_section === false) {
+      return (
+        <Section >
+          <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
+          {"3D Transforms"}
+          </label>
+          {this.renderTransform()}
+        </Section>
+
       )
     }
     else {
@@ -347,7 +353,7 @@ class NepiIF3DTransform extends Component {
     }
     
   }
-  
-}
+  }
+
 
 export default NepiIF3DTransform
