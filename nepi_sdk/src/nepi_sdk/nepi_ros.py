@@ -235,7 +235,7 @@ def init_node(name,disable_signals=False):
 def get_base_namespace():
   nepi_node=find_node('nepi')
   nepi_names = nepi_node.split('/')
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
+  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] '/')
   return base_namespace
 
 def get_node_namespace():
