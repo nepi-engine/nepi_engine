@@ -315,21 +315,21 @@ class NepiDriversMgr(object):
         
 
   def resetCb(self,do_updates = True):
-      self.msg_if.pub_warn("Reseting")
       if self.node_if is not None:
-        self.node_if.reset_params()
+          pass
       if do_updates == True:
-        pass
-      self.initCb(do_updates = True)
+          pass
+      self.initCb(do_updates = do_updates)
 
 
   def factoryResetCb(self,do_updates = True):
-      self.msg_if.pub_warn("Factory Reseting")
+      self.aifs_classes_dict = dict()
+      self.aif_classes_dict = dict()
       if self.node_if is not None:
-        self.node_if.factory_reset_params()
+          pass
       if do_updates == True:
-        pass
-      self.initCb(do_updates = True)
+          pass
+      self.initCb(do_updates = do_updates)
 
 
 

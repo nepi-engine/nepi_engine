@@ -338,9 +338,17 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 
         navpose_dict['frame_3d'] = output_frame_3d
 
-        #if npdata_dict['has_location'] == True:
-        navpose_dict['latitude'] = npdata_dict['latitude']
-        navpose_dict['longitude'] = npdata_dict['longitude']
+        if npdata_dict['has_location'] == True:
+          if x != 0 or y != 0 or z != 0:
+            cur_geo = GeoPoint()
+            cur_geo.latitude = npdata_dict['latitude']
+            cur_geo.longitude = npdata_dict['longitude']
+            tr_geo = get_geopoint_at_enu_point(cur_geo,[-x,-y,-z])
+            navpose_dict['latitude'] = tr_geo.latitude
+            navpose_dict['longitude'] = tr_geo.longitude
+        else:
+          navpose_dict['latitude'] = npdata_dict['latitude']
+          navpose_dict['longitude'] = npdata_dict['longitude']
 
         #if npdata_dict['has_heading'] == True:
         navpose_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
@@ -377,6 +385,13 @@ NAVPOSE_3D_FRAME_OPTIONS = ['base_frame','nepi_frame','sensor_frame','world_fram
 NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
 NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
+
+BLANK_NAVPOSE_FRAMES_DICT = {
+        'nepi_frame_desc': 'Undefined',
+        'frame_nav': 'ENU',
+        'frame_alt': 'WGS84',
+        'frame_depth': 'DEPTH'
+    }
 
 BLANK_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),

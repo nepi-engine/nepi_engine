@@ -1023,6 +1023,8 @@ class NavPoseTrackIF:
 
     data_product = 'navpose_track'
 
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+
     def __init__(self, namespace = None,
                 data_source_description = 'navpose_track',
                 data_ref_description = 'sensor_center',
@@ -1189,6 +1191,7 @@ class NavPoseTrackIF:
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._naveposeFramesCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
@@ -1353,12 +1356,38 @@ class NavPoseTrackIF:
                 msg.depth_m = np_dict['depth_m']
                 self.node_if.publish_pub(pub_name,msg)
 
+
+            # Transform navpose in ENU and WSG84 frames
             if frame_3d_transform is not None:
                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
                         
+            # Transform navpose data frames to system set frames
+            frame_nav = self.navpose_frames_dict['frame_nav']
+            frame_alt = self.navpose_frames_dict['frame_alt']
+            frame_depth = self.navpose_frames_dict['frame_depth']
+            
+            if np_dict['frame_nav'] != frame_nav:
+                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                    nepi_nav.convert_navpose_enu2ned(np_dict)
+            if np_dict['frame_altitude'] != frame_alt:
+                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
+            #if np_dict['frame_depth'] != 'MSL':
+            #    if np_dict['frame_depth'] == 'DEPTH':
+            #        pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+
+
             try:
                 data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
-
             except Exception as e:
                 self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                 success = False
@@ -1517,6 +1546,11 @@ class NavPoseTrackIF:
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
+    def _navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
+
+        
 
     def _publishStatusCb(self,timer):
         self.publish_status()
@@ -1698,6 +1732,8 @@ class BaseImageIF:
     has_navpose = False
 
     perspective = 'pov'
+
+    add_pubs_dict = dict()
 
     def __init__(self, 
                 namespace , 
@@ -2282,6 +2318,38 @@ class BaseImageIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def add_pub_namespace(self,namespace):
+        if namespace is None:
+            namespace = copy.deepcopy(self.namespace)
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
+        if img_ns == self.namespace or namespace in self.add_pubs_dict.keys():
+            self.msg_if.pub_warn("Image pub namespace allready registered: " + str(namespace), log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_warn("Adding image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            pub_dict ={
+                    'msg': Image,
+                    'namespace': img_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            self.node_if.register_pub(namespace,pub_dict)
+            nepi_sdk.sleep(1)
+            self.add_pubs_dict[namespace] = img_ns
+
+    def remove_pub_namespace(self,namespace):
+        if namespace is None:
+            namespace = copy.deepcopy(self.namespace)
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
+        if img_ns == self.namespace:
+            self.msg_if.pub_warn("Can't remove base namespace: " + str(namespace), log_name_list = self.log_name_list)
+        elif namespace in self.add_pubs_dict.keys():
+            self.msg_if.pub_warn("Removing image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            del self.add_pubs_dict[namespace]
+            nepi_sdk.sleep(1)
+            self.node_if.unregister_pub(namespace)
 
     def get_data_source_description(self):
         return self.data_source_description
@@ -2320,7 +2388,8 @@ class BaseImageIF:
                         max_range_m = None,
                         add_overlay_list = [],
                         device_mount_description = 'fixed',
-                        process_data = True
+                        process_data = True,
+                        add_pubs = []
                         ):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
@@ -2423,6 +2492,10 @@ class BaseImageIF:
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
         self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
         self.node_if.publish_pub('data_pub', ros_img)
+        for namespace in add_pubs:
+            if namespace in self.add_pubs_dict.keys():
+                self.node_if.publish_pub(namespace, ros_img)
+
 
         
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
@@ -2838,12 +2911,13 @@ class BaseImageIF:
     def _factoryResetCb(self):
         self.factory_reset()
 
-
     def _provide_capabilities(self, _):
         return self.caps_report
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
+        for namespace in self.add_pubs_dict.keys():
+            has_subs = has_subs or self.node_if.pub_has_subscribers(namespace)
         if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs

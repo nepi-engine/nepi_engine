@@ -134,7 +134,8 @@ class RUICfgMgrNode:
         self.settings_msg.nepi_hb_auto_offload_visible = self.node_if.get_param("nepi_hb_auto_offload_visible")
 
         # Publish it
-        self.node_if.publish_pub('settings_pub', self.settings_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('settings_pub', self.settings_msg)
 
     def set_streaming_image_quality_cb(self, msg):
         if (msg.data < 1 or msg.data > 100):
@@ -143,14 +144,31 @@ class RUICfgMgrNode:
 
 
     def initCb(self, do_updates = False):
+        if self.node_if is not None:
+            pass
         if do_updates == True:
-            self.resetCb()
-
-    def resetCb(self):
+            pass
         self.publish_settings() # Make sure to always publish settings updates
 
-    def factoryResetCb(self):
-        self.publish_settings() # Make sure to always publish settings updates
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+        
 
 
 if __name__ == '__main__':

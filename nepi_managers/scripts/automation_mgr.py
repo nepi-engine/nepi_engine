@@ -55,6 +55,8 @@ class AutomationManager(object):
 
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
 
+    node_if = None
+    
     processes = {}
     scripts = []
     script_counters = {}
@@ -309,16 +311,32 @@ class AutomationManager(object):
         self.node_if.save_config()
 
     def initCb(self, do_updates = False):
+        if self.node_if is not None:
+            pass
         if do_updates == True:
             # Read the script_configs parameter from the ROS parameter server
             self.update_script_configs()
+        
 
-    def resetCb(self):
+        
+    def resetCb(self,do_updates = True):
         self.node_if.set_param('script_configs', self.script_configs)
         self.node_if.set_param('script_stop_timeout_s', self.script_stop_timeout_s)
-        
-    def factoryResetCb(self):
-        pass
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
         
     def get_scripts(self):
         """

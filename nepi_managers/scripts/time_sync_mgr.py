@@ -495,16 +495,21 @@ class time_sync_mgr(object):
              nepi_sdk.set_param('timezone',self.timezone)
 
 
-    def resetCb(self):
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
         if do_updates == True:
             pass
-        self.initCb()
+        self.initCb(do_updates = do_updates)
 
-    def factoryResetCb(self):
-        self.msg_if.pub_info("Restoring NTP to factory config")
-        self.reset_to_factory_conf()
-        if do_updates == True:
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
             pass
+        if do_updates == True:
+            self.msg_if.pub_info("Restoring NTP to factory config")
+            self.reset_to_factory_conf()
+
         self.initCb()       
 
 

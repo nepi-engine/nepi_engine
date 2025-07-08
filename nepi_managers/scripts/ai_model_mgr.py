@@ -445,7 +445,7 @@ class AIDetectorManager:
             pass
         if do_updates == True:
             pass
-        self.initCb()
+        self.initCb(do_updates = do_updates)
 
 
     def factoryResetCb(self,do_updates = True):
@@ -455,7 +455,7 @@ class AIDetectorManager:
             pass
         if do_updates == True:
             pass
-        self.initCb()
+        self.initCb(do_updates = do_updates)
 
 
     def getActiveAifs(self):

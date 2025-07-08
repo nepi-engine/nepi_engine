@@ -220,7 +220,7 @@ def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
         if uid[0] == '_':
             uid = uid[1:]
     else:
-        uid = base_namespace + str(time.time_ns())[-6:]
+        uid = base_namespace + '_' + str(time.time_ns())[-6:]
     if add_name is not None:
       uid = uid + '_' + add_name
     uid = uid.replace('.','')
@@ -236,7 +236,7 @@ def init_node(name,disable_signals=False):
 def get_base_namespace():
   nepi_node=find_node('nepi')
   nepi_names = nepi_node.split('/')
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] + '/')
+  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
   return base_namespace
 
 def get_node_namespace():

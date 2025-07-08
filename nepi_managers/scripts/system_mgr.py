@@ -695,13 +695,28 @@ class SystemMgrNode():
             self.ssd_device = self.node_if.get_param("ssd_device")
     
     def initCb(self, do_updates = False):
-        pass
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        # self.publish_settings() # Make sure to always publish settings updates
 
-    def resetCb(self):
-        pass
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
-    def factoryResetCb(self):
-        pass
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
 
 

@@ -159,12 +159,7 @@ class NavPoseMgr(object):
     frame_alt = 'WGS84'
     frame_depth = 'DEPTH'
 
-    navpose_frames = {
-        'nepi_frame_desc': 'Undefined',
-        'frame_nav': 'ENU',
-        'frame_alt': 'WGS84',
-        'frame_depth': 'DEPTH'
-    }
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
 
     data_source_description = 'nepi_navpose_solution'
     data_ref_description = 'nepi_frame'
@@ -466,25 +461,31 @@ class NavPoseMgr(object):
             self.update_navpose_frames()
         self.publish_status()
 
-    def resetCb(self,do_updates = False):
+    def resetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.reset_params()
-        self.initCb(do_updates == True)
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
-        
-    def factoryResetCb(self,do_updates = False):
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
         if self.node_if is not None:
-            self.node_if.factory_reset_params()
-        self.initCb(do_updates == True)
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
 
 
     def update_navpose_frames(self):
-        self.navpose_frames['nepi_frame_desc'] = self.nepi_frame_desc
-        self.navpose_frames['frame_nav'] = self.frame_nav
-        self.navpose_frames['frame_alt'] = self.frame_alt
-        self.navpose_frames['frame_depth'] = self.frame_depth
-        nepi_sdk.set_param('navpose_frames',self.navpose_frames)
+        self.navpose_frames_dict['nepi_frame_desc'] = self.nepi_frame_desc
+        self.navpose_frames_dict['frame_nav'] = self.frame_nav
+        self.navpose_frames_dict['frame_alt'] = self.frame_alt
+        self.navpose_frames_dict['frame_depth'] = self.frame_depth
+        nepi_sdk.set_param('navpose_frames',self.navpose_frames_dict)
 
     #######################
     ### Node Methods
