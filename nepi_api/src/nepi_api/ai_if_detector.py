@@ -703,7 +703,7 @@ class AiDetectorIF:
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.reset_params()
+            pass # self.node_if.reset_params()
         if do_updates == True:
             pass
         self.initCb(do_updates = do_updates)
@@ -711,7 +711,7 @@ class AiDetectorIF:
 
     def factoryResetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.factory_reset_params()
+            pass # self.node_if.factory_reset_params()
         if do_updates == True:
             pass
         self.initCb(do_updates = do_updates)

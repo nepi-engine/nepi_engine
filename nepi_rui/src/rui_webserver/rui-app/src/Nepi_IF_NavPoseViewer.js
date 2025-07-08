@@ -37,6 +37,8 @@ class NepiIFNavPoseViewer extends Component {
       namespace: null,
       base_namespace: null,
 
+      show_navpose: this.props.show_navpose ? this.props.show_navpose : true,
+
       message: null,
 
       listener: null,
@@ -55,6 +57,8 @@ class NepiIFNavPoseViewer extends Component {
       nav_needs_update: true  
     }
 
+
+    this.renderNavPose = this.renderNavPose.bind(this)
     this.statusListener = this.statusListener.bind(this)
     this.navposeListener = this.navposeListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
@@ -172,9 +176,11 @@ class NepiIFNavPoseViewer extends Component {
   }
 
 
+  
+  
 
 
-  render() {
+  renderNavPose() {
     const navpose_data = this.state.navpose_data
 
     if (navpose_data == null) {
@@ -203,7 +209,6 @@ class NepiIFNavPoseViewer extends Component {
           const pitch = navpose_data ? navpose_data.pitch : null
           const yaw = navpose_data ? navpose_data.yaw : null
           return (
-            <Section title={"NavPose Data, 3D Ref Frame (" + frame_3d + ")"}>
               <Columns>
                 <Column>
                   <label style={{fontWeight: 'bold'}}>
@@ -310,10 +315,51 @@ class NepiIFNavPoseViewer extends Component {
                 </Column>
               </Columns>
 
-            </Section>
           )
         }
       }
+
+      render() {
+        const navpose_data = this.state.navpose_data
+        const make_section = this.props.make_section ? this.props.make_section : true
+
+    
+        if (navpose_data == null) {
+    
+          return(
+            <Columns>
+              <Column>
+    
+              </Column>
+            </Columns>
+          )
+    
+        }
+        else if (make_section === true) {
+
+              return (
+                <Section title={"NavPose Data"}>
+
+                {this.renderNavPose()}
+    
+                </Section>
+              )
+            }
+        else {
+              
+            return (
+              <Columns>
+              <Column>
+              <Label title={"NavPose Data"} />
+
+              {this.renderNavPose()}
+  
+              </Column>
+            </Columns>
+            )
+          }
+      }
+
 
 }
 export default NepiIFNavPoseViewer

@@ -57,6 +57,8 @@ class NepiDeviceNPX extends Component {
       nav_needs_update: true
     }
 
+    this.renderNavpose = this.renderNavpose.bind(this)
+
     this.ondeviceSelected = this.ondeviceSelected.bind(this)
     this.clearDeviceSelection = this.clearDeviceSelection.bind(this)
     this.createDeviceOptions = this.createDeviceOptions.bind(this)

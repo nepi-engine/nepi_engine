@@ -16,6 +16,7 @@ import numpy as np
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -149,6 +150,7 @@ class PTXActuatorIF:
     is_moving = False
 
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
     sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     ### IF Initialization
@@ -804,6 +806,7 @@ class PTXActuatorIF:
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
+        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
 
 
         ###############################
@@ -1468,17 +1471,43 @@ class PTXActuatorIF:
         if navpose_dict is None:
             navpose_dict = copy.deepcopy(self.sys_navpose_dict)
         if navpose_dict is not None:
-            output_frame_3d = 'nepi_frame'
+            frame_3d = 'nepi_frame'
         else:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            output_frame_3d = 'sensor_frame'
-        transform = self.get_3d_transform()
-        navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict, transform, output_frame_3d = output_frame_3d)
+            frame_3d = 'sensor_frame'
+
+        # Transform navpose in ENU and WSG84 frames
+        frame_3d_transform = self.get_3d_transform()
+        if frame_3d_transform is not None:
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
+                    
+        # Transform navpose data frames to system set frames
+        frame_nav = self.navpose_frames_dict['frame_nav']
+        frame_alt = self.navpose_frames_dict['frame_alt']
+        frame_depth = self.navpose_frames_dict['frame_depth']
+        
+        if navpose_dict['frame_nav'] != frame_nav:
+            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                nepi_nav.convert_navpose_ned2enu(navpose_dict)
+            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                nepi_nav.convert_navpose_enu2ned(navpose_dict)
+        if navpose_dict['frame_altitude'] != frame_alt:
+            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
+            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
+        #if navpose_dict['frame_depth'] != 'MSL':
+        #    if navpose_dict['frame_depth'] == 'DEPTH':
+        #        pass # need to add conversions    
         self.navpose_dict = navpose_dict
         self.publish_navpose()
     
         delay = float(1.0)/self.navpose_update_rate
         nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True) 
+
+    def navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)         
 
 
     def get_mount_description(self):
@@ -1576,7 +1605,7 @@ class PTXActuatorIF:
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.reset_params()
+            pass # self.node_if.reset_params()
         if self.save_data_if is not None:
             self.save_data_if.reset()
         if self.settings_if is not None:
@@ -1591,7 +1620,7 @@ class PTXActuatorIF:
 
     def factoryResetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.factory_reset_params()
+            pass # self.node_if.factory_reset_params()
         if self.save_data_if is not None:
             self.save_data_if.factory_reset()
         if self.settings_if is not None:

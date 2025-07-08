@@ -123,6 +123,9 @@ class NepiDevicePTX extends Component {
 
     }
 
+    //this.renderNavPose = this.renderNavPose.bind(this)
+    //this.renderNavPoseInfo = this.renderNavPoseInfo.bind(this)
+
     this.onUpdateText = this.onUpdateText.bind(this)
     this.onKeyText = this.onKeyText.bind(this)
     this.createImageTopicsOptions = this.createImageTopicsOptions.bind(this)
@@ -811,125 +814,53 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
       </Section>
     )
-  }/*
-
-  renderNavPose(){
-  const show_navpose = this.state.show_navpose
-  const make_section = this.props.make_section ? this.props.make_section : true
-  const namespace = this.state.namespace ? this.state.namespace : 'None'
-  console.log("show navpose: " + show_navpose)
-  console.log("renderNavPose namespace : " + namespace)
-  if (namespace !== 'None' && make_section === true){
-    return (
-         <Section>
-
-
-
-                <Label title="Show NavPose">
-                        <Toggle
-                          checked={this.state.show_navpose===true}
-                          onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
-                        </Toggle>
-                      </Label>    
-
-
-              <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
-
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-
-                  <Label title={"NAVPOSE"} />
-                    <NavPoseViewer
-                      namespace={namespace}
-                      title={"NavPose Data"}
-                    />
-
-
-              </div>
-
-
-    </Section>
-  )  
-}
-else if (namespace !== 'None' && make_section === false) {
-return (
-
-
-<Columns>
-  <Column>
-  <div style={{ display: 'flex' }}>
-                <div style={{ width: '20%' }}>
-
-
-                <Label title="Show NavPose">
-                        <Toggle
-                          checked={this.state.show_navpose===true}
-                          onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
-                        </Toggle>
-                      </Label>    
-
-                </div>
-                <div style={{ width: '80%' }}>
-                  {}
-                </div>
-
-              </div>
-
-              <Label title={"NAVPOSE"} />
-                    <NavPoseViewer
-                      namespace={namespace}
-                      title={"NavPose Data"}
-                    />
-
-
-
-
-
-              <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
-
-              <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-
-              <div style={{ display: 'flex' }}>
-              <div style={{ width: '40%' }}>
-
-
-                  <Label title={"NAVPOSE"} />
-                    <NavPoseViewer
-                      namespace={namespace}
-                      title={"NavPose Data"}
-                    />
-
-
-              </div>
-
-              <div style={{ width: '20%' }}>
-                {}
-              </div>
-
-              <div style={{ width: '40%' }}>
-                {}
-              </div>
-              </div>
-
-              </div>
-
-  </Column>
-</Columns>
-)
-}
-else {
-return (
-<Columns>
-  <Column>
-
-  </Column>
-</Columns>
-)
-}
-
-
   }
-*/
+
+
+renderNavPose(){
+  const show_navpose = this.state.show_navpose
+  const namespace = this.state.namespace ? this.state.namespace : 'None'
+  const make_section = this.props.make_section ? this.props.make_section : true
+  //console.log("show navpose: " + show_navpose)
+  //console.log("renderNavPose namespace : " + namespace)
+  if (namespace == null || namespace === 'None'){
+    return(
+  
+      <Columns>
+      <Column>
+
+      </Column>
+      </Columns>
+  
+    )
+  }
+  else{
+    return (
+
+      <Columns>
+      <Column>
+
+            <Label title="Show NavPose">
+                      <Toggle
+                        checked={this.state.show_navpose===true}
+                        onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                      </Toggle>
+                    </Label>            
+
+            <NavPoseViewer
+              namespace={(show_navpose === true) ? namespace : null}
+              make_section={make_section}
+              title={"NavPose Data"}
+            />
+
+      </Column>
+      </Columns>
+    )  
+  }
+}
+
+
+
 
   render() {
     const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
@@ -1029,24 +960,19 @@ return (
                 </ButtonMenu>
 
 
-                  <div hidden={(namespace === null)}>
-                  {this.renderNavPose()}
-                </div>
 
-
-                <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
-
-                <NavPoseViewer
+                <Label title={"NAVPOSE"} />
+                    <NavPoseViewer
                       namespace={namespace}
+                      make_section={false}
                       title={"NavPose Data"}
                     />
-            </div>
 
 
-                  <NepiSystemMessages
-                    messagesNamespace={namespace}
-                    title={"NepiSystemMessages"}
-                    />
+            <NepiSystemMessages
+              messagesNamespace={namespace}
+              title={"NepiSystemMessages"}
+              />
 
 
 

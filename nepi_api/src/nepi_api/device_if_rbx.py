@@ -21,6 +21,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_nav
@@ -852,7 +853,7 @@ class RBXRobotIF:
 
     def resetCb(self,do_updates = True):
       if self.node_if is not None:
-        self.node_if.reset_params()
+        pass # self.node_if.reset_params()
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
@@ -865,7 +866,7 @@ class RBXRobotIF:
 
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
-        self.node_if.factory_reset_params()
+        pass # self.node_if.factory_reset_params()
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:

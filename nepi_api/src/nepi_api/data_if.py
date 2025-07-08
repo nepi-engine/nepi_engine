@@ -19,6 +19,7 @@ import open3d as o3d
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
@@ -517,9 +518,13 @@ class NavPoseIF:
     frame_altitude = 'WGS84'
     frame_depth = 'MSL'
 
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+
     caps_report = NavPoseCapabilitiesQueryResponse()
 
     data_product = 'navpose'
+
+
 
     def __init__(self, namespace = None,
                 data_source_description = 'navpose',
@@ -718,6 +723,7 @@ class NavPoseIF:
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
 
         ##############################
         # Complete Initialization
@@ -788,11 +794,6 @@ class NavPoseIF:
             return np_dict
         else:
             # Initialize np_dict here so it's available in both branches
-            self.status_msg.source_frame_nav = navpose_dict['frame_nav']
-            self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
-            self.status_msg.source_frame_depth = navpose_dict['frame_depth']
-            self.status_msg.device_mount_description = device_mount_description
-
             for key in np_dict.keys():
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
@@ -881,15 +882,44 @@ class NavPoseIF:
                 msg.depth_m = np_dict['depth_m']
                 self.node_if.publish_pub(pub_name,msg)
 
+            # Transform navpose in ENU and WSG84 frames
             if frame_3d_transform is not None:
                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
                         
+           # Transform navpose data frames to system set frames
+            frame_nav = self.navpose_frames_dict['frame_nav']
+            frame_alt = self.navpose_frames_dict['frame_alt']
+            frame_depth = self.navpose_frames_dict['frame_depth']
+            
+            if np_dict['frame_nav'] != frame_nav:
+                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                    nepi_nav.convert_navpose_enu2ned(np_dict)
+            if np_dict['frame_altitude'] != frame_alt:
+                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
+            #if np_dict['frame_depth'] != 'MSL':
+            #    if np_dict['frame_depth'] == 'DEPTH':
+            #        pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+
+
             try:
                 data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
-
             except Exception as e:
                 self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                 success = False
+
+
+
+
             if data_msg is not None:
                 try:
                     self.node_if.publish_pub('data_pub', data_msg)
@@ -978,6 +1008,10 @@ class NavPoseIF:
         self.has_subs = has_subs
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+    def _navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
 
 
     def _publishStatusCb(self,timer):
@@ -1191,7 +1225,7 @@ class NavPoseTrackIF:
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._naveposeFramesCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
@@ -2327,16 +2361,33 @@ class BaseImageIF:
             self.msg_if.pub_warn("Image pub namespace allready registered: " + str(namespace), log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_warn("Adding image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-            pub_dict ={
+            img_pub_dict ={
                     'msg': Image,
                     'namespace': img_ns,
                     'topic': '',
                     'qsize': 1,
                     'latch': False
                 }
-            self.node_if.register_pub(namespace,pub_dict)
+            self.node_if.register_pub(img_ns,img_pub_dict)
+            status_ns = nepi_sdk.create_namespace(img_ns,'status')
+            status_pub_dict ={
+                    'msg': ImageStatus,
+                    'namespace': status_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            nav_ns = nepi_sdk.create_namespace(img_ns,'navpose')
+            nav_pub_dict ={
+                    'msg': NavPose,
+                    'namespace': nav_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            self.node_if.register_pub(nav_ns,nav_pub_dict)
             nepi_sdk.sleep(1)
-            self.add_pubs_dict[namespace] = img_ns
+            self.add_pubs_dict[namespace] = [img_ns,status_ns,nav_ns]
 
     def remove_pub_namespace(self,namespace):
         if namespace is None:
@@ -2347,9 +2398,12 @@ class BaseImageIF:
             self.msg_if.pub_warn("Can't remove base namespace: " + str(namespace), log_name_list = self.log_name_list)
         elif namespace in self.add_pubs_dict.keys():
             self.msg_if.pub_warn("Removing image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
             del self.add_pubs_dict[namespace]
             nepi_sdk.sleep(1)
-            self.node_if.unregister_pub(namespace)
+            self.node_if.unregister_pub(img_ns)
+            self.node_if.unregister_pub(status_ns)
+            self.node_if.unregister_pub(nav_ns)
 
     def get_data_source_description(self):
         return self.data_source_description
@@ -2388,6 +2442,7 @@ class BaseImageIF:
                         max_range_m = None,
                         add_overlay_list = [],
                         device_mount_description = 'fixed',
+                        navpose_dict = None,
                         process_data = True,
                         add_pubs = []
                         ):
@@ -2447,8 +2502,8 @@ class BaseImageIF:
         res_str = str(width) + ":" + str(height)
         self.status_msg.resolution_current = res_str
 
-        
-        navpose_dict = self.get_navpose_dict()
+        if navpose_dict is None:
+            navpose_dict = self.get_navpose_dict()
 
         
         # Apply Overlays
@@ -2494,13 +2549,18 @@ class BaseImageIF:
         self.node_if.publish_pub('data_pub', ros_img)
         for namespace in add_pubs:
             if namespace in self.add_pubs_dict.keys():
-                self.node_if.publish_pub(namespace, ros_img)
+                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                self.node_if.publish_pub(img_ns, ros_img)
 
 
         
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
         if navpose_msg is not None:
             self.node_if.publish_pub('navpose_pub', navpose_msg)
+            for namespace in add_pubs:
+                if namespace in self.add_pubs_dict.keys():
+                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                    self.node_if.publish_pub(nav_ns, navpose_msg)
         
         # Update stats
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
@@ -2523,6 +2583,10 @@ class BaseImageIF:
         # Update blank image if needed
         if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
             self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+        for namespace in add_pubs:
+            if namespace in self.add_pubs_dict.keys():
+                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                self.node_if.publish_pub(status_ns, self.status_msg)
         return cv2_img
 
     def publish_msg_img(self, msg_text, timestamp = None, frame_3d = 'nepi_base'):
@@ -2551,7 +2615,6 @@ class BaseImageIF:
             ratio = 0.2
         if (ratio > 1.0):
             ratio = 1.0
-        self.msg_if.pub_error("Resolution value out of bounds, using: " + str(ratio), log_name_list = self.log_name_list)
         self.controls_dict['resolution_ratio'] = ratio
         self.status_msg.resolution_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here

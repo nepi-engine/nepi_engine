@@ -57,8 +57,13 @@ class ImageViewer extends Component {
     super(props)
 
     this.state = {
-      show_info: false,
+      has_status: false,
+      show_status: false,
+      has_controls: false,
+      controls_namespace: null,
       show_controls: false,
+      has_overlay: false,
+      has_navpose: false,
       show_navpose: false,
       hasInitialized: false,
       shouldUpdate: true,
@@ -161,7 +166,8 @@ class ImageViewer extends Component {
 
   // Function for configuring and subscribing to Status
   updateStatusListener() {
-    const statusNamespace = this.props.imageTopic + '/status'
+    const namespace = this.props.status_namespace ? this.props.status_namespace : this.props.imageTopic
+    const statusNamespace = namespace + '/status'
     if (this.state.statusListener) {
       this.state.statusListener.unsubscribe()
       this.setState({status_msg: null})
@@ -172,9 +178,10 @@ class ImageViewer extends Component {
           "nepi_interfaces/ImageStatus",
           this.statusListener
         )
-    this.setState({ status_listenter: status_listenter})
+    this.setState({ status_listenter: status_listenter,
+                    controls_namespace: namespace
+    })
   }
-
 
 
   updateImageSource() {
@@ -302,8 +309,9 @@ class ImageViewer extends Component {
 
   getImgStatsText(){
     const status_msg = this.state.status_msg
+    const has_status = this.props.has_status ? this.props.has_status : true
     var msg = ""
-    if (status_msg != null){
+    if (status_msg != null && has_status === true){
       const get_lat = round(status_msg.get_latency_time, 3)
       const pub_lat = round(status_msg.pub_latency_time, 3)
       const proc_time = round(status_msg.process_time, 3)
@@ -321,8 +329,9 @@ class ImageViewer extends Component {
   }
 
   renderStats() {
-   
-    if (this.state.status_msg != null){
+    const status_msg = this.state.status_msg
+    const has_status = this.props.has_status ? this.props.has_status : true
+    if (status_msg != null && has_status === true){
       const msg = this.getImgStatsText()
       return (
         <Columns>
@@ -418,13 +427,14 @@ class ImageViewer extends Component {
 
   renderControls() {
 
-    const namespace = this.props.imageTopic
+    const namespace = this.state.controls_namespace
+    const has_controls = this.props.has_controls ? this.props.has_controls : true
 
     const { imageCaps, sendTriggerMsg, sendBoolMsg, sendUpdateStateMsg, sendUpdateRatioMsg } = this.props.ros
     const capabilities = (imageCaps != null) ? (imageCaps[namespace] != null ? imageCaps[namespace] : null) : null
 
    
-    if (this.state.status_msg != null && namespace != null && capabilities != null){
+    if (has_controls === true && this.state.status_msg != null && namespace != null && capabilities != null){
       const has_auto_adjust = (capabilities && capabilities.has_auto_adjust && !this.state.disabled)
       const has_contrast = (capabilities && capabilities.has_contrast && !this.state.disabled)
       const has_brightness = (capabilities && capabilities.has_brightness && !this.state.disabled)
@@ -734,9 +744,10 @@ class ImageViewer extends Component {
 
   renderOverlays() {
     const { sendTriggerMsg, sendBoolMsg } = this.props.ros
-    const namespace = this.props.imageTopic
+    const namespace = this.state.controls_namespace
+    const has_overlays = this.props.has_overlays ? this.props.has_overlays : true
    
-    if (this.state.status_msg != null && namespace != null){
+    if (has_overlays === true && this.state.status_msg != null && namespace != null){
       const message = this.state.status_msg
       const size_ratio = message.overlay_size_ratio
       const name = message.overlay_img_name
@@ -911,9 +922,12 @@ class ImageViewer extends Component {
   render() {
 
     const namespace = this.props.imageTopic ? this.props.imageTopic : 'None'
-    const show_info = this.state.show_info
+    const show_status = this.state.show_status
     const show_controls = this.state.show_controls
-    const show_navpose = this.state.show_navpose
+    const show_navpose = this.state.show_navpose 
+    const navpose_namespace = this.props.navpose_namespace ? this.props.navpose_namespace : namespace
+
+    
     return (
       <Section title={this.props.title}>
 
@@ -935,8 +949,8 @@ class ImageViewer extends Component {
                 <div style={{ width: '20%' }}>
                     <Label title="Show Info">
                         <Toggle
-                          checked={this.state.show_info===true}
-                          onClick={() => onChangeSwitchStateValue.bind(this)("show_info",this.state.show_info)}>
+                          checked={this.state.show_status===true}
+                          onClick={() => onChangeSwitchStateValue.bind(this)("show_status",this.state.show_status)}>
                         </Toggle>
                       </Label>
                 </div>
@@ -976,7 +990,7 @@ class ImageViewer extends Component {
               </div>
 
 
-        <div align={"left"} textAlign={"left"} hidden={(show_info !== true || namespace === 'None')}>
+        <div align={"left"} textAlign={"left"} hidden={(show_status !== true || namespace === 'None')}>
 
 
               <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
@@ -1054,30 +1068,17 @@ class ImageViewer extends Component {
           <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
 
                      <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+          
+          </div>
 
-                      <div style={{ display: 'flex' }}>
-                      <div style={{ width: '40%' }}>
-
-
-                          <Label title={"NAVPOSE"} />
-                            <NavPoseViewer
-                              namespace={namespace}
-                              title={"NavPose Data"}
-                            />
+                      <NavPoseViewer
+                        namespace={(show_navpose === true)? navpose_namespace : null}
+                        make_section={false}
+                        title={"NavPose Data"}
+                      />
 
 
-                      </div>
-
-                      <div style={{ width: '20%' }}>
-                        {}
-                      </div>
-
-                      <div style={{ width: '40%' }}>
-                        {}
-                      </div>
-                    </div>
-
-        </div>
+       
 
 
 

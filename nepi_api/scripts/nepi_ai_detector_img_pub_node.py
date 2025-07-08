@@ -381,10 +381,16 @@ class AiDetectorImgPub:
             success = True    
         else:
             # Subscribe to new image topic
-            self.msg_if.pub_warn('Subsribing to image topic: ' + img_topic)
+            self.msg_if.pub_warn('Subscribing to image topic: ' + img_topic)
             img_sub = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
             img_name = img_topic.replace(self.base_namespace,"")
             self.msg_if.pub_warn('Creating namespace for image name: ' + img_name)
+
+            nav_topic = nepi_sdk.create_namespace(img_topic,'navpose')
+            nav_topic = nepi_sdk.find_topic(nav_topic)
+            if nav_topic != '':
+                self.msg_if.pub_warn('Subscribing to image topic navpose: ' + nav_topic)
+                nav_sub = nepi_sdk.create_subscriber(nav_topic,NavPose, self.navposeCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
 
             pub_namespace = nepi_sdk.create_namespace(self.det_namespace,img_name)
             pub_img_namespace = nepi_sdk.create_namespace(pub_namespace,self.data_product)
@@ -393,7 +399,8 @@ class AiDetectorImgPub:
            
             self.img_det_lock.acquire()
             self.img_det_dict[img_topic] = {
-                                            'img_sub': img_sub
+                                            'img_sub': img_sub,
+                                            'nav_sub': nav_sub
                                             }   
             self.img_det_lock.release()
 
@@ -402,6 +409,7 @@ class AiDetectorImgPub:
             # Create img info dict
             imgs_info_dict[img_topic] = dict()  
             imgs_info_dict[img_topic]['pub_namespace'] = pub_namespace
+            imgs_info_dict[img_topic]['navpose_dict'] = nepi_nav.BLANK_NAVPOSE_DICT
             imgs_info_dict[img_topic]['active'] = True
             imgs_info_dict[img_topic]['connected'] = False 
             imgs_info_dict[img_topic]['publishing'] = False
@@ -431,6 +439,7 @@ class AiDetectorImgPub:
         if img_topic in self.img_det_dict.keys():
             self.img_det_lock.acquire()
             self.img_det_dict[img_topic]['img_sub'].unregister()
+            self.img_det_dict[img_topic]['nav_sub'].unregister()
             self.img_det_lock.release()
             nepi_sdk.sleep(1)
             pub_namespace = imgs_info_dict[img_topic]['pub_namespace']
@@ -466,9 +475,12 @@ class AiDetectorImgPub:
     def imageCb(self, image_msg, args):     
         start_time = nepi_sdk.get_time()   
         img_topic = args
+
         self.imgs_info_lock.acquire()
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         self.imgs_info_lock.release()
+        navpose_dict = imgs_info_dict[img_topic]['navpose_dict']
+
         sel_imgs = copy.deepcopy(self.selected_img_topics)        
         max_rate = copy.deepcopy(self.max_rate)
         if img_topic in imgs_info_dict.keys() and img_topic in sel_imgs and max_rate > .01:
@@ -501,7 +513,12 @@ class AiDetectorImgPub:
                         det_dict_list = []
                     cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
 
-                    success = self.processDetImage(img_topic, cv2_img, det_dict_list, timestamp = get_msg_stampstamp, frame_3d = ros_frame_id)
+                    success = self.processDetImage(img_topic, 
+                                                cv2_img, 
+                                                det_dict_list, 
+                                                timestamp = get_msg_stampstamp, 
+                                                frame_3d = ros_frame_id, 
+                                                navpose_dict = navpose_dict)
 
                     current_time = nepi_sdk.get_msg_stamp()
                     latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
@@ -509,11 +526,12 @@ class AiDetectorImgPub:
 
                     self.imgs_info_lock.acquire()
                     if img_topic in self.imgs_info_dict.keys():
+                        imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict
                         self.imgs_info_dict = imgs_info_dict
                     self.imgs_info_lock.release()
 
 
-    def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base'):
+    def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
       
         # Post process image with overlays
         if detect_dict_list is not None:
@@ -530,7 +548,12 @@ class AiDetectorImgPub:
 
             if self.overlay_img_name:
                 add_overlay_list.append(nepi_img.getImgShortName(img_topic))
-            self.publishImgData(img_topic, cv2_img, timestamp = timestamp, frame_3d = frame_3d, add_overlay_list = add_overlay_list)
+            self.publishImgData(img_topic, 
+                                cv2_img, 
+                                timestamp = timestamp, 
+                                frame_3d = frame_3d, 
+                                add_overlay_list = add_overlay_list,
+                                navpose_dict = navpose_dict)
         
             # Save Image Data if needed
             data_product = self.data_product
@@ -632,6 +655,23 @@ class AiDetectorImgPub:
 
 
         return cv2_det_img
+
+
+    def navposeCb(self, navpose_msg, args):     
+        start_time = nepi_sdk.get_time()   
+        img_topic = args
+        self.imgs_info_lock.acquire()
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
+        self.imgs_info_lock.release()
+        if img_topic in imgs_info_dict.keys():
+            navpose_dict = nepi_nav.convert_navpose_msg2dict(navpose_msg)
+            if navpose_dict is not None:
+                   
+
+                self.imgs_info_lock.acquire()
+                if img_topic in self.imgs_info_dict.keys():
+                    self.imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict 
+                self.imgs_info_lock.release()
 
 
 

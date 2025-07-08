@@ -18,6 +18,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
@@ -95,7 +96,7 @@ class IDXDeviceIF:
     transform_if = None
     npx_if = None
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
 
     device_name = ''
 
@@ -750,6 +751,7 @@ class IDXDeviceIF:
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
+        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
 
 
         ##################################
@@ -759,6 +761,7 @@ class IDXDeviceIF:
                 data_source_description = self.data_source_description,
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
+                get3DTransformCb = None, # Don't use the idx transform
                 navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -770,6 +773,7 @@ class IDXDeviceIF:
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
+
         
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM
@@ -817,6 +821,32 @@ class IDXDeviceIF:
             frame_3d = 'sensor_frame'
             self.transform_if.set_end_description('sensor_frame')
 
+        
+        # Transform navpose in ENU and WSG84 frames
+        frame_3d_transform = self.get_3d_transform()
+        if frame_3d_transform is not None:
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
+                    
+        # Transform navpose data frames to system set frames
+        frame_nav = self.navpose_frames_dict['frame_nav']
+        frame_alt = self.navpose_frames_dict['frame_alt']
+        frame_depth = self.navpose_frames_dict['frame_depth']
+        
+        if navpose_dict['frame_nav'] != frame_nav:
+            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                nepi_nav.convert_navpose_ned2enu(navpose_dict)
+            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                nepi_nav.convert_navpose_enu2ned(navpose_dict)
+        if navpose_dict['frame_altitude'] != frame_alt:
+            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
+            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
+        #if navpose_dict['frame_depth'] != 'MSL':
+        #    if navpose_dict['frame_depth'] == 'DEPTH':
+        #        pass # need to add conversions                 
+
+
         self.end_ref_description = self.transform_if.get_end_description()
         self.navpose_dict = navpose_dict
 
@@ -830,6 +860,10 @@ class IDXDeviceIF:
         delay = float(1.0) / rate - process_time
         nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
  
+
+    def navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True) 
 
     ###############################
     # Class Methods
@@ -883,7 +917,7 @@ class IDXDeviceIF:
 
     def resetCb(self,do_updates = True):
       if self.node_if is not None:
-        self.node_if.reset_params()
+        # self.node_if.reset_params()
         if self.getFOV is not None:
             try:
                 [width_deg,height_deg] = self.getFOV()
@@ -904,7 +938,7 @@ class IDXDeviceIF:
 
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
-        self.node_if.factory_reset_params()
+        #self.node_if.factory_reset_params()
         if self.getFOV is not None:
             try:
                 [width_deg,height_deg] = self.getFOV()

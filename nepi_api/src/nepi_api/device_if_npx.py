@@ -38,6 +38,7 @@ from nepi_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryReque
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_settings
 
