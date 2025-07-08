@@ -793,7 +793,32 @@ class IDXDeviceIF:
 
     def get_navpose_dict(self):
         np_dict = copy.deepcopy(self.navpose_dict)
-        return np_dict
+        # Transform navpose in ENU and WSG84 frames
+        frame_3d_transform = self.get_3d_transform()
+        if frame_3d_transform is not None:
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
+                    
+        # Transform navpose data frames to system set frames
+        frame_nav = self.navpose_frames_dict['frame_nav']
+        frame_alt = self.navpose_frames_dict['frame_alt']
+        frame_depth = self.navpose_frames_dict['frame_depth']
+        
+        if navpose_dict['frame_nav'] != frame_nav:
+            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                nepi_nav.convert_navpose_ned2enu(navpose_dict)
+            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                nepi_nav.convert_navpose_enu2ned(navpose_dict)
+        if navpose_dict['frame_altitude'] != frame_alt:
+            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
+            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
+        #if navpose_dict['frame_depth'] != 'MSL':
+        #    if navpose_dict['frame_depth'] == 'DEPTH':
+        #        pass # need to add conversions                 
+
+
+        return np_navpose_dict
         
     def publish_navpose(self):
         navpose_dict = self.get_navpose_dict()
@@ -822,30 +847,6 @@ class IDXDeviceIF:
             self.transform_if.set_end_description('sensor_frame')
 
         
-        # Transform navpose in ENU and WSG84 frames
-        frame_3d_transform = self.get_3d_transform()
-        if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
-                    
-        # Transform navpose data frames to system set frames
-        frame_nav = self.navpose_frames_dict['frame_nav']
-        frame_alt = self.navpose_frames_dict['frame_alt']
-        frame_depth = self.navpose_frames_dict['frame_depth']
-        
-        if navpose_dict['frame_nav'] != frame_nav:
-            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
-                nepi_nav.convert_navpose_ned2enu(navpose_dict)
-            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
-                nepi_nav.convert_navpose_enu2ned(navpose_dict)
-        if navpose_dict['frame_altitude'] != frame_alt:
-            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
-                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
-            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
-                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
-        #if navpose_dict['frame_depth'] != 'MSL':
-        #    if navpose_dict['frame_depth'] == 'DEPTH':
-        #        pass # need to add conversions                 
-
 
         self.end_ref_description = self.transform_if.get_end_description()
         self.navpose_dict = navpose_dict
