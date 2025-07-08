@@ -837,8 +837,7 @@ renderNavPose(){
   else{
     return (
 
-      <Columns>
-      <Column>
+      <Section>
 
             <Label title="Show NavPose">
                       <Toggle
@@ -847,17 +846,19 @@ renderNavPose(){
                       </Toggle>
                     </Label>            
 
-            <NavPoseViewer
-              namespace={(show_navpose === true) ? namespace : null}
-              make_section={make_section}
-              title={"NavPose Data"}
-            />
+                    <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
 
-      </Column>
-      </Columns>
-    )  
-  }
-}
+                  <NavPoseViewer
+                    namespace={namespace}
+                    make_section={true}
+                    title={"PTX NavPose Data"}
+                  />
+                  </div>
+
+                </Section>
+              )  
+            }
+          }
 
 
 
@@ -959,13 +960,7 @@ renderNavPose(){
                   
                 </ButtonMenu>
 
-
-                <Label title="Show NavPose">
-                  <Toggle
-                    checked={this.state.show_navpose===true}
-                    onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
-                  </Toggle>
-                </Label>   
+                {this.renderNavPose()}
 
               <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
 

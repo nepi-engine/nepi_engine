@@ -323,7 +323,7 @@ class NepiIFNavPoseViewer extends Component {
         const navpose_data = this.state.navpose_data
         const make_section = this.props.make_section !== undefined ? this.props.make_section : true;
         const view_title = this.props.title  ? this.props.title : "NavPose Data";
-    
+        
         if (navpose_data == null) {
     
           return(
@@ -338,7 +338,8 @@ class NepiIFNavPoseViewer extends Component {
         else if (make_section === true) {
 
               return (
-                <Section title={view_title}>
+                <Section>
+                <Label title={view_title} />
 
                 {this.renderNavPose()}
     
@@ -350,7 +351,7 @@ class NepiIFNavPoseViewer extends Component {
             return (
               <Columns>
               <Column>
-              <Label title={"NavPose Data"} />
+              <Label title={view_title} />
 
               {this.renderNavPose()}
   
