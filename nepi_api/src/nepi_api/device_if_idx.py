@@ -792,11 +792,11 @@ class IDXDeviceIF:
         self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
 
     def get_navpose_dict(self):
-        np_dict = copy.deepcopy(self.navpose_dict)
+        navpose_dict = copy.deepcopy(self.navpose_dict)
         # Transform navpose in ENU and WSG84 frames
         frame_3d_transform = self.get_3d_transform()
         if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = 'nepi_frame')
                     
         # Transform navpose data frames to system set frames
         frame_nav = self.navpose_frames_dict['frame_nav']
