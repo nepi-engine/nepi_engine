@@ -1454,7 +1454,7 @@ class PTXActuatorIF:
         # Transform navpose in ENU and WSG84 frames
         frame_3d_transform = self.get_3d_transform()
         if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = frame_3d)
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d =  'nepi_frame')
                     
         # Transform navpose data frames to system set frames
         frame_nav = self.navpose_frames_dict['frame_nav']
