@@ -278,20 +278,14 @@ class config_mgr(object):
         if os.path.exists(file_pathname) == False:
             return [False]
         else:
-            self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
-            params_list = None
+            self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
+            params_dict = None
             try:
-                params_list = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
-                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_list))
+                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
+                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()), log_name_list = [self.class_name])
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
-            if params_list is not None:
-                for params, ns in params_list:
-                    try:
-                        nepi_sdk.upload_params(ns, params, verbose=True)     
-                    except Exception as e:
-                        self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
-                self.msg_if.pub_info("Updated Params for namespace: " + namespace )
+            self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
             #if namespace == '/nepi/s2x/nexigo_23':
             #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
         return [True]

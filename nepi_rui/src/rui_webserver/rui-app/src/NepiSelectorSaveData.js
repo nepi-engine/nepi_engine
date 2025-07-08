@@ -41,7 +41,7 @@ class NepiMessagesSelector extends Component {
     const { namespacePrefix, deviceId} = this.props.ros
     var allNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
-      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data"
+      allNamespace = "/" + namespacePrefix + "/" + deviceId
     }
     return allNamespace
   }
@@ -57,7 +57,7 @@ class NepiMessagesSelector extends Component {
     for (var i = 0; i < saveData_topics.length; i++) {
       topic = saveData_topics[i]
       if (topic !== allNamespace && topic.indexOf("None") === -1) {
-        items.push(<Option value={topic.replace("/status","")}>{shortnames[i].replace("/status","")}</Option>)
+        items.push(<Option value={topic}>{shortnames[i]}</Option>)
       }
     }
     return items    

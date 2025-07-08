@@ -679,7 +679,7 @@ class AiDetectorIF:
 
 
     def initCb(self,do_updates = False):
-        self.msg_if.pub_info(" Setting init values to param values", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.enabled = self.node_if.get_param('enabled')
             self.selected_classes = self.node_if.get_param('selected_classes')
@@ -694,6 +694,8 @@ class AiDetectorIF:
             self.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
             self.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
             self.selected_img_topics = self.node_if.get_param('selected_img_topics')
+            self.msg_if.pub_info("Init selected images: " + str(self.selected_img_topics), log_name_list = self.log_name_list)
+
             self.node_if.save_config()
         if do_updates == True:
             pass
@@ -704,7 +706,7 @@ class AiDetectorIF:
             self.node_if.reset_params()
         if do_updates == True:
             pass
-        self.initCb()
+        self.initCb(do_updates = do_updates)
 
 
     def factoryResetCb(self,do_updates = True):
@@ -712,7 +714,7 @@ class AiDetectorIF:
             self.node_if.factory_reset_params()
         if do_updates == True:
             pass
-        self.initCb()
+        self.initCb(do_updates = do_updates)
 
 
 

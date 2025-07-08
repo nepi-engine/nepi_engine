@@ -192,34 +192,6 @@ class NepiDashboardData extends Component {
     )
   }
 
-  getAllNamespace(){
-    const { namespacePrefix, deviceId} = this.props.ros
-    var allNamespace = null
-    if (namespacePrefix !== null && deviceId !== null){
-      allNamespace = "/" + namespacePrefix + "/" + deviceId + "/save_data"
-    }
-    return allNamespace
-  }
-
-  createSaveDataOptions() {
-    const allNamespace = this.getAllNamespace()
-    var items = []
-    //items.push(<Option value={"All"}>{"All"}</Option>)
-    items.push(<Option value={"None"}>{"None"}</Option>)
-    items.push(<Option value={allNamespace}>{'All'}</Option>)
-    const saveData_topics = this.props.ros.saveDataNamespaces
-    const shortnames = createShortUniqueValues(saveData_topics)
-    var topic = ""
-    for (var i = 0; i < saveData_topics.length; i++) {
-      topic = saveData_topics[i]
-      if (topic !== allNamespace && topic.indexOf("None") === -1) {
-        items.push(<Option value={topic}>{shortnames[i]}</Option>)
-      }
-    }
-    return items    
-  }
-
-
 
 
   //disabled={document.getElementById("toggle_save_data").value}>
@@ -243,7 +215,7 @@ class NepiDashboardData extends Component {
       <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
       <NepiSaveSelector
-        title={"NepiSaveSelector.js"}
+        title={"NepiSaveSelector"}
         />
 
     </React.Fragment>

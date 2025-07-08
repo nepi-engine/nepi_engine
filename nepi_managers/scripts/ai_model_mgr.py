@@ -251,6 +251,10 @@ class AIDetectorManager:
 
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
+        self.msg_if.pub_warn(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        self.msg_if.pub_warn(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        self.msg_if.pub_warn("Staring node if complete")
+        nepi_sdk.sleep(20)
 
 
 
@@ -422,12 +426,14 @@ class AIDetectorManager:
     def initCb(self, do_updates = False):
       if self.node_if is not None:
         self.aifs_dict = self.node_if.get_param('aifs_dict')
-        #self.msg_if.pub_warn("Init")
-        #self.msg_if.pub_warn("Init aifs dict with keys: " + str(self.aifs_dict.keys()))
-        #self.msg_if.pub_warn("Init active aifs list: " + str(self.getActiveAifs()))
+        self.msg_if.pub_warn("Init")
+        self.msg_if.pub_warn("Init aifs dict with keys: " + str(self.aifs_dict.keys()))
+        self.msg_if.pub_warn("Init active aifs list: " + str(self.getActiveAifs()))
         self.models_dict = self.node_if.get_param('models_dict')
-        #self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
-        #self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
+        self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
+        self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
+        self.node_if.save_config()
+
       if do_updates == True:
         self.refresh()
       self.publish_status()
@@ -436,7 +442,7 @@ class AIDetectorManager:
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
-            self.node_if.reset_params()
+            pass
         if do_updates == True:
             pass
         self.initCb()
@@ -446,7 +452,7 @@ class AIDetectorManager:
         self.aifs_classes_dict = dict()
         self.aif_classes_dict = dict()
         if self.node_if is not None:
-            self.node_if.factory_reset_params()
+            pass
         if do_updates == True:
             pass
         self.initCb()

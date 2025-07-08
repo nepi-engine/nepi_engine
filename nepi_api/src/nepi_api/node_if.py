@@ -143,11 +143,13 @@ class NodeConfigsIF:
         nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
         nepi_sdk.create_subscriber('system_reset', Reset, self._systemResetCb)
 
-
+        self.msg_if.pub_debug("Resetting Params", log_name_list = self.log_name_list)
         self.reset_config()
         nepi_sdk.wait()
 
+        
         if 'init_configs' in configs_dict.keys():
+            self.msg_if.pub_debug("Initializing Params", log_name_list = self.log_name_list)
             init_configs = configs_dict['init_configs']
             if init_configs == True:
                 self.init_config(do_updates = False)
@@ -194,12 +196,12 @@ class NodeConfigsIF:
         #    self.initCb() # Callback provided by container class to update based on param server, etc.
 
     def reset_config(self):
-        self.msg_if.pub_debug("Reseting Config: " + str(self.request_msg))
+        self.msg_if.pub_warn("Reseting Config: " + str(self.request_msg))
         success = False
         success = nepi_sdk.call_service(self.reset_service,self.request_msg)
         nepi_sdk.sleep(1)
-        if (self.resetCb and success == True) and not nepi_sdk.is_shutdown():
-            self.resetCb() # Callback provided by container class to update based on param server, etc.
+        #if (self.resetCb and success == True) and not nepi_sdk.is_shutdown():
+        #    self.resetCb() # Callback provided by container class to update based on param server, etc.
         return success
 
     def factory_reset_config(self):
@@ -352,17 +354,9 @@ class NodeParamsIF:
     def initialize_params(self):
         for param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
-            if 'factory_val' in param_dict.keys():
-                factory_val = param_dict['factory_val']
-                if 'current_val' in param_dict.keys():
-                    init_val = param_dict['current_val']
-                else:
-                    init_val = self.get_param(param_name)
-                    self.msg_if.pub_debug("Got init param value: " + param_name + " : " + str(init_val), log_name_list = self.log_name_list)
-                if init_val is None:
-                    init_val = factory_val
-                self.params_dict[param_name]['init_val'] = init_val
-                self.set_param(param_name, init_val)
+            init_val = self.get_param(param_name)
+            self.params_dict[param_name]['init_val'] = init_val
+            self.set_param(param_name, init_val)
 
     def reset_params(self):
         for param_name in self.params_dict.keys():
@@ -1053,9 +1047,6 @@ class NodeClassIF:
         ##############################  
         # Create Sub Classes
            
-        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-
-
         ##############################  
         # Create Config Class After Params
         if configs_dict is not None:
@@ -1072,8 +1063,9 @@ class NodeClassIF:
                                             wait_cfg_mgr = wait_cfg_mgr, 
                                             msg_if = self.msg_if, 
                                             log_name_list = self.log_name_list)
+        nepi_sdk.sleep(1)
 
-
+        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)

@@ -278,14 +278,11 @@ class NepiDriversMgr(object):
         self.initCb(do_updates = True)
 
         ###########################
+        # Start node processes
         nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
-
-        # Setup a driver folder timed check
         nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
         nepi_sdk.start_timer_process(self.PUBLISH_STATUS_INTERVAL, self.publishStatusCb, oneshot=True)
-        time.sleep(1)
-        ## Publish Status
-      
+
 
         #########################################################
         ## Initiation Complete
