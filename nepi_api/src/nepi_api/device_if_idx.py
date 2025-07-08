@@ -818,7 +818,7 @@ class IDXDeviceIF:
         #        pass # need to add conversions                 
 
 
-        return np_navpose_dict
+        return navpose_dict
         
     def publish_navpose(self):
         navpose_dict = self.get_navpose_dict()
