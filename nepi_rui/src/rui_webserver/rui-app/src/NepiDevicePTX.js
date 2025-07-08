@@ -960,13 +960,21 @@ renderNavPose(){
                 </ButtonMenu>
 
 
+                <Label title="Show NavPose">
+                  <Toggle
+                    checked={this.state.show_navpose===true}
+                    onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                  </Toggle>
+                </Label>   
 
-                <Label title={"NAVPOSE"} />
+              <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
+
                     <NavPoseViewer
                       namespace={namespace}
                       make_section={false}
-                      title={"NavPose Data"}
+                      title={"PTX NavPose Data"}
                     />
+              </div>
 
 
             <NepiSystemMessages

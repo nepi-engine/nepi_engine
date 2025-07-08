@@ -27,6 +27,8 @@ import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NepiIFNavPoseViewer from "./Nepi_IF_NavPoseViewer"
+import NepiIFConfig from "./Nepi_IF_Config"
+
 
 @inject("ros")
 @observer
@@ -555,7 +557,8 @@ updateNavposeListener() {
 
   renderMgrControls() {
 
-    
+    const componentElements = []
+
 
     const {sendTriggerMsg, sendNavPoseMsg} = this.props.ros
     const namespace = this.state.namespace
@@ -579,6 +582,10 @@ updateNavposeListener() {
     else {
       const comp_names = status_msg.comp_names
       const comp_infos = status_msg.comp_infos
+      console.log('=============renderMgrControls=================')
+      console.log('comp_names: ' + comp_names)
+
+      const componentElements = []
 
       for (var i = 0; i < comp_names.length; i++) {
         const comp_info = comp_infos[i]
@@ -586,7 +593,9 @@ updateNavposeListener() {
         const name = comp_info.name
         const name_text = name.toUpperCase()
         const fixed = comp_info.fixed
-        return (
+        componentElements.push(
+
+       
           <Columns>
           <Column>
 
@@ -626,12 +635,24 @@ updateNavposeListener() {
 
                   </div>
 
- 
+                  <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
               </Column>
             </Columns>
+            
         )
 
       }    
+      return (
+
+        <React.Fragment>
+        <NepiIFConfig
+        namespace={namespace}
+        title={"Nepi_IF_SaveConif"}
+        />
+        <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
+        {componentElements}
+      </React.Fragment>
+    )
 
     }
   }
@@ -641,6 +662,9 @@ updateNavposeListener() {
     const namespace = this.state.namespace
     ////////////////
     const status_msg = null //this.state.status_msg
+    console.log("=================Fixed Controls==================")
+    console.log("status Msg: " + status_msg)
+
     //////////////// 
 
     
@@ -1193,33 +1217,6 @@ updateNavposeListener() {
 
               <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-                <Columns>
-                  <Column>
-
-
-                    <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg(namespace + "/save_config")}>{"Save"}</Button>
-                  </ButtonMenu>
-
-
-                    </Column>
-                  <Column>
-
-
-                  <ButtonMenu>
-                      <Button onClick={() => sendTriggerMsg( namespace + "/reset_config")}>{"Reset"}</Button>
-                    </ButtonMenu>
-
-                  </Column>
-                  <Column>
-
-                  <ButtonMenu>
-                        <Button onClick={() => sendTriggerMsg( namespace + "/factory_reset_config")}>{"Factory Reset"}</Button>
-                  </ButtonMenu>
-
-
-                  </Column>
-                </Columns>
           </div>
 
 

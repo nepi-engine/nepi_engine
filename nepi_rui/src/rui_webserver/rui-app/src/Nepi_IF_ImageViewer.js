@@ -1074,7 +1074,7 @@ class ImageViewer extends Component {
                       <NavPoseViewer
                         namespace={(show_navpose === true)? navpose_namespace : null}
                         make_section={false}
-                        title={"NavPose Data"}
+                        title={"IDX NavPose Data"}
                       />
 
 
