@@ -285,11 +285,11 @@ class NepiAppsMgr(object):
 
   def getActiveApps(self):
       apps_dict = copy.deepcopy(self.apps_dict)
-      aapps = []
+      active_apps = []
       for app_name in apps_dict:
         if apps_dict[app_name]['active'] == True:
-          aapps.append(app_name)
-      return aapps
+          active_apps.append(app_name)
+      return active_apps
 
   def initCb(self,do_updates = False):
 
@@ -329,10 +329,11 @@ class NepiAppsMgr(object):
     self.publish_status()
 
 
-  def checkAndUpdateCb(self,_):
+  def checkAndUpdateCb(self,timer):
     ###############################
     ## First update Database
-    
+    #self.msg_if.pub_warn("Entering Updater with apps dict keys: " + str(self.apps_dict.keys()))
+    #self.msg_if.pub_info("Entering Updater with active apps: " + str(self.getActiveApps()))
     apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
     need_update = self.apps_files != apps_files
@@ -341,7 +342,8 @@ class NepiAppsMgr(object):
       self.initCb(do_updates = True)
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
-    apps_active_list = nepi_apps.getAppsActiveOrderedList(apps_dict)
+    apps_active_list = self.getActiveApps()
+    
     ## process active app processes
 
 
@@ -352,18 +354,18 @@ class NepiAppsMgr(object):
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
+    #self.msg_if.pub_warn("Found nodes: " + str(node_list))
     ################################    
     ## Check and purge disabled app proccess that might be running
     # First check on running nodes
     purge_list = []
     for app_name in self.apps_ordered_list:
       if app_name not in apps_active_list and app_name in self.apps_active_dict.keys():
-          node_name = self.apps_active_dict[app_name]['node_name']
-          if node_name in node_list:
-            sub_process = self.apps_active_dict[app_name]['subprocess']
-            success = nepi_sdk.kill_node_process(node_name,sub_process)
-            if success:
-              purge_list.append(app_name)
+          namespace = self.apps_active_dict[app_name]['node_namespace']
+          sub_process = self.apps_active_dict[app_name]['subprocess']
+          self.msg_if.pub_warn("Killing app: " + str(app_name) + " : " + namespace)
+          success = nepi_sdk.kill_node_process(namespace,sub_process)
+          purge_list.append(app_name)
     # purge from active discovery dict
     for app_name in purge_list:
       if app_name in self.apps_active_dict.keys():
@@ -378,7 +380,7 @@ class NepiAppsMgr(object):
     ## Process Apps
     restart = self.restart_enabled
     for app_name in self.apps_ordered_list:
-      if app_name in apps_active_list and app_name in apps_dict.keys():
+      if app_name in apps_active_list and app_name not in apps_dict.keys():
         app_dict = apps_dict[app_name]
         #self.msg_if.pub_warn(app_dict)
         app_pkg_name = app_dict['APP_DICT']['pkg_name']
@@ -388,12 +390,14 @@ class NepiAppsMgr(object):
         app_path_name = app_dict['APP_DICT']['app_path']
         app_node_name = app_dict['APP_DICT']['node_name']
         app_file_path = app_path_name + '/' + app_file_name
+        '''
         if app_name in self.apps_active_dict.keys():
           # Need to add running and restart check
           pass
 
         elif app_name not in self.failed_app_list:
-          
+        '''
+        if True:  
           #Try and initialize app param values
           config_file_path = self.apps_config_folder + "/" + app_config_file_name.split(".")[0] + "/" + app_config_file_name
           params_namespace = os.path.join(self.base_namespace, app_node_name)
@@ -416,6 +420,8 @@ class NepiAppsMgr(object):
             apps_dict[app_name]['msg'] = "Discovery process lanched"
             self.apps_active_dict[app_name]=dict()
             self.apps_active_dict[app_name]['node_name'] = app_node_name
+            namespace = nepi_sdk.create_namespace(self.base_namespace,app_node_name)
+            self.apps_active_dict[app_name]['node_namespace'] = namespace
             self.apps_active_dict[app_name]['subprocess'] = sub_process
           else:
             if restart == False:
@@ -427,11 +433,14 @@ class NepiAppsMgr(object):
               
 
 
+    self.msg_if.pub_warn("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
+    self.msg_if.pub_info("Ending Updater with active apps: " + str(self.getActiveApps()))
+
     # Publish Status
     self.publish_status()
     # And now that we are finished, start a timer for the appt runDiscovery()
-    nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+    #nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL)
+    #nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
    
 
 
@@ -598,14 +607,11 @@ class NepiAppsMgr(object):
     state = msg.active_state
     apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys():
-      app = apps_dict[app_name]
-      active_state = app['active']
+      app_dict = apps_dict[app_name]
+      active_state = app_dict['active']
       if state != active_state:
-        if state == True:
-          apps_dict = nepi_apps.activateApp(app_name,apps_dict)
-        else:
-          apps_dict = nepi_apps.disableApp(app_name,apps_dict)
-      self.msg_if.pub_warn("Updated apps dict state: " + app_name + " : "  + str(apps_dict[app_name]['active']))
+          apps_dict[app_name]['active'] = state
+          self.msg_if.pub_warn("Updated apps dict state: " + app_name + " : "  + str(apps_dict[app_name]['active']))
     self.apps_dict = apps_dict
     self.publish_status()
     if self.node_if is not None:

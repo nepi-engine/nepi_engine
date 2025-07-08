@@ -251,11 +251,6 @@ class AIDetectorManager:
 
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
-        self.msg_if.pub_warn(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.msg_if.pub_warn(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.msg_if.pub_warn("Staring node if complete")
-        nepi_sdk.sleep(20)
-
 
 
         ###########################
