@@ -530,8 +530,9 @@ class AIDetectorManager:
         #self.msg_if.pub_warn("Calling model info services for models: " + str(model_names))
         # Update detector info
         detector_info_dict = dict()
-        for model_name in self.model_namespace_dict.keys():
-            namespace = self.model_namespace_dict[model_name]
+        model_namespace_dict = copy.deepcopy(self.model_namespace_dict)
+        for model_name in model_namespace_dict.keys():
+            namespace = model_namespace_dict[model_name]
             model_type = models_dict[model_name]['type']
             #self.msg_if.pub_warn("Calling model info service for model namespace: " + str(namespace) + " " + str(model_type)) 
             if namespace is not None and model_type == 'detection':

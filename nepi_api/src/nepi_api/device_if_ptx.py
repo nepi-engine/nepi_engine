@@ -711,11 +711,12 @@ class PTXActuatorIF:
                             msg_if = self.msg_if
                         )
 
-        ready = self.node_if.wait_for_ready()
+        success = nepi_sdk.wait()
 
-
-        # Init everything
+        ##############################
+        # Update vals from param server
         self.initCb(do_updates = True)
+        self.publish_status()
 
         ##############################
         # Start Node Processes

@@ -154,8 +154,8 @@ class NetworkMgr:
         ##############################
         # Wait for System Info
         self.msg_if.pub_info("Waiting for system info")
-        self.in_container = nepi_system.check_container(log_name_list = [self.node_name])
-        
+        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got running in container: " + str(self.in_container))
         
         ##############################
         # Initialize Variables

@@ -490,10 +490,14 @@ class NPXDeviceIF:
                         msg_if = self.msg_if
                             )
       
+        success = nepi_sdk.wait()
 
-        ready = self.node_if.wait_for_ready()
-
+        ##############################
+        # Update vals from param server
         self.initCb(do_updates = True)
+        self.publish_status()
+
+        
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ####################################

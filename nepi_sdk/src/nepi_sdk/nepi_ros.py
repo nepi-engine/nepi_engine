@@ -51,14 +51,6 @@ from nepi_interfaces.msg import *
 #######################
 ### System Utility Functions
 
-
-def set_debug_mode(enabled):
-  set_param('debug_mode',enabled)
-
-def get_debug_mode():
-  enabled = False
-  return get_param('debug_mode',enabled)
-
 #######################
 ### Log Utility Functions
 
@@ -259,13 +251,17 @@ def get_node_list():
   return node_list
 
 ### Function to find a node
-def find_node(node_name):
+def find_node(node_name, exact = False):
   node = ""
   node_list=get_node_list()
   #log_msg_debug(node_list)
   for node_entry in node_list:
     #log_msg_debug(node_entry)
-    if node_entry.find(node_name) != -1:
+    if exact == True:
+      if node_entry == node_name:
+        node = node_entry
+        break
+    elif node_entry.find(node_name) != -1:
       node = node_entry
       break
   return node
@@ -522,13 +518,16 @@ def get_published_services_list(search_namespace='/'):
   return services_list
 
 # Function to find a service
-def find_service(service_name):
+def find_service(service_name, exact = False):
   found_service = ""
   service_list=get_service_list()
   #log_msg_debug(service_list)
   for service_entry in service_list:
     #log_msg_debug(service_entry[0])
-    if service_entry.find(service_name) != -1 and service_entry.find(service_name+"_") == -1:
+    if  exact == True and service_entry == service_name:
+        found_service = service_entry
+        break
+    elif service_entry.find(service_name) != -1 and service_entry.find(service_name+"_") == -1:
       found_service = service_entry
       break
   return found_service
@@ -673,7 +672,7 @@ def get_published_topics():
   return rospy.get_published_topics()
 
 # Function to find a topic
-def find_topic(topic_name):
+def find_topic(topic_name, exact = False):
   topic = ""
   topic_list = []
   try:
@@ -684,9 +683,17 @@ def find_topic(topic_name):
     topic_str = topic_entry[0]
     if isinstance(topic_str,str):
       if topic_str.find(topic_name) != -1 and topic_str.find(topic_name+"_") == -1:
-
-        topic = topic_str
-        break
+        #log_msg_warn("Found potential topic : " + str(topic_str))
+        if exact == True:
+          if topic_str == topic_name:
+            topic = topic_str
+            break
+          else:
+            #log_msg_warn("Topic did not match : " + str(topic_name))
+            pass
+        else:
+          topic = topic_str
+          break
   return topic
 
 # Function to find a topic

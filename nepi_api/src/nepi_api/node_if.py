@@ -190,8 +190,8 @@ class NodeConfigsIF:
                 self.initCb()
 
     def save_config(self):
-        self.msg_if.pub_debug("Saving Config: " + str(self.node_namespace))
-        self.save_params_pub.publish(self.node_namespace)
+        self.msg_if.pub_debug("Saving Config: " + str(self.namespace))
+        self.save_params_pub.publish(self.namespace)
         #if self.initCb is not None and not nepi_sdk.is_shutdown():
         #    self.initCb() # Callback provided by container class to update based on param server, etc.
 

@@ -227,16 +227,17 @@ class NepiAppsMgr(object):
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
-        # Setup message publisher and init param server
-        self.msg_if.pub_info("Starting Initialization Processes")
-        ## Mgr ROS Setup 
+        
+
 
 
         ##############################
+        # Finish Initalization
         self.initCb(do_updates = True)
 
           
         ###########################
+        # Start Node Processes
         nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 
         # Setup a app folder timed check

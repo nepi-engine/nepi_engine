@@ -713,12 +713,13 @@ class NavPoseIF:
                          msg_if = self.msg_if
                                             )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
         ##############################
         # Update vals from param server
-        self.init()
+        self.init(do_updates = True)
+        self.publish_status()
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -971,8 +972,10 @@ class NavPoseIF:
 
 
 
-    def init(self):
+    def init(self, do_updates = False):
         if self.node_if is not None:
+            pass
+        if do_updates == True:
             pass
         self.publish_status()
 
@@ -980,25 +983,25 @@ class NavPoseIF:
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-            self.init()
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
-            self.init()
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
 
     def _subscribersCheckCb(self,timer):
@@ -1214,14 +1217,13 @@ class NavPoseTrackIF:
                          msg_if = self.msg_if
                                             )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.track_length = self.node_if.get_param('track_length')
-        self.track_sec = self.node_if.get_param('track_sec')
         ##############################
         # Update vals from param server
-        self.init()
+        self.init(do_updates = True)
+        self.publish_status()
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -1537,39 +1539,38 @@ class NavPoseTrackIF:
             self.status_msg.track_list = self.track_msg_list
             self.node_if.publish_pub('status_pub', self.status_msg)
 
-
-
-    def init(self):
+        
+    def init(self, do_updates = False):
         if self.node_if is not None:
             self.track_length = self.node_if.get_param('track_length')
             self.track_sec = self.node_if.get_param('track_sec')
-        
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
 
     def _subscribersCheckCb(self,timer):
@@ -2299,22 +2300,12 @@ class BaseImageIF:
                         msg_if = self.msg_if
                         )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        # Setup navpose data IF if needed
-
-
-           
-
-
-        self.publish_status(do_updates=True)
-
-        #############################
-        # Set variables to param values
-        self.init()
-    
-
+        ##############################
+        # Update vals from param server
+        self.init(do_updates = True)
+        self.publish_status()
 
         ##############################
         # Start Node Processes
@@ -2353,12 +2344,14 @@ class BaseImageIF:
         return self.ready  
 
     def add_pub_namespace(self,namespace):
+        success = False
         if namespace is None:
-            namespace = copy.deepcopy(self.namespace)
+            return success
         namespace = nepi_sdk.get_full_namespace(namespace)
         img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
         if img_ns == self.namespace or namespace in self.add_pubs_dict.keys():
             self.msg_if.pub_warn("Image pub namespace allready registered: " + str(namespace), log_name_list = self.log_name_list)
+            return success
         else:
             self.msg_if.pub_warn("Adding image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
             img_pub_dict ={
@@ -2369,6 +2362,7 @@ class BaseImageIF:
                     'latch': False
                 }
             self.node_if.register_pub(img_ns,img_pub_dict)
+
             status_ns = nepi_sdk.create_namespace(img_ns,'status')
             status_pub_dict ={
                     'msg': ImageStatus,
@@ -2377,6 +2371,8 @@ class BaseImageIF:
                     'qsize': 1,
                     'latch': False
                 }
+            self.node_if.register_pub(status_ns,status_pub_dict)
+
             nav_ns = nepi_sdk.create_namespace(img_ns,'navpose')
             nav_pub_dict ={
                     'msg': NavPose,
@@ -2386,16 +2382,21 @@ class BaseImageIF:
                     'latch': False
                 }
             self.node_if.register_pub(nav_ns,nav_pub_dict)
+
             nepi_sdk.sleep(1)
             self.add_pubs_dict[namespace] = [img_ns,status_ns,nav_ns]
+            success = True
+        return success
 
     def remove_pub_namespace(self,namespace):
+        success = False
         if namespace is None:
-            namespace = copy.deepcopy(self.namespace)
+            return success
         namespace = nepi_sdk.get_full_namespace(namespace)
         img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
         if img_ns == self.namespace:
             self.msg_if.pub_warn("Can't remove base namespace: " + str(namespace), log_name_list = self.log_name_list)
+            return success
         elif namespace in self.add_pubs_dict.keys():
             self.msg_if.pub_warn("Removing image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
             [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
@@ -2404,6 +2405,8 @@ class BaseImageIF:
             self.node_if.unregister_pub(img_ns)
             self.node_if.unregister_pub(status_ns)
             self.node_if.unregister_pub(nav_ns)
+            success = True
+        return success
 
     def get_data_source_description(self):
         return self.data_source_description
@@ -2453,140 +2456,142 @@ class BaseImageIF:
             return cv2_img
 
         # Process 
+        try: # Catch for lost camera in middle of send
+            self.device_mount_description = device_mount_description
+            self.status_msg.device_mount_description = self.device_mount_description
+            
+            self.status_msg.frame_3d = frame_3d
 
-        self.device_mount_description = device_mount_description
-        self.status_msg.device_mount_description = self.device_mount_description
-        
-        self.status_msg.frame_3d = frame_3d
-
-        self.status_msg.encoding = encoding
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        else:
-            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-
-
-        current_time = nepi_utils.get_time()
-        latency = (current_time - timestamp)
-        self.status_msg.get_latency_time = latency
-        self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        # Start Img Pub Process
-        start_time = nepi_utils.get_time()   
- 
+            self.status_msg.encoding = encoding
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
 
-        self.status_msg.width_deg = width_deg
-        self.status_msg.height_deg = height_deg
+            current_time = nepi_utils.get_time()
+            latency = (current_time - timestamp)
+            self.status_msg.get_latency_time = latency
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-        if (min_range_m is not None and max_range_m is not None):
-            self._updateRangesM(min_range_m,max_range_m)
-            self.status_msg.min_range_m = self.min_range_m
-            self.status_msg.max_range_m = self.max_range_m
-        else:
-            self.status_msg.min_range_m = 0
-            self.status_msg.max_range_m = 1
-
-        [height,width] = cv2_img.shape[0:2]
-        self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        if process_data == True:
-            cv2_img = self.process_cv2_img(cv2_img)
-        
-
-        [height,width] = cv2_img.shape[0:2]
-        last_width = self.status_msg.width_px
-        last_height = self.status_msg.height_px
-        self.status_msg.width_px = width
-        self.status_msg.height_px = height
-        res_str = str(width) + ":" + str(height)
-        self.status_msg.resolution_current = res_str
-
-        if navpose_dict is None:
-            navpose_dict = self.get_navpose_dict()
-
-        
-        # Apply Overlays
-        overlay_list = []
-        if self.status_msg.overlay_img_name == True:
-            overlay = nepi_img.getImgShortName(self.namespace)
-            overlay_list.append(overlay)
-        
-        if self.status_msg.overlay_date_time == True:
-            overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-            overlay = overlay.replace('D','')
-            overlay = overlay.replace('T',' T: ')
-            overlay_list.append(overlay)
-
-        
-        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-            if navpose_dict is not None:
-                if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
-                    overlay_list.append(overlay)
-
-                if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                    overlay_list.append(overlay)
-
-        overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
-
-        if len(overlay_list) > 0:
-            start_y = (height * 0.01)
-            cv2_img = nepi_img.overlay_text_list(cv2_img, 
-                                    text_list = overlay_list, 
-                                    x_px = 10 , y_px = start_y, 
-                                    color_rgb = (0, 255, 0), 
-                                    apply_shadow = True, 
-                                    size_ratio = self.overlay_size_ratio )
-
-        
-        #Convert to ros Image message
-        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        sec = nepi_sdk.sec_from_timestamp(timestamp)
-        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-        self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-        self.node_if.publish_pub('data_pub', ros_img)
-        for namespace in add_pubs:
-            if namespace in self.add_pubs_dict.keys():
-                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                self.node_if.publish_pub(img_ns, ros_img)
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
 
 
-        
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        if navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
+
+            self.status_msg.width_deg = width_deg
+            self.status_msg.height_deg = height_deg
+
+            if (min_range_m is not None and max_range_m is not None):
+                self._updateRangesM(min_range_m,max_range_m)
+                self.status_msg.min_range_m = self.min_range_m
+                self.status_msg.max_range_m = self.max_range_m
+            else:
+                self.status_msg.min_range_m = 0
+                self.status_msg.max_range_m = 1
+
+            [height,width] = cv2_img.shape[0:2]
+            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            if process_data == True:
+                cv2_img = self.process_cv2_img(cv2_img)
+            
+
+            [height,width] = cv2_img.shape[0:2]
+            last_width = self.status_msg.width_px
+            last_height = self.status_msg.height_px
+            self.status_msg.width_px = width
+            self.status_msg.height_px = height
+            res_str = str(width) + ":" + str(height)
+            self.status_msg.resolution_current = res_str
+
+            if navpose_dict is None:
+                navpose_dict = self.get_navpose_dict()
+
+            
+            # Apply Overlays
+            overlay_list = []
+            if self.status_msg.overlay_img_name == True:
+                overlay = nepi_img.getImgShortName(self.namespace)
+                overlay_list.append(overlay)
+            
+            if self.status_msg.overlay_date_time == True:
+                overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                overlay = overlay.replace('D','')
+                overlay = overlay.replace('T',' T: ')
+                overlay_list.append(overlay)
+
+            
+            if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                if navpose_dict is not None:
+                    if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                        overlay_list.append(overlay)
+
+                    if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                        overlay_list.append(overlay)
+
+            overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+
+            if len(overlay_list) > 0:
+                start_y = (height * 0.01)
+                cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                        text_list = overlay_list, 
+                                        x_px = 10 , y_px = start_y, 
+                                        color_rgb = (0, 255, 0), 
+                                        apply_shadow = True, 
+                                        size_ratio = self.overlay_size_ratio )
+
+            
+            #Convert to ros Image message
+            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+            sec = nepi_sdk.sec_from_timestamp(timestamp)
+            ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+            self.node_if.publish_pub('data_pub', ros_img)
             for namespace in add_pubs:
                 if namespace in self.add_pubs_dict.keys():
                     [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                    self.node_if.publish_pub(nav_ns, navpose_msg)
-        
-        # Update stats
-        process_time = round( (nepi_utils.get_time() - start_time) , 3)
-        self.status_msg.process_time = process_time
-        latency = (current_time - timestamp)
-        self.status_msg.pub_latency_time = latency
-        
+                    self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.node_if.publish_pub(img_ns, ros_img)
 
-        if self.last_pub_time is None:
-            self.last_pub_time = nepi_utils.get_time()
-        else:
-            cur_time = nepi_utils.get_time()
-            pub_time_sec = cur_time - self.last_pub_time
-            self.last_pub_time = cur_time
-            self.status_msg.last_pub_sec = pub_time_sec
 
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
+            
+            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+            if navpose_msg is not None:
+                self.node_if.publish_pub('navpose_pub', navpose_msg)
+                for namespace in add_pubs:
+                    if namespace in self.add_pubs_dict.keys():
+                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                        self.node_if.publish_pub(nav_ns, navpose_msg)
+            
+            # Update stats
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time - timestamp)
+            self.status_msg.pub_latency_time = latency
+            
 
-        # Update blank image if needed
-        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-        for namespace in add_pubs:
-            if namespace in self.add_pubs_dict.keys():
-                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                self.node_if.publish_pub(status_ns, self.status_msg)
+            if self.last_pub_time is None:
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+                self.status_msg.last_pub_sec = pub_time_sec
+
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+
+            # Update blank image if needed
+            if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
+                self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+            for namespace in add_pubs:
+                if namespace in self.add_pubs_dict.keys():
+                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                    self.node_if.publish_pub(status_ns, self.status_msg)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
         return cv2_img
 
     def publish_msg_img(self, msg_text, timestamp = None, frame_3d = 'nepi_base'):
@@ -2926,7 +2931,9 @@ class BaseImageIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-    def init(self):
+
+
+    def init(self, do_updates = False):
         if self.node_if is not None:
             self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
             self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
@@ -2946,33 +2953,33 @@ class BaseImageIF:
             self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
             self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
             self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
-        
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _provide_capabilities(self, _):
         return self.caps_report
@@ -2980,7 +2987,8 @@ class BaseImageIF:
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
         for namespace in self.add_pubs_dict.keys():
-            has_subs = has_subs or self.node_if.pub_has_subscribers(namespace)
+            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace] 
+            has_subs = has_subs or self.node_if.pub_has_subscribers(img_ns)
         if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
@@ -3761,12 +3769,13 @@ class DepthMapIF:
                         msg_if = self.msg_if
                                             )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.publish_status(do_updates=True)
-        
-        self.init()
+        ##############################
+        # Update vals from param server
+        self.init(do_updates = True)
+        self.publish_status()
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
@@ -3951,35 +3960,58 @@ class DepthMapIF:
 
             self.node_if.publish_pub('status_pub',self.status_msg)
 
-    def init(self):
-        pass
-        
+
+
+    def init(self, do_updates = False):
+        if self.node_if is not None:
+            '''
+            self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
+            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
+            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param('auto_adjust_ratio')
+            self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
+            self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
+            self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
+
+            self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
+            self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+
+
+            self.enhance_dict = self.node_if.get_param('enhance_dict')
+            self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
+            self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
+            self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
+            self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
+            self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
+            self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
+            '''
+            pass
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
@@ -4380,10 +4412,12 @@ class PointcloudIF:
                                             )
 
         
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.publish_status(do_updates=True)
+        ##############################
+        # Update vals from param server
+        self.init(do_updates = True)
+        self.publish_status()
 
         ##############################
         # Start Node Processes
@@ -4609,35 +4643,56 @@ class PointcloudIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-    def init(self):
-        pass
-        
+    def init(self, do_updates = False):
+        if self.node_if is not None:
+            '''
+            self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
+            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
+            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param('auto_adjust_ratio')
+            self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
+            self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
+            self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
+
+            self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
+            self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+
+
+            self.enhance_dict = self.node_if.get_param('enhance_dict')
+            self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
+            self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
+            self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
+            self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
+            self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
+            self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
+            '''
+            pass
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
             self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _subscribersCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')

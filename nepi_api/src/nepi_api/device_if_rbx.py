@@ -726,17 +726,18 @@ class RBXRobotIF:
                             msg_if = self.msg_if
                         )
 
-        ready = self.node_if.wait_for_ready()
+        success = nepi_sdk.wait()
 
-
-
+        ##############################
+        # Update vals from param server
+        self.initCb(do_updates = True)
+        self.publish_status()
 
 
         ####################################
         ## Initiation Complete
         self.rbx_info.connected = True
         self.status_msg.ready = True 
-        self.initCb(do_updates = True)
 
         ##############################
         # Start Node Processes

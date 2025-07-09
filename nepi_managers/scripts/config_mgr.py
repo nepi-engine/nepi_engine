@@ -283,6 +283,9 @@ class config_mgr(object):
             try:
                 params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
                 self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()), log_name_list = [self.class_name])
+                if namespace.find('idx') != -1:
+                    params = nepi_sdk.get_params(namespace)
+                    self.msg_if.pub_warn("Got Params for idx namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict), log_name_list = [self.class_name])
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )

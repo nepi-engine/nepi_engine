@@ -576,7 +576,9 @@ class AiDetectorIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_sdk.sleep(0.1)
+        nepi_sdk.sleep(1)
+
+        self.initCb(do_updates = True)
 
         ###############################
         # Create System IFs
@@ -801,7 +803,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('selected_img_topics',self.selected_img_topics)
-            self.node_if.save_config()
+
 
 
 
@@ -975,7 +977,7 @@ class AiDetectorIF:
         # Update Image subscribers
         found_img_topics = []
         for img_topic in selected_img_topics:
-            img_topic = nepi_sdk.find_topic(img_topic)
+            img_topic = nepi_sdk.find_topic(img_topic, exact = True)
             if img_topic != '':
                 found_img_topics.append(img_topic)
                 if img_topic not in active_img_topics:

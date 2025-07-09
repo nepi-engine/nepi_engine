@@ -18,6 +18,7 @@ import importlib
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
@@ -65,6 +66,7 @@ class SystemMgrNode():
 
     storage_mountpoint = "/mnt/nepi_storage"
     data_folder = storage_mountpoint + "/data"
+    cfg_folder =  storage_mountpoint + "/user_cfg"
 
     storage_subdirs = dict()
     user_folders = dict()
@@ -74,8 +76,6 @@ class SystemMgrNode():
     storage_gid = 130 # default to "sambashare" # TODO This is very fragile
 
 
-    check_ignore_folders = ["data","logs","logs/automation_script_logs","nepi_src","tmp"]
-
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                             "ai_training",
                             "automation_scripts", 
@@ -83,6 +83,7 @@ class SystemMgrNode():
                             "automation_scripts/sys_state_scripts",
                             "data", 
                             "databases", 
+                            "databases/targets", 
                             "install",
                             "install/apps",
                             "install/ai_frameworks",
@@ -105,6 +106,7 @@ class SystemMgrNode():
                             "automation_scripts", 
                             "data", 
                             "databases", 
+                            "databases/targets", 
                             "install",
                             "install/apps",
                             "install/ai_frameworks",
@@ -120,6 +122,14 @@ class SystemMgrNode():
                             "sample_data",
                             "tmp"]
     
+    STORAGE_CHECK_SKIP_LIST = ["ai_training",
+                            "data",
+                            "logs", 
+                            "logs/ros_log",
+                            "logs/automation_script_logs", 
+                            "nepi_src",
+                            "tmp"]
+
     CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
 
 
@@ -230,17 +240,19 @@ class SystemMgrNode():
         ###############################
         # Initialize Class Variables
         self.msg_if.pub_warn("Getting System Info")
-        self.first_stage_rootfs_device = nepi_sdk.get_param(
-            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
+        first_stage_rootfs_device = nepi_sdk.get_param(
+            "~first_stage_rootfs_device", "undefined")
+        self.msg_if.pub_warn("Got first state partition: " + str(first_stage_rootfs_device))
+        if first_stage_rootfs_device != "undefined":
+            self.first_stage_rootfs_device = first_stage_rootfs_device
+        self.msg_if.pub_warn("Using first state partition: " + str(self.first_stage_rootfs_device))
 
-        #if self.first_stage_rootfs_device == "container":
-        #    self.in_container = True
-        nepi_sdk.set_param('in_container',self.in_container)
+        if self.first_stage_rootfs_device == "container":
+            self.in_container = True
+        
+        nepi_system.set_in_container(self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
-
-
-        
 
         if self.in_container == False:
           self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
@@ -294,10 +306,10 @@ class SystemMgrNode():
             nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
                 self.provide_system_data_folder)
         self.msg_if.pub_warn("Storing User Folders")
-        nepi_sdk.set_param('user_folders', self.user_folders)
+        nepi_system.set_user_folders(self.user_folders)
         #self.msg_if.pub_warn("Stored user folders: " + str(user_folders))
         self.msg_if.pub_warn("Storing System Folders")
-        nepi_sdk.set_param('system_folders', self.system_folders)
+        nepi_system.set_system_folders(self.system_folders)
         #self.msg_if.pub_warn("Stored user folders: " + str(system_folders))
 
 
@@ -594,6 +606,14 @@ class SystemMgrNode():
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
+        # Config mgr not running yet, so have to load saved configs ourselfs
+        user_cfg_file = self.node_name + '.yaml.user'
+        user_cfg_path = nepi_sdk.create_namespace(self.cfg_folder,user_cfg_file)
+        self.msg_if.pub_warn("Updating From Param Server")
+        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
+        nepi_sdk.sleep(1)
+        self.initCb(do_updates = True)
+
 
         self.msg_if.pub_warn("Starting System IF Setup")   
         #######################
@@ -636,9 +656,8 @@ class SystemMgrNode():
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
-        self.debug_enabled = self.node_if.get_param('debug_mode')
         self.status_msg.sys_debug_enabled = self.debug_enabled
-        nepi_sdk.set_param('debug_mode',self.debug_enabled)
+        nepi_system.set_debug_mode(self.debug_enabled)
 
 
     
@@ -696,7 +715,7 @@ class SystemMgrNode():
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            pass
+            self.debug_enabled = self.node_if.get_param('debug_mode')
         if do_updates == True:
             pass
         # self.publish_settings() # Make sure to always publish settings updates
@@ -985,7 +1004,7 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            if subdir not in self.check_ignore_folders:
+            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking user storage partition folder permissions: " + subdir)
                 os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)

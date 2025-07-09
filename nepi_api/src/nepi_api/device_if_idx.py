@@ -591,9 +591,12 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
 
-        ready = self.node_if.wait_for_ready()
+        success = nepi_sdk.wait()
 
+        ##############################
+        # Update vals from param server
         self.initCb(do_updates = True)
+        self.publish_status()
 
 
         # Start the data producers
@@ -888,12 +891,12 @@ class IDXDeviceIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready   
 
+
     def initConfig(self):
-        self.initCb()
+        self.initCb(do_updates = True)
 
 
     def initCb(self,do_updates = False):
-
       if self.node_if is not None:
             self.device_name = self.node_if.get_param('device_name')
             self.width_deg = self.node_if.get_param('width_deg')

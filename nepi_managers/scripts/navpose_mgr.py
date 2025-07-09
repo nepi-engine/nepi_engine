@@ -485,7 +485,7 @@ class NavPoseMgr(object):
         self.navpose_frames_dict['frame_nav'] = self.frame_nav
         self.navpose_frames_dict['frame_alt'] = self.frame_alt
         self.navpose_frames_dict['frame_depth'] = self.frame_depth
-        nepi_sdk.set_param('navpose_frames',self.navpose_frames_dict)
+        nepi_system.set_navpose_frames(self.navpose_frames_dict)
 
     #######################
     ### Node Methods

@@ -435,13 +435,12 @@ class LSXDeviceIF:
                             msg_if = self.msg_if
                         )
 
-        ready = self.node_if.wait_for_ready()
+        success = nepi_sdk.wait()
 
-
-
-        ###############################
-        # Finish Initialization
+        ##############################
+        # Update vals from param server
         self.initCb(do_updates = True)
+        self.publish_status()
 
 
         status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
