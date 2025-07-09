@@ -849,8 +849,8 @@ renderNavPose(){
                     <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
 
                   <NavPoseViewer
-                    namespace={namespace}
-                    make_section={true}
+                    namespace={(show_navpose === true) ? namespace : null}
+                    make_section={false}
                     title={"PTX NavPose Data"}
                   />
                   </div>
@@ -961,16 +961,6 @@ renderNavPose(){
                 </ButtonMenu>
 
                 {this.renderNavPose()}
-
-              <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
-
-                    <NavPoseViewer
-                      namespace={namespace}
-                      make_section={false}
-                      title={"PTX NavPose Data"}
-                    />
-              </div>
-
 
             <NepiSystemMessages
               messagesNamespace={namespace}
