@@ -238,11 +238,16 @@ class NepiDeviceIDX extends Component {
       <React.Fragment>
         <Columns>
           <Column equalWidth={false}>
+
+          {image_topic && image_topic !== 'None' &&
+
             <ImageViewer
               imageTopic={image_topic}
               title={image_text}
               hideQualitySelector={false}
             />
+          }
+
           </Column>
         </Columns>
       </React.Fragment>
