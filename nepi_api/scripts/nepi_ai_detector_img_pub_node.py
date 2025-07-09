@@ -25,6 +25,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
+from nepi_sdk import nepi_nav
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
@@ -448,7 +449,7 @@ class AiDetectorImgPub:
             
         return True
 
-    def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = []):
+    def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = [], navpose_dict = None):
         if self.img_if is not None:
             if self.img_if.has_subscribers_check():
                 add_pubs = [self.all_namespace]
@@ -463,7 +464,8 @@ class AiDetectorImgPub:
                                         timestamp = timestamp, 
                                         frame_3d = frame_3d, 
                                         add_overlay_list = add_overlay_list,
-                                        add_pubs = add_pubs)
+                                        add_pubs = add_pubs,
+                                        navpose_dict = navpose_dict)
 
 
                  
@@ -479,7 +481,10 @@ class AiDetectorImgPub:
         self.imgs_info_lock.acquire()
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         self.imgs_info_lock.release()
-        navpose_dict = imgs_info_dict[img_topic]['navpose_dict']
+        if img_topic in imgs_info_dict.keys():
+            navpose_dict = imgs_info_dict[img_topic]['navpose_dict']
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
         sel_imgs = copy.deepcopy(self.selected_img_topics)        
         max_rate = copy.deepcopy(self.max_rate)
@@ -666,8 +671,6 @@ class AiDetectorImgPub:
         if img_topic in imgs_info_dict.keys():
             navpose_dict = nepi_nav.convert_navpose_msg2dict(navpose_msg)
             if navpose_dict is not None:
-                   
-
                 self.imgs_info_lock.acquire()
                 if img_topic in self.imgs_info_dict.keys():
                     self.imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict 

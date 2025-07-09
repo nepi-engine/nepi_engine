@@ -233,8 +233,8 @@ class SystemMgrNode():
         self.first_stage_rootfs_device = nepi_sdk.get_param(
             "~first_stage_rootfs_device", self.first_stage_rootfs_device)
 
-        if self.first_stage_rootfs_device == "container":
-            self.in_container = True
+        #if self.first_stage_rootfs_device == "container":
+        #    self.in_container = True
         nepi_sdk.set_param('in_container',self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
