@@ -644,36 +644,36 @@ class SaveDataIF:
 
 
     def publish_status(self):
-        save_rates_msg = []
-        save_rate_dict = self.save_rate_dict
-        self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
-        for name in save_rate_dict.keys():
-            save_rate_msg = SaveDataRate()
-            save_rate_msg.data_product = name
-            save_rate_msg.save_rate_hz = save_rate_dict[name][0]
-            save_rates_msg.append(save_rate_msg)
-            self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
-        status_msg = SaveDataStatus()
-        status_msg.filename_config = self.create_filename_msg()
-        status_msg.current_data_dir = self.save_path
-        status_msg.current_filename_prefix = self.filename_dict['prefix']
-        status_msg.current_subfolder = self.subfolder
-        status_msg.save_data_utc = self.filename_dict['use_utc_tz']
-        status_msg.current_timezone = self.timezone
-        status_msg.save_data_rates = save_rates_msg
-        status_msg.save_data_enabled = self.save_data
-
-        if self.save_data_root_directory is not None:
-            status_msg.current_data_dir = self.save_data_root_directory
-
-        if self.filename_dict['use_utc_tz'] == False:
-            timezone = self.timezone
-        else:
-            timezone = 'UTC'
-        self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
-        exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
-        status_msg.example_filename = exp_filename
         if self.node_if is not None:
+            save_rates_msg = []
+            save_rate_dict = self.save_rate_dict
+            self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
+            for name in save_rate_dict.keys():
+                save_rate_msg = SaveDataRate()
+                save_rate_msg.data_product = name
+                save_rate_msg.save_rate_hz = save_rate_dict[name][0]
+                save_rates_msg.append(save_rate_msg)
+                self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
+            status_msg = SaveDataStatus()
+            status_msg.filename_config = self.create_filename_msg()
+            status_msg.current_data_dir = self.save_path
+            status_msg.current_filename_prefix = self.filename_dict['prefix']
+            status_msg.current_subfolder = self.subfolder
+            status_msg.save_data_utc = self.filename_dict['use_utc_tz']
+            status_msg.current_timezone = self.timezone
+            status_msg.save_data_rates = save_rates_msg
+            status_msg.save_data_enabled = self.save_data
+
+            if self.save_data_root_directory is not None:
+                status_msg.current_data_dir = self.save_data_root_directory
+
+            if self.filename_dict['use_utc_tz'] == False:
+                timezone = self.timezone
+            else:
+                timezone = 'UTC'
+            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
+            exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
+            status_msg.example_filename = exp_filename
             self.node_if.publish_pub('status_pub', status_msg)
 
     def init(self, do_updates = False):
@@ -1040,8 +1040,8 @@ class Transform3DIF:
             self.node_if.publish_pub('transform_pub',transform_msg)
 
     def publish_status(self):
-        self.status_msg.has_transform = self.has_transform
         if self.node_if is not None:
+            self.status_msg.has_transform = self.has_transform
             self.node_if.publish_pub('status_pub',self.status_msg)
 
     def init(self, do_updates = True):
@@ -1362,12 +1362,13 @@ class SettingsIF:
         return self.ready  
 
     def publish_status(self):
-        current_settings = self.getSettingsFunction()
-        self.node_if.set_param('settings', current_settings)
-        cap_settings = self.cap_settings
-        #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
-        status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
-        if not nepi_sdk.is_shutdown():
+        if self.node_if is not None:
+            current_settings = self.getSettingsFunction()
+            self.node_if.set_param('settings', current_settings)
+            cap_settings = self.cap_settings
+            #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
+            status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
+        
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', status_msg)
 
