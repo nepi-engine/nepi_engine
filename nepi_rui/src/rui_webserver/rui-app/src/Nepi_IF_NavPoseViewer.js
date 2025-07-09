@@ -176,10 +176,6 @@ class NepiIFNavPoseViewer extends Component {
   }
 
 
-  
-  
-
-
   renderNavPose() {
     const navpose_data = this.state.navpose_data
 

@@ -157,7 +157,7 @@ class NepiDashboard extends Component {
           <Input disabled value={systemDefsFirmwareVersion} />
         </Label>
 
-        <pre style={{ height: "68px", overflowY: "auto" }}>
+        <pre style={{ height: "71px", overflowY: "auto" }}>
             {""}
           </pre>
 
@@ -308,6 +308,13 @@ class NepiDashboard extends Component {
                 <Toggle checked={syncTimezone} onClick={onToggleSyncTimezone} />
               </Label>
 
+              <div hidden={syncTimezone === false}>
+
+              <pre style={{ height: "31px", overflowY: "auto" }}>
+            {""}
+          </pre>
+
+              </div>
 
 
                 <div hidden={syncTimezone === true}>
@@ -403,7 +410,7 @@ class NepiDashboard extends Component {
         </Label>
 
 
-        <pre style={{ height: "8px", overflowY: "auto" }}>
+        <pre style={{ height: "0px", overflowY: "auto" }}>
             {""}
           </pre>
 

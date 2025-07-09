@@ -118,6 +118,8 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
+      namespace : null,
+      
       listener: null,
       disabled: true
 
@@ -838,14 +840,23 @@ renderNavPose(){
     return (
 
       <Section>
-
-            <Label title="Show NavPose">
+            <Columns>
+            <Column>
+                  <Label title="Show NavPose">
                       <Toggle
                         checked={this.state.show_navpose===true}
                         onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
                       </Toggle>
                     </Label>            
 
+                    </Column>
+                    <Column>
+
+                    </Column>
+                    <Column>
+
+                    </Column>
+                    </Columns>
                     <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
 
                   <NavPoseViewer
@@ -875,6 +886,7 @@ renderNavPose(){
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning === true)
     const show_navpose = this.state.show_navpose
+    const device_selected = (this.state.namespace != null)
 
     console.log("render namespace : " + namespace)
 
@@ -967,12 +979,10 @@ renderNavPose(){
               title={"NepiSystemMessages"}
               />
 
-
-
           </Column>
           <Column style={{flex: 0.05}}>
 
-          <div style={{ height: '160px' }}></div>
+          <div style={{ height: '155px' }}></div>
 
             <SliderAdjustment
               disabled={!has_abs_pos}

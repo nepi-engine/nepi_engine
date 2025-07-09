@@ -1065,11 +1065,7 @@ class ImageViewer extends Component {
 
           </div>
 
-          <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>
-
-                     <div style={{ borderTop: "1px solid #ffffff", marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
-          
-          </div>
+          <div align={"left"} textAlign={"left"} hidden={(show_navpose !== true || namespace === 'None')}>          
 
                       <NavPoseViewer
                         namespace={(show_navpose === true)? navpose_namespace : null}
@@ -1077,10 +1073,7 @@ class ImageViewer extends Component {
                         title={"IDX NavPose Data"}
                       />
 
-
-       
-
-
+</div>
 
              
       </Section>
