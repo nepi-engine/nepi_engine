@@ -1,19 +1,15 @@
 #############
 # SETUP
-# 1) Open a terminal on PC in this folder
-# 2) Copy the file to the nepi user drive's 'tmp' 
-# 3) SSH into your nepi device and type
+# SETUP Aliases
+# 1) Copy nepi_env/config/home/nepi/nepi_device_aliases to /mnt/nepi_storage/tmp
+# 2) SSH into your nepi device and type
 # cp /mnt/nepi_storage/tmp/nepi_device_aliases ~/.nepi_aliases
 # source ~/.nepi_aliases
 
-# 4) In the same ssh session add the following to your .bashrc file
-# - nano ~/.bashrc
-# NEPI bashrc aliases
-#if [ -f ~/.nepi_aliases ]; then
-#    . ~/.nepi_aliases
-#fi
-
-# 5) Source the updated bashrc
+# Update bashrc
+# 1) Copy nepi_env/config/home/nepi/bashrc_NVIDIA_JETSON to /mnt/nepi_storage/tmp
+# 2) SSH into your nepi device and type
+# cp /mnt/nepi_storage/tmp/bashrc_NVIDIA_JETSON ~/.bashrc
 # source ~/.bashrc
 
 
@@ -89,6 +85,7 @@ export SDK="/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk"
 export SHARE="/opt/nepi/ros/share"
 export SRC="/mnt/nepi_storage/nepi_src/nepi_engine_ws/src"
 export TMP="/mnt/nepi_storage/tmp"
+export TRAIN="/mnt/nepi_storage/ai_training"
 export DRIVE="/mnt/nepi_storage"
 
 # NEPI navigation shortcuts
@@ -116,6 +113,7 @@ alias sdk="cd $SDK"
 alias share="cd $SHARE"
 alias src="cd $SRC"
 alias tmp="cd $TMP"
+alias train="cd $TRAIN"
 alias drive="cd $DRIVE"
 
 
@@ -198,6 +196,7 @@ function nepi(){
     share = /opt/nepi/ros/share
     src = /mnt/nepi_storage/nepi_src/nepi_engine_ws/src
     tmp = /mnt/nepi_storage/tmp
+    train = /mnt/nepi_storage/ai_training
     drive = /mnt/nepi_storage
     "
     echo "$text"

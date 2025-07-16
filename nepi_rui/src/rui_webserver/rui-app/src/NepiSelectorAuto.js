@@ -20,7 +20,7 @@ import AppRender from "./Nepi_IF_Apps"
 @inject("ros")
 @observer
 
-class AppsAutoSelector extends Component {
+class AutoSelector extends Component {
   constructor(props) {
     super(props)
 
@@ -310,4 +310,4 @@ class AppsAutoSelector extends Component {
 
 }
 
-export default AppsAutoSelector
+export default AutoSelector
