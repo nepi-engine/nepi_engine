@@ -42,11 +42,22 @@ custom_data_file_path = os.path.join(train_folder_path,'data_custom.yaml')
 def process_folder():
 
 
+  exist_files = []
   train_files = []
   val_files = []
   test_files = []
   ulab_files = []
 
+  ### Load existing files
+  if os.path.exists(train_file_path) == True:
+    train_files = ai_utils.read_list_from_file(train_file_path)
+    exist_files = train_files
+  if os.path.exists(val_file_path) == True:
+    val_files = ai_utils.read_list_from_file(val_file_path)
+    exist_files = exist_files + val_files
+  if os.path.exists(test_file_path) == True:
+    test_files = ai_utils.read_list_from_file(test_file_path)
+    exist_files = exist_files + test_files
   ### Walk through folder folders
   print("Processing folders in: " + data_folder_path)
   folders_to_process=ai_utils.get_folder_list(data_folder_path)
@@ -77,13 +88,13 @@ def process_folder():
           if os.path.exists(label_file):
             #print('Found label file' + label_file)
             ind += 1
-            if ind in val_indexes: 
+            if ind in val_indexes and image_file not in exist_files: ##### FINISH THIS
               #print('Adding image to val file list')
               val_files.append(image_file)
-            elif ind in test_indexes: 
+            elif ind in test_indexes and image_file not in exist_files: 
               #print('Adding image to test file list')
               test_files.append(image_file)
-            else: 
+            elif image_file not in exist_files: 
               #print('Adding image to train file list')
               train_files.append(image_file)
           else:
@@ -98,6 +109,7 @@ def process_folder():
         print("Excepton on file write: " + str(e))
 
   print("Found " + str(len(ulab_files)) + " unlabeled files")
+  
   ### Create return data
   # data = ulab_files
 
@@ -107,8 +119,6 @@ def process_folder():
     ai_utils.write_list_to_file(val_files, val_file_path)
   if os.path.exists(test_file_path) == False:
     ai_utils.write_list_to_file(test_files, test_file_path)
-    
-  
 
   ### Create dictionary
 
