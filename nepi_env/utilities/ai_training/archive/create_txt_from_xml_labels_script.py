@@ -21,7 +21,7 @@ from os.path import exists
 import logging
 import declxml as xml
 
-import ai_utils
+
 
 ##########################################
 # SETUP - Edit as Necessary 
@@ -36,6 +36,21 @@ def convert_xml_files(xml_dir):
   transformer = Transformer(xml_dir)
   transformer.transform()
             
+def get_folder_list(script_folder_path):
+  filelist=os.listdir(script_folder_path + '/')
+  folder_list=[]
+  #print('')
+  #print('Files and Folders in Path:')
+  #print(script_folder_path)
+  #print(filelist)
+  for file in enumerate(filelist):
+    foldername = (script_folder_path + '/' + file[1])
+    #print('Checking file: ')
+    #print(foldername)
+    if os.path.isdir(foldername): # file is a folder
+       folder_list.append(foldername)
+  return folder_list
+
 
 ##########################################
 # Classes
@@ -51,9 +66,9 @@ class Transformer(object):
     def transform(self):
         reader = Reader(xml_dir=self.xml_dir)
         xml_files = reader.get_xml_files()
-        #print(xml_files)
+        print(xml_files)
         classes = reader.get_classes(self.class_file)
-        #print(classes)
+        print(classes)
         object_mapper = ObjectMapper()
         annotations = object_mapper.bind_files(xml_files, xml_dir=self.xml_dir)
         self.write_to_txt(annotations, classes)
@@ -206,10 +221,11 @@ class Box(object):
 ###############################################
 
 if __name__ == '__main__':
-  data_folder = ai_utils.data_folder
+  abs_path = os.path.realpath(__file__)
+  script_path = os.path.dirname(abs_path)
   ### Converting XML Label Files to TXT
-  print(data_folder)
-  folders_to_process=ai_utils.get_folder_list(data_folder)
+  print(script_path)
+  folders_to_process=get_folder_list(script_path)
   print('')
   print('Found folders in script directory:')
   print(folders_to_process)

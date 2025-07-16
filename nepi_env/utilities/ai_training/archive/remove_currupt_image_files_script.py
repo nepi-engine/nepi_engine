@@ -27,15 +27,12 @@ import glob
 import fileinput
 import random
 
-import ai_utils
-
-IMAGE_FILE_TYPES = ai_utils.IMAGE_FILE_TYPES
+IMAGE_FILE_TYPES = ['jpg','JPG','jpeg','png','PNG']
 
 ##########################################
 # SETUP - Edit as Necessary 
 ##########################################
-data_folder_path = os.path.join(ai_utils.current_folder,'data_labeling')
-train_folder_path = os.path.join(ai_utils.current_folder,'model_training')
+TEST_DATA_PERCENTAGE = 20
 
 ##########################################
 # Methods
@@ -95,10 +92,11 @@ def get_folder_list(script_folder_path):
 ###############################################
 
 if __name__ == '__main__':
-
+  abs_path = os.path.realpath(__file__)
+  script_path = os.path.dirname(abs_path)
   ### Check for corrupt image files in folders
-  print(data_folder_path)
-  folders_to_process=get_folder_list(data_folder_path)
+  print(script_path)
+  folders_to_process=get_folder_list(script_path)
   print('')
   print('Found folders in script directory:')
   print(folders_to_process)
