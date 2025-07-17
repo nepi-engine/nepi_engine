@@ -640,7 +640,7 @@ class AiDetectorImgPub:
             if class_name in self.classes_list:
                 class_ind = self.classes_list.index(class_name)
                 if class_ind < len(self.classes_colors_list):
-                    class_color = tuple(self.classes_colors_list[class_ind])
+                    class_color = self.classes_colors_list[class_ind]
             line_thickness = font_thickness
 
             #self.msg_if.pub_warn("Got Class Color: " + str(class_color))

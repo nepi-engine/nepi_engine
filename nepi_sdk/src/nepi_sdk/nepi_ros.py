@@ -481,7 +481,7 @@ def set_param(param_namespace,param_val, log_name_list = []):
 def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
   param = None
   while param is None and timer < timeout and not rospy.is_shutdown():
     try:
@@ -491,7 +491,7 @@ def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
       sleep(1)
     time.sleep(.1)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  #log_msg_warn("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
   return param
 
 

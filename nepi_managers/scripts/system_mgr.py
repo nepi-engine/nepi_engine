@@ -323,14 +323,13 @@ class SystemMgrNode():
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
             # Now can advertise the system folder query
-            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
-                self.provide_system_data_folder)
+            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
-        #self.msg_if.pub_warn("Stored user folders: " + str(user_folders))
+        self.msg_if.pub_warn("Stored user folders: " + str(self.user_folders))
         self.msg_if.pub_warn("Storing System Folders")
         nepi_system.set_system_folders(self.system_folders)
-        #self.msg_if.pub_warn("Stored user folders: " + str(system_folders))
+        self.msg_if.pub_warn("Stored user folders: " + str(self.system_folders))
 
 
 
@@ -662,6 +661,10 @@ class SystemMgrNode():
         # Config mgr not running yet, so have to load saved configs ourselfs
         user_cfg_file = self.node_name + '.yaml.user'
         user_cfg_path = nepi_sdk.create_namespace(self.cfg_folder,user_cfg_file)
+
+        #self.msg_if.pub_info("Waiting for 20 secs")
+        #time.sleep(20)
+
         self.msg_if.pub_warn("Updating From Param Server")
         params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
         nepi_sdk.sleep(1)

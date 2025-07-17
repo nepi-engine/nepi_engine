@@ -3251,31 +3251,6 @@ class ImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
-        # Apply Resolution Controls
-        res_ratio = self.controls_dict['resolution_ratio']
-        if res_ratio < 0.9:
-            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-
-        # Apply Low Light Enhancment
-        if self.enhance_dict['low_light']['enabled'] == True:
-            ratio = self.enhance_dict['low_light']['ratio']
-            if ratio > 0.05:
-                pass
-                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
-
-        # Apply Adjustment Controls
-        auto = self.controls_dict['auto_adjust_enabled']
-        auto_ratio = self.controls_dict['auto_adjust_ratio']
-        brightness = self.controls_dict['contrast_ratio']
-        contrast = self.controls_dict['brightness_ratio']
-        threshold = self.controls_dict['threshold_ratio']
-
-        if auto is False:
-            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-        else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
         return cv2_img
 
 
@@ -3385,8 +3360,36 @@ class ColorImageIF(BaseImageIF):
     # Class Public Methods
     ###############################
 
+
     def process_cv2_img(self, cv2_img):
+        # Apply Resolution Controls
+        res_ratio = self.controls_dict['resolution_ratio']
+        if res_ratio < 0.9:
+            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
+        # Apply Low Light Enhancment
+        if self.enhance_dict['low_light']['enabled'] == True:
+            ratio = self.enhance_dict['low_light']['ratio']
+            if ratio > 0.05:
+                pass
+                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
+
+        # Apply Adjustment Controls
+        auto = self.controls_dict['auto_adjust_enabled']
+        auto_ratio = self.controls_dict['auto_adjust_ratio']
+        brightness = self.controls_dict['contrast_ratio']
+        contrast = self.controls_dict['brightness_ratio']
+        threshold = self.controls_dict['threshold_ratio']
+
+        if auto is False:
+            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+        else:
+            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
         return cv2_img
+
+
 
     ###############################
     # Class Private Methods

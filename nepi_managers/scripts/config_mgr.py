@@ -16,6 +16,7 @@
 import os
 import time
 import errno
+import time
 
 
 from nepi_sdk import nepi_sdk
@@ -69,7 +70,7 @@ class config_mgr(object):
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
-        nepi_sdk.sleep(1)
+        time.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -82,6 +83,8 @@ class config_mgr(object):
 
         ##############################
         # Wait for System Manager
+        #self.msg_if.pub_info("Waiting for 10 secs")
+        #time.sleep(10)
         self.msg_if.pub_info("Waiting for system folders")
         folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got system folders: " + str(folders))
