@@ -55,7 +55,21 @@ class SystemMgrNode():
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
-    ADMIN_RESTRICT_OPTIONS = []
+    ADMIN_RESTRICT_OPTIONS = ['Factory Save','Device Name','Network','WiFi','Access Point', 
+                            'Software Manager','NavPose Manager','Driver Manager','AI Manager','Apps Manager',
+                            'IDX Devices','IDX_Controls',
+                            'PTX Devices','PTX_Controls',
+                            'LSX Devices','LSX_Controls',
+                            'RBX Devices','RBX_Controls',
+                            'NPX Devices','NPX_Controls',
+                            'Messages_View','Messages_Controls',
+                            'Save_Config_View','Save_Config_Controls',
+                            'Save_Data_View','Save_Data_Controls',
+                            'Settings_View','Settings_Controls',
+                            'Transform_View','Transform_Controls',
+                            'Triggers_View','Triggers_Controls',
+                            'States_View','States_Controls',
+                            'Image_Stats','Image_Controls']
 
     SYS_CONFIG_PATH = "/opt/nepi/config"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
@@ -231,6 +245,7 @@ class SystemMgrNode():
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -1261,12 +1276,12 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Already in the process of archiving image")
             return
         fw_str = self.system_defs_msg.inactive_rootfs_fw_version
-        fw_str = fw_str.replace('.','_')
+        fw_str = fw_str.replace('.','p')
         fw_str = fw_str.replace(' ','_')
         fw_str = fw_str.replace('/','_')
         now = datetime.datetime.now()
-        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m_%d_%H%M%S") + '.img.raw'
-        self.msg_if.pub_warn("Archiving inactive rootfs to filename: " + backup_file_basename)
+        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+        self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
         self.status_msg.sys_img_archive_status = 'archiving'
         self.status_msg.sys_img_archive_filename = backup_file_basename
 

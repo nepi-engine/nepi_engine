@@ -75,7 +75,7 @@ class MsgIF:
         if level != 'debug':
             self.msg_pub.publish(msg_str)
             self.msg_pub_sys.publish(msg_str)
-        elif self.debug_mode is True:
+        elif self.debug_mode == True:
             self.msg_pub.publish(msg_str)
             self.msg_pub_sys.publish(msg_str)
     
