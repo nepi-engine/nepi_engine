@@ -47,12 +47,13 @@ def create_random_label_set(folder_path):
     #image_files = os.listdir(folder_path)
 
     image_files = []
-    #print("Processing folders in: " + data_folder_path)
+    
+    print("Processing folders in: " + data_folder_path)
     folders_to_process=ai_utils.get_folder_list(data_folder_path)
     print('')
-    #print('Found folders: ' + str(folders_to_process))
+    print('Found folders: ' + str(folders_to_process))
     for folder in folders_to_process:
-        #print('Processing folder: ' + folder)
+        print('Processing folder: ' + folder)
         path, dirs, files = next(os.walk(folder))
         for f in files:
             f_ext = os.path.splitext(f)[1]
@@ -61,6 +62,8 @@ def create_random_label_set(folder_path):
                 file_path = os.path.join(folder, f)
                 #print("Found: " + file_path)
                 image_files.append(file_path)
+    #image_files = random.sample(image_files, len(image_files))
+    
     random.shuffle(image_files)
 
     if NUM_IMAGES > len(image_files):
