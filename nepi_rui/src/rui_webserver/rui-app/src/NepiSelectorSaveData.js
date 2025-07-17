@@ -20,7 +20,7 @@ import { createShortUniqueValues} from "./Utilities"
 @inject("ros")
 @observer
 
-class NepiMessagesSelector extends Component {
+class SaveDataSelector extends Component {
   constructor(props) {
     super(props)
 
@@ -150,4 +150,4 @@ class NepiMessagesSelector extends Component {
 
 }
 
-export default NepiMessagesSelector
+export default SaveDataSelector

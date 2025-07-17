@@ -18,7 +18,7 @@ import Button, { ButtonMenu } from "./Button"
 import { Option } from "./Select"
 import Styles from "./Styles"
 
-import NepiSaveSelector from "./NepiSelectorSaveData"
+import SaveDataSelector from "./NepiSelectorSaveData"
 
 
 
@@ -214,8 +214,8 @@ class NepiDashboardData extends Component {
 
       <div style={{ marginTop: Styles.vars.spacing.medium, marginBottom: Styles.vars.spacing.xs }}/>
 
-      <NepiSaveSelector
-        title={"NepiSaveSelector"}
+      <SaveDataSelector
+        title={"SaveDataSelector"}
         />
 
     </React.Fragment>

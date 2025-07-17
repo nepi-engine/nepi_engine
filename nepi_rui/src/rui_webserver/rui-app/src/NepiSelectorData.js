@@ -6,6 +6,7 @@
  *
  * License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
  */
+
 import React, { Component } from "react"
 import { observer, inject } from "mobx-react"
 
@@ -13,15 +14,16 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import NavPoseMgr from "./NepiMgrNavPose"
+import NepiDashboardData from "./NepiDashboardData"
 
 import AppRender from "./Nepi_IF_Apps"
+
 
 @inject("ros")
 @observer
 
 // Pointcloud Application page
-class AppsNavPoseSelector extends Component {
+class DataSelector extends Component {
   constructor(props) {
     super(props)
 
@@ -54,13 +56,12 @@ class AppsNavPoseSelector extends Component {
 
       appsListener: null,
       appListener: null,
-
       selected_app_install_pkg: null,
       needs_update: false
-    }
 
+    }
     this.checkConnection = this.checkConnection.bind(this)
-    
+
     this.getMgrNamespace = this.getMgrNamespace.bind(this)
 
     this.updateMgrAppsStatusListener = this.updateMgrAppsStatusListener.bind(this)
@@ -94,9 +95,7 @@ class AppsNavPoseSelector extends Component {
       apps_rui_list: message.apps_rui_list,
       connected: true
     })    
-
     this.props.ros.appNames = message.apps_ordered_list
-
   }
 
   // Function for configuring and subscribing to Status
@@ -113,7 +112,6 @@ class AppsNavPoseSelector extends Component {
     this.setState({ appsListener: appsListener,
       needs_update: false})
   }
-
 
   async checkConnection() {
     const { namespacePrefix, deviceId} = this.props.ros
@@ -185,14 +183,14 @@ class AppsNavPoseSelector extends Component {
       items.push(<Option value={'Connecting'}>{'Connecting'}</Option>)
     }
     else {
-      items.push(<Option value={'NavPose Manager'}>{'NavPose Manager'}</Option>)
       if (appsList.length > 0){
         for (var i = 0; i < ruiList.length; i++) {
-          if (groupList[i] === "NAVPOSE" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
+          if (groupList[i] === "DATA" && ruiList[i] !== "None" && activeList.indexOf(appsList[i]) !== -1 ){
             items.push(<Option value={appsList[i]}>{ruiList[i]}</Option>)
           }
         }
       }
+      items.push(<Option value={'Data Dashboard'}>{'Data Dashboard'}</Option>)
     }
     return items
   }
@@ -209,7 +207,7 @@ class AppsNavPoseSelector extends Component {
         <Column>
 
         <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
-          {"Select NavPose App"}
+          {"Select Data App"}
          </label>
          
 
@@ -244,7 +242,7 @@ class AppsNavPoseSelector extends Component {
 
     const {appNameList} = this.props.ros
   
-    if (sel_app === "NavPose Manager"){
+    if (sel_app === "Data Dashboard"){
       return (
         <React.Fragment>
             <label style={{fontWeight: 'bold'}} align={"left"} textAlign={"left"}>
@@ -253,8 +251,8 @@ class AppsNavPoseSelector extends Component {
             <Columns>
             <Column>
 
-              <NavPoseMgr
-              title={"NavPose Manager"}
+              <NepiDashboardData
+              title={"Data Dashboard"}
               />
 
           </Column>
@@ -292,12 +290,14 @@ class AppsNavPoseSelector extends Component {
   }
 
 
+
   render() {
     return (
 
 
       <div style={{ display: 'flex' }}>
         <div style={{ width: '10%' }}>
+
           {this.renderSelection()}
         </div>
 
@@ -315,4 +315,4 @@ class AppsNavPoseSelector extends Component {
 
 }
 
-export default AppsNavPoseSelector
+export default DataSelector
