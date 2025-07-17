@@ -98,6 +98,7 @@ def create_yaml_file():
     }
 
     success = ai_utils.write_dict_2_yaml(data, yaml_file_path)
+    # print("Yaml created: " + success)
     return success
 
 
@@ -119,5 +120,5 @@ if __name__ == '__main__':
         print("Weight path is None")
 
     # Create yaml file in model deploy
-    print(create_yaml_file())
+    create_yaml_file()
 
