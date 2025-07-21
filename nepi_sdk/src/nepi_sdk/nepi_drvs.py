@@ -572,7 +572,7 @@ def unimportDriverClass(module_name):
 def checkLoadConfigFile(node_name):
   config_folder = DRIVERS_CFG_FOLDER
   config_file = os.path.join(config_folder, node_name + ".yaml")
-  node_namespace = nepi_sdk.get_base_namespace() + node_name
+  node_namespace = os.path.join(nepi_sdk.get_base_namespace(), node_name)
   if os.path.exists(config_file):
     print("Loading parameters from " + config_file + " to " + node_namespace)
     rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]

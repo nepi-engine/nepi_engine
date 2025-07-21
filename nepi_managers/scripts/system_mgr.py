@@ -25,12 +25,13 @@ from nepi_sdk import nepi_triggers
 import nepi_sdk.nepi_software_update_utils as sw_update_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
+from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray
 from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
                              DebugQuery, DebugQueryRequest, DebugQueryResponse, \
+                             AdminQuery, AdminQueryRequest, AdminQueryResponse,  \
                             SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
@@ -53,6 +54,22 @@ class SystemMgrNode():
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
+
+    ADMIN_RESTRICT_OPTIONS = ['Factory Save','Device Name','Network','WiFi','Access Point', 
+                            'Software Manager','NavPose Manager','Driver Manager','AI Manager','Apps Manager',
+                            'IDX Devices','IDX_Controls',
+                            'PTX Devices','PTX_Controls',
+                            'LSX Devices','LSX_Controls',
+                            'RBX Devices','RBX_Controls',
+                            'NPX Devices','NPX_Controls',
+                            'Messages_View','Messages_Controls',
+                            'Save_Config_View','Save_Config_Controls',
+                            'Save_Data_View','Save_Data_Controls',
+                            'Settings_View','Settings_Controls',
+                            'Transform_View','Transform_Controls',
+                            'Triggers_View','Triggers_Controls',
+                            'States_View','States_Controls',
+                            'Image_Stats','Image_Controls']
 
     SYS_CONFIG_PATH = "/opt/nepi/config"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
@@ -219,6 +236,8 @@ class SystemMgrNode():
     current_throttle_ratio = 1.0
 
     debug_enabled = False
+    admin_enabled = False
+    admin_restricted = []
 
     #######################
     ### Node Initialization
@@ -226,6 +245,7 @@ class SystemMgrNode():
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -303,14 +323,13 @@ class SystemMgrNode():
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
             # Now can advertise the system folder query
-            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
-                self.provide_system_data_folder)
+            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
-        #self.msg_if.pub_warn("Stored user folders: " + str(user_folders))
+        self.msg_if.pub_warn("Stored user folders: " + str(self.user_folders))
         self.msg_if.pub_warn("Storing System Folders")
         nepi_system.set_system_folders(self.system_folders)
-        #self.msg_if.pub_warn("Stored user folders: " + str(system_folders))
+        self.msg_if.pub_warn("Stored user folders: " + str(self.system_folders))
 
 
 
@@ -330,6 +349,7 @@ class SystemMgrNode():
                 if status is False:
                     self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
+        self.status_msg.sys_admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -387,9 +407,17 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             },
-            'debug_mode': {
+            'debug_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': False
+            },
+            'admin_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': False
+            },
+            'admin_restricted': {
+                'namespace': self.base_namespace,
+                'factory_val': []
             }
         }
 
@@ -427,6 +455,14 @@ class SystemMgrNode():
                 'req': DebugQueryRequest(),
                 'resp': DebugQueryResponse(),
                 'callback': self.provide_debug_status
+            },
+            'admin_query': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_query',
+                'srv': AdminQuery,
+                'req': AdminQueryRequest(),
+                'resp': AdminQueryResponse(),
+                'callback': self.provide_admin_status
             },
             'status_query': {
                 'namespace': self.base_namespace,
@@ -589,6 +625,22 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.enable_debug_callback, 
                 'callback_args': ()
+            },
+            'enable_admin': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_admin_callback, 
+                'callback_args': ()
+            },
+            'set_admin_restricted': {
+                'namespace': self.base_namespace,
+                'topic': 'set_admin_restricted',
+                'msg': StringArray,
+                'qsize': None,
+                'callback': self.set_admin_callback, 
+                'callback_args': ()
             }
         }
 
@@ -609,10 +661,23 @@ class SystemMgrNode():
         # Config mgr not running yet, so have to load saved configs ourselfs
         user_cfg_file = self.node_name + '.yaml.user'
         user_cfg_path = nepi_sdk.create_namespace(self.cfg_folder,user_cfg_file)
+
+        #self.msg_if.pub_info("Waiting for 20 secs")
+        #time.sleep(20)
+
         self.msg_if.pub_warn("Updating From Param Server")
         params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
         nepi_sdk.sleep(1)
         self.initCb(do_updates = True)
+
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        nepi_system.set_debug_mode(self.debug_enabled)
+
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        nepi_system.set_admin_mode(self.admin_enabled)
+
+        self.status_msg.sys_admin_restricted = self.admin_restricted
+        nepi_system.set_admin_restricted(self.admin_restricted)
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -655,10 +720,6 @@ class SystemMgrNode():
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
-
-        self.status_msg.sys_debug_enabled = self.debug_enabled
-        nepi_system.set_debug_mode(self.debug_enabled)
-
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -712,10 +773,14 @@ class SystemMgrNode():
             self.sd_card_device = self.node_if.get_param("sd_card_device")
 
             self.ssd_device = self.node_if.get_param("ssd_device")
+
+
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.debug_enabled = self.node_if.get_param('debug_mode')
+            self.debug_enabled = self.node_if.get_param('debug_enabled')
+            self.admin_enabled = self.node_if.get_param('admin_enabled')
+            self.admin_restricted = self.node_if.get_param('admin_restricted')
         if do_updates == True:
             pass
         # self.publish_settings() # Make sure to always publish settings updates
@@ -805,6 +870,7 @@ class SystemMgrNode():
                             states_list.append(state)
                     except:
                         self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+
             try:
                 msg = nepi_states.create_states_status_msg(states_list)
             except Exception as e:
@@ -962,6 +1028,13 @@ class SystemMgrNode():
         response.degug_enabled = self.debug_enabled
         return response
 
+    def provide_admin_status(self, req):
+        response = AdminQueryResponse()
+        response.admin_enabled = self.admin_enabled
+        response.admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
+        response.admin_restricted = self.admin_restricted
+        return response
+
     def provide_system_status(self, req):
         response = SystemStatusQueryResponse()
         response.system_status = self.status_msg
@@ -976,6 +1049,16 @@ class SystemMgrNode():
         # Disk usage
         self.update_storage()
 
+        # Update sys status and params if needed
+        if self.debug_enabled != self.status_msg.sys_debug_enabled:
+            self.status_msg.sys_debug_enabled = self.debug_enabled
+            nepi_system.set_debug_mode(self.debug_enabled)
+        if self.admin_enabled != self.status_msg.sys_admin_enabled:
+            self.status_msg.sys_admin_enabled = self.admin_enabled
+            nepi_system.set_admin_mode(self.admin_enabled)
+        if self.admin_restricted != self.status_msg.sys_admin_restricted:
+            self.status_msg.sys_admin_restricted = self.admin_restricted
+            nepi_system.set_admin_restricted(self.admin_restricted)
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
@@ -989,9 +1072,26 @@ class SystemMgrNode():
     def enable_debug_callback(self, msg):
         self.debug_enabled = msg.data
         self.status_msg.sys_debug_enabled = msg.data
-        nepi_sdk.set_param('debug_mode',msg.data)
         if self.node_if is not None:
-            self.node_if.set_param('debug_mode',msg.data)
+            self.node_if.set_param('debug_enabled',msg.data)
+            self.node_if.save_config()
+
+    def enable_admin_callback(self, msg):
+        self.admin_enabled = msg.data
+        self.status_msg.sys_admin_enabled = msg.data
+        if self.node_if is not None:
+            self.node_if.set_param('admin_enabled',msg.data)
+            self.node_if.save_config()
+
+    def set_admin_callback(self, msg):
+        restricted = []
+        for entry in msg.entries:
+            if entry in self.ADMIN_RESTRICT_OPTIONS:
+                restricted.append(entry)
+        self.sys_admin_restricted = restricted
+        self.status_msg.sys_admin_enabled = restricted
+        if self.node_if is not None:
+            self.node_if.set_param('admin_restricted',restricted)
             self.node_if.save_config()
 
     def ensure_reqd_storage_subdirs(self):
@@ -1179,12 +1279,12 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Already in the process of archiving image")
             return
         fw_str = self.system_defs_msg.inactive_rootfs_fw_version
-        fw_str = fw_str.replace('.','_')
+        fw_str = fw_str.replace('.','p')
         fw_str = fw_str.replace(' ','_')
         fw_str = fw_str.replace('/','_')
         now = datetime.datetime.now()
-        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m_%d_%H%M%S") + '.img.raw'
-        self.msg_if.pub_warn("Archiving inactive rootfs to filename: " + backup_file_basename)
+        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+        self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
         self.status_msg.sys_img_archive_status = 'archiving'
         self.status_msg.sys_img_archive_filename = backup_file_basename
 

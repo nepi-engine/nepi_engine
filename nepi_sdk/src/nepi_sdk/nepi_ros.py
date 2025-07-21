@@ -215,7 +215,7 @@ def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
         if uid[0] == '_':
             uid = uid[1:]
     else:
-        uid = base_namespace + '_' + str(time.time_ns())[-6:]
+        uid = os.path.join(base_namespace,'_' + str(time.time_ns())[-6:])
     if add_name is not None:
       uid = uid + '_' + add_name
     uid = uid.replace('.','')
@@ -229,8 +229,14 @@ def init_node(name,disable_signals=False):
 
   
 def get_base_namespace():
+  nepi_names = []
   nepi_node=find_node('nepi')
   nepi_names = nepi_node.split('/')
+  if len(nepi_names) < 3:
+    while(len(nepi_names) < 3):
+      nepi_node=find_node('nepi')
+      nepi_names = nepi_node.split('/')
+      sleep(.1)
   base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
   return base_namespace
 
@@ -475,7 +481,7 @@ def set_param(param_namespace,param_val, log_name_list = []):
 def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
   param = None
   while param is None and timer < timeout and not rospy.is_shutdown():
     try:
@@ -485,7 +491,7 @@ def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
       sleep(1)
     time.sleep(.1)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  #log_msg_warn("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
   return param
 
 

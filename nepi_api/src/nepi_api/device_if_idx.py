@@ -222,8 +222,11 @@ class IDXDeviceIF:
         self.data_ref_description = data_ref_description
         self.tr_source_ref_description = data_ref_description
 
+        self.msg_if.pub_warn("Got driver supported data products: " + str(data_products))
+        #self.msg_if.pub_warn("Supported data products: " + str(SUPPORTED_DATA_PRODUCTS))
         data_products_list = []
         for data_product in data_products:
+            #self.msg_if.pub_warn("Checking data product: " + str(data_product))
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
         self.data_products_base_list = data_products_list
@@ -621,7 +624,7 @@ class IDXDeviceIF:
         
         self.caps_report.has_depth_map = False
         self.caps_report.has_pointcloud = False
-        '''
+
         if (getDepthMap is not None and 'depth_map' in self.data_products_base_list):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
@@ -641,7 +644,7 @@ class IDXDeviceIF:
         else:
             self.caps_report.has_depth_map = False
           
-
+        '''
         if (getPointcloud is not None and 'pointcloud' in self.data_products_base_list):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
@@ -756,7 +759,7 @@ class IDXDeviceIF:
         nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
         nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
 
-
+        '''
         ##################################
         if self.getNavPoseCb is not None:
             self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
@@ -765,11 +768,11 @@ class IDXDeviceIF:
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
                 get3DTransformCb = None, # Don't use the idx transform
-                navpose_update_rate = self.navpose_update_rate,
+                max_navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                 )
-
+        '''
 
 
         ####################################
@@ -1205,12 +1208,12 @@ class IDXDeviceIF:
             if self.setRangeRatio is not None:
                 status, err_str = self.setRangeRatio(new_start_range_ratio,new_stop_range_ratio)
 
-        self.status_msg.range_window.start_range = new_start_range_ratio
-        self.status_msg.range_window.stop_range = new_stop_range_ratio
+        self.start_range_ratio = new_start_range_ratio
+        self.stop_range_ratio = new_stop_range_ratio
         self.publish_status(do_updates=False) # Updated inline here  
-
-        self.node_if.set_param('start_range_ratio', new_start_range_ratio)
-        self.node_if.set_param('stop_range_ratio', new_stop_range_ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('start_range_ratio', new_start_range_ratio)
+            self.node_if.set_param('stop_range_ratio', new_stop_range_ratio)
      
     def setFrame3dCb(self, msg):
         self.msg_if.pub_info("Recived Output Frame 3D update message: " + str(msg))
@@ -1356,10 +1359,10 @@ class IDXDeviceIF:
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
 
                     if (status is False or cv2_img is None):
-                        self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
-                        self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
                         
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.width_px
@@ -1371,7 +1374,7 @@ class IDXDeviceIF:
 
                         # Now process and publish image
                         frame_3d = 'sensor_frame'
-                        dp_if.publish_cv2_img(cv2_img, encoding = encoding,
+                        cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
                                                         frame_3d = frame_3d,
                                                         width_deg = self.width_deg,
@@ -1402,7 +1405,7 @@ class IDXDeviceIF:
 
 
     def depth_map_thread_proccess(self,data_product):
-        cv2_img = None
+        cv2_depth_map = None
         ros_img = None
 
         if data_product not in self.data_product_dict.keys():
@@ -1416,15 +1419,14 @@ class IDXDeviceIF:
             dp_stop_data = dp_dict['stop_data']
 
 
-            #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
-            min_range_m = self.status_msg.range_window.start_range
-            max_range_m = self.status_msg.range_window.stop_range
+            range_m = self.max_range_m - self.min_range_m
+            min_range_m = self.min_range_m + self.start_range_ratio * range_m
+            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
             dp_namespace = self.namespace
             dp_if = DepthMapIF(namespace = dp_namespace, 
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
-                        enable_image_pub = True,
-                        max_image_pub_rate = 5,
+                        pub_image = True,
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
@@ -1444,6 +1446,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                dp_should_save = dp_should_save or self.save_data_if.data_product_should_save(data_product + '_image')
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
 
                 # Get data if requried
@@ -1451,42 +1454,43 @@ class IDXDeviceIF:
                 if get_data == True:
                     acquiring = True
 
-                    status, msg, cv2_img, timestamp, encoding = dp_get_data()
-                    if (status is False or cv2_img is None):
-                        self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
+                    status, msg, cv2_depth_map, timestamp, encoding = dp_get_data()
+                    if (status is False or cv2_depth_map is None):
+                        #self.msg_if.pub_warn("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
-                        self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_warn("Got Data: " + data_product, throttle_s = 5.0)
                         
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.width_px
                         cur_height = self.height_px
-                        cv2_shape = cv2_img.shape
+                        cv2_shape = cv2_depth_map.shape
                         self.width_px = cv2_shape[1] 
                         self.height_px = cv2_shape[0] 
 
 
                         if (dp_has_subs == True):
                             #Publish Ros Image
-                            min_range_m = self.status_msg.range_window.start_range
-                            max_range_m = self.status_msg.range_window.stop_range
+                            range_m = self.max_range_m - self.min_range_m
+                            min_range_m = self.min_range_m + self.start_range_ratio * range_m
+                            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
                             frame_3d = 'sensor_frame'
-                            dp_if.publish_cv2_depth_map(cv2_img,
-                                                    min_range_m = min_range_m,
-                                                    max_range_m = max_range_m,
+                            [cv2_depth_map, cv2_depth_map_img] = dp_if.publish_cv2_depth_map(cv2_depth_map,
+                                                    encoding = encoding,
                                                     width_deg = self.width_deg,
                                                     height_deg = self.height_deg,
-                                                    encoding = encoding,
+                                                    min_range_m = min_range_m,
+                                                    max_range_m = max_range_m,
                                                     timestamp = timestamp,
                                                     frame_3d = frame_3d,
                                                     device_mount_description = self.get_mount_description())
                         if (dp_should_save == True):
-                            self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
-
+                            self.save_data_if.save(data_product,cv2_depth_map,timestamp = timestamp,save_check=False)
+                            self.save_data_if.save(data_product + '_image',cv2_depth_map_img,timestamp = timestamp,save_check=False)
 
                         self.update_fps(data_product)
 
-                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.width_px) + ":" + str(self.height_px), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("Got cv2_depth_map size: " + str(self.width_px) + ":" + str(self.height_px), log_name_list = self.log_name_list, throttle_s = 5.0)
                         if cur_width != self.width_px or cur_height != self.height_px:
                             self.publish_status()
 
@@ -1527,8 +1531,7 @@ class IDXDeviceIF:
             dp_if = PointcloudIF(namespace = dp_namespace, 
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
-                        enable_image_pub = True,
-                        max_image_pub_rate = 5,
+                        pub_image = True,
                         init_overlay_list = [],
                         log_name = data_product,
                         log_name_list = self.log_name_list,
@@ -1550,6 +1553,7 @@ class IDXDeviceIF:
                 # Get Data Product Dict and Data_IF
                 dp_has_subs = dp_if.has_subscribers_check()
                 dp_should_save = self.save_data_if.data_product_should_save(data_product)
+                dp_should_save = dp_should_save or self.save_data_if.data_product_should_save(data_product + '_image')
                 dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
 
                 # Get data if requried
@@ -1570,19 +1574,20 @@ class IDXDeviceIF:
                         #********************
 
                         if (dp_has_subs == True):
-                            min_range_m = self.status_msg.range_window.start_range
-                            max_range_m = self.status_msg.range_window.stop_range
-                            dp_if.publish_cv2_o3d_pc(o3d_pc,
-                                                    min_range_m = min_range_m,
-                                                    max_range_m = max_range_m,
+                            range_m = self.max_range_m - self.min_range_m
+                            min_range_m = self.min_range_m + self.start_range_ratio * range_m
+                            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
+                            [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(cv2_depth_map,
                                                     width_deg = self.width_deg,
                                                     height_deg = self.height_deg,
-                                                    encoding = encoding,
+                                                    min_range_m = min_range_m,
+                                                    max_range_m = max_range_m,
                                                     timestamp = timestamp,
                                                     frame_3d = frame_3d,
                                                     device_mount_description = self.get_mount_description())
                         if (dp_should_save == True ):
-                            self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp, save_check=False)
+                            self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp,save_check=False)
+                            self.save_data_if.save(data_product + '_image',cv2_pc_img,timestamp = timestamp,save_check=False)
 
                         self.update_fps(data_product)
 
@@ -1619,6 +1624,7 @@ class IDXDeviceIF:
 
     def runDepthMapThread(self):
         self.depth_map_thread_proccess('depth_map')
+        #pass
 
     def runPointcloudThread(self):
         self.pointcloud_thread_proccess('pointcloud')
@@ -1637,9 +1643,6 @@ class IDXDeviceIF:
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
         self.status_msg.perspective = self.perspective
-
-        self.status_msg.min_range_m = self.min_range_m
-        self.status_msg.max_range_m = self.max_range_m
         
         self.status_msg.resolution_ratio = self.resolution_ratio
         res_str = str(self.width_px) + ":" + str(self.height_px)
@@ -1661,6 +1664,9 @@ class IDXDeviceIF:
         
         self.status_msg.range_window_ratios.start_range = self.start_range_ratio
         self.status_msg.range_window_ratios.stop_range =  self.stop_range_ratio
+
+        self.status_msg.min_range_m = self.min_range_m
+        self.status_msg.max_range_m = self.max_range_m
 
 
 

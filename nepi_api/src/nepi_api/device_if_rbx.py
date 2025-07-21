@@ -830,7 +830,7 @@ class RBXRobotIF:
                 data_source_description = self.data_source_description,
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
-                navpose_update_rate = self.navpose_update_rate,
+                max_navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                 )
@@ -839,6 +839,8 @@ class RBXRobotIF:
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
+
+        
     def initConfig(self):
         self.initCb()         
 

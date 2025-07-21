@@ -13,7 +13,7 @@ import { Columns, Column } from "./Columns"
 import Select, { Option } from "./Select"
 import Styles from "./Styles"
 
-import DriversSelector from "./NepiSelectorAppsDrivers"
+import DriversMgr from "./NepiSystemDrivers"
 
 import IDX from "./NepiDeviceIDX"
 import PTX from "./NepiDevicePTX"
@@ -179,8 +179,8 @@ class DevicesSelector extends Component {
       <Columns>
         <Column>
 
-        <DriversSelector
-         title={"DriversMgr"}
+        <DriversMgr
+         title={"Drivers Manager"}
          />
 
       </Column>

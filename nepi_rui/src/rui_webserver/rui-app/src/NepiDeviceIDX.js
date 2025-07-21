@@ -120,6 +120,7 @@ class NepiDeviceIDX extends Component {
       this.setState({
         namespace: value,
         namespaceText: text,
+        data_topic = autoSelectedImgTopic,
         data_product: autoSelectedImgTopicText,
         imageTopic: autoSelectedImgTopic,
         imageText: autoSelectedImgTopicText
@@ -160,7 +161,8 @@ class NepiDeviceIDX extends Component {
     }
 
     if (img_topic != null && text.indexOf('image') === -1){
-      img_topic = img_topic + '_image'
+      img_topic = img_topic + '/' + text + '_image'
+      img_text = text + '_image'
     }
 
     this.setState({
@@ -175,6 +177,7 @@ class NepiDeviceIDX extends Component {
     const { idxDevices, sendTriggerMsg  } = this.props.ros
     const NoneOption = <Option>None</Option>
     const device_selected = (this.state.namespace != null)
+    const data_topic = this.state.data_topic
     const namespace = this.state.namespace ? this.state.namespace : "None"
 
     return (
@@ -200,7 +203,7 @@ class NepiDeviceIDX extends Component {
                     <Select
                       id="topicSelect"
                       onChange={this.onDataProductSelected}
-                      value={this.state.imageTopic}
+                      value={data_topic}
                     >
                       {namespace
                         ? this.createDataProductOptions(namespace)

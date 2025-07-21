@@ -19,18 +19,14 @@ import HorizontalDivider from "./HorizontalDivider"
 import Dashboard from "./NepiDashboard"
 
 import DevicesSelector from "./NepiSelectorDevices"
-import AppsAutoSelector from "./NepiSelectorAppsAuto"
-import AppsDataSelector from "./NepiSelectorAppsData"
-import AppsNavPoseSelector from "./NepiSelectorAppsNavPose"
-import AppsAiSelector from "./NepiSelectorAppsAI"
-import DriversSelector from "./NepiSelectorAppsDrivers"
+import AutoSelector from "./NepiSelectorAuto"
+import DataSelector from "./NepiSelectorData"
+import NavPoseSelector from "./NepiSelectorNavPose"
+import AiSelector from "./NepiSelectorAI"
+import SystemSelector from "./NepiSelectorSystem"
 
 
-import DeviceMgr from "./NepiSystemDevice"
-import NavPoseMgr from "./NepiMgrNavPose"
-import SoftwareMgr from "./NepiSystemSoftware"
-import AifsMgr from "./NepiSystemAIFs"
-import AppsMgr from "./NepiSystemApps"
+
 
 
 //const IS_LOCAL = window.location.hostname === "localhost"
@@ -57,22 +53,11 @@ class App extends Component {
           pages={[
             { path: "/", label: "Dashboard" },
             { path: "/devices_selector", label: "Devices"},
-            { path: "/apps_data_selector", label: "Data"},
-            { path: "/apps_navpose_selector", label: "NavPose"},
-            { path: "/apps_ai_selector", label: "AI_System"},
-            { path: "/apps_auto_selector", label: "Automation"},
-            {
-              path: "/system",
-              label: "System",
-              subItems: [
-                { path: "/device_config", label: "Device" },
-                { path: "/navPose", label: "NavPose" },
-                { path: "/software_mgr", label: "Software" },
-                { path: "/drivers_selector", label: "Drivers"},
-                { path: "/apps_mgr", label: "Apps"},
-                { path: "/ai_model_mgr", label: "AI Models"}
-              ]
-            },
+            { path: "/data_selector", label: "Data"},
+            { path: "/navpose_selector", label: "NavPose"},
+            { path: "/ai_selector", label: "AI_System"},
+            { path: "/auto_selector", label: "Automation"},
+            { path: "/system_selector", label: "System"},
             {
               path: "/help",
               label: "Help",
@@ -88,20 +73,13 @@ class App extends Component {
         <Switch>
           <Route exact path="/" component={Dashboard} />
 
-          <Route path="/apps_auto_selector" component={AppsAutoSelector} />
-          <Route path="/apps_data_selector" component={AppsDataSelector} />
-          <Route path="/apps_navpose_selector" component={AppsNavPoseSelector} />
-          <Route path="/apps_ai_selector" component={AppsAiSelector} />
-          <Route path="/drivers_selector" component={DriversSelector} />
-          <Route path="/devices_selector" component={DevicesSelector} />
-
-          <Route path="/navPose" component={NavPoseMgr} />
-          <Route path="/device_config" component={DeviceMgr} />
-          <Route path="/software_mgr" component={SoftwareMgr} />
-          <Route path="/apps_mgr" component={AppsMgr} />
-          <Route path="/ai_model_mgr" component={AifsMgr} />
-
-
+          <Route path="/devices_selector" component={DevicesSelector} />      
+          <Route path="/navpose_selector" component={NavPoseSelector} />
+          <Route path="/data_selector" component={DataSelector} /> 
+          <Route path="/ai_selector" component={AiSelector} />
+          <Route path="/auto_selector" component={AutoSelector} />
+          <Route path="/system_selector" component={SystemSelector} />
+          
 
           <Route path='/docs' component={() => {
              window.location.href = 'https://nepi.com/documentation/';

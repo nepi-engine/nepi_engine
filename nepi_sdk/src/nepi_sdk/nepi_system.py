@@ -33,6 +33,26 @@ def set_debug_mode(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
+def get_admin_mode(timeout = float('inf'), log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(base_namespace,'admin_mode')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_admin_mode(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(base_namespace,'admin_mode')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+def get_admin_restricted(timeout = float('inf'), log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(base_namespace,'admin_restricted')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_admin_restricted(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(base_namespace,'admin_restricted')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
 def get_user_folders(timeout = float('inf'), log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(base_namespace,'user_folders')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)

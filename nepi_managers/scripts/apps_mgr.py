@@ -73,6 +73,7 @@ class NepiAppsMgr(object):
   def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -381,7 +382,8 @@ class NepiAppsMgr(object):
     ## Process Apps
     restart = self.restart_enabled
     for app_name in self.apps_ordered_list:
-      if app_name in apps_active_list and app_name not in apps_dict.keys():
+      if app_name in apps_active_list and app_name not in self.apps_active_dict.keys():
+        #self.msg_if.pub_warn("Launching app: " + str(app_name) )
         app_dict = apps_dict[app_name]
         #self.msg_if.pub_warn(app_dict)
         app_pkg_name = app_dict['APP_DICT']['pkg_name']
@@ -434,14 +436,14 @@ class NepiAppsMgr(object):
               
 
 
-    self.msg_if.pub_warn("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
-    self.msg_if.pub_info("Ending Updater with active apps: " + str(self.getActiveApps()))
+    #self.msg_if.pub_warn("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
+    #self.msg_if.pub_info("Ending Updater with active apps: " + str(self.getActiveApps()))
 
     # Publish Status
     self.publish_status()
     # And now that we are finished, start a timer for the appt runDiscovery()
     #nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL)
-    #nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+    nepi_sdk.start_timer_process(self.UPDATE_CHECK_INTERVAL, self.checkAndUpdateCb, oneshot=True)
    
 
 
