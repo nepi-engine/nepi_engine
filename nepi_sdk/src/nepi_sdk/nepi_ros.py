@@ -300,7 +300,7 @@ def launch_node(pkg_name, file_name, ros_node_name, device_path = None, log_name
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
-    msg = str("Failed to launch node %s with exception: %s", ros_node_name, str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    msg = str("Failed to launch node %s with Exception: %s", ros_node_name, str(e), log_name_list = log_name_list, throttle_s = 5.0)
     log_msg_debug("NEPI_NEX: " + msg)
   if success: 
     if sub_process.poll() is not None:
@@ -664,8 +664,8 @@ def get_topic_list():
   try:
     pubs, subs =rostopic.get_topic_list()
     topic_list = pubs + subs
-  except:
-    pass
+  except Exception as e:
+    rospy.logwarn("Nepi Sdk get_topic_list failed: " + str(e))
   return topic_list
 
 def get_published_topics():
@@ -698,21 +698,27 @@ def find_topic(topic_name, exact = False):
 
 # Function to find a topic
 def find_topics_by_msg(msg_type):
+  #rospy.logwarn("msg find: " + str(msg_type))
   topic_list = []
   try:
     topics=get_topic_list()
     for topic_entry in topics:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
+      #rospy.logwarn("msg check: " + str([msg_type, topic_str, msg_str]))
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         if msg_str.find(msg_type) != -1:
           topic_list.append(topic_str)
-  except:
-    pass
+          rospy.logwarn("msg found: " + str([msg_type, topic_str]))
+
+  except Exception as e:
+    rospy.logwarn("Nepi Sdk find_topics_by_msg failed: " + str(e))
   return topic_list
 
 # Function to find a topic
 def find_topics_by_msgs(msg_type_list):
+  #rospy.logwarn("msg find: " + str(msg_type_list))
+
   topic_list = []
   msg_list = []
   try:
@@ -720,13 +726,16 @@ def find_topics_by_msgs(msg_type_list):
     for topic_entry in topics:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
+      #rospy.logwarn("msg check: " + str(msg_type_list + [topic_str, msg_str]))
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         for msg_type in msg_type_list:
           if msg_str.find(msg_type) != -1:
             topic_list.append(topic_str)
             msg_list.append(msg_str)
-  except:
-    pass
+            #rospy.logwarn("msgs found: " + str([msg_type, topic_str]))
+
+  except Exception as e:
+    rospy.logwarn("Nepi Sdk find_topics_by_msgs failed: " + str(e))
   return topic_list,msg_list
 
 # Function to find a topic
@@ -740,8 +749,8 @@ def find_msg_by_topic(topic):
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         if topic_str == topic:
           msg = msg_str
-  except:
-    pass
+  except Exception as e:
+    rospy.logwarn("Nepi Sdk find_msg_by_topic failed: " + str(e))
   return topic_list
 
 # Function to find a topic
@@ -754,8 +763,8 @@ def find_topics_by_name(topic_name):
       msg_str = topic_entry[1]
       if topic_name == os.path.basename(topic_str):
         topic_list.append(topic_str)
-  except:
-    pass
+  except Exception as e:
+    rospy.logwarn("Nepi Sdk find_topics_by_name failed: " + str(e))
   return topic_list
 
 ### Function to check for a topic 

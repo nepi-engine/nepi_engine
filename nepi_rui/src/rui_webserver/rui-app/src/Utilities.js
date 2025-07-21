@@ -107,6 +107,19 @@ export function onChangeSwitchStateValue(stateVarNameStr,currentVal){
   this.setState(obj)
 }
 
+export function onChangeSwitchStateNestedValue(parentKey, nestedKey, currentVal) {
+  var value = currentVal === false;
+  
+  this.setState({
+    [parentKey]: {
+      ...this.state[parentKey],
+      [nestedKey]: {
+        ...this.state[parentKey][nestedKey],
+        fixed: value
+      }
+    }
+  });
+}
 
 /////////////////////////////
 // MENU FUNCTIONS
@@ -294,6 +307,21 @@ export function onUpdateSetStateValue(event,stateVarStr) {
   this.render()
 }
 
+export function onUpdateSetStateNestedValue(event,stateVarStr) {
+  var key = stateVarStr
+  var value = event.target.value
+  var obj  = {}
+  obj[key] = value
+  this.setState(obj)
+  document.getElementById(event.target.id).style.color = Styles.vars.colors.red
+  this.render()
+}
+
+
+
+
+
+
 export function onEnterSendIntValue(event, namespace) {
   const {sendIntMsg} = this.props.ros
   if(event.key === 'Enter'){
@@ -330,7 +358,28 @@ export function onEnterSetStateFloatValue(event, stateVarStr) {
   }
 }
 
+export function onUpdateSetStateNestedFloatValue(component, event, stateVarStr) {
+  const rawVal = event.target.value;
+  const floatVal = parseFloat(rawVal);
+  const value = isNaN(floatVal) ? rawVal : floatVal;
 
+  const keys = stateVarStr.split('.');
+  const lastKey = keys.pop();
+
+  const newState = { ...component.state };
+  let ref = newState;
+
+  for (let key of keys) {
+    ref[key] = { ...ref[key] };
+    ref = ref[key];
+  }
+
+  ref[lastKey] = value;
+  component.setState(newState);
+
+  const input = document.getElementById(event.target.id);
+  if (input) input.style.color = isNaN(floatVal) ? 'red' : 'black';
+}
 
 /////////////////////////////
 // STYLE FUNCTIONS

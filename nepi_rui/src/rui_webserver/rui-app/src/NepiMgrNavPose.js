@@ -21,13 +21,15 @@ import Toggle from "react-toggle"
 import Label from "./Label"
 import Input from "./Input"
 import { Column, Columns } from "./Columns"
-import { round, onUpdateSetStateValue, onEnterSetStateFloatValue, createShortUniqueValues } from "./Utilities"
+import { round, createShortUniqueValues, onUpdateSetStateValue, onEnterSetStateFloatValue, onChangeSwitchStateNestedValue } from "./Utilities"
 
 import NepiDeviceInfo from "./Nepi_IF_DeviceInfo"
 import NepiIFSettings from "./Nepi_IF_Settings"
 import NepiIFSaveData from "./Nepi_IF_SaveData"
 import NepiIFNavPoseViewer from "./Nepi_IF_NavPoseViewer"
 import NepiIFConfig from "./Nepi_IF_Config"
+
+import moment from "moment"
 
 
 @inject("ros")
@@ -60,7 +62,7 @@ class MgrNavPose extends Component {
 
       navposeListener: null,
       navpose_msg: null,
-
+/*
       fixedDict: {
         location: {
           fixed: false,
@@ -86,10 +88,49 @@ class MgrNavPose extends Component {
           fixed: false,
           npData: this.props.ros.blankNavPose
         }
-      },
-
-
-
+*/
+  location_fixed: false,
+  heading_fixed: false,
+  orientation_mode: false,
+  position_fixed: false,
+  altitude_fixed: false,
+  depth_fixed: false,
+  
+  fixed_npData_frame_3d: 'nepi_frame',
+  fixed_npData_frame_nav: 'ENU',
+  fixed_npData_frame_altitude: 'WGS84',
+  fixed_npData_frame_depth: 'MSL',
+  
+  fixed_npData_geoid_height_meters: 0.0,
+  
+  fixed_npData_has_location: false,
+  fixed_npData_time_location: moment.utc().unix(),
+  fixed_npData_latitude: 0.0,
+  fixed_npData_longitude: 0.0,
+  
+  fixed_npData_has_heading: false,
+  fixed_npData_time_heading: moment.utc().unix(),
+  fixed_npData_heading_deg: 0.0,
+  
+  fixed_npData_has_position: false,
+  fixed_npData_time_position: moment.utc().unix(),
+  fixed_npData_x_m: 0.0,
+  fixed_npData_y_m: 0.0,
+  fixed_npData_z_m: 0.0,
+  
+  fixed_npData_has_orientation: false,
+  fixed_npData_time_orientation: moment.utc().unix(),
+  fixed_npData_roll_deg: 0.0,
+  fixed_npData_pitch_deg: 0.0,
+  fixed_npData_yaw_deg: 0.0,
+  
+  fixed_npData_has_altitude: false,
+  fixed_npData_time_altitude: moment.utc().unix(),
+  fixed_npData_altitude_m: 0.0,
+  
+  fixed_npData_has_depth: false,
+  fixed_npData_time_depth: moment.utc().unix(),
+  fixed_npData_depth_m: 0.0,
 
       showTransformsDict: {
         location: false,
@@ -188,20 +229,19 @@ class MgrNavPose extends Component {
     this.navposeListener = this.navposeListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
     this.updateNavposeListener = this.updateNavposeListener.bind(this)
-
-
+    
   }
 
     
   getBaseNamespace(){
-    console.log("=====getBaseNamespace called=====")
+    //console.log("=====getBaseNamespace called=====")
 
     const { namespacePrefix, deviceId} = this.props.ros
     var baseNamespace = null
     if (namespacePrefix !== null && deviceId !== null){
       baseNamespace = "/" + namespacePrefix + "/" + deviceId 
     }
-    console.log("BaseNamespace: " + baseNamespace)
+    //console.log("BaseNamespace: " + baseNamespace)
 
     return baseNamespace
   }
@@ -222,8 +262,8 @@ class MgrNavPose extends Component {
 
   // Callback for handling ROS StatusNPX messages
   statusListener(message) {
-    console.log("=====statusListener called=====")
-    console.log("statusListener msg: ", message);
+    //console.log("=====statusListener called=====")
+    //console.log("statusListener msg: ", message);
 
     const last_status_msg = this.state.status_msg
     this.setState({
@@ -245,8 +285,9 @@ class MgrNavPose extends Component {
       has_changed = (last_status_msg == null) ? true :
                             (last_fixed !== fixed)
       if (has_changed === true){
-        this.fixedDict[name]['fixed'] = fixed
-      }
+        this.setState({
+          [name + '_fixed']: fixed
+        })      }
       
       const transform_msg = comp_info.transform
       const last_transform_msg = last_comp_info.transform
@@ -267,8 +308,8 @@ class MgrNavPose extends Component {
   }
 
   navposeListener(message) {
-    console.log("=====navposeListener called=====" + message)
-    console.log("navposeListener msg: " + message)
+    //console.log("=====navposeListener called=====" + message)
+    //console.log("navposeListener msg: " + message)
     const last_navpose_msg = this.state.navpose_msg
     const navpose_data = {
       frame_3d: message.frame_3d,
@@ -298,22 +339,24 @@ class MgrNavPose extends Component {
     var navpose = null
     const navpose_msg = message
 
-
+/*
     name = 'location'
-    fixed = this.state.fixedDict[name]['fixed']
+    fixed = this.state[name + '_fixed']
     navpose = this.state.fixedDict[name]['npData']
     if (fixed === true){
       changed = last_navpose_msg == null ? true:
                 ((navpose_msg.latitude !== last_navpose_msg.latitude) ||
                 (navpose_msg.longitude !== last_navpose_msg.longitude))
       if (changed === true){
-        this.state.fixedDict[name]['npData']['latitude'] = navpose_msg.latitude
-        this.state.fixedDict[name]['npData']['latitude'] = navpose_msg.latitude
+        this.setState({
+          fixed_npData_latitude: navpose_msg.latitude
+        })
+      this.state.fixedDict[name]['npData']['longitude'] = navpose_msg.longitude
       }
     }
 
     name = 'heading'
-    fixed = this.state.fixedDict[name]['fixed']
+    fixed = this.state[name + '_fixed']
     navpose = this.state.fixedDict[name]['npData']
     if (fixed === true){
       changed = last_navpose_msg == null ? true:
@@ -324,7 +367,7 @@ class MgrNavPose extends Component {
     }
 
     name = 'orientation'
-    fixed = this.state.fixedDict[name]['fixed']
+    fixed = this.state[name + '_fixed']
     navpose = this.state.fixedDict[name]['npData']
     if (fixed === true){
       changed = last_navpose_msg == null ? true:
@@ -339,7 +382,7 @@ class MgrNavPose extends Component {
     }
 
     name = 'position'
-    fixed = this.state.fixedDict[name]['fixed']
+    fixed = this.state[name + '_fixed']
     navpose = this.state.fixedDict[name]['npData']
     if (fixed === true){
       changed = last_navpose_msg == null ? true:
@@ -355,7 +398,7 @@ class MgrNavPose extends Component {
 
 
       name = 'altitude'
-      fixed = this.state.fixedDict[name]['fixed']
+      fixed = this.state[name + '_fixed']
       navpose = this.state.fixedDict[name]['npData']
       if (fixed === true){
         changed = last_navpose_msg == null ? true:
@@ -366,7 +409,7 @@ class MgrNavPose extends Component {
       }
 
       name = 'depth'
-      fixed = this.state.fixedDict[name]['fixed']
+      fixed = this.state[name + '_fixed']
       navpose = this.state.fixedDict[name]['npData']
       if (fixed === true){
         changed = last_navpose_msg == null ? true:
@@ -376,16 +419,16 @@ class MgrNavPose extends Component {
         }
       }
 
-
+*/
 
   }
 
   updateStatusListener() {
-    console.log("=====updateStatusListener called=====");
+    //console.log("=====updateStatusListener called=====");
     const namespace = this.state.base_namespace + "/" + this.state.mgrName;
     const topic = namespace + "/status";
-    console.log("Attempting to subscribe to:", topic);
-    console.log("Expected message type: nepi_interfaces/MgrNavPoseStatus");
+    //console.log("Attempting to subscribe to:", topic);
+    //console.log("Expected message type: nepi_interfaces/MgrNavPoseStatus");
     
     // Add error handling
     try {
@@ -399,14 +442,14 @@ class MgrNavPose extends Component {
         statusListener: statusListener,
         needs_update: false 
       });
-      console.log("Status listener setup successful");
+      //console.log("Status listener setup successful");
     } catch (error) {
       console.error("Failed to setup status listener:", error);
     }
   }
 
 updateNavposeListener() {
-  console.log("=====updateNavposeListener called=====")
+  //console.log("=====updateNavposeListener called=====")
 
   const namespace = this.state.base_namespace
   const navposeTopic = namespace + "/navpose"
@@ -443,15 +486,15 @@ updateNavposeListener() {
       } else if (namespace == null){
         this.setState({ disabled: true })
       }
-    console.log("Namespace check:", this.getMgrNamespace(), this.getBaseNamespace(), this.props.ros);
+    //console.log("Namespace check:", this.getMgrNamespace(), this.getBaseNamespace(), this.props.ros);
 
     }
   }
 
   componentDidMount() {
-    console.log("Component mounted, checking connection...");
-    console.log("namespacePrefix:", this.props.ros.namespacePrefix);
-    console.log("deviceId:", this.props.ros.deviceId);
+    //console.log("Component mounted, checking connection...");
+    //console.log("namespacePrefix:", this.props.ros.namespacePrefix);
+    //console.log("deviceId:", this.props.ros.deviceId);
     this.checkConnection();
   }
   
@@ -496,7 +539,7 @@ updateNavposeListener() {
     const status_msg = this.state.status_msg
 
     var items = []
-    items.push(<Option value={'None'}>{'None'}</Option>)
+    items.push(<Option value={'Fixed'}>{'Fixed'}</Option>)
     if (status_msg != null){
   
       const comp_names = status_msg.comp_names
@@ -553,8 +596,6 @@ updateNavposeListener() {
     sendStringMsg(namespace,name)
   }
 
-  
-
   renderMgrControls() {
 
     const componentElements = []
@@ -566,7 +607,7 @@ updateNavposeListener() {
     const status_msg = this.state.status_msg
     //////////////// 
     if (status_msg == null){
-      console.log('status_msg is null in renderMgrControls')
+      //console.log('status_msg is null in renderMgrControls')
     }
 
     if (status_msg == null){
@@ -580,19 +621,31 @@ updateNavposeListener() {
       )
     }
     else {
+
       const comp_names = status_msg.comp_names
       const comp_infos = status_msg.comp_infos
-      console.log('=============renderMgrControls=================')
-      console.log('comp_names: ' + comp_names)
-
+      //console.log('=============renderMgrControls=================')
+      //console.log('comp_names: ' + comp_names)
+      //console.log('comp_infos: ' + comp_names)
       const componentElements = []
 
       for (var i = 0; i < comp_names.length; i++) {
         const comp_info = comp_infos[i]
         // Show for each
         const name = comp_info.name
+        const name_state = this.state[name + '_fixed']
+        const topics = comp_info.available_topics
+        const msgs = comp_info.available_topic_msgs
+        //console.log('name_state: ' + name_state)
+
         const name_text = name.toUpperCase()
         const fixed = comp_info.fixed
+        //console.log('name: ' + name + ' fixed: ' + name_state)
+        //console.log('name: ' + name + ' fixed: ' + fixed)
+
+        const topic = (comp_info.topic !== '') ? comp_info.topic : 'None'
+        //console.log('dropdown topic: ' + topic)
+
         componentElements.push(
 
        
@@ -607,11 +660,16 @@ updateNavposeListener() {
                             {name_text}
                           </label>
 
-                        <Label title="Set as Fixed">
-                        <Toggle
-                          checked={fixed === true}
-                          onClick={(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + '.fixed')}>
-                        </Toggle>
+                          <Label title={"Select Source Topic"}>
+                        <Select
+                          id={name}
+                          onChange={() => this.onTopicSelected(name)}
+                          value={topic}
+                          >
+                          {namespace
+                            ? this.createTopicOptions(name)
+                            : <Option value={'None'}>{'None'}</Option>}
+                        </Select>
                       </Label>
 
                     </Column>
@@ -657,353 +715,343 @@ updateNavposeListener() {
     }
   }
 
-  renderMgrFixedControls(name,comp_info) {
+  renderMgrFixedControls(name, comp_info) {
     const {sendTriggerMsg, sendNavPoseMsg} = this.props.ros
     const namespace = this.state.namespace
-    ////////////////
-    const status_msg = null //this.state.status_msg
-    console.log("=================Fixed Controls==================")
-    console.log("status Msg: " + status_msg)
-
-    //////////////// 
-
+    // Remove the null assignment and early return
+    const status_msg = this.state.status_msg
     
-    if (status_msg == null){
-      return (
-            <Columns>
-            <Column>
-            
+    const fixed = this.state[name + '_fixed']
 
-            </Column>
-          </Columns>
+    //console.log(this.state.fixed_npData_latitude)
+    if (name === 'location'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                <Label title={"Latitude"}>
+                  <Input
+                    value={this.state.fixed_npData_latitude}
+                    id="latitude"
+                    onChange={(event) =>
+                      onUpdateSetStateValue.bind(this)(event, 'fixed_npData_latitude')
+                    }
+                    onKeyDown={(event) =>
+                      onEnterSetStateFloatValue.bind(this)(event, 'fixed_npData_latitude')
+                    }
+                    style={{ width: '80%' }}
+                  />
+                </Label>
+
+                  <Label title={"Longitude"}>
+                        <Input
+                          value={this.state.fixed_npData_longitude}
+                          id="longitude"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_longitude')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_longitude')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(
+                      namespace,
+                      this.state.fixed_npData_latitude,
+                      this.state.fixed_npData_longitude,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(
+                      namespace,
+                      0.0,
+                      0.0,
+                      false
+                    )}>{"Clear Fix"}</Button>
+                    </ButtonMenu>                 
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
       )
     }
+  
+    else if (name === 'heading'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                    <Label title={"Heading (Deg)"}>
+                        <Input
+                          value={this.state.fixed_npData_heading_deg}
+                          id="heading"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_heading_deg')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_heading_deg')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(
+                      namespace,
+                      this.state.fixed_npData_heading_deg,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+                    <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(
+                      namespace,
+                      0.0,
+                      false
+                    )}>{"Clear Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
+      )
+    }
+  
+    else if (name === 'orientation'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                    <Label title={"Roll (Deg)"}>
+                        <Input
+                          value={this.state.fixed_npData_roll_deg}
+                          id="roll"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_roll_deg')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_roll_deg')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  <Label title={"Pitch (Deg)"}>
+                        <Input
+                          value={this.state.fixed_npData_pitch_deg}
+                          id="pitch"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_pitch_deg')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_pitch_deg')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  <Label title={"Yaw (Deg)"}>
+                        <Input
+                          value={this.state.fixed_npData_yaw_deg}
+                          id="yaw"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_yaw_deg')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_yaw_deg')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+              <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(
+                      namespace,
+                      this.state.fixed_npData_roll_deg,
+                      this.state.fixed_npData_pitch_deg,
+                      this.state.fixed_npData_yaw_deg,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+              <ButtonMenu>
+                  <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(
+                    namespace,
+                    0,
+                    0,
+                    0,
+                    false
+                  )}>{"Update Fix"}</Button>
+              </ButtonMenu>
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
+      )
+    }
+  
+    else if (name === 'position'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                    <Label title={"X (Meters)"}>
+                        <Input
+                          value={this.state.fixed_npData_x_m}
+                          id="x"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_x_m')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_x_m')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  <Label title={"Y (Meters)"}>
+                        <Input
+                          value={this.state.fixed_npData_y_m}
+                          id="y"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_y_m')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_y_m')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  <Label title={"Z (Meters)"}>
+                        <Input
+                          value={this.state.fixed_npData_z_m}
+                          id="z"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_z_m')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_z_m')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+              <ButtonMenu>
+                    <Button onClick={() => this.props.ros.sendNavPosePositionMsg(
+                      namespace,
+                      this.state.fixed_npData_x_m,
+                      this.state.fixed_npData_y_m,
+                      this.state.fixed_npData_z_m,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+                    <ButtonMenu>
+                      <Button onClick={() => this.props.ros.sendNavPosePositionMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
+      )
+    }
+  
+    else if (name === 'altitude'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                    <Label title={"Altitude (Meters)"}>
+                        <Input
+                          value={this.state.fixed_npData_altitude_m}
+                          id="altitude"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_altitude_m')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_altitude_m')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+              <ButtonMenu>
+              <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(
+                      namespace,
+                      this.state.fixed_npData_altitude_m,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+                    <ButtonMenu>
+                      <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
+      )
+    }
+  
+    else if (name === 'depth'){
+      return (
+        <Columns>
+        <Column>
+              <Columns>
+                <Column>
+                    <Label title={"Depth (Meters)"}>
+                        <Input
+                          value={this.state.fixed_npData_depth_m}
+                          id="depth"
+                          onChange={(event) => onUpdateSetStateValue.bind(this)(event,'fixed_npData_depth_m')}
+                          onKeyDown={(event) => onEnterSetStateFloatValue.bind(this)(event,'fixed_npData_depth_m')}
+                          style={{ width: "80%" }}
+                        />
+                      </Label>
+                  </Column>
+                  <Column>
+                  </Column>
+                </Columns>
+  
+              <Columns>
+              <Column>
+              <ButtonMenu>
+              <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(
+                      namespace,
+                      this.state.fixed_npData_depth_m,
+                      false
+                    )}>{"Update Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              <Column>
+                    <ButtonMenu>
+                      <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
+                    </ButtonMenu>
+              </Column>
+              </Columns>
+        </Column>
+        </Columns>
+      )
+    }
+  
     else {
-        const fixed = this.state.fixedDict[name]['fixed']
-        const npData = this.state.fixedDict[name]['npData']
-
-        if (name === 'location'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"Latitude"}>
-                            <Input
-                              value={round(npData['latitude'],6)}
-                              id="latitude"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npData.latitude"
-)}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npData.longitude")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Longitude"}>
-                            <Input
-                              value={round(npData['longitude'],6)}
-                              id="longitude"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.longidude")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.longidude")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseLocationMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-        else if (name === 'heading'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"Heading (Deg)"}>
-                            <Input
-                              value={round(npData['heading_deg'],2)}
-                              id="heading"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.heading_deg")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.heading_deg")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseHeadingMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-
-        if (name === 'orientation'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"Roll (Deg)"}>
-                            <Input
-                              value={round(npData['roll_deg'],2)}
-                              id="roll"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.roll_deg")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.roll_deg")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Pitch (Deg)"}>
-                            <Input
-                              value={round(npData['pitch_deg'],2)}
-                              id="pitch"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.pitch_deg")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.pitch_deg")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Yaw (Deg)"}>
-                            <Input
-                              value={round(npData['yaw_deg'],2)}
-                              id="yaw"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.yaw_deg")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.yaw_deg")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseOrientationMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-
-        if (name === 'position'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"X (Meters)"}>
-                            <Input
-                              value={round(npData['x_m'],2)}
-                              id="x"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.x_m")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.x_m")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Y (Meters)"}>
-                            <Input
-                              value={round(npData['y_m'],2)}
-                              id="x"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.y_m")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.y_m")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      <Label title={"Z (Meters)"}>
-                            <Input
-                              value={round(npData['z_m'],2)}
-                              id="z"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.z_m")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.z_m")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPosePositionMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPosePositionMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-
-        else if (name === 'altitude'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"Altitude (Meters)"}>
-                            <Input
-                              value={round(npData['altitude_m'],2)}
-                              id="altitude"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.altitude_m")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.altitude_m")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseAltitudeMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-
-        else if (name === 'depth'){
-          return (
-            <Columns>
-            <Column>
-                  <Columns>
-                    <Column>
-
-                        <Label title={"Depth (Meters)"}>
-                            <Input
-                              value={round(npData['depth_m'],2)}
-                              id="depth"
-                              onChange= {(event) => onUpdateSetStateValue.bind(this)(event,'fixedDict.' + name + ".npDict.depth_m")}
-                              onKeyDown= {(event) => onEnterSetStateFloatValue.bind(this)(event,'fixedDict.' + name + ".npDict.depth_m")}
-                              style={{ width: "80%" }}
-                            />
-                          </Label>
-
-                      </Column>
-                      <Column>
-
-                      </Column>
-                    </Columns>
-
-
-                  <Columns>
-                  <Column>
-                        <ButtonMenu>
-                            <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(namespace,this.state.fixedDict[name]['npData'])}>{"Update Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  <Column>
-                        <ButtonMenu>
-                          <Button onClick={() => this.props.ros.sendNavPoseDepthMsg(namespace,this.props.ros.blankNavPose)}>{"Clear Fix"}</Button>
-                        </ButtonMenu>
-                  </Column>
-                  </Columns>
-            </Column>
-            </Columns>
-          )
-        }
-
-        else {
-          return (
-
-                  <Columns>
-                    <Column>
-
-                  </Column>
-                  </Columns>
-          )
-        }
-
-
-
+      return (
+        <Columns>
+          <Column>
+          </Column>
+        </Columns>
+      )
     }
   }
+
 
 
   renderMgrTopicControls(name, comp_info) {
@@ -1035,10 +1083,10 @@ updateNavposeListener() {
             const msg = comp_info.topic_msg
             const con = comp_info.connected
             // Show the rest if connected
-              const rate = round(comp_info.avg_rate,2)
-              const time = round(comp_info.last_time,2)
-        const fixed = this.state.fixedDict[name]['fixed']
-        const topic_selected = topic !== 'None' && topic !== ''
+              const rate = comp_info.avg_rate
+              const time = comp_info.last_time
+              const fixed = this.state[name + '_fixed']
+              const topic_selected = topic !== 'None' && topic !== ''
         const show_transform = this.state.showTransformsDict[name]
         const this_transform = this.state.transformsDict[name]
         return (
