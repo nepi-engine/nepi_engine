@@ -1428,7 +1428,7 @@ class PTXActuatorIF:
         self.node_if.set_param('mount_desc', self.mount_desc)
 
     def navposeSysCb(self,msg):
-        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+        self.sys_navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
     def setFrame3dTransformCb(self, msg):
         self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))

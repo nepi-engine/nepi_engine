@@ -40,7 +40,7 @@ NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
 
 
 def get_settings_publisher_namespaces():
-    topics_list = nepi_sdk.find_topics_by_msg(Settings)
+    topics_list = nepi_sdk.find_topics_by_msg('nepi_interfaces.msg/Settings')
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))

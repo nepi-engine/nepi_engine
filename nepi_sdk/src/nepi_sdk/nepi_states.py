@@ -36,7 +36,7 @@ NONE_STATES_DICT = {"state_name":{"name":"state_name","type":"Int","optons":[],"
 
 
 def get_states_publisher_namespaces():
-    topics_list = find_topics_by_msg(SystemState)
+    topics_list = find_topics_by_msg('nepi_interfaces.msg/SystemState')
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))
