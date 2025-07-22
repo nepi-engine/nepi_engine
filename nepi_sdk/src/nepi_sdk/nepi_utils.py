@@ -200,7 +200,21 @@ def ping_ip(ip_address):
  
 #########################
 ### File Helper Functions
-  
+
+def fix_folder_permissions(folder_path, user, group):
+    success = True
+    print("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
+    if os.path.exists(folder_path) == True:
+        try:
+            os.system('chown -R ' + user + ':' + group + ' ' + folder_path) # Use os.system instead of os.chown to have a recursive option
+            #os.chown(full_path_subdir, user, group)
+            os.system('chmod -R 0775 ' + folder_path)
+        except Exception as e:
+            success = False
+            print("Failed to update folder permissions: " + folder_path + " " + str(e))
+    return success
+
+
 def clear_end_slash(str_2_check):
     if str_2_check[-1] == '/':
       str_2_check[0:-1]
