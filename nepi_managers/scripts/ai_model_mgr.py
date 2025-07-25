@@ -312,12 +312,12 @@ class AIDetectorManager:
             #self.msg_if.pub_warn("Refreshing aifs dict with keys: " + str(self.aifs_dict.keys()))
             #self.msg_if.pub_warn("Refreshing active aifs list: " + str(self.getActiveAifs())) 
             last_aifs_keys = aifs_dict.keys()
-            self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys), throttle_s = 5.0)
             aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
             #self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
             #self.msg_if.pub_warn("Refreshed active aifs list: " + str(self.getActiveAifs())) 
             cur_aifs_keys = aifs_dict.keys()
-            self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys), throttle_s = 5.0)
             if last_aifs_keys != cur_aifs_keys:
                 self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys), throttle_s = 5.0)
 
@@ -327,8 +327,8 @@ class AIDetectorManager:
                 aif_dict = aifs_dict[aif_name]
                 #self.msg_if.pub_info("Processing ais dict for aif name " + aif_name)
                 success = False
-                if True: # aif_name not in self.aifs_classes_dict.keys():
-                    self.msg_if.pub_info("Updating ai dict for framework: " + str(aif_name), throttle_s = 5.0)
+                if aif_name not in self.aifs_classes_dict.keys():
+                    #self.msg_if.pub_info("Updating ai dict for framework: " + str(aif_name), throttle_s = 5.0)
                     file_name = aif_dict['if_file_name']
                     file_path = aif_dict['api_path']
                     module_name = aif_dict['if_module_name']

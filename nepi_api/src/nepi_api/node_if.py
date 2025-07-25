@@ -285,6 +285,8 @@ class NodeParamsIF:
     resetCb = None
     factoryResetCb = None
 
+    params_ns_dict = dict()
+
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -358,6 +360,7 @@ class NodeParamsIF:
             self.params_dict[param_name]['init_val'] = init_val
             self.set_param(param_name, init_val)
 
+
     def reset_params(self):
         for param_name in self.params_dict.keys():
             init_val = self.params_dict[param_name]['init_val']
@@ -378,22 +381,26 @@ class NodeParamsIF:
 
     def get_param(self, param_name):
         value = None
-        namespace = self.get_param_namespace(param_name)
-        if param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
+        if param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
+            namespace = self.get_param_namespace(param_name)
             if 'init_val' in param_dict.keys():
                 fallback = param_dict['init_val']
             else:
                 fallback = param_dict['factory_val']
 
-            if fallback is not None:       
-                 value = nepi_sdk.get_param(namespace,fallback)
+            if fallback is not None:  
+                if namespace in self.params_ns_dict.keys():
+                    value = self.params_ns_dict[namespace]
+                else:
+                    value = fallback
         return value
 
     def set_param(self, param_name, value):
         if not nepi_sdk.is_shutdown():
             namespace = self.get_param_namespace(param_name)
             nepi_sdk.set_param(namespace,value)
+            self.params_ns_dict[namespace] = value
 
     def reset_param(self, param_name):
         if param_name in self.params_dict.keys():
