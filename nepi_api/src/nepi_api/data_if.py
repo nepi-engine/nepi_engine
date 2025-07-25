@@ -2018,7 +2018,7 @@ class BaseImageIF:
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
-                'qsize': 1,
+                'qsize': 10,
                 'latch': False
             },
             'status_pub': {
@@ -2540,16 +2540,17 @@ class BaseImageIF:
                                         size_ratio = self.overlay_size_ratio )
 
             
-            #Convert to ros Image message
-            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-            sec = nepi_sdk.sec_from_timestamp(timestamp)
-            ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-            self.node_if.publish_pub('data_pub', ros_img)
-            for namespace in add_pubs:
-                if namespace in self.add_pubs_dict.keys():
-                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                    self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    self.node_if.publish_pub(img_ns, ros_img)
+            if self.node_if is not None and self.has_subs == True:
+                #Convert to ros Image message
+                ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+                sec = nepi_sdk.sec_from_timestamp(timestamp)
+                ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                self.node_if.publish_pub('data_pub', ros_img)
+                for namespace in add_pubs:
+                    if namespace in self.add_pubs_dict.keys():
+                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                        self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        self.node_if.publish_pub(img_ns, ros_img)
 
 
             
@@ -3146,7 +3147,7 @@ class BaseImageIF:
         self.reset_enhances()
 
     def _navposeCb(self,msg):
-        self.navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
 ##################################################
 # ImageIF
@@ -3621,7 +3622,7 @@ class DepthMapIF:
                         )
 
 
-
+        '''
         ##################################
         # Setup navpose data IF if needed
         np_namespace = self.namespace
@@ -3634,7 +3635,7 @@ class DepthMapIF:
                             log_name_list = [],
                             msg_if = self.msg_if
                             )
-
+        '''
         ##############################
         # Complete Initialization
         self.ready = True
@@ -3744,13 +3745,13 @@ class DepthMapIF:
         self.status_msg.publishing = True
 
         navpose_dict = self.get_navpose_dict()
-
-        #Convert to ros Image message
-        ros_img = nepi_img.cv2img_to_rosimg(cv2_depth_map, encoding=encoding)
-        sec = nepi_sdk.sec_from_timestamp(timestamp)
-        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-        #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-        self.node_if.publish_pub('data_pub', ros_img)
+        if self.node_if is not None and self.has_subs == True:
+            #Convert to ros Image message
+            ros_img = nepi_img.cv2img_to_rosimg(cv2_depth_map, encoding=encoding)
+            sec = nepi_sdk.sec_from_timestamp(timestamp)
+            ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+            #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.node_if.publish_pub('data_pub', ros_img)
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
         latency = (current_time - timestamp)
@@ -3861,7 +3862,7 @@ class DepthMapIF:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _navposeCb(self,msg):
-        self.navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
 
 
@@ -4262,7 +4263,7 @@ class PointcloudIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                         )
-
+        '''
         ################################
         # Setup navpose data IF if needed
         np_namespace = self.namespace
@@ -4275,7 +4276,7 @@ class PointcloudIF:
                             log_name_list = [],
                             msg_if = self.msg_if
                             )
-
+        '''
 
 
         ##############################
@@ -4387,11 +4388,12 @@ class PointcloudIF:
         self.status_msg.publishing = True
 
         navpose_dict = self.get_navpose_dict()
-
-        #Convert to ros Image message
-        ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
-        sec = nepi_sdk.sec_from_timestamp(timestamp)
-        ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+        if self.node_if is not None and self.has_subs == True:
+            #Convert to ros Image message
+            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
+            sec = nepi_sdk.sec_from_timestamp(timestamp)
+            ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+            self.node_if.publish_pub('data_pub', ros_pc)
 
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
@@ -4400,8 +4402,7 @@ class PointcloudIF:
 
             
 
-        if not nepi_sdk.is_shutdown():
-            self.node_if.publish_pub('data_pub', ros_pc)
+
 
         if self.last_pub_time is None:
             self.last_pub_time = nepi_utils.get_time()
@@ -4535,4 +4536,4 @@ class PointcloudIF:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _navposeCb(self,msg):
-        self.navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)

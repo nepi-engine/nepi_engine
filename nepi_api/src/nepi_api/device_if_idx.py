@@ -795,7 +795,7 @@ class IDXDeviceIF:
         return desc
 
     def navposeSysCb(self,msg):
-        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+        self.sys_navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
     def get_navpose_dict(self):
         navpose_dict = copy.deepcopy(self.navpose_dict)

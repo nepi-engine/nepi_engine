@@ -110,6 +110,9 @@ class AiDetectorImgPub:
     img_if = None
     img_if_all = None
 
+    cv2_img = None
+    cv2_img_lock = threading.Lock()
+
     img_det_dict = dict()
     img_det_lock = threading.Lock()
 
@@ -339,11 +342,13 @@ class AiDetectorImgPub:
         for img_topic in imgs_info_dict.keys():
             last_time = imgs_info_dict[img_topic]['last_det_time']
             check_time = current_time - last_time
+            '''
             if check_time > self.clear_det_time or self.enabled == False or self.state != 'Running':
                 try:
                     self.imgs_info_dict[img_topic]['det_dict_list'] = None
                 except:
                     pass
+            '''
 
 
         # Do Image Subs updating
@@ -546,26 +551,36 @@ class AiDetectorImgPub:
                     #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
                     # Request new img
                     det_dict_list = imgs_info_dict[img_topic]['det_dict_list']
+                    self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                     if det_dict_list == None:
                         det_dict_list = []
                     cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
 
-                    success = self.processDetImage(img_topic, 
-                                                cv2_img, 
-                                                det_dict_list, 
-                                                timestamp = get_msg_stampstamp, 
-                                                frame_3d = ros_frame_id, 
-                                                navpose_dict = navpose_dict)
+                    
+                    self.cv2_img_lock.acquire()
+                    last_cv2_img = copy.deepcopy(self.cv2_img)
+                    self.cv2_img = cv2_img
+                    self.cv2_img_lock.release()
+                    self.msg_if.pub_info("Image updated is None: " + str(last_cv2_img is None))
+                    # Use last image to align with detection data
+                    if last_cv2_img is not None:
+                    
+                        success = self.processDetImage(img_topic, 
+                                                    last_cv2_img, 
+                                                    det_dict_list, 
+                                                    timestamp = get_msg_stampstamp, 
+                                                    frame_3d = ros_frame_id, 
+                                                    navpose_dict = navpose_dict)
 
-                    current_time = nepi_sdk.get_msg_stamp()
-                    latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
-                    imgs_info_dict[img_topic]['pub_latency_time'] = latency                              
+                        current_time = nepi_sdk.get_msg_stamp()
+                        latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
+                        imgs_info_dict[img_topic]['pub_latency_time'] = latency                              
 
-                    self.imgs_info_lock.acquire()
-                    if img_topic in self.imgs_info_dict.keys():
-                        imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict
-                        self.imgs_info_dict = imgs_info_dict
-                    self.imgs_info_lock.release()
+                        self.imgs_info_lock.acquire()
+                        if img_topic in self.imgs_info_dict.keys():
+                            imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict
+                            self.imgs_info_dict = imgs_info_dict
+                        self.imgs_info_lock.release()
 
 
     def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
@@ -717,34 +732,38 @@ class AiDetectorImgPub:
         self.imgs_info_lock.acquire()
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         self.imgs_info_lock.release()
-        if img_topic in imgs_info_dict.keys():
-            imgs_info_dict[img_topic]['stamp'] = stamp
-            imgs_info_dict[img_topic]['img_stamp'] = img_stamp
-            imgs_info_dict[img_topic]['det_count'] = det_count
-
-            current_time = nepi_utils.get_time()
-            imgs_info_dict[img_topic]['last_det_time'] = current_time
-
-            if det_count == 0:
-                imgs_info_dict[img_topic]['det_dict_list'] = None
+        if img_topic in imgs_info_dict.keys() and det_count == 0:   
+            imgs_info_dict[img_topic]['det_count'] = 0         
+            imgs_info_dict[img_topic]['det_dict_list'] = None
         self.imgs_info_lock.acquire()
         if img_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict = imgs_info_dict
         self.imgs_info_lock.release()
 
     def objectDetectedCb(self,msg):
+        #self.msg_if.pub_info("Got Detection Msg: " + str(msg))
+        stamp = msg.header.stamp
+        img_stamp = msg.image_header.stamp
         img_topic = msg.image_topic
         self.imgs_info_lock.acquire()
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         self.imgs_info_lock.release()
         if img_topic in imgs_info_dict.keys():
-           imgs_info_dict[img_topic]['object_detect_msg'] = msg
-           blist = nepi_ais.get_boxes_list_from_msg(msg)
-           imgs_info_dict[img_topic]['det_dict_list'] = blist
+            imgs_info_dict[img_topic]['object_detect_msg'] = msg
+            blist = nepi_ais.get_boxes_list_from_msg(msg)
+            imgs_info_dict[img_topic]['det_dict_list'] = blist
+            imgs_info_dict[img_topic]['stamp'] = stamp
+            imgs_info_dict[img_topic]['img_stamp'] = img_stamp
+            imgs_info_dict[img_topic]['det_count'] = len(blist)
+            self.msg_if.pub_info("Updated detection data: " + str(blist))
+            current_time = nepi_utils.get_time()
+            imgs_info_dict[img_topic]['last_det_time'] = current_time
+            
         self.imgs_info_lock.acquire()
         if img_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict = imgs_info_dict
         self.imgs_info_lock.release()
+        
 
     def statusCb(self,msg):
         self.status_msg = msg

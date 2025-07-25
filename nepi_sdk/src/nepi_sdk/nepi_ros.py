@@ -178,18 +178,14 @@ def get_full_namespace(namespace, log_name_list = []):
   base_namespace = get_base_namespace()
   node_namespace = get_node_namespace()
   if namespace is None:
-    namespace = node_namespace
+    namespace = get_node_namespace()
   elif namespace == 'None':
-    namespace = node_namespace
+    namespace = get_node_namespace()
   elif namespace == '':
-    namespace = base_namespace
+    namespace = get_base_namespace()
   elif namespace[0] == '~':
     ext_namespace = namespace.replace('~','')
-    namespace = os.path.join(node_namespace,ext_namespace)
-  if namespace.find(base_namespace) == -1:
-    if namespace[0] == '/':
-      namespace = namespace[1:]
-    namespace = os.path.join(base_namespace,namespace)
+    namespace = os.path.join(get_node_namespace(),ext_namespace)
   if namespace[-1] == '/':
     namespace = namespace[:-1]
 
@@ -236,7 +232,7 @@ def get_base_namespace():
     while(len(nepi_names) < 3):
       nepi_node=find_node('nepi')
       nepi_names = nepi_node.split('/')
-      sleep(.1)
+      sleep(.01)
   base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
   return base_namespace
 
@@ -488,8 +484,8 @@ def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
       param = rospy.get_param(param_namespace)
     except:
       param_namespace = get_full_namespace(param_namespace)
-      sleep(1)
-    time.sleep(.1)
+
+    time.sleep(.01)
     timer = get_time() - start_time
   #log_msg_warn("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
   return param
@@ -585,7 +581,7 @@ def wait_for_service(service_name, timeout = float('inf'), log_name_list = []):
   found_service = ""
   while found_service == "" and timer < timeout and not rospy.is_shutdown():
     found_service=find_service(service_name)
-    time.sleep(.1)
+    time.sleep(.01)
     timer = get_time() - start_time
   log_msg_debug("nepi_sdk: Found service: " + found_service, log_name_list = log_name_list, throttle_s = 5.0)
   return found_service
@@ -789,7 +785,7 @@ def wait_for_topic(topic_name, timeout = float('inf'), log_name_list = []):
   topic = ""
   while topic == "" and timer < timeout and not rospy.is_shutdown():
     topic=find_topic(topic_name)
-    time.sleep(.1)
+    time.sleep(.01)
     timer = get_time() - start_time
   log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
   return topic
