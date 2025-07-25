@@ -323,7 +323,7 @@ class NodeParamsIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_debug("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################  
 
 
@@ -490,7 +490,7 @@ class NodeServicesIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_debug("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################  
 
 
@@ -658,7 +658,7 @@ class NodePublishersIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_debug("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##############################  
 
 

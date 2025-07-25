@@ -735,7 +735,7 @@ class AiDetectorIF:
         self.addAllClasses()
 
     def addAllClasses(self):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.publish_status(do_updates = False) # Updated Here
         self.selected_classes = self.classes
         self.publish_status()
@@ -745,7 +745,7 @@ class AiDetectorIF:
 
 
     def removeAllClassesCb(self,msg):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
         self.selected_classes = []
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
@@ -754,7 +754,7 @@ class AiDetectorIF:
 
 
     def addClassCb(self,msg):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got add class msg: ' + str(msg))
         class_name = msg.data
         if class_name in self.classes:
             sel_classes = copy.deepcopy(self.selected_classes)
@@ -768,12 +768,12 @@ class AiDetectorIF:
 
 
     def removeClassCb(self,msg):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
         class_name = msg.data
         sel_classes = copy.deepcopy(self.selected_classes)
         if class_name in sel_classes:
             sel_classes.remove(class_name)
-        self.selected_classses = sel_classes
+        self.selected_classes = sel_classes
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes', sel_classes)
@@ -1346,7 +1346,7 @@ class AiDetectorIF:
                                     self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
                                 ros_img_header = img_dict['msg_header']
                                 # Filter selected classes
-                                sel_classes = self.selected_classes
+                                sel_classes = copy.deepcopy(self.selected_classes)
                                 sel_detect_ind = []
                                 for i, detect in enumerate(detect_dicts):
                                     if detect['name'] in sel_classes:
@@ -1519,7 +1519,7 @@ class AiDetectorIF:
         self.det_status_msg.detection_state = detection_state
 
         self.det_status_msg.available_classes = self.classes
-        sel_classes = self.selected_classes
+        sel_classes = copy.deepcopy(self.selected_classes)
         self.det_status_msg.selected_classes = sel_classes
         self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
         self.det_status_msg.overlay_labels = self.overlay_labels

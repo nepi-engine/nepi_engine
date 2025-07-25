@@ -307,7 +307,7 @@ sudo apt-get install wpasupplicant
 sudo apt-get install -y psmisc
 sudo apt-get install scapy
 sudo apt-get install minicom
-
+sudo apt-get install dconf-editor
 
 # Install additional python requirements
 # Copy the requirements files from nepi_engine/nepi_env/setup to /mnt/nepi_storage/tmp
