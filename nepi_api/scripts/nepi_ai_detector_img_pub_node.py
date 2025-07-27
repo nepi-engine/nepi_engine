@@ -177,6 +177,7 @@ class AiDetectorImgPub:
         self.enabled = False
         self.state = "Unknown"
         self.max_rate = 1.0
+        self.use_last_image = True
 
         self.overlay_labels = True
         self.overlay_clf_name = False
@@ -185,6 +186,8 @@ class AiDetectorImgPub:
         self.selected_img_topics = []
         self.img_det_namespaces = []
         self.img_det_states = []
+
+        
 
         ##############################  
         # Create NodeClassIF Class  
@@ -460,11 +463,11 @@ class AiDetectorImgPub:
     def unsubscribeImgTopic(self,img_topic):
         self.msg_if.pub_warn('Unsubscribing from image topic: ' + img_topic)
 
-       
+        imgs_info_dict = self.getImgInfoDict()
         # Remove img pubs
         pub_namespace = None
         try:
-            pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
+            pub_namespace = imgs_info_dict[img_topic]['pub_namespace']
         except:
             pass
         if pub_namespace is not None:
@@ -480,8 +483,8 @@ class AiDetectorImgPub:
         # Purge Dict
 
         self.imgs_info_lock.acquire()
-        if img_topic in imgs_info_dict.keys():
-            del imgs_info_dict[img_topic]
+        if img_topic in self.imgs_info_dict.keys():
+            del self.imgs_info_dict[img_topic]
         self.imgs_info_lock.release()
         nepi_sdk.sleep(1)
         
@@ -551,22 +554,24 @@ class AiDetectorImgPub:
                     #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
                     # Request new img
                     det_dict_list = imgs_info_dict[img_topic]['det_dict_list']
-                    self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
+                    #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                     if det_dict_list == None:
                         det_dict_list = []
-                    cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
-
                     
-                    self.cv2_img_lock.acquire()
-                    last_cv2_img = copy.deepcopy(self.cv2_img)
-                    self.cv2_img = cv2_img
-                    self.cv2_img_lock.release()
-                    self.msg_if.pub_info("Image updated is None: " + str(last_cv2_img is None))
-                    # Use last image to align with detection data
-                    if last_cv2_img is not None:
+                    if self.use_last_image == False:
+                        # process image for next time
+                        use_cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                    else: 
+                        # Use last image to align with detection data
+                        self.cv2_img_lock.acquire()
+                        use_cv2_img = copy.deepcopy(self.cv2_img)
+                        self.cv2_img_lock.release()
+                        #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
+
+                    if use_cv2_img is not None:
                     
                         success = self.processDetImage(img_topic, 
-                                                    last_cv2_img, 
+                                                    use_cv2_img, 
                                                     det_dict_list, 
                                                     timestamp = get_msg_stampstamp, 
                                                     frame_3d = ros_frame_id, 
@@ -581,6 +586,15 @@ class AiDetectorImgPub:
                             imgs_info_dict[img_topic]['navpose_dict'] = navpose_dict
                             self.imgs_info_dict = imgs_info_dict
                         self.imgs_info_lock.release()
+                        
+                    if self.use_last_image == True:
+                        # process image for next time
+                        cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                        self.cv2_img_lock.acquire()
+                        use_cv2_img = copy.deepcopy(self.cv2_img)
+                        self.cv2_img = cv2_img
+                        self.cv2_img_lock.release()
+                        #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
 
 
     def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
@@ -755,7 +769,7 @@ class AiDetectorImgPub:
             imgs_info_dict[img_topic]['stamp'] = stamp
             imgs_info_dict[img_topic]['img_stamp'] = img_stamp
             imgs_info_dict[img_topic]['det_count'] = len(blist)
-            self.msg_if.pub_info("Updated detection data: " + str(blist))
+            #self.msg_if.pub_info("Updated detection data: " + str(blist))
             current_time = nepi_utils.get_time()
             imgs_info_dict[img_topic]['last_det_time'] = current_time
             
@@ -772,6 +786,7 @@ class AiDetectorImgPub:
         self.enabled = self.status_msg.enabled
         self.state = self.status_msg.state
         self.max_rate = self.status_msg.max_img_rate_hz
+        self.use_last_image = self.status_msg.use_last_image
 
         self.classes_list = self.status_msg.selected_classes
         class_colors = self.status_msg.selected_classes_colors

@@ -303,6 +303,8 @@ class NepiDriversMgr(object):
       self.msg_if.pub_warn("Init with do_updates: " + str(do_updates))
       drvs_active_list = []
       if self.node_if is not None:
+        self.retry_enabled = self.node_if.get_param("retry_enabled")
+        self.backup_enabled = self.node_if.get_param("backup_enabled")
         drvs_dict = self.node_if.get_param("drvs_dict")
         self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
         drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)

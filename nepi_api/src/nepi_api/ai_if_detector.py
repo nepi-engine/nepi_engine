@@ -62,7 +62,7 @@ MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
 DEFAULT_MAX_PROC_RATE = 5
 DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 1.5
-
+DEFAULT_USE_LAST_IMAGE = True
 
 DEFAULT_WAIT_FOR_DETECT = False
 
@@ -141,6 +141,7 @@ class AiDetectorIF:
     threshold = DEFAULT_THRESHOLD
     max_proc_rate_hz = DEFAULT_MAX_PROC_RATE
     max_img_rate_hz = DEFAULT_MAX_IMG_RATE
+    use_last_image = DEFAULT_USE_LAST_IMAGE
     selected_img_topics = []
 
 
@@ -326,6 +327,10 @@ class AiDetectorIF:
             'max_img_rate_hz': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_MAX_IMG_RATE
+            },
+            'use_last_image': {
+                'namespace': self.node_namespace,
+                'factory_val': DEFAULT_USE_LAST_IMAGE
             },
             'sleep_enabled': {
                 'namespace': self.node_namespace,
@@ -536,6 +541,14 @@ class AiDetectorIF:
                 'callback': self.setMaxImgRateCb, 
                 'callback_args': ()
             },
+            'set_use_last_image': {
+                'namespace': self.node_namespace,
+                'topic': 'set_use_last_image',
+                'msg':Bool,
+                'qsize': 10,
+                'callback': self.setUseLastImageCb, 
+                'callback_args': ()
+            },
             'set_sleep_enable': {
                 'namespace': self.node_namespace,
                 'topic': 'set_sleep_enable',
@@ -695,6 +708,7 @@ class AiDetectorIF:
             self.threshold = self.node_if.get_param('threshold')
             self.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
             self.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
+            self.use_last_image = self.node_if.get_param('use_last_image')
             self.selected_img_topics = self.node_if.get_param('selected_img_topics')
             self.msg_if.pub_info("Init selected images: " + str(self.selected_img_topics), log_name_list = self.log_name_list)
 
@@ -895,6 +909,14 @@ class AiDetectorIF:
         if self.node_if is not None:
             self.node_if.set_param('max_img_rate_hz',self.max_img_rate_hz)
             self.node_if.save_config()
+
+    def setUseLastImageCb(self,msg):
+        self.use_last_image = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('use_last_image',self.use_last_image)
+            self.node_if.save_config()
+
 
 
     def setTileImgCb(self,msg):
@@ -1529,6 +1551,7 @@ class AiDetectorIF:
         self.det_status_msg.threshold_filter = self.threshold
         self.det_status_msg.max_proc_rate_hz = self.max_proc_rate_hz
         self.det_status_msg.max_img_rate_hz = self.max_img_rate_hz
+        self.det_status_msg.use_last_image = self.use_last_image
 
         self.det_status_msg.selected_img_topics = self.selected_img_topics
 

@@ -43,6 +43,7 @@ EXAMPLE_CONFIGS_DICT = {
 }
 '''
 
+
 class NodeConfigsIF:
 
     msg_if = None
@@ -147,11 +148,14 @@ class NodeConfigsIF:
         self.reset_config()
         nepi_sdk.wait()
 
+        params_dict = nepi_sdk.get_param(self.namespace, dict())
+        self.msg_if.pub_warn("##### Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
         
         if 'init_configs' in configs_dict.keys():
-            self.msg_if.pub_debug("Initializing Params", log_name_list = self.log_name_list)
+            
             init_configs = configs_dict['init_configs']
             if init_configs == True:
+                self.msg_if.pub_debug("Calling parent init function", log_name_list = self.log_name_list)
                 self.init_config(do_updates = False)
 
         ##############################  
@@ -354,11 +358,24 @@ class NodeParamsIF:
         self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
 
     def initialize_params(self):
+        ns_params_dict = dict()
+        for param_name in self.params_dict.keys():
+            namespace = self.params_dict[param_name]['namespace']
+            if namespace not in ns_params_dict.keys():
+                ns_params_dict[namespace] = nepi_sdk.get_params(namespace)
         for param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
-            init_val = self.get_param(param_name)
+            namespace = param_dict['namespace']
+            init_val = None
+            if namespace in ns_params_dict.keys():
+                ns_param_dict = ns_params_dict[namespace]
+                if param_name in ns_param_dict.keys():
+                    init_val = ns_param_dict[param_name]
+            if init_val is None:
+                init_val = self.get_param(param_name)
+                self.set_param(param_name, init_val)
             self.params_dict[param_name]['init_val'] = init_val
-            self.set_param(param_name, init_val)
+            
 
 
     def reset_params(self):

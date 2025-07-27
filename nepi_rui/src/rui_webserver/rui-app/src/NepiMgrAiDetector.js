@@ -619,6 +619,7 @@ renderDetectorSettings() {
       const threshold = det_msg.threshold_filter
       const max_det_rate = det_msg.max_proc_rate_hz 
       const max_img_rate = det_msg.max_img_rate_hz
+      const use_last_image = det_msg.use_last_image
 
       const det_img_topics = det_msg.selected_img_topics
 
@@ -874,6 +875,13 @@ renderDetectorSettings() {
 
             <Columns>
             <Column>
+
+                <Label title="Use Last Image">
+                  <Toggle
+                  checked={use_last_image===true}
+                  onClick={() => this.props.ros.sendBoolMsg(detector_namespace + "/set_use_last_image", use_last_image===false)}>
+                  </Toggle>
+                  </Label>
 
                 <Label title="Overlay Labels">
                   <Toggle
