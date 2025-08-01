@@ -638,7 +638,8 @@ class AiDetectorImgPub:
 
             # Overlay text data on OpenCV image
             font = cv2.FONT_HERSHEY_DUPLEX
-            fontScale, font_thickness  = nepi_img.optimal_font_dims(cv2_det_img,font_scale = 1.5e-3, thickness_scale = 1.5e-3)
+            scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/500)
+            fontScale, fontThickness  = nepi_img.optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
             fontColor = (255, 255, 255)
             fontColorBk = (0,0,0)
             lineType = cv2.LINE_AA
@@ -670,7 +671,7 @@ class AiDetectorImgPub:
                 class_ind = self.classes_list.index(class_name)
                 if class_ind < len(self.classes_colors_list):
                     class_color = self.classes_colors_list[class_ind]
-            line_thickness = font_thickness
+            line_thickness = 1 + math.ceil(max([img_height, img_width])/2000)
 
             #self.msg_if.pub_warn("Got Class Color: " + str(class_color))
             success = False
@@ -683,6 +684,7 @@ class AiDetectorImgPub:
             # Overlay text data on OpenCV image
             if success == True:
 
+
                 ## Overlay Labels
                 overlay_labels =  self.overlay_labels
                 if overlay_labels:
@@ -690,17 +692,19 @@ class AiDetectorImgPub:
                     text_size = cv2.getTextSize(text2overlay, 
                         font, 
                         fontScale,
-                        font_thickness)
+                        fontThickness) 
                     #self.msg_if.pub_warn("Text Size: " + str(text_size))
                     line_height = text_size[0][1]
                     line_width = text_size[0][0]
                     x_padding = int(line_height*0.4)
                     y_padding = int(line_height*0.4)
-                    bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+                    center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
+                    #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+                    bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
                     # Create Text Background Box
-
-                    bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
-                    top_right_box = (bot_left_text[0] + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
+                    #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
+                    bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
+                    top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
                     box_color = [0,0,0]
 
                     try:
@@ -710,10 +714,10 @@ class AiDetectorImgPub:
                             font, 
                             fontScale,
                             fontColor,
-                            font_thickness,
+                            fontThickness,
                             lineType)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to apply overlay text: " + str(e))
+                        self.msg_if.pub_warn("Failed to apply overlay label text: " + str(e))
 
                     # Start name overlays    
                     x_start = int(img_width * 0.05)

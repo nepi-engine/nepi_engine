@@ -2547,10 +2547,12 @@ class BaseImageIF:
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
                 self.node_if.publish_pub('data_pub', ros_img)
+                if pub_twice == True:
+                    self.node_if.publish_pub('data_pub', ros_img)
                 for namespace in add_pubs:
                     if namespace in self.add_pubs_dict.keys():
                         [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                        self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
                         self.node_if.publish_pub(img_ns, ros_img)
                         if pub_twice == True:
                             self.node_if.publish_pub(img_ns, ros_img)
