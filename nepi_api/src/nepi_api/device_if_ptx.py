@@ -805,11 +805,10 @@ class PTXActuatorIF:
 
         ##################################
         # Start Node Processes
-        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
         nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
 
-        '''
+      
         ###############################
         # Create a NPX Device IF
         if self.getNavPoseCb is not None:
@@ -823,7 +822,7 @@ class PTXActuatorIF:
                 log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                 )
-        '''
+
 
         ####################################
         self.ready = True

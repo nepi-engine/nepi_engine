@@ -2443,6 +2443,7 @@ class BaseImageIF:
                         device_mount_description = 'fixed',
                         navpose_dict = None,
                         process_data = True,
+                        pub_twice = False,
                         add_pubs = []
                         ):
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -2551,6 +2552,9 @@ class BaseImageIF:
                         [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
                         self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
                         self.node_if.publish_pub(img_ns, ros_img)
+                        if pub_twice == True:
+                            self.node_if.publish_pub(img_ns, ros_img)
+                        
 
 
             
@@ -3698,7 +3702,8 @@ class DepthMapIF:
                              max_range_m = None,
                              timestamp = None,
                              frame_3d = 'sensor_frame',
-                             device_mount_description = 'fixed'):
+                             device_mount_description = 'fixed',
+                             pub_twice = False):
 
                                                     
 
@@ -3752,6 +3757,8 @@ class DepthMapIF:
             ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
             #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('data_pub', ros_img)
+            if pub_twice == True:
+                self.node_if.publish_pub('data_pub', ros_img)
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
         latency = (current_time - timestamp)
@@ -3768,7 +3775,8 @@ class DepthMapIF:
                                 timestamp = timestamp,
                                 frame_3d = frame_3d,
                                 device_mount_description = device_mount_description,
-                                navpose_dict = navpose_dict
+                                navpose_dict = navpose_dict,
+                                pub_twice = pub_twice
                             )
 
         if self.last_pub_time is None:
@@ -3972,7 +3980,8 @@ class DepthMapImageIF(BaseImageIF):
                             timestamp = None,
                             frame_3d = 'sensor_frame',
                             device_mount_description = 'fixed',
-                            navpose_dict = None
+                            navpose_dict = None,
+                            pub_twice = False
                             ):
 
                 
@@ -4006,7 +4015,8 @@ class DepthMapImageIF(BaseImageIF):
                                 timestamp = timestamp,
                                 frame_3d = frame_3d,
                                 device_mount_description = device_mount_description,
-                                navpose_dict = navpose_dict
+                                navpose_dict = navpose_dict,
+                                pub_twice = pub_twice
                              )
             return cv2_img
 
@@ -4343,7 +4353,8 @@ class PointcloudIF:
                         height_deg = 70,
                         min_range_m = None,
                         max_range_m = None,
-                        device_mount_description = 'fixed'):
+                        device_mount_description = 'fixed',
+                        pub_twice = False):
 
         if self.node_if is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
@@ -4394,14 +4405,13 @@ class PointcloudIF:
             sec = nepi_sdk.sec_from_timestamp(timestamp)
             ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
             self.node_if.publish_pub('data_pub', ros_pc)
+            if pub_twice == True:
+                self.node_if.publish_pub('data_pub', ros_pc)
 
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
         latency = (current_time - timestamp)
         self.status_msg.pub_latency_time = latency
-
-            
-
 
 
         if self.last_pub_time is None:

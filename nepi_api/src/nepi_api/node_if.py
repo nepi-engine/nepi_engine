@@ -149,7 +149,7 @@ class NodeConfigsIF:
         nepi_sdk.wait()
 
         params_dict = nepi_sdk.get_param(self.namespace, dict())
-        self.msg_if.pub_warn("##### Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
         
         if 'init_configs' in configs_dict.keys():
             

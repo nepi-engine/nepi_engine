@@ -10,6 +10,8 @@ import React, { Component } from "react"
 //import moment from "moment"
 import { observer, inject } from "mobx-react"
 
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+
 import Section from "./Section"
 //import EnableAdjustment from "./EnableAdjustment"
 import Button, { ButtonMenu } from "./Button"
@@ -34,6 +36,8 @@ function round(value, decimals = 0) {
 
 
 const styles = Styles.Create({
+
+  
   canvas: {
     width: "100%",
     height: "auto",
@@ -87,6 +91,8 @@ class ImageViewer extends Component {
     this.renderStats = this.renderStats.bind(this)
     this.getImgStatsText = this.getImgStatsText.bind(this)
 
+
+    this.ZoomViewer = this.ZoomViewer.bind(this)
 
     this.statusListener = this.statusListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
@@ -914,9 +920,18 @@ class ImageViewer extends Component {
 
   }
 
-
-
-
+  ZoomViewer(){
+    return (
+  
+      <TransformWrapper>
+        <TransformComponent>
+          <canvas style={styles.canvas} ref={this.onCanvasRef} />
+          </TransformComponent>
+      </TransformWrapper>
+  
+    )
+  
+  }
 
 
   render() {
@@ -931,8 +946,7 @@ class ImageViewer extends Component {
     return (
       <Section title={this.props.title}>
 
-        <canvas style={styles.canvas} ref={this.onCanvasRef} />
-
+          <canvas style={styles.canvas} ref={this.onCanvasRef} />
 
         <div style={{ display: 'flex' }}>
                 <div style={{ width: '20%' }}>

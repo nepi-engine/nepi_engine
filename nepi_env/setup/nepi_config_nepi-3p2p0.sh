@@ -1031,6 +1031,9 @@ cd /opt/nepi/nepi_rui
 source ./devenv.sh
 cd src/rui_webserver/rui-app
 npm run build
+
+# MAYBE
+# npm install --save react-zoom-pan-pinch
 deactivate
 
 # Run RUI

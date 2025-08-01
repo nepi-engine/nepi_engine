@@ -200,6 +200,8 @@ def ping_ip(ip_address):
  
 #########################
 ### File Helper Functions
+CURRENT_FOLDER = os.path.realpath(__file__)
+
 
 def fix_folder_permissions(folder_path, user, group):
     success = True
@@ -272,6 +274,145 @@ def get_symlink_target(symlink_path):
     except OSError as e:
         logger.log_warn("Error reading symlink: " + str(e))
         return None
+
+
+def check_for_sudo():
+    # Check if the effective user ID is not 0 (root)
+    if os.geteuid() != 0:
+        print("Error: This script must be run with sudo or as root.")
+        sys.exit(1) # Exit with a non-zero status code to indicate an error
+    else:
+        return True
+
+
+
+def get_user_id(folder = CURRENT_FOLDER):
+    stat_info = os.stat(folder)
+    uid = stat_info.st_uid
+    gid = stat_info.st_gid
+
+    user = pwd.getpwuid(uid)[0]
+    group = grp.getgrgid(gid)[0]
+    #print([self.user, self.group])
+    return user,group
+
+def make_folder(folder_path, user = None, group = None):
+    success = False
+    try:
+        os.mkdir(folder_path)
+        fix_folder_permissions(folder_path, user = user, group = user)
+        success = True
+    except Exception as e:
+        print("Failed to make folder: " + folder_path + " " + str(e))
+    return success
+
+def fix_folder_permissions(folder_path, user = None, group = None):
+    success = True
+    [fuser,fgroup] = get_user_id(folder_path)
+    if user is None:
+        user = fuser
+    if group is None:
+        group = fgroup
+    print("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
+    if os.path.exists(folder_path) == True:
+        try:
+            os.system('chown -R ' + user + ':' + group + ' ' + folder_path) # Use os.system instead of os.chown to have a recursive option
+            #os.chown(full_path_subdir, user, group)
+            os.system('chmod -R 0775 ' + folder_path)
+        except Exception as e:
+            success = False
+            print("Failed to update folder permissions: " + folder_path + " " + str(e))
+    return success
+
+
+def get_folder_list(folder_path):
+
+  folder_list=[]
+  if os.path.exists(folder_path):
+    filelist=os.listdir(folder_path + '/')
+    #print('')
+    #print('Files and Folders in Path:')
+    #print(folder_path)
+    #print(filelist)
+    for i, file in enumerate(filelist):
+        #print(file)
+        foldername = (folder_path + '/' + file)
+        #print('Checking file: ')
+        #print(foldername)
+        if os.path.isdir(foldername): # file is a folder
+            folder_list.append(foldername)
+  return folder_list
+
+
+
+def open_new_file(file_path):
+  print('')
+  if os.path.isfile(file_path):
+    print('Deleting existing file:')
+    print(file_path)
+    os.remove(file_path)
+  print('Creating new file: ' + file_path)
+  fnew = open(file_path, 'w')
+  return fnew
+
+def read_list_from_file(file_path):
+    lines = []
+    with open(file_path) as f:
+        lines = [line.rstrip() for line in f] 
+    return lines
+
+def write_list_to_file(data_list, file_path):
+    success = True
+    try:
+        with open(file_path, 'w') as file:
+            for data in data_list:
+                file.write(data + '\n')
+    except Exception as e:
+        print("Failed to write list to file " + file_path + " " + str(e))
+        success = False
+    return success
+
+
+
+def read_dict_from_file(file_path):
+    dict_from_file = None
+    if os.path.exists(file_path):
+        try:
+            with open(file_path) as f:
+                dict_from_file = yaml.load(f, Loader=yaml.FullLoader)
+        except Exception as e:
+            print("Failed to get dict from file: " + file_path + " " + str(e))
+    else:
+        print("Failed to find dict file: " + file_path)
+    return dict_from_file
+
+
+def write_dict_to_file(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
+    success = False
+    try:
+        with open(file_path, "w") as f:
+            yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
+        success = True
+    except Exception as e:
+        print("Failed to write dict: "  + " to file: " + file_path + " " + str(e))
+    return success
+
+
+def copy_file(file_path, destination_path):
+    success = False
+    output_path = destination_path.replace(" ","_")
+    #print("Checking on file copy: " + file_path + " to: " + output_path)
+    if os.path.exists(output_path) == False:
+        try:
+            shutil.copy(file_path, output_path)
+            #print("File: " + file_path + " Copied to: " + output_path)
+            success = True
+        except FileNotFoundError:
+            print("Error file " + file_path + "not found") 
+        except Exception as e:
+            print("Excepton: " + str(e))
+    return success 
+
 
 def copy_files_from_folder(src_path,dest_path):
   success = True
