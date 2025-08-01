@@ -10,7 +10,7 @@ import React, { Component } from "react"
 //import moment from "moment"
 import { observer, inject } from "mobx-react"
 
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+//import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 import Section from "./Section"
 //import EnableAdjustment from "./EnableAdjustment"
@@ -92,7 +92,7 @@ class ImageViewer extends Component {
     this.getImgStatsText = this.getImgStatsText.bind(this)
 
 
-    this.ZoomViewer = this.ZoomViewer.bind(this)
+    //this.ZoomViewer = this.ZoomViewer.bind(this)
 
     this.statusListener = this.statusListener.bind(this)
     this.updateStatusListener = this.updateStatusListener.bind(this)
@@ -920,6 +920,7 @@ class ImageViewer extends Component {
 
   }
 
+  /*
   ZoomViewer(){
     return (
   
@@ -932,7 +933,7 @@ class ImageViewer extends Component {
     )
   
   }
-
+*/
 
   render() {
 
