@@ -344,6 +344,21 @@ def get_folder_list(folder_path):
   return folder_list
 
 
+def get_folder_files(folder_path):
+    files_dict = dict()
+    if os.path.exists(folder_path) == False:
+        print('Get stats folder not found: ' + folder_path)
+    else:
+        path, dirs, files = next(os.walk(folder_path))
+        for file in files:
+            f_ext = os.path.splitext(file)[1]
+            f_ext = f_ext.replace(".","")
+            if f_ext not in files_dict.keys():
+                files_dict[f_ext] = [file]
+            else:
+                files_dict[f_ext].append(file)        
+    return files_dict
+
 
 def open_new_file(file_path):
   print('')

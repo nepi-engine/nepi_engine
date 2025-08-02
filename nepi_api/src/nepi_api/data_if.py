@@ -1766,6 +1766,8 @@ class BaseImageIF:
 
     add_pubs_dict = dict()
 
+    pub_count = 0
+
     def __init__(self, 
                 namespace , 
                 data_product_name,
@@ -2446,7 +2448,7 @@ class BaseImageIF:
                         pub_twice = False,
                         add_pubs = []
                         ):
-        self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
         if cv2_img is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
@@ -2542,19 +2544,24 @@ class BaseImageIF:
 
             
             if self.node_if is not None and self.has_subs == True:
+                #self.msg_if.pub_warn("Publishing once")
                 #Convert to ros Image message
                 ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
                 self.node_if.publish_pub('data_pub', ros_img)
-                if pub_twice == True:
-                    self.node_if.publish_pub('data_pub', ros_img)
                 for namespace in add_pubs:
                     if namespace in self.add_pubs_dict.keys():
                         [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
                         #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
                         self.node_if.publish_pub(img_ns, ros_img)
-                        if pub_twice == True:
+                if pub_twice == True:
+                    #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
+                    nepi_sdk.sleep(0.01)
+                    self.node_if.publish_pub('data_pub', ros_img)
+                    for namespace in add_pubs:
+                        if namespace in self.add_pubs_dict.keys():
+                            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
                             self.node_if.publish_pub(img_ns, ros_img)
                         
 
@@ -3760,6 +3767,7 @@ class DepthMapIF:
             #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('data_pub', ros_img)
             if pub_twice == True:
+                nepi_sdk.sleep(0.01)
                 self.node_if.publish_pub('data_pub', ros_img)
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
@@ -4408,6 +4416,7 @@ class PointcloudIF:
             ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
             self.node_if.publish_pub('data_pub', ros_pc)
             if pub_twice == True:
+                nepi_sdk.sleep(0.01)
                 self.node_if.publish_pub('data_pub', ros_pc)
 
         process_time = round( (nepi_utils.get_time() - start_time) , 3)

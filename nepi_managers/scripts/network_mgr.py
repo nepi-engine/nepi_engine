@@ -405,7 +405,7 @@ class NetworkMgr:
 
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled')
+            self.dhcp_enabled = False # self.node_if.get_param('dhcp_enabled') # Force external system to start
             self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
             self.wifi_ap_enabled = self.node_if.get_param('enable_access_point')

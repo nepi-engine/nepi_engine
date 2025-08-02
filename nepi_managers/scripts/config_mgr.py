@@ -407,6 +407,7 @@ class config_mgr(object):
                                 update_line = line
                             #self.msg_if.pub_info("Update sys_env line: " + update_line)
                             file_lines.append(update_line)
+                    nepi_utils.write_list_to_file(file_lines,tmp_file)
                     
 
                     bak_filename = target + ".bak"
