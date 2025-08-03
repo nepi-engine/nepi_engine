@@ -121,13 +121,18 @@ class PTXActuatorIF:
     last_position = current_position
     speed_ratio = 0.5
 
-
     is_auto_pan = False
     start_auto_pan = False
     auto_pan_enabled = False
     auto_pan_min = -10
     auto_pan_max = 10
     auto_pan_sec = 5
+
+    auto_pan_last_time = None
+    auto_pan_times = [0,0,0,0,0]
+    auto_pan_sin_enabled = False
+    auto_pan_sin_ind = 0
+    
 
     is_auto_tilt = False
     start_auto_tilt = False
@@ -311,6 +316,7 @@ class PTXActuatorIF:
         self.capabilities_report.has_limit_controls = self.has_limit_controls
         self.capabilities_report.has_auto_pan = self.has_auto_pan
         self.capabilities_report.has_auto_tilt = self.has_auto_tilt
+        self.capabilities_report.has_auto_sin = self.has_adjustable_speed
         self.capabilities_report.has_homing = self.has_homing
         self.capabilities_report.has_set_home = self.has_set_home
 
@@ -448,7 +454,9 @@ class PTXActuatorIF:
             'max_auto_pan_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_pan_softstop_deg']
-            },           
+            },       
+            sin_pan_enabled
+                    self.sin_pan_enabled    
             'auto_tilt_enabled': {
                 'namespace': self.namespace,
                 'factory_val': False
@@ -960,8 +968,18 @@ class PTXActuatorIF:
         return orien_dict
            
 
+    def autoPanSinProcess(self,timer):
+
+
+
+
     def autoPanProcess(self,timer):
         #self.msg_if.pub_warn("Starting Pan Scan Process") 
+
+        cur_time = nepi_utils.get_time()
+        scan_time = None
+        last_time = self.auto_pan_last_time
+
         if self.auto_pan_enabled == False:
             self.is_auto_pan = False
         else:
@@ -975,9 +993,34 @@ class PTXActuatorIF:
             if start_auto_pan == True:
                 self.gotoPanPosition(self.auto_pan_min)  
             elif (pan_cur < (self.auto_pan_min + self.AUTO_SCAN_SWITCH_DEG)):
+
+                if last_time is not None:
+                    scan_time =  cur_time - self.auto_pan_last_time
+                self.auto_pan_last_time = nepi_utils.get_time()
+
                 self.gotoPanPosition(self.auto_pan_max)
+                
             elif (pan_cur > (self.auto_pan_max - self.AUTO_SCAN_SWITCH_DEG)):
+
+                if last_time is not None:
+                    scan_time =  cur_time - self.auto_pan_last_time
+                self.auto_pan_last_time = nepi_utils.get_time()
+
                 self.gotoPanPosition(self.auto_pan_min)
+        if scan_time is not None:
+            auto_pan_times.pop(0)
+            auto_pan_times.append(scan_time)
+            self.auto_pan_times = auto_pan_times
+            # Calc auto pan times and sin
+            auto_pan_times = copy.deepcopy(self.auto_pan_times)
+            times = [x for x in auto_pan_times if x != 0]
+            auto_pan_time = 0
+            if len(times) > 0:
+                auto_pan_time = sum(times) / len(times)
+            sin_len = math.ceil(auto_pan_time)
+            self.auto_pan_sins = list(np.linspace(0,1,sin_len)*2*math.pi)
+            self.auto_pan_sin_ind = 0
+
 
     def autoTiltProcess(self,timer):
         #self.msg_if.pub_warn("Starting Tilt Scan Process") 
@@ -1582,6 +1625,8 @@ class PTXActuatorIF:
             self.auto_pan_min = self.node_if.get_param('min_pan_softstop_deg')
             self.auto_pan_max = self.node_if.get_param('max_pan_softstop_deg')
 
+            self.sin_pan_enabled = self.node_if.get_param('sin_pan_enabled')
+
             self.auto_tilt_enabled = self.node_if.get_param('auto_tilt_enabled')
             self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
             self.auto_tilt_max = self.node_if.get_param('max_tilt_softstop_deg')
@@ -1709,7 +1754,8 @@ class PTXActuatorIF:
         self.status_msg.auto_pan_enabled = self.auto_pan_enabled
         self.status_msg.auto_pan_range_window.start_range = self.getPanAdj(self.auto_pan_min)
         self.status_msg.auto_pan_range_window.stop_range = self.getPanAdj(self.auto_pan_max)
-        
+
+        self.status_msg.auto_pan_sin_enabled = self.auto_pan_sin_enabled
 
         self.status_msg.auto_tilt_enabled = self.auto_tilt_enabled
         self.status_msg.auto_tilt_range_window.start_range = self.getTiltAdj(self.auto_tilt_min)

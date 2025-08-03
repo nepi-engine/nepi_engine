@@ -13,8 +13,43 @@
 # source ~/.bashrc
 
 
+
+
+###################################
+#Env Setup
+###################################
+
+# Inform that this is the target hardware
+export NEPI_REMOTE_SETUP=0
+
+# System Paths Condig
+export PATH="/opt/nepi/ros/etc/"
+
+# NVM Config
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# CUDA Config
+export CUDA_HOME=/usr/local/cuda-11
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
+
+
+# Python Config
+export SETUPTOOLS_USE_DISTUTILS=stdlib
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:$PYTHONPATH
+
+export PYTHONPATH=$PYTHONPATH:/opt/nepi/ros/lib/nepi_drivers
+
+# Automatically source NEPI ROS environment
+source /opt/nepi/ros/setup.bash
+
+
 ###################################
 #Dev Shortcuts
+###################################
 # Function to search for text
 # Example call: find 'nepi_sdk.parse_header_msg'
 function ftext(){
@@ -206,13 +241,3 @@ function nepi(){
     "
     echo "$text"
 }
-
-# Inform that this is the target hardware
-export NEPI_REMOTE_SETUP=0
-
-# CUDA Helpers (Open3D, etc)
-export CUDA_HOME=/usr/local/cuda-11
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
-export PATH=$PATH:$CUDA_HOME/bin
-
-export PYTHONPATH=$PYTHONPATH:/opt/nepi/ros/lib/nepi_drivers

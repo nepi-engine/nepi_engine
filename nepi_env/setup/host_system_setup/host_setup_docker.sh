@@ -1,55 +1,162 @@
+
 #!/bin/bash
 
-#Resize image
-resize2fs /dev/nvme0n1p2
-resize2fs /dev/nvme0n1p3
-resize2fs /dev/nvme0n1p3
+https://developer.nvidia.com/embedded/jetson-cloud-native
+https://gitlab.com/nvidia/container-images/l4t-jetpack
 
-#Add nepi user and group if does not exist
-group="nepi"
-user="nepi"
-read -p "enter group name: " group
-if grep -q $group /etc/group
-  then
-       echo "group exists"
-else
-       echo "group $group does not exist, creating"
-       addgroup nepi
-fi
+Resize image
+sudo resize2fs /dev/nvme0n1p2
+sudo resize2fs /dev/nvme0n1p3
 
+On PC
+git clone https://gitlab.com/nvidia/container-images/l4t-jetpack
 
-if id -u "$user" >/dev/null 2>&1; then
-  echo "User $user exists."
-else
-  echo "User $user does not exist, creating"
-  adduser --ingroup nepi nepi
-  echo "nepi ALL=(ALL:ALL) ALL" >> /etc/sudoers
+Copy /home/engineering/Code/l4t-jetpack folder to nepi_storage/tmp
 
-  su nepi
-  passwd
-  nepi
-  nepi
-fi
-exit
+## CONNECT NEPI DEVICE TO INTERNET BEFORE PROCEEDING
+sudo apt-get install apt-utils
+
+cd /mnt/nepi_storage/tmp
+sudo chown -R nepi:nepi l4t-jetpack/
+cd l4t-jetpack/
+sudo make image
+
+#Install visual studio if not present
+#https://unix.stackexchange.com/questions/765383/e-unable-to-locate-package-code
+sudo apt install wget gpg apt-transport-https
+curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+sudo install -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft-archive-keyring.gpg
+sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+sudo apt update
+sudo apt install code
 
 
+
+
+# Install chromium if not present
+#https://forum.snapcraft.io/t/try-to-update-snapd-and-refresh-the-core-snap/20725
+sudo install snap
+sudo snap install core snapd
+#https://www.cyberciti.biz/faq/install-chromium-browser-on-ubuntu-linux/#google_vignette
+snap install chromium
+_______________
+# Install docker if not present
+#https://www.forecr.io/blogs/installation/how-to-install-and-run-docker-on-jetson-nano
+
+# Install nvidia toolkit
+#https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+sudo apt-get install -y nvidia-container-toolkit
+sudo apt-get install nvidia-container-run
+#runtime configure --runtime=docker --config=$HOME/.config/docker/daemon.json
+
+#Stop docker
+sudo systemctl stop docker
+sudo systemctl stop docker.socket
+
+# Set docker image location
+#https://tienbm90.medium.com/how-to-change-docker-root-data-directory-89a39be1a70b
+
+mkdir /mnt/nepi_storage/docker
+sudo mv /var/lib/docker /mnt/nepi_storage/docker
+
+
+
+sudo vim /etc/docker/daemon.json
+#Add
+{
+    "runtimes": {
+        "nvidia": {
+            "path": "nvidia-container-runtime",
+            "runtimeArgs": []
+        }
+    }
+    
+}
+
+
+#### Don't do
+,
+
+    "data-root": "/mnt/nepi_storage/docker"
+}
+''''
+
+
+sudo vi /etc/default/docker
+# Edit this line and uncomment
+DOCKER_OPTS="--dns 8.8.8.8 --dns 8.8.4.4"  -g /mnt/nepi_storage/docker
+
+
+# Set docker service root location
+#https://stackoverflow.com/questions/44010124/where-does-docker-store-its-temp-files-during-extraction
+sudo vi /usr/lib/systemd/system/docker.service
+#Comment out ExecStart line and add below
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --data-root=/mnt/nepi_storage/docker
+#Then reload
+sudo systemctl daemon-reload
+
+#start docker
+sudo systemctl start docker.socket
+sudo systemctl start docker
+sudo docker info
+____________________________________
+https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
+
+Some Tools
+//sudo docker images -a
+//sudo docker ps -a
+//sudo docker start  `nepi_test ps -q -l` # restart it in the background
+//sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+
+
+# run network config sciprt
+sudo python /mnt/nepi_storage/tmp/nepi/config/etc/network/tune_ethernet_interfaces.py
+
+# setup dhcp server
+
+sudo mv /etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf.bak
+sudo ln -sf /opt/nepi/config/etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf
+
+###########################################
+## Build nepi container
+
+Run container
+https://catalog.ngc.nvidia.com/orgs/nvidia/containers/l4t-jetpack
+
+sudo docker run -it --net=host --runtime nvidia -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix nvcr.io/nvidia/l4t-jetpack:r35.1.0
+
+Set root password
+passwd
+nepi
+nepi
+
+
+Add nepi user
+https://stackoverflow.com/questions/27701930/how-to-add-users-to-docker-container
+addgroup nepi
+adduser --ingroup nepi nepi
+visudo /etc/sudoers
+nepi    ALL=(ALL:ALL) ALL
+
+Save then 
+
+su nepi
+passwd
+nepi
+nepi
 
 # Fix gpu accessability
 #https://forums.developer.nvidia.com/t/nvrmmeminitnvmap-failed-with-permission-denied/270716/10
-usermod -aG sudo,video,i2c nepi
+sudo usermod -aG sudo,video,i2c nepi
 
+Stay in nepi user space
 
-
-#Switch to nepi user
-exit
 
 __________________
 Create some nepi required folders
 
 sudo mkdir -p /opt/nepi
 sudo mkdir -p /opt/nepi/ros
-sudo mkdir -p /opt/nepi/config
-sudo mkdir -p /opt/nepi/nepi_rui
 sudo chown -R nepi:nepi /opt/nepi
 
 ____________
@@ -59,20 +166,12 @@ sudo mkdir /mnt/nepi_storage
 sudo chown -R nepi:nepi /mnt/nepi_storage
 ______
 
-# Copy "config" rootfs folder to device
-rsync -a config/ /opt/nepi/config
+# Copy "config" rootfs folder from nepi rootfs tools repo to 
+#/opt/nepi/
 
 
 # Add nepi user to dialout group to allow non-sudo serial connections
 sudo adduser nepi dialout
-
-
-#or //https://arduino.stackexchange.com/questions/74714/arduino-dev-ttyusb0-permission-denied-even-when-user-added-to-group-dialout-o
-#Add your standard user to the group "dialout'
-sudo usermod -a -G dialout nepi
-#Add your standard user to the group "tty"
-sudo usermod -a -G tty nepi
-
 
 
 
@@ -101,24 +200,15 @@ sudo ln -sf /opt/nepi/config/opt/baumer /opt/baumer
 sudo chown nepi:nepi /opt/baumer
 
 
+
+
+
 # Set jetson power mode (look up options for your device online)
 sudo nvpmodel -m 8
 
 # Update bash files
-
-# SETUP Aliases
-# 1) Copy nepi_env/config/home/nepi/nepi_device_aliases to /mnt/nepi_storage/tmp
-# 2) SSH into your nepi device and type
-cp /mnt/nepi_storage/tmp/nepi_device_aliases ~/.nepi_aliases
-source ~/.nepi_aliases
-
-# Update bashrc
-# 1) Copy nepi_env/config/home/nepi/bashrc_NVIDIA_JETSON to /mnt/nepi_storage/tmp
-# 2) SSH into your nepi device and type
-cp /mnt/nepi_storage/tmp/bashrc_NVIDIA_JETSON ~/.bashrc
-source ~/.bashrc
-
-
+cp /mnt/nepi_storage/tmp/nepi/config/home/nepi/bashrc_n3p0p4_jp5p0p2_cn ~/.bashrc
+cp /mnt/nepi_storage/tmp/nepi/config/home/nepi/nepi_bash_aliases ~/.bash_aliases
 #_________________________
 ####################
 
@@ -128,91 +218,111 @@ sudo apt-get update
 sudo apt-get install cmake
 
 
-#######################
+#Install python tools
 
-# Uninstall ROS if reinstalling/updating
-# sudo apt remove ros-noetic-*
-# sudo apt-get autoremove
-# After that, it's recommended to remove ROS-related environment variables from your .bashrc file 
-# and delete the ROS installation directory, typically /opt/ros/noetic. 
-
-
-# Install Python 
-sudo apt update 
-
-sudo apt-get install --reinstall ca-certificates
 sudo apt-get install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install python3.10 
-sudo apt install python3.10-distutils -f
+sudo apt install python3.8
+sudo apt install python3.8-distutils
+sudo apt install python3.8-venv
+sudo apt-get install python3-pip
+//python3 -m pip install --upgrade pip
 
-# Update python symlinks
 cd /usr/bin
-sudo ln -sfn python3.10 python3
 sudo ln -sfn python3 python
 
 
-sudo apt install python3.10-venv 
-sudo apt install python3.10-dev 
+# NEPI runtime python3 dependencies. Must install these in system folders such that they are on root user's python path
+sudo -H pip install pyserial 
+sudo -H pip install websockets 
+sudo -H pip install geographiclib 
+sudo -H pip install PyGeodesy 
+sudo -H pip install harvesters 
+sudo -H pip install WSDiscovery 
+sudo -H pip install python-gnupg 
+sudo -H pip install onvif_zeep
+sudo -H pip install onvif 
 
-# Install pip
-curl -sS https://bootstrap.pypa.io/get-pip.py | sudo python3.10
-python3.10 -m pip --version
+pip install --user labelImg # For onboard training
+pip install --user licenseheaders # For updating license files and source code comments
 
+sudo apt install scons # Required for num_gpsd
+sudo apt install zstd # Required for Zed SDK installer
+sudo apt install dos2unix # Required for robust automation_mgr
+sudo apt install libv4l-dev v4l-utils # V4L Cameras (USB, etc.)
+sudo apt install hostapd # WiFi access point setup
+sudo apt install curl # Node.js installation below
+sudo apt install v4l-utils
+sudo apt install isc-dhcp-client
+sudo apt install wpasupplicant
+sudo apt install -y psmisc
+sudo apt install scapy
 
+- installed PyUSB
+sudo pip install PyUSB
 
+- installed scipy
+sudo apt-get install python3-scipy
+pip install --upgrade scipy
+//sudo pip install --upgrade scipy
 
 #create requirements file from normal install then run both as normal and sudo user
 # https://stackoverflow.com/questions/31684375/automatically-create-file-requirements-txt
 # pip3 freeze > requirements.txt
-# or 
-# sed 's/==.*$//' requirements.txt > requirements_no_versions.txt
 # Copy to /mnt/nepi_storage/tmp
 # ssh into tmp folder on nepi
+sudo su
+cat requirements.txt | sed -e '/^\s*#.*$/d' -e '/^\s*$/d' | xargs -n 1 python3 -m pip install
 
-#Install python requred packages
-# 1) Copy nepi_env/config/home/nepi/requirements_no_versions to /mnt/nepi_storage/tmp
-# 2) SSH into your nepi device and type
+Manual installs in sudo
+apt-get install python-debian
+apt-get install onboard
+apt-get install setools
+apt-get install ubuntu-advantage-tools
+apt-get install dos2unix
+apt-get install -y iproute2
+exit
+
+cat requirements.txt | sed -e '/^\s*#.*$/d' -e '/^\s*$/d' | xargs -n 1 python3 -m pip install
+
+sudo pip install yap
+pip install yap
+sudo pip install yapf
+
+# Add nepi user to dialout group to allow non-sudo serial connections
+sudo adduser nepi dialout
 
 
+# Work-around opencv path installation issue on Jetson (after jetpack installation)
+sudo ln -s /usr/include/opencv4/opencv2/ /usr/include/opencv
+sudo ln -s /usr/lib/aarch64-linux-gnu/cmake/opencv4 /usr/share/OpenCV
 
-# Edit bashrc file
-nano ~/.bashrc
-# Add to end of bashrc
-    export SETUPTOOLS_USE_DISTUTILS=stdlib
-    export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-    export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:$PYTHONPATH
+# setup dhcp server
+
+sudo mv /etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf.bak
+sudo ln -sf /opt/nepi/config/etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf
+############################################
 
 
-##_________________________
-## Setup ROS
+- add Gieode databases to FileSystem'
+egm2008-2_5.pgm  egm2008-2_5.pgm.aux.xml  egm2008-2_5.wld  egm96-15.pgm  egm96-15.pgm.aux.xml  egm96-15.wld
+from
+https://www.3dflow.net/geoids/
+to
+/opt/nepi/databases/geoids
+
+
+_________________________
+Setup ROS
 
 sudo apt-get install lsb-release -y
 
+Install ros
+https://wiki.ros.org/noetic/Installation/Ubuntu
 
 
-
-#  Install ros
-#  https://wiki.ros.org/noetic/Installation/Ubuntu
-
-cd /mnt/nepi_storage/tmp
-sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-sudo apt install curl # if you haven't already installed curl
-curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-sudo apt update
-sudo apt install ros-noetic-desktop-full
-source /opt/ros/noetic/setup.bash
-sudo apt install python3-rosdep 
-sudo apt install python3-rosinstall 
-sudo apt install python3-rosinstall-generator 
-sudo apt install python3-wstool build-essential
-sudo rosdep init
-rosdep update
-
-# Then
-#sudo apt-get install ros-noetic-catkin python-catkin-tools
-#sudo pip3 install --user git+https://github.com/catkin/catkin_tools.git
+//sudo apt-get install ros-noetic-catkin python-catkin-tools
 
 ROS_VERSION=noetic
 
@@ -238,19 +348,6 @@ sudo apt install $ADDITIONAL_ROS_PACKAGES
 sudo apt install ros-noetic-cv-bridge
 sudo apt install ros-noetic-web-video-server
 
-## Fix some python 3.10 issues
-sudo pip install -r requirements.txt -> Installing collected packages: tornado, requests Attempting uninstall: tornado Found existing installation: tornado 4.5.3 Uninstalling tornado-4.5.3: Successfully uninstalled tornado-4.5.3 Attempting uninstall: requests Found existing installation: requests 2.21.0 Uninstalling requests-2.21.0: Successfully uninstalled requests-2.21.0 Successfully installed requests-2.32.2 tornado-6.4
-
-
-
-# 1) edit the following file: 
-sudo su
-cd /opt/ros/noetic/lib/rosbridge_server/
-cp rosbridge_websocket.py  rosbridge_websocket.bak
-vi rosbridge_websocket.py
-# Add the following lines under import sys
-exit
-
 
 # Mavros requires some additional setup for geographiclib
 sudo /opt/ros/${ROS_VERSION}/lib/mavros/install_geographiclib_datasets.sh
@@ -260,161 +357,16 @@ sudo /opt/ros/${ROS_VERSION}/lib/mavros/install_geographiclib_datasets.sh
 sudo chown -R nepi:nepi /home/nepi/.ros
 
 # Setup rosdep
-#sudo rm -r /etc/ros/rosdep/sources.list.d/20-default.list
-#sudo rosdep init
-#rosdep update
+sudo rm -r /etc/ros/rosdep/sources.list.d/20-default.list
+sudo rosdep init
+rosdep update
 
 source /opt/ros/noetic/setup.bash
 
 
 ############################################
-# Maybe not
-  //- upgrade python hdf5
-  //sudo pip install --upgrade h5py
-
-_________________________
-
-
-
-
-
-#Manual installs some additinal packages in sudo one at a time
-################################
-# Install some required packages
-sudo apt-get install python-debian
-sudo pip install cffi
-pip install open3d --ignore-installed
-sudo pip install open3d --ignore-installed
-
-#sudo pip uninstall netifaces
-sudo pip install netifaces
-
-sudo apt-get install onboard
-sudo apt-get install setools
-sudo apt-get install ubuntu-advantage-tools
-
-sudo apt-get install -y iproute2
-
-sudo apt-get install scons # Required for num_gpsd
-sudo apt-get install zstd # Required for Zed SDK installer
-sudo apt-get install dos2unix # Required for robust automation_mgr
-sudo apt-get install libv4l-dev v4l-utils # V4L Cameras (USB, etc.)
-sudo apt-get install hostapd # WiFi access point setup
-sudo apt-get install curl # Node.js installation below
-sudo apt-get install v4l-utils
-sudo apt-get install isc-dhcp-client
-sudo apt-get install wpasupplicant
-sudo apt-get install -y psmisc
-sudo apt-get install scapy
-sudo apt-get install minicom
-sudo apt-get install dconf-editor
-
-# Install additional python requirements
-# Copy the requirements files from nepi_engine/nepi_env/setup to /mnt/nepi_storage/tmp
-cd /mnt/nepi_storage/tmp
-sudo su
-cat requirements_no_versions.txt | sed -e '/^\s*#.*$/d' -e '/^\s*$/d' | xargs -n 1 python3.10 -m pip install
-exit
-
-
-# Revert numpy
-sudo pip uninstall numpy
-sudo pip3 install numpy=='1.24.4'
-
-
-## Maybe not needed with requirements
-        # NEPI runtime python3 dependencies. Must install these in system folders such that they are on root user's python path
-        sudo -H pip install pyserial 
-        sudo -H pip install websockets 
-        sudo -H pip install geographiclib 
-        sudo -H pip install PyGeodesy 
-        sudo -H pip install harvesters 
-        sudo -H pip install WSDiscovery 
-        sudo -H pip install python-gnupg 
-        sudo -H pip install onvif_zeep
-        sudo -H pip install onvif 
-        sudo -H pip install rospy_message_converter
-        sudo -H pip install PyUSB
-        sudo -H pip install jetson-stats
-
-
-        sudo -H pip install --user labelImg # For onboard training
-        sudo -H pip install --user licenseheaders # For updating license files and source code comments
-        #pip install --user labelImg # For onboard training
-        #pip install --user licenseheaders # For updating license files and source code comments
-
-
-        # NOT Sure
-        sudo apt-get install python3-scipy
-        #sudo -H pip install --upgrade scipy
-
-        sudo pip install yap
-        #pip install yap
-        sudo pip install yapf
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Work-around opencv path installation issue on Jetson (after jetpack installation)
-sudo ln -s /usr/include/opencv4/opencv2/ /usr/include/opencv
-sudo ln -s /usr/lib/aarch64-linux-gnu/cmake/opencv4 /usr/share/OpenCV
-
-# setup dhcp server
-
-sudo mv /etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf.bak
-sudo ln -sf /opt/nepi/config/etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf
-
-#- add Gieode databases to FileSystem
-:'
-egm2008-2_5.pgm  egm2008-2_5.pgm.aux.xml  egm2008-2_5.wld  egm96-15.pgm  egm96-15.pgm.aux.xml  egm96-15.wld
-from
-https://www.3dflow.net/geoids/
-to
-/opt/nepi/databases/geoids
-:'
-
-
-
-############################################
-## Updates for gpu support on jetson
-######################
-
-
-# Don't do this
-            ______________________________
-            # OPENCV WITH JETSON CUDA
-            # Replace pip opencv with Jetson Cuda supported jetson build
-            # https://forums.developer.nvidia.com/t/opencv-surf-with-cuda-is-not-faster-by-a-noticeable-amount-on-agx-orin/313713
-
-            # First uninstall pip opencv if installed
-            sudo pip uninstall opencv-python
-            sudo apt remove python3-apt
-            sudo apt-get autoremove
-            sudo apt autoremove
-            sudo apt autoclean
-            sudo apt install python3-apt
-            # dowload build opencv with jetson cuda support
-            # https://www.forecr.io/blogs/installation/how-to-install-opencv-with-cuda-support?srsltid=AfmBOor-VwEGF1OqR-RkGF9w2unMkqGC2gD7vUnjDaU_jpZHtAK90DOG
-
-            # Download from this link and cp to your the nepi user tmp folder at /mnt/nepi_storage/tmp
-            # https://hs.forecr.io/hubfs/BLOG%20ATTACHMENTS/How%20to%20Install%20OpenCV%20with%20CUDA%20Support%20on%20Jetson%20Modules/OpenCV_4_4_0_for_Jetson.zip
-            # ssh in to /mnt/nepi_storage/tmp and unzip the copied file
-            unzip OpenCV_4_4_0_for_Jetson.zip
-            cd OpenCV_4_4_0_for_Jetson
-            sudo ./opencv-install.sh
-            ______________________________ 
-
-
+//- upgrade python hdf5
+//sudo pip3 install --upgrade h5py
 
 
 
@@ -625,8 +577,8 @@ sudo python -c "import cupy; print(cupy)"
 
 
 #################################
-#pip install open3d --ignore-installed
-#sudo pip install open3d --ignore-installed
+pip install open3d --ignore-installed
+sudo pip install open3d --ignore-installed
 
 OR 
 From source
@@ -645,7 +597,7 @@ FROM REF https://github.com/jetsonhacks/buildLibrealsense2TX/issues/13
 a) SSH into your NEPI device
 b) Open your .bashrc file "vi ~/.bashrc", and add the following to the end 
 
-Update this line in the ~/.bashrc or ~/.nepi_aliases file
+Update this line in the ~/.bashrc or ~/.bash_aliases file
 export CUDA_HOME=/usr/local/cuda-11.4
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
 export PATH=$PATH:$CUDA_HOME/bin
@@ -654,7 +606,7 @@ c) Save and exit
 d) Re-source the file
 
 source ~/.bashrc
-source ~/.nepi_aliases
+source ~/.bash_aliases
 
 
 __________________________________________________________
@@ -867,8 +819,6 @@ sudo python -c "from open3d import core; print(core.cuda_is_available())"
 #ISSUES
 https://github.com/isl-org/Open3D/issues/5505
 
-
-___________________________________________
 ############################
 Install cv2 with cuda support
 *****
@@ -1005,38 +955,19 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 nvm install 8.11.1 # RUI-required Node version as of this script creation
-# Upgrade node version
-nvm install 14.1.0
-nvm use 14.1.0
-npm install -S rtsp-relay express
-npm install -g yarn
-//yarn add ffmpeg-kit-react-native
-
-rm /opt/nepi/nepi_rui/.nvmrc
-echo 14.1.0 >> /opt/nepi/nepi_rui/.nvmrc
-
-
-
 
 cd /opt/nepi/nepi_rui
 python -m virtualenv venv
 source ./devenv.sh
 pip install -r requirements.txt
-npm install
-deactivate
 
 
-# Build RUI
-cd /opt/nepi/nepi_rui
-source ./devenv.sh
 cd src/rui_webserver/rui-app
+npm install
 npm run build
 
-# MAYBE
-# npm install --save react-zoom-pan-pinch
-deactivate
 
-# Run RUI
+
 sudo /opt/nepi/nepi_rui/etc/start_rui.sh
 
 //rosrun nepi_rui run_webserver.py
@@ -1065,8 +996,6 @@ sudo systemctl status nepi_rui.service
 ########
 # install license managers
 
-sudo apt-get install gnupg
-sudo apt-get install kgpg
 
 sudo rm -R /opt/nepi/config
 sudo cp -r /mnt/nepi_storage/tmp/nepi/config/ ./
@@ -1153,6 +1082,89 @@ autorestart=true
 
 sudo /usr/bin/supervisord
 
-su
 
-'
+
+##########
+#____________
+Clone the current container
+
+"exit" twice
+
+
+Clone container
+sudo docker ps -a
+Get <ID>
+sudo docker commit <ID> nepi1
+
+# Clean out <none> Images
+sudo docker rmi $(sudo docker images -f “dangling=true” -q)
+
+# Export/Import Flat Image as tar
+sudo docker export a1e4e38c2162 > /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar
+sudo docker import /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar 
+docker tag <IMAGE_ID> nepi_ft1
+
+# Save/Load Layered Image as tar
+sudo docker save -o /mnt/nepi_storage/tmp/nepi1.tar a1e4e38c2162
+sudo docker tag 7aa663d0a1e3 nepi_ft1
+
+_________
+#Clean the linux system
+#https://askubuntu.com/questions/5980/how-do-i-free-up-disk-space
+sudo apt-get clean
+sudo apt-get autoclean
+sudo apt-get autoremove
+
+
+#_____________
+Setup Host 
+
+#(Recommended) Set your host ip address to nepi standard
+Address: 192.168.179.103
+Netmask: 255.255.255.0
+
+#(Recommended) Setup dhcp service
+apt install netplan.io
+
+# Copy zed camera config files to 
+/mnt/nepi_storage/usr_cfg/zed_cals/
+
+#Install chromium on 
+# On host machine open chromium and enter http://127.0.0.1:5003/ to access the RUI locally
+# On 
+
+
+#_____________
+# setup nepi_storage folder
+
+# Create a nepi_storage folder on mounted partition with at least 100 GB of free space
+mkdir <path_to_nepi_parent_folder>/nepi_storage
+
+# Run the nepi containers nepi_storage_init.sh script using the following command  
+sudo docker run --rm --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi /bin/bash -c "/nepi_storage_init.sh"
+
+#then
+exit
+
+
+#_____________
+# Run Nepi Engine
+# Dev
+sudo docker run --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage --mount type=bind,source=/dev,target=/dev -it --net=host --runtime nvidia -v /tmp/.X11-unix/:/tmp/.X11-unix nepi1 /bin/bash
+
+volumes - /dev:/dev
+
+#Run
+sudo docker run --rm --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host --runtime nvidia -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix nepi1 /bin/bash -c "/nepi_engine_start.sh"
+
+
+#_____________
+# Run Nepi RUI
+
+sudo docker run --rm -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi1 /bin/bash -c "/nepi_rui_start.sh"
+
+sudo docker exec -it 32e4923a9fc6 /bin/bash -c "/nepi_rui.sh"
+
+# /bin/sh -c "nepi_launch.sh"
+
+su
