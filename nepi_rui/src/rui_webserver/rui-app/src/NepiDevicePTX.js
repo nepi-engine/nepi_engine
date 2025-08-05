@@ -118,6 +118,9 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
+      sinPanEnabled: false,
+      sinTiltEnabled: false,
+
       namespace : null,
       
       listener: null,
@@ -338,6 +341,8 @@ class NepiDevicePTX extends Component {
       autoTiltEnabled: message.auto_tilt_enabled,
       autoTiltMin: message.auto_tilt_range_window.start_range,
       autoTiltMax: message.auto_tilt_range_window.stop_range,
+      sinPanEnabled: message.sin_pan_enabled,
+      sinTiltEnabled: message.sin_tilt_enabled,
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
@@ -462,7 +467,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             panMaxSoftstopDeg, tiltMaxSoftstopDeg, panMinSoftstopDeg, tiltMinSoftstopDeg,
             panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
             speedRatio, panHomePosEdited, tiltHomePosEdited,
-            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled } = this.state
+            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled,sinPanEnabled ,sinTiltEnabled  } = this.state
 
     const namespace = this.state.namespace
     const ptx_id = namespace? namespace.split('/').slice(-1) : "No Pan/Tilt Selected"
@@ -647,47 +652,69 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
           </div>
         </Label>
 
-                <Label title={"Min Scan Limits"}>
 
-                  <Input id="scan_pan_min" 
-                      value={this.state.panScanMin} 
-                      style={{ width: "45%", float: "left" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
-
-                  <Input id="scan_tilt_min" 
-                      value={this.state.tiltScanMin} 
-                      style={{ width: "45%" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
-
-                 
-                </Label>
+        <div hidden={(hide_auto_pan === true)}>
+        <Label title={"Enable Sin Scan"}>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>
+            <Toggle
+              checked={this.state.sinPanEnabled}
+              onClick={() => sendBoolMsg(namespace + "/set_auto_pan_sin_enable", !this.state.sinPanEnabled)
+              }
+            />
+          </div>
 
 
+          <div style={{ display: "inline-block", width: "45%", float: "right" }}>
+            <Toggle
+              checked={this.state.sinTiltEnabled}
+              onClick={() => sendBoolMsg(namespace + "/set_auto_tilt_sin_enable", !this.state.sinTiltEnabled)
+              }
+            />
+          </div>
+          </Label>
+        </div>
+
+
+        <Label title={"Min Scan Limits"}>
+
+          <Input id="scan_pan_min" 
+              value={this.state.panScanMin} 
+              style={{ width: "45%", float: "left" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
+
+          <Input id="scan_tilt_min" 
+              value={this.state.tiltScanMin} 
+              style={{ width: "45%" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
+
+          
+        </Label>
 
 
 
 
-                <Label title={"Max Scan Limits"}>
-
-                 <Input id="scan_pan_max" 
-                    value={this.state.panScanMax} 
-                    style={{ width: "45%", float: "left" }}
-                    onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
-                    onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />     
 
 
-                  <Input id="scan_tilt_max" 
-                     value={this.state.tiltScanMax} 
-                     style={{ width: "45%" }}
-                     onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
-                     onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
-                </Label>
-                <div hidden={(hide_auto_tilt === true)}>
+        <Label title={"Max Scan Limits"}>
 
-                </div>
+          <Input id="scan_pan_max" 
+            value={this.state.panScanMax} 
+            style={{ width: "45%", float: "left" }}
+            onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
+            onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />     
 
+
+          <Input id="scan_tilt_max" 
+              value={this.state.tiltScanMax} 
+              style={{ width: "45%" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
+        </Label>
+        <div hidden={(hide_auto_tilt === true)}>
+
+        </div>
 
 
         <Columns>
