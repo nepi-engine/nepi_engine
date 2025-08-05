@@ -45,16 +45,15 @@ SYSTEM_MGR_NODENAME = 'system_mgr'
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
     'sys_env.bash' : '/opt/nepi/sys_env.bash', # Serial number, ROS launch file, external ROS MASTER etc.
-    'authorized_keys' : '/opt/nepi/config/home/nepi/ssh/authorized_keys', # NEPI Device SSH public keys
-    'hostname' : '/opt/nepi/config/etc/hostname', # NEPI Device hostname
-    'sshd_config' : '/opt/nepi/config/etc/ssh/sshd_config', # SSH Server Config
-    'chrony.conf.user' : '/opt/nepi/config/etc/chrony/chrony.conf.user', # NTP/Chrony Config
-    's2x_iptables.rules' : '/opt/nepi/config/etc/iptables/s2x_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
-    's2x_sensor_if_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/s2x_sensor_if_static_ip', # Static IP address for secondary/sensor ethernet interface
-    'nepi_user_ip_aliases' : '/opt/nepi/config/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
-    'nepi_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
-    'fstab' : '/opt/nepi/config/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
-    'smb.conf' : '/opt/nepi/config/etc/samba/smb.conf'
+    'authorized_keys' : '/opt/nepi/etc/authorized_keys', # NEPI Device SSH public keys
+    'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
+    'sshd_config' : '/opt/nepi/etc/sshd_config', # SSH Server Config
+    'chrony.conf' : '/opt/nepi/etc/chrony.conf', # NTP/Chrony Config
+    'nepi_iptables.rules' : '/opt/nepi/etc/network/nepi_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
+    'nepi_user_ip_aliases' : '/opt/nepi/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
+    'nepi_static_ip' : '/opt/nepi/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
+    'fstab' : '/opt/nepi/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
+    'smb.conf' : '/opt/nepi/etc/smb.conf'
 }
 
 
@@ -369,7 +368,7 @@ class config_mgr(object):
         for cfg in SYS_CFGS_TO_PRESERVE:
             source = SYS_CFGS_TO_PRESERVE[cfg]
             target = os.path.join(USER_CFG_PATH, 'sys', cfg)
-            os.system('cp -rf ' + source + ' ' + target)
+            os.system('cp -rfp ' + source + ' ' + target)
 
 
 
@@ -387,14 +386,18 @@ class config_mgr(object):
                     full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
                 self.msg_if.pub_warn("Updating " + target + " from user config")
-                os.system('cp -rf ' + full_name + ' ' + target)
+                os.system('cp -rfp ' + full_name + ' ' + target)
                 
+                if name == 'autherized_keys':
+                    os.system('chmod -R 0600 ' + target)
 
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
                     tmp_file = target + ".tmp"
-                    os.system('cp -rf ' + target + ' ' + tmp_file)
+                    if os.path.exists(tmp_file):
+                        os.system('rm ' + tmp_file)
+                    os.system('cp -rfp ' + target + ' ' + tmp_file)
                     file_lines = []
                     with open(tmp_file, "r") as f:
                         for line in f:
@@ -409,12 +412,10 @@ class config_mgr(object):
                             file_lines.append(update_line)
                     nepi_utils.write_list_to_file(file_lines,tmp_file)
                     
-
                     bak_filename = target + ".bak"
-                    os.system('cp -rf ' + tmp_file + ' ' + target)
-                    os.system('rm ' + tmp_file)
+                    os.system('cp -rfp ' + tmp_file + ' ' + target)
                 os.system('chown -R nepi:nepi ' + target)
-
+ 
 
     def restore_factory_cfgs_all(self,msg):
         self.restore_factory_cfgs()
