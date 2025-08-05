@@ -390,31 +390,6 @@ class config_mgr(object):
                 
                 if name == 'autherized_keys':
                     os.system('chmod -R 0600 ' + target)
-
-                # don't update sys_env NEPI_ENV_PACKAGE value
-                if name == 'sys_env.bash':
-                    self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
-                    tmp_file = target + ".tmp"
-                    if os.path.exists(tmp_file):
-                        os.system('rm ' + tmp_file)
-                    os.system('cp -rfp ' + target + ' ' + tmp_file)
-                    file_lines = []
-                    with open(tmp_file, "r") as f:
-                        for line in f:
-                            #self.msg_if.pub_info("Got sys_env line: " + line)
-                            if line.startswith("export ROS1_PACKAGE="):
-                                self.msg_if.pub_warn("Found sys_env Package line")
-                                update_line = ("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE)
-                                self.msg_if.pub_warn("Update sys_env Package line: " + update_line)
-                            else:
-                                update_line = line
-                            #self.msg_if.pub_info("Update sys_env line: " + update_line)
-                            file_lines.append(update_line)
-                    nepi_utils.write_list_to_file(file_lines,tmp_file)
-                    
-                    bak_filename = target + ".bak"
-                    os.system('cp -rfp ' + tmp_file + ' ' + target)
-                os.system('chown -R nepi:nepi ' + target)
  
 
     def restore_factory_cfgs_all(self,msg):

@@ -1307,8 +1307,7 @@ class PTXActuatorIF:
     def gotoPositionHandler(self, msg):
         self.setAutoPan(False)
         self.setAutoTilt(False)
-        if self.positionWithinSoftLimits is not None:
-            [pan_deg_adj,tilt_deg_adj] = ssetSinPanHandlerelf.getPanTiltAdj(msg.pan_deg,msg.tilt_deg)
+        [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg,msg.tilt_deg)
         self.gotPosition(pan_deg_adj,tilt_deg_adj)
 
     def gotPosition(self,pan_deg,tilt_deg):
@@ -1317,9 +1316,9 @@ class PTXActuatorIF:
                 return
             self.pan_goal_deg = pan_deg
             self.tilt_goal_deg = tilt_deg
-            self.publish_status()
             self.msg_if.pub_info("Driving to  " + "%.2f" % (self.pan_goal_deg * self.rpi) + " " + "%.2f" % (self.tilt_goal_deg * self.rti))
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+            self.publish_status()
 
     def gotoPanPositionHandler(self, msg):
         self.setAutoPan(False)
