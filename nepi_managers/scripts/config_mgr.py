@@ -388,8 +388,9 @@ class config_mgr(object):
                 self.msg_if.pub_warn("Updating " + target + " from user config")
                 os.system('cp -rfp ' + full_name + ' ' + target)
                 
-                if name == 'autherized_keys':
+                if name == 'authorized_keys':
                     os.system('chmod -R 0600 ' + target)
+
  
 
     def restore_factory_cfgs_all(self,msg):
