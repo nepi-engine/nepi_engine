@@ -502,13 +502,13 @@ class NetworkMgr:
     def networkIpCheckCb(self, event):
         save_config = False
         #self.msg_if.pub_warn("Entering updater process")
-        self.last_ip_addrs = copy.deepcopy(self.report_ip_addrs)
+        self.last_ip_addrs = copy.deepcopy(self.found_ip_addrs)
         found_ip_addrs = self.update_ip_addr_lists()
 
         self.dhcp_ip_addr = found_ip_addrs[-1]
-        if self.dhcp_ip_addr == ''
-            found_ip_addrs = found_ip_addr[:-1]
-        self.found_ip_addrs = found_ip_addr
+        if self.dhcp_ip_addr == '':
+            found_ip_addrs = found_ip_addrs[:-1]
+        self.found_ip_addrs = found_ip_addrs
 
         for ip in self.managed_ip_addrs:
             if ip not in self.found_ip_addrs:
@@ -670,7 +670,7 @@ class NetworkMgr:
         if True == self.is_valid_ip(addr):
             if addr not in self.found_ip_addrs:
                 if addr != self.primary_ip_addr: # and addr != self.dhcp_ip_addr:
-                    self.report_ip_addrs.append(addr)
+                    self.found_ip_addrs.append(addr)
                     success = self.publish_status()
                     self.add_ip_impl(addr)
                     self.msg_if.pub_warn("Added IP address: " + str(addr))
@@ -704,11 +704,11 @@ class NetworkMgr:
     def remove_ip(self, addr):
         success = False
         if True == self.is_valid_ip(addr):
-            if addr in self.report_ip_addrs:
+            if addr in self.found_ip_addrs:
                 if addr in self.managed_ip_addrs:
                         self.managed_ip_addrs.remove(addr)
                 if addr != self.primary_ip_addr : # and addr != self.dhcp_ip_addr:
-                    self.report_ip_addrs.remove(addr)
+                    self.found_ip_addrs.remove(addr)
                     success = self.publish_status()
                     self.remove_ip_impl(addr)
                     self.msg_if.pub_warn("Removed IP address: " + str(addr))
@@ -804,7 +804,7 @@ class NetworkMgr:
         # Note that this is outside the scope of ROS param server because we need these
         # aliases to come up even before ROS (hence this node) comes up in case the remoted ROSMASTER
         # is on a subnet only reachable via one of these aliases
-        current_ips = copy.deepcopy(self.report_ip_addrs)
+        current_ips = copy.deepcopy(self.found_ip_addrs)
         managed_ips = copy.deepcopy(self.managed_ip_addrs)
         self.msg_if.pub_warn("Writing managed network ips to file: " + str(managed_ips) + " " + str(self.USER_IP_ALIASES_FILE))
         tmp_file = self.USER_IP_ALIASES_FILE + '.tmp'

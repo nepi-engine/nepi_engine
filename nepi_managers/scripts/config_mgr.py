@@ -404,7 +404,7 @@ class config_mgr(object):
                             #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
                                 self.msg_if.pub_warn("Found sys_env Package line")
-                                update_line = ("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE + '\n')
+                                update_line = ("export ROS1_PACKAGE=" + NEPI_ENV_PACKAGE)
                                 self.msg_if.pub_warn("Update sys_env Package line: " + update_line)
                             else:
                                 update_line = line
