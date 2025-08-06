@@ -40,7 +40,7 @@ esac
 sudo cp -r ${HOME_DIR}/config_jetson/* /opt/nepi/config
 
 # Update fstab - new file depends on whether this S2X has init rootfs on EMMC or NVME
-sudo mv /etc/fstab /etc/fstab.bak
+sudo cp /etc/fstab /etc/fstab.bak
 if [ $HAS_EMMC = 'Y' ]; then
     # NEPI Storage (SSD partition 3)
     sudo ln -sf /opt/nepi/config/etc/fstab_emmc /etc/fstab
@@ -50,8 +50,8 @@ else
 
 # Set ownership and permissions properly - Awkardly, samba seems to use a mixed bag of samba and 
 # system authentication, but the following works
-sudo mount /mnt/nepi_storage
-sudo chown -R nepi:sambashare /mnt/nepi_storage
-sudo chmod -R 0775 /mnt/nepi_storage
 
-# TODO: Zed SDK and zed_ros_wrapper per Stereolabs instructions
+#Create nepi_storage folder
+sudo mkdir /mnt/nepi_storage
+sudo mount /mnt/nepi_storage
+

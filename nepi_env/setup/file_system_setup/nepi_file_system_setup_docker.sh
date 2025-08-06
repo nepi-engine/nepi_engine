@@ -1,6 +1,43 @@
+#!/bin/bash
+
+# Open a terminal on the device to install on
+# Or ssh in if available
+
+# Jetson-specific NEPI rootfs setup steps. This is a specialization of the base NEPI rootfs
+# and calls that parent script as a pre-step.
+
+# Run the parent script first
+sudo ./nepi_file_syustem_setup.sh
+
+############################################
+# NEPI File System Setup (Container)
+############################################
+
+
+#########
+# Define some system paths
+# NOTE: THESE SHOULD HAVE BEEN Created in one of the ENV setup scripts above
+
+
+REPO_DIR=${HOME_DIR}/nepi_engine
+CONFIG_DIR=${REPO_DIR}/nepi_env/config
+ETC_DIR=${REPO_DIR}/nepi_env/etc
+
+NEPI_DIR=/opt/nepi
+NEPI_RUI=${NEPI_DIR}/nepi_rui
+NEPI_CONFIG=${NEPI_DIR}/config
+NEPI_ENV=${NEPI_DIR}/ros
+NEPI_ETC=${NEPI_DIR}/etc
+
+NEPI_DRIVE=/mnt/nepi_storage
+
+
+
+
+
 
 ########
-# install license managers
+# 
 
 
 sudo rm -R /opt/nepi/config

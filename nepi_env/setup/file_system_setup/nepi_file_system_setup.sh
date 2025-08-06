@@ -31,11 +31,13 @@
 ############################################
 
 
+
+
 #########
 # Define some system paths
 # NOTE: THESE SHOULD HAVE BEEN Created in one of the ENV setup scripts above
 
-HOME_DIR=$PWD
+
 REPO_DIR=${HOME_DIR}/nepi_engine
 CONFIG_DIR=${REPO_DIR}/nepi_env/config
 ETC_DIR=${REPO_DIR}/nepi_env/etc
@@ -44,78 +46,28 @@ NEPI_DIR=/opt/nepi
 NEPI_RUI=${NEPI_DIR}/nepi_rui
 NEPI_CONFIG=${NEPI_DIR}/config
 NEPI_ENV=${NEPI_DIR}/ros
-NEPI_ETC=${NEPI_ENV}/config
+NEPI_ETC=${NEPI_DIR}/etc
 
 NEPI_DRIVE=/mnt/nepi_storage
 
 
 
+# Log in as nepi user
+
 # The script is assumed to run from a directory structure that mirrors the Git repo it is housed in.
 cd ~/
 HOME_DIR=$PWD
-
-
-NEPI_REPO=~/code/nepi_engine_ws
-NEPI_FILES=/opt/nepi
-# Copy "config" rootfs folder to device from the nepi_engine/nepi_env repo folder
-
-
-rsync -a ${NEPI_REPO}/src/nepi_engine/nepi_env/config/ ${NEPI_FILES}/config
-
-# Generate the entire config directory -- this is where all the targets of Linux config symlinks
-# generated below land
-sudo cp -r ${HOME_DIR}/config /opt/nepi
-
-# Set up the default hostname
-# Hostname Setup - the link target file may be updated by NEPI specialization scripts, but no link will need to move
-sudo mv /etc/hostname /etc/hostname.bak
-sudo ln -sf /opt/nepi/config/etc/hostname /etc/hostname
-
-
-
-# share this folder on your network using samba
-echo "Installing samba for network shared drives"
-sudo apt install samba
-sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
-sudo cp /opt/nepi/config/etc/samba/smb.conf /etc/samba/smb.conf
-sudo chown :sambashare /mnt/nepi_storage
-printf "nepi\nnepi\n" | sudo smbpasswd -a nepi
-sudo smbd -D
-#sudo systemctl start smbd
-
-
-#_____________________________________________
-# Install Baumer GenTL Producers (Genicam support)
-echo "Installing Baumer GAPI SDK GenTL Producers"
-# Set up the shared object links in case they weren't copied properly when this repo was moved to target
-NEPI_BAUMER_PATH=/opt/nepi/config/opt/baumer/gentl_producers
-ln -sf $NEPI_BAUMER_PATH/libbgapi2_usb.cti.2.14.1 $NEPI_BAUMER_PATH/libbgapi2_usb.cti.2.14
-ln -sf $NEPI_BAUMER_PATH/libbgapi2_usb.cti.2.14 $NEPI_BAUMER_PATH/libbgapi2_usb.cti
-ln -sf $NEPI_BAUMER_PATH/libbgapi2_gige.cti.2.14.1 $NEPI_BAUMER_PATH/libbgapi2_gige.cti.2.14
-ln -sf $NEPI_BAUMER_PATH/libbgapi2_gige.cti.2.14 $NEPI_BAUMER_PATH/libbgapi2_gige.cti
-# And the master link
-sudo ln -sf /opt/nepi/config/opt/baumer /opt/baumer
-sudo chown nepi:nepi /opt/baumer
-
-
-# And hand all these over to nepi user
-sudo chown -R nepi:nepi /opt/nepi
-
-
-
-
-
-
-
-
 
 #_________________________
 ####################
 
 #___________________
 #Install dependancies
-sudo apt-get update
-sudo apt-get install cmake
+sudo apt update
+sudo apt upgrade
+
+# Convenience applications
+sudo apt install nano
 
 
 #######################
@@ -407,64 +359,6 @@ nvm install 8.11.1 # RUI-required Node version as of this script creation
 
 
 
-
-
-#THERE MAY BE SOMETHING WRONG WITH THE FOLLOWING: FOR LOOP ERRORS OUT, NO ROS GETS INSTALLED
-DISTRIBUTION_CODE_NAME=$( lsb_release -sc )
-ROS_VERSION=""
-case $DISTRIBUTION_CODE_NAME in
-  "bionic" )
-    ROS_VERSION=melodic
-    # Install ROS Melodic (-desktop, which includes important packages)
-    # This script should be useful even on non-Jetson (but ARM-based) systems,
-    # hence included here rather than in the Jetson-specific setup script.
-    sudo mkdir tmp && cd tmp
-    sudo git clone https://github.com/jetsonhacks/installROS.git
-    cd installROS
-    sudo ./installROS.sh -p ros-melodic-desktop
-    cd ../..
-    rm -rf ./tmp
-
-    # Update some .bashrc artifacts of the ROS install process
-    sed -i 's:source /opt/ros/melodic/setup.bash:source /opt/nepi/ros/setup.bash:g' /home/nepi/.bashrc
-    sed -i 's:export ROS_IP=:#export ROS_IP=:g' /home/nepi/.bashrc
-  ;;
-  "focal" )
-    ROS_VERSION=noetic
-    # Install ROS Noetic (-desktop, which includes important packages) using standard installation instructions
-    sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-    sudo apt install curl
-    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-    sudo apt update
-    sudo apt install ros-noetic-desktop
-    # Update some .bashrc settings
-    echo "# Automatically source NEPI ROS environment" >> /home/nepi/.bashrc
-    echo "source /opt/nepi/ros/setup.bash" >> /home/nepi/.bashrc
-  ;;
-  *)
-    echo "The remainder of this script is not set up for this Ubuntu version: $DISTRIBUTION_CODE_NAME"
-    exit 1
-  ;;
-esac
-
-ADDITIONAL_ROS_PACKAGES="python3-catkin-tools \
-    ros-${ROS_VERSION}-rosbridge-server \
-    ros-${ROS_VERSION}-pcl-ros \
-    ros-${ROS_VERSION}-web-video-server \
-    ros-${ROS_VERSION}-camera-info-manager \
-    ros-${ROS_VERSION}-tf2-geometry-msgs \
-    ros-${ROS_VERSION}-mavros \
-    ros-${ROS_VERSION}-mavros-extras \
-    ros-${ROS_VERSION}-serial \
-    python3-rosdep" 
-
-    # Deprecated ROS packages?
-    #ros-${ROS_VERSION}-tf-conversions
-    #ros-${ROS_VERSION}-diagnostic-updater 
-    #ros-${ROS_VERSION}-vision-msgs
-
-sudo apt install $ADDITIONAL_ROS_PACKAGES
-
 # Mavros requires some additional setup for geographiclib
 sudo /opt/ros/${ROS_VERSION}/lib/mavros/install_geographiclib_datasets.sh
 
@@ -618,6 +512,12 @@ npm run build
 
 npm install --save react-zoom-pan-pinch
 deactivate
+
+
+sudo systemctl start nepi_rui.service
+#Check the status of the service:
+
+sudo systemctl status nepi_rui.service
 
 ### Test RUI
 # For Container Install Only

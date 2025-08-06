@@ -39,11 +39,10 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 
 
-FACTORY_CFG_SUFFIX = '.factory'
 USER_CFG_SUFFIX = '.user'
 
 CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
-CHRONY_CFG_BASENAME = '/opt/nepi/config/etc/chrony/chrony.conf'
+CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
 
 FACTORY_TIMEZONE = 'UTC'
@@ -259,7 +258,7 @@ class time_sync_mgr(object):
         userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
         if (False == os.path.isfile(userconf_path)):
             # Need to create it from a copy of the factory config
-            factoryconf_path = CHRONY_CFG_BASENAME + FACTORY_CFG_SUFFIX
+            factoryconf_path = CHRONY_CFG_BASENAME
             try:
                 copyfile(factoryconf_path, userconf_path)
             except:
@@ -273,7 +272,7 @@ class time_sync_mgr(object):
 
     def reset_to_factory_conf(self):
         userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-        factoryconf_path = CHRONY_CFG_BASENAME + FACTORY_CFG_SUFFIX
+        factoryconf_path = CHRONY_CFG_BASENAME
 
         self.symlink_force(factoryconf_path, CHRONY_CFG_LINKNAME)
         if (True == os.path.isfile(userconf_path)):

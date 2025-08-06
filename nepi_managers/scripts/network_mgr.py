@@ -47,8 +47,8 @@ class NetworkMgr:
     WONDERSHAPER_CALL = "/opt/nepi/ros/share/wondershaper/wondershaper"
     BANDWIDTH_MONITOR_PERIOD_S = 2.0
 
-    FACTORY_STATIC_IP_FILE = "/opt/nepi/config/etc/network/interfaces.d/nepi_static_ip"
-    USER_IP_ALIASES_FILE = "/opt/nepi/config/etc/network/interfaces.d/nepi_user_ip_aliases"
+    FACTORY_STATIC_IP_FILE = "/opt/nepi/etc/network/interfaces.d/nepi_static_ip"
+    USER_IP_ALIASES_FILE = "/opt/nepi/etc/network/interfaces.d/nepi_user_ip_aliases"
     USER_IP_ALIASES_FILE_PREFACE = "# This file includes all user-added IP address aliases. It is sourced by the top-level static IP addr file.\n\n"
 
     # Following are to support changing rosmaster IP address
@@ -66,7 +66,7 @@ class NetworkMgr:
     ENABLE_DISABLE_WIFI_ADAPTER_PRE = ["ip", "link", "set"]
     ENABLE_WIFI_ADAPTER_POST = ["up"]
     DISABLE_WIFI_ADAPTER_POST = ["down"]
-    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/ros/etc/nepi_env/nepi_wpa_supplicant.conf"
+    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/etc/nepi_wpa_supplicant.conf"
     WPA_START_SUPPLICANT_CMD_PRE = ["wpa_supplicant", "-B" ,"-i"]
     WPA_START_SUPPLICANT_CMD_POST = ["-c", WPA_SUPPLICANT_CONF_PATH]
     WPA_GENERATE_SUPPLICANT_CONF_CMD = "wpa_passphrase"
@@ -84,7 +84,7 @@ class NetworkMgr:
 
 
     
-    report_ip_addrs = []
+    found_ip_addrs = []
     last_ip_addrs = None
 
     clock_skewed = False
@@ -134,6 +134,9 @@ class NetworkMgr:
     wifi_available_networks_lock = threading.Lock()
     internet_connected = False
     internet_connected_lock = threading.Lock()
+
+    network_checked = False
+    internet_checked = False
 
     #######################
     ### Node Initialization
@@ -382,6 +385,7 @@ class NetworkMgr:
         nepi_sdk.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitorBandwidthUsageCb)
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.networkIpCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.dhcpCheckCb, oneshot = True)
 
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
         #########################################################
@@ -405,7 +409,7 @@ class NetworkMgr:
 
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.dhcp_enabled = False # self.node_if.get_param('dhcp_enabled') # Force external system to start
+            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled') # Force external system to start
             self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
             self.wifi_ap_enabled = self.node_if.get_param('enable_access_point')
@@ -426,18 +430,9 @@ class NetworkMgr:
         if do_updates == True:
             if self.node_if is not None:
                 pass
-            # Update Managed IPs and Config File
-            resp = self.update_ip_addr_lists()
-            if resp is not None:
-                self.save_network_config()
-                
-            # Update DHCP state
-            if self.dhcp_enabled == True:
-                self.enable_dhcp_impl(self.dhcp_enabled)
 
             # Update Upload BW Limite
             self.set_upload_bw_limit()
-
 
             if self.wifi_iface is not None:
                 self.msg_if.pub_warn("Enabling WiFi")
@@ -446,6 +441,19 @@ class NetworkMgr:
 
                 # Don't start these until system ready
                 nepi_sdk.start_timer_process(3, self.wifiUpdateProcessesCb, oneshot=True)
+
+            
+            connected = self.internet_check()
+            self.msg_if.pub_warn("Internet check: " + str(connected))
+
+
+            ip_addrs = self.update_ip_addr_lists()
+
+            self.msg_if.pub_warn("Found IPs check: " + str(ip_addrs))
+
+            # Save Config
+            if len(ip_addrs) > 0:
+                self.save_network_config()
                 
             
         self.msg_if.pub_warn("Ending Init with Managed addrs: " + str(self.managed_ip_addrs))
@@ -490,25 +498,173 @@ class NetworkMgr:
     def networkIpCheckCb(self, event):
         save_config = False
         #self.msg_if.pub_warn("Entering updater process")
-
-        self.report_ip_addrs = self.update_ip_addr_lists()
-        
-        #self.msg_if.pub_warn("***")
-        #self.msg_if.pub_warn("Prev IP Addrs: " + str(self.last_ip_addrs))
-        #self.msg_if.pub_warn("New IP Addrs: " + str(self.report_ip_addrs))
-
-        for ip in self.managed_ip_addrs:
-            if ip not in self.report_ip_addrs:
-                self.add_ip(ip)
-                nepi_sdk.sleep(1)
-
-        self.last_ip_addrs = copy.deepcopy(self.report_ip_addrs)
-            
-        #self.msg_if.pub_warn("Exiting updater process")
+        found_ip_addrs = self.update_ip_addr_lists()         
+        self.network_checked = True
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.networkIpCheckCb, oneshot = True)
 
 
 
+    def update_ip_addr_lists(self):
+        self.primary_ip_addr = self.get_primary_ip_addr()
+        last_ip_addrs = copy.deepcopy(self.found_ip_addrs)
+        managed_ips = self.managed_ip_addrs
+        dhcp_ip_addr = ''
+        rep_ips = [self.primary_ip_addr]
+        addr_list_output = subprocess.check_output(['ip','addr','list','dev',self.NET_IFACE], text=True)
+        tokens = addr_list_output.split()
+        for i, t in enumerate(tokens):
+            #self.msg_if.pub_warn("Start Return IPs: " + str(rep_ips))
+            if (t == 'inet'):
+                ip_addr = tokens[i+1]
+                # Ensure that aliases go at the back of the list and primary remains at the front and dhcp at end
+                #self.msg_if.pub_warn("Checking IP: " + str(ip_addr))
+                if ip_addr != self.primary_ip_addr and ip_addr != '':
+                    if ip_addr in managed_ips:
+                        #self.msg_if.pub_warn("Adding managed IP: " + str(ip_addr))
+                        rep_ips.append(ip_addr)
+                    else:
+                        #self.msg_if.pub_warn("Updating DHCP IP: " + str(ip_addr))
+                        dhcp_ip_addr = copy.deepcopy(ip_addr)
+        rep_ips.append(dhcp_ip_addr)
+        #self.msg_if.pub_warn("End Return IPs: " + str(rep_ips))
+        self.dhcp_ip_addr = dhcp_ip_addr
+        found_ip_addrs = rep_ips
+        if rep_ips[-1] == '':
+            found_ip_addrs = rep_ips[:-1]
+        
+
+        for ip in self.managed_ip_addrs:
+            if ip not in found_ip_addrs:
+                self.add_ip(ip)
+
+
+        #self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
+        #self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
+        #self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
+        #self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
+
+        self.found_ip_addrs = found_ip_addrs
+        if last_ip_addrs != self.found_ip_addrs:
+            self.msg_if.pub_warn("Updated active IP addresses: " + str(self.found_ip_addrs))
+            self.msg_if.pub_warn("DHCP IP address: " + str(self.dhcp_ip_addr))
+
+        if self.dhcp_ip_addr != '' and self.dhcp_enabled == False and self.internet_connected == True:
+            [self.dhcp_enabled,self.dhdhcp_enable_state] = [True,True]
+
+
+
+
+        return found_ip_addrs
+
+
+
+
+    def internetCheckCb(self, event):
+        connected = self.internet_check()
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
+
+    def internet_check(self):
+        connected = False
+        cur_year = datetime.now().year
+        self.clock_skewed = cur_year < 2024
+
+        #self.msg_if.pub_warn("Entering internet check process")
+        with self.internet_connected_lock:
+            prev_connected = self.internet_connected
+        connected = False
+        try:
+            #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            response = requests.get("https://www.github.com", timeout=1)
+            connected = True
+            if connected == True and prev_connected == False:
+                self.msg_if.pub_warn("Detected new internet connection")
+                #self.msg_if.pub_warn("Internet check response: " + str(response) )
+                
+            
+        except Exception as e:
+            connected = False 
+            if connected == False and prev_connected == True:
+                self.msg_if.pub_warn("Lost internet connection")
+
+        with self.internet_connected_lock:
+            self.internet_connected = connected
+
+        self.internet_checked = True
+        return connected
+
+
+    def dhcpCheckCb(self,timer):
+        # Update DHCP state
+        self.enable_dhcp_impl(self.dhcp_enabled)
+        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.dhcpCheckCb, oneshot = True)
+
+
+
+    def enable_dhcp_impl(self, enabled):
+        last_dhcp = copy.deepcopy(self.dhcp_enabled)
+        #self.msg_if.pub_warn("Entering dhcp enable with: " + str([enabled,self.network_checked,self.internet_checked,self.clock_skewed,self.dhcp_enable_state,self.internet_connected]))
+        if self.in_container == False and self.wifi_iface is not None and self.network_checked == True and self.internet_checked == True:
+            if self.clock_skewed == False:
+                with self.internet_connected_lock:
+                    connected = self.internet_connected
+                if enabled is True and self.dhcp_enable_state == False:
+                        self.dhcp_enabled = True
+                        if self.dhcp_enable_state == False:
+                            self.dhcp_enable_state = True
+                            self.msg_if.pub_warn("Enabling DHCP Client")
+                            self.msg_if.pub_warn("Enabling DHCP with current connection state: " + str(connected))
+                            try:
+                                if connected == False:
+                                    self.msg_if.pub_warn("Calling dhclient -nw subprocess")
+                                    subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
+                                self.dhcp_enabled = True
+                                self.dhcp_enable_state = True
+                                self.msg_if.pub_warn("DHCP enabled")
+                            except Exception as e:
+                                self.dhcp_enabled = False
+                                self.dhcp_enable_state = False
+                                self.msg_if.pub_warn("Unable to enable DHCP: " + str(e))
+                            success = self.publish_status()
+                elif enabled is False and self.dhcp_enable_state == True:
+                        #self.dhcp_enabled = False
+                        #self.dhcp_ip_addr = 'Disabled->Requires Power Cycle'
+                        # Requires Reboot
+                        self.msg_if.pub_warn("Disabling DHCP Client")
+                        self.msg_if.pub_warn("Disabling DHCP with current connection state: " + str(connected))
+                        restart_network = False
+                        try:
+                            # The dhclient -r call below causes all IP addresses on the interface to be dropped, so
+                            # we reinitialize them here... this will not work for IP addresses that were
+                            # added in this session but not saved to config (i.e., not known to param server)                        
+                            self.msg_if.pub_warn("Calling dhclient -r subprocess")
+                            subprocess.check_call(['dhclient', '-r', self.NET_IFACE])
+                            restart_network = True
+                            nepi_sdk.wait()
+                            self.dhcp_enabled = False
+                            self.dhcp_enable_state = False
+                            self.dhcp_ip_addr = ''
+                            self.msg_if.pub_warn("DHCP disabled")
+                        except Exception as e:
+                            #self.dhcp_enabled = True
+                            #self.dhcp_enable_state == True
+                            self.msg_if.pub_warn("Unable to disable DHCP: " + str(e))
+                        success = self.publish_status()
+                        try:
+                            if restart_network == True:
+                                self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
+                                # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
+                                subprocess.call(['ifdown', self.NET_IFACE])
+                                nepi_sdk.wait()
+                                subprocess.call(['ifup', self.NET_IFACE])
+                                self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
+                        except Exception as e:
+                            self.msg_if.pub_warn("Unable to reset NET_IFACE: " + self.NET_IFACE + " " + str(e))
+                        success = self.publish_status()
+                if self.node_if is not None:
+                    self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
+                if last_dhcp != self.dhcp_enabled:
+                    self.save_config()
+       
 
     def cleanup(self):
         self.process.stop()
@@ -523,42 +679,6 @@ class NetworkMgr:
                     return primary_ip_addr
         return "Unknown Primary IP"
  
-    def update_ip_addr_lists(self):
-        self.primary_ip_addr = self.get_primary_ip_addr()
-        managed_ips = self.managed_ip_addrs
-        last_ip_addrs = self.last_ip_addrs
-        dhcp_ip_addr = None
-        rep_ips = [self.primary_ip_addr]
-        addr_list_output = subprocess.check_output(['ip','addr','list','dev',self.NET_IFACE], text=True)
-        tokens = addr_list_output.split()
-        for i, t in enumerate(tokens):
-            if (t == 'inet'):
-                ip_addr = tokens[i+1]
-                #self.msg_if.pub_warn("Found active IP: " + str(ip_addr))
-                # Ensure that aliases go at the back of the list and primary remains at the front -- we rely on that ordering throughout this module
-                if ip_addr != self.primary_ip_addr:
-                    if ip_addr in managed_ips:
-                        rep_ips.append(ip_addr)
-                    else:
-                        dhcp_ip_addr = ip_addr
-        
-        if self.dhcp_enabled == False:
-            dhcp_ip_addr = 'Not Enabled'
-        elif dhcp_ip_addr is not None:
-            rep_ips.append(dhcp_ip_addr)
-            self.dhcp_ip_addr = dhcp_ip_addr
-            
-        else:
-            dhcp_ip_addr = 'No Network Found'
-
-        self.report_ip_addrs = rep_ips
-
-        #self.msg_if.pub_warn("Updated ip primary: " + str(self.primary_ip_addr))
-        #self.msg_if.pub_warn("Updated ip managed: " + str(self.managed_ip_addrs))
-        #self.msg_if.pub_warn("Updated ip dhcp: " + str(self.dhcp_ip_addr))
-        #self.msg_if.pub_warn("Updated ip report: " + str(rep_ips))
-
-        return rep_ips
 
     def is_valid_ip(self,addr):
         """
@@ -602,7 +722,7 @@ class NetworkMgr:
 
         # Finally, verify that this isn't the "fixed" address on the device. Don't let anyone sneak past the same
         # address in a different numerical format - compare as a 32-bit val
-        cur_ip_addrs = copy.deepcopy(self.report_ip_addrs)
+        cur_ip_addrs = copy.deepcopy(self.found_ip_addrs)
         if len(cur_ip_addrs) > 0:
             fixed_ip_addr = cur_ip_addrs[0].split('/')[0]
             fixed_ip_bits = 0
@@ -636,9 +756,9 @@ class NetworkMgr:
     def add_ip(self, addr):
         success = False
         if True == self.is_valid_ip(addr):
-            if addr not in self.report_ip_addrs:
-                if addr != self.primary_ip_addr and addr != self.dhcp_ip_addr:
-                    self.report_ip_addrs.append(addr)
+            if addr not in self.found_ip_addrs:
+                if addr != self.primary_ip_addr: # and addr != self.dhcp_ip_addr:
+                    self.found_ip_addrs.append(addr)
                     success = self.publish_status()
                     self.add_ip_impl(addr)
                     self.msg_if.pub_warn("Added IP address: " + str(addr))
@@ -672,11 +792,11 @@ class NetworkMgr:
     def remove_ip(self, addr):
         success = False
         if True == self.is_valid_ip(addr):
-            if addr in self.report_ip_addrs:
+            if addr in self.found_ip_addrs:
                 if addr in self.managed_ip_addrs:
                         self.managed_ip_addrs.remove(addr)
-                if addr != self.primary_ip_addr and addr != self.dhcp_ip_addr:
-                    self.report_ip_addrs.remove(addr)
+                if addr != self.primary_ip_addr : # and addr != self.dhcp_ip_addr:
+                    self.found_ip_addrs.remove(addr)
                     success = self.publish_status()
                     self.remove_ip_impl(addr)
                     self.msg_if.pub_warn("Removed IP address: " + str(addr))
@@ -692,74 +812,6 @@ class NetworkMgr:
         return success
 
 
-    def enable_dhcp_impl(self, enabled):
-        if self.in_container == False and self.wifi_iface is not None:
-            if self.clock_skewed == False:
-                self.msg_if.pub_warn("Got DHCP enable request: " + str(enabled))
-                with self.internet_connected_lock:
-                    connected = self.internet_connected
-                if enabled is True:
-                        self.dhcp_enabled = True
-                        if self.dhcp_enable_state == False:
-                            self.dhcp_enable_state == True
-                            self.msg_if.pub_warn("Enabling DHCP Client")
-                            self.msg_if.pub_warn("Enabling DHCP with current connection state: " + str(connected))
-                            try:
-                                if connected == False:
-                                    self.msg_if.pub_warn("Calling dhclient -nw subprocess")
-                                    subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
-                                self.dhcp_enabled = True
-                                self.dhcp_enable_state == True
-                                self.msg_if.pub_warn("DHCP enabled")
-                            except Exception as e:
-                                self.dhcp_enabled = False
-                                self.dhcp_enable_state == False
-                                self.msg_if.pub_warn("Unable to enable DHCP: " + str(e))
-                            success = self.publish_status()
-                elif enabled is False:
-                        #self.dhcp_enabled = False
-                        #self.dhcp_ip_addr = 'Disabled->Requires Power Cycle'
-                        # Requires Reboot
-                        self.msg_if.pub_warn("Disabling DHCP Client")
-                        self.msg_if.pub_warn("Disabling DHCP with current connection state: " + str(connected))
-                        restart_network = False
-                        try:
-                            # The dhclient -r call below causes all IP addresses on the interface to be dropped, so
-                            # we reinitialize them here... this will not work for IP addresses that were
-                            # added in this session but not saved to config (i.e., not known to param server)                        
-                            self.msg_if.pub_warn("Calling dhclient -r subprocess")
-                            subprocess.check_call(['dhclient', '-r', self.NET_IFACE])
-                            restart_network = True
-                            nepi_sdk.wait()
-                            self.dhcp_enabled = False
-                            self.dhcp_enable_state = False
-                            self.dhcp_ip_addr = ''
-                            self.msg_if.pub_warn("DHCP disabled")
-                        except Exception as e:
-                            #self.dhcp_enabled = True
-                            #self.dhcp_enable_state == True
-                            self.msg_if.pub_warn("Unable to disable DHCP: " + str(e))
-                        success = self.publish_status()
-                        try:
-                            if restart_network == True:
-                                self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
-                                # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
-                                subprocess.call(['ifdown', self.NET_IFACE])
-                                nepi_sdk.wait()
-                                subprocess.call(['ifup', self.NET_IFACE])
-                                self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
-                        except Exception as e:
-                            self.msg_if.pub_warn("Unable to reset NET_IFACE: " + self.NET_IFACE + " " + str(e))
-                        success = self.publish_status()
-                if self.node_if is not None:
-                    self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
-                self.save_config()
-
-            else:
-                self.msg_if.pub_warn("Ignoring DHCP change request due to clock skew. Sync system clock")
-        else:
-            self.msg_if.pub_warn("Ignoring DHCP change request from container. Update in host system")
-        
 
     def enable_dhcp(self, msg):
         self.msg_if.pub_warn("Got DHCP enable request msg: " + str(msg))
@@ -772,7 +824,7 @@ class NetworkMgr:
         # Note that this is outside the scope of ROS param server because we need these
         # aliases to come up even before ROS (hence this node) comes up in case the remoted ROSMASTER
         # is on a subnet only reachable via one of these aliases
-        current_ips = copy.deepcopy(self.report_ip_addrs)
+        current_ips = copy.deepcopy(self.found_ip_addrs)
         managed_ips = copy.deepcopy(self.managed_ip_addrs)
         self.msg_if.pub_warn("Writing managed network ips to file: " + str(managed_ips) + " " + str(self.USER_IP_ALIASES_FILE))
         tmp_file = self.USER_IP_ALIASES_FILE + '.tmp'
@@ -864,7 +916,7 @@ class NetworkMgr:
         # First, determine if the master is local, either as localhost or one of the configured IP addrs
         master_is_local = True if (master_ip == "localhost") else False
         if master_is_local is False:
-            local_ips = copy.deepcopy(self.report_ip_addrs)
+            local_ips = copy.deepcopy(self.found_ip_addrs)
             for ip_cidr in local_ips:
                 ip = ip_cidr.split('/')[0]
                 if master_ip == ip:
@@ -1335,39 +1387,8 @@ class NetworkMgr:
         return success
 
 
-
-    def internetCheckCb(self, event):
-        #self.msg_if.pub_warn("Entering internet check process")
-        with self.internet_connected_lock:
-            prev_connected = self.internet_connected
-        connected = False
-        try:
-            #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            response = requests.get("https://www.github.com", timeout=1)
-            connected = True
-            if connected == True and prev_connected == False:
-                self.msg_if.pub_warn("Detected new internet connection")
-                #self.msg_if.pub_warn("Internet check response: " + str(response) )
-                
-            
-        except Exception as e:
-            connected = False 
-            if connected == False and prev_connected == True:
-                self.msg_if.pub_warn("Lost internet connection")
-
-
-        with self.internet_connected_lock:
-            self.internet_connected = connected
-
- 
-        cur_year = datetime.now().year
-        self.clock_skewed = cur_year < 2024
-            
-        #self.msg_if.pub_warn("Exiting internet check process")
-        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
-
     def handle_ip_addr_query(self, req):
-        return {'ip_addrs':self.report_ip_addrs, 
+        return {'ip_addrs':self.found_ip_addrs, 
             'primary_ip_addr':self.primary_ip_addr,
             'managed_ip_addrs':self.managed_ip_addrs,
             'dhcp_enabled': self.dhcp_enabled, 
@@ -1420,7 +1441,7 @@ class NetworkMgr:
 
 
         # Wired Info
-        self.status_msg.ip_addrs = self.report_ip_addrs 
+        self.status_msg.ip_addrs = self.found_ip_addrs 
         self.status_msg.primary_ip_addr = self.primary_ip_addr
         self.status_msg.managed_ip_addrs = self.managed_ip_addrs
         self.status_msg.dhcp_enabled =  self.dhcp_enabled 
