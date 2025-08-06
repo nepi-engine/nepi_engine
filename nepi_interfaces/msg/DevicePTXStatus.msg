@@ -49,6 +49,9 @@ bool reverse_tilt_enabled
 
 bool has_adjustable_speed
 float32 speed_ratio
+float32 speed_pan_dps
+float32 speed_tilt_dps
+
 
 bool has_auto_sin
 
