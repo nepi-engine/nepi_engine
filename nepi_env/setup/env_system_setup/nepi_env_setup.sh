@@ -169,7 +169,7 @@ sudo ln -sf ${NEPI_ETC}/sshd_config /etc/ssh/sshd_config
 
 # And link default public key - Make sure all ownership and permissions are as required by SSH
 sudo cp ${NEPI_CONFIG}/home/nepi/ssh/authorized_keys ${NEPI_ETC}/authorized_keys
-sudo chown nepi:nepi $${NEPI_ETC}/authorized_keys
+sudo chown nepi:nepi ${NEPI_ETC}/authorized_keys
 sudo chmod 0600 ${NEPI_ETC}/authorized_keys
 ln -sf ${NEPI_ETC}/authorized_keys /home/nepi/.ssh/authorized_keys
 sudo chown nepi:nepi /home/nepi/.ssh/authorized_keys

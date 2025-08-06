@@ -456,9 +456,9 @@ class NetworkMgr:
                 self.save_network_config()
                 
             
-        self.msg_if.pub_warn("Ending Init with Managed addrs: " + str(self.managed_ip_addrs))
-        self.msg_if.pub_warn("Ending Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
-        self.msg_if.pub_warn("Ending Init with Wifi Client password: " + str(self.wifi_client_passphrase))
+        #self.msg_if.pub_warn("Ending Init with Managed addrs: " + str(self.managed_ip_addrs))
+        #self.msg_if.pub_warn("Ending Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
+        #self.msg_if.pub_warn("Ending Init with Wifi Client password: " + str(self.wifi_client_passphrase))
 
         success = self.save_config()
 
