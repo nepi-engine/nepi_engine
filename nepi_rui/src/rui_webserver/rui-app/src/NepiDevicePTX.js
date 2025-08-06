@@ -121,6 +121,9 @@ class NepiDevicePTX extends Component {
       sinPanEnabled: false,
       sinTiltEnabled: false,
 
+      speed_pan_dps: 0,
+      speed_tilt_dps: 0,
+
       namespace : null,
       
       listener: null,
@@ -343,6 +346,8 @@ class NepiDevicePTX extends Component {
       autoTiltMax: message.auto_tilt_range_window.stop_range,
       sinPanEnabled: message.sin_pan_enabled,
       sinTiltEnabled: message.sin_tilt_enabled,
+      speed_pan_dps: message.speed_pan_dps,
+      speed_tilt_dps: message.speed_tilt_dps,
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
@@ -467,7 +472,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             panMaxSoftstopDeg, tiltMaxSoftstopDeg, panMinSoftstopDeg, tiltMinSoftstopDeg,
             panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
             speedRatio, panHomePosEdited, tiltHomePosEdited,
-            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled,sinPanEnabled ,sinTiltEnabled  } = this.state
+            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled,sinPanEnabled ,sinTiltEnabled, speed_pan_dps, speed_tilt_dps  } = this.state
 
     const namespace = this.state.namespace
     const ptx_id = namespace? namespace.split('/').slice(-1) : "No Pan/Tilt Selected"
@@ -574,6 +579,19 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
         </Label>
 
 
+        <Label title={"Current Speed (Deg/Sec)"}>
+          <Input
+            disabled
+            style={{ width: "45%", float: "left" }}
+            value={round(speed_pan_dps, 0)}
+          />
+          <Input
+            disabled
+            style={{ width: "45%" }}
+            value={round(speed_tilt_dps, 0)}
+          />
+        </Label>
+
         <Label title={"GoTo Position"}>
           <Input
             disabled={!has_abs_pos}
@@ -652,9 +670,10 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
           </div>
         </Label>
 
-
-        <div hidden={(hide_auto_pan === true)}>
+        <div hidden={(autoPanEnabled === false && autoTiltEnabled === false)}>
         <Label title={"Enable Sin Scan"}>
+
+        <div hidden={(autoPanEnabled === false)}>
           <div style={{ display: "inline-block", width: "45%", float: "left" }}>
             <Toggle
               checked={this.state.sinPanEnabled}
@@ -662,8 +681,9 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
               }
             />
           </div>
+        </div>
 
-
+        <div hidden={(autoTiltEnabled === false)}>
           <div style={{ display: "inline-block", width: "45%", float: "right" }}>
             <Toggle
               checked={this.state.sinTiltEnabled}
@@ -671,9 +691,9 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
               }
             />
           </div>
+        </div>
           </Label>
         </div>
-
 
         <Label title={"Min Scan Limits"}>
 
