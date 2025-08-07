@@ -4,7 +4,6 @@
 # 1) Copy nepi_env/config/home/nepi/nepi_device_aliases to /mnt/nepi_storage/tmp
 # 2) SSH into your nepi device and type
 # cp /mnt/nepi_storage/tmp/nepi_device_aliases ~/.nepi_aliases
-# source ~/.nepi_aliases
 
 # Update bashrc
 # 1) Copy nepi_env/config/home/nepi/bashrc_NVIDIA_JETSON to /mnt/nepi_storage/tmp
@@ -12,39 +11,6 @@
 # cp /mnt/nepi_storage/tmp/bashrc_NVIDIA_JETSON ~/.bashrc
 # source ~/.bashrc
 
-
-
-
-###################################
-#Env Setup
-###################################
-
-# Inform that this is the target hardware
-export NEPI_REMOTE_SETUP=0
-
-# System Paths Condig
-export PATH="/opt/nepi/ros/etc/"
-
-# NVM Config
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-# CUDA Config
-export CUDA_HOME=/usr/local/cuda-11
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
-export PATH=$PATH:$CUDA_HOME/bin
-
-
-# Python Config
-export SETUPTOOLS_USE_DISTUTILS=stdlib
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:$PYTHONPATH
-
-export PYTHONPATH=$PYTHONPATH:/opt/nepi/ros/lib/nepi_drivers
-
-# Automatically source NEPI ROS environment
-source /opt/nepi/ros/setup.bash
 
 
 ###################################
@@ -241,3 +207,38 @@ function nepi(){
     "
     echo "$text"
 }
+
+
+
+###################################
+#Env Setup
+###################################
+
+# Inform that this is the target hardware
+export NEPI_REMOTE_SETUP=0
+
+
+
+# NVM Config
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# CUDA Config
+export CUDA_HOME=/usr/local/cuda-11
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
+
+
+# Python Config
+export SETUPTOOLS_USE_DISTUTILS=stdlib
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:$PYTHONPATH
+
+export PYTHONPATH=$PYTHONPATH:/opt/nepi/ros/lib/nepi_drivers/:$PYTHONPATH
+
+# System Paths Config
+export PATH="/opt/nepi/ros/etc/":$PATH
+
+# Automatically source NEPI ROS environment
+source /opt/nepi/ros/setup.bash

@@ -50,26 +50,61 @@ if ! ping -c 2 google.com; then
 fi
 
 
-' ' This doesn't work
-#################################################################
-#Start service at runtime in docker file
-https://stackoverflow.com/questions/25135897/how-to-automatically-start-a-service-when-running-a-docker-docker
-In your Dockerfile, add at the last line
 
-ENTRYPOINT service nepi_rui.service restart && bash
 
-# The normal method doesn't work doesn't work?
-# After testing add startup service
-sudo cp ${NEPI_RUI}/etc/nepi_rui.service /etc/systemd/system
-sudo chmod +x /etc/systemd/system/nepi_rui.service
 
-#Once you have a unit file, you are ready to test the service:
+######################################################################
+### Some Tools
+# sudo docker images -a
+# sudo docker ps -a
+# sudo docker start  `nepi_test ps -q -l` # restart it in the background
+# sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+## https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
+######################################################################
 
-sudo systemctl start nepi_rui.service
-#Check the status of the service:
 
-sudo systemctl status nepi_rui.service
-'
+
+
+
+_________
+#Clean the linux system
+#https://askubuntu.com/questions/5980/how-do-i-free-up-disk-space
+#sudo apt-get clean
+#sudo apt-get autoclean
+#sudo apt-get autoremove
+
+
+#_____________
+#Setup Host 
+
+#(Recommended) Set your host ip address to nepi standard
+Address: 192.168.179.103
+Netmask: 255.255.255.0
+
+#(Recommended) Setup dhcp service
+apt install netplan.io
+
+
+#_____________
+# setup nepi_storage folder
+
+# Create a nepi_storage folder on mounted partition with at least 100 GB of free space
+mkdir <path_to_nepi_parent_folder>/nepi_storage
+
+# Run the nepi containers nepi_storage_init.sh script using the following command  
+sudo docker run --rm --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi /bin/bash 
+
+#then
+exit
+
+
+
+
+
+
+
+
+
 
 #______________
 # copy startup scripts

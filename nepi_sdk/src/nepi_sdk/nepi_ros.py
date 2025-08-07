@@ -277,7 +277,7 @@ def check_for_node(node_name):
   return node_exists
 
 ### Function to wait for a node
-def wait_for_node(node_name, timeout = float('inf'), log_name_list = []):
+def wait_for_node(node_name, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for node with name: " + node_name, log_name_list = log_name_list, throttle_s = 5.0)
@@ -474,20 +474,24 @@ def set_param(param_namespace,param_val, log_name_list = []):
   return success
 
 # Function to wait for a param
-def wait_for_param(param_namespace, timeout = float('inf'), log_name_list = []):
+def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
-  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list , throttle_s = 10.0)
   param = None
+  #log_msg_warn("nepi_sdk: Waiting for param check: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
+  param_namespace = get_full_namespace(param_namespace)
   while param is None and timer < timeout and not rospy.is_shutdown():
     try:
       param = rospy.get_param(param_namespace)
     except:
+      param = None
       param_namespace = get_full_namespace(param_namespace)
 
-    time.sleep(.01)
+    time.sleep(1)
     timer = get_time() - start_time
-  #log_msg_warn("nepi_sdk: Found param: " + param_namespace, log_name_list = log_name_list, throttle_s = 5.0)
+  if param == None:
+    log_msg_warn("nepi_sdk: Failed to get param: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
   return param
 
 
@@ -574,7 +578,7 @@ def check_for_service(service_name):
   return service_exists
 
 # Function to wait for a service
-def wait_for_service(service_name, timeout = float('inf'), log_name_list = []):
+def wait_for_service(service_name, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for service name: " + service_name, log_name_list = log_name_list, throttle_s = 5.0)
@@ -778,7 +782,7 @@ def check_for_topic(topic_name):
   return topic_exists
 
 # Function to wait for a topic
-def wait_for_topic(topic_name, timeout = float('inf'), log_name_list = []):
+def wait_for_topic(topic_name, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for topic with name: " + topic_name, log_name_list = log_name_list, throttle_s = 5.0)
