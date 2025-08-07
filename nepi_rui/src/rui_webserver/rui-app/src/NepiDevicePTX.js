@@ -32,6 +32,7 @@ import NepiIF3DTransform from "./Nepi_IF_3DTransform"
 import NavPoseViewer from "./Nepi_IF_NavPoseViewer"
 import {onChangeSwitchStateValue } from "./Utilities"
 
+
 function round(value, decimals = 0) {
   return Number(value).toFixed(decimals)
   //return value && Number(Math.round(value + "e" + decimals) + "e-" + decimals)
@@ -143,8 +144,6 @@ class NepiDevicePTX extends Component {
     this.createPTXOptions = this.createPTXOptions.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
     this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
-    this.getPanSpeed = this.getPanSpeed.bind(this)
-    this.getTiltSpeed = this.getTiltSpeed.bind(this)
 
     this.onEnterSendScanRangeWindowValue = this.onEnterSendScanRangeWindowValue.bind(this)
   }
@@ -316,9 +315,6 @@ class NepiDevicePTX extends Component {
     const pan_max_ss = this.state.autoPanMax
     const tilt_min_ss = this.state.autoTiltMin
     const tilt_max_ss = this.state.autoTiltMax
-    const calculatedPanSpeed = this.getPanSpeed()
-    const calculatedTiltSpeed = this.getTiltSpeed()
-
     this.setState({
       ptSerialNum: message.serial_num,
       ptHwVersion: message.hw_version,
@@ -352,9 +348,6 @@ class NepiDevicePTX extends Component {
       sinTiltEnabled: message.sin_tilt_enabled,
       speed_pan_dps: message.speed_pan_dps,
       speed_tilt_dps: message.speed_tilt_dps,
-      calculatedPanSpeed: calculatedPanSpeed,
-      calculatedTiltSpeed: calculatedTiltSpeed,
-
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
@@ -467,83 +460,6 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
   }
 }
 
-getPanSpeed() {
-  const panNow = Date.now();
-  
-  // Only calculate speed every 1000ms
-  if (panNow - this.state.lastPanSpeedCalculation < 500) {
-    return this.state.lastPanCalculatedSpeed || 0;
-  }
-
-  // Initialize on first call or if no previous data
-  if (this.state.previousPanPosition === null || this.state.previousPanTimestamp === null) {
-    this.setState({
-      previousPanPosition: this.state.panPositionDeg,
-      previousPanTimestamp: panNow,
-      lastPanSpeedCalculation: panNow,
-      lastPanCalculatedSpeed: 0
-    });
-    return 0; 
-  }
-
-  const currentPosition = this.state.panPositionDeg;
-  
-  // Calculate position difference and time difference
-  const positionDiff = currentPosition - this.state.previousPanPosition;
-  const timeDiff = (panNow - this.state.previousPanTimestamp) / 1000;
-  
-  // Calculate speed in degrees per second (only if time difference is reasonable)
-  const panSpeed = (timeDiff > 0.01) ? positionDiff / timeDiff : 0;
-  
-  // Update state with new values for next calculation
-  this.setState({
-    previousPanPosition: currentPosition,
-    previousPanTimestamp: panNow,
-    lastPanSpeedCalculation: panNow,
-    lastPanCalculatedSpeed: panSpeed
-  });
-  
-  return panSpeed;
-}
-
-getTiltSpeed() {
-  const now = Date.now();
-  
-  // Only calculate speed every 1000ms
-  if (now - this.state.lastTiltSpeedCalculation < 500) {
-    return this.state.lastTiltCalculatedSpeed || 0;
-  }
-
-  // Initialize on first call or if no previous data
-  if (this.state.previousTiltPosition === null || this.state.previousTiltTimestamp === null) {
-    this.setState({
-      previousTiltPosition: this.state.tiltPositionDeg,
-      previousTiltTimestamp: now,
-      lastTiltSpeedCalculation: now,
-      lastTiltCalculatedSpeed: 0
-    });
-    return 0; 
-  }
-
-  const currentPosition = this.state.tiltPositionDeg;
-  
-  // Calculate position difference and time difference
-  const positionDiff = currentPosition - this.state.previousTiltPosition;
-  const timeDiff = (now - this.state.previousTiltTimestamp) / 1000;
-  
-  // Calculate speed in degrees per second (only if time difference is reasonable)
-  const speed = (timeDiff > 0.01) ? positionDiff / timeDiff : 0;
-  
-  // Update state with new values for next calculation
-  this.setState({
-    previousTiltPosition: currentPosition,
-    previousTiltTimestamp: now,
-    lastTiltSpeedCalculation: now,
-    lastTiltCalculatedSpeed: speed
-  });
-  
-  return speed;
-}
 
 
   renderControlPanel() {
@@ -673,19 +589,6 @@ getTiltSpeed() {
             disabled
             style={{ width: "45%" }}
             value={round(speed_tilt_dps, 0)}
-          />
-        </Label>
-
-        <Label title={"Current Speed (Java)"}>
-          <Input
-            disabled
-            style={{ width: "45%", float: "left" }}
-            value={Math.abs(round(this.getPanSpeed()), 0)}
-          />
-          <Input
-            disabled
-            style={{ width: "45%" }}
-            value={Math.abs(round(this.getTiltSpeed()), 0)}
           />
         </Label>
 

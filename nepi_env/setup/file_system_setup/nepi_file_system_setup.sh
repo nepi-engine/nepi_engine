@@ -350,6 +350,11 @@ sudo apt install curl # Node.js installation below
 sudo apt install gparted
 sudo apt-get install chromium-browser # At least once, apt-get seemed to work for this where apt did not, hence the command here
 
+# INstall Microstrain MSCL python lib
+# download:https://github.com/LORD-MicroStrain/MSCL/releases/tag/v67.1.0
+sudo dpkg -i MSCL_arm64_Python3.10_v67.1.0.deb
+
+
 # Install Base Node.js Tools and Packages (Required for RUI, etc.)
 curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
