@@ -148,6 +148,7 @@ add_message_files(FILES
     MgrSystemStatus.msg
     SystemTrigger.msg
     SystemTriggersStatus.msg
+    TargetData.msg
     TargetInfo.msg
     TargetLocalization.msg
     TargetLocalizations.msg

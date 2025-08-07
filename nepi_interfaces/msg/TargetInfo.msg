@@ -18,11 +18,9 @@ float32 detect_threshold
 
 # Size and Motion Filters
 float32 width_meters
-float32 width_sensitivity
 float32 height_meters
-float32 height_sensitivity
 float32 depth_meters
-float32 depth_sensitivity
+float32 size_sensitivity
 float32 area_meters
 float32 area_sensitivity
 float32 volume_meters
