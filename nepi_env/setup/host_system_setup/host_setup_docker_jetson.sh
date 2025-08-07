@@ -1,4 +1,19 @@
+
 #!/bin/bash
+
+
+
+######################################################################
+### Some Tools
+# sudo docker images -a
+# sudo docker ps -a
+# sudo docker start  `nepi_test ps -q -l` # restart it in the background
+# sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+## https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
+######################################################################
+
+
+
 
 https://developer.nvidia.com/embedded/jetson-cloud-native
 https://gitlab.com/nvidia/container-images/l4t-jetpack
@@ -19,6 +34,9 @@ cd /mnt/nepi_storage/tmp
 sudo chown -R nepi:nepi l4t-jetpack/
 cd l4t-jetpack/
 sudo make image
+
+# run network config sciprt
+sudo python /mnt/nepi_storage/tmp/nepi/config/etc/network/tune_ethernet_interfaces.py
 
 #Install visual studio if not present
 #https://unix.stackexchange.com/questions/765383/e-unable-to-locate-package-code
@@ -81,6 +99,8 @@ sudo vim /etc/docker/daemon.json
 ''''
 
 
+
+
 sudo vi /etc/default/docker
 # Edit this line and uncomment
 DOCKER_OPTS="--dns 8.8.8.8 --dns 8.8.4.4"  -g /mnt/nepi_storage/docker
@@ -98,23 +118,10 @@ sudo systemctl daemon-reload
 sudo systemctl start docker.socket
 sudo systemctl start docker
 sudo docker info
-____________________________________
-https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
-
-Some Tools
-//sudo docker images -a
-//sudo docker ps -a
-//sudo docker start  `nepi_test ps -q -l` # restart it in the background
-//sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
 
 
-# run network config sciprt
-sudo python /mnt/nepi_storage/tmp/nepi/config/etc/network/tune_ethernet_interfaces.py
 
-# setup dhcp server
 
-sudo mv /etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf.bak
-sudo ln -sf /opt/nepi/config/etc/dhcp/dhclient.conf /etc/dhcp/dhclient.conf
 
 ###########################################
 ## Build nepi container
@@ -124,3 +131,27 @@ https://catalog.ngc.nvidia.com/orgs/nvidia/containers/l4t-jetpack
 
 sudo docker run -it --net=host --runtime nvidia -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix nvcr.io/nvidia/l4t-jetpack:r35.1.0
 
+
+##########
+#____________
+Clone the current container
+
+"exit" twice
+
+
+Clone container
+sudo docker ps -a
+Get <ID>
+sudo docker commit <ID> nepi1
+
+# Clean out <none> Images
+sudo docker rmi $(sudo docker images -f “dangling=true” -q)
+
+# Export/Import Flat Image as tar
+sudo docker export a1e4e38c2162 > /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar
+sudo docker import /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar 
+docker tag <IMAGE_ID> nepi_ft1
+
+# Save Layered Image as tar
+sudo docker save -o /mnt/nepi_storage/tmp/nepi1.tar a1e4e38c2162
+sudo docker tag 7aa663d0a1e3 nepi_ft1

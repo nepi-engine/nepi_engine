@@ -1,1 +1,1 @@
-3.2.0-RC1-38-g422fe9f-dirty
+3.2.0-RC2-5-g48bd460-dirty

@@ -32,7 +32,14 @@ NEPI_ETC=${NEPI_DIR}/etc
 NEPI_DRIVE=/mnt/nepi_storage
 
 
-
+######################################################################
+### Some Tools
+# sudo docker images -a
+# sudo docker ps -a
+# sudo docker start  `nepi_test ps -q -l` # restart it in the background
+# sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+## https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
+######################################################################
 
 
 # Copy zed camera config files to 
