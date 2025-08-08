@@ -538,15 +538,14 @@ class NetworkMgr:
                 self.add_ip(ip)
 
 
-        self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
-        self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
-        self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
-        self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
+
 
         self.found_ip_addrs = found_ip_addrs
         if last_ip_addrs != self.found_ip_addrs:
-            self.msg_if.pub_warn("Updated active IP addresses: " + str(self.found_ip_addrs))
-            self.msg_if.pub_warn("DHCP IP address: " + str(self.dhcp_ip_addr))
+            self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
+            self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
+            self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
+            self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
 
         if self.dhcp_ip_addr != '' and self.dhcp_enabled == False and self.internet_connected == True:
             [self.dhcp_enabled,self.dhdhcp_enable_state] = [True,True]
