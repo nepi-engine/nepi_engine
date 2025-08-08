@@ -31,13 +31,45 @@ NEPI_ETC=${NEPI_DIR}/etc
 
 NEPI_DRIVE=/mnt/nepi_storage
 
-
+NEPI_IMAGE=nepi_3p2p0
+ID=f1a0deb14733
 ######################################################################
+
+# Setup nepi_docker folder
+
+# Install nepi_docker_image
+
+# Run nepi_start_docker.sh
+
+
+
+
+
+
 ### Some Tools
+
+# Installed Images
 # sudo docker images -a
-# sudo docker ps -a
-# sudo docker start  `nepi_test ps -q -l` # restart it in the background
-# sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+# sudo docker rmi IMAGE:ID
+
+# Run Nepi in Dev Mode
+sudo docker run --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage --mount type=bind,source=/dev,target=/dev -it --net=host --runtime nvidia -v /tmp/.X11-unix/:/tmp/.X11-unix $NEPI_IMAGE /bin/bash
+
+#Run NEPI Complete
+sudo docker run --rm --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host --runtime nvidia -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix $NEPI_IMAGE /bin/bash -c "/nepi_start_all.sh"
+
+# Run Nepi RUI
+sudo docker run --rm -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix $NEPI_IMAGE /bin/bash -c "/nepi_rui_start.sh"
+
+# Running processes
+sudo docker ps -a
+sudo docker start ${ID} # restart it in the background
+sudo docker start -a -i ${ID} # restart with terminal
+sudo docker attach ${ID} # reattach the terminal & stdin
+sudo docker remove ID
+
+# Commit, Archive, Install
+# sudo docker commit PS_IMAGE:ID $NEPI_IMAGE:ID
 ## https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
 ######################################################################
 
@@ -54,20 +86,33 @@ NEPI_DRIVE=/mnt/nepi_storage
 # setup nepi_storage folder
 
 # Create a nepi_storage folder on mounted partition with at least 100 GB of free space
-mkdir <path_to_nepi_parent_folder>/nepi_storage
+mkdir mnt/nepi_storage
+cd mnt/nepi_storage
+# Download the nepi_storage folders from ??? for docker images from:
+# Extract and delete zip
+# Add NEPI bash aliases to host and edit .bashrc to call it
 
-# Run the nepi containers nepi_storage_init.sh script using the following command  
-sudo docker run --rm --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi /bin/bash -c "/nepi_storage_init.sh"
 
-#then
-exit
+
+#Run NEPI Complete
+sudo docker run --rm --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host --runtime nvidia -e DISPLAY=$DISPLAY -v /tmp/.X11-unix/:/tmp/.X11-unix nepi_ft1c /bin/bash -c "/nepi_start_all.sh"
 
 
 #_____________
-# Run Nepi Engine
-# Dev
-sudo docker run --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage --mount type=bind,source=/dev,target=/dev -it --net=host --runtime nvidia -v /tmp/.X11-unix/:/tmp/.X11-unix nepi1 /bin/bash
+# Run Nepi in Dev Mode
+#_____________
+# Run Nepi in Dev Mode
+sudo docker run --privileged -e UDEV=1 --user nepi --gpus all --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage --mount type=bind,source=/dev,target=/dev -it --net=host --runtime nvidia -v /tmp/.X11-unix/:/tmp/.X11-unix nepi_ft1c /bin/bash
 
-volumes - /dev:/dev
+#volumes - /dev:/dev
 
-#Run
+#volumes - /dev:/dev
+
+#_____________
+# Run Nepi RUI
+sudo docker run --rm -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi1 /bin/bash -c "/nepi_rui_start.sh"
+
+sudo docker exec -it 32e4923a9fc6 /bin/bash -c "/nepi_rui.sh"
+
+
+

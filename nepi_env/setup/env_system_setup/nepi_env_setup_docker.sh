@@ -57,8 +57,8 @@ fi
 ### Some Tools
 # sudo docker images -a
 # sudo docker ps -a
-# sudo docker start  `nepi_test ps -q -l` # restart it in the background
-# sudo docker attach `nepi_test ps -q -l` # reattach the terminal & stdin
+# sudo docker start  'nepi_test ps -q -l' # restart it in the background
+# sudo docker attach 'nepi_test ps -q -l' # reattach the terminal & stdin
 ## https://phoenixnap.com/kb/how-to-commit-changes-to-docker-image
 ######################################################################
 
@@ -81,8 +81,12 @@ _________
 Address: 192.168.179.103
 Netmask: 255.255.255.0
 
-#(Recommended) Setup dhcp service
-apt install netplan.io
+##(Recommended) Setup dhcp service
+###apt install netplan.io
+
+# Configure NEPI fixed IP (192.168.179.103) and Google DNS (8.8.8.8)
+
+
 
 
 #_____________
@@ -103,7 +107,8 @@ exit
 
 
 
-
+#****
+### Need to copy nepi_license.py to /opt/nepi/scripts
 
 
 #______________
@@ -123,26 +128,29 @@ sudo cp ${NEPI_CONFIG}/etc/docker/nepi_rui_start.sh ${NEPI_ETC}/nepi_rui_start.s
 sudo chmod +x ${NEPI_ETC}/nepi_rui_start.sh
 sudo ln -sf ${NEPI_ETC}/nepi_rui_start.sh /nepi_rui_start.sh
 
-sudo cp ${NEPI_CONFIG}/etc/docker/nepi_storage_samba_start.sh ${NEPI_ETC}/nepi_storage_samba_start.sh
-sudo chmod +x ${NEPI_ETC}/nepi_storage_samba_start.sh
-sudo ln -sf ${NEPI_ETC}/nepi_storage_samba_start.sh /nepi_storage_samba_start.sh
+sudo cp ${NEPI_CONFIG}/etc/docker/nepi_samba_start.sh ${NEPI_ETC}/nepi_samba_start.sh
+sudo chmod +x ${NEPI_ETC}/nepi_samba_start.sh
+sudo ln -sf ${NEPI_ETC}/nepi_samba_start.sh /nepi_samba_start.sh
 
 sudo cp ${NEPI_CONFIG}/etc/docker/nepi_storage_init.sh ${NEPI_ETC}/nepi_storage_init.sh
 sudo chmod +x ${NEPI_ETC}/nepi_storage_init.sh
 sudo ln -sf ${NEPI_ETC}/nepi_storage_init.sh /nepi_storage_init.sh
 
-sudo cp ${NEPI_CONFIG}/etc/docker/nepi_check_license_start.sh ${NEPI_ETC}/nepi_check_license_start.sh
-sudo chmod +x ${NEPI_ETC}/nepi_check_license_start.sh
-sudo ln -sf ${NEPI_ETC}/nepi_check_license_start.sh /nepi_check_license_start.sh
+sudo cp ${NEPI_CONFIG}/etc/docker/nepi_license_start.sh ${NEPI_ETC}/nepi_license_start.sh
+sudo chmod +x ${NEPI_ETC}/nepi_license_start.sh
+sudo ln -sf ${NEPI_ETC}/nepi_license_start.sh /nepi_license_start.sh
 
 sudo chown -R nepi:nepi /opt/nepi/etc
 cd $NEPI_DIR
-sudo cp -R etc etc.factoryls
+sudo cp -R etc etc.factory
 
 #-------------------
 # Install setup supervisord
 #https://www.digitalocean.com/community/tutorials/how-to-install-and-manage-supervisor-on-ubuntu-and-debian-vps
 #https://test-dockerrr.readthedocs.io/en/latest/admin/using_supervisord/
+
+sudo supervisorctl status
+sudo supervisorctl stop all
 
 sudo apt update && sudo apt install supervisor
 sudo vi /etc/supervisor/conf.d/nepi.conf
@@ -162,13 +170,13 @@ autostart=true
 autorestart=true
 
 [program:nepi_storage_samba]
-command=/bin/bash /nepi_storage_samba_start.sh
+command=/bin/bash /nepi_samba_start.sh
 autostart=true
 autorestart=true
 
 
 ###
 
-sudo /usr/bin/supervisord
+sudo supervisorctl reload
 
 
