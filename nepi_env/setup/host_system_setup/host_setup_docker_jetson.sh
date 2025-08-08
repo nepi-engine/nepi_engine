@@ -30,6 +30,12 @@ Copy /home/engineering/Code/l4t-jetpack folder to nepi_storage/tmp
 ## CONNECT NEPI DEVICE TO INTERNET BEFORE PROCEEDING
 sudo apt-get install apt-utils
 
+
+###################
+# 
+
+
+
 cd /mnt/nepi_storage/tmp
 sudo chown -R nepi:nepi l4t-jetpack/
 cd l4t-jetpack/
@@ -74,17 +80,51 @@ sudo apt-get install nvidia-container-run
 sudo apt install gparted
 
 # Open gparted and create two new partitions (nepi_docker and nepi_storage)
+# nepi_docker > 50Gb then nepi_storage > 150 Gb
 # In Computer/mnt 
 # Create the nepi_docker file with
 sudo mkdir nepi_docker
-
+sudo mkdir nepi_storage
 # Then mount the nepi_docker partition to the nepi_docker directory with
+# Look find the drive names for new partitions
+lsblk
 sudo mount /dev/nvme0n1p6 nepi_docker
+sudo mount /dev/nvme0n1p7 nepi_docker
 
 # Repeat these steps for nepi_storage
 
 # In Computer/mnt update permissions with
 sudo chown -R nepidev:nepidev
+
+#############
+# SETUP nepi bashrc aliases
+
+
+# 3) Copy the nepi_docker_host_aliases file to ~/.nepi_aliases 
+# - Open a terminal in this files folder and type
+
+cp /mnt/nepi_storage/nepi_src/nepi_engine_ws/resources/nepi_docker_host_aliases ~/.nepi_aliases
+
+# 4) Add the following lines to your ~/.bashrc file 
+
+# Open bashrc file
+
+nano ~/.bashrc
+
+# Add Lines to end of file
+
+if [ -f ~/.nepi_aliases ]; then
+    . ~/.nepi_aliases
+fi
+
+
+# 5) source the updated bashrc
+
+source ~/.bashrc
+
+
+
+
 
 # In nepi_storage create folder nepi_src
 # In nepi src follow the tutorial instruction building from source to clone the nepi_engine repo
