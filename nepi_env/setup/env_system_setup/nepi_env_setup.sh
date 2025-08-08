@@ -221,3 +221,9 @@ sudo ${NEPI_CONFIG}/etc/license/setup_nepi_license.sh
 
 sudo chown -R nepi:nepi /opt/nepi/config
 sudo chown -R nepi:nepi /opt/nepi/etc
+
+
+##############
+# Fix USB Vidoe Rate Issue
+sudo rmmod uvcvideo
+sudo sudo modprobe uvcvideo nodrop=1 timeout=5000 quirks=0x80
