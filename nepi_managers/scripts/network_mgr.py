@@ -520,10 +520,10 @@ class NetworkMgr:
                 #self.msg_if.pub_warn("Checking IP: " + str(ip_addr))
                 if ip_addr != self.primary_ip_addr and ip_addr != '':
                     if ip_addr in managed_ips:
-                        self.msg_if.pub_warn("Adding managed IP: " + str(ip_addr))
+                        #self.msg_if.pub_warn("Adding managed IP: " + str(ip_addr))
                         rep_ips.append(ip_addr)
                     elif ip_addr not in rep_ips:
-                        self.msg_if.pub_warn("Updating DHCP IP: " + str(ip_addr))
+                        #self.msg_if.pub_warn("Updating DHCP IP: " + str(ip_addr))
                         dhcp_ip_addr = copy.deepcopy(ip_addr)
         rep_ips.append(dhcp_ip_addr)
         #self.msg_if.pub_warn("End Return IPs: " + str(rep_ips))

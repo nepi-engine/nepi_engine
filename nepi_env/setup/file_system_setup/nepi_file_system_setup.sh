@@ -131,9 +131,6 @@ nano ~/.nepi_aliases
 
 sudo apt-get install lsb-release -y
 
-
-
-
 #  Install ros
 #  https://wiki.ros.org/noetic/Installation/Ubuntu
 
@@ -184,10 +181,6 @@ sudo apt install ros-noetic-web-video-server
 
 ####################
 
-## Fix some python 3.10 issues
-sudo pip install -r requirements.txt -> Installing collected packages: tornado, requests Attempting uninstall: tornado Found existing installation: tornado 4.5.3 Uninstalling tornado-4.5.3: Successfully uninstalled tornado-4.5.3 Attempting uninstall: requests Found existing installation: requests 2.21.0 Uninstalling requests-2.21.0: Successfully uninstalled requests-2.21.0 Successfully installed requests-2.32.2 tornado-6.4
-
-
 
 # 1) edit the following file: 
 sudo su
@@ -195,6 +188,7 @@ cd /opt/ros/noetic/lib/rosbridge_server/
 cp rosbridge_websocket.py  rosbridge_websocket.bak
 vi rosbridge_websocket.py
 # Add the following lines under import sys
+
 exit
 
 
