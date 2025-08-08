@@ -60,11 +60,34 @@ _______________
 # Install docker if not present
 #https://www.forecr.io/blogs/installation/how-to-install-and-run-docker-on-jetson-nano
 
+# Check if docker is intalled
+
+docker --version
+
 # Install nvidia toolkit
 #https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 sudo apt-get install -y nvidia-container-toolkit
 sudo apt-get install nvidia-container-run
 #runtime configure --runtime=docker --config=$HOME/.config/docker/daemon.json
+
+# Install gparted
+sudo apt install gparted
+
+# Open gparted and create two new partitions (nepi_docker and nepi_storage)
+# In Computer/mnt 
+# Create the nepi_docker file with
+sudo mkdir nepi_docker
+
+# Then mount the nepi_docker partition to the nepi_docker directory with
+sudo mount /dev/nvme0n1p6 nepi_docker
+
+# Repeat these steps for nepi_storage
+
+# In Computer/mnt update permissions with
+sudo chown -R nepidev:nepidev
+
+# In nepi_storage create folder nepi_src
+# In nepi src follow the tutorial instruction building from source to clone the nepi_engine repo
 
 #Stop docker
 sudo systemctl stop docker
@@ -152,6 +175,6 @@ sudo docker export a1e4e38c2162 > /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar
 sudo docker import /mnt/nepi_storage/tmp/nepi3p0p4p1_jp5p0p2.tar 
 docker tag <IMAGE_ID> nepi_ft1
 
-# Save Layered Image as tar
-sudo docker save -o /mnt/nepi_storage/tmp/nepi1.tar a1e4e38c2162
-sudo docker tag 7aa663d0a1e3 nepi_ft1
+# Don't Save Layered Image as tar
+#sudo docker save -o /mnt/nepi_storage/tmp/nepi1.tar a1e4e38c2162
+#sudo docker tag 7aa663d0a1e3 nepi_ft1
