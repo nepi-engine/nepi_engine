@@ -229,6 +229,8 @@ export CUDA_HOME=/usr/local/cuda-11
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/bin/lib64:$CUDA_HOME/bin/extras/CUPTI/lib64
 export PATH=$PATH:$CUDA_HOME/bin
 
+# Open3D Config
+export LD_PRELOAD=/usr/local/lib/libOpen3D.so
 
 # Python Config
 export SETUPTOOLS_USE_DISTUTILS=stdlib

@@ -8,7 +8,21 @@ Resize image
 sudo resize2fs /dev/nvme0n1p2
 sudo resize2fs /dev/nvme0n1p3
 
-On PC
+On Device
+
+# Create NEPI storage folder
+# Create nepi_src in that folder and change dir
+# Git Clone Nepi Repo in nepi_src 
+# Copy nepi_docker_aliases to ~/.nepi_aliases and add call from .bashrc
+# seutp fixed IP with internet access
+sudo su
+cp /mnt/nepi_storage/nepi_src/nepi_engine_ws/src/nepi_engine/nepi_env/config/etc/network/nepi_docker_ip /etc/network/interfaces
+
+nmcli dev disconnect eth0
+nmcli dev connect eth0
+exit
+
+
 git clone https://gitlab.com/nvidia/container-images/l4t-jetpack
 
 Copy /home/engineering/Code/l4t-jetpack folder to nepi_storage/tmp
@@ -174,19 +188,6 @@ apt install netplan.io
 #Install chromium on 
 # On host machine open chromium and enter http://127.0.0.1:5003/ to access the RUI locally
 # On 
-
-
-#_____________
-# setup nepi_storage folder
-
-# Create a nepi_storage folder on mounted partition with at least 100 GB of free space
-mkdir <path_to_nepi_parent_folder>/nepi_storage
-
-# Run the nepi containers nepi_storage_init.sh script using the following command  
-sudo docker run --rm --mount type=bind,source=/mnt/nepi_storage,target=/mnt/nepi_storage -it --net=host -v /tmp/.X11-unix/:/tmp/.X11-unix nepi /bin/bash -c "/nepi_storage_init.sh"
-
-#then
-exit
 
 
 #_____________

@@ -75,7 +75,7 @@ sudo apt update
 sudo apt install git -y
 git --version
 
-
+sudo apt-get install nano
 
 # The script is assumed to run from a directory structure that mirrors the Git repo it is housed in.
 cd /home/nepi
