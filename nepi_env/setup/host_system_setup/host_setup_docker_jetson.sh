@@ -96,6 +96,7 @@ sudo mount /dev/nvme0n1p7 nepi_docker
 # In Computer/mnt update permissions with
 sudo chown -R nepidev:nepidev
 
+
 #############
 # SETUP nepi bashrc aliases
 
