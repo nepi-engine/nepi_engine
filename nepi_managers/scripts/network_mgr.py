@@ -66,7 +66,7 @@ class NetworkMgr:
     ENABLE_DISABLE_WIFI_ADAPTER_PRE = ["ip", "link", "set"]
     ENABLE_WIFI_ADAPTER_POST = ["up"]
     DISABLE_WIFI_ADAPTER_POST = ["down"]
-    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/etc/nepi_wpa_supplicant.conf"
+    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/etc/network/nepi_wpa_supplicant.conf"
     WPA_START_SUPPLICANT_CMD_PRE = ["wpa_supplicant", "-B" ,"-i"]
     WPA_START_SUPPLICANT_CMD_POST = ["-c", WPA_SUPPLICANT_CONF_PATH]
     WPA_GENERATE_SUPPLICANT_CONF_CMD = "wpa_passphrase"

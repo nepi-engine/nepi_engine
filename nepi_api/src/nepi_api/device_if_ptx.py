@@ -180,6 +180,11 @@ class PTXActuatorIF:
 
     last_time = 0
 
+    pan_speed_history = []
+    tilt_speed_history = []
+    SPEED_SMOOTHING_WINDOW = 7
+    delay = False
+
     ### IF Initialization
     def __init__(self,  device_info, 
                  capSettings, factorySettings, 
@@ -1178,8 +1183,8 @@ class PTXActuatorIF:
 
                 self.gotoTiltPosition(self.auto_tilt_min)
         if scan_time is not None:
-            self.auto_pan_times.pop(0)
-            self.auto_pan_times.append(scan_time)
+            self.auto_tilt_times.pop(0)
+            self.auto_tilt_times.append(scan_time)
             
             # Calc auto pan times and sin
             auto_tilt_times = copy.deepcopy(self.auto_tilt_times)
@@ -1900,26 +1905,32 @@ class PTXActuatorIF:
             last_pan_position = self.last_position[0]
             if current_pan_position != last_pan_position:
                 delta_pan_pos = current_pan_position - last_pan_position
-                self.speed_pan_dps = []
-                #for i, pos in enumerate(delta_pos):
-                #    self.speed_pan_dps.append(pos/delta_pan_pos)
-                self.speed_pan_dps = delta_pan_pos / delta_time
+                pan_speed = delta_pan_pos / delta_time
+                self.pan_speed_history.append(pan_speed)
+                if len(self.pan_speed_history) > self.SPEED_SMOOTHING_WINDOW:
+                    self.pan_speed_history.pop(0)
+                self.speed_pan_dps = sum(self.pan_speed_history) / len(self.pan_speed_history)
+
+            #self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)
 
             current_tilt_position = self.current_position[1]
             last_tilt_position = self.last_position[1]
             if current_tilt_position != last_tilt_position:
                 delta_tilt_pos = current_tilt_position - last_tilt_position
-                self.speed_tilt_dps = []
-                #for i, pos in enumerate(delta_pos):
-                #    self.speed_pan_dps.append(pos/delta_pan_pos)
-                self.speed_tilt_dps = delta_tilt_pos / delta_time
+                tilt_speed = delta_tilt_pos / delta_time
+                self.tilt_speed_history.append(tilt_speed)
+                if len(self.tilt_speed_history) > self.SPEED_SMOOTHING_WINDOW:
+                    self.tilt_speed_history.pop(0)
+                self.speed_tilt_dps = sum(self.tilt_speed_history) / len(self.tilt_speed_history)
+
             last_position = copy.deepcopy(self.current_position)
 
+            #self.status_msg.speed_tilt_dps =  abs(self.speed_tilt_dps)
+        #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
+                    
         self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)
         self.status_msg.speed_tilt_dps =  abs(self.speed_tilt_dps)
 
-        #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
-        
         [pan_deg,tilt_deg] = self.current_position
 
 
