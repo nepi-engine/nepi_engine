@@ -641,9 +641,9 @@ class AiDetectorIF:
         # Setup Save Data IF
         factory_data_rates= {}
         for d in self.data_products:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
         if self.img_data_product in self.data_products:
-            factory_data_rates[self.img_data_product] = [1.0, 0.0, 100.0] 
+            factory_data_rates[self.img_data_product] = [1.0, 0.0, 3.5] 
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,

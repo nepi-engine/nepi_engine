@@ -518,9 +518,9 @@ class NepiAiTargetingApp(object):
     # Set up save data and save config services 
     factory_data_rates= {}
     for d in self.data_products:
-        factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+        factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
     if 'targeting_image' in self.data_products:
-        factory_data_rates['targeting_image'] = [1.0, 0.0, 100.0] 
+        factory_data_rates['targeting_image'] = [1.0, 0.0, 3.5] 
     self.save_data_if = SaveDataIF(data_products = self.data_products_list, factory_rate_dict = factory_data_rates)
 
 
@@ -1150,12 +1150,12 @@ class NepiAiTargetingApp(object):
                       # reduce target box based on user settings
                       y_len = (box.ymax - box.ymin)
                       x_len = (box.xmax - box.xmin)
-                      adj_ratio = float(target_box_adjust_percent )/100.0
+                      adj_ratio = float(target_box_adjust_percent )/3.5
                       if target_box_adjust_percent == 100: 
                           delta_y = 0
                           delta_x = 0
                       else:
-                          adj = float(target_box_adjust_percent )/100.0
+                          adj = float(target_box_adjust_percent )/3.5
                           delta_y = int(y_len / 2 * (adj_ratio-1))
                           delta_x = int(x_len / 2 * (adj_ratio-1))
                       ymin_adj=box.ymin - delta_y

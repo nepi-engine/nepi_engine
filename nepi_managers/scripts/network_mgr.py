@@ -44,7 +44,7 @@ class NetworkMgr:
     """
 
     NET_IFACE = "eth0"
-    WONDERSHAPER_CALL = "/opt/nepi/ros/share/wondershaper/wondershaper"
+    WONDERSHAPER_CALL = "/opt/nepi/engine/share/wondershaper/wondershaper"
     BANDWIDTH_MONITOR_PERIOD_S = 2.0
 
     FACTORY_STATIC_IP_FILE = "/opt/nepi/etc/network/interfaces.d/nepi_static_ip"
@@ -54,11 +54,11 @@ class NetworkMgr:
     # Following are to support changing rosmaster IP address
     SYS_ENV_FILE = "/opt/nepi/sys_env.bash"
     ROS_MASTER_PORT = 11311
-    ROSLAUNCH_FILE = "/opt/nepi/ros/etc/roslaunch.sh"
-    REMOTE_ROS_NODE_ENV_LOADER_FILES = ["numurus@num-sb1-zynq:/opt/nepi/ros/etc/env_loader.sh"]
+    ROSLAUNCH_FILE = "/opt/nepi/engine/etc/roslaunch.sh"
+    REMOTE_ROS_NODE_ENV_LOADER_FILES = ["numurus@num-sb1-zynq:/opt/nepi/engine/etc/env_loader.sh"]
 
     # Following support WiFi AP setup
-    CREATE_AP_CALL = "/opt/nepi/ros/share/create_ap/create_ap"
+    CREATE_AP_CALL = "/opt/nepi/engine/share/create_ap/create_ap"
     DEFAULT_WIFI_AP_SSID = "nepi_device_ap"
     DEFAULT_WIFI_AP_PASSPHRASE = "nepi_device_ap"
 

@@ -31,6 +31,6 @@ NOW=`date +"%F_%H%M%S"`
 ARCHIVE_FOLDER=numurus_ros_sdk_archive_${REMOTE_HOST}_$NOW
 echo "Archiving the existing installation to $ARCHIVE_FOLDER.tar.gz... this may take a moment"
 sleep 3
-rsync -avzhe "ssh -i $SSH_KEY_PATH" numurus@192.168.179.102:/opt/nepi/ros $ARCHIVE_FOLDER
+rsync -avzhe "ssh -i $SSH_KEY_PATH" numurus@192.168.179.102:/opt/nepi/engine $ARCHIVE_FOLDER
 tar -czf $ARCHIVE_FOLDER.tar.gz $ARCHIVE_FOLDER
 rm -rf $ARCHIVE_FOLDER

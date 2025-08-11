@@ -793,7 +793,7 @@ class RBXRobotIF:
         self.data_products_list.append('navpose')
         factory_data_rates = {}
         for d in self.data_products_list:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
 
         factory_filename_dict = {
             'prefix': "", 

@@ -6,7 +6,7 @@ This file is part of nepi-engine
 
 License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ]]
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(nepi_env)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -227,35 +227,6 @@ install(DIRECTORY etc/
   USE_SOURCE_PERMISSIONS
 )
 
-# Install factory config files to the nepi config destination
-set( NEPI_CONFIG_FOLDER 
-  # Must hard-coded 
-  /opt/nepi/config
-)
-
-install(DIRECTORY config/
-  DESTINATION ${NEPI_CONFIG_FOLDER}
-  USE_SOURCE_PERMISSIONS
-)
-
-install(DIRECTORY etc/
-  DESTINATION ${NEPI_CONFIG_FOLDER}/etc/nepi
-  USE_SOURCE_PERMISSIONS
-)
-
-
-# Install sys_env file in case it doesn't yet exist
-#install(FILES etc/sys_env.bash
-#  DESTINATION ${SYS_ENV_DIR}
-#  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
-#)
-
-# Developer convenience to restore a backup sys_env file if one exists
-#install(FILES ${SYS_ENV_DIR}/sys_env.bash.bak
-#  DESTINATION ${SYS_ENV_DIR}
-#  RENAME sys_env.bash
-#  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ GROUP_WRITE WORLD_READ
-#  OPTIONAL)
 
 install(DIRECTORY utilities/
   DESTINATION ${CATKIN_GLOBAL_SHARE_DESTINATION}

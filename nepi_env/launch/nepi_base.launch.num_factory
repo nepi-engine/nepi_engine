@@ -2,7 +2,7 @@
   <arg name="global_ns" value="$(env ROOTNAME)" />
   <arg name="device_ns" value="$(env ROOTNAME)/$(env DEVICE_ID)" />
   <arg name="output_destination" value="screen" />
-  <arg name="config_file_root" value="/opt/nepi/ros/etc" />
+  <arg name="config_file_root" value="/opt/nepi/engine/etc" />
   <arg name="partition_layout_file" default="s2x_xavier_nx_nepi_partition_layout.yaml" />
 
   <!-- Args. to run or not run specific nodes -->

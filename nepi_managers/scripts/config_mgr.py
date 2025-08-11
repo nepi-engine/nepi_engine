@@ -33,7 +33,7 @@ from nepi_api.node_if import NodeClassIF
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
-NEPI_CFG_PATH = '/opt/nepi/ros/etc'
+NEPI_CFG_PATH = '/opt/nepi/engine/etc'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'

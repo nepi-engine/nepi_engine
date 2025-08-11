@@ -73,7 +73,7 @@ class SystemMgrNode():
 
     SYS_CONFIG_PATH = "/opt/nepi/config"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
-    FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
+    FW_VERSION_PATH = "/opt/nepi/engine/etc/fw_version.txt"
 
     STATES_DICT = dict()
 
@@ -147,48 +147,48 @@ class SystemMgrNode():
                             "nepi_src",
                             "tmp"]
 
-    CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
+    CATKIN_TOOLS_PATH = '/opt/nepi/engine/.catkin_tools'
 
 
 
     SDK_PATH_DICT = {
-        'sdk_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk',
-        'sdk_lib': '/opt/nepi/ros/lib/nepi_sdk',
+        'sdk_pkg': '/opt/nepi/engine/lib/python3/dist-packages/nepi_sdk',
+        'sdk_lib': '/opt/nepi/engine/lib/nepi_sdk',
         }
     API_PATH_DICT = {
-        'api_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_api',
-        'api_lib': '/opt/nepi/ros/lib/nepi_api',
+        'api_pkg': '/opt/nepi/engine/lib/python3/dist-packages/nepi_api',
+        'api_lib': '/opt/nepi/engine/lib/nepi_api',
         }
     ETC_PATH_DICT = {
-        'etc': '/opt/nepi/ros/etc'
+        'etc': '/opt/nepi/engine/etc'
         }
     CFG_PATH_DICT = {
         'sys_cfg': '/opt/nepi/config',
         'user_cfg': storage_mountpoint + '/user_cfg'
         }
     RUI_PATH_DICT = {
-        'rui_env': '/opt/nepi/nepi_rui/.nvm',
-        'rui_bld': '/opt/nepi/nepi_rui/src/rui_webserver/rui-app',
-        'rui_src': '/opt/nepi/nepi_rui/src/rui_webserver/rui-app/src'
+        'rui_env': '/opt/nepi/rui/.nvm',
+        'rui_bld': '/opt/nepi/rui/src/rui_webserver/rui-app',
+        'rui_src': '/opt/nepi/rui/src/rui_webserver/rui-app/src'
         }
         
     DRIVERS_PATH_DICT = {
-        'drivers_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_drivers',
-        'drivers_lib': '/opt/nepi/ros/lib/nepi_drivers',
-        'drivers_param': '/opt/nepi/ros/lib/nepi_drivers',
+        'drivers_pkg': '/opt/nepi/engine/lib/python3/dist-packages/nepi_drivers',
+        'drivers_lib': '/opt/nepi/engine/lib/nepi_drivers',
+        'drivers_param': '/opt/nepi/engine/lib/nepi_drivers',
         'drivers_install': '/mnt/nepi_storage/install/drivers'
         }
     AIFS_PATH_DICT = {
-        'aifs_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_aifs',
-        'aifs_lib': '/opt/nepi/ros/lib/nepi_aifs',
-        'aifs_param': '/opt/nepi/ros/share/nepi_aifs',
+        'aifs_pkg': '/opt/nepi/engine/lib/python3/dist-packages/nepi_aifs',
+        'aifs_lib': '/opt/nepi/engine/lib/nepi_aifs',
+        'aifs_param': '/opt/nepi/engine/share/nepi_aifs',
         'aifs_models': '/mnt/nepi_storage/ai_models/',
         'aifs_install': '/mnt/nepi_storage/install/ai_frameworks'
         }
     APPS_PATH_DICT = {
-        'apps_pkg': '/opt/nepi/ros/lib/python3/dist-packages/nepi_apps',
-        'apps_lib': '/opt/nepi/ros/lib/nepi_apps',
-        'apps_param': '/opt/nepi/ros/share/nepi_apps/params',
+        'apps_pkg': '/opt/nepi/engine/lib/python3/dist-packages/nepi_apps',
+        'apps_lib': '/opt/nepi/engine/lib/nepi_apps',
+        'apps_param': '/opt/nepi/engine/share/nepi_apps/params',
         'apps_install': '/mnt/nepi_storage/install/apps'
         }
 

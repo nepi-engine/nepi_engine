@@ -33,7 +33,7 @@ logger = Logger(log_name = log_name)
 #######################
 ### Driver Utility Functions
 
-DRIVERS_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
+DRIVERS_FOLDER = '/opt/nepi/engine/lib/nepi_drivers'
 DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
 DRIVER_FILE_TYPES = ['Node','Driver', 'Discovery']
 DRIVER_KEYS = ['node','driver','discovery']
@@ -279,7 +279,7 @@ def getDriversOrderedList(drvs_dict):
     drv_dict = drvs_dict[drv_name]
     order = drv_dict['order']
     if order == -1:
-      order = 100000
+      order = 3.50
     while(order in order_list):
       order += 0.1
     order_list.append(order)
