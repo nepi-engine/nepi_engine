@@ -81,9 +81,18 @@ class SystemMgrNode():
     status_msg = MgrSystemStatus()
     system_defs_msg = SystemDefs()
 
+
+    fs_a_folder =  "/mnt/nepi_fs_a"
+    fs_b_folder =  "/mnt/nepi_fs_a"
+    fs_staging_folder =  "/mnt/nepi_fs_staging"
+
+    config_mountpoint = "/mnt/nepi_config"
+    factory_cfg_folder =  config_mountpoint + "/factory_cfg"
+    system_cfg_folder =  config_mountpoint + "/system_cfg"
+
     storage_mountpoint = "/mnt/nepi_storage"
     data_folder = storage_mountpoint + "/data"
-    cfg_folder =  storage_mountpoint + "/user_cfg"
+    user_cfg_folder =  storage_mountpoint + "/user_cfg"
 
     storage_subdirs = dict()
     user_folders = dict()
@@ -118,26 +127,6 @@ class SystemMgrNode():
                             "sample_data",
                             "tmp"]
                             
-    REQD_STORAGE_SUBDIRS_CN = ["ai_models",
-                            "ai_training", 
-                            "automation_scripts", 
-                            "data", 
-                            "databases", 
-                            "databases/targets", 
-                            "install",
-                            "install/apps",
-                            "install/ai_frameworks",
-                            "install/drivers",
-                            "license", 
-                            "logs", 
-                            "logs/ros_log",
-                            "logs/automation_script_logs", 
-                            "nepi_src",
-                            "user_cfg",
-                            "user_cfg/sys",
-                            "user_cfg/cal",
-                            "sample_data",
-                            "tmp"]
     
     STORAGE_CHECK_SKIP_LIST = ["ai_training",
                             "data",
@@ -163,7 +152,7 @@ class SystemMgrNode():
         'etc': '/opt/nepi/engine/etc'
         }
     CFG_PATH_DICT = {
-        'sys_cfg': '/opt/nepi/config',
+        'nepi_cfg': '/opt/nepi/etc',
         'user_cfg': storage_mountpoint + '/user_cfg'
         }
     RUI_PATH_DICT = {
@@ -274,10 +263,7 @@ class SystemMgrNode():
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
 
-        if self.in_container == False:
-          self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
-        else:
-          self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS_CN
+        self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         
         self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
         '''
@@ -660,7 +646,7 @@ class SystemMgrNode():
 
         # Config mgr not running yet, so have to load saved configs ourselfs
         user_cfg_file = self.node_name + '.yaml.user'
-        user_cfg_path = nepi_sdk.create_namespace(self.cfg_folder,user_cfg_file)
+        user_cfg_path = nepi_sdk.create_namespace(self.user_cfg_folder,user_cfg_file)
 
         #self.msg_if.pub_info("Waiting for 20 secs")
         #time.sleep(20)

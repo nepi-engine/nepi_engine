@@ -34,6 +34,8 @@ from nepi_api.node_if import NodeClassIF
 NEPI_ENV_PACKAGE = 'nepi_env'
 
 NEPI_CFG_PATH = '/opt/nepi/engine/etc'
+FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
+SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
@@ -62,6 +64,10 @@ class config_mgr(object):
 
     node_if = None
     config_folders = dict()
+    config_folders['factory_cfg']=FACTORY_CFG_PATH
+    config_folders['system_cfg']=SYSTEM_CFG_PATH
+    config_folders['user_cfg']=USER_CFG_PATH
+
 
     #######################
     ### Node Initialization
@@ -87,8 +93,8 @@ class config_mgr(object):
         self.msg_if.pub_info("Waiting for system folders")
         folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got system folders: " + str(folders))
-        for folder in folders.keys():
-            if folder.find('user_cfg') != -1:
+        for folder in self.config_folders.keys():
+            if folder in folders.keys():
                 self.config_folders[folder] = folders[folder]
         
         ##############################
