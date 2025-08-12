@@ -1,4 +1,4 @@
-cd /opt/nepi/config/etc/network/interfaces.d
+cd /opt/nepi/etc/network/interfaces.d
 while true; do
   cat nepi_user_ip_aliases
   sleep 1
@@ -6,6 +6,6 @@ done
 
 
 while true; do
-  rosservice call /nepi/s2x/ip_addr_query "{}"
+  rosservice call /nepi/device1/ip_addr_query "{}"
   sleep 1
 done

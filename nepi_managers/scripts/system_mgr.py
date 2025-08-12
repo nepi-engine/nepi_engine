@@ -71,7 +71,7 @@ class SystemMgrNode():
                             'States_View','States_Controls',
                             'Image_Stats','Image_Controls']
 
-    SYS_CONFIG_PATH = "/opt/nepi/config"
+    SYS_ETC_PATH = "/opt/nepi/etc"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
     FW_VERSION_PATH = "/opt/nepi/engine/etc/fw_version.txt"
 
@@ -1116,12 +1116,12 @@ class SystemMgrNode():
 
         # Check system folders
         self.msg_if.pub_warn("Checking nepi config folder")
-        if not os.path.isdir(self.SYS_CONFIG_PATH):
-                self.msg_if.pub_warn("Folder " + self.SYS_CONFIG_PATH + " not present... will create")
-                os.makedirs(self.SYS_CONFIG_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SYS_CONFIG_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.SYS_CONFIG_PATH)
-        self.storage_subdirs['config'] = self.SYS_CONFIG_PATH
+        if not os.path.isdir(self.SYS_ETC_PATH):
+                self.msg_if.pub_warn("Folder " + self.SYS_ETC_PATH + " not present... will create")
+                os.makedirs(self.SYS_ETC_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SYS_ETC_PATH)
+        self.storage_subdirs['config'] = self.SYS_ETC_PATH
 
 
         for entry in self.SYSTEM_PATH_DICT.keys():

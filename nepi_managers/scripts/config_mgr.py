@@ -45,15 +45,15 @@ SYSTEM_MGR_NODENAME = 'system_mgr'
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
     'sys_env.bash' : '/opt/nepi/sys_env.bash', # Serial number, ROS launch file, external ROS MASTER etc.
-    'authorized_keys' : '/opt/nepi/etc/authorized_keys', # NEPI Device SSH public keys
-    'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
-    'sshd_config' : '/opt/nepi/etc/sshd_config', # SSH Server Config
-    'chrony.conf' : '/opt/nepi/etc/chrony.conf', # NTP/Chrony Config
+    'authorized_keys' : '/opt/nepi/etc/network/authorized_keys', # NEPI Device SSH public keys
+    'hostname' : '/opt/nepi/etc/hostname/hostname', # NEPI Device hostname
+    'sshd_config' : '/opt/nepi/etc/ssh/sshd_config', # SSH Server Config
+    'chrony.conf' : '/opt/nepi/etc/chrony/chrony.conf', # NTP/Chrony Config
     'nepi_iptables.rules' : '/opt/nepi/etc/network/nepi_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
     'nepi_user_ip_aliases' : '/opt/nepi/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
     'nepi_static_ip' : '/opt/nepi/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
-    'fstab' : '/opt/nepi/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
-    'smb.conf' : '/opt/nepi/etc/smb.conf'
+    'fstab' : '/opt/nepi/etc/fstabs/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
+    'smb.conf' : '/opt/nepi/etc/samba/smb.conf'
 }
 
 
