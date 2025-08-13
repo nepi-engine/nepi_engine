@@ -33,6 +33,7 @@ from nepi_api.node_if import NodeClassIF
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
+NEPI_HOME_PATH = '/home/nepi'
 NEPI_CFG_PATH = '/opt/nepi/engine/etc'
 FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
 SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
@@ -47,8 +48,7 @@ SYSTEM_MGR_NODENAME = 'system_mgr'
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
     'sys_env.bash' : '/opt/nepi/sys_env.bash', # Serial number, ROS launch file, external ROS MASTER etc.
-    'authorized_keys' : '/opt/nepi/etc/network/authorized_keys', # NEPI Device SSH public keys
-    'hostname' : '/opt/nepi/etc/hostname/hostname', # NEPI Device hostname
+     #'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
     'sshd_config' : '/opt/nepi/etc/ssh/sshd_config', # SSH Server Config
     'chrony.conf' : '/opt/nepi/etc/chrony/chrony.conf', # NTP/Chrony Config
     'nepi_iptables.rules' : '/opt/nepi/etc/network/nepi_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
@@ -374,6 +374,7 @@ class config_mgr(object):
         for cfg in SYS_CFGS_TO_PRESERVE:
             source = SYS_CFGS_TO_PRESERVE[cfg]
             target = os.path.join(USER_CFG_PATH, 'sys', cfg)
+            self.msg_if.pub_info("Save Config copying file: " + source  + " to " + target )
             os.system('cp -rfp ' + source + ' ' + target)
 
 
@@ -386,23 +387,20 @@ class config_mgr(object):
     def restore_system_cfgs(self):
         # Handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                if os.path.isdir(full_name):
-                    full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                if os.path.isdir(source):
+                    source = os.path.join(source,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
-                self.msg_if.pub_warn("Updating " + target + " from user config")
-                os.system('cp -rfp ' + full_name + ' ' + target)
+                self.msg_if.pub_info("Restore copying system file: " + source  + " to " + target )
+                os.system('cp -rfp ' + source + ' ' + target)
                 
-                if name == 'authorized_keys':
-                    os.system('chmod -R 0600 ' + target)
-
  
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
                     file_lines = []
-                    with open(full_name, "r") as f:
+                    with open(source, "r") as f:
                         for line in f:
                             #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
@@ -432,16 +430,16 @@ class config_mgr(object):
     def restore_factory_cfgs(self):
         # First handle the ROS user configs.
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
 
         '''
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
         '''
                 
 
