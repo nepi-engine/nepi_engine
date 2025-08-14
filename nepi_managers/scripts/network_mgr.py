@@ -1242,7 +1242,7 @@ class NetworkMgr:
        
     def set_wifi_client(self, ssid, passphrase):
         success = False
-        if self.wifi_client_connecting == False and self.wifi_client_enabled == True and self.dhcp_enabled == False:
+        if self.wifi_client_connecting == False and self.wifi_client_enabled == True and self.dhcp_enabled == False and self.clock_skewed == False:
             self.wifi_client_connecting = True
             if self.wifi_adapter_ready == False or ssid == 'None':
                 self.wifi_client_connecting = False

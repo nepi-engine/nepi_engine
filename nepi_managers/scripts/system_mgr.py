@@ -1113,8 +1113,8 @@ class SystemMgrNode():
         for entry in self.SYSTEM_PATH_DICT.keys():
             path_dict = self.SYSTEM_PATH_DICT[entry]
             for key in path_dict:
+                path_entry = path_dict[key]
                 if entry not in self.SYSTEM_CHECK_SKIP_LIST and key not in self.SYSTEM_CHECK_SKIP_LIST:
-                    path_entry = path_dict[key]
                     self.msg_if.pub_warn("Checking system folder: " + key + " at: " + path_entry)
                     if not os.path.isdir(path_entry):
                             self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
