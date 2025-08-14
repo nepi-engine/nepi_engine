@@ -84,7 +84,7 @@ class SaveDataIF:
     sys_mgr_if = None
     read_write_if = None
 
-
+    save_data_root_directory = FALLBACK_DATA_FOLDER
 
     filename_dict = {
         'prefix': "", 
@@ -153,8 +153,8 @@ class SaveDataIF:
         self.msg_if.pub_info("Waiting for user folders")
         user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
         #self.msg_if.pub_warn("Got user folders: " + str(system_folders))
-       
-        self.save_data_root_directory = user_folders['data']
+        if user_folders is not None:
+            self.save_data_root_directory = user_folders['data']
         self.msg_if.pub_info("Using SDK Share Folder: " + str(self.save_data_root_directory))
 
         # Ensure the data folder exists with proper ownership

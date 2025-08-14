@@ -118,7 +118,7 @@ def getFWVersionStringForPartition(partition_device_name):
         TMP_MOUNTPOINT, NEPI_FULL_IMG_FW_VERSION_PATH)
     if not os.path.isfile(fw_version_pathname):
         unmountPartition(TMP_MOUNTPOINT)
-        return False, "No firmware version file", None
+        return True,"Success", "Uknown"
 
     with open(fw_version_pathname) as f:
         fw_version = f.read()

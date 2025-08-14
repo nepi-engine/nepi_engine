@@ -27,7 +27,8 @@ string[] available_networks
 bool clock_skewed
 
 ################
-# Internet Info
+# Internet 
+
 ################
 string dhcp_ip_addr
 bool internet_connected
