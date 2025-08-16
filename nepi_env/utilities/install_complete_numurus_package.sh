@@ -9,16 +9,16 @@
 ##
 
 
-# This interactive script installs an entire local copy of the /opt/nepi/engine directory
+# This interactive script installs an entire local copy of the /opt/nepi/nepi_engine directory
 # to a remote machine, overwriting the existing folder if it exists.
-# Before overwriting, the existing /opt/nepi/engine directory on the remote target
+# Before overwriting, the existing /opt/nepi/nepi_engine directory on the remote target
 # is archived locally.
 
 # The following environment variables can be set ahead of time outside this script for
 # faster running:
 # SSH_KEY_PATH ==> full path to the private key for the remote system. Defaults to $HOME/.ssh/numurus/numurus_3dx_jetson_sshkey
 # REMOTE_HOST ==> IP address or resolvable hostname for the remote system. Defaults to 192.168.179.102
-# SRC_PATH ==> Path to the "ros" folder to be written to /opt/nepi/engine on the remote system. Defaults to ../../
+# SRC_PATH ==> Path to the "ros" folder to be written to /opt/nepi/nepi_engine on the remote system. Defaults to ../../
 # SERIAL_NUM ==> Device serial number. Defaults to 0000
 
 #echo "THIS SCRIPT NEEDS REWORK TO INSTALL ENTIRE /opt/nepi FOLDER"
@@ -86,19 +86,19 @@ NOW=`date +"%F_%H%M%S"`
 ARCHIVE_FOLDER=`pwd`/pre_install_archive_$REMOTE_HOST_$NOW
 echo "Archiving the existing installation to $ARCHIVE_FOLDER.tar.gz... this may take a moment"
 sleep 3
-rsync -avzhe "ssh -i $SSH_KEY_PATH" numurus@$REMOTE_HOST:/opt/nepi/engine $ARCHIVE_FOLDER
+rsync -avzhe "ssh -i $SSH_KEY_PATH" numurus@$REMOTE_HOST:/opt/nepi/nepi_engine $ARCHIVE_FOLDER
 tar -czf $ARCHIVE_FOLDER.tar.gz $ARCHIVE_FOLDER
 rm -rf $ARCHIVE_FOLDER
 
 # Delete the remote folder
 echo "Removing the old installation on the remote system"
 sleep 3
-echo numurus | ssh -tt -i $SSH_KEY_PATH numurus@$REMOTE_HOST "rm -rf /opt/nepi/engine/*"
+echo numurus | ssh -tt -i $SSH_KEY_PATH numurus@$REMOTE_HOST "rm -rf /opt/nepi/nepi_engine/*"
 
 # Write the new folder to the remote system
 echo "Uploading the new installation"
 sleep 3
-rsync -avzhe "ssh -i $SSH_KEY_PATH" ros/* numurus@192.168.179.102:/opt/nepi/engine/
+rsync -avzhe "ssh -i $SSH_KEY_PATH" ros/* numurus@192.168.179.102:/opt/nepi/nepi_engine/
 
 # All done
 echo "Installation Complete. Prior installation is archived at $ARCHIVE_FOLDER.tar.gz"

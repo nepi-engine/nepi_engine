@@ -18,7 +18,7 @@ import os
 import errno
 import yaml
 
-CFG_PATH = "/opt/nepi/engine/etc"
+CFG_PATH = "/opt/nepi/nepi_engine/etc"
 CFG_SUFFIX = ".yaml"
 FACTORY_SUFFIX = ".factory"
 

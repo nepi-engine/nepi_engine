@@ -2544,7 +2544,7 @@ class BaseImageIF:
 
             
             if self.node_if is not None and self.has_subs == True:
-                #self.msg_if.pub_warn("Publishing once")
+                self.msg_if.pub_warn("Publishing once")
                 #Convert to ros Image message
                 ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
                 sec = nepi_sdk.sec_from_timestamp(timestamp)

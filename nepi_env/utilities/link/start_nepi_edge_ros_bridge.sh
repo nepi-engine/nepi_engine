@@ -14,7 +14,7 @@
 # that isn't necessarily available on a generic target.
 
 # Must source the ROS setup first, as it overwrites important messages
-source /opt/nepi/engine/setup.sh
+source /opt/nepi/nepi_engine/setup.sh
 source /opt/nepi/nepi_edge_sdk_link/setup.bash
 
 SYS_ENV_FILE=/opt/nepi/sys_env.bash
@@ -48,6 +48,6 @@ fi
 
 # Set the required env. variables
 export NEPI_EDGE_ROS_BRIDGE_NS=/numurus/$DEVICE_TYPE/$DEVICE_ID
-export NEPI_EDGE_ROS_BRIDGE_PARAM_FILE=/opt/nepi/engine/etc/nepi_edge_ros_bridge/nepi_edge_ros_bridge.yaml
+export NEPI_EDGE_ROS_BRIDGE_PARAM_FILE=/opt/nepi/nepi_engine/etc/nepi_edge_ros_bridge/nepi_edge_ros_bridge.yaml
 
 roslaunch nepi_edge_ros_bridge nepi_edge_ros_bridge.launch --wait # Wait for main ROS master to come up

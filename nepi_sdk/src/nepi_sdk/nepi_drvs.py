@@ -33,7 +33,7 @@ logger = Logger(log_name = log_name)
 #######################
 ### Driver Utility Functions
 
-DRIVERS_FOLDER = '/opt/nepi/engine/lib/nepi_drivers'
+DRIVERS_FOLDER = '/opt/nepi/nepi_engine/lib/nepi_drivers'
 DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
 DRIVER_FILE_TYPES = ['Node','Driver', 'Discovery']
 DRIVER_KEYS = ['node','driver','discovery']

@@ -123,8 +123,32 @@ catkin_install_python(PROGRAMS
 
 
 #############
-## Install NavPose##
+## Install
 #############
+
+if(NOT NEPI_BASE)
+  set( NEPI_BASE 
+    /opt/nepi
+  )
+endif()
+
+if(NOT NEPI_RUI)
+  set( NEPI_RUI 
+    ${NEPI_BASE}/nepi_rui
+  )
+endif()
+
+if(NOT NEPI_ENGINE)
+  set( NEPI_ENGINE 
+    ${NEPI_BASE}/nepi_engine
+  )
+endif()
+
+if(NOT NEPI_ETC)
+  set( NEPI_ETC 
+    ${NEPI_BASE}/etc
+  )
+endif()
 
 
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
@@ -136,7 +160,7 @@ install(DIRECTORY etc/
 
 set( NEPI_API_FOLDER 
   # Must hard-coded 
-  /opt/nepi/engine/lib/python3/dist-packages/nepi_api
+  ${NEPI_ENGINE}/lib/python3/dist-packages/nepi_api
 )
 
 install(DIRECTORY api/

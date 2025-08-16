@@ -26,8 +26,8 @@ logger = Logger(log_name = log_name)
 
 #***************************
 # NEPI Apps utility functions
-APPS_SHARE_PATH = '/opt/nepi/engine/share/nepi_apps'
-NEPI_PKG_FOLDER = '/opt/nepi/engine/lib/'
+APPS_SHARE_PATH = '/opt/nepi/nepi_engine/share/nepi_apps'
+NEPI_PKG_FOLDER = '/opt/nepi/nepi_engine/lib/'
 
 def getAppsDict(search_path):
     apps_dict = dict()

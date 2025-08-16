@@ -8,7 +8,7 @@
 ## License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ##
 
-source /opt/nepi/engine/setup.sh
+source /opt/nepi/nepi_engine/setup.sh
 
 SYS_ENV_FILE=/opt/nepi/sys_env.bash
 
@@ -50,10 +50,10 @@ fi
 
 # Check for and restore any broken config files, since that will cause roslaunch to fail
 echo "Running pre-launch config file checks"
-python /opt/nepi/engine/etc/nepi_env/fix_broken_cfg_file_links.py
+python /opt/nepi/nepi_engine/etc/nepi_env/fix_broken_cfg_file_links.py
 
 # Tune ethernet interfaces for fast sensor throughput (especially important for genicam)
 echo "Running pre-launch ethernet interface tuning"
-python /opt/nepi/engine/etc/nepi_env/tune_ethernet_interfaces.py
+python /opt/nepi/nepi_engine/etc/nepi_env/tune_ethernet_interfaces.py
 
 roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}

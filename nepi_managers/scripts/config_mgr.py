@@ -34,7 +34,7 @@ from nepi_api.node_if import NodeClassIF
 NEPI_ENV_PACKAGE = 'nepi_env'
 
 NEPI_HOME_PATH = '/home/nepi'
-NEPI_CFG_PATH = '/opt/nepi/engine/etc'
+NEPI_CFG_PATH = '/opt/nepi/nepi_engine/etc'
 FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
 SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'

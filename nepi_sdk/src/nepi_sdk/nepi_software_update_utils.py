@@ -34,7 +34,7 @@ TMP_MOUNTPOINT = "/mnt/tmp"
 NEPI_FULL_IMG_SUBDIR = "nepi_full_img"
 NEPI_BACKUP_IMG_SUBDIR = "nepi_full_img_archive"
 NEPI_FULL_IMG_SEARCH_STRING = "nepi*img.raw"
-NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/engine/etc/fw_version.txt"
+NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/nepi_engine/etc/fw_version.txt"
 ###################################################################################################
 
 # First-stage rootfs definitions - Do not change these unless also updating the first-stage

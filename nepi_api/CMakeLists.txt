@@ -130,6 +130,30 @@ catkin_package(
 #############
 
 
+if(NOT NEPI_BASE)
+  set( NEPI_BASE 
+    /opt/nepi
+  )
+endif()
+
+if(NOT NEPI_RUI)
+  set( NEPI_RUI 
+    ${NEPI_BASE}/nepi_rui
+  )
+endif()
+
+if(NOT NEPI_ENGINE)
+  set( NEPI_ENGINE 
+    ${NEPI_BASE}/nepi_engine
+  )
+endif()
+
+if(NOT NEPI_ETC)
+  set( NEPI_ETC 
+    ${NEPI_BASE}/etc
+  )
+endif()
+
 catkin_install_python(PROGRAMS
   scripts/nepi_ai_detector_img_pub_node.py
   scripts/nepi_depth_map_img_pub_node.py

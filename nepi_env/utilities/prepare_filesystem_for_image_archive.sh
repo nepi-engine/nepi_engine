@@ -13,7 +13,7 @@
 # It is intended to run locally on a NEPI device (S2X, etc)
 # It must be run under sudo or as root
 TMP_FOLDER=/home/nepi/tmp
-NEPI_ROS_FOLDER=/opt/nepi/engine
+NEPI_ROS_FOLDER=/opt/nepi/nepi_engine
 NUID_FOLDER=/opt/nepi/nepi_link/nepi-bot/devinfo
 
 NEPI_BOT_FOLDER=/opt/nepi/nepi_link/nepi-bot
