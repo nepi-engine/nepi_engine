@@ -214,7 +214,7 @@ def check_partition_busy_lsof(mount_point):
         output = process.stdout.strip()
 
         if output:
-            print(f"Processes using {mount_point}:")
+            #logger.log_info("Processes using mount_point: " + str(mount_point))
             # Parse the output to extract process information
             current_pid = None
             for line in output.splitlines():
@@ -222,13 +222,13 @@ def check_partition_busy_lsof(mount_point):
                     current_pid = line[1:]
                 elif line.startswith('n') and current_pid:
                     file_path = line[1:]
-                    print(f"  PID: {current_pid}, File: {file_path}")
+                    #print(f"  PID: {current_pid}, File: {file_path}")
             return True
         else:
             print(f"No processes found using {mount_point}.")
             return False
     except subprocess.CalledProcessError as e:
-        print(f"Error running lsof: {e}")
+        #logger.log_warn("Error running lsof: " + str(e))
         # This might happen if lsof is not found or permission issues
         return False
 
