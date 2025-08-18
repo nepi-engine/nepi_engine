@@ -195,6 +195,7 @@ class IDXDeviceIF:
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+
         ##############################  
         # Create Msg Class
         if msg_if is not None:
@@ -206,7 +207,7 @@ class IDXDeviceIF:
         if log_name is not None:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IDX IF Initialization Processes", log_name_list = self.log_name_list)
-        
+        self.msg_if.pub_info("Using Namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ############################# 
         # Initialize Class Variables

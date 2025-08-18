@@ -298,8 +298,6 @@ class config_mgr(object):
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
-            #if namespace == '/nepi/s2x/nexigo_23':
-            #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
         return [True]
 
     def get_factory_pathname(self,namespace):

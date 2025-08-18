@@ -47,7 +47,7 @@ from std_msgs.msg import Empty, Float32
 #########################################
 
 # ROS namespace setup
-NEPI_BASE_NAMESPACE = "/nepi/s2x/"
+NEPI_BASE_NAMESPACE = "/nepi/device1/"
 
 #########################################
 # Node Class

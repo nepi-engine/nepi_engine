@@ -51,7 +51,7 @@ SCRIPT_LIST = ["image_enhance_process_script.py"] #  Add script filenames to sta
 
 
 # ROS namespace setup
-NEPI_BASE_NAMESPACE = "/nepi/s2x/"
+NEPI_BASE_NAMESPACE = "/nepi/device1/"
 
 # NEPI Get NAVPOSE Solution Service Name
 AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME = NEPI_BASE_NAMESPACE + "get_scripts"

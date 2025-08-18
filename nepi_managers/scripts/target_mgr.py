@@ -17,10 +17,6 @@
 #
 
 import os
-# ROS namespace setup
-NEPI_BASE_NAMESPACE = '/nepi/s2x/'
-os.environ["ROS_NAMESPACE"] = NEPI_BASE_NAMESPACE[0:-1] # remove to run as automation script
-
 import time
 import sys
 import numpy as np

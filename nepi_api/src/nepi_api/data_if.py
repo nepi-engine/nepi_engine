@@ -2020,7 +2020,7 @@ class BaseImageIF:
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
-                'qsize': 10,
+                'qsize': 1,
                 'latch': False
             },
             'status_pub': {
@@ -2462,16 +2462,18 @@ class BaseImageIF:
             self.status_msg.frame_3d = frame_3d
 
             self.status_msg.encoding = encoding
+            #self.msg_if.pub_warn("Got timestamp: " + str(timestamp), log_name_list = self.log_name_list)
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
             else:
                 timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+            #self.msg_if.pub_warn("Using timestamp: " + str(timestamp), log_name_list = self.log_name_list)
 
 
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
             self.status_msg.get_latency_time = latency
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+            #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   
@@ -2490,7 +2492,7 @@ class BaseImageIF:
                 self.status_msg.max_range_m = 1
 
             [height,width] = cv2_img.shape[0:2]
-            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
             if process_data == True:
                 cv2_img = self.process_cv2_img(cv2_img)
@@ -2544,11 +2546,13 @@ class BaseImageIF:
 
             
             if self.node_if is not None and self.has_subs == True:
-                self.msg_if.pub_warn("Publishing once")
+                #self.msg_if.pub_warn("Publishing once")
                 #Convert to ros Image message
                 ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
-                ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                #self.msg_if.pub_warn("Publishing image with header: " + str(header))
+                ros_img.header = header
                 self.node_if.publish_pub('data_pub', ros_img)
                 for namespace in add_pubs:
                     if namespace in self.add_pubs_dict.keys():
@@ -2563,7 +2567,7 @@ class BaseImageIF:
                         if namespace in self.add_pubs_dict.keys():
                             [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
                             self.node_if.publish_pub(img_ns, ros_img)
-                        
+
 
 
             
