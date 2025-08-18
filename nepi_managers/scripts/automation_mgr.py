@@ -14,7 +14,7 @@ import threading
 import traceback
 import yaml
 import time
-import psutil
+#import psutil
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -443,7 +443,8 @@ class AutomationManager(object):
                     curr_env['PYTHONUNBUFFERED'] = 'on'
                     
                     process = subprocess.Popen(process_cmdline, stdout=script_logfile, stderr=subprocess.STDOUT, bufsize=1, env=curr_env) # bufsize=1 ==> Line buffering
-                    self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
+                    #self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
+                    self.processes[req.script] = {'process': process, 'pid': process.pid, 'logfile': script_logfile}
                     self.running_scripts.add(req.script)  # Update the running_scripts set
                     self.msg_if.pub_info("running: " + str(req.script))
                     self.script_counters[req.script]['started'] += 1  # update the counter
@@ -467,7 +468,7 @@ class AutomationManager(object):
             try:
                 process.terminate()
                 process.wait(timeout=self.script_stop_timeout_s)
-                self.script_counters[req.script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(self.processes[req.script]['start_time'])).to_sec()
+                self.script_counters[req.script]['cumulative_run_time'] += 1 #(nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(self.processes[req.script]['start_time'])).to_sec()
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
@@ -508,7 +509,7 @@ class AutomationManager(object):
                             self.script_counters[script]['errored_out'] += 1
                                                
                         # Update the cumulative run time whether exited on success or error
-                        self.script_counters[script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
+                        self.script_counters[script]['cumulative_run_time'] += 1 #(nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
                         nepi_sdk.wait()
         
@@ -546,7 +547,7 @@ class AutomationManager(object):
         
         pid = self.processes[script_name]['pid']
         response.log_size_bytes = os.fstat(self.processes[script_name]['logfile'].fileno()).st_size
-
+        '''
         try:
             # Get resource usage for the specific PID
             #usage = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -570,7 +571,7 @@ class AutomationManager(object):
         except Exception as e:
             self.msg_if.pub_warn("Error gathering running stats: " + str(e))
             return response  # Add new None values for the counters
-        
+        '''
         # Return the system stats as a GetSystemStatsQuery response object
         return response
 
