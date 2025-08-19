@@ -413,7 +413,7 @@ class NetworkMgr:
         if self.node_if is not None:
             self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled') # Force external system to start
+            self.dhcp_enabled = False # self.node_if.get_param('dhcp_enabled') # Force external system to start
             wifi_enabled = (self.dhcp_enabled == False) and self.node_if.get_param('enable_client')
 
             self.wifi_client_enabled = wifi_enabled
@@ -630,9 +630,9 @@ class NetworkMgr:
                                 self.dhcp_enabled = True
                                 self.dhcp_enable_state = True
                                 self.msg_if.pub_warn("DHCP enabled")
-                                nepi_sdk.sleep(10)
-                                internet = self.internet_check(do_checks = False)
-                                self.msg_if.pub_warn("DHCP Internet check returned: " + str(internet))
+                                #nepi_sdk.sleep(10)
+                                #internet = self.internet_check(do_checks = False)
+                                #self.msg_if.pub_warn("DHCP Internet check returned: " + str(internet))
                             except Exception as e:
                                 self.dhcp_enabled = False
                                 self.dhcp_enable_state = False
