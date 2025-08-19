@@ -843,7 +843,7 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
             for d in self.data_products_list:
-                factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 10Hz save rate, set last save = 0.0, max rate = 100.0Hz
+                factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 10Hz save rate, set last save = 0.0, max rate = 3.5Hz
 
             factory_filename_dict = {
                 'prefix': "", 

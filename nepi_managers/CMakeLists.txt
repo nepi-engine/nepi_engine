@@ -6,7 +6,7 @@ This file is part of nepi-engine
 
 License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ]]
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(nepi_managers)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -109,7 +109,6 @@ catkin_install_python(PROGRAMS
   scripts/config_mgr.py
   scripts/time_sync_mgr.py
   scripts/network_mgr.py
-  scripts/rui_config_mgr.py
   scripts/drivers_mgr.py
   scripts/apps_mgr.py
   scripts/automation_mgr.py
@@ -124,8 +123,32 @@ catkin_install_python(PROGRAMS
 
 
 #############
-## Install NavPose##
+## Install
 #############
+
+if(NOT NEPI_BASE)
+  set( NEPI_BASE 
+    /opt/nepi
+  )
+endif()
+
+if(NOT NEPI_RUI)
+  set( NEPI_RUI 
+    ${NEPI_BASE}/nepi_rui
+  )
+endif()
+
+if(NOT NEPI_ENGINE)
+  set( NEPI_ENGINE 
+    ${NEPI_BASE}/nepi_engine
+  )
+endif()
+
+if(NOT NEPI_ETC)
+  set( NEPI_ETC 
+    ${NEPI_BASE}/etc
+  )
+endif()
 
 
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
@@ -137,7 +160,7 @@ install(DIRECTORY etc/
 
 set( NEPI_API_FOLDER 
   # Must hard-coded 
-  /opt/nepi/ros/lib/python3/dist-packages/nepi_api
+  ${NEPI_ENGINE}/lib/python3/dist-packages/nepi_api
 )
 
 install(DIRECTORY api/

@@ -26,8 +26,8 @@ logger = Logger(log_name = log_name)
 
 #***************************
 # NEPI Apps utility functions
-APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
-NEPI_PKG_FOLDER = '/opt/nepi/ros/lib/'
+APPS_SHARE_PATH = '/opt/nepi/nepi_engine/share/nepi_apps'
+NEPI_PKG_FOLDER = '/opt/nepi/nepi_engine/lib/'
 
 def getAppsDict(search_path):
     apps_dict = dict()
@@ -198,7 +198,7 @@ def getAppsOrderedList(apps_dict):
     app_dict = apps_dict[app_name]
     order = app_dict['order']
     if order == -1:
-      order = 100000
+      order = 3.50
     while(order in order_list):
       order += 0.1
     order_list.append(order)

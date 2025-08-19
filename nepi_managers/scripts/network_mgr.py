@@ -44,7 +44,7 @@ class NetworkMgr:
     """
 
     NET_IFACE = "eth0"
-    WONDERSHAPER_CALL = "/opt/nepi/ros/share/wondershaper/wondershaper"
+    WONDERSHAPER_CALL = "/opt/nepi/nepi_engine/share/wondershaper/wondershaper"
     BANDWIDTH_MONITOR_PERIOD_S = 2.0
 
     FACTORY_STATIC_IP_FILE = "/opt/nepi/etc/network/interfaces.d/nepi_static_ip"
@@ -54,11 +54,11 @@ class NetworkMgr:
     # Following are to support changing rosmaster IP address
     SYS_ENV_FILE = "/opt/nepi/sys_env.bash"
     ROS_MASTER_PORT = 11311
-    ROSLAUNCH_FILE = "/opt/nepi/ros/etc/roslaunch.sh"
-    REMOTE_ROS_NODE_ENV_LOADER_FILES = ["numurus@num-sb1-zynq:/opt/nepi/ros/etc/env_loader.sh"]
+    ROSLAUNCH_FILE = "/opt/nepi/nepi_engine/etc/roslaunch.sh"
+    REMOTE_ROS_NODE_ENV_LOADER_FILES = ["numurus@num-sb1-zynq:/opt/nepi/nepi_engine/etc/env_loader.sh"]
 
     # Following support WiFi AP setup
-    CREATE_AP_CALL = "/opt/nepi/ros/share/create_ap/create_ap"
+    CREATE_AP_CALL = "/opt/nepi/nepi_engine/share/create_ap/create_ap"
     DEFAULT_WIFI_AP_SSID = "nepi_device_ap"
     DEFAULT_WIFI_AP_PASSPHRASE = "nepi_device_ap"
 
@@ -66,11 +66,12 @@ class NetworkMgr:
     ENABLE_DISABLE_WIFI_ADAPTER_PRE = ["ip", "link", "set"]
     ENABLE_WIFI_ADAPTER_POST = ["up"]
     DISABLE_WIFI_ADAPTER_POST = ["down"]
-    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/etc/network/nepi_wpa_supplicant.conf"
+    WPA_SUPPLICANT_CONF_PATH = "/opt/nepi/etc/wpa_supplicant/wpa_supplicant.conf"
     WPA_START_SUPPLICANT_CMD_PRE = ["wpa_supplicant", "-B" ,"-i"]
     WPA_START_SUPPLICANT_CMD_POST = ["-c", WPA_SUPPLICANT_CONF_PATH]
     WPA_GENERATE_SUPPLICANT_CONF_CMD = "wpa_passphrase"
     STOP_WPA_SUPPLICANT_CMD = ['killall', 'wpa_supplicant']
+    
 
     # Internet check
     INTERNET_CHECK_CMD = ['nc', '-zw1', 'google.com', '443']
@@ -97,7 +98,7 @@ class NetworkMgr:
     managed_ip_addrs = []
     last_ip_addrs = None
     dhcp_enabled = False # initialize to false -- will be updated in set_dhcp_enabl
-    dhcp_updated = False
+    dhcp_connecting = False
     dhcp_enable_state = False
     dhcp_ip_addr = ''
 
@@ -112,7 +113,6 @@ class NetworkMgr:
     wifi_client_ssid = 'None'
     wifi_client_passphrase = ''
     
-    wifi_client_updated = False
     wifi_client_connecting = False
     wifi_client_connected = False
     wifi_client_connected_ssid = None
@@ -377,15 +377,17 @@ class NetworkMgr:
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
-
         self.initCb(do_updates = True)
+   
         ###########################
         # Complete Initialization
 
         nepi_sdk.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.monitorBandwidthUsageCb)
-        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.networkIpCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.dhcpCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.networkIpCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.internetCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.dhcpCheckCb, oneshot = True)
+
+
 
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
         #########################################################
@@ -409,15 +411,18 @@ class NetworkMgr:
 
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled') # Force external system to start
             self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
+            self.dhcp_enabled = False # self.node_if.get_param('dhcp_enabled') # Force external system to start
+            wifi_enabled = (self.dhcp_enabled == False) and self.node_if.get_param('enable_client')
+
+            self.wifi_client_enabled = wifi_enabled
+            self.wifi_client_ssid = self.node_if.get_param("client_ssid")
+            self.wifi_client_passphrase = self.node_if.get_param("client_passphrase")
+
             self.wifi_ap_enabled = self.node_if.get_param('enable_access_point')
             self.wifi_ap_ssid = self.node_if.get_param('access_point_ssid')
             self.wifi_ap_passphrase = self.node_if.get_param('access_point_passphrase')
-            self.wifi_client_enabled = self.node_if.get_param('enable_client')
-            self.wifi_client_ssid = self.node_if.get_param("client_ssid")
-            self.wifi_client_passphrase = self.node_if.get_param("client_passphrase")
 
             self.msg_if.pub_warn("Starting Init with Managed addrs: " + str(self.managed_ip_addrs))
             self.msg_if.pub_warn("Starting Init with DHCP Ennabled: " + str(self.dhcp_enabled))
@@ -431,11 +436,18 @@ class NetworkMgr:
             if self.node_if is not None:
                 pass
 
+            self.msg_if.pub_warn("Init Updating IP List")
+            ip_addrs = self.update_ip_addr_lists()
+
+
+            self.msg_if.pub_warn("Init Checking Internet Connection")
+            connected = self.internet_check(do_checks=False)
+            self.msg_if.pub_warn("Init Internet Check: " + str(connected))
+
             # Update Upload BW Limite
-            self.set_upload_bw_limit()
+            # self.set_upload_bw_limit()
 
             if self.wifi_iface is not None:
-                self.msg_if.pub_warn("Enabling WiFi")
                 success = self.enable_wifi_connection(self.wifi_client_enabled)
                 nepi_sdk.sleep(2)
 
@@ -443,13 +455,8 @@ class NetworkMgr:
                 nepi_sdk.start_timer_process(3, self.wifiUpdateProcessesCb, oneshot=True)
 
             
-            connected = self.internet_check()
-            self.msg_if.pub_warn("Internet check: " + str(connected))
 
-
-            ip_addrs = self.update_ip_addr_lists()
-
-            self.msg_if.pub_warn("Found IPs check: " + str(ip_addrs))
+            #self.msg_if.pub_warn("Found IPs check: " + str(ip_addrs))
 
             # Save Config
             if len(ip_addrs) > 0:
@@ -499,7 +506,6 @@ class NetworkMgr:
         save_config = False
         #self.msg_if.pub_warn("Entering updater process")
         found_ip_addrs = self.update_ip_addr_lists()         
-        self.network_checked = True
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.networkIpCheckCb, oneshot = True)
 
 
@@ -536,17 +542,24 @@ class NetworkMgr:
         for ip in self.managed_ip_addrs:
             if ip not in found_ip_addrs:
                 self.add_ip(ip)
+        self.network_checked = True
 
 
+
+<<<<<<< HEAD
         #self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
         #self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
         #self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
         #self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
+=======
+>>>>>>> 7474b19939bbccb43a81ce4ea599fbd2e83e2e52
 
         self.found_ip_addrs = found_ip_addrs
         if last_ip_addrs != self.found_ip_addrs:
-            self.msg_if.pub_warn("Updated active IP addresses: " + str(self.found_ip_addrs))
-            self.msg_if.pub_warn("DHCP IP address: " + str(self.dhcp_ip_addr))
+            self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
+            self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
+            self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
+            self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
 
         if self.dhcp_ip_addr != '' and self.dhcp_enabled == False and self.internet_connected == True:
             [self.dhcp_enabled,self.dhdhcp_enable_state] = [True,True]
@@ -560,66 +573,73 @@ class NetworkMgr:
 
 
     def internetCheckCb(self, event):
+        cur_year = datetime.now().year
+        self.clock_skewed = cur_year < 2024
         connected = self.internet_check()
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.internetCheckCb, oneshot = True)
 
-    def internet_check(self):
+    def internet_check(self,do_checks = True):
         connected = False
-        cur_year = datetime.now().year
-        self.clock_skewed = cur_year < 2024
-
-        #self.msg_if.pub_warn("Entering internet check process")
-        with self.internet_connected_lock:
-            prev_connected = self.internet_connected
-        connected = False
-        try:
-            #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            response = requests.get("https://www.github.com", timeout=1)
-            connected = True
-            if connected == True and prev_connected == False:
-                self.msg_if.pub_warn("Detected new internet connection")
-                #self.msg_if.pub_warn("Internet check response: " + str(response) )
-                
+        if ((self.dhcp_enabled == True or self.wifi_client_enabled == True) and (self.wifi_client_connecting == False and self.dhcp_connecting == False)) or do_checks == False:
+            #self.msg_if.pub_warn("Checking Internet")
             
-        except Exception as e:
-            connected = False 
-            if connected == False and prev_connected == True:
-                self.msg_if.pub_warn("Lost internet connection")
 
-        with self.internet_connected_lock:
-            self.internet_connected = connected
+            #self.msg_if.pub_warn("Entering internet check process")
+            with self.internet_connected_lock:
+                prev_connected = self.internet_connected
+                connected = False
+                try:
+                    #subprocess.check_call(self.INTERNET_CHECK_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    response = requests.get("https://www.google.com", timeout=1)
+                    connected = True
+                    if connected == True and prev_connected == False:
+                        self.msg_if.pub_warn("Detected new internet connection")
+                        #self.msg_if.pub_warn("Internet check response: " + str(response) )
+                        
+                    
+                except Exception as e:
+                    connected = False 
+                    if connected == False and prev_connected == True:
+                        self.msg_if.pub_warn("Lost internet connection")
 
-        self.internet_checked = True
+                self.internet_connected = connected
+
+            self.internet_checked = True
+            #self.msg_if.pub_warn("Internet checked: " + str(connected) )
         return connected
 
 
     def dhcpCheckCb(self,timer):
         # Update DHCP state
-        self.enable_dhcp_impl(self.dhcp_enabled)
+        dhcp_enable = (self.wifi_client_enabled == False) and self.dhcp_enabled
+        self.enable_dhcp_impl(dhcp_enable)
         nepi_sdk.start_timer_process(self.UPDATER_INTERVAL_S, self.dhcpCheckCb, oneshot = True)
 
 
 
     def enable_dhcp_impl(self, enabled):
         last_dhcp = copy.deepcopy(self.dhcp_enabled)
-        #self.msg_if.pub_warn("Entering dhcp enable with: " + str([enabled,self.network_checked,self.internet_checked,self.clock_skewed,self.dhcp_enable_state,self.internet_connected]))
-        if self.in_container == False and self.wifi_iface is not None and self.network_checked == True and self.internet_checked == True:
-            if self.clock_skewed == False:
-                with self.internet_connected_lock:
-                    connected = self.internet_connected
-                if enabled is True and self.dhcp_enable_state == False:
+        #self.msg_if.pub_warn("Entering dhcp enable check 1 with: " + str([self.in_container==False,self.network_checked,self.internet_checked,self.clock_skewed==False]))
+        if self.in_container == False and self.network_checked == True and self.internet_checked == True and self.clock_skewed == False:
+                connected = copy.deepcopy(self.internet_connected)
+                #self.msg_if.pub_warn("Entering dhcp enable check 2 with: " + str([enabled,self.dhcp_enable_state == False,self.dhcp_connecting == False]))
+                if enabled is True and self.dhcp_enable_state == False and self.dhcp_connecting == False:
+                        self.dhcp_connecting = True
                         self.dhcp_enabled = True
-                        if self.dhcp_enable_state == False:
+                        #self.msg_if.pub_warn("Entering dhcp enable check 3 with: " + str([self.dhcp_enable_state == False,self.wifi_client_enabled == False]))
+                        if self.dhcp_enable_state == False and self.wifi_client_enabled == False:
                             self.dhcp_enable_state = True
                             self.msg_if.pub_warn("Enabling DHCP Client")
                             self.msg_if.pub_warn("Enabling DHCP with current connection state: " + str(connected))
                             try:
-                                if connected == False:
-                                    self.msg_if.pub_warn("Calling dhclient -nw subprocess")
-                                    subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
+                                self.msg_if.pub_warn("Calling dhclient -nw subprocess")
+                                subprocess.check_call(['dhclient', '-nw', self.NET_IFACE])
                                 self.dhcp_enabled = True
                                 self.dhcp_enable_state = True
                                 self.msg_if.pub_warn("DHCP enabled")
+                                #nepi_sdk.sleep(10)
+                                #internet = self.internet_check(do_checks = False)
+                                #self.msg_if.pub_warn("DHCP Internet check returned: " + str(internet))
                             except Exception as e:
                                 self.dhcp_enabled = False
                                 self.dhcp_enable_state = False
@@ -664,6 +684,7 @@ class NetworkMgr:
                     self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
                 if last_dhcp != self.dhcp_enabled:
                     self.save_config()
+        self.dhcp_connecting = False
        
 
     def cleanup(self):
@@ -815,7 +836,11 @@ class NetworkMgr:
 
     def enable_dhcp(self, msg):
         self.msg_if.pub_warn("Got DHCP enable request msg: " + str(msg))
-        self.enable_dhcp_impl(msg.data)
+        dhcp_enable = (self.wifi_client_enabled == False) and msg.data
+        self.msg_if.pub_warn("Updating DHCP enable to: " + str(dhcp_enable))
+        self.enable_dhcp_impl(dhcp_enable)
+
+
 
 
     def save_network_config(self):
@@ -842,6 +867,7 @@ class NetworkMgr:
                         f.write("auto " + alias_name + "\n")
                         f.write("iface " + alias_name + " inet static\n")
                         f.write("    address " + ip_cidr + "\n\n")
+        
         os.system('cp -rf ' + tmp_file + ' ' + self.USER_IP_ALIASES_FILE)
         os.system('rm ' + tmp_file)
         success = True
@@ -1067,20 +1093,14 @@ class NetworkMgr:
             self.refresh_available_networks()
 
         # Refresh Wifi Client Connections
-        [ssid, passphrase] = self.update_wifi_client_credentials(self.wifi_client_ssid, self.wifi_client_passphrase)
-        success = self.set_wifi_client(ssid,passphrase)
+        if self.wifi_client_connecting == False:
+            [ssid, passphrase] = self.update_wifi_client_credentials(self.wifi_client_ssid, self.wifi_client_passphrase)
+            success = self.set_wifi_client(ssid,passphrase)
 
         # Refresh Wifi AP Connections
         success = self.set_wifi_ap()
 
-        # Check current wifi connection
-        connected_ssid = None
-        if self.wifi_client_connecting == False:
-            connected_ssid = self.get_wifi_client_connected_ssid()
-            #self.msg_if.pub_warn("Got connected ssid check: " + str(connected_ssid))
-            if connected_ssid is not None:
-                self.wifi_client_connected_ssid = connected_ssid
-      
+     
         nepi_sdk.start_timer_process(1, self.wifiUpdateProcessesCb, oneshot=True)
 
 
@@ -1102,9 +1122,9 @@ class NetworkMgr:
                 self.wifi_scan_thread.start()
     
     def update_wifi_available_networks(self):
-        #self.msg_if.pub_warn("Debugging: Scanning for available WiFi networks") 
-        #self.msg_if.pub_warn("Debugging:" + str(self.wifi_client_enabled) + " " + " " + str(self.wifi_adapter_ready))
         if self.wifi_client_enabled == True and self.wifi_adapter_ready == True and self.wifi_client_connecting == False:
+            #self.msg_if.pub_warn("Debugging: Scanning for available WiFi networks") 
+            #self.msg_if.pub_warn("Debugging:" + str(self.wifi_client_enabled) + " " + " " + str(self.wifi_adapter_ready))
             #self.msg_if.pub_info("Updating available WiFi connections on iface: " + str(self.wifi_iface))
             available_networks = []
             network_scan_cmd = ['iw', self.wifi_iface, 'scan']
@@ -1128,10 +1148,8 @@ class NetworkMgr:
             self.wifi_scan_thread = None
 
 
-
-
     def enable_wifi_client_handler(self, msg):
-        enabled = msg.data
+        enabled = (self.dhcp_enabled == False) and msg.data
         self.wifi_client_enabled = enabled
         self.enable_wifi_connection(enabled)
         if self.node_if is not None:
@@ -1171,7 +1189,7 @@ class NetworkMgr:
         return success
 
 
-    def update_wifi_client_credentials(self,ssid,passphrase):
+    def update_wifi_client_credentials(self,ssid,passphrase,save=False):
         if ssid is None or ssid == 'None' or ssid == '':
             ssid = 'None'
             passphrase = ''        
@@ -1179,118 +1197,195 @@ class NetworkMgr:
         if self.wifi_client_ssid != ssid or self.wifi_client_passphrase != passphrase:
             self.wifi_client_ssid = ssid
             self.wifi_client_passphrase = passphrase
-            if self.node_if is not None:
-                self.node_if.set_param("client_ssid", ssid)
-                self.node_if.set_param("client_passphrase", passphrase)
-                success = self.save_config()
+            if save == True:
+                if self.node_if is not None:
+                    self.node_if.set_param("client_ssid", ssid)
+                    self.node_if.set_param("client_passphrase", passphrase)
+                    success = self.save_config()
+                self.publish_status()
         return ssid,passphrase
 
 
     def set_wifi_client_credentials_handler(self, msg):
-        self.msg_if.pub_warn("Received WiFi credentials msg: " + str(msg))
-        [ssid, passphrase] = self.update_wifi_client_credentials(msg.ssid,msg.passphrase)
-        success = self.publish_status()
-        self.set_wifi_client(ssid,passphrase)
+        self.msg_if.pub_info("Updating WiFi client credentials (SSID: " + msg.ssid + ", Passphrase: " + msg.passphrase + ")")
+        if msg.ssid == 'None' or msg.ssid == '':
+            ssid = 'None'
+            update_wifi_client_credentials(ssid,'',save = True)
+        self.set_wifi_client(msg.ssid,msg.passphrase)
 
+    def check_wifi_connection(self):
+        interface = self.wifi_iface
+        try:
+            # You might need to adjust the path to wpa_supplicant and its configuration
+            # This example assumes a basic setup and focuses on output parsing.
+            process = subprocess.Popen(
+                ['wpa_supplicant', '-i', interface, '-c', '/etc/wpa_supplicant/wpa_supplicant.conf'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
 
-         
+            start_time = time.time()
+            timeout = 30  # seconds
+
+            while True:
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
+                    break  # Process exited
+                if "CTRL-EVENT-CONNECTED" in line or "COMPLETED" in line:
+                    process.terminate() # Terminate wpa_supplicant if connected
+                    return True
+                if time.time() - start_time > timeout:
+                    process.terminate()
+                    return False # Timeout
+                time.sleep(0.1) # Prevent busy-waiting
+
+        except FileNotFoundError:
+            print("Error: wpa_supplicant not found. Ensure it's installed and in your PATH.")
+            return False
+        except Exception as e:
+            print(f"An error occurred")
+            return False
        
     def set_wifi_client(self, ssid, passphrase):
         success = False
-        
-        if self.wifi_adapter_ready == False:
-            self.wifi_client_updated = False
-            self.wifi_client_connecting = False
-            self.wifi_client_connected = False
-            self.wifi_client_connected_ssid = None
-            self.wifi_client_connected_pp = None
-            return success
-        else:
-            # Get current state
-            ssid_set = ssid
-            pp_set = passphrase
-            ssid_cur = self.wifi_client_connected_ssid
-            pp_cur = self.wifi_client_connected_pp
-            connecting = self.wifi_client_connecting
-            updated = self.wifi_client_updated
-            connected = self.wifi_client_connected
-
-            # Check for updates
-            #self.msg_if.pub_warn("Check Connecting state: " + str(updated) + " " + str(connecting) + " " + str(connected) + " ")
-            #self.msg_if.pub_warn("Check  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
-            #self.msg_if.pub_warn("Check New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
-            
-            # First shut down any connected networks
-            if (ssid_set != ssid_cur or pp_set != pp_cur) and connecting == False:
-                self.msg_if.pub_warn("Calling Stop Wifi with command " + str(self.STOP_WPA_SUPPLICANT_CMD))
-                subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
-                self.wifi_client_updated = False
+        if self.wifi_client_connecting == False and self.wifi_client_enabled == True and self.dhcp_enabled == False and self.clock_skewed == False:
+            self.wifi_client_connecting = True
+            if self.wifi_adapter_ready == False or ssid == 'None':
                 self.wifi_client_connecting = False
                 self.wifi_client_connected = False
                 self.wifi_client_connected_ssid = None
                 self.wifi_client_connected_pp = None
-                nepi_sdk.sleep(1)
+                return success
+            else:
+                # Get current state
+                ssid_set = ssid
+                pp_set = passphrase
+                ssid_cur = self.wifi_client_connected_ssid
+                pp_cur = self.wifi_client_connected_pp
+                connecting = self.wifi_client_connecting
+                connected = self.wifi_client_connected
 
-
-            
-            # Update wpa suplicant file if needed
-            if (pp_set != pp_cur and updated == False) and connecting == False and connected == False:
-                self.msg_if.pub_warn("Updating WiFi client credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
-                self.msg_if.pub_warn("Calling Open Wifi with command " + str(self.WPA_GENERATE_SUPPLICANT_CONF_CMD))
-                with open(self.WPA_SUPPLICANT_CONF_PATH, 'w') as f:
-                    if (pp_set != ''):
-                        wpa_generate_supplicant_conf_cmd = [self.WPA_GENERATE_SUPPLICANT_CONF_CMD, ssid_set,
-                                                            pp_set]
-                        subprocess.check_call(wpa_generate_supplicant_conf_cmd, stdout=f)
-                    else: # Open network
-                        # wpa_passphrase can't help us here, so generate the conf. manually
-                        f.write("network={\n\tssid=\"" + ssid_set + "\"\n\tkey_mgmt=NONE\n}")
-                self.wifi_client_updated = True
-                self.wifi_client_connected_pp = pp_set
-                nepi_sdk.sleep(1)
-
-            # Try and connect if needed
-            if ssid_set != 'None' and updated == True and connecting == False and connected == False:
-                with self.wifi_available_networks_lock:
-                    wifis = self.wifi_available_networks
-                self.msg_if.pub_warn("Checking Wifi in networks: " + ssid_set + str(wifis))
-                if ssid_set in wifis:
-                    self.msg_if.pub_warn("Connecting WiFi client with credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
-                    #### Set the connecting flag
-                    self.wifi_client_connecting = True
-
-                    #### Try to connect
-                    start_supplicant_cmd = self.WPA_START_SUPPLICANT_CMD_PRE + [self.wifi_iface] + self.WPA_START_SUPPLICANT_CMD_POST
-                    self.msg_if.pub_warn("Calling Start Wifi with command " + str(start_supplicant_cmd))
-                    subprocess.check_call(start_supplicant_cmd)
-                    
-                    
-
-                    self.wifi_client_connected = True
-                    self.wifi_client_connected_ssid = ssid_set
-                    self.wifi_client_connected_pp = pp_set
-                    
-                    # Wait a few seconds for it to connect
-                    nepi_sdk.sleep(1)
-                    try:
-                        subprocess.check_call(['dhclient', '-nw', self.wifi_iface])
-                        success = True
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to start WiFi client (SSID=" + ssid_set + " Passphrase=" + \
-                                        pp_set + "): " + str(e))
-
-
-
-                    #### Clear the connecting flag
+                # Check for updates
+                #self.msg_if.pub_warn("Check Connecting state: " + str(updated) + " " + str(connecting) + " " + str(connected) + " ")
+                
+                # First shut down any connected networks
+                if (ssid_set != ssid_cur or pp_set != pp_cur):
+                    self.msg_if.pub_warn("Recieved Wifi credential update") 
+                    self.msg_if.pub_warn("Current  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
+                    self.msg_if.pub_warn("New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
+                    self.msg_if.pub_warn("Calling Stop Wifi with command " + str(self.STOP_WPA_SUPPLICANT_CMD))
+                    subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
                     self.wifi_client_connecting = False
+                    self.wifi_client_connected = False
+                    self.wifi_client_connected_ssid = None
+                    self.wifi_client_connected_pp = None
+                    nepi_sdk.sleep(1)
+
+
+                
+                    # Update wpa suplicant file if needed
+                    
+                    self.msg_if.pub_warn("Updating WiFi client credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
+                    self.msg_if.pub_warn("Calling Open Wifi with command " + str(self.WPA_GENERATE_SUPPLICANT_CONF_CMD))
+                    with open(self.WPA_SUPPLICANT_CONF_PATH, 'w') as f:
+                        if (pp_set != ''):
+                            wpa_generate_supplicant_conf_cmd = [self.WPA_GENERATE_SUPPLICANT_CONF_CMD, ssid_set,
+                                                                pp_set]
+                            subprocess.check_call(wpa_generate_supplicant_conf_cmd, stdout=f)
+                        else: # Open network
+                            # wpa_passphrase can't help us here, so generate the conf. manually
+                            f.write("network={\n\tssid=\"" + ssid_set + "\"\n\tkey_mgmt=NONE\n}")
+                    
+                    self.wifi_client_connected_pp = pp_set
+                    nepi_sdk.sleep(1)
+
+                    # Try and connect if needed
+                    if ssid_set == 'None':
+                        self.wifi_client_connected_ssid = 'None'
+                        self.wifi_client_connected_passphrase = ''
+                    else:
+                        #with self.wifi_available_networks_lock:
+                        #    wifis = self.wifi_available_networks
+                        #self.msg_if.pub_warn("Checking Wifi in networks: " + ssid_set + str(wifis))
+                        if True: #ssid_set in wifis:
+                            self.msg_if.pub_warn("Connecting WiFi client with credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
+                            #### Set the connecting flag
+                            self.wifi_client_connecting = True
+
+                            #### Try to connect
+                            start_supplicant_cmd = self.WPA_START_SUPPLICANT_CMD_PRE + [self.wifi_iface] + self.WPA_START_SUPPLICANT_CMD_POST
+                            self.msg_if.pub_warn("Calling Start Wifi with command " + str(start_supplicant_cmd))
+                            subprocess.check_call(start_supplicant_cmd)
+                            
+                            nepi_sdk.sleep(1)
+                            success = False
+                            self.msg_if.pub_warn("Updating dhclient for: " + str(self.wifi_iface))
+                            try:
+                                    subprocess.check_call(['dhclient', '-nw', self.wifi_iface])
+                                    nepi_sdk.sleep(1)
+                                    success = True
+                            except Exception as e:
+                                self.msg_if.pub_warn("Failed to start WiFi client (SSID=" + ssid_set + " Passphrase=" + \
+                                                pp_set + "): " + str(e))
+                            
+                            connected = False
+                            if success == True:
+                                # Check for connection
+                                self.msg_if.pub_warn("Checking for WiFi connection")
+                                connected = self.check_wifi_connection()
+                                self.msg_if.pub_warn("Got connected ssid check: " + str(connected))
+
+                            # Check current wifi connection
+                            connected_ssid = None
+                            if self.wifi_client_connecting == False:
+                                connected_ssid = self.get_wifi_client_connected_ssid()
+                                self.msg_if.pub_warn("Got connected ssid check: " + str(connected_ssid))
+                                if connected_ssid is not None:
+                                    connected = True
+                                    self.wifi_client_connected_ssid = connected_ssid
+
+
+
+                            if connected == True:
+                                self.msg_if.pub_warn("Connected to WiFi client (SSID=" + ssid_set + " Passphrase=" + pp_set)
+                                self.wifi_client_connected = True
+                                self.update_wifi_client_credentials(ssid_set,pp_set,save=True)
+                                self.wifi_client_connected_ssid = ssid_set
+                                self.wifi_client_connected_passphrase = pp_set
+                                self.msg_if.pub_warn("Checking WiFi Internet in 5 Seconds")
+                                nepi_sdk.sleep(5)
+                                internet = self.internet_check(do_checks = False)
+                                self.msg_if.pub_warn("Wifi Internet check returned: " + str(internet))
+
+                            else:
+                                subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
+                                nepi_sdk.sleep(1)
+                                subprocess.check_call(['dhclient', '-nw', self.wifi_iface])
+                                self.update_wifi_client_credentials('None','',save=False)
+                                self.wifi_client_connected_ssid = 'None'
+                                self.wifi_client_connected_passphrase = ''
+                                self.msg_if.pub_warn("Failed to start WiFi client (SSID=" + ssid_set + " Passphrase=" + pp_set )
+                                self.wifi_client_connected = False
+
+                            self.msg_if.pub_warn("WiFi Update Complete")
+                            #self.msg_if.pub_warn("Current  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
+                            #self.msg_if.pub_warn("New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
+                            #self.msg_if.pub_warn("Calling Stop Wifi with command " + str(self.STOP_WPA_SUPPLICANT_CMD))
+
+                            
+
+        #### Clear the connecting flag
+        self.wifi_client_connecting = False
         return success
 
 
                
     def get_wifi_client_connected_ssid(self):
+        
         if self.wifi_iface is None:
-            self.wifi_client_connected = False
             return None
+
         #self.msg_if.pub_warn("Starting Check wifi connection process with wifi iface: " + str(self.wifi_iface))
         try:
             check_connection_cmd = ['iw', self.wifi_iface, 'link']
@@ -1298,15 +1393,14 @@ class NetworkMgr:
             #self.msg_if.pub_warn("Got wifi connection status: " + str(connection_status))
         except Excetion as e: 
             self.msg_if.pub_warn("Failed to check on wifi connection: " + str(e))
-            return
+            return connected
         if connection_status.startswith('Connected'):
-           self.wifi_client_connected = True
-           self.wifi_client_connecting = False 
+           connected = True
+            
            for line in connection_status.splitlines():
                if line.strip().startswith('SSID'):
                    return line.strip().split()[1]
         
-        self.wifi_client_connected = False
         return None
 
 
@@ -1445,7 +1539,7 @@ class NetworkMgr:
         self.status_msg.primary_ip_addr = self.primary_ip_addr
         self.status_msg.managed_ip_addrs = self.managed_ip_addrs
         self.status_msg.dhcp_enabled =  self.dhcp_enabled 
-        self.status_msg.dhcp_ip_addr =  self.dhcp_ip_addr
+        
         
         # WiFi Info
         self.status_msg.has_wifi =  (self.wifi_iface is not None) 
@@ -1462,6 +1556,7 @@ class NetworkMgr:
         self.status_msg.clock_skewed =  self.clock_skewed
 
         # Internet Info
+        self.status_msg.dhcp_ip_addr =  self.dhcp_ip_addr
         self.status_msg.internet_connected = internet_connected
 
         if self.node_if is not None:

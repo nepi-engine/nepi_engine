@@ -195,6 +195,7 @@ class IDXDeviceIF:
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
+
         ##############################  
         # Create Msg Class
         if msg_if is not None:
@@ -206,7 +207,7 @@ class IDXDeviceIF:
         if log_name is not None:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IDX IF Initialization Processes", log_name_list = self.log_name_list)
-        
+        self.msg_if.pub_info("Using Namespace: " + str(self.namespace), log_name_list = self.log_name_list)
 
         ############################# 
         # Initialize Class Variables
@@ -716,9 +717,9 @@ class IDXDeviceIF:
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates= {}
         for d in self.data_products_save_list:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
         if 'color_image' in self.data_products_save_list:
-            factory_data_rates['color_image'] = [1.0, 0.0, 100.0] 
+            factory_data_rates['color_image'] = [1.0, 0.0, 3.5] 
         
 
         factory_filename_dict = {

@@ -21,8 +21,9 @@ import os.path
 import os
 import subprocess
 import shlex
-import psutil
+#import psutil
 
+from nepi_sdk import nepi_utils
 
 # Local rootfs definitions - These can be freely changed
 ###################################################################################################
@@ -34,7 +35,7 @@ TMP_MOUNTPOINT = "/mnt/tmp"
 NEPI_FULL_IMG_SUBDIR = "nepi_full_img"
 NEPI_BACKUP_IMG_SUBDIR = "nepi_full_img_archive"
 NEPI_FULL_IMG_SEARCH_STRING = "nepi*img.raw"
-NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/ros/etc/fw_version.txt"
+NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/nepi_engine/etc/fw_version.txt"
 ###################################################################################################
 
 # First-stage rootfs definitions - Do not change these unless also updating the first-stage
@@ -63,6 +64,7 @@ def CheckPartitionBusy(partition_path):
     Returns:
         bool: True if the partition is busy, False otherwise.
     """
+    '''
     for proc in psutil.process_iter(['open_files', 'cwd']):
         try:
             with proc.oneshot():
@@ -74,6 +76,8 @@ def CheckPartitionBusy(partition_path):
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
     return False
+    '''
+    return nepi_utils.check_partition_busy_lsof(partition_path)
 
 def mountPartition(part_device_pathname, part_mountpoint):
     # Might already be mounted
@@ -118,7 +122,7 @@ def getFWVersionStringForPartition(partition_device_name):
         TMP_MOUNTPOINT, NEPI_FULL_IMG_FW_VERSION_PATH)
     if not os.path.isfile(fw_version_pathname):
         unmountPartition(TMP_MOUNTPOINT)
-        return False, "No firmware version file", None
+        return True,"Success", "Uknown"
 
     with open(fw_version_pathname) as f:
         fw_version = f.read()

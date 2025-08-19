@@ -13,7 +13,7 @@
 # It is intended to run locally on a NEPI device (S2X, etc)
 # It must be run under sudo or as root
 TMP_FOLDER=/home/nepi/tmp
-NEPI_ROS_FOLDER=/opt/nepi/ros
+NEPI_ROS_FOLDER=/opt/nepi/nepi_engine
 NUID_FOLDER=/opt/nepi/nepi_link/nepi-bot/devinfo
 
 NEPI_BOT_FOLDER=/opt/nepi/nepi_link/nepi-bot
@@ -55,7 +55,7 @@ echo "... done"
 
 echo "Reverting to factory settings"
 source NEPI_ROS_FOLDER/setup.bash
-rostopic pub -1 /nepi/s2x/reset nepi_interfaces/Reset "reset_type: 1" 
+rostopic pub -1 /nepi/device1/reset nepi_interfaces/Reset "reset_type: 1" 
 
 echo "Clearing out NEPI-Bot temporary files"
 rm -rf $NEPI_BOT_LOG_CONTENTS $NEPI_BOT_DB_CONTENTS $NEPI_BOT_HB_CONTENTS $NEPI_BOT_LB_CONTENTS

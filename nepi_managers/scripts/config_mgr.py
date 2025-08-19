@@ -33,7 +33,10 @@ from nepi_api.node_if import NodeClassIF
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
-NEPI_CFG_PATH = '/opt/nepi/ros/etc'
+NEPI_HOME_PATH = '/home/nepi'
+NEPI_CFG_PATH = '/opt/nepi/nepi_engine/etc'
+FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
+SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
@@ -45,15 +48,14 @@ SYSTEM_MGR_NODENAME = 'system_mgr'
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
     'sys_env.bash' : '/opt/nepi/sys_env.bash', # Serial number, ROS launch file, external ROS MASTER etc.
-    'authorized_keys' : '/opt/nepi/etc/authorized_keys', # NEPI Device SSH public keys
-    'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
-    'sshd_config' : '/opt/nepi/etc/sshd_config', # SSH Server Config
-    'chrony.conf' : '/opt/nepi/etc/chrony.conf', # NTP/Chrony Config
+     #'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
+    'sshd_config' : '/opt/nepi/etc/ssh/sshd_config', # SSH Server Config
+    'chrony.conf' : '/opt/nepi/etc/chrony/chrony.conf', # NTP/Chrony Config
     'nepi_iptables.rules' : '/opt/nepi/etc/network/nepi_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
     'nepi_user_ip_aliases' : '/opt/nepi/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
     'nepi_static_ip' : '/opt/nepi/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
-    'fstab' : '/opt/nepi/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
-    'smb.conf' : '/opt/nepi/etc/smb.conf'
+    'fstab' : '/opt/nepi/etc/fstabs/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
+    'smb.conf' : '/opt/nepi/etc/samba/smb.conf'
 }
 
 
@@ -62,6 +64,10 @@ class config_mgr(object):
 
     node_if = None
     config_folders = dict()
+    config_folders['factory_cfg']=FACTORY_CFG_PATH
+    config_folders['system_cfg']=SYSTEM_CFG_PATH
+    config_folders['user_cfg']=USER_CFG_PATH
+
 
     #######################
     ### Node Initialization
@@ -87,8 +93,8 @@ class config_mgr(object):
         self.msg_if.pub_info("Waiting for system folders")
         folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got system folders: " + str(folders))
-        for folder in folders.keys():
-            if folder.find('user_cfg') != -1:
+        for folder in self.config_folders.keys():
+            if folder in folders.keys():
                 self.config_folders[folder] = folders[folder]
         
         ##############################
@@ -292,8 +298,6 @@ class config_mgr(object):
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
-            #if namespace == '/nepi/s2x/nexigo_23':
-            #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
         return [True]
 
     def get_factory_pathname(self,namespace):
@@ -368,6 +372,7 @@ class config_mgr(object):
         for cfg in SYS_CFGS_TO_PRESERVE:
             source = SYS_CFGS_TO_PRESERVE[cfg]
             target = os.path.join(USER_CFG_PATH, 'sys', cfg)
+            self.msg_if.pub_info("Save Config copying file: " + source  + " to " + target )
             os.system('cp -rfp ' + source + ' ' + target)
 
 
@@ -380,23 +385,20 @@ class config_mgr(object):
     def restore_system_cfgs(self):
         # Handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                if os.path.isdir(full_name):
-                    full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                if os.path.isdir(source):
+                    source = os.path.join(source,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
-                self.msg_if.pub_warn("Updating " + target + " from user config")
-                os.system('cp -rfp ' + full_name + ' ' + target)
+                self.msg_if.pub_info("Restore copying system file: " + source  + " to " + target )
+                os.system('cp -rfp ' + source + ' ' + target)
                 
-                if name == 'authorized_keys':
-                    os.system('chmod -R 0600 ' + target)
-
  
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
                     file_lines = []
-                    with open(full_name, "r") as f:
+                    with open(source, "r") as f:
                         for line in f:
                             #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
@@ -426,16 +428,16 @@ class config_mgr(object):
     def restore_factory_cfgs(self):
         # First handle the ROS user configs.
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
 
         '''
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
         '''
                 
 

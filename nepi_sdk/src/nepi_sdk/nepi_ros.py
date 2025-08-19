@@ -477,7 +477,7 @@ def set_param(param_namespace,param_val, log_name_list = []):
 def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
-  log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list , throttle_s = 10.0)
+  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list , throttle_s = 10.0)
   param = None
   #log_msg_warn("nepi_sdk: Waiting for param check: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
   param_namespace = get_full_namespace(param_namespace)

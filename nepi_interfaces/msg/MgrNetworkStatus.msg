@@ -8,7 +8,7 @@ string[] ip_addrs
 string primary_ip_addr
 string[] managed_ip_addrs
 bool dhcp_enabled
-string dhcp_ip_addr
+
 
 ################
 # WiFi Network Info
@@ -27,6 +27,8 @@ string[] available_networks
 bool clock_skewed
 
 ################
-# Internet Info
+# Internet 
+
 ################
+string dhcp_ip_addr
 bool internet_connected

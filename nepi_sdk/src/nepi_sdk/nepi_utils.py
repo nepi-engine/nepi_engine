@@ -203,6 +203,36 @@ def ping_ip(ip_address):
 CURRENT_FOLDER = os.path.realpath(__file__)
 
 
+def check_partition_busy_lsof(mount_point):
+    try:
+        # Run lsof command for the given mount point
+        # -F p: output process ID
+        # -F n: output file name
+        # -F a: output access mode
+        command = ["lsof", "-F", "pn", mount_point]
+        process = subprocess.run(command, capture_output=True, text=True, check=True)
+        output = process.stdout.strip()
+
+        if output:
+            #logger.log_info("Processes using mount_point: " + str(mount_point))
+            # Parse the output to extract process information
+            current_pid = None
+            for line in output.splitlines():
+                if line.startswith('p'):
+                    current_pid = line[1:]
+                elif line.startswith('n') and current_pid:
+                    file_path = line[1:]
+                    #print(f"  PID: {current_pid}, File: {file_path}")
+            return True
+        else:
+            print(f"No processes found using {mount_point}.")
+            return False
+    except subprocess.CalledProcessError as e:
+        #logger.log_warn("Error running lsof: " + str(e))
+        # This might happen if lsof is not found or permission issues
+        return False
+
+
 def fix_folder_permissions(folder_path, user, group):
     success = True
     print("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
