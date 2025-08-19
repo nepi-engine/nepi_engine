@@ -146,7 +146,7 @@ sudo apt update
 # Do if ROS not installed
 sudo apt install ros-noetic-desktop-full
 source /opt/ros/noetic/setup.bash
-sudo apt install python3-rosdep 
+sudo apt install python3-rosdep dict_keys
 sudo apt install python3-rosinstall 
 sudo apt install python3-rosinstall-generator 
 sudo apt install python3-wstool build-essential
