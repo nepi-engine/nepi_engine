@@ -49,7 +49,10 @@ from nepi_interfaces.msg import *
 
 
 #######################
-### System Utility Functions
+### Setup some constant variables
+BASE_NAMESPACE = None
+
+
 
 #######################
 ### Log Utility Functions
@@ -225,16 +228,19 @@ def init_node(name,disable_signals=False):
 
   
 def get_base_namespace():
-  nepi_names = []
-  nepi_node=find_node('nepi')
-  nepi_names = nepi_node.split('/')
-  if len(nepi_names) < 3:
-    while(len(nepi_names) < 3):
-      nepi_node=find_node('nepi')
-      nepi_names = nepi_node.split('/')
-      sleep(.01)
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
-  return base_namespace
+  global BASE_NAMESPACE
+  if BASE_NAMESPACE is None:
+    nepi_names = []
+    nepi_node=find_node('nepi')
+    nepi_names = nepi_node.split('/')
+    if len(nepi_names) < 3:
+      while(len(nepi_names) < 3):
+        nepi_node=find_node('nepi')
+        nepi_names = nepi_node.split('/')
+        sleep(.01)
+    base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
+    BASE_NAMESPACE = base_namespace
+  return BASE_NAMESPACE
 
 def get_node_namespace():
   namespace = rospy.get_name()

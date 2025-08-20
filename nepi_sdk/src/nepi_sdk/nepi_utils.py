@@ -246,6 +246,16 @@ def fix_folder_permissions(folder_path, user, group):
             print("Failed to update folder permissions: " + folder_path + " " + str(e))
     return success
 
+def read_sh_variables(filepath):
+    variables = {}
+    with open(filepath, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if '=' in line and not line.startswith('#'):  # Basic check for variable assignment
+                key, value = line.split('=', 1)
+                variables[key.strip()] = value.strip().strip('"\'') # Remove quotes
+    return variables
+
 
 def clear_end_slash(str_2_check):
     if str_2_check[-1] == '/':
