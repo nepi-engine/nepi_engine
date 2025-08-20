@@ -2,3 +2,34 @@ op_environment: air                                      # "air" or "water". Con
 storage_mountpoint: /mnt/nepi_storage                    # Specifies where the NEPI user partition is/should be mounted
 auto_switch_rootfs_on_new_img_install: true              # Specifies whether or not to automatically switch active/inactive rootfs definitions on successful image install
 
+# Hardware Type
+NEPI_HW: JETSON
+
+# PYTHON VERSION
+PYTHON_VERSION: 3.10
+
+# NEPI HOST SETTINGS
+NEPI_IN_CONTAINER: false
+NEPI_HAS_CUDA: true
+NEPI_HAS_XPU: false
+
+# NEPI Managed Resources. Set to false to turn off NEPI management of this resouce
+# Note, if enabled for a docker deployment, these system functions will be
+# disabled in the host OS environment
+NEPI_MANAGES_SSH: true
+NEPI_MANAGES_SHARE: true
+NEPI_MANAGES_TIME: true
+NEPI_MAGAGES_NETWORK: true
+
+
+###################################
+# System Setup Variables
+##################################
+NEPI_IP: 192.168.179.103
+NEPI_USER: nepi
+
+# NEPI PARTITIONS
+NEPI_DOCKER: /mnt/nepi_docker
+NEPI_STORAGE: /mnt/nepi_storage
+NEPI_CONFIG: /mnt/nepi_config
+
