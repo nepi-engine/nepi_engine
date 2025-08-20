@@ -22,7 +22,7 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
-import nepi_sdk.nepi_software_update_utils as sw_update_utils
+import nepi_sdk.nepi_software as nepi_image
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray
@@ -279,14 +279,14 @@ class SystemMgrNode():
         
         self.msg_if.pub_warn("Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
-        self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
+        self.rootfs_ab_scheme = nepi_image.identifyRootfsABScheme()
         self.init_msgs()
 
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_mountpoint):
            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = sw_update_utils.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
+           ret, msg = nepi_image.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
            if ret is False:
                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
@@ -330,7 +330,7 @@ class SystemMgrNode():
             # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
             # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
             if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
-                status, err_msg = sw_update_utils.resetBootFailCounter(
+                status, err_msg = nepi_image.resetBootFailCounter(
                     self.first_stage_rootfs_device)
                 if status is False:
                     self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
@@ -962,7 +962,7 @@ class SystemMgrNode():
     def provide_sw_update_status(self, req):
         resp = SystemSoftwareStatusQueryResponse()
         resp.new_sys_img_staging_device = self.get_device_friendly_name(self.new_img_staging_device)
-        resp.new_sys_img_staging_device_free_mb = sw_update_utils.getPartitionFreeByteCount(self.new_img_staging_device) / BYTES_PER_MEGABYTE
+        resp.new_sys_img_staging_device_free_mb = nepi_image.getPartitionFreeByteCount(self.new_img_staging_device) / BYTES_PER_MEGABYTE
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
@@ -974,7 +974,7 @@ class SystemMgrNode():
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = sw_update_utils.checkForNewImageAvailable(
+        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = nepi_image.checkForNewImageAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
@@ -1204,7 +1204,7 @@ class SystemMgrNode():
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
-        self.install_status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
+        self.install_status, err_msg = nepi_image.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
@@ -1218,7 +1218,7 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
-        self.install_status, err_msg = sw_update_utils.checkAndRepairPartition(self.inactive_rootfs_device)
+        self.install_status, err_msg = nepi_image.checkAndRepairPartition(self.inactive_rootfs_device)
         if self.install_status is False:
             self.msg_if.pub_warn("Newly flashed image has irrepairable filesystem issues: ", err_msg)
             self.status_msg.sys_img_update_status = 'failed - fs errors'
@@ -1229,9 +1229,9 @@ class SystemMgrNode():
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
             if self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = sw_update_utils.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+                status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
             elif self.rootfs_ab_scheme == 'jetson':
-                status, err_msg = sw_update_utils.switchActiveAndInactivePartitionsJetson()
+                status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
             else:
                 err_msg = "Unknown ROOTFS A/B Scheme"
                 status = False
@@ -1245,9 +1245,9 @@ class SystemMgrNode():
     
     def handle_switch_active_inactive_rootfs(self, msg):
         if self.rootfs_ab_scheme == 'nepi':
-            status, err_msg = sw_update_utils.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+            status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
         elif self.rootfs_ab_scheme == 'jetson':
-            status, err_msg = sw_update_utils.switchActiveAndInactivePartitionsJetson()
+            status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
             err_msg = "Unknown ROOTFS A/B Scheme"
             status = False
@@ -1279,7 +1279,7 @@ class SystemMgrNode():
         slow_transfer = True if self.usb_device in self.new_img_staging_device else False
                 
         self.archiving_inactive_image = True
-        status, err_msg = sw_update_utils.archiveInactiveToStaging(
+        status, err_msg = nepi_image.archiveInactiveToStaging(
             self.inactive_rootfs_device, self.new_img_staging_device, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
         self.archiving_inactive_image = False
 
@@ -1352,11 +1352,11 @@ class SystemMgrNode():
         status = False
         if self.rootfs_ab_scheme == 'nepi':
             self.system_defs_msg.first_stage_rootfs_device = self.get_device_friendly_name(self.first_stage_rootfs_device)
-            (status, err_msg, rootfs_ab_settings_dict) = sw_update_utils.getRootfsABStatus(
+            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatus(
                 self.first_stage_rootfs_device)
         elif self.rootfs_ab_scheme == 'jetson':
             self.system_defs_msg.first_stage_rootfs_device = 'N/A'
-            (status, err_msg, rootfs_ab_settings_dict) = sw_update_utils.getRootfsABStatusJetson()
+            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatusJetson()
         else:
             self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
@@ -1364,14 +1364,14 @@ class SystemMgrNode():
             self.system_defs_msg.active_rootfs_device = self.get_device_friendly_name(rootfs_ab_settings_dict[
                 'active_part_device'])
 
-            self.system_defs_msg.active_rootfs_size_mb = sw_update_utils.getPartitionByteCount(rootfs_ab_settings_dict[
+            self.system_defs_msg.active_rootfs_size_mb = nepi_image.getPartitionByteCount(rootfs_ab_settings_dict[
                 'active_part_device']) / BYTES_PER_MEGABYTE
             
             self.inactive_rootfs_device = rootfs_ab_settings_dict[
                 'inactive_part_device']
             self.system_defs_msg.inactive_rootfs_device = self.get_device_friendly_name(self.inactive_rootfs_device)
 
-            self.system_defs_msg.inactive_rootfs_size_mb = sw_update_utils.getPartitionByteCount(self.inactive_rootfs_device) / BYTES_PER_MEGABYTE
+            self.system_defs_msg.inactive_rootfs_size_mb = nepi_image.getPartitionByteCount(self.inactive_rootfs_device) / BYTES_PER_MEGABYTE
             
             self.system_defs_msg.inactive_rootfs_fw_version = rootfs_ab_settings_dict[
                 'inactive_part_fw_version']
