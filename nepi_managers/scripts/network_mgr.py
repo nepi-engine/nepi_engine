@@ -545,15 +545,6 @@ class NetworkMgr:
         self.network_checked = True
 
 
-
-<<<<<<< HEAD
-        #self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
-        #self.msg_if.pub_warn("Found IPs: " + str(self.found_ip_addrs))
-        #self.msg_if.pub_warn("Managed IPs: " + str(managed_ips))
-        #self.msg_if.pub_warn("DHCP IP: " + str(dhcp_ip_addr))
-=======
->>>>>>> 7474b19939bbccb43a81ce4ea599fbd2e83e2e52
-
         self.found_ip_addrs = found_ip_addrs
         if last_ip_addrs != self.found_ip_addrs:
             self.msg_if.pub_warn("Return IPs: " + str(rep_ips))
