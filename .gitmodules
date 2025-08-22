@@ -1,0 +1,3 @@
+[submodule "nepi_interfaces"]
+	path = nepi_interfaces
+	url = git@github.com:nepi-engine/nepi_interfaces.git
