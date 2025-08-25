@@ -306,7 +306,7 @@ class AutomationManager(object):
         self.script_configs[msg.script]['auto_start'] = msg.enabled
 
         # This is an unusual parameter in that it triggers an automatic save of the config file
-        # so update the param server, then tell it to save the file via store_params
+        # so update the param server, then tell it to save the file via saveParamsCb
         # saveConfig() will trigger the initCb callback, so param server will
         # be up-to-date before the file gets saved
         self.node_if.save_config()

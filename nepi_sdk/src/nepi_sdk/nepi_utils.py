@@ -577,6 +577,26 @@ def read_csv_file(file_path):
     return data
 
 
+def delete_files_in_folder(folder_path):
+    """
+    Deletes all files within a specified folder, leaving subdirectories intact.
+
+    Args:
+        folder_path (str): The path to the folder to clean.
+    """
+    if not os.path.isdir(folder_path):
+        print(f"Error: '{folder_path}' is not a valid directory.")
+        return
+
+    for item_name in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item_name)
+        if os.path.isfile(item_path):
+            try:
+                os.remove(item_path)
+                print(f"Deleted file: {item_path}")
+            except OSError as e:
+                print(f"Error deleting file {item_path}: {e}")
+
 
 #########################
 ### List Helper Functions

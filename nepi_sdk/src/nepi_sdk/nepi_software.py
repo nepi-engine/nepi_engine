@@ -32,8 +32,8 @@ INACTIVE_PARTITION_MOUNTPOINT = "/mnt/inactive"
 STAGING_MOUNTPOINT = "/mnt/staging"
 TMP_MOUNTPOINT = "/mnt/tmp"
 
-NEPI_FULL_IMG_SUBDIR = "nepi_full_img"
-NEPI_BACKUP_IMG_SUBDIR = "nepi_full_img_archive"
+NEPI_FULL_IMG_SUBDIR = "nepi_images"
+NEPI_BACKUP_IMG_SUBDIR = "nepi_images"
 NEPI_FULL_IMG_SEARCH_STRING = "nepi*img.raw"
 NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/nepi_engine/etc/fw_version.txt"
 ###################################################################################################

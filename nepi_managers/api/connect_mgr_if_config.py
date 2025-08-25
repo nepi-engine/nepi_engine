@@ -110,9 +110,9 @@ class ConnectMgrConfigIF:
                 'qsize': 10,
                 'latch': False
             },
-            'store_params': {
+            'saveParamsCb': {
                 'namespace': self.base_namespace,
-                'topic': 'store_params',
+                'topic': 'saveParamsCb',
                 'msg': String,
                 'qsize': 10,
                 'latch': False

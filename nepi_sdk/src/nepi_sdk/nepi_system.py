@@ -54,6 +54,16 @@ def set_hw_type(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
+def get_hw_model(timeout = float('inf'), log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'hw_model')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_hw_model(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'hw_model')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
 
 def get_in_container(timeout = float('inf'), log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'in_container')
@@ -152,6 +162,7 @@ def set_admin_restricted(value, log_name_list = []):
     return success
 
 ##########################
+
 
 
 def get_user_folders(timeout = float('inf'), log_name_list = []):

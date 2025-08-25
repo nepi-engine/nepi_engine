@@ -25,7 +25,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
  
 
-from std_msgs.msg import String, Empty, Time
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Time
 from nepi_interfaces.msg import MgrSystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
@@ -58,6 +58,11 @@ class time_sync_mgr(object):
 
     timezone = FACTORY_TIMEZONE
 
+    status_msg = MgrTimeStatus()
+
+    auto_sync_clocks = True
+    auto_sync_timezones = True
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
@@ -80,13 +85,13 @@ class time_sync_mgr(object):
         ##############################
         # Wait for System Info
         self.msg_if.pub_info("Waiting for system info")
-        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got running in container: " + str(self.in_container))
-        
+        self.manages_time = nepi_system.get_manages_time(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
+        self.status_msg.manages_time = self.manages_time
               
         ##############################
         # Initialize Class Variables
-        self.time_status = MgrTimeStatus()
+
         self.set_timezone(FACTORY_TIMEZONE)
 
         self.initCb(do_updates = False)
@@ -113,6 +118,14 @@ class time_sync_mgr(object):
             'timezone': {
                 'namespace': self.node_namespace,
                 'factory_val': FACTORY_TIMEZONE
+            },
+            'auto_sync_clocks': {
+                'namespace': self.node_namespace,
+                'factory_val': True
+            },
+            'auto_sync_timezones': {
+                'namespace': self.node_namespace,
+                'factory_val': True
             }
         }
 
@@ -136,7 +149,7 @@ class time_sync_mgr(object):
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'status',
-                'msg': Empty,
+                'msg': MgrSystemStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -149,7 +162,7 @@ class time_sync_mgr(object):
             }
         }  
 
-        if self.in_container == False:
+        if self.manages_time == False:
             # Subscribers Config Dict ####################
             self.SUBS_DICT = {
                 'add_ntp_server': {
@@ -174,6 +187,22 @@ class time_sync_mgr(object):
                     'msg': TimeUpdate,
                     'qsize': 10,
                     'callback': self.set_time, 
+                    'callback_args': ()
+                },
+                'auto_sync_clocks': {
+                    'namespace': self.base_namespace,
+                    'topic': 'auto_sync_clocks',
+                    'msg': Bool,
+                    'qsize': 10,
+                    'callback': self.autoSyncClocksCb, 
+                    'callback_args': ()
+                },
+                'auto_sync_clocks': {
+                    'namespace': self.base_namespace,
+                    'topic': 'auto_sync_timezones',
+                    'msg': Bool,
+                    'qsize': 10,
+                    'callback': self.autoSyncTimezonesCb, 
                     'callback_args': ()
                 }
             }
@@ -203,7 +232,7 @@ class time_sync_mgr(object):
         timezone = self.node_if.get_param('timezone')
         self.set_timezone(timezone)
 
-        if self.in_container == False:
+        if self.manages_time == False:
 
             # Initialize the system clock from the RTC if so configured
             # RTC will be updated whenever a "good" clock source is detected; that will control drift
@@ -231,10 +260,36 @@ class time_sync_mgr(object):
         nepi_sdk.spin()
         #########################################################
 
-    def statusPubCb(self,timer):
+
+
+   
+    def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.node_if.publish_pub('status_pub', Empty())
-    
+            self.timezone = nepi_sdk.get_param('timezone')
+            self.auto_sync_clocks = nepi_sdk.get_param('auto_sync_clocks')
+            self.auto_sync_timezones = nepi_sdk.get_param('auto_sync_timezones')
+        self.publish_status()
+        
+
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            self.msg_if.pub_info("Restoring NTP to factory config")
+            self.reset_to_factory_conf()
+
+        self.initCb()       
+     
+
 
     #######################
     ### Mgr Config Functions
@@ -363,27 +418,27 @@ class time_sync_mgr(object):
             pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
             pps_tokens = pps_string.split('#')
             if (len(pps_tokens) >= 2):
-                self.time_status.last_pps = float(pps_string.split('#')[0])
+                self.status_msg.last_pps = float(pps_string.split('#')[0])
             else:
-                self.time_status.last_pps = 0.0
+                self.status_msg.last_pps = 0.0
                 self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
         else: # Failed to find the assert file - just return no PPS
-            self.time_status.last_pps = 0.0
+            self.status_msg.last_pps = 0.0
 
 
         ntp_status = self.gather_ntp_status()
         for status_entry in ntp_status:
-            if status_entry[0] not in self.time_status.ntp_sources:
-                self.time_status.ntp_sources.append(status_entry[0])
-                self.time_status.currently_syncd.append(status_entry[1])
-                self.time_status.last_ntp_sync.append(status_entry[2])
-                self.time_status.current_offset.append(status_entry[3])
+            if status_entry[0] not in self.status_msg.ntp_sources:
+                self.status_msg.ntp_sources.append(status_entry[0])
+                self.status_msg.currently_syncd.append(status_entry[1])
+                self.status_msg.last_ntp_sync.append(status_entry[2])
+                self.status_msg.current_offset.append(status_entry[3])
             else:
-                ind = self.time_status.ntp_sources.index(status_entry[0])
+                ind = self.status_msg.ntp_sources.index(status_entry[0])
                 if ind != -1:
-                    self.time_status.currently_syncd[ind] = status_entry[1]
-                    self.time_status.last_ntp_sync[ind] = status_entry[2]
-                    self.time_status.current_offset[ind] = status_entry[3]
+                    self.status_msg.currently_syncd[ind] = status_entry[1]
+                    self.status_msg.last_ntp_sync[ind] = status_entry[2]
+                    self.status_msg.current_offset[ind] = status_entry[3]
 
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
@@ -416,7 +471,7 @@ class time_sync_mgr(object):
         # TODO: Bounds checking?
         self.msg_if.pub_debug("Got time update msg: " + str(msg), throttle_s = 5.0)
         update_time = msg.update_time
-        if update_time == True and self.in_container == False:
+        if update_time == True and self.manages_time == False:
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
             timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
             try:
@@ -434,7 +489,7 @@ class time_sync_mgr(object):
             self.set_timezone(msg.timezone)
             self.node_if.save_config()
 
-        if self.in_container == False:
+        if self.manages_time == False:
             # Update the hardware clock from this "better" clock source; helps with RTC drift
             self.msg_if.pub_info("Updating hardware clock from set_time value")
             subprocess.call(['hwclock', '-w'])
@@ -456,62 +511,30 @@ class time_sync_mgr(object):
                 self.msg_if.pub_warn("Failed to update timezone: " + str(e))
                 tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
                 self.timezone = nepi_utils.get_timezone_description(tz)
-            if self.in_container == False:
+            if self.manages_time == False:
                 try:
                     subprocess.call(["timedatectl", "set-timezone", self.timezone])
                 except:
                     pass
-            nepi_sdk.set_param('timezone',self.timezone)
-
-
-    def handle_time_status_query(self,req):
-        current_time = nepi_utils.get_time()
-        self.time_status.current_time = current_time
-
-        self.time_status.timezone_id = time.strftime('%Z')
-        self.time_status.timezone_description = self.timezone
-
-        tzo = pytz.timezone(self.timezone)
-        now = datetime.datetime.now(tzo) # current date and time
-        dt_str = now.strftime("%m/%d/%Y,%H:%M:%S")
-        self.time_status.date_str = dt_str.split(',')[0]
-        self.time_status.time_str = dt_str.split(',')[1]
-        
-        timezones = nepi_utils.standard_timezones_dict.keys()
-             
-        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.time_status))
-
-        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
-
-        # Last set time (cheater clock sync method)
-        self.time_status.last_set_time = self.last_set_time
-
-
-        return  { 'time_status': self.time_status, 'available_timezones': timezones }
+            self.publish_status()
+            if self.node_if is not None:
+                nepi_sdk.set_param('timezone',self.timezone)
 
 
 
-    def initCb(self, do_updates = False):
-        if do_updates == True:
-             nepi_sdk.set_param('timezone',self.timezone)
 
-
-    def resetCb(self,do_updates = True):
+    def autoSyncClocksCb(self,msg):
+        self.auto_clock_sync = msg.data
+        self.publish_status()
         if self.node_if is not None:
-            pass
-        if do_updates == True:
-            pass
-        self.initCb(do_updates = do_updates)
+            nepi_sdk.set_param('auto_sync_clocks',msg.data)
 
-
-    def factoryResetCb(self,do_updates = True):
+    def autoSyncTimezonesCb(self,msg):
+        self.auto_sync_timezones = msg.data
+        self.publish_status()
         if self.node_if is not None:
-            pass
-        if do_updates == True:
-            self.msg_if.pub_info("Restoring NTP to factory config")
-            self.reset_to_factory_conf()
+            nepi_sdk.set_param('auto_sync_timezones',msg.data)
 
-        self.initCb()       
 
 
     def sysResetCb(self,reset_type = 0):
@@ -543,6 +566,46 @@ class time_sync_mgr(object):
                 resync_srv()
             except Exception as e:
                 pass
+
+
+    def update_status_msg(self):
+        current_time = nepi_utils.get_time()
+        self.status_msg.current_time = current_time
+
+        self.status_msg.timezone_id = time.strftime('%Z')
+        self.status_msg.timezone_description = self.timezone
+
+        tzo = pytz.timezone(self.timezone)
+        now = datetime.datetime.now(tzo) # current date and time
+        dt_str = now.strftime("%m/%d/%Y,%H:%M:%S")
+        self.status_msg.date_str = dt_str.split(',')[0]
+        self.status_msg.time_str = dt_str.split(',')[1]
+        
+        timezones = nepi_utils.standard_timezones_dict.keys()
+             
+        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.status_msg))
+
+        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
+
+        # Last set time (cheater clock sync method)
+        self.status_msg.last_set_time = self.last_set_time
+
+        self.status_msg.auto_sync_clocks = self.auto_sync_clocks
+        self.status_msg.auto_sync_timezones = self.auto_sync_timezones
+    def handle_time_status_query(self,req):
+        self.update_status_msg()
+        return  { 'status_msg': self.status_msg, 'available_timezones': timezones }
+
+
+    def statusPubCb(self,timer):
+        self.publish_status()
+
+    def publish_status(self):
+        self.update_status_msg()
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', self.status_msg)
+    
+
 
 if __name__ == '__main__':
     time_sync_mgr()
