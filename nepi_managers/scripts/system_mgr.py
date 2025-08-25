@@ -133,9 +133,7 @@ class SystemMgrNode():
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
-                            "factory_cfg/sys",
-                            "system_cfg",
-                            "system_cfg/sys"]
+                            "system_cfg"]
                             
     
     STORAGE_CHECK_SKIP_LIST = ["ai_training",
