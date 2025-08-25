@@ -448,7 +448,7 @@ class config_mgr(object):
 
         if success == True:
             for key in self.config_folders.keys():
-                cfg_path = self.config_folders.keys[key]
+                cfg_path = self.config_folders[key]
                 # Restore config if exits
                 restore_pathname = self.get_config_pathname(cfg_path, namespace)
                 success = False

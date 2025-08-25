@@ -606,8 +606,6 @@ def rsync_folders(source_folder,destitation_folder, options = "-arp"):
         
         # Execute the command
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        
-        print("Rsync successful:")
         print(result.stdout)
         
     except subprocess.CalledProcessError as e:

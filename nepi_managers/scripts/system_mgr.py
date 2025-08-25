@@ -22,7 +22,7 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
-import nepi_sdk.nepi_software as nepi_image
+from nepi_sdk import nepi_software as nepi_image
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray, \
@@ -124,7 +124,8 @@ class SystemMgrNode():
                             "logs", 
                             "logs/ros_log",
                             "logs/automation_script_logs", 
-                            "nepi_images", 
+                            "nepi_full_img", 
+                            "nepi_full_img_archive", 
                             "nepi_src",
                             "user_cfg",
                             "user_cfg/cal",

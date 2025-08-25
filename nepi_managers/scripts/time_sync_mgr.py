@@ -581,7 +581,6 @@ class time_sync_mgr(object):
         self.status_msg.date_str = dt_str.split(',')[0]
         self.status_msg.time_str = dt_str.split(',')[1]
         
-        timezones = nepi_utils.standard_timezones_dict.keys()
              
         #self.msg_if.pub_warn("Returning Time Status response: " + str(self.status_msg))
 
@@ -592,8 +591,10 @@ class time_sync_mgr(object):
 
         self.status_msg.auto_sync_clocks = self.auto_sync_clocks
         self.status_msg.auto_sync_timezones = self.auto_sync_timezones
+        
     def handle_time_status_query(self,req):
         self.update_status_msg()
+        timezones = nepi_utils.standard_timezones_dict.keys()
         return  { 'status_msg': self.status_msg, 'available_timezones': timezones }
 
 
