@@ -35,7 +35,7 @@ from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_interfaces.msg import DataNavPose
+from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -96,8 +96,12 @@ class ConnectMgrNavPoseIF:
         ##############################    
         # Initialize Class Variables
         self.mgr_namespace = os.path.join(self.base_namespace,self.MGR_NODE_NAME)
-        
 
+        ##############################
+        ### Wait for status to publish
+        status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
+        self.msg_if.pub_info("Waiting for status topic: " + status_topic, log_name_list = self.log_name_list)
+        nepi_sdk.wait_for_topic(status_topic)
         ##############################
         ### Setup Node
 
@@ -160,7 +164,7 @@ class ConnectMgrNavPoseIF:
             'set_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_navpose',
-                'msg': DataNavPose,
+                'msg': NavPose,
                 'qsize': 1,
                 'latch': False,
             },
@@ -174,7 +178,7 @@ class ConnectMgrNavPoseIF:
             'set_init_navpose': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_init_navpose',
-                'msg': DataNavPose,
+                'msg': NavPose,
                 'qsize': 1,
                 'latch': False
             },
@@ -221,7 +225,7 @@ class ConnectMgrNavPoseIF:
             'navpose_sub': {
                 'namespace': self.base_namespace,
                 'topic': 'navpose',
-                'msg': DataNavPose,
+                'msg': NavPose,
                 'qsize': 1,
                 'callback': self._navposeDataCb
             }

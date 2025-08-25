@@ -14,6 +14,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -21,6 +22,7 @@ from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
+from nepi_interfaces.msg import NavPose
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -59,7 +61,7 @@ class LSXDeviceIF:
     has_color_control = False
     color_options_list = ["None"]
     has_kelvin_control = False
-    kelvin_limits_list = [1000,10000]
+    kelvin_limits_list = [1000,3.5]
     has_blink_control = False
     has_hw_strobe = False
     reports_temp = False
@@ -109,6 +111,7 @@ class LSXDeviceIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
 
         ##############################  
         # Create Msg Class
@@ -184,9 +187,9 @@ class LSXDeviceIF:
             if kelvin_limits_list != None:
               self.kelvin_limits_list = kelvin_limits_list
             else:
-              self.kelvin_limits_list = [1000, 10000]
+              self.kelvin_limits_list = [1000, 3.5]
         else:
-            self.kelvin_limits_list = [1000, 10000]
+            self.kelvin_limits_list = [1000, 3.5]
             
 
         self.blinkOnOffFunction = blinkOnOffFunction
@@ -246,7 +249,7 @@ class LSXDeviceIF:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.node_namespace
+                'namespace':  self.namespace
         }
 
 
@@ -255,39 +258,39 @@ class LSXDeviceIF:
 
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'standby_enabled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("standby_enabled")
             },
             'on_off_state': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("on_off_state")
             },
             'intensity_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("intensity_ratio")
             },
             'color_selection': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("color_selection")
             },
             'kelvin_val': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("kelvin_val")
             }, 
             'strobe_enbled': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("strobe_enbled")
             },
             'blink_interval_sec': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
         }
@@ -296,8 +299,8 @@ class LSXDeviceIF:
 
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': LSXCapabilitiesQuery,
                 'req': LSXCapabilitiesQueryRequest(),
                 'resp': LSXCapabilitiesQueryResponse(),
@@ -309,8 +312,8 @@ class LSXDeviceIF:
 
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DeviceLSXStatus,
                 'qsize': 1,
                 'latch': True
@@ -321,96 +324,96 @@ class LSXDeviceIF:
 
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_device_name',
+                'namespace': self.namespace,
+                'topic': 'set_device_name',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.updateDeviceNameCb, 
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_device_name',
+                'namespace': self.namespace,
+                'topic': 'reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetDeviceNameCb, 
                 'callback_args': ()
             },
             'set_standby': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_empty',
+                'namespace': self.namespace,
+                'topic': 'set_empty',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setStandbyCb, 
                 'callback_args': ()
             },
             'turn_on_off': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/turn_on_off',
+                'namespace': self.namespace,
+                'topic': 'turn_on_off',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.turnOnOffCb, 
                 'callback_args': ()
             },
             'set_intensity_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_intensity_ratio',
+                'namespace': self.namespace,
+                'topic': 'set_intensity_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setIntensityRatioCb, 
                 'callback_args': ()
             },
             'set_color': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_color',
+                'namespace': self.namespace,
+                'topic': 'set_color',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setColorCb, 
                 'callback_args': ()
             },
             'set_kelvin': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_kelvin',
+                'namespace': self.namespace,
+                'topic': 'set_kelvin',
                 'msg': Int32,
                 'qsize': 1,
                 'callback': self.setKelvinCb, 
                 'callback_args': ()
             },
             'set_blink_interval': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_blink_interval',
+                'namespace': self.namespace,
+                'topic': 'set_blink_interval',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setBlinkIntervalCb, 
                 'callback_args': ()
             },
             'set_strobe_enable': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_strobe_enable',
+                'namespace': self.namespace,
+                'topic': 'set_strobe_enable',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self.setStrobeEnableCb, 
                 'callback_args': ()
             },
             'reset_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_controls',
+                'namespace': self.namespace,
+                'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'lsx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -429,27 +432,40 @@ class LSXDeviceIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                            msg_if = self.msg_if
                         )
 
-        ready = self.node_if.wait_for_ready()
+        success = nepi_sdk.wait()
 
+        ##############################
+        # Update vals from param server
+        self.initCb(do_updates = True)
+        self.publish_status()
+
+
+        status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
+        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
+        #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
+
+        self.publish_status()
+
+        ###############################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        transform_ns = nepi_sdk.create_namespace(self.namespace,'lsx')
 
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
-                        supports_updates = True,
+                        get_3d_transform_function = self.get_3d_transform,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                            msg_if = self.msg_if
                         )
 
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        settings_ns = self.namespace
 
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -462,7 +478,7 @@ class LSXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                            msg_if = self.msg_if
                         )
 
         '''
@@ -470,7 +486,7 @@ class LSXDeviceIF:
         # Setup Save Data IF Class ####################
         factory_data_rates = {}
         for d in self.data_products:
-            factory_data_rates[d] = [1.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [1.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
 
         factory_filename_dict = {
             'prefix': "", 
@@ -481,37 +497,28 @@ class LSXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                            msg_if = self.msg_if
                         )
-        '''
+        
  
         # Setup navpose data IF
-        nepi_sdk.create_namespace(self.node_namespace,'lsx')
+        np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         log_name = 'navpose',
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                            msg_if = self.msg_if
                         )
 
         time.sleep(1)
-
-        ###############################
-        # Finish Initialization
-        self.initCb(do_updates = True)
-        status_update_time = float(1)/self.STATUS_UPDATE_RATE_HZ
-        nepi_sdk.start_timer_process(status_update_time, self.statusTimerCb) 
-        #nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
-
-        self.publish_status()
-
+        '''
         
         ####################################
         self.ready = True
@@ -543,9 +550,6 @@ class LSXDeviceIF:
         return self.ready   
 
 
-    def get_blank_status_msg(self):
-        return DeviceLSXStatus()
-
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Resetting LSX Device Controls", log_name_list = self.log_name_list)
         self.node_if.set_param('standby_enabled', self.init_standby_enabled)
@@ -571,6 +575,8 @@ class LSXDeviceIF:
         self.publish_status(do_updates=False) # Updated inline here 
         self.node_if.set_param('mount_desc', self.mount_desc)
 
+    def initConfig(self):
+        self.initCb(do_updates = True)
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
@@ -579,16 +585,18 @@ class LSXDeviceIF:
         self.updateDevice()
       self.publish_status()
 
-
-
     def resetCb(self,do_updates = True):
       if self.node_if is not None:
         self.node_if.reset_params()
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-          self.settings_if.reset_settings(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -596,8 +604,13 @@ class LSXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-          self.settings_if.factory_reset(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
+
 
     def updateDevice(self):
         if self.standbyEnableFunction is not None:
@@ -636,15 +649,20 @@ class LSXDeviceIF:
         self.status_msg.device_name = self.device_name
         self.status_msg.device_mount_description = self.get_mount_description()
         # update status values from device
-        blink_interval = self.node_if.get_param('blink_interval_sec')
-        if self.getStatusFunction is not None:
-            status_msg=self.getStatusFunction()
-            status_msg.user_name = self.node_if.get_param('device_name')
-            status_msg.on_off_state = self.node_if.get_param('on_off_state')
-            try:
-                self.node_if.publish_pub('status_pub',status_msg)
-            except Exception as e:
-                self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
+        if self.node_if is not None:
+            blink_interval = self.node_if.get_param('blink_interval_sec')
+            if self.getStatusFunction is not None:
+                status_msg=self.getStatusFunction()
+                status_msg.user_name = self.node_if.get_param('device_name')
+                status_msg.on_off_state = self.node_if.get_param('on_off_state')
+                try:
+                    if self.node_if is not None:
+                        self.msg_if.pub_warn("*************node_if: " + str(self.node_if))    
+
+                        self.node_if.publish_pub('status_pub',status_msg)
+
+                except Exception as e:
+                    self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM

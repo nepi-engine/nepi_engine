@@ -18,18 +18,20 @@ import importlib
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
-import nepi_sdk.nepi_software_update_utils as sw_update_utils
+import nepi_sdk.nepi_software as nepi_image
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus
+from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray
 from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
                              DebugQuery, DebugQueryRequest, DebugQueryResponse, \
+                             AdminQuery, AdminQueryRequest, AdminQueryResponse,  \
                             SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
@@ -53,9 +55,25 @@ class SystemMgrNode():
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
-    SYS_CONFIG_PATH = "/opt/nepi/config"
+    ADMIN_RESTRICT_OPTIONS = ['Factory Save','Device Name','Network','WiFi','Access Point', 
+                            'Software Manager','NavPose Manager','Driver Manager','AI Manager','Apps Manager',
+                            'IDX Devices','IDX_Controls',
+                            'PTX Devices','PTX_Controls',
+                            'LSX Devices','LSX_Controls',
+                            'RBX Devices','RBX_Controls',
+                            'NPX Devices','NPX_Controls',
+                            'Messages_View','Messages_Controls',
+                            'Save_Config_View','Save_Config_Controls',
+                            'Save_Data_View','Save_Data_Controls',
+                            'Settings_View','Settings_Controls',
+                            'Transform_View','Transform_Controls',
+                            'Triggers_View','Triggers_Controls',
+                            'States_View','States_Controls',
+                            'Image_Stats','Image_Controls']
+
+    SYS_ETC_PATH = "/opt/nepi/etc"
     SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
-    FW_VERSION_PATH = "/opt/nepi/ros/etc/fw_version.txt"
+    FW_VERSION_PATH = "/opt/nepi/nepi_engine/etc/fw_version.txt"
 
     STATES_DICT = dict()
 
@@ -63,14 +81,26 @@ class SystemMgrNode():
     status_msg = MgrSystemStatus()
     system_defs_msg = SystemDefs()
 
+
+    fs_a_folder =  "/mnt/nepi_fs_a"
+    fs_b_folder =  "/mnt/nepi_fs_a"
+    fs_staging_folder =  "/mnt/nepi_fs_staging"
+
+    config_mountpoint = "/mnt/nepi_config"
+    factory_cfg_folder =  config_mountpoint + "/factory_cfg"
+    system_cfg_folder =  config_mountpoint + "/system_cfg"
+
     storage_mountpoint = "/mnt/nepi_storage"
     data_folder = storage_mountpoint + "/data"
+    user_cfg_folder =  storage_mountpoint + "/user_cfg"
+
+    storage_subdirs = dict()
+    user_folders = dict()
+    system_folders = dict()
 
     storage_uid = 1000 # default to nepi
     storage_gid = 130 # default to "sambashare" # TODO This is very fragile
 
-
-    check_ignore_folders = ["data","logs","logs/automation_script_logs","nepi_src","tmp"]
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                             "ai_training",
@@ -79,6 +109,7 @@ class SystemMgrNode():
                             "automation_scripts/sys_state_scripts",
                             "data", 
                             "databases", 
+                            "databases/targets", 
                             "install",
                             "install/apps",
                             "install/ai_frameworks",
@@ -91,35 +122,76 @@ class SystemMgrNode():
                             "nepi_full_img_archive", 
                             "nepi_src",
                             "user_cfg",
-                            "user_cfg/ros",
+                            "user_cfg/sys",
+                            "user_cfg/cal",
                             "sample_data",
                             "tmp"]
                             
-    REQD_STORAGE_SUBDIRS_CN = ["ai_models",
-                            "ai_training", 
-                            "automation_scripts", 
-                            "data", 
-                            "databases", 
-                            "install",
-                            "install/apps",
-                            "install/ai_frameworks",
-                            "install/drivers",
-                            "license", 
+    
+    STORAGE_CHECK_SKIP_LIST = ["ai_training",
+                            "data",
                             "logs", 
                             "logs/ros_log",
                             "logs/automation_script_logs", 
                             "nepi_src",
-                            "user_cfg",
-                            "user_cfg/ros",
-                            "sample_data",
                             "tmp"]
-    
-    CATKIN_TOOLS_PATH = '/opt/nepi/ros/.catkin_tools'
-    SDK_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_sdk'
-    API_SHARE_PATH = '/opt/nepi/ros/lib/python3/dist-packages/nepi_api'
-    DRIVERS_SHARE_PATH = '/opt/nepi/ros/lib/nepi_drivers'
-    APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
-    AIFS_SHARE_PATH = '/opt/nepi/ros/share/nepi_aifs'
+
+    CATKIN_TOOLS_PATH = '/opt/nepi/nepi_engine/.catkin_tools'
+
+
+
+    SDK_PATH_DICT = {
+        'sdk_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_sdk',
+        'sdk_lib': '/opt/nepi/nepi_engine/lib/nepi_sdk',
+        }
+    API_PATH_DICT = {
+        'api_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_api',
+        'api_lib': '/opt/nepi/nepi_engine/lib/nepi_api',
+        }
+    ETC_PATH_DICT = {
+        'etc': '/opt/nepi/nepi_engine/etc'
+        }
+    CFG_PATH_DICT = {
+        'nepi_cfg': '/opt/nepi/etc',
+        'user_cfg': storage_mountpoint + '/user_cfg'
+        }
+    RUI_PATH_DICT = {
+        'rui_env': '/opt/nepi/rui/.nvm',
+        'rui_bld': '/opt/nepi/rui/src/rui_webserver/rui-app',
+        'rui_src': '/opt/nepi/rui/src/rui_webserver/rui-app/src'
+        }
+        
+    DRIVERS_PATH_DICT = {
+        'drivers_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_drivers',
+        'drivers_lib': '/opt/nepi/nepi_engine/lib/nepi_drivers',
+        'drivers_param': '/opt/nepi/nepi_engine/lib/nepi_drivers',
+        'drivers_install': '/mnt/nepi_storage/install/drivers'
+        }
+    AIFS_PATH_DICT = {
+        'aifs_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_aifs',
+        'aifs_lib': '/opt/nepi/nepi_engine/lib/nepi_aifs',
+        'aifs_param': '/opt/nepi/nepi_engine/share/nepi_aifs',
+        'aifs_models': '/mnt/nepi_storage/ai_models/',
+        'aifs_install': '/mnt/nepi_storage/install/ai_frameworks'
+        }
+    APPS_PATH_DICT = {
+        'apps_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_apps',
+        'apps_lib': '/opt/nepi/nepi_engine/lib/nepi_apps',
+        'apps_param': '/opt/nepi/nepi_engine/share/nepi_apps/params',
+        'apps_install': '/mnt/nepi_storage/install/apps'
+        }
+
+    SYSTEM_CHECK_SKIP_LIST = ['rui']
+    SYSTEM_PATH_DICT = {
+        'sdk': SDK_PATH_DICT,
+        'api': API_PATH_DICT,
+        'etc': ETC_PATH_DICT,
+        'cfg': CFG_PATH_DICT,
+        'rui': RUI_PATH_DICT,
+        'drivers': DRIVERS_PATH_DICT,
+        'aifs': AIFS_PATH_DICT,
+        'apps': APPS_PATH_DICT
+    }
 
     # disk_usage_deque = deque(maxlen=10)
     # Shorter period for more responsive updates
@@ -152,12 +224,17 @@ class SystemMgrNode():
 
     current_throttle_ratio = 1.0
 
+    debug_enabled = False
+    admin_enabled = False
+    admin_restricted = []
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -172,19 +249,21 @@ class SystemMgrNode():
         ###############################
         # Initialize Class Variables
         self.msg_if.pub_warn("Getting System Info")
-        self.first_stage_rootfs_device = nepi_sdk.get_param(
-            "~first_stage_rootfs_device", self.first_stage_rootfs_device)
+        first_stage_rootfs_device = nepi_sdk.get_param(
+            "~first_stage_rootfs_device", "undefined")
+        self.msg_if.pub_warn("Got first state partition: " + str(first_stage_rootfs_device))
+        if first_stage_rootfs_device != "undefined":
+            self.first_stage_rootfs_device = first_stage_rootfs_device
+        self.msg_if.pub_warn("Using first state partition: " + str(self.first_stage_rootfs_device))
 
         if self.first_stage_rootfs_device == "container":
             self.in_container = True
+        
+        nepi_system.set_in_container(self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
-        
 
-        if self.in_container == False:
-          self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
-        else:
-          self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS_CN
+        self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         
         self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
         '''
@@ -200,14 +279,14 @@ class SystemMgrNode():
         
         self.msg_if.pub_warn("Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
-        self.rootfs_ab_scheme = sw_update_utils.identifyRootfsABScheme()
+        self.rootfs_ab_scheme = nepi_image.identifyRootfsABScheme()
         self.init_msgs()
 
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_mountpoint):
            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = sw_update_utils.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
+           ret, msg = nepi_image.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
            if ret is False:
                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
@@ -230,8 +309,13 @@ class SystemMgrNode():
         self.storage_subdirs = {} # Populated in function below
         if self.ensure_reqd_storage_subdirs() is True:
             # Now can advertise the system folder query
-            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery,
-                self.provide_system_data_folder)
+            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
+        self.msg_if.pub_warn("Storing User Folders")
+        nepi_system.set_user_folders(self.user_folders)
+        self.msg_if.pub_warn("Stored user folders: " + str(self.user_folders))
+        self.msg_if.pub_warn("Storing System Folders")
+        nepi_system.set_system_folders(self.system_folders)
+        self.msg_if.pub_warn("Stored user folders: " + str(self.system_folders))
 
 
 
@@ -246,11 +330,12 @@ class SystemMgrNode():
             # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
             # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
             if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
-                status, err_msg = sw_update_utils.resetBootFailCounter(
+                status, err_msg = nepi_image.resetBootFailCounter(
                     self.first_stage_rootfs_device)
                 if status is False:
                     self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
+        self.status_msg.sys_admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -308,9 +393,17 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             },
-            'debug_mode': {
+            'debug_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': False
+            },
+            'admin_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': False
+            },
+            'admin_restricted': {
+                'namespace': self.base_namespace,
+                'factory_val': []
             }
         }
 
@@ -348,6 +441,14 @@ class SystemMgrNode():
                 'req': DebugQueryRequest(),
                 'resp': DebugQueryResponse(),
                 'callback': self.provide_debug_status
+            },
+            'admin_query': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_query',
+                'srv': AdminQuery,
+                'req': AdminQueryRequest(),
+                'resp': AdminQueryResponse(),
+                'callback': self.provide_admin_status
             },
             'status_query': {
                 'namespace': self.base_namespace,
@@ -416,13 +517,6 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'topic': 'system_states_status',
                 'msg': SystemStatesStatus,
-                'qsize': 1,
-                'latch': True
-            },
-            'debug_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode',
-                'msg': Bool,
                 'qsize': 1,
                 'latch': True
             }
@@ -517,6 +611,22 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.enable_debug_callback, 
                 'callback_args': ()
+            },
+            'enable_admin': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enable_admin_callback, 
+                'callback_args': ()
+            },
+            'set_admin_restricted': {
+                'namespace': self.base_namespace,
+                'topic': 'set_admin_restricted',
+                'msg': StringArray,
+                'qsize': None,
+                'callback': self.set_admin_callback, 
+                'callback_args': ()
             }
         }
 
@@ -527,11 +637,33 @@ class SystemMgrNode():
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        wait_cfg_mgr = False,
                         msg_if = self.msg_if
         )
 
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
+
+        # Config mgr not running yet, so have to load saved configs ourselfs
+        user_cfg_file = self.node_name + '.yaml.user'
+        user_cfg_path = nepi_sdk.create_namespace(self.user_cfg_folder,user_cfg_file)
+
+        #self.msg_if.pub_info("Waiting for 20 secs")
+        #time.sleep(20)
+
+        self.msg_if.pub_warn("Updating From Param Server")
+        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
+        nepi_sdk.sleep(1)
+        self.initCb(do_updates = True)
+
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        nepi_system.set_debug_mode(self.debug_enabled)
+
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        nepi_system.set_admin_mode(self.admin_enabled)
+
+        self.status_msg.sys_admin_restricted = self.admin_restricted
+        nepi_system.set_admin_restricted(self.admin_restricted)
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -574,8 +706,6 @@ class SystemMgrNode():
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
-
-        self.status_msg.sys_debug_enabled = self.node_if.get_param('debug_mode')
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -629,15 +759,34 @@ class SystemMgrNode():
             self.sd_card_device = self.node_if.get_param("sd_card_device")
 
             self.ssd_device = self.node_if.get_param("ssd_device")
+
+
     
     def initCb(self, do_updates = False):
-        pass
+        if self.node_if is not None:
+            self.debug_enabled = self.node_if.get_param('debug_enabled')
+            self.admin_enabled = self.node_if.get_param('admin_enabled')
+            self.admin_restricted = self.node_if.get_param('admin_restricted')
+        if do_updates == True:
+            pass
+        # self.publish_settings() # Make sure to always publish settings updates
 
-    def resetCb(self):
-        pass
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
-    def factoryResetCb(self):
-        pass
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
 
 
@@ -707,6 +856,7 @@ class SystemMgrNode():
                             states_list.append(state)
                     except:
                         self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+
             try:
                 msg = nepi_states.create_states_status_msg(states_list)
             except Exception as e:
@@ -812,7 +962,7 @@ class SystemMgrNode():
     def provide_sw_update_status(self, req):
         resp = SystemSoftwareStatusQueryResponse()
         resp.new_sys_img_staging_device = self.get_device_friendly_name(self.new_img_staging_device)
-        resp.new_sys_img_staging_device_free_mb = sw_update_utils.getPartitionFreeByteCount(self.new_img_staging_device) / BYTES_PER_MEGABYTE
+        resp.new_sys_img_staging_device_free_mb = nepi_image.getPartitionFreeByteCount(self.new_img_staging_device) / BYTES_PER_MEGABYTE
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
@@ -824,7 +974,7 @@ class SystemMgrNode():
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = sw_update_utils.checkForNewImageAvailable(
+        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = nepi_image.checkForNewImageAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
@@ -861,7 +1011,14 @@ class SystemMgrNode():
 
     def provide_debug_status(self, req):
         response = DebugQueryResponse()
-        response.degug_enabled = self.status_msg.sys_debug_enabled
+        response.degug_enabled = self.debug_enabled
+        return response
+
+    def provide_admin_status(self, req):
+        response = AdminQueryResponse()
+        response.admin_enabled = self.admin_enabled
+        response.admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
+        response.admin_restricted = self.admin_restricted
         return response
 
     def provide_system_status(self, req):
@@ -878,10 +1035,19 @@ class SystemMgrNode():
         # Disk usage
         self.update_storage()
 
+        # Update sys status and params if needed
+        if self.debug_enabled != self.status_msg.sys_debug_enabled:
+            self.status_msg.sys_debug_enabled = self.debug_enabled
+            nepi_system.set_debug_mode(self.debug_enabled)
+        if self.admin_enabled != self.status_msg.sys_admin_enabled:
+            self.status_msg.sys_admin_enabled = self.admin_enabled
+            nepi_system.set_admin_mode(self.admin_enabled)
+        if self.admin_restricted != self.status_msg.sys_admin_restricted:
+            self.status_msg.sys_admin_restricted = self.admin_restricted
+            nepi_system.set_admin_restricted(self.admin_restricted)
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
-            self.node_if.publish_pub('debug_pub', self.status_msg.sys_debug_enabled)
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
@@ -890,9 +1056,28 @@ class SystemMgrNode():
         self.status_msg.save_all_enabled = save_msg.data
 
     def enable_debug_callback(self, msg):
+        self.debug_enabled = msg.data
         self.status_msg.sys_debug_enabled = msg.data
         if self.node_if is not None:
-            self.node_if.set_param('debug_mode',msg.data)
+            self.node_if.set_param('debug_enabled',msg.data)
+            self.node_if.save_config()
+
+    def enable_admin_callback(self, msg):
+        self.admin_enabled = msg.data
+        self.status_msg.sys_admin_enabled = msg.data
+        if self.node_if is not None:
+            self.node_if.set_param('admin_enabled',msg.data)
+            self.node_if.save_config()
+
+    def set_admin_callback(self, msg):
+        restricted = []
+        for entry in msg.entries:
+            if entry in self.ADMIN_RESTRICT_OPTIONS:
+                restricted.append(entry)
+        self.sys_admin_restricted = restricted
+        self.status_msg.sys_admin_enabled = restricted
+        if self.node_if is not None:
+            self.node_if.set_param('admin_restricted',restricted)
             self.node_if.save_config()
 
     def ensure_reqd_storage_subdirs(self):
@@ -905,66 +1090,43 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            if subdir not in self.check_ignore_folders:
+            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking user storage partition folder permissions: " + subdir)
                 os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.storage_uid, self.storage_gid)
                 os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
+            self.user_folders[subdir] = full_path_subdir
 
 
 
         # Check system folders
         self.msg_if.pub_warn("Checking nepi config folder")
-        if not os.path.isdir(self.SYS_CONFIG_PATH):
-                self.msg_if.pub_warn("Folder " + self.SYS_CONFIG_PATH + " not present... will create")
-                os.makedirs(self.SYS_CONFIG_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SYS_CONFIG_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.SYS_CONFIG_PATH)
-        self.storage_subdirs['config'] = self.SYS_CONFIG_PATH
-
-        self.msg_if.pub_warn("Checking nepi_sdk share folder")
-        if not os.path.isdir(self.SDK_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.SDK_SHARE_PATH + " not present... will create")
-                os.makedirs(self.SDK_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SDK_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.SDK_SHARE_PATH)
-        self.storage_subdirs['sdk'] = self.SDK_SHARE_PATH
-
-        self.msg_if.pub_warn("Checking nepi_api share folder")
-        if not os.path.isdir(self.API_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.API_SHARE_PATH + " not present... will create")
-                os.makedirs(self.API_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.API_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.API_SHARE_PATH)
-        self.storage_subdirs['api'] = self.API_SHARE_PATH
+        if not os.path.isdir(self.SYS_ETC_PATH):
+                self.msg_if.pub_warn("Folder " + self.SYS_ETC_PATH + " not present... will create")
+                os.makedirs(self.SYS_ETC_PATH)
+        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SYS_ETC_PATH)
+        self.storage_subdirs['config'] = self.SYS_ETC_PATH
 
 
-
-        self.msg_if.pub_warn("Checking nepi_drivers lib folder")
-        if not os.path.isdir(self.DRIVERS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.DRIVERS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.DRIVERS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.DRIVERS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.DRIVERS_SHARE_PATH)
-        self.storage_subdirs['drivers'] = self.DRIVERS_SHARE_PATH
-
-        self.msg_if.pub_warn("Checking nepi_apps param folder")
-        if not os.path.isdir(self.APPS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.APPS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.APPS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.APPS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.APPS_SHARE_PATH)
-        self.storage_subdirs['apps'] = self.APPS_SHARE_PATH
-
-        self.msg_if.pub_warn("Checking nepi_aifs param folder")
-        if not os.path.isdir(self.AIFS_SHARE_PATH):
-                self.msg_if.pub_warn("Folder " + self.AIFS_SHARE_PATH + " not present... will create")
-                os.makedirs(self.AIFS_SHARE_PATH)
-        os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + self.AIFS_SHARE_PATH) # Use os.system instead of os.chown to have a recursive option
-        os.system('chmod -R 0775 ' + self.AIFS_SHARE_PATH)
-        self.storage_subdirs['aifs'] = self.AIFS_SHARE_PATH
+        for entry in self.SYSTEM_PATH_DICT.keys():
+            path_dict = self.SYSTEM_PATH_DICT[entry]
+            for key in path_dict:
+                path_entry = path_dict[key]
+                if entry not in self.SYSTEM_CHECK_SKIP_LIST and key not in self.SYSTEM_CHECK_SKIP_LIST:
+                    self.msg_if.pub_warn("Checking system folder: " + key + " at: " + path_entry)
+                    if not os.path.isdir(path_entry):
+                            self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
+                            os.makedirs(path_entry)
+                    os.system('chown -R ' + str(self.storage_uid) + ':' + str(self.storage_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
+                    os.system('chmod -R 0775 ' + path_entry)
+                self.storage_subdirs[key] = path_entry
+                self.system_folders[key] = path_entry
         return True
+
+
+
 
     def clear_data_folder(self, msg):
         if (self.status_msg.save_all_enabled is True):
@@ -1042,7 +1204,7 @@ class SystemMgrNode():
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
-        self.install_status, err_msg = sw_update_utils.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
+        self.install_status, err_msg = nepi_image.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
@@ -1056,7 +1218,7 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
-        self.install_status, err_msg = sw_update_utils.checkAndRepairPartition(self.inactive_rootfs_device)
+        self.install_status, err_msg = nepi_image.checkAndRepairPartition(self.inactive_rootfs_device)
         if self.install_status is False:
             self.msg_if.pub_warn("Newly flashed image has irrepairable filesystem issues: ", err_msg)
             self.status_msg.sys_img_update_status = 'failed - fs errors'
@@ -1067,9 +1229,9 @@ class SystemMgrNode():
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
             if self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = sw_update_utils.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+                status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
             elif self.rootfs_ab_scheme == 'jetson':
-                status, err_msg = sw_update_utils.switchActiveAndInactivePartitionsJetson()
+                status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
             else:
                 err_msg = "Unknown ROOTFS A/B Scheme"
                 status = False
@@ -1083,9 +1245,9 @@ class SystemMgrNode():
     
     def handle_switch_active_inactive_rootfs(self, msg):
         if self.rootfs_ab_scheme == 'nepi':
-            status, err_msg = sw_update_utils.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+            status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
         elif self.rootfs_ab_scheme == 'jetson':
-            status, err_msg = sw_update_utils.switchActiveAndInactivePartitionsJetson()
+            status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
             err_msg = "Unknown ROOTFS A/B Scheme"
             status = False
@@ -1103,12 +1265,12 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Already in the process of archiving image")
             return
         fw_str = self.system_defs_msg.inactive_rootfs_fw_version
-        fw_str = fw_str.replace('.','_')
+        fw_str = fw_str.replace('.','p')
         fw_str = fw_str.replace(' ','_')
         fw_str = fw_str.replace('/','_')
         now = datetime.datetime.now()
-        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m_%d_%H%M%S") + '.img.raw'
-        self.msg_if.pub_warn("Archiving inactive rootfs to filename: " + backup_file_basename)
+        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+        self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
         self.status_msg.sys_img_archive_status = 'archiving'
         self.status_msg.sys_img_archive_filename = backup_file_basename
 
@@ -1117,7 +1279,7 @@ class SystemMgrNode():
         slow_transfer = True if self.usb_device in self.new_img_staging_device else False
                 
         self.archiving_inactive_image = True
-        status, err_msg = sw_update_utils.archiveInactiveToStaging(
+        status, err_msg = nepi_image.archiveInactiveToStaging(
             self.inactive_rootfs_device, self.new_img_staging_device, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
         self.archiving_inactive_image = False
 
@@ -1190,11 +1352,11 @@ class SystemMgrNode():
         status = False
         if self.rootfs_ab_scheme == 'nepi':
             self.system_defs_msg.first_stage_rootfs_device = self.get_device_friendly_name(self.first_stage_rootfs_device)
-            (status, err_msg, rootfs_ab_settings_dict) = sw_update_utils.getRootfsABStatus(
+            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatus(
                 self.first_stage_rootfs_device)
         elif self.rootfs_ab_scheme == 'jetson':
             self.system_defs_msg.first_stage_rootfs_device = 'N/A'
-            (status, err_msg, rootfs_ab_settings_dict) = sw_update_utils.getRootfsABStatusJetson()
+            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatusJetson()
         else:
             self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
@@ -1202,14 +1364,14 @@ class SystemMgrNode():
             self.system_defs_msg.active_rootfs_device = self.get_device_friendly_name(rootfs_ab_settings_dict[
                 'active_part_device'])
 
-            self.system_defs_msg.active_rootfs_size_mb = sw_update_utils.getPartitionByteCount(rootfs_ab_settings_dict[
+            self.system_defs_msg.active_rootfs_size_mb = nepi_image.getPartitionByteCount(rootfs_ab_settings_dict[
                 'active_part_device']) / BYTES_PER_MEGABYTE
             
             self.inactive_rootfs_device = rootfs_ab_settings_dict[
                 'inactive_part_device']
             self.system_defs_msg.inactive_rootfs_device = self.get_device_friendly_name(self.inactive_rootfs_device)
 
-            self.system_defs_msg.inactive_rootfs_size_mb = sw_update_utils.getPartitionByteCount(self.inactive_rootfs_device) / BYTES_PER_MEGABYTE
+            self.system_defs_msg.inactive_rootfs_size_mb = nepi_image.getPartitionByteCount(self.inactive_rootfs_device) / BYTES_PER_MEGABYTE
             
             self.system_defs_msg.inactive_rootfs_fw_version = rootfs_ab_settings_dict[
                 'inactive_part_fw_version']

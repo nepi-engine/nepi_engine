@@ -26,8 +26,8 @@ logger = Logger(log_name = log_name)
 
 #***************************
 # NEPI Apps utility functions
-APPS_SHARE_PATH = '/opt/nepi/ros/share/nepi_apps'
-NEPI_PKG_FOLDER = '/opt/nepi/ros/lib/'
+APPS_SHARE_PATH = '/opt/nepi/nepi_engine/share/nepi_apps'
+NEPI_PKG_FOLDER = '/opt/nepi/nepi_engine/lib/'
 
 def getAppsDict(search_path):
     apps_dict = dict()
@@ -94,14 +94,15 @@ def printDict(apps_dict):
 
 
 def refreshAppsDict(apps_path,apps_dict):
-  success = True
-  if apps_path[-1] == "/":
-      apps_path = apps_path[:-1]
-  get_apps_dict = getAppsDict(apps_path)
-  for app_name in get_apps_dict.keys():
-    if app_name in apps_dict.keys():
-      get_apps_dict[app_name]['order'] = apps_dict[app_name]['order']
-      get_apps_dict[app_name]['active'] = apps_dict[app_name]['active']
+  get_apps_dict = apps_dict
+  if len(apps_path) > 0:
+    if apps_path[-1] == "/":
+        apps_path = apps_path[:-1]
+    get_apps_dict = getAppsDict(apps_path)
+    for app_name in get_apps_dict.keys():
+      if app_name in apps_dict.keys():
+        get_apps_dict[app_name]['order'] = apps_dict[app_name]['order']
+        get_apps_dict[app_name]['active'] = apps_dict[app_name]['active']
   return get_apps_dict
 
 def initAppsActiveOrder(active_list,apps_dict):
@@ -197,7 +198,7 @@ def getAppsOrderedList(apps_dict):
     app_dict = apps_dict[app_name]
     order = app_dict['order']
     if order == -1:
-      order = 100000
+      order = 3.50
     while(order in order_list):
       order += 0.1
     order_list.append(order)

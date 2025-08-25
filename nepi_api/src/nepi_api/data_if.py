@@ -19,6 +19,7 @@ import open3d as o3d
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_pc
@@ -31,11 +32,11 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 
 
-from nepi_interfaces.msg import NavPose, DataNavPose, DataNavPoseStatus
-from nepi_interfaces.msg import DataImage, DataImageStatus
-from nepi_interfaces.msg import DataDepthMap, DataDepthMapStatus
-from nepi_interfaces.msg import DataIntensityMap, DataIntensityMapStatus
-from nepi_interfaces.msg import DataPointcloud, DataPointcloudStatus
+from nepi_interfaces.msg import NavPose, NavPoseStatus
+from nepi_interfaces.msg import ImageStatus
+from nepi_interfaces.msg import DepthMapStatus
+from nepi_interfaces.msg import IntensityMapStatus
+from nepi_interfaces.msg import PointcloudStatus
 
 from nepi_interfaces.msg import NavPoseTrack
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -54,7 +55,6 @@ from sensor_msgs.msg import PointCloud2
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 
@@ -62,8 +62,6 @@ from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
 
 API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
-AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
 
 SYSTEM_DATA_FOLDER = 'mnt/nepi_storage/data'
 
@@ -120,6 +118,7 @@ class ReadWriteIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -315,7 +314,7 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_utils.nepi_utils.write_yaml_2_dict(file_path)(data, file_path)
+                    success = nepi_utils.write_dict_2_yaml(data, file_path)
         return success
 
 
@@ -501,14 +500,12 @@ class NavPoseIF:
     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
-    MIN_MAX_TRACK_LENGTH = [1,100]
-    MIN_MAX_TRACK_SEC = [1,3600]
     ready = False
     namespace = '~'
 
     node_if = None
 
-    status_msg = DataNavPoseStatus()
+    status_msg = NavPoseStatus()
 
     last_pub_time = None
 
@@ -521,14 +518,13 @@ class NavPoseIF:
     frame_altitude = 'WGS84'
     frame_depth = 'MSL'
 
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+
     caps_report = NavPoseCapabilitiesQueryResponse()
 
-    track_length = 1
-    track_sec = 60
-    track_sec_last = 0.0
-    track_msg_list = []
-
     data_product = 'navpose'
+
+
 
     def __init__(self, namespace = None,
                 data_source_description = 'navpose',
@@ -547,6 +543,7 @@ class NavPoseIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -580,9 +577,6 @@ class NavPoseIF:
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
 
-        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
-        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
-
 
 
         # Initialize status message
@@ -600,7 +594,7 @@ class NavPoseIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -609,7 +603,7 @@ class NavPoseIF:
         }
 
         # Services Config Dict ####################     
-        SRVS_DICT = {
+        self.SRVS_DICT = {
             'navpose_caps_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
@@ -621,37 +615,21 @@ class NavPoseIF:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'track_length': {
-                'namespace': self.namespace,
-                'factory_val': self.track_length
-            },
-            'track_sec': {
-                'namespace': self.namespace,
-                'factory_val': self.track_sec
-            }
-        }
+        self.PARAMS_DICT = None
 
 
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'navpose_pub': {
-                'msg': DataNavPose,
+            'data_pub': {
+                'msg': NavPose,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            'data_pub': {
-                'msg': NavPose,
-                'namespace': self.namespace,
-                'topic': 'data',
-                'qsize': 1,
-                'latch': False
-            },
             'status_pub': {
-                'msg': DataNavPoseStatus,
+                'msg': NavPoseStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
@@ -724,6 +702,486 @@ class NavPoseIF:
                 'qsize': 1,
                 'callback': self._resetCb, 
                 'callback_args': ()
+            }
+        }
+        # Create Node Class ####################
+        self.node_if = NodeClassIF(
+                        params_dict = self.PARAMS_DICT,
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                         msg_if = self.msg_if
+                                            )
+
+        success = nepi_sdk.wait()
+
+        ##############################
+        # Update vals from param server
+        self.init(do_updates = True)
+        self.publish_status()
+
+        ##############################
+        # Start Node Processes
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ###############################
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            timer = 0
+            time_start = nepi_utils.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_utils.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+        return self.ready  
+
+
+    def get_frame_nav_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_altitude_options(self):
+        return NAVPOSE_NAV_FRAME_OPTIONS
+
+    def get_frame_depth_options(self):
+        return NAVPOSE_DEPTH_FRAME_OPTIONS
+
+    def get_data_products(self):
+        return [self.data_product]
+
+    def get_blank_navpose_dict(self):
+        return nepi_nav.BLANK_NAVPOSE_DICT
+
+    def get_status_dict(self):
+        status_dict = None
+        if self.status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
+
+
+    def has_subscribers_check(self):
+        has_subs = copy.deepcopy(self.has_subs)
+        # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        return has_subs
+
+
+    # Update System Status
+    def publish_navpose(self,navpose_dict, 
+                        timestamp = None, 
+                        frame_3d_transform = None,
+                        device_mount_description = 'fixed'):      
+        np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if navpose_dict is None and self.status_msg is not None:
+            return np_dict
+        else:
+            # Initialize np_dict here so it's available in both branches
+            for key in np_dict.keys():
+                if key in navpose_dict.keys():
+                    np_dict[key] = navpose_dict[key]
+            
+            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+
+            current_time = nepi_utils.get_time()
+            get_latency = (current_time - timestamp)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
+
+
+            # Transform navpose data frames to nepi standard frames
+            if np_dict['frame_nav'] != 'ENU':
+                if np_dict['frame_nav'] == 'NED':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+            if np_dict['frame_altitude'] != 'WGS84':
+                if np_dict['frame_altitude'] == 'AMSL':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+            if np_dict['frame_depth'] != 'MSL':
+                if np_dict['frame_depth'] == 'DEPTH':
+                    pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+            # Publish nav pose subs
+            if self.pub_location == True:
+                pub_name = 'location_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_location']
+                msg.latitude = np_dict['latitude']
+                msg.longitude = np_dict['longitude']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_heading == True:
+                pub_name = 'heading_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_heading']
+                msg.heading_deg = np_dict['heading_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_orientation == True:
+                pub_name = 'orientation_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_orientation']
+                msg.roll_deg = np_dict['roll_deg']
+                msg.pitch_deg = np_dict['pitch_deg']
+                msg.yaw_deg = np_dict['yaw_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_position == True:
+                pub_name = 'position_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_position']
+                msg.x_m = np_dict['x_m']
+                msg.y_m = np_dict['y_m']
+                msg.z_m = np_dict['z_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_altitude == True:
+                pub_name = 'altitude_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_altitude']
+                msg.altitude_m = np_dict['altitude_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            if self.pub_depth == True:
+                pub_name = 'depth_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.depth_m = np_dict['depth_m']
+                self.node_if.publish_pub(pub_name,msg)
+
+            # Transform navpose in ENU and WSG84 frames
+            if frame_3d_transform is not None:
+                np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
+                        
+           # Transform navpose data frames to system set frames
+            frame_nav = self.navpose_frames_dict['frame_nav']
+            frame_alt = self.navpose_frames_dict['frame_alt']
+            frame_depth = self.navpose_frames_dict['frame_depth']
+            
+            if np_dict['frame_nav'] != frame_nav:
+                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                    nepi_nav.convert_navpose_enu2ned(np_dict)
+            if np_dict['frame_altitude'] != frame_alt:
+                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
+            #if np_dict['frame_depth'] != 'MSL':
+            #    if np_dict['frame_depth'] == 'DEPTH':
+            #        pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+
+
+            try:
+                data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                success = False
+
+
+
+
+            if data_msg is not None:
+                try:
+                    self.node_if.publish_pub('data_pub', data_msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    success = False
+
+            current_time = nepi_utils.get_time()
+            pub_latency = (current_time - timestamp)
+            process_time = (current_time - start_time)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Update Pub Stats
+            if self.last_pub_time is None:
+                pub_time_sec = 1.0
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+
+            self.status_msg.frame_3d = navpose_dict['frame_3d']
+            self.status_msg.publishing = True
+
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
+
+        return np_dict
+
+
+    def unsubsribe(self):
+        self.ready = False
+        if self.node_if is not None:
+            self.node_if.unregister_class()
+        time.sleep(1)
+        self.namespace = None
+        self.status_msg = NavPoseStatus()
+
+
+    def publish_status(self):
+        if self.node_if is not None and self.status_msg is not None:
+            avg_rate = 0
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+            self.status_msg.avg_pub_rate = avg_rate
+           
+            self.node_if.publish_pub('status_pub', self.status_msg)
+
+
+
+    def init(self, do_updates = False):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.publish_status()
+
+    def reset(self):
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    def factory_reset(self):
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    ###############################
+    # Class Private Methods
+    ###############################
+    def _initCb(self, do_updates = False):
+        self.init(do_updates = do_updates)
+
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+
+    def _subscribersCheckCb(self,timer):
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        if has_subs == False and self.status_msg is not None:
+            self.status_msg.publishing = False
+        self.has_subs = has_subs
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+    def _navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
+
+
+    def _publishStatusCb(self,timer):
+        self.publish_status()
+
+    def _provide_capabilities(self, _):
+        return self.caps_report
+
+
+
+class NavPoseTrackIF:
+
+    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+
+    MIN_MAX_TRACK_LENGTH = [1,100]
+    MIN_MAX_TRACK_SEC = [1,3600]
+    ready = False
+    namespace = '~'
+
+    node_if = None
+
+    status_msg = NavPoseStatus()
+
+    last_pub_time = None
+
+    has_subs = False
+
+    time_list = [0,0,0,0,0,0,0,0,0,0]
+
+    frame_3d = 'sensor_frame'
+    frame_nav = 'ENU'
+    frame_altitude = 'WGS84'
+    frame_depth = 'MSL'
+
+    caps_report = NavPoseCapabilitiesQueryResponse()
+
+    track_length = 1
+    track_sec = 60
+    track_sec_last = 0.0
+    track_msg_list = []
+
+    data_product = 'navpose_track'
+
+    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+
+    def __init__(self, namespace = None,
+                data_source_description = 'navpose_track',
+                data_ref_description = 'sensor_center',
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+        ##############################    
+        # Initialize Class Variables
+        if namespace is not None:
+            self.namespace = namespace
+        namespace = nepi_sdk.create_namespace(namespace,'navpose')
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
+        # Create Capabilities Report
+
+        self.caps_report.has_location_pub = self.pub_location
+        self.caps_report.has_heading_pub = self.pub_heading
+        self.caps_report.has_position_pub = self.pub_position
+        self.caps_report.has_orientation_pub = self.pub_orientation
+        self.caps_report.has_depth_pub = self.pub_depth
+
+        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
+        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
+
+
+
+        # Initialize status message
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+        
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
+        ##############################   
+        ## Node Setup
+
+        # Configs Config Dict ####################
+        self.CONFIGS_DICT = {
+            'init_callback': self._initCb,
+            'reset_callback': self._resetCb,
+            'factory_reset_callback': self._factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
+
+        # Services Config Dict ####################     
+        self.SRVS_DICT = {
+            'navpose_caps_query': {
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
+                'srv': NavPoseCapabilitiesQuery,
+                'req': NavPoseCapabilitiesQueryRequest(),
+                'resp': NavPoseCapabilitiesQueryResponse(),
+                'callback': self._provide_capabilities
+            }
+        }
+
+        # Params Config Dict ####################
+        self.PARAMS_DICT = {
+            'track_length': {
+                'namespace': self.namespace,
+                'factory_val': self.track_length
+            },
+            'track_sec': {
+                'namespace': self.namespace,
+                'factory_val': self.track_sec
+            }
+        }
+
+
+
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            'data_pub': {
+                'msg': NavPoseTrack,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'status_pub': {
+                'msg': NavPoseStatus,
+                'namespace': self.namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+        # Subs Config Dict ####################
+        self.SUBS_DICT = {
+            'reset': {
+                'namespace': self.namespace,
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetCb, 
+                'callback_args': ()
             },
             'set_track_length': {
                 'msg': Int32,
@@ -754,20 +1212,20 @@ class NavPoseIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                         msg_if = self.msg_if
                                             )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.track_length = self.node_if.get_param('track_length')
-        self.track_sec = self.node_if.get_param('track_sec')
         ##############################
         # Update vals from param server
-        self.init()
+        self.init(do_updates = True)
+        self.publish_status()
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
         ##############################
@@ -825,17 +1283,17 @@ class NavPoseIF:
 
     def has_subscribers_check(self):
         has_subs = copy.deepcopy(self.has_subs)
-        self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         return has_subs
 
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, 
+    def publish_navpose_track(self,navpose_dict, 
                         timestamp = None, 
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
         np_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        if navpose_dict is None:
+        if navpose_dict is None and self.status_msg is not None:
             return np_dict
         else:
             # Initialize np_dict here so it's available in both branches
@@ -932,22 +1390,45 @@ class NavPoseIF:
                 msg.depth_m = np_dict['depth_m']
                 self.node_if.publish_pub(pub_name,msg)
 
+
+            # Transform navpose in ENU and WSG84 frames
             if frame_3d_transform is not None:
                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
                         
+            # Transform navpose data frames to system set frames
+            frame_nav = self.navpose_frames_dict['frame_nav']
+            frame_alt = self.navpose_frames_dict['frame_alt']
+            frame_depth = self.navpose_frames_dict['frame_depth']
+            
+            if np_dict['frame_nav'] != frame_nav:
+                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                    nepi_nav.convert_navpose_enu2ned(np_dict)
+            if np_dict['frame_altitude'] != frame_alt:
+                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
+            #if np_dict['frame_depth'] != 'MSL':
+            #    if np_dict['frame_depth'] == 'DEPTH':
+            #        pass # need to add conversions                 
+
+            self.status_msg.pub_frame_nav = np_dict['frame_nav']
+            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+
+
             try:
                 data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
-
             except Exception as e:
                 self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                 success = False
             if data_msg is not None:
-                msg = DataNavPose()
-                msg.status = self.status_msg
-                msg.data = data_msg
+                msg = NavPose()
                 try:
-                    self.node_if.publish_pub('navpose_pub', msg)
-                    self.node_if.publish_pub('data_pub', data_msg)
+                    self.node_if.publish_pub('data_pub', msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                     success = False
@@ -1043,7 +1524,7 @@ class NavPoseIF:
         self.track_sec_last = 0.0
 
     def publish_status(self):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
@@ -1056,50 +1537,51 @@ class NavPoseIF:
             self.status_msg.track_list = self.track_msg_list
             self.node_if.publish_pub('status_pub', self.status_msg)
 
-
-
-    def init(self):
+        
+    def init(self, do_updates = False):
         if self.node_if is not None:
             self.track_length = self.node_if.get_param('track_length')
             self.track_sec = self.node_if.get_param('track_sec')
-        
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-            self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+            pass
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
-            self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+            pass
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
+    def _navposeFramesCheckCb(self,timer):
+        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self._navposeFramesCheckCb, oneshot = True)
+
+        
 
     def _publishStatusCb(self,timer):
         self.publish_status()
@@ -1120,8 +1602,9 @@ class NavPoseIF:
         self.clear_tracks()
 
 
+
 ##################################################
-# ImageIF
+# BaseImageIF
 
 
 def get_image_data_product(data_product):
@@ -1136,6 +1619,7 @@ SUPPORTED_DATA_PRODUCTS = ['image','color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 ENCODING_OPTIONS = ["mono8",'rgb8','bgr8','32FC1','passthrough']
 
+PERSPECTIVE_OPTIONS = ['pov','top']
 
 EXAMPLE_CAPS_DICT = dict( 
         has_resolution = False,
@@ -1176,14 +1660,13 @@ EXAMPLE_CONTROLS_DICT = dict(
 
 
 
-class ImageIF:
+class BaseImageIF:
 
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
-
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -1225,18 +1708,19 @@ class ImageIF:
 
     node_if = None
 
-    status_msg = DataImageStatus()
+    status_msg = ImageStatus()
 
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
 
+    min_range_m = 0
+    max_range_m = 0
+
+    perspective = 'pov'
 
     blank_img = nepi_img.create_cv2_blank_img(last_width, last_height, color = (0, 0, 0) )
 
     last_pub_time = None
-
-    nav_mgr_if = None
-    nav_mgr_ready = False
 
     has_subs = False
 
@@ -1250,6 +1734,8 @@ class ImageIF:
 
     caps_report = ImageCapabilitiesQueryResponse()
 
+
+    overlay_size_ratio = 0.5
     overlays_dict = dict(
             overlay_img_name = False,
             overlay_date_time = False,
@@ -1259,14 +1745,12 @@ class ImageIF:
             add_overlay_list = []
     )
 
+
+    auto_adjust_controls = []
     enhance_dict = dict()
     has_enhance = False
     enhance_options = []
     sel_enhances = []
-
-    get_navpose_function = None
-    has_navpose = False
-    navpose_if = None
 
 
     data_source_description = 'imaging_sensor'
@@ -1274,12 +1758,22 @@ class ImageIF:
 
     data_product = 'image'
 
-    def __init__(self, namespace , 
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    get_navpose_function = None    
+    has_navpose = False
+
+    perspective = 'pov'
+
+    add_pubs_dict = dict()
+
+    pub_count = 0
+
+    def __init__(self, 
+                namespace , 
                 data_product_name,
                 data_source_description,
                 data_ref_description,
-                width_deg,
-                hieight_deg,
+                perspective,
                 caps_dict,
                 controls_dict, 
                 enhance_dict,
@@ -1287,6 +1781,7 @@ class ImageIF:
                 services_dict,
                 pubs_dict,
                 subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -1300,6 +1795,7 @@ class ImageIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -1324,6 +1820,8 @@ class ImageIF:
         self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
           
+        if perspective is not None:
+            self.perspective = perspective
 
         # Setup enhance dict
         if enhance_dict is not None:
@@ -1340,9 +1838,8 @@ class ImageIF:
                 if caps_dict.get(cap) != None:
                     self.caps_dict[cap] = caps_dict[cap]
 
-        self.get_navpose_function = get_navpose_function
-        if get_navpose_function is not None:
-            self.has_navpose = True
+
+
 
 
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
@@ -1403,17 +1900,17 @@ class ImageIF:
         self.status_msg.height_px = 0
         self.status_msg.width_deg = 0
         self.status_msg.height_deg = 0
+        self.status_msg.perspective = self.perspective
+        self.status_msg.auto_adjust_controls = self.auto_adjust_controls
         self.status_msg.get_latency_time = 0
         self.status_msg.pub_latency_time = 0
         self.status_msg.process_time = 0
 
         ####################
-        # Connect to navpose_mgr for data
-
-        ##############################
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
+        # Configure get navpose if needed
+        if get_navpose_function is not None:
+            self.get_navpose_function = get_navpose_function
+            self.has_navpose = True
 
 
 
@@ -1421,7 +1918,7 @@ class ImageIF:
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -1430,7 +1927,7 @@ class ImageIF:
         }
 
         # Params Config Dict ####################
-        PARAMS_DICT = {
+        self.PARAMS_DICT = {
 
             'resolution_ratio': {
                 'namespace': self.namespace,
@@ -1468,6 +1965,10 @@ class ImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.enhance_dict
             },
+            'overlay_size_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.overlay_size_ratio
+            },
             'overlay_img_name': {
                 'namespace': self.namespace,
                 'factory_val': False
@@ -1487,16 +1988,16 @@ class ImageIF:
             'add_overlay_list': {
                 'namespace': self.namespace,
                 'factory_val': []
-            },
+            }
         }
 
         if params_dict is not None:
-            self.PARAMS_DICT = params_dict | PARAMS_DICT
+            self.PARAMS_DICT = params_dict | self.PARAMS_DICT
         else:
-            self.PARAMS_DICT = PARAMS_DICT
+            self.PARAMS_DICT = self.PARAMS_DICT
 
         # Services Config Dict ####################     
-        SRVS_DICT = {
+        self.SRVS_DICT = {
             'image_caps_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
@@ -1508,44 +2009,44 @@ class ImageIF:
         }
 
         if services_dict is not None:
-            self.SRVS_DICT = services_dict | SRVS_DICT
+            self.SRVS_DICT = services_dict | self.SRVS_DICT
         else:
-            self.SRVS_DICT = SRVS_DICT
+            self.SRVS_DICT = self.SRVS_DICT
         
 
         # Pubs Config Dict ####################
-        PUBS_DICT = {
-            'image_pub': {
-                'msg': DataImage,
+        self.PUBS_DICT = {
+            'data_pub': {
+                'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            'data_pub': {
-                'msg': Image,
-                'namespace': self.namespace,
-                'topic': 'data',
-                'qsize': 1,
-                'latch': False
-            },
             'status_pub': {
-                'msg': DataImageStatus,
+                'msg': ImageStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
+
         }
 
-
         if pubs_dict is not None:
-            self.PUBS_DICT = pubs_dict | PUBS_DICT
+            self.PUBS_DICT = pubs_dict | self.PUBS_DICT
         else:
-            self.PUBS_DICT = PUBS_DICT        
+            self.PUBS_DICT = self.PUBS_DICT        
 
         # Subs Config Dict ####################
-        SUBS_DICT = {
+        self.SUBS_DICT = {
             'reset': {
                 'namespace': self.namespace,
                 'topic': 'reset',
@@ -1561,6 +2062,13 @@ class ImageIF:
                 'qsize': 1,
                 'callback': self._resetControlsCb, 
                 'callback_args': ()
+            },
+            'overlay_size_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_size_ratio',
+                'qsize': 1,
+                'callback': self._setOverlaySizeCb
             },
             'overlay_img_name': {
                 'msg': Bool,
@@ -1620,9 +2128,11 @@ class ImageIF:
                 'callback_args': ()
             }
         }
+
+
         # Create subs if required
         if caps_dict['has_resolution'] == True:
-            SUBS_DICT['set_resolution'] = {
+            self.SUBS_DICT['set_resolution'] = {
                 'namespace': self.namespace,
                 'topic': 'set_resolution_ratio',
                 'msg': Float32,
@@ -1632,7 +2142,7 @@ class ImageIF:
             }
 
         if caps_dict['has_auto_adjust'] == True:
-            SUBS_DICT['set_auto_adjust'] = {
+            self.SUBS_DICT['set_auto_adjust'] = {
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
@@ -1640,7 +2150,7 @@ class ImageIF:
                 'callback': self._setAutoAdjustCb, 
                 'callback_args': ()
             }
-            SUBS_DICT['set_auto_adjust_ratio'] = {
+            self.SUBS_DICT['set_auto_adjust_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_ratio',
                 'msg': Float32,
@@ -1649,7 +2159,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_brightness'] == True:
-            SUBS_DICT['set_brightness'] = {
+            self.SUBS_DICT['set_brightness'] = {
                 'namespace': self.namespace,
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
@@ -1658,7 +2168,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_contrast'] == True:
-            SUBS_DICT['set_contrast'] = {
+            self.SUBS_DICT['set_contrast'] = {
                 'namespace': self.namespace,
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
@@ -1667,7 +2177,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_threshold'] == True:
-            SUBS_DICT['set_thresholding'] = {
+            self.SUBS_DICT['set_thresholding'] = {
                 'namespace': self.namespace,
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
@@ -1676,7 +2186,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_range'] == True:
-            SUBS_DICT['set_range'] = {
+            self.SUBS_DICT['set_range'] = {
                 'namespace': self.namespace,
                 'topic': 'set_range_ratios',
                 'msg': RangeWindow,
@@ -1685,7 +2195,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_zoom'] == True:
-            SUBS_DICT['set_zoom'] = {
+            self.SUBS_DICT['set_zoom'] = {
                 'namespace': self.namespace,
                 'topic': 'set_zoom_ratio',
                 'msg': Float32,
@@ -1694,7 +2204,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_pan'] == True:
-            SUBS_DICT['set_pan_left_right'] = {
+            self.SUBS_DICT['set_pan_left_right'] = {
                 'namespace': self.namespace,
                 'topic': 'set_pan_left_right_ratio',
                 'msg': Float32,
@@ -1702,7 +2212,7 @@ class ImageIF:
                 'callback': self._setPanLrCb, 
                 'callback_args': ()
             }
-            SUBS_DICT['set_pan_up_down'] = {
+            self.SUBS_DICT['set_pan_up_down'] = {
                 'namespace': self.namespace,
                 'topic': 'set_pan_up_down_ratio',
                 'msg': Float32,
@@ -1712,7 +2222,7 @@ class ImageIF:
             }
 
         if caps_dict['has_window'] == True:
-            SUBS_DICT['set_window'] = {
+            self.SUBS_DICT['set_window'] = {
                 'namespace': self.namespace,
                 'topic': 'set_window_ratios',
                 'msg': ImageWindowRatios,
@@ -1721,7 +2231,7 @@ class ImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_rotate'] == True:
-            SUBS_DICT['set_rotate'] = {
+            self.SUBS_DICT['set_rotate'] = {
                 'namespace': self.namespace,
                 'topic': 'set_rotate_ratio',
                 'msg': Float32,
@@ -1731,7 +2241,7 @@ class ImageIF:
             }
 
         if caps_dict['has_tilt'] == True:
-            SUBS_DICT['set_tilt'] = {
+            self.SUBS_DICT['set_tilt'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': Float32,
@@ -1741,7 +2251,7 @@ class ImageIF:
             }
 
         if self.has_enhance == True:
-            SUBS_DICT['set_enhance_enable'] = {
+            self.SUBS_DICT['set_enhance_enable'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': UpdateState,
@@ -1749,7 +2259,7 @@ class ImageIF:
                 'callback': self._setEnhanceEnableCb, 
                 'callback_args': ()
             }
-            SUBS_DICT['set_enhance_ratio'] = {
+            self.SUBS_DICT['set_enhance_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': UpdateRatio,
@@ -1758,11 +2268,23 @@ class ImageIF:
                 'callback_args': ()
             }
 
+        if self.has_navpose == False:
+            ##############################
+            ## Connect NEPI System NavPose
+            self.SUBS_DICT['navpose_sub'] = {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
+                'qsize': 1,
+                'callback': self._navposeCb, 
+                'callback_args': ()
+            }
+
 
         if subs_dict is not None:
-            self.SUBS_DICT = subs_dict | SUBS_DICT
+            self.SUBS_DICT = subs_dict | self.SUBS_DICT
         else:
-            self.SUBS_DICT = SUBS_DICT     
+            self.SUBS_DICT = self.SUBS_DICT     
 
 
         # Create Node Class ####################
@@ -1776,30 +2298,12 @@ class ImageIF:
                         msg_if = self.msg_if
                         )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        # Setup navpose data IF if needed
-
-       # Setup navpose data IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
-           
-
-
-        self.publish_status(do_updates=True)
-
-        #############################
-        # Set variables to param values
-        self.init()
-    
-
+        ##############################
+        # Update vals from param server
+        self.init(do_updates = True)
+        self.publish_status()
 
         ##############################
         # Start Node Processes
@@ -1837,6 +2341,70 @@ class ImageIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def add_pub_namespace(self,namespace):
+        success = False
+        if namespace is None:
+            return success
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
+        if img_ns == self.namespace or namespace in self.add_pubs_dict.keys():
+            self.msg_if.pub_warn("Image pub namespace allready registered: " + str(namespace), log_name_list = self.log_name_list)
+            return success
+        else:
+            self.msg_if.pub_warn("Adding image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            img_pub_dict ={
+                    'msg': Image,
+                    'namespace': img_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            self.node_if.register_pub(img_ns,img_pub_dict)
+
+            status_ns = nepi_sdk.create_namespace(img_ns,'status')
+            status_pub_dict ={
+                    'msg': ImageStatus,
+                    'namespace': status_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            self.node_if.register_pub(status_ns,status_pub_dict)
+
+            nav_ns = nepi_sdk.create_namespace(img_ns,'navpose')
+            nav_pub_dict ={
+                    'msg': NavPose,
+                    'namespace': nav_ns,
+                    'topic': '',
+                    'qsize': 1,
+                    'latch': False
+                }
+            self.node_if.register_pub(nav_ns,nav_pub_dict)
+
+            nepi_sdk.sleep(1)
+            self.add_pubs_dict[namespace] = [img_ns,status_ns,nav_ns]
+            success = True
+        return success
+
+    def remove_pub_namespace(self,namespace):
+        success = False
+        if namespace is None:
+            return success
+        namespace = nepi_sdk.get_full_namespace(namespace)
+        img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
+        if img_ns == self.namespace:
+            self.msg_if.pub_warn("Can't remove base namespace: " + str(namespace), log_name_list = self.log_name_list)
+            return success
+        elif namespace in self.add_pubs_dict.keys():
+            self.msg_if.pub_warn("Removing image pub namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+            del self.add_pubs_dict[namespace]
+            nepi_sdk.sleep(1)
+            self.node_if.unregister_pub(img_ns)
+            self.node_if.unregister_pub(status_ns)
+            self.node_if.unregister_pub(nav_ns)
+            success = True
+        return success
 
     def get_data_source_description(self):
         return self.data_source_description
@@ -1858,130 +2426,186 @@ class ImageIF:
         navpose_dict = None
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
-        elif self.nav_mgr_ready == True:
-            navpose_dict = self.nav_mgr_if.get_navpose_dict()
         else:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            navpose_dict = self.navpose_dict
         return navpose_dict
 
+    def process_cv2_img(self, cv2_img):
+        return cv2_img
 
-
-    def publish_cv2_img(self,cv2_img, 
+    def publish_cv2_img(self, cv2_img, 
                         encoding = "bgr8", 
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = DEFAULT_IMG_WIDTH_DEG,
-                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
+                        width_deg = 100,
+                        height_deg = 70,
+                        min_range_m = None,
+                        max_range_m = None,
                         add_overlay_list = [],
-                        do_subscriber_check = True,
-                        device_mount_description = 'fixed'
+                        device_mount_description = 'fixed',
+                        navpose_dict = None,
+                        process_data = True,
+                        pub_twice = False,
+                        add_pubs = []
                         ):
-        self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
-        if cv2_img is None:
+        if cv2_img is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return cv2_img
 
         # Process 
+        try: # Catch for lost camera in middle of send
+            self.device_mount_description = device_mount_description
+            self.status_msg.device_mount_description = self.device_mount_description
+            
+            self.status_msg.frame_3d = frame_3d
 
-        self.data_ref_description = data_ref_description
-        self.data_description = get_data_description(self.data_source_description,data_ref_description)
-        self.status_msg.data_description = self.data_description
-
-        self.status_msg.encoding = encoding
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        else:
-            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-
-
-        current_time = nepi_utils.get_time()
-        latency = (current_time - timestamp)
-        self.status_msg.get_latency_time = latency
-        self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        # Start Img Pub Process
-        start_time = nepi_utils.get_time()   
- 
-        [height,width] = cv2_img.shape[0:2]
-        last_width = self.status_msg.width_px
-        last_height = self.status_msg.height_px
-        self.status_msg.width_px = width
-        self.status_msg.height_px = height
-        res_str = str(width) + ":" + str(height)
-        self.status_msg.resolution_current = res_str
-
-        self.status_msg.width_deg = width_deg
-        self.status_msg.height_deg = height_deg
-
-        self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        cv2_img = self._process_image(cv2_img)
-
-        navpose_dict = self.get_navpose_dict()
+            self.status_msg.encoding = encoding
+            #self.msg_if.pub_warn("Got timestamp: " + str(timestamp), log_name_list = self.log_name_list)
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+            #self.msg_if.pub_warn("Using timestamp: " + str(timestamp), log_name_list = self.log_name_list)
 
 
-        # Apply Overlays
-        overlay_list = []
-        if self.status_msg.overlay_img_name == True:
-            overlay = nepi_img.getImgShortName(self.img_namespace)
-            overlay_list.append(overlay)
-        
-        if self.status_msg.overlay_date_time == True:
-            date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-            overlay_list.append(overlay)
+            current_time = nepi_utils.get_time()
+            latency = (current_time - timestamp)
+            self.status_msg.get_latency_time = latency
+            #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
 
 
-        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+
+            self.status_msg.width_deg = width_deg
+            self.status_msg.height_deg = height_deg
+
+            if (min_range_m is not None and max_range_m is not None):
+                self._updateRangesM(min_range_m,max_range_m)
+                self.status_msg.min_range_m = self.min_range_m
+                self.status_msg.max_range_m = self.max_range_m
+            else:
+                self.status_msg.min_range_m = 0
+                self.status_msg.max_range_m = 1
+
+            [height,width] = cv2_img.shape[0:2]
+            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
+
+            if process_data == True:
+                cv2_img = self.process_cv2_img(cv2_img)
+            
+
+            [height,width] = cv2_img.shape[0:2]
+            last_width = self.status_msg.width_px
+            last_height = self.status_msg.height_px
+            self.status_msg.width_px = width
+            self.status_msg.height_px = height
+            res_str = str(width) + ":" + str(height)
+            self.status_msg.resolution_current = res_str
+
+            if navpose_dict is None:
+                navpose_dict = self.get_navpose_dict()
+
+            
+            # Apply Overlays
+            overlay_list = []
+            if self.status_msg.overlay_img_name == True:
+                overlay = nepi_img.getImgShortName(self.namespace)
+                overlay_list.append(overlay)
+            
+            if self.status_msg.overlay_date_time == True:
+                overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                overlay = overlay.replace('D','')
+                overlay = overlay.replace('T',' T: ')
+                overlay_list.append(overlay)
+
+            
+            if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
                 if navpose_dict is not None:
                     if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + 'Long: ' +  str(round(navpose_dict['longitude'],6)) + 'Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
                         overlay_list.append(overlay)
 
                     if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + 'Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + 'Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
                         overlay_list.append(overlay)
 
-        overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+            overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
-        cv2_img = nepi_img.overlay_text_list(cv2_img, text_list = overlay_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), apply_shadow = True)
+            if len(overlay_list) > 0:
+                start_y = (height * 0.01)
+                cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                        text_list = overlay_list, 
+                                        x_px = 10 , y_px = start_y, 
+                                        color_rgb = (0, 255, 0), 
+                                        apply_shadow = True, 
+                                        size_ratio = self.overlay_size_ratio )
+
+            
+            if self.node_if is not None and self.has_subs == True:
+                #self.msg_if.pub_warn("Publishing once")
+                #Convert to ros Image message
+                ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+                sec = nepi_sdk.sec_from_timestamp(timestamp)
+                header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                #self.msg_if.pub_warn("Publishing image with header: " + str(header))
+                ros_img.header = header
+                self.node_if.publish_pub('data_pub', ros_img)
+                for namespace in add_pubs:
+                    if namespace in self.add_pubs_dict.keys():
+                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                        #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        self.node_if.publish_pub(img_ns, ros_img)
+                if pub_twice == True:
+                    #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
+                    nepi_sdk.sleep(0.01)
+                    self.node_if.publish_pub('data_pub', ros_img)
+                    for namespace in add_pubs:
+                        if namespace in self.add_pubs_dict.keys():
+                            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                            self.node_if.publish_pub(img_ns, ros_img)
 
 
-        #Convert to ros Image message
-        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-        sec = nepi_sdk.sec_from_timestamp(timestamp)
-        ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-        self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-        msg = DataImage()
-        msg.status = self.status_msg
-        msg.data = ros_img
-        self.node_if.publish_pub('image_pub', msg)
-        self.node_if.publish_pub('data_pub', ros_img)
 
-        if navpose_dict is not None and self.navpose_if is not None:
-            self.navpose_if.publish_navpose(navpose_dict, timestamp = timestamp)
-        
-        # Update stats
-        process_time = round( (nepi_utils.get_time() - start_time) , 3)
-        self.status_msg.process_time = process_time
-        latency = (current_time - timestamp)
-        self.status_msg.pub_latency_time = latency
-        
+            
+            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+            if navpose_msg is not None:
+                self.node_if.publish_pub('navpose_pub', navpose_msg)
+                for namespace in add_pubs:
+                    if namespace in self.add_pubs_dict.keys():
+                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                        self.node_if.publish_pub(nav_ns, navpose_msg)
+            
+            # Update stats
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time - timestamp)
+            self.status_msg.pub_latency_time = latency
+            
 
-        if self.last_pub_time is None:
-            self.last_pub_time = nepi_utils.get_time()
-        else:
-            cur_time = nepi_utils.get_time()
-            pub_time_sec = cur_time - self.last_pub_time
-            self.last_pub_time = cur_time
-            self.status_msg.last_pub_sec = pub_time_sec
+            if self.last_pub_time is None:
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+                self.status_msg.last_pub_sec = pub_time_sec
 
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
 
-        # Update blank image if needed
-        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+            # Update blank image if needed
+            if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
+                self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+            for namespace in add_pubs:
+                if namespace in self.add_pubs_dict.keys():
+                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                    self.node_if.publish_pub(status_ns, self.status_msg)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
         return cv2_img
 
     def publish_msg_img(self, msg_text, timestamp = None, frame_3d = 'nepi_base'):
@@ -1994,11 +2618,8 @@ class ImageIF:
         ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
         sec = nepi_sdk.sec_from_timestamp(timestamp)
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-        msg = DataImage()
-        msg.status = self.status_msg
-        msg.data = ros_img
-        self.node_if.publish_pub('image_pub', msg)
-        self.node_if.publish_pub('data_pub', ros_img)
+        if self.node_if is not None:
+            self.node_if.publish_pub('data_pub', ros_img)
 
 
     def unregister(self):
@@ -2014,11 +2635,11 @@ class ImageIF:
             ratio = 0.2
         if (ratio > 1.0):
             ratio = 1.0
-        self.msg_if.pub_error("Resolution value out of bounds, using: " + str(ratio), log_name_list = self.log_name_list)
         self.controls_dict['resolution_ratio'] = ratio
         self.status_msg.resolution_ratio = ratio
-        self.publishStatus(do_updates=False) # Updated inline here
-        self.node_if.set_param('resolution_ratio', ratio)
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.node_if is not None:
+            self.node_if.set_param('resolution_ratio', ratio)
 
 
     def set_auto_adjust_enable(self, enabled):
@@ -2029,7 +2650,8 @@ class ImageIF:
         self.controls_dict['auto_adjust_enabled'] = enabled
         self.status_msg.auto_adjust_enabled = enabled
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust_enabled', enabled)
+        if self.node_if is not None:
+            self.node_if.set_param('auto_adjust_enabled', enabled)
 
 
     def set_auto_adjust_ratio(self, ratio):
@@ -2040,17 +2662,19 @@ class ImageIF:
         self.controls_dict['auto_adjust_ratio'] = ratio
         self.status_msg.auto_adjust_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('auto_adjust_ratio', ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('auto_adjust_ratio', ratio)
 
     def set_brightness_ratio(self, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['brightness_ratio'] = enabled
+        self.controls_dict['brightness_ratio'] = ratio
         self.status_msg.brightness_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('brightness_ratio', ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('brightness_ratio', ratio)
 
 
     def set_contrast_ratio(self, ratio):
@@ -2058,10 +2682,11 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['contrast_ratio'] = enabled
+        self.controls_dict['contrast_ratio'] = ratio
         self.status_msg.contrast_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('contrast_ratio', ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('contrast_ratio', ratio)
         
 
 
@@ -2070,10 +2695,11 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['threshold_ratio'] = enabled
+        self.controls_dict['threshold_ratio'] = ratio
         self.status_msg.threshold_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('threshold_ratio', ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('threshold_ratio', ratio)
 
     def set_range_ratios(self, start_ratio, stop_ratio):
         if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
@@ -2086,10 +2712,10 @@ class ImageIF:
         self.controls_dict['stop_range_ratio'] = stop_ratio
         self.status_msg.range_ratios.stop_range = stop_ratio
 
-        self.publishStatus(do_updates=False) # Updated inline here 
-
-        self.node_if.set_param('start_range_ratio', start_ratio)
-        self.node_if.set_param('stop_range_ratio', stop_ratio)
+        self.publish_status(do_updates=False) # Updated inline here 
+        if self.node_if is not None:
+            self.node_if.set_param('start_range_ratio', start_ratio)
+            self.node_if.set_param('stop_range_ratio', stop_ratio)
       
 
     def set_zoom_ratio(self, ratio):
@@ -2097,7 +2723,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['zoom_ratio'] = enabled
+        self.controls_dict['zoom_ratio'] = ratio
         self.status_msg.zoom_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2107,7 +2733,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['pan_left_right_ratio'] = enabled
+        self.controls_dict['pan_left_right_ratio'] = ratio
         self.status_msg.pan_left_right_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2117,7 +2743,7 @@ class ImageIF:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['pan_up_down_ratio'] = enabled
+        self.controls_dict['pan_up_down_ratio'] = ratio
         self.status_msg.pan_up_down_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2125,14 +2751,14 @@ class ImageIF:
         if x_min >= 0 and x_max <= 1.0 and x_max > x_min \
             and y_min >= 0 and y_max <= 1.0 and y_max > y_min:
             self.controls_dict['window'] = [x_min,x_max,y_min,y_max]
-            self.publishStatus(do_updates=False) # Updated inline here  
+            self.publish_status(do_updates=False) # Updated inline here  
 
     def set_rotate_ratio(self, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['rotate_ratio'] = enabled
+        self.controls_dict['rotate_ratio'] = ratio
         self.status_msg.rotate_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
@@ -2156,7 +2782,8 @@ class ImageIF:
                     self.msg_if.pub_info("Disabling Enhancment: " + name, log_name_list = self.log_name_list)
                 self.enhance_dict[name]['enabled'] = enabled
                 self.publish_status(do_updates=False) # Updated inline here
-                self.node_if.set_param('enhance_dict', self.enhance_dict)
+                if self.node_if is not None:
+                    self.node_if.set_param('enhance_dict', self.enhance_dict)
 
 
     def set_enhance_ratio(self, ratio):
@@ -2170,6 +2797,15 @@ class ImageIF:
             self.publish_status(do_updates=False) # Updated inline here
             self.node_if.set_param('enhance_dict', self.enhance_dict)
 
+
+    def set_overlay_size_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.overlay_size_ratio = ratio
+        self.status_msg.overlay_size_ratio = ratio
+        self.publish_status(do_updates=False) # Updated inline here
 
 
 
@@ -2252,6 +2888,7 @@ class ImageIF:
         self.publish_status(do_updates=False)
 
     def reset_overlays(self):
+        self.node_if.factory_reset_param('overlay_size_ratio')
         self.node_if.factory_reset_param('overlay_img_name')
         self.node_if.factory_reset_param('overlay_date_time')
         self.node_if.factory_reset_param('overlay_nav')
@@ -2268,7 +2905,7 @@ class ImageIF:
 
 
     def publish_status(self, do_updates = True):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
             self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
             self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
@@ -2299,6 +2936,7 @@ class ImageIF:
             self.status_msg.enhance_states = enhance_states
             self.status_msg.enhance_ratios = enhance_ratios
 
+            self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
             self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
             self.status_msg.overlay_nav = self.overlays_dict['overlay_nav']
@@ -2315,7 +2953,9 @@ class ImageIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-    def init(self):
+
+
+    def init(self, do_updates = False):
         if self.node_if is not None:
             self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
             self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
@@ -2329,57 +2969,63 @@ class ImageIF:
 
 
             self.enhance_dict = self.node_if.get_param('enhance_dict')
-
+            self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
             self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
             self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
             self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
             self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
             self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
-        
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-            self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+            pass
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
-            self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+            pass
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
-
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _provide_capabilities(self, _):
         return self.caps_report
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('image_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        for namespace in self.add_pubs_dict.keys():
+            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace] 
+            has_subs = has_subs or self.node_if.pub_has_subscribers(img_ns)
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
         self.publish_status()
 
-
+    def _updateRangesM(self, min_m, max_m):
+        if min_m < 0:
+            min_m = 0
+        if min_m < max_m:
+          self.min_range_m = min_m  
+          self.max_range_m = max_m  
+        else:
+          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _setResolutionRatioCb(self, msg):
         self.msg_if.pub_info("Recived Resolution update message: " + str(msg), log_name_list = self.log_name_list)
@@ -2391,7 +3037,7 @@ class ImageIF:
     def _setAutoAdjustCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust Enable update message: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
-        self.set_auto_adjust(enabled)
+        self.set_auto_adjust_enable(enabled)
 
     def _setAutoAdjustRatioCb(self, msg):
         self.msg_if.pub_info("Recived Auto Adjust Ratio update message: " + str(msg), log_name_list = self.log_name_list)
@@ -2470,7 +3116,9 @@ class ImageIF:
         self.set_enhance_ratio(name,ratio) 
 
 
-
+    def _setOverlaySizeCb(self,msg):
+        ratio = msg.data
+        self.set_overlay_size_ratio(ratio)
 
 
     def _setOverlayImgNameCb(self,msg):
@@ -2515,39 +3163,21 @@ class ImageIF:
     def _resetEnhancessCb(self,msg):
         self.reset_enhances()
 
-    def _process_image(self, cv2_img):
-        return cv2_img
-        '''
-        # Apply Controls
-        enabled = self.status_msg.controls_enabled
-        auto = self.status_msg.auto_adjust_enabled
-        brightness = self.status_msg.contrast_ratio
-        contrast = self.status_msg.brightness_ratio
-        threshold = self.status_msg.threshold_ratio
-        if enabled == True: 
-            #if res_ratio < 0.9:
-            #    [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-            if auto is False:
-                cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-                cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-                cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-            else:
-                cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-        return cv2_img
-        '''
+    def _navposeCb(self,msg):
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
 ##################################################
-# ColorImageIF
+# ImageIF
 
-class ColorImageIF(ImageIF):
+class ImageIF(BaseImageIF):
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
-        has_resolution = True,
-        has_auto_adjust = True,
-        has_contrast = True,
-        has_brightness = True,
-        has_threshold = True,
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_threshold = False,
         has_range = False,
         has_zoom = False,
         has_pan = False,
@@ -2581,32 +3211,46 @@ class ColorImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
-    data_product = 'color_image'
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
+    data_product = 'image'
+
+
+    auto_adjust_controls = []
 
 
     
     def __init__(self, namespace = None , 
-                data_source_description = 'imaging_sensor',
-                data_ref_description = 'sensor',
+                data_product_name = 'image',
+                data_source_description = 'image',
+                data_ref_description = 'image',
+                perspective = 'pov',
                 init_overlay_list = [],
                 get_navpose_function = None,
+                pub_navpose = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
                 ):
 
+        self.data_product = data_product_name
         # Call the parent class constructor
         super().__init__(namespace , 
-                self.data_product_name,
+                self.data_product,
                 data_source_description,
                 data_ref_description,
+                perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
-                None,
-                None,
-                None,
-                None,
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
+                pub_navpose,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -2624,43 +3268,19 @@ class ColorImageIF(ImageIF):
     ###############################
 
 
+    def process_cv2_img(self, cv2_img):
+        return cv2_img
+
+
     ###############################
     # Class Private Methods
     ###############################
 
-    def _process_image(self, cv2_img):
-        # Apply Resolution Controls
-        res_ratio = self.controls_dict['resolution_ratio']
-        if res_ratio < 0.9:
-            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
-
-        # Apply Low Light Enhancment
-        if self.enhance_dict['low_light']['enabled'] == True:
-            ratio = self.enhance_dict['low_light']['ratio']
-            if ratio > 0.05:
-                pass
-                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
-
-        # Apply Adjustment Controls
-        auto = self.controls_dict['auto_adjust_enabled']
-        auto_ratio = self.controls_dict['auto_adjust_ratio']
-        brightness = self.controls_dict['contrast_ratio']
-        contrast = self.controls_dict['brightness_ratio']
-        threshold = self.controls_dict['threshold_ratio']
-
-        if auto is False:
-            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-        else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
-        return cv2_img
-
 
 ##################################################
-# DepthMapImageIF
+# ColorImageIF
 
-class DepthMapImageIF(ImageIF):
+class ColorImageIF(BaseImageIF):
 
     #Default Control Values 
     DEFAULT_CAPS_DICT = dict( 
@@ -2702,31 +3322,48 @@ class DepthMapImageIF(ImageIF):
         tilt_ratio = 0.5
         )
 
-    data_product = 'depth_map'
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
 
+    data_product = 'color_image'
+
+
+    auto_adjust_controls = ['brightness','contrast','threshold']
+
+
+    
     def __init__(self, namespace = None , 
-                data_source_description = 'depth_map_sensor',
+                data_product_name = 'color_image',
+                data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
+                perspective = 'pov',
                 init_overlay_list = [],
+                get_navpose_function = None,
+                pub_navpose = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
-                ):     
+                ):
 
-        # Call the parent class constructor
+        self.data_product = data_product_name
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
                 data_source_description,
                 data_ref_description,
+                perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
                 self.DEFAULT_ENHANCEMENTS_DICT, 
-                None,
-                None,
-                None,
-                None,
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
+                pub_navpose,
                 init_overlay_list,
+                get_navpose_function,
                 log_name,
                 log_name_list,
                 msg_if
@@ -2737,21 +3374,12 @@ class DepthMapImageIF(ImageIF):
         self.class_name = type(self).__name__
         ###############################
 
-
-
-
-
-
     ###############################
     # Class Public Methods
     ###############################
 
 
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    def _process_image(self, cv2_img):
+    def process_cv2_img(self, cv2_img):
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         if res_ratio < 0.9:
@@ -2781,6 +3409,12 @@ class DepthMapImageIF(ImageIF):
 
 
 
+    ###############################
+    # Class Private Methods
+    ###############################
+
+
+
 
 ##################################################
 # DepthMapIF
@@ -2790,15 +3424,15 @@ class DepthMapIF:
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     ready = False
     namespace = '~'
 
     node_if = None
 
-    status_msg = DataDepthMapStatus()
+    status_msg = DepthMapStatus()
 
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
@@ -2807,19 +3441,14 @@ class DepthMapIF:
 
     last_pub_time = None
 
-    nav_mgr_if = None
-    nav_mgr_ready = False
-
     has_subs = False
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    img_pub_file = 'nepi_depth_map_img_pub_node.py'
+    #img_pub_file = 'nepi_depth_map_img_pub_node.py'
 
     min_range_m = 0.0
-    max_range_m = 20.0
-
-
+    max_range_m = 1.0
 
     data_source_description = 'depth_map_sensor'
     data_ref_description = 'sensor'
@@ -2827,11 +3456,21 @@ class DepthMapIF:
     data_product = 'depth_map'
     data_products_list = [data_product]
 
+    image_if = None
+    navpose_if = None
+
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    get_navpose_function = None    
+    has_navpose = False
+
     def __init__(self, namespace = None,
+                data_product_name = 'depth_map',
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
-                enable_data_pub = True,
-                max_data_pub_rate = 5,
+                perspective = 'POV',
+                pub_image = True,
+                get_navpose_function = None,
+                pub_navpose = False,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -2844,6 +3483,7 @@ class DepthMapIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -2857,8 +3497,14 @@ class DepthMapIF:
 
         ##############################    
         # Initialize Class Variables
+        self.data_product = data_product_name
 
-        self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
+        self.perspective = perspective
+        self.pub_image = pub_image
+        self.pub_navpose = pub_navpose
+        if get_navpose_function is not None and pub_navpose == True:
+            self.get_navpose_function = get_navpose_function
+            self.has_navpose = True
 
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
@@ -2873,52 +3519,6 @@ class DepthMapIF:
                 default_max_meters = 20.0,
         self._updateRangesM(default_min_meters,default_max_meters)
         '''
-
-        ###############################
-        if enable_data_pub == True:
-            ## Get folder info
-            #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-            #success = self.mgr_sys_srv_if.wait_for_services()
-            #if success == False:
-            #    nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
-
-            #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-            self.msg_if.pub_debug("Using User Config Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
-
-            self.api_lib_folder = API_LIB_FOLDER
-            self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
-
-            # Launch detection img pub node that handles detection image publishing
-            pkg_name = 'nepi_api'
-            node_file_folder = self.api_lib_folder
-            img_pub_file = self.img_pub_file
-            img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
-        
-            if os.path.exists(img_pub_file_path) == False or enable_data_pub == False:
-                self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
-            else: 
-                #Try and launch node
-                unique_name = nepi_sdk.get_unique_name_from_namespace(self.namespace,self.base_namespace)
-                img_pub_node_name = unique_name + "_depth_map_img_pub"
-                img_pub_namespace = self.node_namespace + "_depth_map_img_pub"
-                self.msg_if.pub_warn("Launching Depth Map Pub Node: " + img_pub_node_name, log_name_list = self.log_name_list)
-                self.msg_if.pub_warn("Launching Depth Map Pub on namespace: " + img_pub_namespace, log_name_list = self.log_name_list)
-
-                # Pre Set Img Pub Params
-                dm_data_product = os.path.basename(self.namespace)
-                img_data_product = dm_data_product + '_image'
-                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'data_product')
-                nepi_sdk.set_param(param_ns,img_data_product)
-
-                dm_namespace = self.namespace
-                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'dm_namespace')
-                nepi_sdk.set_param(param_ns,dm_namespace)
-                        
-
-                [success, msg, pub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, img_pub_node_name)
-
-                self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
-
 
         # Initialize Status Msg.  Updated on each publish
 
@@ -2941,16 +3541,15 @@ class DepthMapIF:
         self.status_msg.get_latency_time = 0
         self.status_msg.pub_latency_time = 0
         self.status_msg.process_time = 0
-        self.status_msg.data_pub_enabled = enable_data_pub
-        self.status_msg.max_data_pub_rate = max_data_pub_rate
-
+        self.status_msg.img_pub_enabled = pub_image
+    
 
 
         ##############################   
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -2959,66 +3558,49 @@ class DepthMapIF:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'max_img_pub_rate': {
-                'namespace': self.node_namespace,
-                'factory_val': max_data_pub_rate
-            },
-            'render_start_range_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': 0.0
-            },
-            'render_stop_range_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': 1.0
-            },
-
-        }
+        self.PARAMS_DICT = None
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'depth_map_pub': {
-                'msg': DataDepthMap,
+            'data_pub': {
+                'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            'data_pub': {
-                'msg': Image,
-                'namespace': self.namespace,
-                'topic': 'data',
-                'qsize': 1,
-                'latch': False
-            },
             'status_pub': {
-                'msg': DataDepthMapStatus,
+                'msg': DepthMapStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
         }
 
         # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'render_range_window': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_range_window',
-                'msg': RangeWindow,
+        self.SUBS_DICT = dict()
+
+
+        if self.has_navpose == False:
+            ##############################
+            ## Connect NEPI NavPose
+            self.SUBS_DICT['navpose_sub'] = {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
                 'qsize': 1,
-                'callback': self._setRenderRangeCb, 
-                'callback_args': ()
-            },
-            'reset_render_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'render_reset_controls',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetRenderControlsCb, 
+                'callback': self._navposeCb, 
                 'callback_args': ()
             }
-        }
+
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -3026,21 +3608,51 @@ class DepthMapIF:
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
                                             )
 
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.publish_status(do_updates=True)
-        
-        self.init()
+        self.init(do_updates = True)
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+
+        ###############################
+        #Setup Image Pub if needed
+        if pub_image == True:
+            img_data_product = get_image_data_product(self.data_product)
+            self.data_products_list = self.data_products_list + [img_data_product]
+            self.image_if = DepthMapImageIF(namespace = self.namespace, 
+                        data_product_name = img_data_product, 
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        perspective = self.perspective,
+                        get_navpose_function = self.get_navpose_dict,
+                        log_name = img_data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+
+
+        '''
+        ##################################
+        # Setup navpose data IF if needed
+        np_namespace = self.namespace
+        if pub_navpose is not None:
+            if pub_navpose == True:
+                self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            log_name = 'navpose',
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
+        '''
         ##############################
         # Complete Initialization
         self.ready = True
@@ -3087,18 +3699,30 @@ class DepthMapIF:
     def has_subscribers_check(self):
         return self.has_subs
 
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
 
-    def publish_cv2_depth_map(self,cv2_img, encoding = '32FC1',
+    def publish_cv2_depth_map(self, cv2_depth_map, 
+                            encoding = '32FC1',
+                            width_deg = 100,
+                            height_deg = 70,
                              min_range_m = None, 
                              max_range_m = None,
                              timestamp = None,
                              frame_3d = 'sensor_frame',
-                             width_deg = ImageIF.DEFAULT_IMG_WIDTH_DEG,
-                             height_deg = ImageIF.DEFUALT_IMG_HEIGHT_DEG,
-                             device_mount_description = 'fixed'):
+                             device_mount_description = 'fixed',
+                             pub_twice = False):
+
+                                                    
+
         self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
         success = False
-        if cv2_img is None:
+        if cv2_depth_map is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
             return False
 
@@ -3121,7 +3745,7 @@ class DepthMapIF:
         start_time = nepi_utils.get_time()   
 
         # Publish and Save Raw Image Data if Required  
-        [height,width] = cv2_img.shape[0:2]
+        [height,width] = cv2_depth_map.shape[0:2]
         last_width = self.status_msg.width_px
         last_height = self.status_msg.height_px
         self.status_msg.width_px = width
@@ -3132,51 +3756,59 @@ class DepthMapIF:
 
         if (min_range_m is not None and max_range_m is not None):
             self._updateRangesM(min_range_m,max_range_m)
-            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        if self.has_subs == False:
-            self.msg_if.pub_debug("Depthmap has no subscribers", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Depthmap has no subscribers", log_name_list = self.log_name_list)
-            self.status_msg.publishing = False
-
         else:
-            self.msg_if.pub_debug("Depthmap has subscribers, will publish", log_name_list = self.log_name_list, throttle_s = 5.0)
-            if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Depthmap has subscribers, will publish", log_name_list = self.log_name_list)
-            self.status_msg.publishing = True
+            self._updateRangesM(0,1)
 
+
+        self.status_msg.publishing = True
+
+        navpose_dict = self.get_navpose_dict()
+        if self.node_if is not None and self.has_subs == True:
             #Convert to ros Image message
-            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+            ros_img = nepi_img.cv2img_to_rosimg(cv2_depth_map, encoding=encoding)
             sec = nepi_sdk.sec_from_timestamp(timestamp)
             ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-            self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-            msg = DataDepthMap()
-            msg.status = self.status_msg
-            msg.data = ros_img
-            self.node_if.publish_pub('depth_map_pub', msg)
+            #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('data_pub', ros_img)
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-            
+            if pub_twice == True:
+                nepi_sdk.sleep(0.01)
+                self.node_if.publish_pub('data_pub', ros_img)
+        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+        self.status_msg.process_time = process_time
+        latency = (current_time - timestamp)
+        self.status_msg.pub_latency_time = latency
 
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
+        cv2_depth_map_img = None
+        if self.image_if is not None:
+            #self.msg_if.pub_warn("Publishing Image with width_deg: " + str(width_deg), log_name_list = self.log_name_list)
+            cv2_depth_map_img = self.image_if.publish_cv2_depth_map_img(cv2_depth_map,
+                                width_deg = width_deg,
+                                height_deg = height_deg,
+                                min_range_m = min_range_m, 
+                                max_range_m = max_range_m,
+                                timestamp = timestamp,
+                                frame_3d = frame_3d,
+                                device_mount_description = device_mount_description,
+                                navpose_dict = navpose_dict,
+                                pub_twice = pub_twice
+                            )
 
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
+        if self.last_pub_time is None:
+            self.last_pub_time = nepi_utils.get_time()
+        else:
+            cur_time = nepi_utils.get_time()
+            pub_time_sec = cur_time - self.last_pub_time
+            self.last_pub_time = cur_time
+            self.status_msg.last_pub_sec = pub_time_sec
 
-        # Update blank image if needed
-        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-        return True
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
+
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+
+        return cv2_depth_map, cv2_depth_map_img
 
     def unregister(self):
         self.ready = False
@@ -3188,16 +3820,8 @@ class DepthMapIF:
 
     def publish_status(self, do_updates = True):
         if self.node_if is not None:
-            if self.status_msg is None:
-                self.status_msg = DataDepthMapStatus()
             self.status_msg.min_range_m = self.min_range_m
             self.status_msg.max_range_m = self.max_range_m
-
-            if do_updates == True:
-                self.status_msg.max_data_pub_rate = self.node_if.get_param('max_img_pub_rate')
-                self.status_msg.range_ratios.start_range = self.node_if.get_param('start_range_ratio')
-                self.status_msg.range_ratios.stop_range = self.node_if.get_param('stop_range_ratio')
-
             avg_rate = 0
             avg_time = sum(self.time_list) / len(self.time_list)
             if avg_time > .01:
@@ -3206,43 +3830,45 @@ class DepthMapIF:
 
             self.node_if.publish_pub('status_pub',self.status_msg)
 
-    def init(self):
-        pass
-        
+
+
+    def init(self, do_updates = False):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-            self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+            pass
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
-            self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+            pass
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('depth_map_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        if self.image_if is not None:
+            has_subs = has_subs or self.image_if.has_subscribers_check() == True
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
@@ -3257,6 +3883,166 @@ class DepthMapIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
+    def _navposeCb(self,msg):
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
+
+
+
+
+
+##################################################
+# DepthMapImageIF
+
+class DepthMapImageIF(BaseImageIF):
+
+    #Default Control Values 
+    DEFAULT_CAPS_DICT = dict( 
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_threshold = False,
+        has_range = True,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate = False,
+        has_tilt = False
+        )
+
+    DEFAULT_ENHANCEMENTS_DICT = dict()
+
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust_enabled = False,
+        auto_adjust_ratio = 0.3,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
+        zoom_ratio = 0.5, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_ratio = 0.5,
+        tilt_ratio = 0.5
+        )
+
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
+    data_product = 'depth_map'
+
+    auto_adjust_controls = []
+
+    def __init__(self, namespace = None , 
+                data_product_name = 'depth_map_image',
+                data_source_description = 'depth_map_sensor',
+                data_ref_description = 'sensor',
+                perspective = 'pov',
+                init_overlay_list = [],
+                get_navpose_function = None,
+                pub_navpose = False,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+
+
+        self.data_product = data_product_name
+        # Call the parent class constructor
+        super().__init__(namespace , 
+                self.data_product,
+                data_source_description,
+                data_ref_description,
+                perspective,
+                self.DEFAULT_CAPS_DICT,
+                self.DEFAULT_CONTROLS_DICT,
+                self.DEFAULT_ENHANCEMENTS_DICT, 
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
+                pub_navpose,
+                init_overlay_list,
+                get_navpose_function,
+                log_name,
+                log_name_list,
+                msg_if
+                )
+
+        ###############################
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        ###############################
+
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    def publish_cv2_depth_map_img(self,cv2_depth_map,
+                            width_deg = 100,
+                            height_deg = 70,
+                            min_range_m = 0, 
+                            max_range_m = 1,
+                            timestamp = None,
+                            frame_3d = 'sensor_frame',
+                            device_mount_description = 'fixed',
+                            navpose_dict = None,
+                            pub_twice = False
+                            ):
+
+                
+        cv2_img = None
+        if cv2_depth_map is not None:
+            start_range_ratio = self.controls_dict['start_range_ratio']
+            stop_range_ratio = self.controls_dict['stop_range_ratio']
+            depth_data = (np.array(cv2_depth_map, dtype=np.float32)) # replace nan values
+            # Get range data
+            delta_range_m = max_range_m - min_range_m
+            # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
+            max_range_m = min_range_m + stop_range_ratio * delta_range_m
+            min_range_m = min_range_m + start_range_ratio * delta_range_m
+            delta_range_m = max_range_m - min_range_m
+            # Filter depth_data in range
+            depth_data[np.isnan(depth_data)] = max_range_m 
+            depth_data[depth_data <= min_range_m] = max_range_m # set to max
+            depth_data[depth_data >= max_range_m] = max_range_m # set to max
+            # Create colored cv2 depth image
+            depth_data = depth_data - min_range_m # Shift down 
+            depth_data = np.abs(depth_data - max_range_m) # Reverse for colormap
+            depth_data = np.array(255*depth_data/delta_range_m,np.uint8) # Scale for bgr colormap
+            cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
+
+            self.publish_cv2_img(cv2_img,
+                                encoding = 'bgr8',
+                                width_deg = width_deg,
+                                height_deg = height_deg,
+                                min_range_m = min_range_m, 
+                                max_range_m = max_range_m,
+                                timestamp = timestamp,
+                                frame_3d = frame_3d,
+                                device_mount_description = device_mount_description,
+                                navpose_dict = navpose_dict,
+                                pub_twice = pub_twice
+                             )
+            return cv2_img
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+
+
+
+
 
 
 
@@ -3268,13 +4054,11 @@ class DepthMapIF:
 
 class PointcloudIF:
 
-    DEFAULT_IMG_WIDTH_DEG = 100
-    DEFUALT_IMG_HEIGHT_DEG = 70
+    DEFAULT_WIDTH_DEG = 100
+    DEFAULT_HEIGHT_DEG = 70
 
     Factory_Image_Width = 955
     Factory_Image_Height = 600
-    Factory_Start_Range_Ratio = 0.0
-    Factory_Stop_Range_Ratio = 1.0
     Factory_Zoom_Ratio = .5
     Factory_Rotate_Ratio = .5
     Factory_Tilt_Ratio = .5
@@ -3283,12 +4067,30 @@ class PointcloudIF:
     Factory_Cam_Pos = [-5, 0, 0]
     Factory_Cam_Rot = [0, 0, 1]
 
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust_enabled = False,
+        auto_adjust_ratio = 0.3,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
+        zoom_ratio = 0.5, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_ratio = 0.5,
+        tilt_ratio = 0.5
+        )
+
     ready = False
     namespace = '~'
 
     node_if = None
 
-    status_msg =  DataPointcloudStatus()
+    status_msg =  PointcloudStatus()
 
     last_pub_time = None
 
@@ -3296,9 +4098,10 @@ class PointcloudIF:
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    img_pub_file = 'nepi_pointcloud_img_pub_node.py'
+    #img_pub_file = 'nepi_pointcloud_img_pub_node.py'
 
-
+    min_range_m = 0
+    max_range_m = 1
 
     data_source_description = 'pointcloud_sensor'
     data_ref_description = 'sensor'
@@ -3306,11 +4109,20 @@ class PointcloudIF:
     data_product = 'pointcloud'
     data_products_list = [data_product]
 
+    image_if = None
+    navpose_if = None
+    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    get_navpose_function = None    
+    has_navpose = False
+
     def __init__(self, namespace = None,
+                data_product_name = 'pointcloud',
                 data_source_description = 'pointcloud_sensor',
                 data_ref_description = 'sensor',
-                enable_data_pub = True,
-                max_data_pub_rate = 5,
+                perspective = 'POV',
+                pub_image = True,
+                get_navpose_function = None,
+                pub_navpose = False,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -3323,6 +4135,7 @@ class PointcloudIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -3336,9 +4149,14 @@ class PointcloudIF:
 
         ##############################    
         # Initialize Class Variables
-
+        self.data_product = data_product_name
         self.data_products_list = self.data_products_list + [get_image_data_product(self.data_product)]
-
+        self.perspective = perspective
+        self.pub_image = pub_image
+        self.pub_navpose = pub_navpose
+        if get_navpose_function is not None and pub_navpose == True:
+            self.get_navpose_function = get_navpose_function
+            self.has_navpose = True
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
@@ -3346,55 +4164,6 @@ class PointcloudIF:
         namespace = nepi_sdk.get_full_namespace(namespace)
         self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.msg_if.pub_warn("Using data product namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-
-
-        '''
-        if enable_data_pub == True:
-            ## Get folder info
-            #self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-            #success = self.mgr_sys_srv_if.wait_for_services()
-            #if success == False:
-            #    nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
-
-            #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-            #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
-
-            self.api_lib_folder = API_LIB_FOLDER
-            self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder), log_name_list = self.log_name_list)
-
-
-
-            # Launch detection img pub node that handles detection image publishing
-            pkg_name = 'nepi_api'
-            node_file_folder = self.api_lib_folder
-            img_pub_file = self.img_pub_file
-            img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
-        
-            if os.path.exists(img_pub_file_path) == False or enable_data_pub == False:
-                self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path, log_name_list = self.log_name_list)
-            else: 
-                #Try and launch node
-                unique_name = nepi_sdk.get_unique_name_from_namespace(self.namespace,self.base_namespace)
-                img_pub_node_name = unique_name + "_img_pub"
-                self.msg_if.pub_warn("Launching Img Pub Node: " + img_pub_node_name, log_name_list = self.log_name_list)
-                img_pub_namespace = self.node_namespace + "_img_pub"
-                self.msg_if.pub_warn("Launching Img Pub Namespace: " + img_pub_namespace, log_name_list = self.log_name_list)
-
-                # Pre Set Img Pub Params
-                pc_data_product = os.path.basename(self.namespace)
-                img_data_product = pc_data_product + '_image'
-                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'data_product')
-                nepi_sdk.set_param(param_ns,img_data_product)
-
-                param_ns = nepi_sdk.create_namespace(img_pub_namespace,'pc_namespace')
-                nepi_sdk.set_param(param_ns,self.node_namespace)
-                        
-
-                [success, msg, pub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, img_pub_node_name)
-
-                self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg, log_name_list = self.log_name_list)
-        '''
-
 
 
         # Initialize Status Msg.  Updated on each publish
@@ -3421,17 +4190,15 @@ class PointcloudIF:
         self.status_msg.get_latency_time
         self.status_msg.pub_latency_time
         self.status_msg.process_time
-        self.status_msg.data_pub_enabled = enable_data_pub
-        self.status_msg.max_data_pub_rate = max_data_pub_rate
+        self.status_msg.data_pub_enabled = pub_image
         self.status_msg.standard_image_sizes = nepi_img.STANDARD_IMAGE_SIZES
-
 
 
         ##############################   
         ## Node Setup
 
         # Configs Config Dict ####################
-        self.CFGS_DICT = {
+        self.CONFIGS_DICT = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -3440,165 +4207,50 @@ class PointcloudIF:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'max_img_pub_rate': {
-                'namespace': self.node_namespace,
-                'factory_val': max_data_pub_rate
-            },
-            'render_image_width': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Image_Width
-            },
-            'render_image_height': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Image_Height
-            },
-            'render_start_range_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Start_Range_Ratio
-            },
-            'render_zoom_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Zoom_Ratio
-            },
-            'render_rotate_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Rotate_Ratio
-            },
-            'render_tilt_ratio': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Tilt_Ratio
-            },
-            'render_cam_fov': {
-                'namespace': self.node_namespace,
-                'factory_val': Factory_Cam_FOV
-            },
-            'render_cam_view': {
-                'namespace': self.node_namespace,
-                'factory_val':Factory_Cam_View
-            },
-            'render_cam_pos': {
-                'namespace': self.node_namespace,
-                'factory_val':Factory_Cam_Pos
-            },
-            'render_cam_rot': {
-                'namespace': self.node_namespace,
-                'factory_val':Factory_Cam_Rot
-            },
-            'render_use_wbg': {
-                'namespace': self.node_namespace,
-                'factory_val': False
-            },
-        }
+        self.PARAMS_DICT = None
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'pointcloud_pub': {
-                'msg': DataPointcloud,
+            'data_pub': {
+                'msg': PointCloud2,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            'data_pub': {
-                'msg': PointCloud2,
-                'namespace': self.namespace,
-                'topic': 'data',
-                'qsize': 1,
-                'latch': False
-            },
             'status_pub': {
-                'msg':  DataPointcloudStatus,
+                'msg':  PointcloudStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
+            },
+            'navpose_pub': {
+                'msg': NavPose,
+                'namespace': self.namespace,
+                'topic': 'navpose',
+                'qsize': 1,
+                'latch': False
             }
         }
 
         # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'set_range_window': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_range_window',
-                'msg': RangeWindow,
+        self.SUBS_DICT = dict()
+
+
+        if self.has_navpose == False: 
+            ##############################
+            ## Connect NEPI NavPose
+            self.SUBS_DICT['navpose_sub'] = {
+                'namespace': self.base_namespace,
+                'topic': 'navpose',
+                'msg': NavPose,
                 'qsize': 1,
-                'callback': self._setRenderRangeCb, 
-                'callback_args': ()
-            },
-            'set_zoom_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_zoom_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setZoomCb, 
-                'callback_args': ()
-            },
-            'set_rotate_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_rotate_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setRotateCb, 
-                'callback_args': ()
-            },
-            'set_tilt_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_tilt_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setTiltCb, 
-                'callback_args': ()
-            },
-            'set_camera_fov': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_camera_fov',
-                'msg': Int32,
-                'qsize': 10,
-                'callback': self._setCamFovCb, 
-                'callback_args': ()
-            },
-            'set_camera_view': {
-                'namespace': self._node_namespace,
-                'topic': 'render_set_camera_view',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self._setCamViewCb, 
-                'callback_args': ()
-            },
-            'set_camera_position': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_camera_position',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self._setCamPositionCb, 
-                'callback_args': ()
-            },
-            'set_camera_rotation': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_camera_rotation',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self._setCamRotationCb, 
-                'callback_args': ()
-            },
-            'set_white_bg_enable': {
-                'namespace': self.node_namespace,
-                'topic': 'render_set_white_bg_enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self._setWhiteBgCb, 
-                'callback_args': ()
-            },
-            'reset_render_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'render_reset_controls',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetRenderControlsCb, 
+                'callback': self._navposeCb, 
                 'callback_args': ()
             }
-        }
+
+
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -3606,20 +4258,50 @@ class PointcloudIF:
                         params_dict = self.PARAMS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
                                             )
 
         
-        #self.node_if.wait_for_ready()
-        nepi_sdk.wait()
+        success = nepi_sdk.wait()
 
-        self.publish_status(do_updates=True)
+        self.init(do_updates = True)
 
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+
+        ###############################
+        #Setup Image Pub if needed
+        if pub_image == True:
+            img_data_product = get_image_data_product(self.data_product)
+            self.data_products_list = self.data_products_list + [img_data_product]
+            image_if = DepthMapImageIF(namespace = self.namespace, 
+                        data_product_name = img_data_product, 
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        perspective = self.perspective,
+                        get_navpose_function = self.get_navpose_function,
+                        log_name = img_data_product,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                        )
+        '''
+        ################################
+        # Setup navpose data IF if needed
+        np_namespace = self.namespace
+        if pub_navpose is not None:
+            if pub_navpose == True:
+                self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            log_name = 'navpose',
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
+        '''
+
 
         ##############################
         # Complete Initialization
@@ -3667,19 +4349,28 @@ class PointcloudIF:
 
     def has_subscribers_check(self):
         has_subs = copy.deepcopy(self.has_subs)
-        self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        self.msg_if.pub_warn("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         return has_subs
 
-
+    def get_navpose_dict(self):
+        navpose_dict = None
+        if self.get_navpose_function is not None:
+            navpose_dict = self.get_navpose_function()
+        else:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        return navpose_dict
 
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
-                        width_deg = DEFAULT_IMG_WIDTH_DEG,
-                        height_deg = DEFUALT_IMG_HEIGHT_DEG,
-                        device_mount_description = 'fixed'):
+                        width_deg = 100,
+                        height_deg = 70,
+                        min_range_m = None,
+                        max_range_m = None,
+                        device_mount_description = 'fixed',
+                        pub_twice = False):
 
-        if self.node_if is None:
+        if self.node_if is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
             return False
         if o3d_pc is None:
@@ -3700,6 +4391,14 @@ class PointcloudIF:
         self.status_msg.width_deg = width_deg
         self.status_msg.height_deg = height_deg
 
+        if (min_range_m is not None and max_range_m is not None):
+            self._updateRangesM(min_range_m,max_range_m)
+            self.status_msg.min_range_m = self.min_range_m
+            self.status_msg.max_range_m = self.max_range_m
+        else:
+            self.status_msg.min_range_m = 0
+            self.status_msg.max_range_m = 1
+
         current_time = nepi_utils.get_time()
         latency = (current_time - timestamp)
         self.status_msg.get_latency_time = latency
@@ -3710,49 +4409,42 @@ class PointcloudIF:
 
         self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        has_subs = copy.deepcopy(self.has_subs)
 
-        if self.has_subs == False:
-            if self.status_msg.publishing == True:
-                self.msg_if.pub_warn("Pointcloud has no subscribers", log_name_list = self.log_name_list)
-            self.status_msg.publishing = False
-        else:
-            if self.status_msg.publishing == False:
-                self.msg_if.pub_warn("Pointcloud has subscribers, will publish", log_name_list = self.log_name_list)
-            self.status_msg.publishing = True
+        self.status_msg.publishing = True
+
+        navpose_dict = self.get_navpose_dict()
+        if self.node_if is not None and self.has_subs == True:
             #Convert to ros Image message
             ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
             sec = nepi_sdk.sec_from_timestamp(timestamp)
             ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-
-
-            if not nepi_sdk.is_shutdown():
-                msg = DataPointcloud()
-                msg.status = self.status_msg
-                msg.data = ros_pc
-                self.node_if.publish_pub('data_pub', msg)
+            self.node_if.publish_pub('data_pub', ros_pc)
+            if pub_twice == True:
+                nepi_sdk.sleep(0.01)
                 self.node_if.publish_pub('data_pub', ros_pc)
 
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
+        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+        self.status_msg.process_time = process_time
+        latency = (current_time - timestamp)
+        self.status_msg.pub_latency_time = latency
 
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
 
-                
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-        return True
+        if self.last_pub_time is None:
+            self.last_pub_time = nepi_utils.get_time()
+        else:
+            cur_time = nepi_utils.get_time()
+            pub_time_sec = cur_time - self.last_pub_time
+            self.last_pub_time = cur_time
+            self.status_msg.last_pub_sec = pub_time_sec
+
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
+
+        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        if navpose_msg is not None:
+            self.node_if.publish_pub('navpose_pub', navpose_msg)
+            
+        return o3d_pc
 
     def unregister(self):
         self.ready = False
@@ -3764,48 +4456,47 @@ class PointcloudIF:
 
 
     def publish_status(self, do_updates = True):
-        if self.node_if is not None:
+        if self.node_if is not None and self.status_msg is not None:
             if self.status_msg is None:
-                self.status_msg =  DataPointcloudStatus()
+                self.status_msg =  PointcloudStatus()
             if do_updates == True:
-                self.status_msg.max_data_pub_rate = self.node_if.get_param('max_img_pub_rate')
-                self.status_msg.image_width = self.node_if.get_param('render_image_width')
-                self.status_msg.image_height = self.node_if.get_param('render_image_height')
+                self.status_msg.image_width = self.node_if.get_param('image_width')
+                self.status_msg.image_height = self.node_if.get_param('image_height')
 
                 range_ratios = RangeWindow()
-                range_ratios.start_range =   float(self.node_if.get_param('render_start_range_ratio'))
-                range_ratios.stop_range =   float(self.node_if.get_param('render_stop_range_ratio'))
+                range_ratios.start_range =   float(self.node_if.get_param('start_range_ratio'))
+                range_ratios.stop_range =   float(self.node_if.get_param('stop_range_ratio'))
                 self.status_msg.range_ratios = range_ratios
 
-                self.status_msg.zoom_ratio = self.node_if.get_param('render_zoom_ratio')
-                self.status_msg.rotate_ratio = self.node_if.get_param('render_rotate_ratio')
-                self.status_msg.tilt_ratio = self.node_if.get_param('render_tilt_ratio')
+                self.status_msg.zoom_ratio = self.node_if.get_param('zoom_ratio')
+                self.status_msg.rotate_ratio = self.node_if.get_param('rotate_ratio')
+                self.status_msg.tilt_ratio = self.node_if.get_param('tilt_ratio')
 
-                fov = self.node_if.get_param('render_cam_fov')
+                fov = self.node_if.get_param('cam_fov')
                 self.status_msg.camera_fov = fov
 
-                view = self.node_if.get_param('render_cam_view')
+                view = self.node_if.get_param('cam_view')
                 cam_view = Vector3()
                 cam_view.x = view[0]
                 cam_view.y = view[1]
                 cam_view.z = view[2]
                 self.status_msg.camera_view = cam_view
 
-                pos = self.node_if.get_param('render_cam_pos')
+                pos = self.node_if.get_param('cam_pos')
                 cam_pos = Vector3()
                 cam_pos.x = pos[0]
                 cam_pos.y = pos[1]
                 cam_pos.z = pos[2]
                 self.status_msg.camera_position = cam_pos
 
-                rot = self.node_if.get_param('render_cam_rot')
+                rot = self.node_if.get_param('cam_rot')
                 cam_rot = Vector3()
                 cam_rot.x = rot[0]
                 cam_rot.y = rot[1]
                 cam_rot.z = rot[2]
                 self.status_msg.camera_rotation = cam_rot
                 
-                use_wbg = self.node_if.get_param('render_use_wbg')
+                use_wbg = self.node_if.get_param('use_wbg')
                 self.status_msg.white_background = use_wbg
 
             avg_rate = 0
@@ -3817,144 +4508,57 @@ class PointcloudIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-    def init(self):
-        pass
-        
+    def init(self, do_updates = False):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.publish_status()
+
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-            self.node_if.reset_params()
-            self.init()
-            self.publish_status()
-
+            pass
+        self.init()
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
-            self.node_if.factory_reset_params()
-            self.init()
-            self.publish_status()
+            pass
+        self.init()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
-        self.init()
+        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.reset()
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
-    def _factoryResetCb(self):
-        self.factory_reset()
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
 
     def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('pointcloud_pub')
-        has_subs = has_subs or self.node_if.pub_has_subscribers('data_pub')
-        if has_subs == False:
+        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        if self.image_if is not None:
+            has_subs = has_subs or self.image_if.has_subscribers_check() == True
+        if has_subs == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.has_subs = has_subs
-        #self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+        self.msg_if.pub_debug("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
 
     def _publishStatusCb(self,timer):
         self.publish_status(do_updates = True)
 
-
-    def _setRenderRangeCb(self, msg):
-        self.msg_if.pub_info("Recived Range update message: " + str(msg), log_name_list = self.log_name_list)
-        self.msg_if.pub_info("Recived update message: " + str(msg), log_name_list = self.log_name_list)
-        new_start_range_ratio = msg.start_range
-        new_stop_range_ratio = msg.stop_range
-        if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
-            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
-            self.publish_status(do_updates=False) # No change
-            return
+    def _updateRangesM(self, min_m, max_m):
+        if min_m < 0:
+            min_m = 0
+        if min_m < max_m:
+          self.min_range_m = min_m  
+          self.max_range_m = max_m  
         else:
-            self.status_msg.range_ratios.start_range = new_start_range_ratio
-            self.status_msg.range_ratios.stop_range = new_stop_range_ratio
-            self.publishStatus(do_updates=False) # Updated inline here  
+          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
-            self.node_if.set_param('render_start_range_ratio', new_start_range_ratio)
-            self.node_if.set_param('render_stop_range_ratio', new_stop_range_ratio)
-        
-    def _setZoomRatioCb(self,msg):
-        self.msg_if.pub_info("Got Zoom Ratio: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_val = msg.data
-        if new_val >= 0 and new_val <= 1 :
-            self.status_msg.zoom_ratio = new_val
-            self.publish_status(do_updates=False)
-            self.node_if.set_param('render_zoom_ratio',new_val)
-
-
-    def _setRotateRatioCb(self,msg):
-        self.msg_if.pub_info("Got Rotate Ratio: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_val = msg.data
-        if new_val >= 0 and new_val <= 1 :
-            self.status_msg.rotate_ratio = new_val
-            self.publish_status(do_updates=False)
-            self.node_if.set_param('render_rotate_ratio',new_val)
-
-    def _setTiltRatioCb(self,msg):
-        self.msg_if.pub_info("Got Tilt Ratio: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_val = msg.data
-        if new_val >= 0 and new_val <= 1 :
-            self.status_msg.tilt_ratio = new_val
-            self.publish_status(do_updates=False)
-            self.node_if.set_param('render_tilt_ratio',new_val)
-
-    def _setCamFovCb(self,msg):
-        self.msg_if.pub_info("Got Cam FOV: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_val = msg.data
-        if new_val > 100:
-            new_val = 100
-        if new_val < 30:
-            new_val = 30
-        self.status_msg.camera_fov = new_val
-        self.publish_status(do_updates=False)
-        self.node_if.set_param('render_cam_fov',new_val)
-
-
-    def _setCamViewCb(self,msg):
-        self.msg_if.pub_info("Got Cam View: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.status_msg.camera_view = new_val
-        self.publish_status(do_updates=False)
-        self.node_if.set_param('render_cam_view',new_array)
-
-
-    def _setCamPositionCb(self,msg):
-        self.msg_if.pub_info("Got Cam Pos: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.status_msg.camera_position = new_val
-        self.publish_status(do_updates=False)
-        self.node_if.set_param('render_cam_pos',new_array)
-
-    def _setCamRotationCb(self,msg):
-        self.msg_if.pub_info("Got Cam Rotate: " + str(msg), log_name_list = self.log_name_list, throttle_s = 1.0)
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.status_msg.camera_rotation = new_val
-        self.publish_status(do_updates=False)
-        self.node_if.set_param('render_cam_rot',new_array)
-    
-
-    def _setWhiteBgCb(self,msg):
-        enable = msg.data
-        self.status_msg.white_background = enable
-        self.publish_status(do_updates=False)
-        self.node_if.set_param('render_use_wbg', enable)
-
-
-    def _resetRenderControlsCb(self,msg):
-        self.node_if.reset_params()
-        self.publish_status(do_updates=True)
-
+    def _navposeCb(self,msg):
+        self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)

@@ -29,6 +29,7 @@ from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest,
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_aifs
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
@@ -37,7 +38,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
+
 
 
 
@@ -60,8 +61,8 @@ DEFAULT_THRESHOLD = 0.3
 MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
 DEFAULT_MAX_PROC_RATE = 5
-DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 2
-
+DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 1.5
+DEFAULT_USE_LAST_IMAGE = True
 
 DEFAULT_WAIT_FOR_DETECT = False
 
@@ -73,19 +74,24 @@ DEFAULT_IMG_OVERLAY = False
 
 GET_IMAGE_TIMEOUT_SEC = 1 
 
-API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
-AIFS_SHARE_PATH = "/opt/nepi/ros/share/nepi_aifs"
-USER_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
+
 
 class AiDetectorIF:
     
+    IMAGE_DATA_PRODUCT = 'detection_image'
+    IMAGE_SUB_MSG = 'Waiting for Source Image'
+    IMAGE_PUB_MSG = 'Loading Image Publisher'
+
+    BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
+    BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
+
     namespace = '~'
     all_namespace = None
 
-    IMAGE_DATA_PRODUCT = 'detection_image'
+    states_dict = None
+    triggers_dict = dict()
 
-    STATES_DICT = dict()
-    TRIGGERS_DICT = dict()
+    node_if = None
 
     det_img_pub_file = 'nepi_ai_detector_img_pub_node.py'
 
@@ -104,7 +110,6 @@ class AiDetectorIF:
 
 
     has_img_tiling = False
-    save_cfg_if = None
 
     state = 'Loading'
 
@@ -122,6 +127,24 @@ class AiDetectorIF:
     
     time_list = [0,0,0,0,0,0,0,0,0,0]
     sleep_state = False
+
+
+    enabled = False
+    selected_classes = []
+    sleep_enabled = False
+    sleep_suspend_sec = 0
+    sleep_run_sec = 0
+    img_tiling = False
+    overlay_labels = True
+    overlay_clf_name = False
+    overlay_img_name = False
+    threshold = DEFAULT_THRESHOLD
+    max_proc_rate_hz = DEFAULT_MAX_PROC_RATE
+    max_img_rate_hz = DEFAULT_MAX_IMG_RATE
+    use_last_image = DEFAULT_USE_LAST_IMAGE
+    selected_img_topics = []
+
+
     def __init__(self, 
                 namespace,
                 model_name, 
@@ -158,6 +181,18 @@ class AiDetectorIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
+
+ 
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_warn("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+       
+        self.api_lib_folder = system_folders['api_lib']
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
+ 
+
         ##############################  
         # Init Class Variables 
 
@@ -166,24 +201,10 @@ class AiDetectorIF:
         namespace = nepi_sdk.create_namespace(namespace,'settings')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-
-
         self.has_img_tiling = has_img_tiling
 
-        ## Get folder info
-        self.mgr_sys_srv_if = ConnectMgrSystemServicesIF()
-        success = self.mgr_sys_srv_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Status Msg", log_name_list = self.log_name_list)
-
-        #self.api_lib_folder = mgr_sys_srv_if.get_sys_folder_path('api_lib',API_LIB_FOLDER)
-        #self.msg_if.pub_info("Using User Config Folder: " + str(self.api_lib_folder))
-
-        self.api_lib_folder = API_LIB_FOLDER
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
- 
- 
-
+        
+        ## Init Status Messages
         self.status_msg = MgrAiDetectorStatus()
         self.det_status_msg = AiDetectorStatus()
 
@@ -212,6 +233,8 @@ class AiDetectorIF:
         self.has_sleep = False
 
         self.img_data_product = self.IMAGE_DATA_PRODUCT
+
+        self.selected_classes = self.classes
 
         ###############################
         # Launch detection img pub node that handles detection image publishing
@@ -244,10 +267,10 @@ class AiDetectorIF:
 
             self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg)
         
+        self.initCb(do_updates = False)
 
-
-        ##############################  
-        # Create NodeClassIF Class  
+        ##############################
+        ### Setup Node
 
         # Configs Dict ########################
         self.CONFIGS_DICT = {
@@ -275,7 +298,7 @@ class AiDetectorIF:
             },
             'selected_classes': {
                 'namespace': self.node_namespace,
-                'factory_val': classes_list
+                'factory_val': self.selected_classes
             },
             'img_tiling': {
                 'namespace': self.node_namespace,
@@ -304,6 +327,10 @@ class AiDetectorIF:
             'max_img_rate_hz': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_MAX_IMG_RATE
+            },
+            'use_last_image': {
+                'namespace': self.node_namespace,
+                'factory_val': DEFAULT_USE_LAST_IMAGE
             },
             'sleep_enabled': {
                 'namespace': self.node_namespace,
@@ -374,14 +401,14 @@ class AiDetectorIF:
                 'topic': 'found_object',
                 'qsize': 1,
                 'latch': False
-            },
+            }
             self.PUBS_DICT['bounding_boxes_all'] = {
                 'msg': BoundingBoxes,
                 'namespace': self.all_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 1,
                 'latch': False
-            },
+            }
 
 
         # Subs Config Dict ####################
@@ -514,6 +541,14 @@ class AiDetectorIF:
                 'callback': self.setMaxImgRateCb, 
                 'callback_args': ()
             },
+            'set_use_last_image': {
+                'namespace': self.node_namespace,
+                'topic': 'set_use_last_image',
+                'msg':Bool,
+                'qsize': 10,
+                'callback': self.setUseLastImageCb, 
+                'callback_args': ()
+            },
             'set_sleep_enable': {
                 'namespace': self.node_namespace,
                 'topic': 'set_sleep_enable',
@@ -554,11 +589,12 @@ class AiDetectorIF:
                                             )
 
         #self.node_if.wait_for_ready()
-        nepi_sdk.sleep(0.1)
+        nepi_sdk.sleep(1)
+
+        self.initCb(do_updates = True)
 
         ###############################
         # Create System IFs
-
         # Setup States IF
         self.states_dict = {
                         "running": {
@@ -578,6 +614,7 @@ class AiDetectorIF:
                             "value":"False"
                             }
         }
+
         self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -604,9 +641,9 @@ class AiDetectorIF:
         # Setup Save Data IF
         factory_data_rates= {}
         for d in self.data_products:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
         if self.img_data_product in self.data_products:
-            factory_data_rates[self.img_data_product] = [1.0, 0.0, 100.0] 
+            factory_data_rates[self.img_data_product] = [1.0, 0.0, 3.5] 
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,
@@ -622,7 +659,7 @@ class AiDetectorIF:
 
         # Start Timer Processes
         nepi_sdk.start_timer_process((1.0), self.publishStatusCb)
-        nepi_sdk.start_timer_process((1.0), self.updateDetectionState)
+        nepi_sdk.start_timer_process((1.0), self.updateStatesCb)
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
 
@@ -652,30 +689,59 @@ class AiDetectorIF:
 
 
 
-    def get_states_dict_function(self):
+    def get_states_dict_function(self):    
         return self.states_dict
 
 
     def initCb(self,do_updates = False):
-        self.msg_if.pub_info(" Setting init values to param values", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
+        if self.node_if is not None:
+            self.enabled = self.node_if.get_param('enabled')
+            self.selected_classes = self.node_if.get_param('selected_classes')
+            self.sleep_enabled = self.node_if.get_param('sleep_enabled')
+            self.sleep_suspend_sec = self.node_if.get_param('sleep_suspend_sec')
+            self.sleep_run_sec = self.node_if.get_param('sleep_run_sec')
+            self.img_tiling = self.node_if.get_param('img_tiling')
+            self.overlay_labels = self.node_if.get_param('overlay_labels')
+            self.overlay_clf_name = self.node_if.get_param('overlay_clf_name')
+            self.overlay_img_name = self.node_if.get_param('overlay_img_name')
+            self.threshold = self.node_if.get_param('threshold')
+            self.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
+            self.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
+            self.use_last_image = self.node_if.get_param('use_last_image')
+            self.selected_img_topics = self.node_if.get_param('selected_img_topics')
+            self.msg_if.pub_info("Init selected images: " + str(self.selected_img_topics), log_name_list = self.log_name_list)
+
+            self.node_if.save_config()
         if do_updates == True:
-            self.resetCb(do_updates)
-
-
-    def resetCb(self):
+            pass
         self.publish_status()
 
-    def factoryResetCb(self):
-        self.last_image_topic = ""
-        self.publish_status()
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass # self.node_if.reset_params()
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass # self.node_if.factory_reset_params()
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
 
 
 
     def enableCb(self,msg):
+        self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
-        self.node_if.set_param('enabled', enabled)
+        self.enabled = enabled
         self.publish_status()
-        time.sleep(1)
+        if self.node_if is not None:
+            self.node_if.set_param('enabled',self.enabled)
+            #self.node_if.save_config()
         if msg.data == False and not nepi_sdk.is_shutdown():
             self.get_img_topic = "None"
 
@@ -683,46 +749,49 @@ class AiDetectorIF:
         self.addAllClasses()
 
     def addAllClasses(self):
-        ##self.msg_if.pub_info(msg)
-
-        self.det_status_msg.selected_classes = self.classes
-        self.det_status_msg.selected_classes = self.create_classes_colors_msg(self.classes)
+        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.publish_status(do_updates = False) # Updated Here
-
-        self.node_if.set_param('selected_classes', self.classes)
+        self.selected_classes = self.classes
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes', self.classes)
+            self.node_if.save_config()
 
 
     def removeAllClassesCb(self,msg):
-        ##self.msg_if.pub_info(msg)
-        self.det_status_msg.selected_classes = []
-        self.det_status_msg.selected_classes = []
+        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
+        self.selected_classes = []
         self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('selected_classes',[])
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes',[])
+            self.node_if.save_config()
 
 
     def addClassCb(self,msg):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got add class msg: ' + str(msg))
         class_name = msg.data
         if class_name in self.classes:
-            sel_classes = self.node_if.get_param('selected_classes')
+            sel_classes = copy.deepcopy(self.selected_classes)
             if class_name not in sel_classes:
                 sel_classes.append(class_name)
-            self.det_status_msg.selected_classes = sel_classes
-            self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
+            self.selected_classes = sel_classes
             self.publish_status(do_updates = False) # Updated Here
-            self.node_if.set_param('selected_classes', sel_classes)
+            if self.node_if is not None:
+                self.node_if.set_param('selected_classes', sel_classes)
+                self.node_if.save_config()
 
 
     def removeClassCb(self,msg):
-        ##self.msg_if.pub_info(msg)
+        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
         class_name = msg.data
-        sel_classes = self.node_if.get_param('selected_classes')
+        sel_classes = copy.deepcopy(self.selected_classes)
         if class_name in sel_classes:
             sel_classes.remove(class_name)
-        self.det_status_msg.selected_classes = sel_classes
-        self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
+        self.selected_classes = sel_classes
         self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('selected_classes', sel_classes)
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes', sel_classes)
+            self.node_if.save_config()
 
 
 
@@ -741,12 +810,17 @@ class AiDetectorIF:
 
     def addImageTopic(self,img_topic):   
         self.msg_if.pub_info("Adding Image Topic: " + img_topic)
-        img_topics = self.node_if.get_param('selected_img_topics')
+        img_topics = copy.deepcopy(self.selected_img_topics)
         if img_topic not in img_topics:
             img_topics.append(img_topic)
-        self.det_status_msg.selected_img_topics = img_topics
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('selected_img_topics', img_topics)
+        self.selected_img_topics = img_topics
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_img_topics',self.selected_img_topics)
+
+
+
+
 
 
     def removeImageTopicCb(self,msg):
@@ -761,35 +835,52 @@ class AiDetectorIF:
         for img_topic in img_topic_list:
             self.removeImageTopic(img_topic)
 
+
     def removeImageTopic(self,img_topic):
         self.msg_if.pub_info("Removing Image Topic: " + img_topic)         
-        img_topics = self.node_if.get_param('selected_img_topics')
+        img_topics = copy.deepcopy(self.selected_img_topics)
         if img_topic in img_topics:
             img_topics.remove(img_topic)
-        
-        self.det_status_msg.selected_img_topics = img_topics
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('selected_img_topics', img_topics)
+        self.selected_img_topics = img_topics
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_img_topics',self.selected_img_topics)
+            self.node_if.save_config()
 
 
 
 
     def setOverlayLabelsCb(self,msg):
-        self.det_status_msg.overlay_labels = msg.data
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('overlay_labels', msg.data)
+        self.overlay_labels = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('overlay_labels',self.overlay_labels)
+            self.node_if.save_config()
+
+ 
 
 
     def setOverlayClfNameCb(self,msg):
-        self.det_status_msg.overlay_clf_name = msg.data
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('overlay_clf_name', msg.data)
+        self.overlay_clf_name = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('overlay_clf_name',self.overlay_clf_name)
+            self.node_if.save_config()
+
+
+
+ 
 
 
     def setOverlayImgNameCb(self,msg):
-        self.det_status_msg.overlay_img_name = msg.data
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('overlay_img_name', msg.data)
+        self.overlay_img_name = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('overlay_img_name',self.overlay_img_name)
+            self.node_if.save_config()
+
+ 
+
 
 
     def setMaxProcRateCb(self,msg):
@@ -798,9 +889,13 @@ class AiDetectorIF:
             max_rate = MIN_MAX_RATE
         elif max_rate > MAX_MAX_RATE:
             max_rate = MAX_MAX_RATE
-        self.det_status_msg.max_proc_rate_hz = max_rate
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('max_proc_rate_hz', max_rate)
+        self.max_proc_rate_hz = max_rate
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('max_proc_rate_hz',self.max_proc_rate_hz)
+            self.node_if.save_config()
+
+ 
 
 
     def setMaxImgRateCb(self,msg):
@@ -809,20 +904,29 @@ class AiDetectorIF:
             max_rate = MIN_MAX_RATE
         elif max_rate > MAX_MAX_RATE:
             max_rate = MAX_MAX_RATE
-        self.det_status_msg.max_img_rate_hz = max_rate
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('max_img_rate_hz', max_rate)
+        self.max_img_rate_hz = max_rate
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('max_img_rate_hz',self.max_img_rate_hz)
+            self.node_if.save_config()
+
+    def setUseLastImageCb(self,msg):
+        self.use_last_image = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('use_last_image',self.use_last_image)
+            self.node_if.save_config()
+
 
 
     def setTileImgCb(self,msg):
-        self.status_msg.img_tiling = msg.data
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('img_tiling', msg.data)
+        self.img_tiling = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('img_tiling',self.img_tiling)
+            self.node_if.save_config()
 
-
-
-
-
+ 
 
     def setThresholdCb(self,msg):
         threshold = msg.data
@@ -831,36 +935,42 @@ class AiDetectorIF:
             threshold = MIN_THRESHOLD
         elif threshold > MAX_THRESHOLD:
             threshold = MAX_THRESHOLD
-        self.det_status_msg.threshold = threshold
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('threshold', threshold)
-
-
+        self.threshold = threshold
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('threshold',self.threshold)
+            self.node_if.save_config()
 
 
 
     def setSleepEnableCb(self,msg):
-        self.status_msg.sleep_enabled = msg.data
-        self.publish_status(do_updates = False) # Updated Here
-        self.node_if.set_param('sleep_enabled', msg.data)
+        self.sleep_enabled = msg.data
+        self.publish_status()
+
+        if self.node_if is not None:
+            self.node_if.set_param('sleep_enabled',self.sleep_enabled)
+            self.node_if.save_config()
 
 
 
     def setSleepSuspendTimeCb(self,msg):
         data = msg.data
         if data > 1 or suspend_time == -1:
-            self.status_msg.sleep_suspend_sec = data
-            self.publish_status(do_updates = False) # Updated Here
-            self.node_if.set_param('sleep_suspend_sec', data)
+            self.sleep_suspend_sec = data
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param('sleep_suspend_sec',self.sleep_suspend_sec)
+                self.node_if.save_config()
 
 
     def setSleepSuspendTimeCb(self,msg):
         data = msg.data
         if data > 1:
-            self.status_msg.sleep_run_sec = data
-            self.publish_status(do_updates = False) # Updated Here
-            self.node_if.set_param('sleep_run_sec', data)
-
+            self.sleep_run_sec = data
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param('sleep_run_sec',self.sleep_run_sec)
+                self.node_if.save_config()
 
 
     def statusPublishCb(self,timer):
@@ -868,9 +978,9 @@ class AiDetectorIF:
 
     def getActiveImgTopics(self):
         active_img_topics = []
-        img_topics = self.imgs_info_dict.keys()
-        for i,img_topic in enumerate(img_topics):
-            img_active =  self.imgs_info_dict[img_topic]['active']
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+        for img_topic in imgs_info_dict.keys():
+            img_active =  imgs_info_dict[img_topic]['active']
             if img_active == True:
                 active_img_topics.append(img_topic)
         return active_img_topics
@@ -878,29 +988,34 @@ class AiDetectorIF:
 
     def updaterCb(self,timer):
         #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
-        img_topics = self.node_if.get_param('selected_img_topics')
-        self.img_ifs_lock.acquire()
-        registered_img_topics = self.img_ifs_dict.keys()
+        selected_img_topics = self.selected_img_topics
         active_img_topics = self.getActiveImgTopics()
-        self.img_ifs_lock.release()
-        # Update Image subscribers
-        for i,img_topic in enumerate(img_topics):
-            img_topic = nepi_sdk.find_topic(img_topic)
-            if img_topic != '':
-                img_topics[i] = img_topic
-                if img_topic not in active_img_topics:
-                    success = self.subscribeImgTopic(img_topic)    
-          
+
+
+        #self.msg_if.pub_warn("")
+        #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_img_topics))
+        #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_img_topics))
         purge_list = []
+        # Update Image subscribers
+        found_img_topics = []
+        for img_topic in selected_img_topics:
+            img_topic = nepi_sdk.find_topic(img_topic, exact = True)
+            if img_topic != '':
+                found_img_topics.append(img_topic)
+                if img_topic not in active_img_topics:
+                    self.msg_if.pub_warn('Will subscribe to image topic: ' + img_topic)
+                    success = self.subscribeImgTopic(img_topic)              
+        # Update Image Subs purge list
         for img_topic in active_img_topics:
-            if img_topic not in img_topics:
+            if img_topic not in found_img_topics:
                 purge_list.append(img_topic)
-        #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
+        if len(purge_list) > 0:
+            self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         for topic in purge_list:
             self.msg_if.pub_warn('Will unsubscribe from image topic: ' + topic)
             success = self.unsubscribeImgTopic(topic)
 
-        # Set Image connected state
+        # Check Image connected state
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         img_connects = []
         for img_topic in imgs_info_dict.keys():
@@ -909,7 +1024,7 @@ class AiDetectorIF:
         img_connected = True in img_connects
        
         # Set Detector State
-        enabled = self.det_status_msg.enabled
+        enabled = self.enabled
         if enabled == True:
             if img_selected == 0:
                 self.state = "Waiting"
@@ -930,6 +1045,37 @@ class AiDetectorIF:
             return False
         else:
 
+            img_name = img_topic.replace(self.base_namespace,"")
+            pub_namespace = nepi_sdk.create_namespace(self.node_namespace,img_name)
+
+            ####################
+            # Pubs Config Dict 
+            img_pubs_dict = {
+                'found_object': {
+                    'msg': ObjectCount,
+                    'namespace': pub_namespace,
+                    'topic': 'found_object',
+                    'qsize': 1,
+                    'latch': False
+                },
+                'bounding_boxes': {
+                    'msg': BoundingBoxes,
+                    'namespace': pub_namespace,
+                    'topic': 'bounding_boxes',
+                    'qsize': 1,
+                    'latch': False
+                },
+                'image_pub': {
+                    'msg': Image,
+                    'namespace': pub_namespace,
+                    'topic': 'detection_image',
+                    'qsize': 1,
+                    'latch': False
+                }
+
+            }
+
+
             img_sub_dict = {
                         'namespace': img_topic,
                         'msg': Image,
@@ -947,6 +1093,7 @@ class AiDetectorIF:
                     # Try and Reregister img_sub
                     self.img_ifs_lock.acquire()
                     self.img_ifs_dict[img_topic]['subs_if'].register_sub('img_sub',img_sub_dict)
+                    self.img_ifs_dict[img_topic]['pubs_if'].register_pubs(img_pubs_dict)
                     self.img_ifs_lock.release()
                     self.msg_if.pub_warn('Registered : ' + img_topic +  ' ' + str(self.img_ifs_dict[img_topic]))
                     # Set back to active
@@ -954,9 +1101,8 @@ class AiDetectorIF:
             else:
                     
                 # Create register new image topic
-                self.msg_if.pub_info('Registering to image topic: ' + img_topic)
-                img_name = img_topic.replace(self.base_namespace,"")
-                pub_namespace = os.path.join(self.node_namespace,img_name)
+                self.msg_if.pub_warn('Registering to image topic: ' + img_topic)
+                self.msg_if.pub_warn('Publishing on namespace: ' + pub_namespace)
 
                 ####################
                 # Create img info dict
@@ -971,27 +1117,10 @@ class AiDetectorIF:
 
 
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
-                ####################
-                # Pubs Config Dict 
-                IMG_PUBS_DICT = {
-                    'found_object': {
-                        'msg': ObjectCount,
-                        'namespace': pub_namespace,
-                        'topic': 'found_object',
-                        'qsize': 1,
-                        'latch': False
-                    },
-                    'bounding_boxes': {
-                        'msg': BoundingBoxes,
-                        'namespace': pub_namespace,
-                        'topic': 'bounding_boxes',
-                        'qsize': 1,
-                        'latch': False
-                    }
-                }
+
 
                 img_pubs_if = NodePublishersIF(
-                                pubs_dict = IMG_PUBS_DICT,
+                                pubs_dict = img_pubs_dict,
                                             log_name_list = self.log_name_list,
                                             msg_if = self.msg_if
                                             )
@@ -1029,7 +1158,12 @@ class AiDetectorIF:
                 ####################
                 # Publish blank msg to prime topics
                 img_pubs_if.publish_pub('found_object',ObjectCount())
-                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())    
+                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())   
+
+                cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
+                ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                img_pubs_if.publish_pub('image_pub',ros_img) 
+
     
             return True
 
@@ -1048,6 +1182,7 @@ class AiDetectorIF:
             self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[img_topic]['subs_if'].unregister_sub('img_sub')
+            self.img_ifs_dict[img_topic]['pubs_if'].unregister_pubs()
             self.img_ifs_lock.release()
         #Leave img pub running in case it is switched back on
     
@@ -1064,16 +1199,15 @@ class AiDetectorIF:
 
 
     def imageCb(self,image_msg, args):     
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
         img_topic = args
-
-
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
+        was_connected = imgs_info_dict[img_topic]['connected']
         start_time = nepi_sdk.get_time()   
 
         if img_topic in imgs_info_dict.keys():
             if imgs_info_dict[img_topic]['active'] == True:
                 imgs_info_dict[img_topic]['connected'] = True
-                enabled = self.det_status_msg.enabled
+                enabled = self.enabled                  
                 if enabled == True and self.sleep_state == False:
                     # Process ros image message
                     current_time = nepi_sdk.get_msg_stamp()
@@ -1095,6 +1229,11 @@ class AiDetectorIF:
                         options_dict = dict()
                         options_dict['tile'] = self.status_msg.img_tiling
                         cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                        # Publish Update Image
+                        if was_connected == False:
+                            cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                            img_pubs_if.publish_pub('image_pub',ros_img) 
 
                         '''
                         img_dict = dict()
@@ -1126,9 +1265,9 @@ class AiDetectorIF:
     def updateDetectCb(self,timer):
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         start_time = nepi_sdk.get_time()
-        enabled = self.det_status_msg.enabled
+        enabled = self.enabled
         if enabled == True:
-            img_topics = self.det_status_msg.image_source_topics
+            img_topics = self.selected_img_topics
             connected_list = []
             for topic in img_topics:
                 if topic in imgs_info_dict.keys():
@@ -1138,7 +1277,7 @@ class AiDetectorIF:
                 self.get_img_topic = "None"
             else:
                 # check timer
-                max_rate = self.det_status_msg.max_proc_rate_hz
+                max_rate = self.max_proc_rate_hz
                 delay_time = float(1) / max_rate 
                 current_time = nepi_sdk.get_time()
                 timer = round((current_time - self.last_detect_time), 3)
@@ -1217,7 +1356,7 @@ class AiDetectorIF:
                                 # Process Detections
                                 detect_dict_list = []
                                 try:
-                                    threshold = self.det_status_msg.threshold
+                                    threshold = self.threshold
                                     detect_dicts = self.processDetection(img_dict,threshold) 
                                     #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
@@ -1229,7 +1368,7 @@ class AiDetectorIF:
                                     self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
                                 ros_img_header = img_dict['msg_header']
                                 # Filter selected classes
-                                sel_classes = self.det_status_msg.selected_classes
+                                sel_classes = copy.deepcopy(self.selected_classes)
                                 sel_detect_ind = []
                                 for i, detect in enumerate(detect_dicts):
                                     if detect['name'] in sel_classes:
@@ -1355,11 +1494,11 @@ class AiDetectorIF:
         resp.image_source_topics = img_source_topics
         resp.image_detector_namespaces = img_det_namespaces
 
-
+        #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
     
 
-    def updateDetectionState(self,timer):
+    def updateStatesCb(self,timer):
         # Update and clear detection state every second
         self.states_dict['detection']['value'] = str(self.detection_state)
         self.detection_state = False
@@ -1374,23 +1513,47 @@ class AiDetectorIF:
         self.status_msg.name = self.model_name
         self.status_msg.has_sleep = self.has_sleep
 
-        if do_updates == True and not nepi_sdk.is_shutdown():
-            self.status_msg.sleep_enabled = self.node_if.get_param('sleep_enabled')
-            self.status_msg.sleep_suspend_sec = self.node_if.get_param('sleep_suspend_sec')
-            self.status_msg.sleep_run_sec = self.node_if.get_param('sleep_run_sec')
-            self.status_msg.sleep_state = self.sleep_state
+        self.status_msg.sleep_enabled = self.sleep_enabled
+        self.status_msg.sleep_suspend_sec = int(self.sleep_suspend_sec)
+        self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
+        self.status_msg.sleep_state = self.sleep_state
 
-            self.status_msg.img_tiling = self.node_if.get_param('img_tiling')
+        self.status_msg.img_tiling = self.img_tiling
 
-        #self.msg_if.pub_warn("Sending Status Msg: " + str(self.det_status_msg))
-        self.node_if.publish_pub('status_pub',self.status_msg)
 
-        # Pub Deteccton Status
+
+        #self.msg_if.pub_warn("Sending Status Msg: " + str(self.det_status_msg), throttle_s = 5.0)
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub',self.status_msg)
+
+        # Pub Detection Status
+
+
+
 
         self.det_status_msg.name = self.model_name
         self.det_status_msg.namespace = self.node_namespace
+        self.det_status_msg.enabled = self.enabled
         self.det_status_msg.state = self.state
+        detection_state = False
+        if self.states_dict is not None:
+            detection_state = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
+        self.det_status_msg.detection_state = detection_state
+
         self.det_status_msg.available_classes = self.classes
+        sel_classes = copy.deepcopy(self.selected_classes)
+        self.det_status_msg.selected_classes = sel_classes
+        self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
+        self.det_status_msg.overlay_labels = self.overlay_labels
+        self.det_status_msg.overlay_clf_name = self.overlay_clf_name
+        self.det_status_msg.overlay_img_name = self.overlay_img_name
+
+        self.det_status_msg.threshold_filter = self.threshold
+        self.det_status_msg.max_proc_rate_hz = self.max_proc_rate_hz
+        self.det_status_msg.max_img_rate_hz = self.max_img_rate_hz
+        self.det_status_msg.use_last_image = self.use_last_image
+
+        self.det_status_msg.selected_img_topics = self.selected_img_topics
 
 
         img_source_topics = []
@@ -1448,33 +1611,9 @@ class AiDetectorIF:
        
         self.det_status_msg.avg_rate_hz = avg_rate
 
-
-        if do_updates == True and not nepi_sdk.is_shutdown():
-            self.det_status_msg.enabled = self.node_if.get_param('enabled')
-            sel_classes = self.node_if.get_param('selected_classes')
-            self.det_status_msg.selected_classes = sel_classes
-            self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
-               
-
-            self.status_msg.sleep_enabled = self.node_if.get_param('sleep_enabled')
-            self.status_msg.sleep_suspend_sec = self.node_if.get_param('sleep_suspend_sec')
-            self.status_msg.sleep_run_sec = self.node_if.get_param('sleep_run_sec')
-            self.status_msg.sleep_state = self.sleep_state
-
-            self.status_msg.img_tiling = self.node_if.get_param('img_tiling')
-
-            self.det_status_msg.overlay_labels = self.node_if.get_param('overlay_labels')
-            self.det_status_msg.overlay_clf_name = self.node_if.get_param('overlay_clf_name')
-            self.det_status_msg.overlay_img_name = self.node_if.get_param('overlay_img_name')
-
-            self.det_status_msg.threshold = self.node_if.get_param('threshold')
-            self.det_status_msg.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
-            self.det_status_msg.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
-
-            self.det_status_msg.selected_img_topics = self.node_if.get_param('selected_img_topics')
-
         #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.det_status_msg))
-        self.node_if.publish_pub('det_status_pub',self.det_status_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('det_status_pub',self.det_status_msg)
 
 
 

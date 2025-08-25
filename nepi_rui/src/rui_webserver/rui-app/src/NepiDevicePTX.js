@@ -29,6 +29,8 @@ import NepiIFConfig from "./Nepi_IF_Config"
 import NepiSystemMessages from "./Nepi_IF_Messages"
 
 import NepiIF3DTransform from "./Nepi_IF_3DTransform"
+import NavPoseViewer from "./Nepi_IF_NavPoseViewer"
+import {onChangeSwitchStateValue } from "./Utilities"
 
 
 function round(value, decimals = 0) {
@@ -45,6 +47,8 @@ class NepiDevicePTX extends Component {
     super(props)
 
     this.state = {
+      showTransform: false,
+
       imageTopic: null,
       imageText: null,
 
@@ -63,7 +67,7 @@ class NepiDevicePTX extends Component {
       tiltHomePosEdited: null,
       tiltHomePosDeg: null,
 
-
+      show_navpose: false,
 
       showLimits: false,
 
@@ -114,10 +118,21 @@ class NepiDevicePTX extends Component {
       tiltScanMin: null,
       tiltScanMax: null,
 
+      sinPanEnabled: false,
+      sinTiltEnabled: false,
+
+      speed_pan_dps: 0,
+      speed_tilt_dps: 0,
+
+      namespace : null,
+      
       listener: null,
       disabled: true
 
     }
+
+    //this.renderNavPose = this.renderNavPose.bind(this)
+    //this.renderNavPoseInfo = this.renderNavPoseInfo.bind(this)
 
     this.onUpdateText = this.onUpdateText.bind(this)
     this.onKeyText = this.onKeyText.bind(this)
@@ -128,6 +143,7 @@ class NepiDevicePTX extends Component {
     this.renderControlPanel = this.renderControlPanel.bind(this)
     this.createPTXOptions = this.createPTXOptions.bind(this)
     this.onClickToggleShowLimits = this.onClickToggleShowLimits.bind(this)
+    this.onClickToggleShowTransform = this.onClickToggleShowTransform.bind(this)
 
     this.onEnterSendScanRangeWindowValue = this.onEnterSendScanRangeWindowValue.bind(this)
   }
@@ -263,6 +279,10 @@ class NepiDevicePTX extends Component {
     }
   }
 
+  // Add the missing toggle method
+  onClickToggleShowTransform() {
+    this.setState({ showTransform: !this.state.showTransform })
+  }
 
   // Function for creating image topic options.
   createImageTopicsOptions() {
@@ -324,6 +344,10 @@ class NepiDevicePTX extends Component {
       autoTiltEnabled: message.auto_tilt_enabled,
       autoTiltMin: message.auto_tilt_range_window.start_range,
       autoTiltMax: message.auto_tilt_range_window.stop_range,
+      sinPanEnabled: message.sin_pan_enabled,
+      sinTiltEnabled: message.sin_tilt_enabled,
+      speed_pan_dps: message.speed_pan_dps,
+      speed_tilt_dps: message.speed_tilt_dps,
     })
 
     const scan_limits_changed = (pan_min_ss !== this.state.autoPanMin || pan_max_ss !== this.state.autoPanMax ||
@@ -448,7 +472,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             panMaxSoftstopDeg, tiltMaxSoftstopDeg, panMinSoftstopDeg, tiltMinSoftstopDeg,
             panMinSoftstopEdited, tiltMinSoftstopEdited, panMaxSoftstopEdited, tiltMaxSoftstopEdited,
             speedRatio, panHomePosEdited, tiltHomePosEdited,
-            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled } = this.state
+            reversePanEnabled, reverseTiltEnabled, autoPanEnabled, autoTiltEnabled,sinPanEnabled ,sinTiltEnabled, speed_pan_dps, speed_tilt_dps  } = this.state
 
     const namespace = this.state.namespace
     const ptx_id = namespace? namespace.split('/').slice(-1) : "No Pan/Tilt Selected"
@@ -555,6 +579,19 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
         </Label>
 
 
+        <Label title={"Current Speed (Deg/Sec)"}>
+          <Input
+            disabled
+            style={{ width: "45%", float: "left" }}
+            value={round(speed_pan_dps, 0)}
+          />
+          <Input
+            disabled
+            style={{ width: "45%" }}
+            value={round(speed_tilt_dps, 0)}
+          />
+        </Label>
+
         <Label title={"GoTo Position"}>
           <Input
             disabled={!has_abs_pos}
@@ -606,91 +643,98 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
       </div>
 
         <div hidden={(hide_auto_pan === true)}>
-          
-              <Columns>
-                <Column>
+        <div
+          style={{
+            borderTop: "1px solid #ffffff",
+            marginTop: Styles.vars.spacing.medium,
+            marginBottom: Styles.vars.spacing.xs,
+          }}
+        />
+        </div>
 
-                  <Label title="Enable Auto Pan">
-                    <Toggle
-                      checked={autoPanEnabled===true}
-                      style={{ width: "45%", float: "left" }}
-                      onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_pan_enable",!autoPanEnabled)}>
-                    </Toggle>
-                  </Label>
+        <Label title={""}>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>{"Pan"}</div>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>{"Tilt"}</div>
+        </Label>
+        <Label title={"Enable Auto Scan"}>
+        <div hidden={(hide_auto_pan === true)}>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>
+            <Toggle style={{justifyContent: "flex-left"}} checked={autoPanEnabled} onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_pan_enable",!autoPanEnabled)} />
+          </div>
+          </div>
 
-                  </Column>
-                  <Column>
-               
-                  </Column>
-                </Columns>
+          <div hidden={(hide_auto_tilt === true)}>
+          <div style={{ display: "inline-block", width: "45%", float: "right" }}>
+            <Toggle style={{justifyContent: "flex-right"}} checked={autoTiltEnabled} onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_tilt_enable",!autoTiltEnabled)} />
+          </div>
+          </div>
+        </Label>
 
+        <div hidden={(autoPanEnabled === false && autoTiltEnabled === false)}>
+        <Label title={"Enable Sin Scan"}>
 
-                <Label title={"Pan Scan Limits"}>
+        <div hidden={(autoPanEnabled === false)}>
+          <div style={{ display: "inline-block", width: "45%", float: "left" }}>
+            <Toggle
+              checked={this.state.sinPanEnabled}
+              onClick={() => sendBoolMsg(namespace + "/set_auto_pan_sin_enable", !this.state.sinPanEnabled)
+              }
+            />
+          </div>
+        </div>
 
-                   <Input id="scan_pan_min" 
-                      value={this.state.panScanMin} 
-                      style={{ width: "45%", float: "left" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
+        <div hidden={(autoTiltEnabled === false)}>
+          <div style={{ display: "inline-block", width: "45%", float: "right" }}>
+            <Toggle
+              checked={this.state.sinTiltEnabled}
+              onClick={() => sendBoolMsg(namespace + "/set_auto_tilt_sin_enable", !this.state.sinTiltEnabled)
+              }
+            />
+          </div>
+        </div>
+          </Label>
+        </div>
 
+        <Label title={"Min Scan Limits"}>
 
+          <Input id="scan_pan_min" 
+              value={this.state.panScanMin} 
+              style={{ width: "45%", float: "left" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMin")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","min",Number(this.state.panScanMax))} />
 
-                    <Input id="scan_pan_max" 
-                    value={this.state.panScanMax} 
-                    style={{ width: "45%" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />                      
-                </Label>
-
-                </div>
-
-
-
-                <div hidden={(hide_auto_tilt === true)}>
-
-
-                <Columns>
-               <Column>
-
-                <Label title="Enable Auto Tilt">
-                    <Toggle
-                      checked={autoTiltEnabled===true}
-                      style={{ width: "45%", float: "left" }}
-                      onClick={() => sendBoolMsg.bind(this)(namespace + "/set_auto_tilt_enable",!autoTiltEnabled)}>
-                    </Toggle>
-                  </Label>
-
-
-                  </Column>
-                  <Column>
-               
-
-                  </Column>
-                </Columns>
-
-
-
-                <Label title={"Tilt Scan Limits"}>
-
-
-                    <Input id="scan_tilt_min" 
-                      value={this.state.tiltScanMin} 
-                      style={{ width: "45%", float: "left" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
+          <Input id="scan_tilt_min" 
+              value={this.state.tiltScanMin} 
+              style={{ width: "45%" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMin")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","min",Number(this.state.tiltScanMax))} />
 
           
+        </Label>
 
 
-                    <Input id="scan_tilt_max" 
-                     value={this.state.tiltScanMax} 
-                     style={{ width: "45%" }}
-                      onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
-                      onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
-                </Label>
 
-                </div>
 
+
+
+        <Label title={"Max Scan Limits"}>
+
+          <Input id="scan_pan_max" 
+            value={this.state.panScanMax} 
+            style={{ width: "45%", float: "left" }}
+            onChange={(event) => onUpdateSetStateValue.bind(this)(event,"panScanMax")} 
+            onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_pan_window","max",Number(this.state.panScanMin))} />     
+
+
+          <Input id="scan_tilt_max" 
+              value={this.state.tiltScanMax} 
+              style={{ width: "45%" }}
+              onChange={(event) => onUpdateSetStateValue.bind(this)(event,"tiltScanMax")} 
+              onKeyDown= {(event) => this.onEnterSendScanRangeWindowValue(event,"/set_auto_tilt_window","max",Number(this.state.tiltScanMin))} />                      
+        </Label>
+        <div hidden={(hide_auto_tilt === true)}>
+
+        </div>
 
 
         <Columns>
@@ -721,14 +765,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             id={"PTXPanHardStopMin"}
             style={{ width: "45%", float: "left" }}
             value={panHardStopMin}
-            disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
             id={"PTXTiltHardStopMin"}
             style={{ width: "45%" }}
             value={tiltHardStopMin}
-            disabled={true}
           />
         </Label>
 
@@ -738,14 +780,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
             id={"PTXPanHardStopMax"}
             style={{ width: "45%", float: "left" }}
             value={panHardStopMax}
-            disabled={true}
           />
           <Input
             disabled={!has_abs_pos}
             id={"PTXTiltHardStopMax"}
             style={{ width: "45%" }}
             value={tiltHardStopMax}
-            disabled={true}
           />
         </Label>
 
@@ -789,25 +829,97 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
         </div>
 
+        <div
+              style={{
+                borderTop: "1px solid #ffffff",
+                marginTop: Styles.vars.spacing.medium,
+                marginBottom: Styles.vars.spacing.xs,
+              }}
+            />
+            <Label title="Show 3D Transform">
+              <Toggle
+                checked={this.state.showTransform}
+                onClick={this.onClickToggleShowTransform}>
+              </Toggle>
+            </Label>
+
+            <div hidden={ this.state.showTransform === false}>
 
             <Columns>
-                  <Column>
+              <Column>
 
-                          <NepiIF3DTransform
-                              namespace={namespace}
-                              supports_updates={true}
-                              title={"Nepi_IF_3DTransform"}
-                          />
+                      <NepiIF3DTransform
+                          namespace={namespace}
+                          supports_updates={true}
+                          title={"Nepi_IF_3DTransform"}
+                      />
 
-                  </Column>
-              </Columns>
+              </Column>
+           </Columns>
 
+            </div>
 
 
 
       </Section>
     )
   }
+
+
+renderNavPose(){
+  const show_navpose = this.state.show_navpose
+  const namespace = this.state.namespace ? this.state.namespace : 'None'
+  const make_section = this.props.make_section ? this.props.make_section : true
+  //console.log("show navpose: " + show_navpose)
+  //console.log("renderNavPose namespace : " + namespace)
+  if (namespace == null || namespace === 'None'){
+    return(
+  
+      <Columns>
+      <Column>
+
+      </Column>
+      </Columns>
+  
+    )
+  }
+  else{
+    return (
+
+      <Section>
+            <Columns>
+            <Column>
+                  <Label title="Show NavPose">
+                      <Toggle
+                        checked={this.state.show_navpose===true}
+                        onClick={() => onChangeSwitchStateValue.bind(this)("show_navpose",this.state.show_navpose)}>
+                      </Toggle>
+                    </Label>            
+
+                    </Column>
+                    <Column>
+
+                    </Column>
+                    <Column>
+
+                    </Column>
+                    </Columns>
+                    <div align={"left"} textAlign={"left"} hidden={!this.state.show_navpose}>
+
+                  <NavPoseViewer
+                    namespace={(show_navpose === true) ? namespace : null}
+                    make_section={false}
+                    title={"PTX NavPose Data"}
+                  />
+                  </div>
+
+                </Section>
+              )  
+            }
+          }
+
+
+
 
   render() {
     const { ptxDevices, onPTXJogPan, onPTXJogTilt, onPTXStop, sendTriggerMsg } = this.props.ros
@@ -820,6 +932,10 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
     const ptx_caps = ptxDevices[namespace]
     const has_abs_pos = ptx_caps && (ptx_caps.has_absolute_positioning === true)
     const has_timed_pos = ptx_caps && (ptx_caps.has_timed_positioning === true)
+    const show_navpose = this.state.show_navpose
+    const device_selected = (this.state.namespace != null)
+
+    console.log("render namespace : " + namespace)
 
     
 
@@ -827,6 +943,8 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
       <React.Fragment>
         <Columns>
           <Column equalWidth = {false} >
+
+
 
                 <div hidden={(namespace === null)}>
                       <NepiDeviceInfo
@@ -837,9 +955,8 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
                             name_reset_topic={"/reset_device_name"}
                             title={"NepiSensorsImagingInfo"}
                         />
-
                 </div>
-
+                
 
                 <div id="ptxImageViewer">
                   <ImageViewer
@@ -869,12 +986,12 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
               <ButtonMenu>
 
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(namespace, - 1)}
+                    buttonDownAction={() => onPTXJogPan(namespace,  1)}
                     buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25C0'}
                     </Button>
                   <Button 
-                    buttonDownAction={() => onPTXJogPan(namespace, 1)}
+                    buttonDownAction={() => onPTXJogPan(namespace, - 1)}
                     buttonUpAction={() => onPTXStop(namespace)}>
                     {'\u25B6'}
                   </Button>
@@ -900,18 +1017,20 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
 
                   <Button onClick={() => onPTXStop(namespace)}>{"STOP"}</Button>
                   
-                  </ButtonMenu>
+                </ButtonMenu>
 
+                {this.renderNavPose()}
 
-                  <NepiSystemMessages
-                    messagesNamespace={namespace}
-                    title={"NepiSystemMessages"}
-                    />
-
-
+            <NepiSystemMessages
+              messagesNamespace={namespace}
+              title={"NepiSystemMessages"}
+              />
 
           </Column>
           <Column style={{flex: 0.05}}>
+
+          <div style={{ height: '155px' }}></div>
+
             <SliderAdjustment
               disabled={!has_abs_pos}
               title={"Tilt"}
@@ -970,6 +1089,7 @@ onEnterSendScanRangeWindowValue(event, topicName, entryName, other_val) {
                 title={"Nepi_IF_Settings"}
               />
             </div>
+
 
           </Column>
         </Columns>

@@ -19,16 +19,16 @@ import math
 import time
 import tf
 from pygeodesy.ellipsoidalKarney import LatLon
-
+import copy
 
 from geographic_msgs.msg import GeoPoint
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_sdk_interfaces.msg import NavPoseMgrStatus, NavPoseMgrCompInfo, NavPoseTrack
+from nepi_interfaces.msg import MgrNavPoseStatus, MgrNavPoseCompInfo, NavPoseTrack
 
-from nepi_interfaces.msg import NavPose, DataNavPose
+from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
@@ -58,7 +58,7 @@ if os.path.exists(GEOID_DATABASE_FILE):
     ginterpolator = pygeodesy.GeoidKarney(GEOID_DATABASE_FILE)
     file_loaded = True
   except Exception as e:
-    logger.log_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
+    self.msg_if.pub_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
 if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
@@ -66,7 +66,7 @@ if file_loaded is False:
 
 
 def get_navpose_publisher_namespaces():
-    msg_type = 'nepi_interfaces/DataNavPose'
+    msg_type = 'nepi_interfaces/NavPose'
     return nepi_sdk.find_topics_by_msg(msg_type)
 
 ###############
@@ -114,7 +114,7 @@ def get_navpose_comp_publisher_namespaces(name):
     msg_list = []
     if name in NAVPOSE_MSG_DICT.keys():
       msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
-      [topics_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list)
+      [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list)
     return topic_list,msg_list
 
 
@@ -318,7 +318,7 @@ def convert_transform_msg2list(transform_msg):
       transform_list[6] = transform_msg.heading_offset
   return transform_list
 
-def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame'):
+def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame', log_name_list = []):
   success = True
   if npdata_dict is None:
     success = False
@@ -339,32 +339,40 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
         navpose_dict['frame_3d'] = output_frame_3d
 
         if npdata_dict['has_location'] == True:
+          if x != 0 or y != 0 or z != 0:
+            cur_geo = GeoPoint()
+            cur_geo.latitude = npdata_dict['latitude']
+            cur_geo.longitude = npdata_dict['longitude']
+            tr_geo = get_geopoint_at_enu_point(cur_geo,[-x,-y,-z])
+            navpose_dict['latitude'] = tr_geo.latitude
+            navpose_dict['longitude'] = tr_geo.longitude
+        else:
           navpose_dict['latitude'] = npdata_dict['latitude']
           navpose_dict['longitude'] = npdata_dict['longitude']
 
-        if npdata_dict['has_heading'] == True:
-          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
+        #if npdata_dict['has_heading'] == True:
+        navpose_dict['heading_deg'] = npdata_dict['heading_deg'] - yaw
 
-        if npdata_dict['has_orientation'] == True:
-          navpose_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
-          navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
-          navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
+        #if npdata_dict['has_orientation'] == True:
+        navpose_dict['roll_deg'] = npdata_dict['roll_deg'] - roll
+        navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] - pitch
+        navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] - yaw
 
-        if npdata_dict['has_position'] == True:
-          navpose_dict['x_m'] = npdata_dict['x_m'] - x
-          navpose_dict['y_m'] = npdata_dict['y_m'] - y
-          navpose_dict['z_m'] = npdata_dict['z_m'] - z
+        #if npdata_dict['has_position'] == True:
+        navpose_dict['x_m'] = npdata_dict['x_m'] - x
+        navpose_dict['y_m'] = npdata_dict['y_m'] - y
+        navpose_dict['z_m'] = npdata_dict['z_m'] - z
 
 
-        if npdata_dict['has_altitude'] == True:
-          navpose_dict['altitude_m'] = npdata_dict['altitude_m'] - z
+        #if npdata_dict['has_altitude'] == True:
+        navpose_dict['altitude_m'] = npdata_dict['altitude_m'] - z
 
-        if npdata_dict['has_depth'] == True:
-          navpose_dict['depth_m'] = npdata_dict['depth_m'] - z
+        #if npdata_dict['has_depth'] == True:
+        navpose_dict['depth_m'] = npdata_dict['depth_m'] - z
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
+        self.msg_if.pub_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     if success == True:
       pass
   return npdata_dict
@@ -374,9 +382,16 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 # NavPose Data Helper Functions
 
 NAVPOSE_3D_FRAME_OPTIONS = ['base_frame','nepi_frame','sensor_frame','world_frame']
-NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-NAVPOSE_DEPTH_FRAME_OPTIONS = ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
+NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
+
+BLANK_NAVPOSE_FRAMES_DICT = {
+        'nepi_frame_desc': 'Undefined',
+        'frame_nav': 'ENU',
+        'frame_alt': 'WGS84',
+        'frame_depth': 'DEPTH'
+    }
 
 BLANK_HEADING_DATA_DICT = {
     'time_heading': nepi_utils.get_time(),
@@ -484,7 +499,7 @@ BLANK_NAVPOSE_TRACK_DICT = {
 
 def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new,output_frame_3d = 'nepi_frame'):
     success = False
-    np_dict = copy.deepcopy(np_dict_org)
+    np_dict = copy.deepcopy(npdata_dict_org)
     if npdata_dict_org is not None and npdata_dict_new is not None:
       try:
         npdata_dict_org['frame_3d'] = output_frame_3d
@@ -567,10 +582,10 @@ def convert_navpose_ned2edu(npdata_dict):
 
 
 
-def convert_navpose_dict2msg(npdata_dict):
+def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
   npdata_msg = None
   if npdata_dict is None:
-    logger.log_info("Got None navpose dict", throttle_s = 5.0)
+    logger.log_info("Got None navpose dict", throttle_s = 5.0, log_name_list = log_name_list)
   else:
     try:
       np_msg = NavPose()
@@ -613,16 +628,16 @@ def convert_navpose_dict2msg(npdata_dict):
       np_msg.depth_m = npdata_dict['depth_m']
     except Exception as e:
       np_msg = None
-      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
+      self.msg_if.pub_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
 
-def convert_navpose_msg2dict(npdata_msg):
+def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
   npdata_dict = None
   try:
     npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
-    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)
+    self.msg_if.pub_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return npdata_dict
 
 
@@ -736,12 +751,13 @@ def get_navpose_geoid_height(navpose_response):
   geoid_height =  geoid_height
   return geoid_height
   
-def get_navpose_track_msg_from_dict(navpose_dict):
+def get_navpose_track_msg_from_dict(navpose_dict, log_name_list = []):
     track = BLANK_NAVPOSE_TRACK_DICT
     for key in track.keys():
         if key in navpose_dict.keys():
             track[key] = navpose_dict[key]
     track_msg = NavPoseTrack()
+    nepi_sdk.log_msg_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0, log_name_list = log_name_list)
     timestamp = nepi_utils.get_time() 
     track_msg.timestamp = timestamp
     track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)

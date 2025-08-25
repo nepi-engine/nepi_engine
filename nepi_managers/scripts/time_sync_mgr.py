@@ -22,6 +22,7 @@ import datetime
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import String, Empty, Time
@@ -36,15 +37,12 @@ from nepi_interfaces.srv import TimeStatusQuery, TimeStatusQueryRequest, TimeSta
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
 
-FACTORY_CFG_SUFFIX = '.factory'
 USER_CFG_SUFFIX = '.user'
 
 CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
-CHRONY_CFG_BASENAME = '/opt/nepi/config/etc/chrony/chrony.conf'
+CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
 
 FACTORY_TIMEZONE = 'UTC'
@@ -66,6 +64,7 @@ class time_sync_mgr(object):
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -77,30 +76,21 @@ class time_sync_mgr(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
-        ##############################
-        ## Wait for NEPI core managers to start
-        # Wait for System Manager
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        sys_status_dict = mgr_sys_if.get_system_status_dict()
-        in_container = False
-        if sys_status_dict is not None: 
-            #self.msg_if.pub_info("Got System Stats Dict: " + str(sys_status_dict))
-            in_container = sys_status_dict['in_container']
-        self.in_container = in_container
-        
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-        
 
+        ##############################
+        # Wait for System Info
+        self.msg_if.pub_info("Waiting for system info")
+        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got running in container: " + str(self.in_container))
+        
+              
+        ##############################
+        # Initialize Class Variables
         self.time_status = MgrTimeStatus()
         self.set_timezone(FACTORY_TIMEZONE)
 
+        self.initCb(do_updates = False)
+        
         ##############################
         ### Setup Node
 
@@ -143,6 +133,13 @@ class time_sync_mgr(object):
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
+            'status_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'status',
+                'msg': Empty,
+                'qsize': 1,
+                'latch': True
+            },
             'sys_time_updated': {
                 'namespace': self.base_namespace,
                 'topic': 'sys_time_updated',
@@ -225,7 +222,7 @@ class time_sync_mgr(object):
             self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
 
 
-
+        nepi_sdk.start_timer_process(1, self.statusPubCb)
 
         #########################################################
         ## Initiation Complete
@@ -234,9 +231,9 @@ class time_sync_mgr(object):
         nepi_sdk.spin()
         #########################################################
 
-
-    def configStatusCb(self,msg):
-        self.cfg_status = True
+    def statusPubCb(self,timer):
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', Empty())
     
 
     #######################
@@ -261,7 +258,7 @@ class time_sync_mgr(object):
         userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
         if (False == os.path.isfile(userconf_path)):
             # Need to create it from a copy of the factory config
-            factoryconf_path = CHRONY_CFG_BASENAME + FACTORY_CFG_SUFFIX
+            factoryconf_path = CHRONY_CFG_BASENAME
             try:
                 copyfile(factoryconf_path, userconf_path)
             except:
@@ -275,7 +272,7 @@ class time_sync_mgr(object):
 
     def reset_to_factory_conf(self):
         userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-        factoryconf_path = CHRONY_CFG_BASENAME + FACTORY_CFG_SUFFIX
+        factoryconf_path = CHRONY_CFG_BASENAME
 
         self.symlink_force(factoryconf_path, CHRONY_CFG_LINKNAME)
         if (True == os.path.isfile(userconf_path)):
@@ -464,6 +461,7 @@ class time_sync_mgr(object):
                     subprocess.call(["timedatectl", "set-timezone", self.timezone])
                 except:
                     pass
+            nepi_sdk.set_param('timezone',self.timezone)
 
 
     def handle_time_status_query(self,req):
@@ -494,14 +492,26 @@ class time_sync_mgr(object):
 
 
     def initCb(self, do_updates = False):
-        pass
+        if do_updates == True:
+             nepi_sdk.set_param('timezone',self.timezone)
 
-    def resetCb(self):
-        pass
 
-    def factoryResetCb(self):
-        self.msg_if.pub_info("Restoring NTP to factory config")
-        self.reset_to_factory_conf()
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            self.msg_if.pub_info("Restoring NTP to factory config")
+            self.reset_to_factory_conf()
+
+        self.initCb()       
 
 
     def sysResetCb(self,reset_type = 0):

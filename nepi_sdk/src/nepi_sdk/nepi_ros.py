@@ -26,6 +26,7 @@ import shutil
 import time
 from datetime import datetime
 import subprocess
+import yaml
 
 import rospy
 import rosnode
@@ -48,19 +49,19 @@ from nepi_interfaces.msg import *
 
 
 #######################
-### System Utility Functions
+### Setup some constant variables
+BASE_NAMESPACE = None
 
 
-def set_debug_mode(enabled):
-  set_param('debug_mode',enabled)
-
-def get_debug_mode():
-  enabled = False
-  return get_param('debug_mode',enabled)
 
 #######################
 ### Log Utility Functions
 
+def set_debug_log(enabled):
+  if enabled == True:
+    rospy.logger.setLevel(logging.DEBUG)
+  else:
+    rospy.logger.setLevel(logging.INFO)
 
 def log_msg(msg, level = "None", throttle_s = None, prefix = "", log_name_list = []):
   #if msg is None:
@@ -82,7 +83,7 @@ def log_msg(msg, level = "None", throttle_s = None, prefix = "", log_name_list =
 def log_msg_info(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
   if len(log_name_list) > 0:
-      msg_str = str(log_name_list) + ": " + msg_str
+      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
     rospy.loginfo(msg_str)
   else:
@@ -91,36 +92,34 @@ def log_msg_info(msg, throttle_s = None, log_name_list = []):
 def log_msg_warn(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
   if len(log_name_list) > 0:
-      msg_str = str(log_name_list) + ": " + msg_str
+      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
     rospy.logwarn(msg_str)
   else:
     rospy.logwarn_throttle(throttle_s,msg_str)
 
 def log_msg_debug(msg, throttle_s = None, log_name_list = []):
-  debug = get_debug_mode()
-  if debug == True:
-    msg_str = str(msg)
-    if len(log_name_list) > 0:
-        msg_str = str(log_name_list) + ": " + msg_str
-    if throttle_s is None:
-      rospy.logwarn(msg_str)
-    else:
-      rospy.logwarn_throttle(throttle_s,msg_str)
+  msg_str = str(msg)
+  if len(log_name_list) > 0:
+      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
+  if throttle_s is None:
+    rospy.logdebug(msg_str)
+  else:
+    rospy.logdebug_throttle(throttle_s,msg_str)
 
 def log_msg_error(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
   if len(log_name_list) > 0:
-      msg_str = str(log_name_list) + ": " + msg_str
+      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
-    rospy.logerr(msg_str)
+    log_msg_warn(msg_str)
   else:
-    rospy.logerr_throttle(throttle_s,msg_str)
+    log_msg_warn_throttle(throttle_s,msg_str)
 
 def log_msg_fatal(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
   if len(log_name_list) > 0:
-      msg_str = str(log_name_list) + ": " + msg_str
+      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
     rospy.logfatal(msg_str)
   else:
@@ -137,7 +136,7 @@ class logger:
         if log_name is not None:
             log_name_list = [log_name] + log_name_list
         if len(log_name_list) > 0:
-          self.ln_str = str(log_name_list) + ": " 
+          self.ln_str = str(' : '.join(log_name_list)) + ": " 
 
     ###############################
     # Class Public Methods
@@ -182,18 +181,17 @@ def get_full_namespace(namespace, log_name_list = []):
   base_namespace = get_base_namespace()
   node_namespace = get_node_namespace()
   if namespace is None:
-    namespace = node_namespace
+    namespace = get_node_namespace()
   elif namespace == 'None':
-    namespace = node_namespace
+    namespace = get_node_namespace()
   elif namespace == '':
-    namespace = base_namespace
+    namespace = get_base_namespace()
   elif namespace[0] == '~':
     ext_namespace = namespace.replace('~','')
-    namespace = os.path.join(node_namespace,ext_namespace)
-  if namespace.find(base_namespace) == -1:
-    if namespace[0] == '/':
-      namespace = namespace[1:]
-    namespace = os.path.join(base_namespace,namespace)
+    namespace = os.path.join(get_node_namespace(),ext_namespace)
+  if namespace[-1] == '/':
+    namespace = namespace[:-1]
+
   return namespace
 
 def create_namespace(base_namespace,topic):
@@ -216,7 +214,7 @@ def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
         if uid[0] == '_':
             uid = uid[1:]
     else:
-        uid = base_namespace + str(time.time_ns())[-6:]
+        uid = os.path.join(base_namespace,'_' + str(time.time_ns())[-6:])
     if add_name is not None:
       uid = uid + '_' + add_name
     uid = uid.replace('.','')
@@ -230,10 +228,19 @@ def init_node(name,disable_signals=False):
 
   
 def get_base_namespace():
-  nepi_node=find_node('nepi')
-  nepi_names = nepi_node.split('/')
-  base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2] + '/')
-  return base_namespace
+  global BASE_NAMESPACE
+  if BASE_NAMESPACE is None:
+    nepi_names = []
+    nepi_node=find_node('nepi')
+    nepi_names = nepi_node.split('/')
+    if len(nepi_names) < 3:
+      while(len(nepi_names) < 3):
+        nepi_node=find_node('nepi')
+        nepi_names = nepi_node.split('/')
+        sleep(.01)
+    base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
+    BASE_NAMESPACE = base_namespace
+  return BASE_NAMESPACE
 
 def get_node_namespace():
   namespace = rospy.get_name()
@@ -252,13 +259,17 @@ def get_node_list():
   return node_list
 
 ### Function to find a node
-def find_node(node_name):
+def find_node(node_name, exact = False):
   node = ""
   node_list=get_node_list()
   #log_msg_debug(node_list)
   for node_entry in node_list:
     #log_msg_debug(node_entry)
-    if node_entry.find(node_name) != -1:
+    if exact == True:
+      if node_entry == node_name:
+        node = node_entry
+        break
+    elif node_entry.find(node_name) != -1:
       node = node_entry
       break
   return node
@@ -272,7 +283,7 @@ def check_for_node(node_name):
   return node_exists
 
 ### Function to wait for a node
-def wait_for_node(node_name, timeout = float('inf'), log_name_list = []):
+def wait_for_node(node_name, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for node with name: " + node_name, log_name_list = log_name_list, throttle_s = 5.0)
@@ -297,12 +308,12 @@ def launch_node(pkg_name, file_name, ros_node_name, device_path = None, log_name
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
-    msg = str("Failed to launch node %s with exception: %s", ros_node_name, str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    msg = str("Failed to launch node %s with Exception: %s", ros_node_name, str(e), log_name_list = log_name_list, throttle_s = 5.0)
     log_msg_debug("NEPI_NEX: " + msg)
   if success: 
     if sub_process.poll() is not None:
       msg = ("Failed to start " + device_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
-      rospy.logerr(msg)
+      log_msg_warn(msg)
       sub_process = None
       success = False
   return success, msg, sub_process
@@ -330,7 +341,8 @@ def kill_node(node_name, log_name_list = []):
   if kill_node != "":
     os.system("rosnode kill " + kill_node)
 
-def kill_node_process(node_namespace,sub_process, log_name_list = []):
+def kill_node_process(node_namespace, sub_process, log_name_list = []):
+    log_msg_warn("nepi_sdk: Killing app node: " + node_namespace, log_name_list = log_name_list)
     success = False
     if sub_process.poll() is None:
       sub_process.terminate()
@@ -349,6 +361,9 @@ def kill_node_process(node_namespace,sub_process, log_name_list = []):
         time.sleep(1)
     if sub_process.poll() is not None:
       success = True
+      log_msg_warn("nepi_sdk: Killed app node: " + node_namespace, log_name_list = log_name_list)
+    else:
+      log_msg_warn("nepi_sdk: failed to app node: " + node_namespace, log_name_list = log_name_list)
     return success
         
 
@@ -361,159 +376,145 @@ def kill_node_namespace(node_namespace, log_name_list = []):
 def spin():
   rospy.spin()
   
+#########################
+### Param Utility Functions
 
-#######################
-### Topic Utility Functions
+EXAMPLE_PARAMS_DICT = {'threshold': 0.3,'max_rate': 5}
+
+def set_params_from_dict(params_dict, namespace, log_name_list = []):
+    for key in params_dict:
+      val = params_dict[key]
+      namespace = create_namespace(namespace,key)
+      try:
+          rospy.set_param(namespace,val)
+      except Exception as e:
+          log_msg_warn("Error creating parameters from param key: " + str(key) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args=[], log_name_list = []):
-  if queue_size is None:
-    queue_size = 1
-  sub = None
-  sub_namespace = get_full_namespace(sub_namespace)
-  try:
-    if len(callback_args) == 0:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
+def load_params_from_file(file_path, namespace = None, prime_key = None, log_name_list = []):
+    if namespace is None:
+      namespace = "~/"
+    namespace = get_full_namespace(namespace)
+    log_msg_debug("Will try loading parameters from file: " + file_path, log_name_list = log_name_list)
+    params_dict = dict()
+    if os.path.exists(file_path):
+        try:
+            with open(file_path) as f:
+                get_params_dict = yaml.load(f, Loader=yaml.FullLoader)
+        except Exception as e:
+            log_msg_warn("Failed to get dict from file: " + file_path + " " + str(e))
+        if prime_key is not None:
+          if prime_key in get_params_dict.keys():
+            params_dict = get_params_dict[prime_key]
+        else:
+          params_dict = get_params_dict
+        for key in params_dict.keys():
+          ns = create_namespace(namespace,key)
+          value = params_dict[key]
+          set_param(ns,value)
+        log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
     else:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args = callback_args)
-  except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to create subscriber: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-  return sub
+        log_msg_warn("Param file not found: " + file_path, log_name_list = log_name_list)
+    return params_dict
 
-def create_publisher(pub_namespace, msg, queue_size = 10, latch = False, log_name_list = []):
-  if queue_size is None:
-    queue_size = 1
-  pub = None
-  pub_namespace = get_full_namespace(pub_namespace)
-  try:
-    pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size, latch = latch)
-  except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to create publisher: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-  return pub
 
-def publish_pub(publisher, msg, log_name_list = []):
-  success = False
-  if publisher is not None and msg is not None:
+def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
+    namespace = get_full_namespace(namespace)
+    params_dict = dict()
+    params = get_params(namespace,dict())
+    if save_all == False: # Use only base ns level
+      if params is not None:
+        for key in params.keys():
+          key = key.replace(namespace + '/','')
+          if '/' not in key:
+            params_dict[key] = params[key]
+    else:
+      params_dict = params
+    #Try and initialize app param values
     try:
-      publisher(msg)
-      success = True
+      rosparam.dump_params(file_path, namespace)
     except Exception as e:
-      log_msg_debug("nepi_sdk: Failed to publish message: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+      log_msg_warn("Could not create params file: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  
+
+def has_param(namespace,param_name = None, log_name_list = []):
+  if param_name is not None:
+    namespace = create_namespace(namespace,param_name)
+  #namespace = get_full_namespace(namespace)
+  return rospy.has_param(namespace)
+
+
+def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
+  params = None
+  #param_namespace = get_full_namespace(param_namespace)
+  try:
+    if fallback_param is None:
+      params = rospy.get_param(param_namespace)
+    else:
+      params = rospy.get_param(param_namespace,fallback_param)
+  except Exception as e:
+    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return params
+
+
+def get_param(param_namespace,fallback_param = None, log_name_list = []):
+  param = None
+  #param_namespace = get_full_namespace(param_namespace)
+  try:
+    if fallback_param is None:
+      param = rospy.get_param(param_namespace)
+    else:
+      param = rospy.get_param(param_namespace,fallback_param)
+  except Exception as e:
+    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return param
+
+def set_param(param_namespace,param_val, log_name_list = []):
+  success = False
+  #param_namespace = get_full_namespace(param_namespace)
+  try:
+    rospy.set_param(param_namespace,param_val)
+    success = True
+  except Exception as e:
+    log_msg_warn("Failed to set param for: " + str(param_namespace) + " "  + str(param_val) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return success
 
-
-# Function to get list of active topics
-def get_topic_list():
-  topic_list = []
-  try:
-    pubs, subs =rostopic.get_topic_list()
-    topic_list = pubs + subs
-  except:
-    pass
-  return topic_list
-
-def get_published_topics():
-  return rospy.get_published_topics()
-
-# Function to find a topic
-def find_topic(topic_name):
-  topic = ""
-  topic_list = []
-  try:
-    topic_list=get_topic_list()
-  except:
-    pass
-  for topic_entry in topic_list:
-    topic_str = topic_entry[0]
-    if isinstance(topic_str,str):
-      if topic_str.find(topic_name) != -1 and topic_str.find(topic_name+"_") == -1:
-
-        topic = topic_str
-        break
-  return topic
-
-# Function to find a topic
-def find_topics_by_msg(msg_type):
-  topic_list = []
-  try:
-    topics=get_topic_list()
-    for topic_entry in topics:
-      topic_str = topic_entry[0]
-      msg_str = topic_entry[1]
-      if isinstance(topic_str,str) and isinstance(msg_str,str):
-        if msg_str.find(msg_type) != -1:
-          topic_list.append(topic_str)
-  except:
-    pass
-  return topic_list
-
-# Function to find a topic
-def find_topics_by_msgs(msg_type_list):
-  topic_list = []
-  msg_list = []
-  try:
-    topics=get_topic_list()
-    for topic_entry in topics:
-      topic_str = topic_entry[0]
-      msg_str = topic_entry[1]
-      if isinstance(topic_str,str) and isinstance(msg_str,str):
-        for msg_type in msg_type_list:
-          if msg_str.find(msg_type) != -1:
-            topic_list.append(topic_str)
-            msg_list.append(msg_str)
-  except:
-    pass
-  return topic_list,msg_list
-
-# Function to find a topic
-def find_msg_by_topic(topic):
-  msg = None
-  try:
-    topics=get_topic_list()
-    for topic_entry in topics:
-      topic_str = topic_entry[0]
-      msg_str = topic_entry[1]
-      if isinstance(topic_str,str) and isinstance(msg_str,str):
-        if topic_str == topic:
-          msg = msg_str
-  except:
-    pass
-  return topic_list
-
-# Function to find a topic
-def find_topics_by_name(topic_name):
-  topic_list = []
-  try:
-    topics=get_topic_list()
-    for topic_entry in topics:
-      topic_str = topic_entry[0]
-      msg_str = topic_entry[1]
-      if topic_name == os.path.basename(topic_str):
-        topic_list.append(topic_str)
-  except:
-    pass
-  return topic_list
-
-### Function to check for a topic 
-def check_for_topic(topic_name):
-  topic_exists = True
-  topic=find_topic(topic_name)
-  if topic == "":
-    topic_exists = False
-  return topic_exists
-
-# Function to wait for a topic
-def wait_for_topic(topic_name, timeout = float('inf'), log_name_list = []):
+# Function to wait for a param
+def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for topic with name: " + topic_name, log_name_list = log_name_list, throttle_s = 5.0)
-  topic = ""
-  while topic == "" and timer < timeout and not rospy.is_shutdown():
-    topic=find_topic(topic_name)
-    time.sleep(.1)
+  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list , throttle_s = 10.0)
+  param = None
+  #log_msg_warn("nepi_sdk: Waiting for param check: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
+  param_namespace = get_full_namespace(param_namespace)
+  while param is None and timer < timeout and not rospy.is_shutdown():
+    try:
+      param = rospy.get_param(param_namespace)
+    except:
+      param = None
+      param_namespace = get_full_namespace(param_namespace)
+
+    time.sleep(1)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
-  return topic
+  if param == None:
+    log_msg_warn("nepi_sdk: Failed to get param: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
+  return param
+
+
+def print_node_params():
+  node_name = rospy.get_name()
+  all_params = rospy.get_param_names()
+  node_params = [param for param in all_params if node_name in param]
+  if node_params:
+      print(f"Parameters for node '{node_name}':")
+      for param in node_params:
+          try:
+              param_value = rospy.get_param(param)
+              print(f"  {param}: {param_value}")
+          except Exception as e:
+              print(f"  {param}: Error retrieving value - {e}")
+  else:
+      print(f"No parameters found for node '{node_name}'.")
 
 #######################
 ### Service Utility Functions
@@ -529,13 +530,16 @@ def get_published_services_list(search_namespace='/'):
   return services_list
 
 # Function to find a service
-def find_service(service_name):
+def find_service(service_name, exact = False):
   found_service = ""
   service_list=get_service_list()
   #log_msg_debug(service_list)
   for service_entry in service_list:
     #log_msg_debug(service_entry[0])
-    if service_entry.find(service_name) != -1 and service_entry.find(service_name+"_") == -1:
+    if  exact == True and service_entry == service_name:
+        found_service = service_entry
+        break
+    elif service_entry.find(service_name) != -1 and service_entry.find(service_name+"_") == -1:
       found_service = service_entry
       break
   return found_service
@@ -580,21 +584,21 @@ def check_for_service(service_name):
   return service_exists
 
 # Function to wait for a service
-def wait_for_service(service_name, timeout = float('inf'), log_name_list = []):
+def wait_for_service(service_name, timeout = 60, log_name_list = []):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for service name: " + service_name, log_name_list = log_name_list, throttle_s = 5.0)
   found_service = ""
   while found_service == "" and timer < timeout and not rospy.is_shutdown():
     found_service=find_service(service_name)
-    time.sleep(.1)
+    time.sleep(.01)
     timer = get_time() - start_time
   log_msg_debug("nepi_sdk: Found service: " + found_service, log_name_list = log_name_list, throttle_s = 5.0)
   return found_service
 
 def create_service(service_namespace, srv_msg, srv_callback, log_name_list = []):
   service = None
-  service_namespace = get_full_namespace(service_namespace)
+  #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.Service(service_namespace, srv_msg, srv_callback)
   except Exception as e:
@@ -603,7 +607,7 @@ def create_service(service_namespace, srv_msg, srv_callback, log_name_list = [])
 
 def connect_service(service_namespace, service_msg, log_name_list = []):
   service = None
-  service_namespace = get_full_namespace(service_namespace)
+  #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.ServiceProxy(service_namespace, service_msg)
   except Exception as e:
@@ -624,131 +628,177 @@ def call_service(service, request, verbose = True, log_name_list = []):
       log_msg_debug("nepi_sdk: Cant call None service", log_name_list = log_name_list, throttle_s = 5.0)
     return response
 
-#########################
-### Param Utility Functions
-
-EXAMPLE_PARAMS_DICT = {'threshold': 0.3,'max_rate': 5}
-
-def upload_params(namespace, params_dict, verbose=False, log_name_list = []):
-    namespace = get_full_namespace(namespace)
-    try:
-        rospy.upload_params(namespace, params_dict, verbose=verbose)
-    except rosparam.RosParamException as e:
-        rospy.logerr("Error uploading parameters from param " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-
-def set_params_from_dict(params_dict, namespace, log_name_list = []):
-    for key in params_dict:
-      val = params_dict[key]
-      namespace = create_namespace(namespace,key)
-    try:
-        rospy.set_param(namespace,val)
-    except rosparam.RosParamException as e:
-        rospy.logerr("Error creating parameters from param key: " + str(key) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
 
 
-def load_params_from_file(file_path, namespace = None, log_name_list = []):
-    if namespace is not None:
-      if namespace[-1] != "/":
-        namespace += "/"
-    else:
-      namespace = "~/"
-    namespace = get_full_namespace(namespace)
-    log_msg_debug("Will try loading parameters from file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
-    try:
-        params_input = rosparam.load_file(file_path)
-    except rosparam.RosParamException as e:
-        log_msg_debug("Error loading parameters from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-    try:
-        if params_input != []:
-          #log_msg_debug("nepi_sdk: loaded params" + str(params_input) + " for " + namespace)
-          params = params_input[0][0]
-          if params is not None:
-            for key in params.keys():
-                value = params[key]
-                param_namesapce = namespace + key
-                #log_msg_debug("nepi_sdk: setting param " + key + " value: " + str(value)  + " for " + namespace)
-                rospy.set_param(param_namesapce, value)
-            log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list, throttle_s = 5.0)
-    except rosparam.RosParamException as e:
-        log_msg_debug("Error updating parameters: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+#######################
+### Topic Utility Functions
 
 
-def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
-    namespace = get_full_namespace(namespace)
-    params_dict = dict()
-    params = get_params(namespace,dict())
-    if save_all == False: # Use only base ns level
-      if params is not None:
-        for key in params.keys():
-          key = key.replace(namespace + '/','')
-          if '/' not in key:
-            params_dict[key] = params[key]
-    else:
-      params_dict = params
-    #Try and initialize app param values
-    try:
-      rosparam.dump_params(file_path, namespace)
-    except Exception as e:
-      log_msg_debug("Could not create params file: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-  
-
-def has_param(namespace,param_name = None, log_name_list = []):
-  if param_name is not None:
-    namespace = create_namespace(namespace,param_name)
-  #namespace = get_full_namespace(namespace)
-  return rospy.has_param(namespace)
-
-
-def get_params(namespace,fallback_param = dict(), log_name_list = []):
-  params = None
-  namespace = get_full_namespace(namespace)
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = []):
+  if queue_size is None:
+    queue_size = 1
+  sub = None
+  #sub_namespace = get_full_namespace(sub_namespace)
   try:
-    if fallback_param is None:
-      params = rospy.get_param(namespace)
+    if len(callback_args) == 0:
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
     else:
-      params = rospy.get_param(namespace,fallback_param)
+        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args = callback_args)
   except Exception as e:
-    rospy.logwarn("Failed to get param for: " + namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-  return params
+    log_msg_debug("nepi_sdk: Failed to create subscriber: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return sub
 
-
-def get_param(namespace,fallback_param = None, log_name_list = []):
-  param = None
-  namespace = get_full_namespace(namespace)
+def create_publisher(pub_namespace, msg, queue_size = 10, latch = False, log_name_list = []):
+  if queue_size is None:
+    queue_size = 1
+  pub = None
+  #pub_namespace = get_full_namespace(pub_namespace)
   try:
-    if fallback_param is None:
-      param = rospy.get_param(namespace)
-    else:
-      param = rospy.get_param(namespace,fallback_param)
+    pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size, latch = latch)
   except Exception as e:
-    rospy.logwarn("Failed to get param for: " + namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-  return param
+    log_msg_debug("nepi_sdk: Failed to create publisher: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return pub
 
-def set_param(namespace,param_val, log_name_list = []):
+def publish_pub(publisher, msg, log_name_list = []):
   success = False
-  namespace = get_full_namespace(namespace)
-  try:
-    rospy.set_param(namespace,param_val)
-    success = True
-  except Exception as e:
-    rospy.logerr("Failed to set param for: " + namespace + " "  + param_val + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  if publisher is not None and msg is not None:
+    try:
+      publisher.publish(msg)
+      success = True
+    except Exception as e:
+      log_msg_debug("nepi_sdk: Failed to publish message: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return success
 
 
-def print_node_params():
-  node_name = rospy.get_name()
-  all_params = rospy.get_param_names()
-  node_params = [param for param in all_params if node_name in param]
-  if node_params:
-      print(f"Parameters for node '{node_name}':")
-      for param in node_params:
-          try:
-              param_value = rospy.get_param(param)
-              print(f"  {param}: {param_value}")
-          except Exception as e:
-              print(f"  {param}: Error retrieving value - {e}")
-  else:
-      print(f"No parameters found for node '{node_name}'.")
+# Function to get list of active topics
+def get_topic_list():
+  topic_list = []
+  try:
+    pubs, subs =rostopic.get_topic_list()
+    topic_list = pubs + subs
+  except Exception as e:
+    log_msg_warn("Nepi Sdk get_topic_list failed: " + str(e))
+  return topic_list
+
+def get_published_topics():
+  return rospy.get_published_topics()
+
+# Function to find a topic
+def find_topic(topic_name, exact = False):
+  topic = ""
+  topic_list = []
+  try:
+    topic_list=get_topic_list()
+  except:
+    pass
+  for topic_entry in topic_list:
+    topic_str = topic_entry[0]
+    if isinstance(topic_str,str):
+      if topic_str.find(topic_name) != -1 and topic_str.find(topic_name+"_") == -1:
+        #log_msg_warn("Found potential topic : " + str(topic_str))
+        if exact == True:
+          if topic_str == topic_name:
+            topic = topic_str
+            break
+          else:
+            #log_msg_warn("Topic did not match : " + str(topic_name))
+            pass
+        else:
+          topic = topic_str
+          break
+  return topic
+
+# Function to find a topic
+def find_topics_by_msg(msg_type):
+  #log_msg_warn("msg find: " + str(msg_type))
+  topic_list = []
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      #log_msg_warn("msg check: " + str([msg_type, topic_str, msg_str]))
+      if isinstance(topic_str,str) and isinstance(msg_str,str):
+        if msg_str.find(msg_type) != -1:
+          topic_list.append(topic_str)
+          log_msg_warn("msg found: " + str([msg_type, topic_str]))
+
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_topics_by_msg failed: " + str(e))
+  return topic_list
+
+# Function to find a topic
+def find_topics_by_msgs(msg_type_list):
+  #log_msg_warn("msg find: " + str(msg_type_list))
+
+  topic_list = []
+  msg_list = []
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      #log_msg_warn("msg check: " + str(msg_type_list + [topic_str, msg_str]))
+      if isinstance(topic_str,str) and isinstance(msg_str,str):
+        for msg_type in msg_type_list:
+          if msg_str.find(msg_type) != -1:
+            topic_list.append(topic_str)
+            msg_list.append(msg_str)
+            #log_msg_warn("msgs found: " + str([msg_type, topic_str]))
+
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_topics_by_msgs failed: " + str(e))
+  return topic_list,msg_list
+
+# Function to find a topic
+def find_msg_by_topic(topic):
+  msg = None
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      if isinstance(topic_str,str) and isinstance(msg_str,str):
+        if topic_str == topic:
+          msg = msg_str
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_msg_by_topic failed: " + str(e))
+  return topic_list
+
+# Function to find a topic
+def find_topics_by_name(topic_name):
+  topic_list = []
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      msg_str = topic_entry[1]
+      if topic_name == os.path.basename(topic_str):
+        topic_list.append(topic_str)
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_topics_by_name failed: " + str(e))
+  return topic_list
+
+### Function to check for a topic 
+def check_for_topic(topic_name):
+  topic_exists = True
+  topic=find_topic(topic_name)
+  if topic == "":
+    topic_exists = False
+  return topic_exists
+
+# Function to wait for a topic
+def wait_for_topic(topic_name, timeout = 60, log_name_list = []):
+  start_time = get_time()
+  timer = 0
+  log_msg_debug("nepi_sdk: Waiting for topic with name: " + topic_name, log_name_list = log_name_list, throttle_s = 5.0)
+  topic = ""
+  while topic == "" and timer < timeout and not rospy.is_shutdown():
+    topic=find_topic(topic_name)
+    time.sleep(.01)
+    timer = get_time() - start_time
+  log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
+  return topic
 
 
 #########################
@@ -762,7 +812,7 @@ def start_timer_process(duration, callback_function, oneshot = False, log_name_l
     rospy.Timer(duration, callback_function, oneshot)
     success = True
   except Exception as e:
-    rospy.logwarn("Failed to start timer process: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Failed to start timer process: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return success
 
 

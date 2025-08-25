@@ -65,7 +65,11 @@ class ConnectMgrTimeSyncIF:
         self.time_updated_callback = time_updated_callback
         self.mgr_namespace = os.path.join(self.base_namespace,self.MGR_NODE_NAME)
         
-
+        ##############################
+        ### Wait for status to publish
+        status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
+        self.msg_if.pub_info("Waiting for status topic: " + status_topic, log_name_list = self.log_name_list)
+        nepi_sdk.wait_for_topic(status_topic)
         ##############################
         ### Setup Node
 

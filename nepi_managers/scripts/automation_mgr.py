@@ -14,10 +14,11 @@ import threading
 import traceback
 import yaml
 import time
-import psutil
+#import psutil
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -48,22 +49,14 @@ from nepi_interfaces.msg import AutoStartEnabled
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
-from nepi_api.connect_mgr_if_config import ConnectMgrConfigIF
 
-
-
-
-SCRIPTS_FOLDER = "/mnt/nepi_storage/automation_scripts"
-SCRIPTS_LOG_FOLDER = "/mnt/nepi_storage/logs/automation_script_logs"
 
 class AutomationManager(object):
 
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
 
-    scripts_folder = SCRIPTS_FOLDER
-    scripts_log_folder = SCRIPTS_LOG_FOLDER
-
+    node_if = None
+    
     processes = {}
     scripts = []
     script_counters = {}
@@ -75,6 +68,7 @@ class AutomationManager(object):
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        nepi_sdk.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -85,34 +79,30 @@ class AutomationManager(object):
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
+
+        ##############################
+        # Wait for System Manager
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for user folders")
+        user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got user folders: " + str(user_folders))
+
+        self.scripts_folder = user_folders['automation_scripts']
+        self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
+
+        self.scripts_log_folder = self.scripts_folder = user_folders['logs/automation_script_logs']
+        self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
+        
+          
+
         ##############################
         # Initialize Class Variables
         self.script_stop_timeout_s = self.DEFAULT_SCRIPT_STOP_TIMEOUT_S
         self.running_scripts = set()
 
-
-        ##############################
-        ## Wait for NEPI core managers to start
-        # Wait for System Manager
-        self.msg_if.pub_info("Starting ConnectSystemIF processes")
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        self.scripts_folder = mgr_sys_if.get_sys_folder_path('automation_scripts',SCRIPTS_FOLDER)
-        self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
-
-        self.scripts_log_folder = mgr_sys_if.get_sys_folder_path('logs/automation_script_logs',SCRIPTS_LOG_FOLDER)
-        self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
+        self.initCb(do_updates = False)
         
-        
-        # Wait for Config Manager
-        mgr_cfg_if = ConnectMgrConfigIF()
-        success = mgr_cfg_if.wait_for_status()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get Config Ready")
-    
-
         ##############################
         ### Setup Node
 
@@ -322,16 +312,32 @@ class AutomationManager(object):
         self.node_if.save_config()
 
     def initCb(self, do_updates = False):
+        if self.node_if is not None:
+            pass
         if do_updates == True:
             # Read the script_configs parameter from the ROS parameter server
             self.update_script_configs()
+        
 
-    def resetCb(self):
+        
+    def resetCb(self,do_updates = True):
         self.node_if.set_param('script_configs', self.script_configs)
         self.node_if.set_param('script_stop_timeout_s', self.script_stop_timeout_s)
-        
-    def factoryResetCb(self):
-        pass
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
         
     def get_scripts(self):
         """
@@ -437,7 +443,8 @@ class AutomationManager(object):
                     curr_env['PYTHONUNBUFFERED'] = 'on'
                     
                     process = subprocess.Popen(process_cmdline, stdout=script_logfile, stderr=subprocess.STDOUT, bufsize=1, env=curr_env) # bufsize=1 ==> Line buffering
-                    self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
+                    #self.processes[req.script] = {'process': process, 'pid': process.pid, 'start_time': psutil.Process(process.pid).create_time(), 'logfile': script_logfile}
+                    self.processes[req.script] = {'process': process, 'pid': process.pid, 'logfile': script_logfile}
                     self.running_scripts.add(req.script)  # Update the running_scripts set
                     self.msg_if.pub_info("running: " + str(req.script))
                     self.script_counters[req.script]['started'] += 1  # update the counter
@@ -461,7 +468,7 @@ class AutomationManager(object):
             try:
                 process.terminate()
                 process.wait(timeout=self.script_stop_timeout_s)
-                self.script_counters[req.script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(self.processes[req.script]['start_time'])).to_sec()
+                self.script_counters[req.script]['cumulative_run_time'] += 1 #(nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(self.processes[req.script]['start_time'])).to_sec()
                 self.processes[req.script]['logfile'].close()
                 del self.processes[req.script]
                 self.running_scripts.remove(req.script)  # Update the running_scripts set
@@ -502,7 +509,7 @@ class AutomationManager(object):
                             self.script_counters[script]['errored_out'] += 1
                                                
                         # Update the cumulative run time whether exited on success or error
-                        self.script_counters[script]['cumulative_run_time'] += (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
+                        self.script_counters[script]['cumulative_run_time'] += 1 #(nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
                         nepi_sdk.wait()
         
@@ -540,7 +547,7 @@ class AutomationManager(object):
         
         pid = self.processes[script_name]['pid']
         response.log_size_bytes = os.fstat(self.processes[script_name]['logfile'].fileno()).st_size
-
+        '''
         try:
             # Get resource usage for the specific PID
             #usage = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -552,7 +559,7 @@ class AutomationManager(object):
 
             # Get memory usage
             #self.memory_usage = usage.ru_maxrss
-            response.memory_percent = 100.0 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
+            response.memory_percent = 3.5 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
                         
             # Get creation/start-up time
             response.run_time_s = (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process.create_time())).to_sec()
@@ -564,7 +571,7 @@ class AutomationManager(object):
         except Exception as e:
             self.msg_if.pub_warn("Error gathering running stats: " + str(e))
             return response  # Add new None values for the counters
-        
+        '''
         # Return the system stats as a GetSystemStatsQuery response object
         return response
 

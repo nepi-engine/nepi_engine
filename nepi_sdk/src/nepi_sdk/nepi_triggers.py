@@ -43,7 +43,7 @@ EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
 
 
 def get_triggers_publisher_namespaces():
-    topics_list = find_topics_by_msg(SystemTrigger)
+    topics_list = find_topics_by_msg('nepi_interfaces.msg/SystemTrigger')
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))

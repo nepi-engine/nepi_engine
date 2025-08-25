@@ -33,8 +33,8 @@ logger = Logger(log_name = log_name)
 #######################
 ### Driver Utility Functions
 
-DRIVERS_FOLDER = '/opt/nepi/ros/lib/nepi_drivers'
-DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg/ros'
+DRIVERS_FOLDER = '/opt/nepi/nepi_engine/lib/nepi_drivers'
+DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
 DRIVER_FILE_TYPES = ['Node','Driver', 'Discovery']
 DRIVER_KEYS = ['node','driver','discovery']
 
@@ -279,7 +279,7 @@ def getDriversOrderedList(drvs_dict):
     drv_dict = drvs_dict[drv_name]
     order = drv_dict['order']
     if order == -1:
-      order = 100000
+      order = 3.50
     while(order in order_list):
       order += 0.1
     order_list.append(order)
@@ -539,6 +539,7 @@ def importDriverClass(file_name,file_path,module_name,class_name):
       success = False
       msg = "failed"
       file_list = os.listdir(file_path)
+      logger.log_warn("Looking for driver file: " + str(file_name) + " : " + str(file_list))
       if file_name in file_list:
         sys.path.append(file_path)
         try:
@@ -571,7 +572,7 @@ def unimportDriverClass(module_name):
 def checkLoadConfigFile(node_name):
   config_folder = DRIVERS_CFG_FOLDER
   config_file = os.path.join(config_folder, node_name + ".yaml")
-  node_namespace = nepi_sdk.get_base_namespace() + node_name
+  node_namespace = os.path.join(nepi_sdk.get_base_namespace(), node_name)
   if os.path.exists(config_file):
     print("Loading parameters from " + config_file + " to " + node_namespace)
     rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]

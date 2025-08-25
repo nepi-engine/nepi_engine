@@ -37,7 +37,7 @@ def getAIFsDict(params_path, api_path):
         if os.path.exists(api_path):
           api_path = nepi_utils.clear_end_slash(api_path)
           sys.path.append(params_path)
-          logger.log_info("Searching for AIFs in path: " + params_path)
+          logger.log_debug("Searching for AIFs in path: " + params_path, throttle_s = 5.0)
           for f in os.listdir(params_path):
             if f.endswith(".yaml") and f.find("params") != -1: 
               try:

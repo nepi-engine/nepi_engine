@@ -162,7 +162,7 @@ class DepthMapImgPub:
        
         # Setup Save Data IF
         factory_data_rates= {}
-        factory_data_rates[self.data_product] = [1.0, 0.0, 100.0] 
+        factory_data_rates[self.data_product] = [1.0, 0.0, 3.5] 
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.bs_namespace,
                         msg_if = self.msg_if

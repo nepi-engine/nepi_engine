@@ -38,6 +38,7 @@ from nepi_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryReque
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_settings
 
@@ -141,7 +142,7 @@ class NPXDeviceIF:
   has_position = False
   has_altitude = False
   has_depth = False
-  supports_transform_updates = True
+  supports_updates = True
 
   set_location_source = False
   set_heading_source = False
@@ -181,7 +182,7 @@ class NPXDeviceIF:
 
   getNavPoseCb = None
   get3DTransformCb = None
-  supports_transform_updates = True
+  supports_updates = True
 
   #######################
   ### IF Initialization
@@ -205,7 +206,7 @@ class NPXDeviceIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
-
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
         ##############################  
         # Create Msg Class
         if msg_if is not None:
@@ -241,7 +242,7 @@ class NPXDeviceIF:
 
         self.get3DTransformCb = get3DTransformCb
 
-        self.supports_transform_updates = (get3DTransformCb is None)
+        self.supports_updates = (get3DTransformCb is None)
         
 
         if frame_3d is not None:
@@ -259,12 +260,15 @@ class NPXDeviceIF:
         self.get3DTransformCb = get3DTransformCb
         ###
         self.getNavPoseCb = getNavPoseCb
+
         if self.getNavPoseCb is not None:
             navpose_dict = None
             try:
                 navpose_dict = self.getNavPoseCb()
+
             except:
-                pass
+                print("ERROR in getNavPoseCb():", e)
+
             if navpose_dict is None:
                 self.getNavPoseCb = None
             else:
@@ -285,7 +289,7 @@ class NPXDeviceIF:
         self.caps_report.has_depth =  self.has_depth
 
 
-        self.caps_report.supports_transform_updates = self.supports_transform_updates
+        self.caps_report.supports_updates = self.supports_updates
 
         self.caps_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
 
@@ -319,30 +323,13 @@ class NPXDeviceIF:
 
         self.status_msg.frame_3d = self.frame_3d
 
-        self.status_msg.supports_transform_updates = self.supports_transform_updates
+        self.status_msg.supports_updates = self.supports_updates
 
         self.status_msg.source_frame_nav = self.frame_nav
         self.status_msg.source_frame_altitude = self.frame_altitude
         self.status_msg.source_frame_depth = self.frame_depth
 
    
-
-        # Create a navpose data IF
-        np_namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                            data_source_description = self.data_source_description,
-                            data_ref_description = self.data_ref_description,
-                            pub_location = self.has_location,
-                            pub_heading = self.has_heading,
-                            pub_orientation =  self.has_orientation,
-                            pub_position = self.has_position,
-                            pub_altitude = self.has_altitude,
-                            pub_depth = self.has_depth,
-                            log_name = 'navpose',
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                            )
-
 
         ##################################################
         ### Node Class Setup
@@ -354,7 +341,7 @@ class NPXDeviceIF:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.node_namespace
+                'namespace':  self.namespace
         }
 
 
@@ -363,15 +350,15 @@ class NPXDeviceIF:
 
         self.PARAMS_DICT = {
             'device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.device_name
             },
             'update_rate': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.update_rate
             },
             'mount_desc': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'factory_val': 'None'
             }
 
@@ -381,8 +368,8 @@ class NPXDeviceIF:
 
         self.SRVS_DICT = {
             'navpose_capabilities_query': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/capabilities_query',
+                'namespace': self.namespace,
+                'topic': 'capabilities_query',
                 'srv': NPXCapabilitiesQuery,
                 'req': NPXCapabilitiesQueryRequest(),
                 'resp': NPXCapabilitiesQueryResponse(),
@@ -392,8 +379,8 @@ class NPXDeviceIF:
 
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/status',
+                'namespace': self.namespace,
+                'topic': 'status',
                 'msg': DeviceNPXStatus,
                 'qsize': 1,
                 'latch': True
@@ -404,7 +391,7 @@ class NPXDeviceIF:
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
             'set_device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'rbx/set_device_name',
                 'msg': String,
                 'qsize': 1,
@@ -412,7 +399,7 @@ class NPXDeviceIF:
                 'callback_args': ()
             },
             'reset_device_name': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'rbx/reset_device_name',
                 'msg': Empty,
                 'qsize': 1,
@@ -420,72 +407,72 @@ class NPXDeviceIF:
                 'callback_args': ()
             },
             'set_update_rate': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_update_rate',
+                'namespace': self.namespace,
+                'topic': 'set_update_rate',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setUpdateRateCb, 
                 'callback_args': ()
             },
             'set_as_heading_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_heading_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_heading_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setHeadSourceCb, 
                 'callback_args': ()
             },
             'set_as_location_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_location_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_location_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setLocSourceCb, 
                 'callback_args': ()
             },
             'set_as_position_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_position_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_position_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setPosSourceCb, 
                 'callback_args': ()
             },
             'set_as_altitude_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_altitude_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_altitude_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setAltSourceCb, 
                 'callback_args': ()
             },            
             'set_as_orientation_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_orientation_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_orientation_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setOrienSourceCb, 
                 'callback_args': ()
             },
             'set_as_depth_source': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_as_depth_source',
+                'namespace': self.namespace,
+                'topic': 'set_as_depth_source',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._setDepthSourceCb, 
                 'callback_args': ()
             },
             'set_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/set_mount_description',
+                'namespace': self.namespace,
+                'topic': 'set_mount_description',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
                 'callback_args': ()
             },
             'reset_mount_desc': {
-                'namespace': self.node_namespace,
-                'topic': 'npx/reset_mount_description',
+                'namespace': self.namespace,
+                'topic': 'reset_mount_description',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetMountDescCb, 
@@ -499,17 +486,24 @@ class NPXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
                             )
       
+        success = nepi_sdk.wait()
 
-        ready = self.node_if.wait_for_ready()
+        ##############################
+        # Update vals from param server
+        self.initCb(do_updates = True)
+        self.publish_status()
 
+        
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+        ####################################
         # Setup 3D Transform IF Class ####################
         self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        transform_ns = self.namespace
         self.transform_if = Transform3DIF(namespace = transform_ns,
                         source_ref_description = self.tr_source_ref_description,
                         end_ref_description = self.tr_end_ref_description,
@@ -520,7 +514,7 @@ class NPXDeviceIF:
 
         # Setup Settings IF Class ####################
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        settings_ns = self.namespace
         
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
@@ -541,9 +535,9 @@ class NPXDeviceIF:
         self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates = {}
         for d in self.data_products_list:
-            factory_data_rates[d] = [0.0, 0.0, 100.0] # Default to 0Hz save rate, set last save = 0.0, max rate = 100.0Hz
+            factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
         if 'navpose' in self.data_products_list:
-            factory_data_rates['navpse'] = [1.0, 0.0, 100.0] 
+            factory_data_rates['navpse'] = [1.0, 0.0, 3.5] 
 
         factory_filename_dict = {
             'prefix': "", 
@@ -554,11 +548,29 @@ class NPXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = nepi_sdk.create_namespace(self.node_namespace,'ptx')
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_list,
                             factory_rate_dict = factory_data_rates,
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+
+
+
+        # Create a navpose data IF
+        np_namespace = self.namespace
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
+                            data_source_description = self.data_source_description,
+                            data_ref_description = self.data_ref_description,
+                            pub_location = self.has_location,
+                            pub_heading = self.has_heading,
+                            pub_orientation =  self.has_orientation,
+                            pub_position = self.has_position,
+                            pub_altitude = self.has_altitude,
+                            pub_depth = self.has_depth,
+                            log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
@@ -571,7 +583,7 @@ class NPXDeviceIF:
         self.initCb(do_updates = True)
 
         nepi_sdk.start_timer_process(0.1, self._updateNavPoseDictCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+        
         ###############################
         # Finish Initialization
 
@@ -742,6 +754,9 @@ class NPXDeviceIF:
   def publishStatus(self, do_updates=True):
       self._publishStatusCb(None)
 
+  def initConfig(self):
+      self.initCb()
+
   def initCb(self,do_updates = False):
       #self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
       if self.node_if is not None:
@@ -758,8 +773,14 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.reset()
       if self.settings_if is not None:
-          self.settings_if.reset_settings(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.reset()
+      if self.transform_if is not None:
+          self.transform_if.reset()
+      if self.navpose_if is not None:
+          self.navpose_if.reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
   def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
@@ -767,8 +788,14 @@ class NPXDeviceIF:
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
-          self.settings_if.factory_reset(update_status = False, update_params = True)
-      self.initCb()
+          self.settings_if.factory_reset()
+      if self.transform_if is not None:
+          self.transform_if.factory_reset()
+      if self.navpose_if is not None:
+          self.navpose_if.factory_reset()
+      if do_updates == True:
+        pass
+      self.initCb(do_updates = True)
 
 
 
@@ -786,13 +813,13 @@ class NPXDeviceIF:
     if navpose_dict is None:
         navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     # publish navpose data
-    has_tranform = True
+    has_transform = True
     if 'frame_3d' in navpose_dict:
         if navpose_dict['frame_3d'] == 'nepi_frame':
-            has_tranform = False
-    self.has_tranform = has_tranform
-    if self.tranform_if is not None:
-        self.tranform_if.set_has_tranform(has_tranform)
+            has_transform = False
+    self.has_transform = has_transform
+    if self.transform_if is not None:
+        self.transform_if.set_has_transform(has_transform)
 
     transform = self.get_3d_transform()
     if self.navpose_if is not None:

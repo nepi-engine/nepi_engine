@@ -16,9 +16,12 @@
 import os
 import time
 import errno
+import time
+
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -26,41 +29,53 @@ from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResp
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.connect_mgr_if_system import ConnectMgrSystemServicesIF
 
 
 NEPI_ENV_PACKAGE = 'nepi_env'
 
-NEPI_CFG_PATH = '/opt/nepi/ros/etc'
+NEPI_HOME_PATH = '/home/nepi'
+NEPI_CFG_PATH = '/opt/nepi/nepi_engine/etc'
+FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
+SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
 FACTORY_SUFFIX = '.factory'
 USER_SUFFIX = '.user'
 
-pending_nodes = {}
+SYSTEM_MGR_NODENAME = 'system_mgr'
+
 
 # Files outside the normal NEPI-ROS cfg. scheme
 SYS_CFGS_TO_PRESERVE = {
     'sys_env.bash' : '/opt/nepi/sys_env.bash', # Serial number, ROS launch file, external ROS MASTER etc.
-    'authorized_keys' : '/opt/nepi/config/home/nepi/ssh/authorized_keys', # NEPI Device SSH public keys
-    'hostname' : '/opt/nepi/config/etc/hostname', # NEPI Device hostname
-    'sshd_config' : '/opt/nepi/config/etc/ssh/sshd_config', # SSH Server Config
-    'chrony.conf.user' : '/opt/nepi/config/etc/chrony/chrony.conf.user', # NTP/Chrony Config
-    's2x_iptables.rules' : '/opt/nepi/config/etc/iptables/s2x_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
-    's2x_sensor_if_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/s2x_sensor_if_static_ip', # Static IP address for secondary/sensor ethernet interface
-    'nepi_user_ip_aliases' : '/opt/nepi/config/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
-    'nepi_static_ip' : '/opt/nepi/config/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
-    'fstab' : '/opt/nepi/config/etc/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
-    'smb.conf' : '/opt/nepi/config/etc/samba/smb.conf'
+     #'hostname' : '/opt/nepi/etc/hostname', # NEPI Device hostname
+    'sshd_config' : '/opt/nepi/etc/ssh/sshd_config', # SSH Server Config
+    'chrony.conf' : '/opt/nepi/etc/chrony/chrony.conf', # NTP/Chrony Config
+    'nepi_iptables.rules' : '/opt/nepi/etc/network/nepi_iptables.rules', # Route and forwarding rules; e.g., for dual-interface devices
+    'nepi_user_ip_aliases' : '/opt/nepi/etc/network/interfaces.d/nepi_user_ip_aliases', # IP alias addresses for primary ethernet interface
+    'nepi_static_ip' : '/opt/nepi/etc/network/interfaces.d/nepi_static_ip', # Principal static IP address for primary ethernet interface
+    'fstab' : '/opt/nepi/etc/fstabs/fstab', # Filesystem mounting rules; e.g., nepi_storage on SD vs SSD
+    'smb.conf' : '/opt/nepi/etc/samba/smb.conf'
 }
 
+
+
 class config_mgr(object):
+
+    node_if = None
+    config_folders = dict()
+    config_folders['factory_cfg']=FACTORY_CFG_PATH
+    config_folders['system_cfg']=SYSTEM_CFG_PATH
+    config_folders['user_cfg']=USER_CFG_PATH
+
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "config_mgr" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
+        time.sleep(1)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
@@ -72,15 +87,16 @@ class config_mgr(object):
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
-        ## Wait for NEPI core managers to start
         # Wait for System Manager
-        self.msg_if.pub_info("Starting ConnectSystemIF processes")
-        mgr_sys_if = ConnectMgrSystemServicesIF()
-        success = mgr_sys_if.wait_for_services()
-        if success == False:
-            nepi_sdk.signal_shutdown(self.node_name + ": Failed to get System Ready")
-        ###########################
-
+        #self.msg_if.pub_info("Waiting for 10 secs")
+        #time.sleep(10)
+        self.msg_if.pub_info("Waiting for system folders")
+        folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got system folders: " + str(folders))
+        for folder in self.config_folders.keys():
+            if folder in folders.keys():
+                self.config_folders[folder] = folders[folder]
+        
         ##############################
         ### Setup Node
 
@@ -183,6 +199,7 @@ class config_mgr(object):
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
+                        wait_cfg_mgr = False,
                         msg_if = self.msg_if
         )
 
@@ -200,15 +217,59 @@ class config_mgr(object):
         time.sleep(1)
         self.save_system_cfgs()
         self.msg_if.pub_warn("System config files saved")
-        
-        self.node_if.publish_pub('status_pub', Empty())
 
+        nepi_sdk.start_timer_process(1, self.statusPubCb)
+        ################
+        # Save the current system config
+        sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
+        self.save_params(sys_ns)
+
+        nepi_sdk.sleep(2)
+        self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
+
+    def sysResetCb(self,reset_type):
+        pass
+
+    def initCb(self, do_updates = False):
+      if self.node_if is not None:
+        pass
+      if do_updates == True:
+        nepi_sdk.set_param('config_folders',self.config_folders)
+      self.publish_status()
+
+
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+    def factoryResetCb(self,do_updates = True):
+        self.aifs_classes_dict = dict()
+        self.aif_classes_dict = dict()
+        if self.node_if is not None:
+            pass
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = do_updates)
+
+
+
+    def publish_status(self):
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', Empty())
+
+    def statusPubCb(self,timer):
+        self.publish_status()
 
 
     def get_filename_from_namespace(self,namespace):
@@ -226,22 +287,17 @@ class config_mgr(object):
         if os.path.exists(file_pathname) == False:
             return [False]
         else:
-            self.msg_if.pub_info("Updating Params for namespace: " + namespace  + " from file " + file_pathname )
-            paramlist = None
+            self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
+            params_dict = None
             try:
-                paramlist = nepi_sdk.load_params_from_file(file_pathname, namespace)
-                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(paramlist))
+                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
+                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()), log_name_list = [self.class_name])
+                if namespace.find('idx') != -1:
+                    params = nepi_sdk.get_params(namespace)
+                    self.msg_if.pub_warn("Got Params for idx namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict), log_name_list = [self.class_name])
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
-            if paramlist is not None:
-                for params, ns in paramlist:
-                    try:
-                        nepi_sdk.upload_params(ns, params, verbose=True)     
-                    except Exception as e:
-                        self.msg_if.pub_warn("Unable to upload parameters "  + str(e))
-                self.msg_if.pub_info("Updated Params for namespace: " + namespace )
-            #if namespace == '/nepi/s2x/nexigo_23':
-            #    self.msg_if.pub_warn("Current Params for namespace: " + namespace + " " + str())
+            self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
         return [True]
 
     def get_factory_pathname(self,namespace):
@@ -252,7 +308,7 @@ class config_mgr(object):
 
     def get_user_pathname(self,namespace):
         filename = self.get_filename_from_namespace(namespace)
-        user_cfg_dirname = os.path.join(USER_CFG_PATH, 'ros')
+        user_cfg_dirname = os.path.join(USER_CFG_PATH)
         
         # Ensure the path we report actually exists
         if not os.path.isdir(user_cfg_dirname):
@@ -266,7 +322,7 @@ class config_mgr(object):
         success = False
         user_pathname = self.get_user_pathname(namespace)
         if os.path.exists(user_pathname):
-            self.msg_if.pub_info("Reseting params for namespace from user cfg file: " + namespace  + " from file " + user_pathname)
+            self.msg_if.pub_warn("Reseting params for namespace from user cfg file: " + namespace  + " from file " + user_pathname)
             success = self.update_from_file(user_pathname, namespace)
         # Now update the param server
         return success
@@ -295,6 +351,9 @@ class config_mgr(object):
 
     def store_params(self,msg):
         namespace = msg.data
+        self.save_params(namespace)
+    
+    def save_params(self,namespace):
         user_pathname = self.get_user_pathname(namespace)
         self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + user_pathname )
         # First, write to the user file
@@ -313,22 +372,10 @@ class config_mgr(object):
         for cfg in SYS_CFGS_TO_PRESERVE:
             source = SYS_CFGS_TO_PRESERVE[cfg]
             target = os.path.join(USER_CFG_PATH, 'sys', cfg)
-            os.system('cp -rf ' + source + ' ' + target)
+            self.msg_if.pub_info("Save Config copying file: " + source  + " to " + target )
+            os.system('cp -rfp ' + source + ' ' + target)
 
 
-    def initCb(self, do_updates = False):
-        if do_updates == True:
-            self.resetCb()
-
-
-    def sysResetCb(self,reset_type):
-        pass
-
-    def resetCb(self):
-        pass
-
-    def factoryResetCb(self):
-        pass
 
     def restore_system_cfgs_all(self,msg):
         self.restore_system_cfgs()
@@ -338,20 +385,20 @@ class config_mgr(object):
     def restore_system_cfgs(self):
         # Handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                if os.path.isdir(full_name):
-                    full_name = os.path.join(full_name,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                if os.path.isdir(source):
+                    source = os.path.join(source,'*') # Wildcard avoids copying source folder into target folder as a subdirectory
                 target = SYS_CFGS_TO_PRESERVE[name]
-                self.msg_if.pub_warn("Updating " + target + " from user config")
-                os.system('cp -rf ' + full_name + ' ' + target)
+                self.msg_if.pub_info("Restore copying system file: " + source  + " to " + target )
+                os.system('cp -rfp ' + source + ' ' + target)
                 
-
+ 
                 # don't update sys_env NEPI_ENV_PACKAGE value
                 if name == 'sys_env.bash':
                     self.msg_if.pub_warn("Updating sys_env.bash file with correct Package name")
                     file_lines = []
-                    with open(target, "r") as f:
+                    with open(source, "r") as f:
                         for line in f:
                             #self.msg_if.pub_info("Got sys_env line: " + line)
                             if line.startswith("export ROS1_PACKAGE="):
@@ -362,15 +409,15 @@ class config_mgr(object):
                                 update_line = line
                             #self.msg_if.pub_info("Update sys_env line: " + update_line)
                             file_lines.append(update_line)
-                    tmp_filename = target + ".tmp"
-                    with open(tmp_filename, "w") as f:
-                        for line in file_lines:
-                            f.write(line)
-                    bak_filename = target + ".bak"
-                    os.system('cp -rf ' + tmp_filename + ' ' + bak_filename)
-                    os.system('cp -rf ' + tmp_filename + ' ' + target)
-                    os.system('rm ' + tmp_filename)
+                    tmp_file = target + ".tmp"
+                    if os.path.exists(tmp_file):
+                        os.system('rm ' + tmp_file)
+                    with open(tmp_file,'w') as f:
+                        f.writelines(file_lines)
+                    
+                    os.system('cp -rfp ' + tmp_file + ' ' + target)
                 os.system('chown -R nepi:nepi ' + target)
+ 
 
 
     def restore_factory_cfgs_all(self,msg):
@@ -381,16 +428,16 @@ class config_mgr(object):
     def restore_factory_cfgs(self):
         # First handle the ROS user configs.
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'ros', name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
 
         '''
         # Now handle non-ROS user system configs.        
         for name in SYS_CFGS_TO_PRESERVE.keys():
-            full_name = os.path.join(USER_CFG_PATH, 'sys', name)
-            if os.path.exists(full_name):
-                os.system('rm ' + full_name)
+            source = os.path.join(USER_CFG_PATH, 'sys', name)
+            if os.path.exists(source):
+                os.system('rm ' + source)
         '''
                 
 
