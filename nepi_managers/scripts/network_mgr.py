@@ -158,8 +158,8 @@ class NetworkMgr:
         ##############################
         # Wait for System Info
         self.msg_if.pub_info("Waiting for system info")
-        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got running in container: " + str(self.in_container))
+        self.manages_network = nepi_system.get_manages_network(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got running in container: " + str(self.manages_network))
         
         ##############################
         # Initialize Variables
@@ -262,9 +262,9 @@ class NetworkMgr:
                 'qsize': 1,
                 'latch': True
             },
-            'store_params': {
+            'saveParamsCb': {
                 'namespace': self.base_namespace,
-                'topic': 'store_params',
+                'topic': 'saveParamsCb',
                 'msg': String,
                 'qsize': 1,
                 'latch': False
@@ -610,8 +610,8 @@ class NetworkMgr:
 
     def enable_dhcp_impl(self, enabled):
         last_dhcp = copy.deepcopy(self.dhcp_enabled)
-        #self.msg_if.pub_warn("Entering dhcp enable check 1 with: " + str([self.in_container==False,self.network_checked,self.internet_checked,self.clock_skewed==False]))
-        if self.in_container == False and self.network_checked == True and self.internet_checked == True and self.clock_skewed == False:
+        #self.msg_if.pub_warn("Entering dhcp enable check 1 with: " + str([self.manages_network==False,self.network_checked,self.internet_checked,self.clock_skewed==False]))
+        if self.manages_network == False and self.network_checked == True and self.internet_checked == True and self.clock_skewed == False:
                 connected = copy.deepcopy(self.internet_connected)
                 #self.msg_if.pub_warn("Entering dhcp enable check 2 with: " + str([enabled,self.dhcp_enable_state == False,self.dhcp_connecting == False]))
                 if enabled is True and self.dhcp_enable_state == False and self.dhcp_connecting == False:
@@ -1524,7 +1524,7 @@ class NetworkMgr:
         with self.internet_connected_lock:
             internet_connected = self.internet_connected
 
-
+        self.status_msg.manages_network = self.manages_network
         # Wired Info
         self.status_msg.ip_addrs = self.found_ip_addrs 
         self.status_msg.primary_ip_addr = self.primary_ip_addr

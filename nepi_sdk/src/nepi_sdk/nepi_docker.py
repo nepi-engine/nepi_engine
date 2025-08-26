@@ -27,15 +27,19 @@ from nepi_sdk import nepi_utils
 
 # Local rootfs definitions - These can be freely changed
 ###################################################################################################
-FLASH_ROOTFS_MOUNTPOINT = "/mnt/flash"
-INACTIVE_PARTITION_MOUNTPOINT = "/mnt/inactive"
-STAGING_MOUNTPOINT = "/mnt/staging"
-TMP_MOUNTPOINT = "/mnt/tmp"
 
-NEPI_FULL_IMG_SUBDIR = "nepi_full_img"
-NEPI_BACKUP_IMG_SUBDIR = "nepi_full_img_archive"
-NEPI_FULL_IMG_SEARCH_STRING = "nepi*img.raw"
+DOCKER_CONFIG_FILE = "nepi_docker_config.yaml"
+DOCKER_CONFIG_PATH = "/mnt/nepi_config/docker_cfg"
+
+NEPI_FULL_IMG_SUBDIR = "nepi_images"
+NEPI_BACKUP_IMG_SUBDIR = "nepi_images"
+NEPI_FULL_IMG_SEARCH_STRING = "nepi*.tar"
+
 NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/nepi_engine/etc/fw_version.txt"
+
+MAX_BOOT_FAILURE_ENV_VAR_NAME = "MAX_BOOT_FAILURE_COUNT"
+
+SUPPORTS_AB_FS = True
 ###################################################################################################
 
 # First-stage rootfs definitions - Do not change these unless also updating the first-stage
@@ -47,7 +51,7 @@ FLASH_ROOTFS_CUSTOM_ENV_PATHNAME = "opt/nepi/nepi_rootfs_ab_custom_env.sh"
 INACTIVE_PARTITION_ENV_VAR_NAME = "INACTIVE_PARTITION"
 ACTIVE_PARTITION_ENV_VAR_NAME = "ACTIVE_PARTITION"
 TMP_PARTITION_ENV_VAR_NAME = "TMP_PARTITION"
-MAX_BOOT_FAILURE_ENV_VAR_NAME = "MAX_BOOT_FAILURE_COUNT"
+
 ###################################################################################################
 
 # Alternative Jetson+NEPI A/B Scheme: Used for Orin-NX and probably others going forward

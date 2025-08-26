@@ -61,7 +61,7 @@ from nepi_api.node_if import NodeClassIF
 ##################################################
 
 
-API_LIB_FOLDER = "/opt/nepi/ros/lib/nepi_api"
+API_LIB_FOLDER = "/opt/nepi/nepi_engine/lib/nepi_api"
 
 SYSTEM_DATA_FOLDER = 'mnt/nepi_storage/data'
 

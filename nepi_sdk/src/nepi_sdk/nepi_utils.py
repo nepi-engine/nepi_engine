@@ -576,7 +576,49 @@ def read_csv_file(file_path):
         logger.log_warn("Failed to load file: " + file_path + " " + str(e))
     return data
 
+def clear_folder(folder_path):
+    for root, dirs, files in os.walk(folder_path):
+        for f in files:
+            os.unlink(os.path.join(root, f))
+        for d in dirs:
+            shutil.rmtree(os.path.join(root, d))
 
+def delete_files_in_folder(folder_path):
+    """
+    Deletes all files within a specified folder, leaving subdirectories intact.
+
+    Args:
+        folder_path (str): The path to the folder to clean.
+    """
+    if not os.path.isdir(folder_path):
+        print(f"Error: '{folder_path}' is not a valid directory.")
+        return
+
+    for item_name in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item_name)
+        if os.path.isfile(item_path):
+            try:
+                os.remove(item_path)
+                print(f"Deleted file: {item_path}")
+            except OSError as e:
+                print(f"Error deleting file {item_path}: {e}")
+
+def rsync_folders(source_folder,destitation_folder, options = "-arp"):    
+    success = True
+
+    try:
+        # Basic rsync command with common options
+        command = ["rsync", options, source_folder,destitation_folder]
+        
+        # Execute the command
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        print(result.stdout)
+        
+    except subprocess.CalledProcessError as e:
+        success = False
+        print(f"Rsync failed with error code {e.returncode}:")
+        print(e.stderr)
+    return success
 
 #########################
 ### List Helper Functions

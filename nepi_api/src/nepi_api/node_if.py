@@ -122,7 +122,7 @@ class NodeConfigsIF:
         self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'factory_reset')
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'store_params')
+        ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
 
         if wait_cfg_mgr == True:

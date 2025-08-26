@@ -21,9 +21,6 @@ logger = Logger(log_name = log_name)
 
 
 # Setup System Variables
-BASE_NAMESPACE = nepi_sdk.get_base_namespace()
-
-# Try and read bash set variables
 '''
 NEPI_CONFIG=None
 NEPI_CONFIG_PATH='/home/nepi/.nepi_config'
@@ -39,203 +36,211 @@ logger.log_warn("Got NEPI CONFIG: " +  str(NEPI_CONFIG))
 
 #######################
 ## Get System Data Functions
-def get_base_namespace():
-    return BASE_NAMESPACE
 
-##########################
-
-def get_hw_type(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'hw_type')
+def get_hw_type(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'hw_type')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_hw_type(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'hw_type')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'hw_type')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+def get_hw_model(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'hw_model')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_hw_model(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'hw_model')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 
-def get_in_container(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'in_container')
+def get_in_container(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'in_container')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_in_container(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'in_container')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'in_container')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_has_cuda(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'has_cuda')
+def get_has_cuda(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'has_cuda')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_has_cuda(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'has_cuda')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'has_cuda')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 
 ##########################
 
-def get_manages_ssh(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_ssh')
+def get_manages_ssh(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_ssh')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_manages_ssh(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_ssh')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_ssh')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 
-def get_manages_share(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_share')
+def get_manages_share(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_share')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_manages_share(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_share')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_share')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_manages_time(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_time')
+def get_manages_time(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_time')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_manages_time(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_time')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_time')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_manages_network(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_network')
+def get_manages_network(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_network')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_manages_network(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'manages_network')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'manages_network')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 ##########################
 
-def get_debug_mode(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'debug_mode')
+def get_debug_mode(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_mode')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_debug_mode(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'debug_mode')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_mode')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_admin_mode(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'admin_mode')
+def get_admin_mode(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_admin_mode(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'admin_mode')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_admin_restricted(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'admin_restricted')
+def get_admin_restricted(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_restricted')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_admin_restricted(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'admin_restricted')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_restricted')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 ##########################
 
 
-def get_user_folders(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'user_folders')
+
+def get_user_folders(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_folders')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_user_folders(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'user_folders')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_folders')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_system_folders(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'system_folders')
+def get_system_folders(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'system_folders')
+    logger.log_warn("Got system folders namespace: " +  str(param_namespace))
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_system_folders(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'system_folders')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'system_folders')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_config_folders(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'config_folders')
+def get_config_folders(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'config_folders')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_config_folders(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'config_folders')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'config_folders')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 ##########################
 
-def get_navpose_frames(timeout = float('inf'), log_name_list = []):
+def get_navpose_frames(timeout = 1000, log_name_list = []):
     param_namespace = 'navpose_frames'
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_navpose_frames(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'navpose_frames')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navpose_frames')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_timezone(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'timezone')
+def get_timezone(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'timezone')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_timezone(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'timezone')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'timezone')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 ##########################
 
-def get_active_drivers(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_drivers')
+def get_active_drivers(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_drivers')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_active_drivers(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_drivers')
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_drivers')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
 ''' Need to add
-def get_active_ai_frameworks(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_ai_frameworks')
+def get_active_ai_frameworks(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_ai_frameworks')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
-def get_active_ai_models(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_ai_models')
+def get_active_ai_models(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_ai_models')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
-def get_active_apps(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_apps')
+def get_active_apps(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_apps')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
-def get_active_auto_scrips(timeout = float('inf'), log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(BASE_NAMESPACE,'active_auto_scrips')
+def get_active_auto_scrips(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_auto_scrips')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 '''

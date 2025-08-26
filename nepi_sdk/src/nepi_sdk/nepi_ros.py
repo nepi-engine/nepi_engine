@@ -49,7 +49,7 @@ from nepi_interfaces.msg import *
 
 
 #######################
-### Setup some constant variables
+### Setup some global variables
 BASE_NAMESPACE = None
 
 

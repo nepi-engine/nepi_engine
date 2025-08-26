@@ -491,6 +491,7 @@ class NepiDriversMgr(object):
           ############################
           # Call Auto-Call processes 
           if discovery_process == "CALL":
+            active_paths_list = None
             #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name + " with drv_dict " + str(drv_dict))
             if driver_name not in self.discovery_classes_dict.keys() and driver_name not in self.failed_class_import_list:
               self.msg_if.pub_info("")
@@ -510,9 +511,15 @@ class NepiDriversMgr(object):
               #self.msg_if.pub_info("")
               #self.msg_if.pub_warn("Calling discovery function for class: " + discovery_class_name + " for driver " + driver_name)
               discovery_class = self.discovery_classes_dict[driver_name]
-              active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
+              
+              try:
+                active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
+              except Exception as e:
+                self.msg_if.pub_info("Failed to call discovery function for driver: " + driver_name + " with drv_dict " + str(drv_dict))
               if active_paths_list is None:
-                self.failed_class_import_list.append(driver_name)
+                del self.discovery_classes_dict[driver_name]
+                if retry == False:
+                  self.failed_class_import_list.append(driver_name)
               else:
                 self.active_paths_list = active_paths_list
 
@@ -908,6 +915,8 @@ class NepiDriversMgr(object):
   def enableRetryCb(self,msg):
     self.msg_if.pub_info(str(msg))
     self.retry_enabled = msg.data
+    if self.retry_enabled == True:
+      self.failed_class_import_list = []
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("retry_enabled",self.retry_enabled)
