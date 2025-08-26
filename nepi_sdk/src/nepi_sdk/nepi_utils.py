@@ -578,10 +578,10 @@ def read_csv_file(file_path):
 
 def clear_folder(folder_path):
     for root, dirs, files in os.walk(folder_path):
-    for f in files:
-        os.unlink(os.path.join(root, f))
-    for d in dirs:
-        shutil.rmtree(os.path.join(root, d))
+        for f in files:
+            os.unlink(os.path.join(root, f))
+        for d in dirs:
+            shutil.rmtree(os.path.join(root, d))
 
 def delete_files_in_folder(folder_path):
     """

@@ -26,7 +26,6 @@ from nepi_sdk import nepi_system
  
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Time
-from nepi_interfaces.msg import MgrSystemStatus
 from std_srvs.srv import Empty as EmptySrv
 
 from nepi_interfaces.msg import Reset, TimeUpdate
@@ -149,7 +148,7 @@ class time_sync_mgr(object):
             'status_pub': {
                 'namespace': self.node_namespace,
                 'topic': 'status',
-                'msg': MgrSystemStatus,
+                'msg': MgrTimeStatus,
                 'qsize': 1,
                 'latch': True
             },
@@ -568,7 +567,7 @@ class time_sync_mgr(object):
                 pass
 
 
-    def update_status_msg(self):
+    def get_status_msg(self):
         current_time = nepi_utils.get_time()
         self.status_msg.current_time = current_time
 
@@ -591,20 +590,22 @@ class time_sync_mgr(object):
 
         self.status_msg.auto_sync_clocks = self.auto_sync_clocks
         self.status_msg.auto_sync_timezones = self.auto_sync_timezones
+        return self.status_msg
         
     def handle_time_status_query(self,req):
-        self.update_status_msg()
+        status_msg = self.get_status_msg()
         timezones = nepi_utils.standard_timezones_dict.keys()
-        return  { 'status_msg': self.status_msg, 'available_timezones': timezones }
+        return  { 'status_msg': status_msg, 'available_timezones': timezones }
 
 
     def statusPubCb(self,timer):
         self.publish_status()
 
     def publish_status(self):
-        self.update_status_msg()
+        status_msg = self.get_status_msg()
         if self.node_if is not None:
-            self.node_if.publish_pub('status_pub', self.status_msg)
+            #self.msg_if.pub_warn("Publishing Status Msg: " + str(status_msg))
+            self.node_if.publish_pub('status_pub', status_msg)
     
 
 
