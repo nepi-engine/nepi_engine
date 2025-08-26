@@ -226,17 +226,18 @@ class config_mgr(object):
 
 
         # Restore configurations
-        self.restore_cfgs()
-        self.msg_if.pub_warn("System config files restored")
-        time.sleep(1)
-        self.save_cfgs(SYSTEM_CFG_PATH)
-        self.msg_if.pub_warn("System config files saved")
+        success = self.restore_cfgs()
+        if success == True:
+            self.msg_if.pub_warn("NEPI config files restored")
+        #succes = self.save_cfgs(SYSTEM_CFG_PATH)
+        #if success == True:
+        #    self.msg_if.pub_warn("NEPI config files saved")
 
         nepi_sdk.start_timer_process(1, self.statusPubCb)
         ################
         # Save the current system config
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
-        self.save_params(SYSTEM_CFG_PATH, sys_ns)
+        self.save_params(USER_CFG_PATH, sys_ns)
 
         nepi_sdk.sleep(2)
         self.initCb(do_updates = True)
@@ -322,6 +323,7 @@ class config_mgr(object):
 
     def saveParamsCb(self,msg):
         namespace = msg.data
+        self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + USER_CFG_PATH )
         self.save_params(USER_CFG_PATH, namespace)
     
     def save_params(self, cfg_path, namespace):
@@ -341,7 +343,7 @@ class config_mgr(object):
  
  
     def save_cfgs(self,cfg_path = SYSTEM_CFG_PATH):
-        return False
+        success = False
         if cfg_path != USER_CFG_PATH:
             # Save Save Files
             source_dir = NEPI_ETC_PATH
@@ -349,7 +351,7 @@ class config_mgr(object):
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
                 if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
-                    nepi_utils.rsync_folders(source_dir,target_dir)
+                    ret_etc = nepi_utils.rsync_folders(source_dir,target_dir)
             if cfg_path == SYSTEM_CFG_PATH:
                 # Copy User Configs to System Configs
                 source_dir = USER_CFG_PATH
@@ -357,7 +359,10 @@ class config_mgr(object):
                 if not os.path.exists(target_dir):
                     os.makedirs(target_dir)
                     if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
-                        nepi_utils.rsync_folders(source_dir,target_dir)
+                        ret_user = nepi_utils.rsync_folders(source_dir,target_dir)
+            if ret_etc == True or ret_user == True:
+                success = True
+        return success
 
 
 
@@ -379,15 +384,17 @@ class config_mgr(object):
 
 
     def restore_cfgs(self,config_folders = ['factory_cfg','system_cfg','user_cfg']): 
-        return
         success = False
         target_dir = NEPI_ETC_PATH
         for name in config_folders:
             if name in self.config_folders.keys():
-                folder = self.config_folders[name]
+                folder = os.path.join(self.config_folders[name],'etc')
                 source_dir = os.path.join(folder,'etc')
                 if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
-                    nepi_utils.rsync_folders(source_dir,target_dir)
+                    ret_etc = nepi_utils.rsync_folders(source_dir,target_dir)
+                    if ret_etc == True:
+                        success = True
+        return success
                
 
 
@@ -412,59 +419,39 @@ class config_mgr(object):
 
 
     def reset_handler(self,namespace, cfg_path = USER_CFG_PATH):
-        return False
         success = True
         if cfg_path != USER_CFG_PATH:
-            # First delete user config file if it exists
-            config_pathname = self.get_config_pathname(USER_CFG_PATH, namespace)
-            if os.path.exists(config_pathname):
-                try:
-                    os.remove(config_pathname)
-                    print(f"File '{config_pathname}' deleted successfully.")
-                except FileNotFoundError:
-                    success = False
-                    print(f"File '{config_pathname}' not found.")
-                except PermissionError:
-                    success = False
-                    print(f"Permission denied to delete '{config_pathname}'.")
-                except Exception as e:
-                    success = False
-                    print(f"An error occurred: {e}")
-            if cfg_path == FACTORY_CFG_PATH:
-                config_pathname = self.get_config_pathname(SYSTEM_CFG_PATH, namespace)
-                if os.path.exists(config_pathname):
-                    try:
-                        os.remove(config_pathname)
-                        print(f"File '{config_pathname}' deleted successfully.")
-                    except FileNotFoundError:
-                        success = False
-                        print(f"File '{config_pathname}' not found.")
-                    except PermissionError:
-                        success = False
-                        print(f"Permission denied to delete '{config_pathname}'.")
-                    except Exception as e:
-                        success = False
-                        print(f"An error occurred: {e}")
-                factory_pathname = self.get_config_pathname(FACTORY_CFG_PATH, namespace)
-                if os.path.exists(factory_pathname):
-                    shutil.copy2(factory_pathname,config_pathname)  # Use copy2 to preserve metadata
-
+            # First delete user config files if it exists
+            ucfg_pathname = self.get_config_pathname(USER_CFG_PATH, namespace)
+            if os.path.exists(ucfg_pathname):
+                nepi_utils.delete_files_in_folder(ucfg_pathname)
+        if cfg_path == FACTORY_CFG_PATH:
+            # Delete system config files for factory reset
+            scfg_pathname = self.get_scfg_pathname(SYSTEM_CFG_PATH, namespace)
+            if os.path.exists(scfg_pathname):
+                nepi_utils.clear_folder(scfg_pathname)
+            factory_pathname = self.get_scfg_pathname(FACTORY_CFG_PATH, namespace)
+            if os.path.exists(factory_pathname):
+                shutil.copy2(factory_pathname,scfg_pathname)  # Use copy2 to preserve metadata
         if success == True:
-            for key in self.config_folders.keys():
-                cfg_path = self.config_folders[key]
-                # Restore config if exits
-                restore_pathname = self.get_config_pathname(cfg_path, namespace)
-                success = False
-                if os.path.exists(restore_pathname):
-                    success = self.update_from_file(restore_pathname, namespace)
-                    if success == False:
-                        try:
-                            os.remove(config_pathname)
-                        except Exception as e:
-                            print(f"An error occurred: {e}")
-                if success == True:
-                    self.msg_if.pub_warn("Loaded saved config for namespace: " + namespace + " from: " + str(cfg_path))
-                    break
+            # Restore saved param config if exists from first find
+            config_folders = ['user_cfg','system_cfg','factory_cfg']
+            for key in config_folders:
+                if key in self.config_folders.keys():
+                    rcfg_path = self.config_folders[key]
+                    # Restore config if exits
+                    restore_pathname = self.get_config_pathname(rcfg_path, namespace)
+                    success = False
+                    if os.path.exists(restore_pathname):
+                        success = self.update_from_file(restore_pathname, namespace)
+                        if success == False:
+                            try:
+                                os.remove(config_pathname)
+                            except Exception as e:
+                                print(f"An error occurred: {e}")
+                    if success == True:
+                        self.msg_if.pub_warn("Loaded saved config for namespace: " + namespace + " from: " + str(cfg_path))
+                        break
         return success
 
 

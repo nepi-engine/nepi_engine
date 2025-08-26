@@ -75,9 +75,6 @@ class SystemMgrNode():
     status_msg = MgrSystemStatus()
     system_defs_msg = SystemDefs()
 
-
-
-
     
     ADMIN_RESTRICT_OPTIONS = ['Factory Cfg','System_Cfg','User_Cfg','Debug',
                             'Time_NTP','Time_Sync_Clocks',
@@ -365,9 +362,11 @@ class SystemMgrNode():
         if self.ensure_reqd_subdirs() is True:
             # Now can advertise the system folder query
             nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
+
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
         self.msg_if.pub_warn("Stored user folders: " + str(self.user_folders))
+        
         self.msg_if.pub_warn("Storing System Folders")
         nepi_system.set_system_folders(self.system_folders)
         self.msg_if.pub_warn("Stored user folders: " + str(self.system_folders))
