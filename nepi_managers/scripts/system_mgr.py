@@ -264,43 +264,43 @@ class SystemMgrNode():
         
         self.hw_type = self.NEPI_CONFIG['NEPI_HW_TYPE']
         nepi_system.set_hw_type(self.hw_type)
-        self.system_defs_msg.in_container = self.hw_type
-        self.status_msg.in_container = self.hw_type
+        self.system_defs_msg.hw_type = self.hw_type
+        self.status_msg.hw_type = self.hw_type
 
         self.hw_model = self.NEPI_CONFIG['NEPI_HW_MODEL']
         nepi_system.set_hw_model(self.hw_model)
-        self.system_defs_msg.in_container = self.hw_model
-        self.status_msg.in_container = self.hw_model
+        self.system_defs_msg.hw_model = self.hw_model
+        self.status_msg.hw_model = self.hw_model
 
         self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
-        nepi_system.set_in_container(self.in_container)
+        nepi_system.in_container(self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
 
         self.has_cuda = self.NEPI_CONFIG['NEPI_HAS_CUDA']
         nepi_system.set_has_cuda(self.has_cuda)
-        self.system_defs_msg.in_container = self.has_cuda
-        self.status_msg.in_container = self.has_cuda
+        self.system_defs_msg.has_cuda = self.has_cuda
+        self.status_msg.has_cuda = self.has_cuda
 
         self.manages_ssh = self.NEPI_CONFIG['NEPI_MANAGES_SSH'] == 1
         nepi_system.set_manages_ssh(self.manages_ssh)
-        self.system_defs_msg.in_container = self.manages_ssh
-        self.status_msg.in_container = self.manages_ssh 
+        self.system_defs_msg.manages_ssh = self.manages_ssh
+        self.status_msg.manages_ssh = self.manages_ssh 
 
         self.manages_share = self.NEPI_CONFIG['NEPI_MANAGES_SHARE'] == 1
         nepi_system.set_manages_share(self.manages_share)
-        self.system_defs_msg.in_container = self.manages_share
-        self.status_msg.in_container = self.manages_share
+        self.system_defs_msg.manages_share = self.manages_share
+        self.status_msg.manages_share = self.manages_share
 
         self.manages_time = self.NEPI_CONFIG['NEPI_MANAGES_TIME'] == 1
         nepi_system.set_manages_time(self.manages_time)
-        self.system_defs_msg.in_container = self.manages_time
-        self.status_msg.in_container = self.manages_time 
+        self.system_defs_msg.manages_time = self.manages_time
+        self.status_msg.manages_time = self.manages_time 
 
         self.manages_network = self.NEPI_CONFIG['NEPI_MANAGES_NETWORK'] == 1
         nepi_system.set_manages_network(self.manages_network)
-        self.system_defs_msg.in_container = self.manages_network
-        self.status_msg.in_container = self.manages_network 
+        self.system_defs_msg.manages_network = self.manages_network
+        self.status_msg.manages_network = self.manages_network 
 
 
 ##########################
