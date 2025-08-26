@@ -273,7 +273,7 @@ class SystemMgrNode():
         self.status_msg.hw_model = self.hw_model
 
         self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
-        nepi_system.in_container(self.in_container)
+        nepi_system.set_in_container(self.in_container)
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
 
