@@ -55,7 +55,7 @@ NEPI_CONFIG_FILE = '/opt/nepi/etc/nepi_config.yaml'
 
 
 class SystemMgrNode():
-    NEPI_CONFIG = nepi_sdk.load_params_from_file(NEPI_CONFIG_FILE, namespace = None, prime_key = None)
+    
 
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -262,7 +262,7 @@ class SystemMgrNode():
 
         ###############################
         # Initialize Class Variables
-
+        self.NEPI_CONFIG = nepi_sdk.load_params_from_file(NEPI_CONFIG_FILE, namespace = None, prime_key = None)
         self.msg_if.pub_warn("Got System Config: " + str(self.NEPI_CONFIG))
         
         self.hw_type = self.NEPI_CONFIG['NEPI_HW_TYPE']
