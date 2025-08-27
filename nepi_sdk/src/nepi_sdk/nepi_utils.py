@@ -604,20 +604,25 @@ def delete_files_in_folder(folder_path):
                 print(f"Error deleting file {item_path}: {e}")
 
 def rsync_folders(source_folder,destitation_folder, options = "-arp"):    
-    success = True
+    success = False
 
-    try:
-        # Basic rsync command with common options
-        command = ["rsync", options, source_folder,destitation_folder]
-        
-        # Execute the command
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        print(result.stdout)
-        
-    except subprocess.CalledProcessError as e:
-        success = False
-        print(f"Rsync failed with error code {e.returncode}:")
-        print(e.stderr)
+    if source_folder == destitation_folder or destitation_folder.index(source_folder) != -1:
+        return success
+    if os.path.basename(source_folder) == os.path.basename(destitation_folder):
+        try: 
+            destitation_folder = os.path.dirname(destitation_folder)
+            # Basic rsync command with common options
+            command = ["rsync", options, source_folder,destitation_folder]
+            
+            # Execute the command
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            success = True
+            #print(result.stdout)
+            
+        except subprocess.CalledProcessError as e:
+            
+            print(f"Rsync failed with error code {e.returncode}:")
+            print(e.stderr)
     return success
 
 #########################

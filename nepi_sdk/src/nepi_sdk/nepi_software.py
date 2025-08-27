@@ -135,13 +135,13 @@ def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removabl
     # First, check that the new image staging device actually exists. If not, probably just
     # removable
     if staging_device_is_removable and not os.path.exists(new_img_staging_device):
-        return True, "Removable staging device not detected", None, None, 0
+        return True, "Removable staging device not detected", [], [], []
 
     # Now mount the staging partition
     status, err_string = mountPartition(
         new_img_staging_device, STAGING_MOUNTPOINT)
     if status is False:
-        return status, err_string, None, None, 0
+        return status, err_string,  [], [], []
 
     new_img_search_string = os.path.join(
         STAGING_MOUNTPOINT, NEPI_FULL_IMG_SUBDIR, NEPI_FULL_IMG_SEARCH_STRING)
@@ -150,11 +150,11 @@ def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removabl
 
     if (len(img_files) == 0):
         unmountPartition(STAGING_MOUNTPOINT)
-        return True, "No new image file identified", None, None, 0
+        return True, "No new image file identified", [], [], []
     elif (len(img_files) > 1):
         unmountPartition(STAGING_MOUNTPOINT)
         # TODO: Maybe we should allow more than one detectable image so users can select desired one?
-        return False, "More than one image file identified", None, None, 0
+        return False, "More than one image file identified",  [], [], []
 
     # Detected a single image, so grab the version string from inside it (with the staging parition still mounted, of course)... 
     # this validates that it the image file mountable and is (probably) a nepi rootfs image
@@ -170,9 +170,9 @@ def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removabl
     unmountPartition(STAGING_MOUNTPOINT)
 
     if status == False:
-        return False, err_msg, None, None, 0
+        return False, err_msg,  [], [], []
 
-    return True, "New image file identified", os.path.basename(new_img_pathname), new_img_version, new_img_filesize
+    return True, "New image file identified", [os.path.basename(new_img_pathname)], [new_img_version], [new_img_filesize]
 
 def getRootfsABStatus(first_stage_rootfs_device):
     rootfs_ab_status_dict = {}

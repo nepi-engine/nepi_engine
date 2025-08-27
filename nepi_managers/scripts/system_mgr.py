@@ -264,13 +264,13 @@ class SystemMgrNode():
         
         self.hw_type = self.NEPI_CONFIG['NEPI_HW_TYPE']
         nepi_system.set_hw_type(self.hw_type)
-        self.system_defs_msg.in_container = self.hw_type
-        self.status_msg.in_container = self.hw_type
+        self.system_defs_msg.hw_type = self.hw_type
+        self.status_msg.hw_type = self.hw_type
 
         self.hw_model = self.NEPI_CONFIG['NEPI_HW_MODEL']
         nepi_system.set_hw_model(self.hw_model)
-        self.system_defs_msg.in_container = self.hw_model
-        self.status_msg.in_container = self.hw_model
+        self.system_defs_msg.hw_model = self.hw_model
+        self.status_msg.hw_model = self.hw_model
 
         self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
         nepi_system.set_in_container(self.in_container)
@@ -279,28 +279,28 @@ class SystemMgrNode():
 
         self.has_cuda = self.NEPI_CONFIG['NEPI_HAS_CUDA']
         nepi_system.set_has_cuda(self.has_cuda)
-        self.system_defs_msg.in_container = self.has_cuda
-        self.status_msg.in_container = self.has_cuda
+        self.system_defs_msg.has_cuda = self.has_cuda
+        self.status_msg.has_cuda = self.has_cuda
 
         self.manages_ssh = self.NEPI_CONFIG['NEPI_MANAGES_SSH'] == 1
         nepi_system.set_manages_ssh(self.manages_ssh)
-        self.system_defs_msg.in_container = self.manages_ssh
-        self.status_msg.in_container = self.manages_ssh 
+        self.system_defs_msg.manages_ssh = self.manages_ssh
+        self.status_msg.manages_ssh = self.manages_ssh 
 
         self.manages_share = self.NEPI_CONFIG['NEPI_MANAGES_SHARE'] == 1
         nepi_system.set_manages_share(self.manages_share)
-        self.system_defs_msg.in_container = self.manages_share
-        self.status_msg.in_container = self.manages_share
+        self.system_defs_msg.manages_share = self.manages_share
+        self.status_msg.manages_share = self.manages_share
 
         self.manages_time = self.NEPI_CONFIG['NEPI_MANAGES_TIME'] == 1
         nepi_system.set_manages_time(self.manages_time)
-        self.system_defs_msg.in_container = self.manages_time
-        self.status_msg.in_container = self.manages_time 
+        self.system_defs_msg.manages_time = self.manages_time
+        self.status_msg.manages_time = self.manages_time 
 
         self.manages_network = self.NEPI_CONFIG['NEPI_MANAGES_NETWORK'] == 1
         nepi_system.set_manages_network(self.manages_network)
-        self.system_defs_msg.in_container = self.manages_network
-        self.status_msg.in_container = self.manages_network 
+        self.system_defs_msg.manages_network = self.manages_network
+        self.status_msg.manages_network = self.manages_network 
 
 
 ##########################
@@ -1038,7 +1038,7 @@ class SystemMgrNode():
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = nepi_image.checkForNewImageAvailable(
+        (status, err_string, self.new_img_files, self.new_img_versions, self.new_img_filesizes) = nepi_image.checkForNewImagesAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
@@ -1049,12 +1049,25 @@ class SystemMgrNode():
             return resp
         
         # Update the response
-        if self.new_img_file:
-            resp.new_sys_img = self.new_img_file
-            resp.new_sys_img_version = self.new_img_version
-            resp.new_sys_img_size_mb = self.new_img_filesize / BYTES_PER_MEGABYTE
-            self.status_msg.sys_img_update_status = "ready to install"
-        else:
+        success = False
+        if self.new_img_files:
+            if len(self.new_img_files) > 0:
+                
+                #####
+                self.selected_new_img=self.new_img_files[0]
+                #####
+                self.status_msg.sys_img_update_options= ['None'] + self.new_img_files
+                sel_new_img = copy.deepcopy(self.selected_new_img)
+                sel_new_ind = self.new_img_files.index(sel_new_img)
+                if sel_new_ind != -1:
+                    resp.new_sys_img = self.new_img_files[sel_new_ind]
+                    resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+                    resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+                    self.status_msg.sys_img_update_status = "ready to install"
+                    success = True
+        if success == False:
+            self.status_msg.sys_img_update_options ["None"]
+            self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
             resp.new_sys_img_version = 'none detected'
             resp.new_sys_img_size_mb = 0
