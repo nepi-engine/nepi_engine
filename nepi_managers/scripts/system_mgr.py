@@ -1038,7 +1038,7 @@ class SystemMgrNode():
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, self.new_img_file, self.new_img_version, self.new_img_filesize) = nepi_image.checkForNewImageAvailable(
+        (status, err_string, self.new_img_files, self.new_img_versions, self.new_img_filesizes) = nepi_image.checkForNewImagesAvailable(
             self.new_img_staging_device, self.new_img_staging_device_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
@@ -1049,12 +1049,25 @@ class SystemMgrNode():
             return resp
         
         # Update the response
-        if self.new_img_file:
-            resp.new_sys_img = self.new_img_file
-            resp.new_sys_img_version = self.new_img_version
-            resp.new_sys_img_size_mb = self.new_img_filesize / BYTES_PER_MEGABYTE
-            self.status_msg.sys_img_update_status = "ready to install"
-        else:
+        success = False
+        if self.new_img_files:
+            if len(self.new_img_files) > 0:
+                
+                #####
+                self.selected_new_img=self.new_img_files[0]
+                #####
+                self.status_msg.sys_img_update_options= ['None'] + self.new_img_files
+                sel_new_img = copy.deepcopy(self.selected_new_img)
+                sel_new_ind = self.new_img_files.index(sel_new_img)
+                if sel_new_ind != -1:
+                    resp.new_sys_img = self.new_img_files[sel_new_ind]
+                    resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+                    resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+                    self.status_msg.sys_img_update_status = "ready to install"
+                    success = True
+        if success == False:
+            self.status_msg.sys_img_update_options ["None"]
+            self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
             resp.new_sys_img_version = 'none detected'
             resp.new_sys_img_size_mb = 0
