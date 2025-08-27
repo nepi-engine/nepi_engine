@@ -595,7 +595,7 @@ class time_sync_mgr(object):
     def handle_time_status_query(self,req):
         status_msg = self.get_status_msg()
         timezones = nepi_utils.standard_timezones_dict.keys()
-        return  { 'status_msg': status_msg, 'available_timezones': timezones }
+        return  { 'time_status': status_msg, 'available_timezones': timezones }
 
 
     def statusPubCb(self,timer):

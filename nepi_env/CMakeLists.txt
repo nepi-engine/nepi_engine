@@ -210,7 +210,6 @@ install(TARGETS ${PROJECT_NAME}
 # Install etc files (startup scripts, factory configs, etc.) to the global (not project) etc destination
 install(DIRECTORY etc/
   DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
-  USE_SOURCE_PERMISSIONS
 )
 
 ## Mark cpp header files for installation - Msgs and Services (generated headers) are under the project name subdir
