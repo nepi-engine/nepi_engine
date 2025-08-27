@@ -15,6 +15,7 @@ import re
 import datetime
 import subprocess
 import importlib
+import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils

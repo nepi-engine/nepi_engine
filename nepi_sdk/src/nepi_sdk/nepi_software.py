@@ -21,6 +21,7 @@ import os.path
 import os
 import subprocess
 import shlex
+import copy
 #import psutil
 
 from nepi_sdk import nepi_utils
@@ -131,7 +132,7 @@ def getFWVersionStringForPartition(partition_device_name):
     return True, "Success", fw_version.strip()
 
 
-def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removable):
+def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removable):
     # First, check that the new image staging device actually exists. If not, probably just
     # removable
     if staging_device_is_removable and not os.path.exists(new_img_staging_device):
