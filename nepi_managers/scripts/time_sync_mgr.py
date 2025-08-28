@@ -41,8 +41,10 @@ from nepi_api.node_if import NodeClassIF
 USER_CFG_SUFFIX = '.user'
 
 CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
-CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony.conf'
+CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony/chrony.conf'
+CHRONY_CFG_FACTORY = '/mnt/nepi_config/factory_cfg/etc/chrony/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
+CHRONY_SUPERVISER_SERVICE_NAME = 'nepi_time'
 
 FACTORY_TIMEZONE = 'UTC'
 
@@ -62,6 +64,7 @@ class time_sync_mgr(object):
     auto_sync_clocks = True
     auto_sync_timezones = True
     
+    chrony_running = False
     in_container = False
 
     #######################
@@ -94,8 +97,10 @@ class time_sync_mgr(object):
         self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
   
+
+        self.chrony_running = self.check_chrony_process()
         # Debug
-        self.managers_time = self.manages_time and (self.in_container == False)      
+        self.managers_time = self.manages_time == True and (self.in_container == False) and self.chrony_running == True   
         ##############################
         # Initialize Class Variables
 
@@ -297,6 +302,15 @@ class time_sync_mgr(object):
         self.initCb()       
      
 
+    def check_chrony_process(self):
+        try:
+            # Check for the chronyd process using 'pgrep'
+            subprocess.check_output(["pgrep", "chronyd"])
+            return True
+        except subprocess.CalledProcessError:
+            # pgrep returns a non-zero exit code if the process is not found
+            return False
+
 
     #######################
     ### Mgr Config Functions
@@ -316,40 +330,21 @@ class time_sync_mgr(object):
         
         return True
 
-    def ensure_user_conf(self):
-        userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-        if (False == os.path.isfile(userconf_path)):
-            # Need to create it from a copy of the factory config
-            factoryconf_path = CHRONY_CFG_BASENAME
-            try:
-                copyfile(factoryconf_path, userconf_path)
-            except:
-                self.msg_if.pub_warn("Unable to copy conf")
-                return False
 
-        return self.symlink_force(userconf_path, CHRONY_CFG_LINKNAME)
 
-    def restart_systemd_service(self,service_name):
-        subprocess.call(["systemctl", "restart", service_name])
+    def restart_chrony(self):
+        if self.manages_time == True:
+            if self.in_container == True
+                subprocess.call(["supervisorctl", "restart", CHRONY_SUPERVISER_SERVICE_NAME])
+            else:
+                subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
 
     def reset_to_factory_conf(self):
-        userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-        factoryconf_path = CHRONY_CFG_BASENAME
-
-        self.symlink_force(factoryconf_path, CHRONY_CFG_LINKNAME)
-        if (True == os.path.isfile(userconf_path)):
-            os.remove(userconf_path)
-            self.msg_if.pub_info("Removed user config: " + userconf_path)
-
-        # Restart chrony to allow changes to take effect
-        self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+        if os.path.exists(CHRONY_CFG_FACTORY) == True:
+            nepi_utils.copy_file(CHRONY_CFG_FACTORY,CHRONY_CFG_BASENAME)
+            self.restart_chrony()
 
     def add_server(self,server_host):
-        if (False == self.ensure_user_conf()):
-            return
-
-        userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-
         #ensure just a simple hostname is being added
         host = server_host.data.split()[0]
 
@@ -357,7 +352,7 @@ class time_sync_mgr(object):
         # TODO: May one day want to user chrony option initstepslew for even earlier synchronization
         #init_slew_cfg_line = 'initstepslew 1 ' + host
         match_line = '^' + new_server_cfg_line
-        file = open(userconf_path, 'r+')
+        file = open(CHRONY_CFG_BASENAME, 'r+')
         found_match = False
         for line in file.readlines():
             if re.search(match_line, line):
@@ -370,25 +365,16 @@ class time_sync_mgr(object):
             self.msg_if.pub_info("Adding new NTP server: " + host)
             file.write(new_server_cfg_line + '\n')
             # Restart chrony to allow changes to take effect
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            self.restart_chrony()
 
     def remove_server(self,server_host):
-        userconf_path = CHRONY_CFG_BASENAME + USER_CFG_SUFFIX
-        if (False == os.path.isfile(userconf_path)):
-            self.msg_if.pub_info("Ignoring request to remove NTP server since factory config is in use")
-            return
-
-        # Make sure the symlink points to the user config  we've already established that user cfg exists
-        if (False == self.ensure_user_conf()):
-            return
-
         #ensure just a simple hostname is being added
         host = server_host.data.split()[0]
 
         match_line = '^server ' + host + ' iburst minpoll 2'
         # Must copy the file linebyline to a tmp, then overwrite the original
-        orig_file = open(userconf_path, 'r')
-        tmpfile_path = userconf_path + ".tmp"
+        orig_file = open(CHRONY_CFG_BASENAME, 'r')
+        tmpfile_path = CHRONY_CFG_BASENAME + ".tmp"
         tmp_file = open(tmpfile_path, 'w')
         found_it = False
         for line in orig_file.readlines():
@@ -402,11 +388,11 @@ class time_sync_mgr(object):
 
         orig_file.close()
         tmp_file.close()
-        os.rename(tmpfile_path, userconf_path)
+        os.rename(tmpfile_path, CHRONY_CFG_BASENAME)
 
         if True == found_it:
             # Restart chrony to allow changes to take effect
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            self.restart_chrony()
 
     def gather_ntp_status_timer_cb(self,event):
         # Just call the implementation method. We don't care about the event payload
@@ -452,24 +438,26 @@ class time_sync_mgr(object):
 
 
     def gather_ntp_status(self):
-        chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
         ntp_status = [] # List of lists
-        for line in chronyc_sources[1:]:
-            if re.search('^\^|#', line): # Find sources lines by their leading "Mode" indicator
-                tokens = line.split()
-                source = tokens[1]
-                currently_syncd = ('*' in tokens[0]) or ('+' in tokens[0])
-                last_sync = tokens[5]
-                current_offset = tokens[6].split('[')[0] # The string has two parts
-                ntp_status.append((source, currently_syncd, last_sync, current_offset))
-                if (self.ntp_first_sync_time is None) and (currently_syncd is True):
-                    self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
-                    self.ntp_first_sync_time = nepi_utils.get_time()
-                    self.informClockUpdate()
+        if self.chrony_running == True:
+            chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
+            
+            for line in chronyc_sources[1:]:
+                if re.search('^\^|#', line): # Find sources lines by their leading "Mode" indicator
+                    tokens = line.split()
+                    source = tokens[1]
+                    currently_syncd = ('*' in tokens[0]) or ('+' in tokens[0])
+                    last_sync = tokens[5]
+                    current_offset = tokens[6].split('[')[0] # The string has two parts
+                    ntp_status.append((source, currently_syncd, last_sync, current_offset))
+                    if (self.ntp_first_sync_time is None) and (currently_syncd is True):
+                        self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
+                        self.ntp_first_sync_time = nepi_utils.get_time()
+                        self.informClockUpdate()
 
-                    # Update the RTC with this "better" clock source
-                    self.msg_if.pub_info("Updating hardware clock with NTP time")
-                    subprocess.call(['hwclock', '-w'])
+                        # Update the RTC with this "better" clock source
+                        self.msg_if.pub_info("Updating hardware clock with NTP time")
+                        subprocess.call(['hwclock', '-w'])
 
         return ntp_status
 
@@ -545,19 +533,21 @@ class time_sync_mgr(object):
 
 
     def sysResetCb(self,reset_type = 0):
-        if Reset.USER_RESET == reset_type:
+        if self.chrony_running == False:
+            self.msg_if.pub_info("Ignoring NTP, Chrony not running")
+        elif Reset.USER_RESET == reset_type:
             # Nothing to do for a User Reset as config file is always up-to-date
             self.msg_if.pub_info("Ignoring NTP user-reset NO-OP")
         elif Reset.FACTORY_RESET == reset_type:
             pass # factoryResetCb called by node_if
         elif Reset.SOFTWARE_RESET == reset_type:
             self.msg_if.pub_info("Executing soft reset for NTP")
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            self.restart_chrony()
             nepi_sdk.signal_shutdown('Shutdown by request')
         elif Reset.HARDWARE_RESET == reset_type:
             self.msg_if.pub_info("Executing hard reset for NTP")
             # TODO: Any hardware restart required?
-            self.restart_systemd_service(CHRONY_SYSTEMD_SERVICE_NAME)
+            self.restart_chrony()
             nepi_sdk.signal_shutdown('Shutdown by request')
 
 
