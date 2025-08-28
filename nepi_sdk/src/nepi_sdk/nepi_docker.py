@@ -61,106 +61,63 @@ JETSON_ROOTFS_AB_DEVICES = {'A': '/dev/nvme0n1p1', 'B': '/dev/nvme0n1p2'}
 #NEPI_DOCKER_CONFIG=nepi_utils.read_yaml_2_dict(DOCKER_CONFIG_FILE_PATH)
 
 def CheckPartitionBusy(partition_path):
-    """
-    Checks if a partition is busy by verifying if any process is using it.
-
-    Args:
-        partition_path (str): The path to the partition (e.g., "/mnt/data").
-
-    Returns:
-        bool: True if the partition is busy, False otherwise.
-    """
-    '''
-    for proc in psutil.process_iter(['open_files', 'cwd']):
-        try:
-            with proc.oneshot():
-                for file in proc.open_files():
-                    if file.path.startswith(partition_path):
-                        return True
-                if proc.cwd() == partition_path:
-                    return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
     return False
-    '''
-    return nepi_utils.check_partition_busy_lsof(partition_path)
 
 def mountPartition(part_device_pathname, part_mountpoint):
-    if mount_rc == 0:
-        return True, "Success"
-    else:
-        return False, "Failed to mount"
+    return True, "Success"
 
 
 def unmountPartition(part_mountpoint):
-    if unmount_rc == 0:
-        return True, "Success"
-    else:
-        return False, "Failed to unmount"
+    return True, "Success"
 
 
 def getFWVersionStringForPartition(partition_device_name):
-    return True, "Success", fw_version.strip()
+    return True, "Success", "Uknown"
 
 
-def checkForNewImageAvailable(new_img_staging_device, staging_device_is_removable):
-    return True, "New image file identified", os.path.basename(new_img_pathname), new_img_version, new_img_filesize
+def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removable):
+    return True, "New image file identified", ["FILE NAMES"], ["FILE_VERSIONS"] , ["FILE SIZES"]
 
 def getRootfsABStatus(first_stage_rootfs_device):
-    return True, "Success", rootfs_ab_status_dict
+    return True, "Success", dict()
 
 def getRootfsABStatusJetson():
-    return True, "Success", rootfs_ab_status_dict
+    return True, "Success", dict()
 
 def identifyRootfsABScheme():
     # Default to 'nepi'
     return 'nepi'
 
 def getPartitionByteCount(partition_device):
-    return int(subprocess.check_output(["blockdev", "--getsize64", partition_device], text=True))
+    return 100000000000 
 
 def getPartitionFreeByteCount(partition_device):
 
-    return (float(statvfs.f_frsize) * statvfs.f_bavail)
+    return 100000000000
 
 def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
-    if dd_proc.returncode == 0:
-        return True, "Success"
-    else:
-        return False, "Failed (dd error: " + str(dd_proc.returncode) + ": " + dd_final_out + ")"
+    return True, "Success"
 
 def checkAndRepairPartition(partition_device):
-    fsck_rc = subprocess.call(["fsck", "-a", partition_device])
+    return True, "Success"
 
-    if int(fsck_rc) < 4: # No errors or errors were repaired
-        return True, "Success"
-    else:
-        return False, "Failed to check and repair partition"
 
 def resetBootFailCounter(first_stage_rootfs_device):
-    # First, mount the FLASH partition where the boot fail counter file is stored
-    status, err_msg = mountPartition(
-        first_stage_rootfs_device, FLASH_ROOTFS_MOUNTPOINT)
-    if status is False:
-        return status, err_msg
-
-    # Now reset the boot fail counter to zero
-    boot_fail_count_file_pathname = os.path.join(
-        FLASH_ROOTFS_MOUNTPOINT, FLASH_ROOTFS_BOOT_FAIL_COUNT_FILE)
-    with open(boot_fail_count_file_pathname, 'w') as boot_fail_count_file:
-        boot_fail_count_file.write('0')
-
-    # And unmount before we exit
-    unmountPartition(FLASH_ROOTFS_MOUNTPOINT)
     return True, "Success"
 
 def switchActiveAndInactivePartitions():
     # SH file path will be in config
-    path_to_sh = "/mnt/nepi_config/docker_cfg/tmp.sh"
+    username_vars = ['USER', 'USERNAME', 'LOGNAME']
+
+    for var in username_vars:
+        if var in os.environ:
+            print(var + " : " + os.environ[var]) 
+            
+    path_to_sh = '/mnt/nepi_storage/code/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
 
     try:
         # Execute the shell script and wait for it to complete
-        result = subprocess.run(['sh', path_to_sh], check=True, capture_output=True, text=True)
+        result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)
         
         # Print the output and exit code
         print("STDOUT:", result.stdout)
@@ -178,14 +135,10 @@ def switchActiveAndInactivePartitions():
     return True, "Success"
 
 def switchActiveAndInactivePartitionsJetson():
-    
     return True, "Success"
 
 def archiveInactiveToStaging(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
-    if dd_proc.returncode == 0:
-        return True, "Success"
-    else:
-        return False, "Failed (dd error: " + str(dd_proc.returncode) + ": " + dd_final_out + ")"
+    return True, "Success"
 
 #############################################
 # TEMP
