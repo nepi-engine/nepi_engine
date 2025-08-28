@@ -23,8 +23,6 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_states
 from nepi_sdk import nepi_triggers
 
-from nepi_sdk import nepi_software as nepi_image
-
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray, \
                                 UpdatePassword, EnableAdmin, UpdateRestricted
@@ -206,10 +204,10 @@ class SystemMgrNode():
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
 
-    first_stage_rootfs_device = "/dev/mmcblk0p1"
-    nepi_storage_device = "/dev/nvme0n1p3"
-    new_img_staging_device = "/dev/nvme0n1p3"
-    new_img_staging_device_removable = False
+    boot_rootfs = "/dev/mmcblk0p1"
+    nepi_storage = "/dev/nvme0n1p3"
+    new_img_staging = "/dev/nvme0n1p3"
+    new_img_staging_removable = False
 
     usb_device = "/dev/sda" 
     sd_card_device = "/dev/mmcblk1p"
@@ -273,11 +271,6 @@ class SystemMgrNode():
         self.system_defs_msg.hw_model = self.hw_model
         self.status_msg.hw_model = self.hw_model
 
-        self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
-        nepi_system.set_in_container(self.in_container)
-        self.system_defs_msg.in_container = self.in_container
-        self.status_msg.in_container = self.in_container
-
         self.has_cuda = self.NEPI_CONFIG['NEPI_HAS_CUDA']
         nepi_system.set_has_cuda(self.has_cuda)
         self.system_defs_msg.has_cuda = self.has_cuda
@@ -304,16 +297,25 @@ class SystemMgrNode():
         self.status_msg.manages_network = self.manages_network 
 
 
-##########################
+        self.msg_if.pub_warn("Getting System Boot FS Info")
+        self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
+        nepi_system.set_in_container(self.in_container)
+        self.system_defs_msg.in_container = self.in_container
+        self.status_msg.in_container = self.in_container
 
+        if self.in_container == True:
+            from nepi_sdk import nepi_docker as nepi_image
+            self.msg_if.pub_warn("NEPI Running in Container")
+        else:
+            from nepi_sdk import nepi_software as nepi_image
+            
+            boot_rootfs = nepi_sdk.get_param("~boot_rootfs", "undefined")
+            self.msg_if.pub_warn("Got first state partition: " + str(boot_rootfs))
+            if boot_rootfs != "undefined":
+                self.boot_rootfs = boot_rootfs
+            self.msg_if.pub_warn("Using first state partition: " + str(self.boot_rootfs))
 
-        self.msg_if.pub_warn("Getting System Info")
-        first_stage_rootfs_device = nepi_sdk.get_param("~first_stage_rootfs_device", "undefined")
-        self.msg_if.pub_warn("Got first state partition: " + str(first_stage_rootfs_device))
-        if first_stage_rootfs_device != "undefined":
-            self.first_stage_rootfs_device = first_stage_rootfs_device
-        self.msg_if.pub_warn("Using first state partition: " + str(self.first_stage_rootfs_device))
-
+        ##########################
 
         self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         self.req_config_subdirs = self.REQD_CONFIG_SUBDIRS
@@ -324,11 +326,6 @@ class SystemMgrNode():
         logs_path_subdir = os.path.join(self.storage_mountpoint, 'logs/ros_log')
         os.system('rm -r ' + logs_path_subdir + '/*')
         '''
-
-        self.msg_if.pub_warn("Mounting Storage Drive")
-        # Need to get the storage_mountpoint and first-stage rootfs early because they are used in init_msgs()
-        self.storage_mountpoint = nepi_sdk.get_param(
-            "~storage_mountpoint", self.storage_mountpoint)
         
         self.msg_if.pub_warn("Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
@@ -339,7 +336,7 @@ class SystemMgrNode():
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_mountpoint):
            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = nepi_image.mountPartition(self.nepi_storage_device, self.storage_mountpoint)
+           ret, msg = nepi_image.mountPartition(self.nepi_storage, self.storage_mountpoint)
            if ret is False:
                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
@@ -378,17 +375,15 @@ class SystemMgrNode():
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
 
-
-        if self.in_container == False:
-            self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
-            # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
-            # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
-            # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
-            if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
-                status, err_msg = nepi_image.resetBootFailCounter(
-                    self.first_stage_rootfs_device)
-                if status is False:
-                    self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
+        self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
+        # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
+        # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
+        # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
+        if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
+            status, err_msg = nepi_image.resetBootFailCounter(
+                self.boot_rootfs)
+            if status is False:
+                self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
         self.status_msg.sys_admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
 
@@ -420,17 +415,17 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.auto_switch_rootfs_on_new_img_install
             },
-            'first_stage_rootfs_device': {
+            'boot_rootfs': {
                 'namespace': self.base_namespace,
-                'factory_val': self.first_stage_rootfs_device
+                'factory_val': self.boot_rootfs
             },
-            'new_img_staging_device': {
+            'new_img_staging': {
                 'namespace': self.base_namespace,
-                'factory_val': self.new_img_staging_device
+                'factory_val': self.new_img_staging
             },
-            'new_img_staging_device_removable': {
+            'new_img_staging_removable': {
                 'namespace': self.base_namespace,
-                'factory_val': self.new_img_staging_device_removable
+                'factory_val': self.new_img_staging_removable
             },
             'emmc_device': {
                 'namespace': self.base_namespace,
@@ -803,17 +798,17 @@ class SystemMgrNode():
             self.auto_switch_rootfs_on_new_img_install = nepi_sdk.get_param(
                 "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-            self.first_stage_rootfs_device = nepi_sdk.get_param(
-                "~first_stage_rootfs_device", self.first_stage_rootfs_device)
+            self.boot_rootfs = nepi_sdk.get_param(
+                "~boot_rootfs", self.boot_rootfs)
 
-            # nepi_storage_device has some additional logic
+            # nepi_storage has some additional logic
             self.getNEPIStorageDevice()
             
-            self.new_img_staging_device = nepi_sdk.get_param(
-                "~new_img_staging_device", self.new_img_staging_device)
+            self.new_img_staging = nepi_sdk.get_param(
+                "~new_img_staging", self.new_img_staging)
 
-            self.new_img_staging_device_removable = nepi_sdk.get_param(
-                "~new_img_staging_device_removable", self.new_img_staging_device_removable)
+            self.new_img_staging_removable = nepi_sdk.get_param(
+                "~new_img_staging_removable", self.new_img_staging_removable)
 
             self.emmc_device = self.node_if.get_param("emmc_device")
 
@@ -1026,8 +1021,8 @@ class SystemMgrNode():
 
     def provide_sw_update_status(self, req):
         resp = SystemSoftwareStatusQueryResponse()
-        resp.new_sys_img_staging_device = self.get_device_friendly_name(self.new_img_staging_device)
-        resp.new_sys_img_staging_device_free_mb = nepi_image.getPartitionFreeByteCount(self.new_img_staging_device) / BYTES_PER_MEGABYTE
+        resp.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
+        resp.new_sys_img_staging_free_mb = nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
@@ -1040,7 +1035,7 @@ class SystemMgrNode():
         self.status_msg.sys_img_update_status = ""
 
         (status, err_string, self.new_img_files, self.new_img_versions, self.new_img_filesizes) = nepi_image.checkForNewImagesAvailable(
-            self.new_img_staging_device, self.new_img_staging_device_removable)
+            self.new_img_staging, self.new_img_staging_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
             resp.new_sys_img = 'query failed'
@@ -1218,7 +1213,7 @@ class SystemMgrNode():
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
             if subdir not in self.STORAGE_CHECK_SKIP_LIST:
-                self.msg_if.pub_warn("Checking nepi storage partition folder permissions: " + subdir)
+                self.msg_if.pub_warn("Checking nepi storage folder permissions: " + subdir)
                 os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
                 os.system('chmod -R 0775 ' + full_path_subdir)
@@ -1331,7 +1326,7 @@ class SystemMgrNode():
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
-        self.install_status, err_msg = nepi_image.writeImage(self.new_img_staging_device, decompressed_img_filename, self.inactive_rootfs_device, 
+        self.install_status, err_msg = nepi_image.writeImage(self.new_img_staging, decompressed_img_filename, self.inactive_rootfs, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
@@ -1341,11 +1336,11 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'failed'
             return
         else:
-            self.msg_if.pub_info("Finished flashing new image to inactive partition")
+            self.msg_if.pub_info("Finished flashing new image to inactive rootfs")
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
-        self.install_status, err_msg = nepi_image.checkAndRepairPartition(self.inactive_rootfs_device)
+        self.install_status, err_msg = nepi_image.checkAndRepairPartition(self.inactive_rootfs)
         if self.install_status is False:
             self.msg_if.pub_warn("Newly flashed image has irrepairable filesystem issues: ", err_msg)
             self.status_msg.sys_img_update_status = 'failed - fs errors'
@@ -1355,8 +1350,10 @@ class SystemMgrNode():
 
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
-            if self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+            if self.in_container == True:
+                status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
+            elif self.rootfs_ab_scheme == 'nepi':
+                status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.boot_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
                 status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
             else:
@@ -1371,8 +1368,10 @@ class SystemMgrNode():
                 self.status_msg.sys_img_update_status = 'complete - needs reboot'
     
     def handle_switch_active_inactive_rootfs(self, msg):
-        if self.rootfs_ab_scheme == 'nepi':
-            status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.first_stage_rootfs_device)
+        if self.in_container == True:
+            status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
+        elif self.rootfs_ab_scheme == 'nepi':
+            status, err_msg = nepi_image.switchActiveAndInactivePartitions(self.boot_rootfs)
         elif self.rootfs_ab_scheme == 'jetson':
             status, err_msg = nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
@@ -1403,11 +1402,11 @@ class SystemMgrNode():
 
         # Transfers to USB seem to have trouble with the standard block size, so allow those to proceed at a lower
         # block size
-        slow_transfer = True if self.usb_device in self.new_img_staging_device else False
+        slow_transfer = True if self.usb_device in self.new_img_staging else False
                 
         self.archiving_inactive_image = True
         status, err_msg = nepi_image.archiveInactiveToStaging(
-            self.inactive_rootfs_device, self.new_img_staging_device, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
+            self.inactive_rootfs, self.new_img_staging, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
         self.archiving_inactive_image = False
 
         if status is False:
@@ -1449,7 +1448,7 @@ class SystemMgrNode():
 
             os.chown(parent_path, new_dir_uid, new_dir_guid)
     
-    def get_device_friendly_name(self, devfs_name):
+    def get_friendly_name(self, devfs_name):
         # Leave space for the partition number
         friendly_name = devfs_name.replace(self.emmc_device, "EMMC Partition ")
         friendly_name = friendly_name.replace(self.usb_device, "USB Partition ")
@@ -1477,39 +1476,43 @@ class SystemMgrNode():
 
         # Gather some info about ROOTFS A/B configuration
         status = False
-        if self.rootfs_ab_scheme == 'nepi':
-            self.system_defs_msg.first_stage_rootfs_device = self.get_device_friendly_name(self.first_stage_rootfs_device)
-            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatus(
-                self.first_stage_rootfs_device)
-        elif self.rootfs_ab_scheme == 'jetson':
-            self.system_defs_msg.first_stage_rootfs_device = 'N/A'
-            (status, err_msg, rootfs_ab_settings_dict) = nepi_image.getRootfsABStatusJetson()
+        if self.in_container == True:
+            self.system_defs_msg.boot_rootfs = "container"
+            (status, err_msg, ab_fs_dict) = nepi_image.getRootfsABStatusJetson()
         else:
-            self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
+            if self.rootfs_ab_scheme == 'nepi':
+                self.system_defs_msg.boot_rootfs = self.get_friendly_name(self.boot_rootfs)
+                (status, err_msg, ab_fs_dict) = nepi_image.getRootfsABStatus(
+                    self.boot_rootfs)
+            elif self.rootfs_ab_scheme == 'jetson':
+                self.system_defs_msg.boot_rootfs = 'N/A'
+                (status, err_msg, ab_fs_dict) = nepi_image.getRootfsABStatusJetson()
+            else:
+                self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
         if status is True:
-            self.system_defs_msg.active_rootfs_device = self.get_device_friendly_name(rootfs_ab_settings_dict[
+            self.system_defs_msg.active_rootfs = self.get_friendly_name(ab_fs_dict[
                 'active_part_device'])
 
-            self.system_defs_msg.active_rootfs_size_mb = nepi_image.getPartitionByteCount(rootfs_ab_settings_dict[
+            self.system_defs_msg.active_rootfs_size_mb = nepi_image.getPartitionByteCount(ab_fs_dict[
                 'active_part_device']) / BYTES_PER_MEGABYTE
             
-            self.inactive_rootfs_device = rootfs_ab_settings_dict[
+            self.inactive_rootfs = ab_fs_dict[
                 'inactive_part_device']
-            self.system_defs_msg.inactive_rootfs_device = self.get_device_friendly_name(self.inactive_rootfs_device)
+            self.system_defs_msg.inactive_rootfs = self.get_friendly_name(self.inactive_rootfs)
 
-            self.system_defs_msg.inactive_rootfs_size_mb = nepi_image.getPartitionByteCount(self.inactive_rootfs_device) / BYTES_PER_MEGABYTE
+            self.system_defs_msg.inactive_rootfs_size_mb = nepi_image.getPartitionByteCount(self.inactive_rootfs) / BYTES_PER_MEGABYTE
             
-            self.system_defs_msg.inactive_rootfs_fw_version = rootfs_ab_settings_dict[
+            self.system_defs_msg.inactive_rootfs_fw_version = ab_fs_dict[
                 'inactive_part_fw_version']
-            self.system_defs_msg.max_boot_fail_count = rootfs_ab_settings_dict[
+            self.system_defs_msg.max_boot_fail_count = ab_fs_dict[
                 'max_boot_fail_count']
         else:
             self.msg_if.pub_warn(
                 "Unable to gather ROOTFS A/B system definitions: " + err_msg)
-            self.system_defs_msg.active_rootfs_device = "Unknown"
-            self.system_defs_msg.inactive_rootfs_device = "Unknown"
-            self.inactive_rootfs_device = "Unknown"
+            self.system_defs_msg.active_rootfs = "Unknown"
+            self.system_defs_msg.inactive_rootfs = "Unknown"
+            self.inactive_rootfs = "Unknown"
             self.system_defs_msg.inactive_rootfs_fw_version = "Unknown"
             self.system_defs_msg.max_boot_fail_count = 0
 
@@ -1520,7 +1523,9 @@ class SystemMgrNode():
         self.status_msg.save_all_enabled = False
 
     def getNEPIStorageDevice(self):
-        if self.in_container == False:
+        if self.in_container == True:
+            self.nepi_storage = self.storage_mountpoint
+        else:
           # Try to read the NEPI storage device out of /etc/fstab
           if os.path.exists('/etc/fstab'):
               with open('/etc/fstab', 'r') as fstab:
@@ -1529,22 +1534,21 @@ class SystemMgrNode():
                       if self.storage_mountpoint in line and not line.startswith('#'):
                           candidate = line.split()[0] # First token is the device
                           if candidate.startswith('/dev/'):
-                              self.nepi_storage_device = candidate
-                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
+                              self.nepi_storage = candidate
+                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage + ' from /etc/fstab')
                               return
                           else:
                               self.msg_if.pub_warn('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
             
           # If we get here, failed to get the storage device from /etc/fstab
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
-          if not nepi_sdk.has_param("~nepi_storage_device"):
-              self.msg_if.pub_warn("Parameter nepi_storage_device not available -- falling back to hard-coded " + self.nepi_storage_device)
+          if not nepi_sdk.has_param("~nepi_storage"):
+              self.msg_if.pub_warn("Parameter nepi_storage not available -- falling back to hard-coded " + self.nepi_storage)
           else:
-              self.nepi_storage_device = nepi_sdk.get_param(
-                "~nepi_storage_device", self.nepi_storage_device)
-              self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage_device + ' from config file')
-        else:
-            self.nepi_storage_device = self.storage_mountpoint
+              self.nepi_storage = nepi_sdk.get_param(
+                "~nepi_storage", self.nepi_storage)
+              self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage + ' from config file')
+
     
 
 
