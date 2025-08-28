@@ -61,6 +61,8 @@ class time_sync_mgr(object):
 
     auto_sync_clocks = True
     auto_sync_timezones = True
+    
+    in_container = False
 
     #######################
     ### Node Initialization
@@ -88,6 +90,12 @@ class time_sync_mgr(object):
         self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
         self.status_msg.manages_time = self.manages_time
               
+        self.msg_if.pub_info("Waiting for system in container")
+        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
+  
+        # Debug
+        self.managers_time = self.manages_time and (self.in_container == False)      
         ##############################
         # Initialize Class Variables
 
