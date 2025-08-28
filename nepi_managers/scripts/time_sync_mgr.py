@@ -334,7 +334,7 @@ class time_sync_mgr(object):
 
     def restart_chrony(self):
         if self.manages_time == True:
-            if self.in_container == True
+            if self.in_container == True:
                 subprocess.call(["supervisorctl", "restart", CHRONY_SUPERVISER_SERVICE_NAME])
             else:
                 subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
