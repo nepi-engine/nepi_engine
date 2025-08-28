@@ -137,6 +137,8 @@ class NetworkMgr:
 
     network_checked = False
     internet_checked = False
+    
+    in_container = False
 
     #######################
     ### Node Initialization
@@ -161,6 +163,13 @@ class NetworkMgr:
         self.manages_network = nepi_system.get_manages_network(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got running in container: " + str(self.manages_network))
         
+        self.msg_if.pub_info("Waiting for system in container")
+        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
+  
+        # Debug
+        self.manages_network = self.manages_network and (self.in_container == False) 
+
         ##############################
         # Initialize Variables
 
