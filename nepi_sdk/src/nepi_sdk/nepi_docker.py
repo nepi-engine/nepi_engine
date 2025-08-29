@@ -59,6 +59,7 @@ TMP_PARTITION_ENV_VAR_NAME = "TMP_PARTITION"
 ###################################################################################################
 JETSON_ROOTFS_AB_DEVICES = {'A': '/dev/nvme0n1p1', 'B': '/dev/nvme0n1p2'}
 #NEPI_DOCKER_CONFIG=nepi_utils.read_yaml_2_dict(DOCKER_CONFIG_FILE_PATH)
+NEPI_DOCKER_CONFIG=dict()
 
 def CheckPartitionBusy(partition_path):
     return False
@@ -97,35 +98,40 @@ def getPartitionFreeByteCount(partition_device):
 
 # Export
 def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
+    path_to_sh = '/home/nepidev/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
+    try:
+        # Execute the shell script and wait for it to complete
+        result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)     
+        # Print the output and exit code
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
+        print("Exit Code:", result.returncode)
+    except FileNotFoundError:
+        print("Error: The 'sh' command or the script file was not found.")
+    except subprocess.CalledProcessError as e:
+        # The `check=True` flag causes this exception to be raised on non-zero exit codes
+        print("Error: The script returned a non-zero exit code.")
+        print("STDOUT:", e.stdout)
+        print("STDERR:", e.stderr)
+        print("Exit Code:", e.returncode)
     return True, "Success"
 
 def checkAndRepairPartition(partition_device):
     return True, "Success"
 
-
-# Set boot to 0
 def resetBootFailCounter(first_stage_rootfs_device):
+    NEPI_DOCKER_CONFIG["FAIL_COUNT"] = 0
     return True, "Success"
 
 def switchActiveAndInactivePartitions():
-    # SH file path will be in config
-    username_vars = ['USER', 'USERNAME', 'LOGNAME']
-
-    for var in username_vars:
-        if var in os.environ:
-            print(var + " : " + os.environ[var]) 
-            
-    path_to_sh = '/mnt/nepi_storage/code/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
-
+    path_to_sh = '/home/nepidev/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
     try:
         # Execute the shell script and wait for it to complete
         result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)
-        
         # Print the output and exit code
         print("STDOUT:", result.stdout)
         print("STDERR:", result.stderr)
         print("Exit Code:", result.returncode)
-
     except FileNotFoundError:
         print("Error: The 'sh' command or the script file was not found.")
     except subprocess.CalledProcessError as e:
