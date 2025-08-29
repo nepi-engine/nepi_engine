@@ -419,10 +419,11 @@ class NetworkMgr:
 
 
     def initCb(self, do_updates = False):
-        if self.node_if is not None:
+        self.primary_ip_addr = self.get_primary_ip_addr()
+        if self.node_if is not None and self.manages_network == True:
             self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-            self.dhcp_enabled = False # self.node_if.get_param('dhcp_enabled') # Force external system to start
+            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled') # Force external system to start
             wifi_enabled = (self.dhcp_enabled == False) and self.node_if.get_param('enable_client')
 
             self.wifi_client_enabled = wifi_enabled
@@ -438,6 +439,7 @@ class NetworkMgr:
 
             self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
             self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
+           
         
        
 
@@ -509,6 +511,35 @@ class NetworkMgr:
 
     #######################
     ### Mgr Functions
+
+    def get_primary_ip_addr(self):
+        if self.in_container == False:
+            key = "inet static"
+            with open(self.FACTORY_STATIC_IP_FILE, "r") as f:
+                lines = f.readlines()
+                for i,line in enumerate(lines):
+                    if key in line:
+                        primary_ip_addr = lines[i+1].split()[1]
+                        return primary_ip_addr
+            return "Unknown Primary IP"
+        else:
+
+            """
+            Attempts to find the primary IP address of the local machine.
+            """
+            try:
+                # Create a UDP socket
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # Connect to a public IP address (doesn't actually send data)
+                # This forces the system to choose a local interface for the connection
+                s.connect(("8.8.8.8", 80))  # Using Google's public DNS server
+                ip_address = s.getsockname()[0]
+                s.close()
+                return ip_address
+            except Exception as e:
+                self.msg_if.pub_warn("Error getting IP address " + str(e))
+                return "Unknown Primary IP"
+
 
    
     def networkIpCheckCb(self, event):
@@ -649,9 +680,8 @@ class NetworkMgr:
                         #self.dhcp_enabled = False
                         #self.dhcp_ip_addr = 'Disabled->Requires Power Cycle'
                         # Requires Reboot
-                        self.msg_if.pub_warn("Disabling DHCP Client")
-                        self.msg_if.pub_warn("Disabling DHCP with current connection state: " + str(connected))
-                        restart_network = False
+                        self.msg_if.pub_warn("DHCP Disabled. Requires reboot to take affect")
+                        '''
                         try:
                             # The dhclient -r call below causes all IP addresses on the interface to be dropped, so
                             # we reinitialize them here... this will not work for IP addresses that were
@@ -663,23 +693,22 @@ class NetworkMgr:
                             self.dhcp_enabled = False
                             self.dhcp_enable_state = False
                             self.dhcp_ip_addr = ''
-                            self.msg_if.pub_warn("DHCP disabled")
-                        except Exception as e:
+                         except Exception as e:
                             #self.dhcp_enabled = True
                             #self.dhcp_enable_state == True
                             self.msg_if.pub_warn("Unable to disable DHCP: " + str(e))
                         success = self.publish_status()
                         try:
-                            if restart_network == True:
-                                self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
-                                # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
-                                subprocess.call(['ifdown', self.NET_IFACE])
-                                nepi_sdk.wait()
-                                subprocess.call(['ifup', self.NET_IFACE])
-                                self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
+                            self.msg_if.pub_warn("Restarting network IFACE: " + self.NET_IFACE)
+                            # Restart the interface -- this picks the original static IP back up and sources the user IP alias file
+                            subprocess.call(['ifdown', self.NET_IFACE])
+                            nepi_sdk.wait()
+                            subprocess.call(['ifup', self.NET_IFACE])
+                            self.msg_if.pub_warn("Network IFACE restarted: " + self.NET_IFACE)
                         except Exception as e:
                             self.msg_if.pub_warn("Unable to reset NET_IFACE: " + self.NET_IFACE + " " + str(e))
                         success = self.publish_status()
+                        '''
                 if self.node_if is not None:
                     self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
                 if last_dhcp != self.dhcp_enabled:
@@ -690,15 +719,7 @@ class NetworkMgr:
     def cleanup(self):
         self.process.stop()
 
-    def get_primary_ip_addr(self):
-        key = "inet static"
-        with open(self.FACTORY_STATIC_IP_FILE, "r") as f:
-            lines = f.readlines()
-            for i,line in enumerate(lines):
-                if key in line:
-                    primary_ip_addr = lines[i+1].split()[1]
-                    return primary_ip_addr
-        return "Unknown Primary IP"
+
  
 
     def is_valid_ip(self,addr):
