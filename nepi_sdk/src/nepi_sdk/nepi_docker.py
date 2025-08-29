@@ -85,16 +85,17 @@ def getRootfsABStatusJetson():
     return True, "Success", dict()
 
 def identifyRootfsABScheme():
-    # Default to 'nepi'
-    return 'nepi'
+    return 'container'
 
+# Get how much availible space
 def getPartitionByteCount(partition_device):
     return 100000000000 
 
+# How much pace is free
 def getPartitionFreeByteCount(partition_device):
-
     return 100000000000
 
+# Export
 def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
     return True, "Success"
 
@@ -102,6 +103,7 @@ def checkAndRepairPartition(partition_device):
     return True, "Success"
 
 
+# Set boot to 0
 def resetBootFailCounter(first_stage_rootfs_device):
     return True, "Success"
 
@@ -139,6 +141,8 @@ def switchActiveAndInactivePartitionsJetson():
 
 def archiveInactiveToStaging(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
     return True, "Success"
+
+# Restart fs from that call start script
 
 #############################################
 # TEMP
