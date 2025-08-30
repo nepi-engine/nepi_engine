@@ -165,7 +165,7 @@ class NetworkMgr:
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
 
-        self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK']
+        self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
         self.msg_if.pub_warn("Got running in container: " + str(self.manages_network))
 
         #self.manages_network = self.manages_network and (self.in_container == False) 
@@ -421,12 +421,17 @@ class NetworkMgr:
     def initCb(self, do_updates = False):
         self.primary_ip_addr = self.get_primary_ip_addr()
         if self.node_if is not None and self.manages_network == True:
+            managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
+            dhcp_enabled = self.node_if.get_param('dhcp_enabled')
             if self.in_container == True:
                 self.dmanaged_ip_addrs = self.nepi_config['NEPI_IP_ALIASES']
+                managed_ip_addrs = managed_ip_addrs + self.dmanaged_ip_addrs
                 self.ddhcp_enabled = self.nepi_config['NEPI_DHCP_ON_START']
+                dhcp_enabled = dhcp_enabled + self.ddhcp_enabled
 
-            self.managed_ip_addrs = self.dmanaged_ip_addrs +self.node_if.get_param('managed_ip_addrs')
-            self.dhcp_enabled = self.ddhcp_enabled or self.node_if.get_param('dhcp_enabled')
+
+            self.managed_ip_addrs = managed_ip_addrs
+            self.dhcp_enabled = dhcp_enabled
 
             self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
 

@@ -190,12 +190,15 @@ class SystemMgrNode():
         # Initialize Class Variables
 
 
-        self.nepi_config = nepi_sdk.load_params_from_file(self.NEPI_CONFIG_FILE, namespace = None, prime_key = None)
+        self.nepi_config = nepi_utils.read_dict_from_file(self.NEPI_CONFIG_FILE)
         self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
-        nepi_system.set_nepi_config(self.nepi_config)
+        for key in self.nepi_config.keys(): # Fixe empty arrays
+            if self.nepi_config[key] is None:
+                self.nepi_config[key]=[]
 
+        nepi_system.set_nepi_config(self.nepi_config)
 
 
         self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_MODEL']
@@ -226,8 +229,8 @@ class SystemMgrNode():
 
 
         self.boot_device = self.nepi_config['NEPI_BOOT_DEVICE']
-        self.nepi_storage = "/dev/nvme0n1p3"
-        self.new_img_staging = "/dev/nvme0n1p3"
+        self.nepi_storage = self.nepi_config['NEPI_STORAGE_DEVICE']
+        self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging_removable = False
 
         self.usb_device = "/dev/sda" 
@@ -244,9 +247,20 @@ class SystemMgrNode():
             self.msg_if.pub_warn("NEPI Running in Container")
         else:
             self.nepi_image = nepi_software
-            self.msg_if.pub_warn("Using first state partition: " + str(self.boot_device))
+            self.msg_if.pub_warn("Using first stage boot device: " + str(self.boot_device))
 
-
+        self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
+        '''
+        self.msg_if.pub_warn("Deleting old log files")
+        logs_path_subdir = os.path.join(self.storage_folder, 'logs/ros_log')
+        os.system('rm -r ' + logs_path_subdir + '/*')
+        '''
+        
+        self.msg_if.pub_warn("Updating Rootfs Scheme")
+        # Need to identify the rootfs scheme because it is used in init_msgs()
+        self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
+        self.msg_if.pub_warn("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
+        self.init_msgs()
 
 
 
@@ -310,17 +324,7 @@ class SystemMgrNode():
         self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         self.req_config_subdirs = self.REQD_CONFIG_SUBDIRS
         
-        self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
-        '''
-        self.msg_if.pub_warn("Deleting old log files")
-        logs_path_subdir = os.path.join(self.storage_folder, 'logs/ros_log')
-        os.system('rm -r ' + logs_path_subdir + '/*')
-        '''
-        
-        self.msg_if.pub_warn("Updating Rootfs Scheme")
-        # Need to identify the rootfs scheme because it is used in init_msgs()
-        self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
-        self.init_msgs()
+
 
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
@@ -1480,8 +1484,8 @@ class SystemMgrNode():
                 self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
         if status is True:
-            self.system_defs_msg.active_rootfs = self.get_friendly_name(ab_fs_dict[
-                'active_part_device'])
+            self.msg_if.pub_warn("Got Rootfs Dict: " + str(ab_fs_dict))
+            self.system_defs_msg.active_rootfs = self.get_friendly_name(ab_fs_dict['active_part_device'])
 
             self.system_defs_msg.active_rootfs_size_mb = self.nepi_image.getPartitionByteCount(ab_fs_dict[
                 'active_part_device']) / BYTES_PER_MEGABYTE

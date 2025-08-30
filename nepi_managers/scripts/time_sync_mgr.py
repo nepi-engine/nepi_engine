@@ -90,16 +90,19 @@ class time_sync_mgr(object):
         # Wait for System Info
         self.msg_if.pub_info("Waiting for nepi config info")
         self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
 
-        self.manages_time = self.nepi_config['NEPI_MANAGES_TIME']
-        self.msg_if.pub_warn("Got NEPI Manages Time: " + self.manages_time)
+        self.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
+        self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
   
 
         self.chrony_running = self.check_chrony_process()
-        if self.chrony_running == False:
+        if self.chrony_running == True:
+            self.msg_if.pub_warn("Chrony process running")
+        else:
             self.msg_if.pub_warn("Chrony process not found. NEPI Time Management disabled")
         # Debug
         self.managers_time = self.manages_time == True and self.chrony_running == True
