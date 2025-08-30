@@ -159,16 +159,16 @@ class NetworkMgr:
         
         ##############################
         # Wait for System Info
-        self.msg_if.pub_info("Waiting for system info")
-        self.manages_network = nepi_system.get_manages_network(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got running in container: " + str(self.manages_network))
-        
-        self.msg_if.pub_info("Waiting for system in container")
-        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_info("Waiting for nepi config info")
+        self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
+
+        self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
-  
-        # Debug
-        self.manages_network = self.manages_network and (self.in_container == False) 
+
+        self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK']
+        self.msg_if.pub_warn("Got running in container: " + str(self.manages_network))
+
+        #self.manages_network = self.manages_network and (self.in_container == False) 
 
         ##############################
         # Initialize Variables
@@ -421,11 +421,20 @@ class NetworkMgr:
     def initCb(self, do_updates = False):
         self.primary_ip_addr = self.get_primary_ip_addr()
         if self.node_if is not None and self.manages_network == True:
-            self.managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
-            self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-            self.dhcp_enabled = self.node_if.get_param('dhcp_enabled') # Force external system to start
-            wifi_enabled = (self.dhcp_enabled == False) and self.node_if.get_param('enable_client')
+            if self.in_container == True:
+                self.dmanaged_ip_addrs = self.nepi_config['NEPI_IP_ALIASES']
+                self.ddhcp_enabled = self.nepi_config['NEPI_DHCP_ON_START']
 
+            self.managed_ip_addrs = self.dmanaged_ip_addrs +self.node_if.get_param('managed_ip_addrs')
+            self.dhcp_enabled = self.ddhcp_enabled or self.node_if.get_param('dhcp_enabled')
+
+            self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
+
+            self.msg_if.pub_warn("Starting Init with Managed addrs: " + str(self.managed_ip_addrs))
+            self.msg_if.pub_warn("Starting Init with DHCP Ennabled: " + str(self.dhcp_enabled))
+
+
+            wifi_enabled = (self.dhcp_enabled == False) and self.node_if.get_param('enable_client')
             self.wifi_client_enabled = wifi_enabled
             self.wifi_client_ssid = self.node_if.get_param("client_ssid")
             self.wifi_client_passphrase = self.node_if.get_param("client_passphrase")
@@ -434,8 +443,6 @@ class NetworkMgr:
             self.wifi_ap_ssid = self.node_if.get_param('access_point_ssid')
             self.wifi_ap_passphrase = self.node_if.get_param('access_point_passphrase')
 
-            self.msg_if.pub_warn("Starting Init with Managed addrs: " + str(self.managed_ip_addrs))
-            self.msg_if.pub_warn("Starting Init with DHCP Ennabled: " + str(self.dhcp_enabled))
 
             self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
             self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))

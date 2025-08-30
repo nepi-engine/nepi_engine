@@ -88,19 +88,21 @@ class time_sync_mgr(object):
 
         ##############################
         # Wait for System Info
-        self.msg_if.pub_info("Waiting for system info")
-        self.manages_time = nepi_system.get_manages_time(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
-        self.status_msg.manages_time = self.manages_time
-              
-        self.msg_if.pub_info("Waiting for system in container")
-        self.in_container = nepi_system.get_in_container(log_name_list = [self.node_name])
+        self.msg_if.pub_info("Waiting for nepi config info")
+        self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
+
+        self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
+
+        self.manages_time = self.nepi_config['NEPI_MANAGES_TIME']
+        self.msg_if.pub_warn("Got NEPI Manages Time: " + self.manages_time)
   
 
         self.chrony_running = self.check_chrony_process()
+        if self.chrony_running == False:
+            self.msg_if.pub_warn("Chrony process not found. NEPI Time Management disabled")
         # Debug
-        self.managers_time = self.manages_time == True and (self.in_container == False) and self.chrony_running == True   
+        self.managers_time = self.manages_time == True and self.chrony_running == True
         ##############################
         # Initialize Class Variables
 

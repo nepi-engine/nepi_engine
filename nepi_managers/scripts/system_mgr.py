@@ -51,9 +51,9 @@ from nepi_api.system_if import StatesIF, TriggersIF
 
 BYTES_PER_MEGABYTE = 2**20
 
-NEPI_CONFIG_FILE = '/opt/nepi/etc/nepi_config.yaml'
 
 
+NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
     
@@ -62,21 +62,52 @@ class SystemMgrNode():
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
-    SYS_ETC_PATH = "/opt/nepi/etc"
-    SYS_ENV_PATH = "/opt/nepi/sys_env.bash"
-    FW_VERSION_PATH = "/opt/nepi/nepi_engine/etc/fw_version.txt"
-
-    config_mountpoint = "/mnt/nepi_config"
-    storage_mountpoint = "/mnt/nepi_storage"
-    data_folder = storage_mountpoint + "/data"
+    SYS_ETC_PATH = NEPI_FOLDER + "/etc"
+    SYS_ENV_PATH = NEPI_FOLDER + "/sys_env.bash"
+    FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
+    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_config.yaml'
 
     STATES_DICT = dict()
 
-    node_if = None
-    status_msg = MgrSystemStatus()
-    system_defs_msg = SystemDefs()
 
+    REQD_STORAGE_SUBDIRS = ["ai_models", 
+                        "ai_training",
+                        "automation_scripts", 
+                        "automation_scripts/sys_trigger_scripts",
+                        "automation_scripts/sys_state_scripts",
+                        "code"
+                        "data", 
+                        "databases", 
+                        "databases/targets", 
+                        "install",
+                        "install/apps",
+                        "install/ai_frameworks",
+                        "install/drivers",
+                        "license", 
+                        "logs", 
+                        "logs/ros_log",
+                        "logs/automation_script_logs", 
+                        "nepi_full_img", 
+                        "nepi_full_img_archive", 
+                        "nepi_src",
+                        "user_cfg",
+                        "user_cfg/cal",
+                        "sample_data",
+                        "tmp"]
+
+    REQD_CONFIG_SUBDIRS = ["docker_cfg", 
+                            "factory_cfg",
+                            "system_cfg"]
+                            
     
+    STORAGE_CHECK_SKIP_LIST = ["ai_training",
+                            "data",
+                            "logs", 
+                            "logs/ros_log",
+                            "logs/automation_script_logs", 
+                            "nepi_src",
+                            "tmp"]
+
     ADMIN_RESTRICT_OPTIONS = ['Factory Cfg','System_Cfg','User_Cfg','Debug',
                             'Time_NTP','Time_Sync_Clocks',
                             'Device Name',
@@ -97,6 +128,11 @@ class SystemMgrNode():
                             'States_View','States_Controls',
                             'Image_Stats','Image_Controls']
 
+
+    node_if = None
+    status_msg = MgrSystemStatus()
+    system_defs_msg = SystemDefs()
+
     storage_subdirs = dict()
     user_folders = dict()
     system_folders = dict()
@@ -104,117 +140,9 @@ class SystemMgrNode():
     folders_uid = 1000 # default to nepi
     folders_gid = 130 # default to "sambashare" # TODO This is very fragile
 
-
-    REQD_STORAGE_SUBDIRS = ["ai_models", 
-                            "ai_training",
-                            "automation_scripts", 
-                            "automation_scripts/sys_trigger_scripts",
-                            "automation_scripts/sys_state_scripts",
-                            "code"
-                            "data", 
-                            "databases", 
-                            "databases/targets", 
-                            "install",
-                            "install/apps",
-                            "install/ai_frameworks",
-                            "install/drivers",
-                            "license", 
-                            "logs", 
-                            "logs/ros_log",
-                            "logs/automation_script_logs", 
-                            "nepi_full_img", 
-                            "nepi_full_img_archive", 
-                            "nepi_src",
-                            "user_cfg",
-                            "user_cfg/cal",
-                            "sample_data",
-                            "tmp"]
-
-    REQD_CONFIG_SUBDIRS = ["docker_cfg", 
-                            "factory_cfg",
-                            "system_cfg"]
-                            
-    
-    STORAGE_CHECK_SKIP_LIST = ["ai_training",
-                            "data",
-                            "logs", 
-                            "logs/ros_log",
-                            "logs/automation_script_logs", 
-                            "nepi_src",
-                            "tmp"]
-
-    CATKIN_TOOLS_PATH = '/opt/nepi/nepi_engine/.catkin_tools'
-
-
-
-    SDK_PATH_DICT = {
-        'sdk_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_sdk',
-        'sdk_lib': '/opt/nepi/nepi_engine/lib/nepi_sdk',
-        }
-    API_PATH_DICT = {
-        'api_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_api',
-        'api_lib': '/opt/nepi/nepi_engine/lib/nepi_api',
-        }
-    ETC_PATH_DICT = {
-        'etc': '/opt/nepi/nepi_engine/etc'
-        }
-    CONFIG_FOLDER_DICT = {
-        'docker_cfg': config_mountpoint + "/docker_cfg",
-        'factory_cfg':  config_mountpoint + "/factory_cfg",
-        'system_cfg':  config_mountpoint + "/system_cfg",
-        'user_cfg':  storage_mountpoint + "/user_cfg",
-        }
-    RUI_PATH_DICT = {
-        'rui_env': '/opt/nepi/rui/.nvm',
-        'rui_bld': '/opt/nepi/rui/src/rui_webserver/rui-app',
-        'rui_src': '/opt/nepi/rui/src/rui_webserver/rui-app/src'
-        }
-        
-    DRIVERS_PATH_DICT = {
-        'drivers_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_drivers',
-        'drivers_lib': '/opt/nepi/nepi_engine/lib/nepi_drivers',
-        'drivers_param': '/opt/nepi/nepi_engine/lib/nepi_drivers',
-        'drivers_install': '/mnt/nepi_storage/install/drivers'
-        }
-    AIFS_PATH_DICT = {
-        'aifs_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_aifs',
-        'aifs_lib': '/opt/nepi/nepi_engine/lib/nepi_aifs',
-        'aifs_param': '/opt/nepi/nepi_engine/share/nepi_aifs',
-        'aifs_models': '/mnt/nepi_storage/ai_models/',
-        'aifs_install': '/mnt/nepi_storage/install/ai_frameworks'
-        }
-    APPS_PATH_DICT = {
-        'apps_pkg': '/opt/nepi/nepi_engine/lib/python3/dist-packages/nepi_apps',
-        'apps_lib': '/opt/nepi/nepi_engine/lib/nepi_apps',
-        'apps_param': '/opt/nepi/nepi_engine/share/nepi_apps/params',
-        'apps_install': '/mnt/nepi_storage/install/apps'
-        }
-
-    SYSTEM_CHECK_SKIP_LIST = ['rui']
-    SYSTEM_PATH_DICT = {
-        'sdk': SDK_PATH_DICT,
-        'api': API_PATH_DICT,
-        'etc': ETC_PATH_DICT,
-        'cfg': CONFIG_FOLDER_DICT,
-        'rui': RUI_PATH_DICT,
-        'drivers': DRIVERS_PATH_DICT,
-        'aifs': AIFS_PATH_DICT,
-        'apps': APPS_PATH_DICT
-    }
-
-    # disk_usage_deque = deque(maxlen=10)
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
 
-    boot_rootfs = "/dev/mmcblk0p1"
-    nepi_storage = "/dev/nvme0n1p3"
-    new_img_staging = "/dev/nvme0n1p3"
-    new_img_staging_removable = False
-
-    usb_device = "/dev/sda" 
-    sd_card_device = "/dev/mmcblk1p"
-    emmc_device = "/dev/mmcblk0p"
-    ssd_device = "/dev/nvme0n1p"
 
     auto_switch_rootfs_on_new_img_install = True
     sw_update_progress = ""
@@ -260,64 +188,124 @@ class SystemMgrNode():
 
         ###############################
         # Initialize Class Variables
-        self.NEPI_CONFIG = nepi_sdk.load_params_from_file(NEPI_CONFIG_FILE, namespace = None, prime_key = None)
-        self.msg_if.pub_warn("Got System Config: " + str(self.NEPI_CONFIG))
-        
-        self.hw_type = self.NEPI_CONFIG['NEPI_HW_TYPE']
-        nepi_system.set_hw_type(self.hw_type)
-        self.system_defs_msg.hw_type = self.hw_type
-        self.status_msg.hw_type = self.hw_type
-
-        self.hw_model = self.NEPI_CONFIG['NEPI_HW_MODEL']
-        nepi_system.set_hw_model(self.hw_model)
-        self.system_defs_msg.hw_model = self.hw_model
-        self.status_msg.hw_model = self.hw_model
-
-        self.has_cuda = self.NEPI_CONFIG['NEPI_HAS_CUDA']
-        nepi_system.set_has_cuda(self.has_cuda)
-        self.system_defs_msg.has_cuda = self.has_cuda
-        self.status_msg.has_cuda = self.has_cuda
-
-        self.manages_ssh = self.NEPI_CONFIG['NEPI_MANAGES_SSH'] == 1
-        nepi_system.set_manages_ssh(self.manages_ssh)
-        self.system_defs_msg.manages_ssh = self.manages_ssh
-        self.status_msg.manages_ssh = self.manages_ssh 
-
-        self.manages_share = self.NEPI_CONFIG['NEPI_MANAGES_SHARE'] == 1
-        nepi_system.set_manages_share(self.manages_share)
-        self.system_defs_msg.manages_share = self.manages_share
-        self.status_msg.manages_share = self.manages_share
-
-        self.manages_time = self.NEPI_CONFIG['NEPI_MANAGES_TIME'] == 1
-        nepi_system.set_manages_time(self.manages_time)
-        self.system_defs_msg.manages_time = self.manages_time
-        self.status_msg.manages_time = self.manages_time 
-
-        self.manages_network = self.NEPI_CONFIG['NEPI_MANAGES_NETWORK'] == 1
-        nepi_system.set_manages_network(self.manages_network)
-        self.system_defs_msg.manages_network = self.manages_network
-        self.status_msg.manages_network = self.manages_network 
 
 
-        self.msg_if.pub_warn("Getting System Boot FS Info")
-        self.in_container = self.NEPI_CONFIG['NEPI_IN_CONTAINER']
-        nepi_system.set_in_container(self.in_container)
+        self.nepi_config = nepi_sdk.load_params_from_file(self.NEPI_CONFIG_FILE, namespace = None, prime_key = None)
+        self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
+        if self.nepi_config is None:
+            self.nepi_config = dict()
+        nepi_system.set_nepi_config(self.nepi_config)
+
+
+
+        self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_MODEL']
+        self.status_msg.hw_type = self.nepi_config['NEPI_HW_MODEL']
+
+        self.system_defs_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
+        self.status_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
+
+        self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
+        self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
+
+        self.system_defs_msg.manages_ssh = self.nepi_config['NEPI_MANAGES_SSH'] == 1
+        self.status_msg.manages_ssh = self.nepi_config['NEPI_MANAGES_SSH'] == 1
+
+        self.system_defs_msg.manages_share = self.nepi_config['NEPI_MANAGES_SHARE'] == 1
+        self.status_msg.manages_share = self.nepi_config['NEPI_MANAGES_SHARE'] == 1
+
+        self.system_defs_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
+        self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
+
+        self.system_defs_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
+        self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
+
+        self.msg_if.pub_warn("Getting System Boot Device Info")
+        self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
+
+
+        self.boot_device = self.nepi_config['NEPI_BOOT_DEVICE']
+        self.nepi_storage = "/dev/nvme0n1p3"
+        self.new_img_staging = "/dev/nvme0n1p3"
+        self.new_img_staging_removable = False
+
+        self.usb_device = "/dev/sda" 
+        self.sd_card_device = "/dev/mmcblk1p"
+        self.emmc_device = "/dev/mmcblk0p"
+        self.ssd_device = "/dev/nvme0n1p"
+
+        self.config_folder = "/mnt/nepi_config"
+        self.storage_folder = "/mnt/nepi_storage"
+        self.data_folder = self.storage_folder + "/data"
 
         if self.in_container == True:
             self.nepi_image = nepi_docker
             self.msg_if.pub_warn("NEPI Running in Container")
         else:
             self.nepi_image = nepi_software
-            
-            boot_rootfs = nepi_sdk.get_param("~boot_rootfs", "undefined")
-            self.msg_if.pub_warn("Got first state partition: " + str(boot_rootfs))
-            if boot_rootfs != "undefined":
-                self.boot_rootfs = boot_rootfs
-            self.msg_if.pub_warn("Using first state partition: " + str(self.boot_rootfs))
+            self.msg_if.pub_warn("Using first state partition: " + str(self.boot_device))
 
-        ##########################
+
+
+
+
+
+        self.SDK_PATH_DICT = {
+            'sdk_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_sdk',
+            'sdk_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_sdk',
+            }
+        self.API_PATH_DICT = {
+            'api_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_api',
+            'api_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_api',
+            }
+        self.ETC_PATH_DICT = {
+            'etc': NEPI_FOLDER + '/nepi_engine/etc'
+            }
+        self.CONFIG_FOLDER_DICT = {
+            'docker_cfg': self.config_folder + "/docker_cfg",
+            'factory_cfg':  self.config_folder + "/factory_cfg",
+            'system_cfg':  self.config_folder + "/system_cfg",
+            'user_cfg':  self.storage_folder + "/user_cfg",
+            }
+        self.RUI_PATH_DICT = {
+            'rui_env': NEPI_FOLDER + '/rui/.nvm',
+            'rui_bld': NEPI_FOLDER + '/rui/src/rui_webserver/rui-app',
+            'rui_src': NEPI_FOLDER + '/rui/src/rui_webserver/rui-app/src'
+            }
+            
+        self.DRIVERS_PATH_DICT = {
+            'drivers_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_drivers',
+            'drivers_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_drivers',
+            'drivers_param': NEPI_FOLDER + '/nepi_engine/lib/nepi_drivers',
+            'drivers_install': '/mnt/nepi_storage/install/drivers'
+            }
+        self.AIFS_PATH_DICT = {
+            'aifs_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_aifs',
+            'aifs_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_aifs',
+            'aifs_param': NEPI_FOLDER + '/nepi_engine/share/nepi_aifs',
+            'aifs_models': '/mnt/nepi_storage/ai_models/',
+            'aifs_install': '/mnt/nepi_storage/install/ai_frameworks'
+            }
+        self.APPS_PATH_DICT = {
+            'apps_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_apps',
+            'apps_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_apps',
+            'apps_param': NEPI_FOLDER + '/nepi_engine/share/nepi_apps/params',
+            'apps_install': '/mnt/nepi_storage/install/apps'
+            }
+
+        self.SYSTEM_CHECK_SKIP_LIST = ['rui']
+        self.SYSTEM_PATH_DICT = {
+            'sdk': self.SDK_PATH_DICT,
+            'api': self.API_PATH_DICT,
+            'etc': self.ETC_PATH_DICT,
+            'cfg': self.CONFIG_FOLDER_DICT,
+            'rui': self.RUI_PATH_DICT,
+            'drivers': self.DRIVERS_PATH_DICT,
+            'aifs': self.AIFS_PATH_DICT,
+            'apps': self.APPS_PATH_DICT
+        }
+
 
         self.req_storage_subdirs = self.REQD_STORAGE_SUBDIRS
         self.req_config_subdirs = self.REQD_CONFIG_SUBDIRS
@@ -325,7 +313,7 @@ class SystemMgrNode():
         self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
         '''
         self.msg_if.pub_warn("Deleting old log files")
-        logs_path_subdir = os.path.join(self.storage_mountpoint, 'logs/ros_log')
+        logs_path_subdir = os.path.join(self.storage_folder, 'logs/ros_log')
         os.system('rm -r ' + logs_path_subdir + '/*')
         '''
         
@@ -336,9 +324,9 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
-        if not os.path.ismount(self.storage_mountpoint):
+        if not os.path.ismount(self.storage_folder):
            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = self.nepi_image.mountPartition(self.nepi_storage, self.storage_mountpoint)
+           ret, msg = self.nepi_image.mountPartition(self.nepi_storage, self.storage_folder)
            if ret is False:
                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
@@ -347,11 +335,11 @@ class SystemMgrNode():
         self.update_storage()
         if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:
             self.msg_if.pub_warn("Insufficient space on storage partition")
-            self.storage_mountpoint = ""
+            self.storage_folder = ""
             return False
 
         # Gather owner and group details for storage mountpoint
-        stat_info = os.stat(self.storage_mountpoint)
+        stat_info = os.stat(self.storage_folder)
         self.folders_uid = stat_info.st_uid
         self.folders_gid = stat_info.st_gid
 
@@ -383,7 +371,7 @@ class SystemMgrNode():
         # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
         if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
             status, err_msg = self.nepi_image.resetBootFailCounter(
-                self.boot_rootfs)
+                self.boot_device)
             if status is False:
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
@@ -409,17 +397,17 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': OpEnvironmentQueryResponse.OP_ENV_AIR
             },
-            'storage_mountpoint': {
+            'storage_folder': {
                 'namespace': self.base_namespace,
-                'factory_val': self.storage_mountpoint
+                'factory_val': self.storage_folder
             },
             'auto_switch_rootfs_on_new_img_install': {
                 'namespace': self.base_namespace,
                 'factory_val': self.auto_switch_rootfs_on_new_img_install
             },
-            'boot_rootfs': {
+            'boot_device': {
                 'namespace': self.base_namespace,
-                'factory_val': self.boot_rootfs
+                'factory_val': self.boot_device
             },
             'new_img_staging': {
                 'namespace': self.base_namespace,
@@ -795,13 +783,13 @@ class SystemMgrNode():
             self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
             # Now gather all the params and set members appropriately
-            self.storage_mountpoint = self.node_if.get_param("storage_mountpoint")
+            self.storage_folder = self.node_if.get_param("storage_folder")
             
             self.auto_switch_rootfs_on_new_img_install = nepi_sdk.get_param(
                 "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-            self.boot_rootfs = nepi_sdk.get_param(
-                "~boot_rootfs", self.boot_rootfs)
+            self.boot_device = nepi_sdk.get_param(
+                "~boot_device", self.boot_device)
 
             # nepi_storage has some additional logic
             self.getNEPIStorageDevice()
@@ -993,9 +981,9 @@ class SystemMgrNode():
     def update_storage(self):
         # Data partition
         try:
-            statvfs = os.statvfs(self.storage_mountpoint)
+            statvfs = os.statvfs(self.storage_folder)
         except Exception as e:
-            warn_str = "Error checking data storage status of " + self.storage_mountpoint + ": " + e.what()
+            warn_str = "Error checking data storage status of " + self.storage_folder + ": " + e.what()
             self.msg_if.pub_warn(warn_str)
             self.add_info_string("warn_str")
             self.status_msg.disk_usage = 0
@@ -1191,7 +1179,7 @@ class SystemMgrNode():
         # Check for and create subdirectories as necessary
         self.msg_if.pub_warn("Checking nepi config folders")
         for subdir in self.req_config_subdirs:
-            full_path_subdir = os.path.join(self.config_mountpoint, subdir)
+            full_path_subdir = os.path.join(self.config_folder, subdir)
             if not os.path.isdir(full_path_subdir):
                 self.msg_if.pub_warn("Required config subdir " + subdir + " not present... will create")
                 os.makedirs(full_path_subdir)
@@ -1208,7 +1196,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi storage folders")
         for subdir in self.req_storage_subdirs:
-            full_path_subdir = os.path.join(self.storage_mountpoint, subdir)
+            full_path_subdir = os.path.join(self.storage_folder, subdir)
             if not os.path.isdir(full_path_subdir):
                 self.msg_if.pub_warn("Required storage subdir " + subdir + " not present... will create")
                 os.makedirs(full_path_subdir)
@@ -1355,7 +1343,7 @@ class SystemMgrNode():
             if self.in_container == True:
                 status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
             elif self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_rootfs)
+                status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_device)
             elif self.rootfs_ab_scheme == 'jetson':
                 status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
             else:
@@ -1373,7 +1361,7 @@ class SystemMgrNode():
         if self.in_container == True:
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
         elif self.rootfs_ab_scheme == 'nepi':
-            status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_rootfs)
+            status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_device)
         elif self.rootfs_ab_scheme == 'jetson':
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
@@ -1472,22 +1460,22 @@ class SystemMgrNode():
         self.system_defs_msg.warning_temps.append(60.0)
         self.system_defs_msg.critical_temps.append(70.0)
 
-        statvfs = os.statvfs(self.storage_mountpoint)
+        statvfs = os.statvfs(self.storage_folder)
         self.system_defs_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
             BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
 
         # Gather some info about ROOTFS A/B configuration
         status = False
         if self.in_container == True:
-            self.system_defs_msg.boot_rootfs = "container"
+            self.system_defs_msg.boot_device = "container"
             (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
         else:
             if self.rootfs_ab_scheme == 'nepi':
-                self.system_defs_msg.boot_rootfs = self.get_friendly_name(self.boot_rootfs)
+                self.system_defs_msg.boot_device = self.get_friendly_name(self.boot_device)
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(
-                    self.boot_rootfs)
+                    self.boot_device)
             elif self.rootfs_ab_scheme == 'jetson':
-                self.system_defs_msg.boot_rootfs = 'N/A'
+                self.system_defs_msg.boot_device = 'N/A'
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
             else:
                 self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
@@ -1526,14 +1514,14 @@ class SystemMgrNode():
 
     def getNEPIStorageDevice(self):
         if self.in_container == True:
-            self.nepi_storage = self.storage_mountpoint
+            self.nepi_storage = self.storage_folder
         else:
           # Try to read the NEPI storage device out of /etc/fstab
           if os.path.exists('/etc/fstab'):
               with open('/etc/fstab', 'r') as fstab:
                   lines = fstab.readlines()
                   for line in lines:
-                      if self.storage_mountpoint in line and not line.startswith('#'):
+                      if self.storage_folder in line and not line.startswith('#'):
                           candidate = line.split()[0] # First token is the device
                           if candidate.startswith('/dev/'):
                               self.nepi_storage = candidate

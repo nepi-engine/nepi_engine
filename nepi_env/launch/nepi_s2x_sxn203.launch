@@ -1,7 +1,0 @@
-<!-- Specialized launch file for S2X-SXN203 (currently works for S2X-BXN, too)-->
-<launch>
-  <include file="$(find nepi_env)/launch/nepi_base.launch" >
-    <!-- Set the proper Xavier NX partition layout -->
-    <arg name="partition_layout_file" value="s2x_xavier_nx_nepi_partition_layout.yaml" />
-  </include>
-</launch>

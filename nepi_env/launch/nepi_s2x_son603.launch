@@ -1,7 +1,0 @@
-<!-- Specialized launch file for S2X-SON603 -->
-<launch>
-  <include file="$(find nepi_env)/launch/nepi_base.launch" >
-    <!-- Set the proper Orin NX partition layout -->
-    <arg name="partition_layout_file" value="s2x_orin_nx_nepi_partition_layout.yaml" />
-  </include>
-</launch>
