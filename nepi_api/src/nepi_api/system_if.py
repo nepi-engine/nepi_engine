@@ -152,8 +152,8 @@ class SaveDataIF:
         # Get for System Folders
         self.msg_if.pub_info("Waiting for user folders")
         user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got user folders: " + str(system_folders))
-        if user_folders is not None:
+        self.msg_if.pub_warn("Got user folders: " + str(user_folders))
+        if user_folders is not None and 'data' in user_folders.keys():
             self.save_data_root_directory = user_folders['data']
         self.msg_if.pub_info("Using SDK Share Folder: " + str(self.save_data_root_directory))
 
