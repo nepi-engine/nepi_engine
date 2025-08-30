@@ -23,43 +23,14 @@ import subprocess
 import shlex
 #import psutil
 
-#from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_utils
 
 # Local rootfs definitions - These can be freely changed
 ###################################################################################################
 
-DOCKER_CONFIG_FILE = "nepi_docker_config.yaml"
-DOCKER_CONFIG_PATH = "/mnt/nepi_config/docker_cfg"
-DOCKER_CONFIG_FILE_PATH=DOCKER_CONFIG_PATH + "/" + DOCKER_CONFIG_FILE
 
-NEPI_FULL_IMG_SUBDIR = "nepi_images"
-NEPI_BACKUP_IMG_SUBDIR = "nepi_images"
-NEPI_FULL_IMG_SEARCH_STRING = "nepi*.tar"
-
-NEPI_FULL_IMG_FW_VERSION_PATH = "opt/nepi/nepi_engine/etc/fw_version.txt"
-
-MAX_BOOT_FAILURE_ENV_VAR_NAME = "MAX_BOOT_FAILURE_COUNT"
-
-SUPPORTS_AB_FS = True
-###################################################################################################
-
-# First-stage rootfs definitions - Do not change these unless also updating the first-stage
-# rootfs structure, file contents, etc.
-###################################################################################################
-FLASH_ROOTFS_BOOT_FAIL_COUNT_FILE = "opt/nepi/nepi_boot_failure_count.txt"
-FLASH_ROOTFS_CUSTOM_ENV_PATHNAME = "opt/nepi/nepi_rootfs_ab_custom_env.sh"
-
-INACTIVE_PARTITION_ENV_VAR_NAME = "INACTIVE_PARTITION"
-ACTIVE_PARTITION_ENV_VAR_NAME = "ACTIVE_PARTITION"
-TMP_PARTITION_ENV_VAR_NAME = "TMP_PARTITION"
-
-###################################################################################################
-
-# Alternative Jetson+NEPI A/B Scheme: Used for Orin-NX and probably others going forward
-###################################################################################################
-JETSON_ROOTFS_AB_DEVICES = {'A': '/dev/nvme0n1p1', 'B': '/dev/nvme0n1p2'}
-#NEPI_DOCKER_CONFIG=nepi_utils.read_yaml_2_dict(DOCKER_CONFIG_FILE_PATH)
-NEPI_DOCKER_CONFIG=dict()
+NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_config.yaml'
+config_dict=nepi_utils.read_dict_from_yaml(NEPI_CONFIG_FILE)
 
 def CheckPartitionBusy(partition_path):
     return False
@@ -98,7 +69,7 @@ def getPartitionFreeByteCount(partition_device):
 
 # Export
 def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
-    path_to_sh = '/home/nepidev/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
+    path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
     try:
         # Execute the shell script and wait for it to complete
         result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)     
@@ -124,7 +95,7 @@ def resetBootFailCounter(first_stage_rootfs_device):
     return True, "Success"
 
 def switchActiveAndInactivePartitions():
-    path_to_sh = '/home/nepidev/nepi_engine_ws/setup/resources/docker/switch_nepi_docker.sh'
+    path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
     try:
         # Execute the shell script and wait for it to complete
         result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)
