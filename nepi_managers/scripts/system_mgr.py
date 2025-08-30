@@ -1471,7 +1471,7 @@ class SystemMgrNode():
             (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
         else:
             if self.rootfs_ab_scheme == 'nepi':
-                self.system_defs_msg.boot_device = self.get_friendly_name(self.boot_device)
+                self.system_defs_msg.boot_rootfs = self.get_friendly_name(self.boot_device)
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(
                     self.boot_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
