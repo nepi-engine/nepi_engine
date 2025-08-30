@@ -1467,15 +1467,15 @@ class SystemMgrNode():
         # Gather some info about ROOTFS A/B configuration
         status = False
         if self.in_container == True:
-            self.system_defs_msg.boot_device = "container"
+            self.system_defs_msg.boot_rootfs = "container"
             (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
         else:
             if self.rootfs_ab_scheme == 'nepi':
                 self.system_defs_msg.boot_device = self.get_friendly_name(self.boot_device)
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(
-                    self.boot_device)
+                    self.boot_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
-                self.system_defs_msg.boot_device = 'N/A'
+                self.system_defs_msg.boot_rootfs = 'N/A'
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
             else:
                 self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
