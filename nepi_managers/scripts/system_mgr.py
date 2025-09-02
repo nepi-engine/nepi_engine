@@ -75,7 +75,6 @@ class SystemMgrNode():
                         "automation_scripts", 
                         "automation_scripts/sys_trigger_scripts",
                         "automation_scripts/sys_state_scripts",
-                        "code"
                         "data", 
                         "databases", 
                         "databases/targets", 
@@ -1194,6 +1193,7 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking nepi storage folders")
         for subdir in self.req_storage_subdirs:
+            self.msg_if.pub_warn("Checking Folder: +
             full_path_subdir = os.path.join(self.storage_folder, subdir)
             if not os.path.isdir(full_path_subdir):
                 self.msg_if.pub_warn("Required storage subdir " + subdir + " not present... will create")
