@@ -606,7 +606,7 @@ def delete_files_in_folder(folder_path):
 def rsync_folders(source_folder,destitation_folder, options = "-arp"):    
     success = False
 
-    if source_folder == destitation_folder or destitation_folder.index(source_folder) != -1:
+    if source_folder == destitation_folder or destitation_folder.find(source_folder) != -1:
         return success
     if os.path.basename(source_folder) == os.path.basename(destitation_folder):
         try: 

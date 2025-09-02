@@ -210,12 +210,6 @@ class SystemMgrNode():
         self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
 
-        self.system_defs_msg.manages_ssh = self.nepi_config['NEPI_MANAGES_SSH'] == 1
-        self.status_msg.manages_ssh = self.nepi_config['NEPI_MANAGES_SSH'] == 1
-
-        self.system_defs_msg.manages_share = self.nepi_config['NEPI_MANAGES_SHARE'] == 1
-        self.status_msg.manages_share = self.nepi_config['NEPI_MANAGES_SHARE'] == 1
-
         self.system_defs_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
 
