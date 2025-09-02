@@ -75,7 +75,6 @@ class SystemMgrNode():
                         "automation_scripts", 
                         "automation_scripts/sys_trigger_scripts",
                         "automation_scripts/sys_state_scripts",
-                        "code"
                         "data", 
                         "databases", 
                         "databases/targets", 
