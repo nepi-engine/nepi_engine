@@ -8,6 +8,8 @@
 ## License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ##
 
+source ${HOME}/.nepi_config
+wait
 source /opt/nepi/nepi_engine/setup.sh
 
 SYS_ENV_FILE=/opt/nepi/sys_env.bash
