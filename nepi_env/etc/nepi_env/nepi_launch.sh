@@ -8,7 +8,7 @@
 ## License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ##
 
-source ${HOME}/.nepi_config
+source /opt/nepi/etc/load_system_config.sh
 wait
 source /opt/nepi/nepi_engine/setup.sh
 

@@ -65,34 +65,23 @@ class SystemMgrNode():
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
     SYS_ENV_PATH = NEPI_FOLDER + "/sys_env.bash"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
-    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_config.yaml'
+    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_system_config.yaml'
 
     STATES_DICT = dict()
 
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
-                        "ai_training",
                         "automation_scripts", 
-                        "automation_scripts/sys_trigger_scripts",
-                        "automation_scripts/sys_state_scripts",
                         "data", 
                         "databases", 
                         "databases/targets", 
-                        "install",
-                        "install/apps",
-                        "install/ai_frameworks",
-                        "install/drivers",
                         "license", 
                         "logs", 
                         "logs/ros_log",
                         "logs/automation_script_logs", 
-                        "nepi_full_img", 
-                        "nepi_full_img_archive", 
                         "nepi_src",
                         "user_cfg",
-                        "user_cfg/cal",
-                        "sample_data",
-                        "tmp"]
+                        "user_cfg/cal"]
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
@@ -197,6 +186,18 @@ class SystemMgrNode():
             if self.nepi_config[key] is None:
                 self.nepi_config[key]=[]
 
+        check_path=self.nepi_config['NEPI_IMPORT_PATH']
+        if check_path not in self.REQD_STORAGE_SUBDIRS:
+            self.REQD_STORAGE_SUBDIRS.append(check_path)
+        check_path=self.nepi_config['NEPI_EXPORT_PATH']
+        if check_path not in self.REQD_STORAGE_SUBDIRS:
+            self.REQD_STORAGE_SUBDIRS.append(check_path)
+        check_config=self.nepi_config['NEPI_CONFIG']
+        if os.path.exists(check_config) == False:
+            new_folder = os.path.join(self.nepi_config['NEPI_STORAGE'],'nepi_config')
+            os.mkdir(new_folder)
+            self.nepi_config['NEPI_CONFIG']=new_folder
+
         nepi_system.set_nepi_config(self.nepi_config)
 
 
@@ -231,8 +232,8 @@ class SystemMgrNode():
         self.emmc_device = "/dev/mmcblk0p"
         self.ssd_device = "/dev/nvme0n1p"
 
-        self.config_folder = "/mnt/nepi_config"
-        self.storage_folder = "/mnt/nepi_storage"
+        self.config_folder = self.nepi_config['NEPI_CONFIG']
+        self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
         if self.in_container == True:
