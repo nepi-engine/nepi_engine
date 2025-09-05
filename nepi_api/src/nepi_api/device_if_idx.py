@@ -238,6 +238,7 @@ class IDXDeviceIF:
         self.caps_report = IDXCapabilitiesQueryResponse()
 
         # Create and update factory controls dictionary
+        self.msg_if.pub_warn("Got Factory Contrls: " + str(factoryControls))
         self.factory_controls_dict = DEFAULT_CONTROLS_DICT
         if factoryControls is not None:
             controls = list(factoryControls.keys())
@@ -245,6 +246,7 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
+        self.msg_if.pub_warn("Using Factory Contrls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
 

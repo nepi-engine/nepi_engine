@@ -76,9 +76,9 @@ class SystemMgrNode():
                         "databases", 
                         "databases/targets", 
                         "license", 
-                        ".logs", 
-                        ".logs/ros_log",
-                        ".logs/automation_script_logs", 
+                        "logs", 
+                        "logs/ros_log",
+                        "logs/automation_script_logs", 
                         "nepi_src",
                         "user_cfg",
                         "user_cfg/cal",]
@@ -186,23 +186,31 @@ class SystemMgrNode():
             if self.nepi_config[key] is None:
                 self.nepi_config[key]=[]
 
+
+
+        check_path=self.nepi_config['NEPI_STORAGE']
+        if os.path.exists==Fasle:
+            os.mkdir(check_path)
+        check_path=self.nepi_config['NEPI_CONFIG']
+        if os.path.exists==Fasle:
+            os.mkdir(check_path)
+            os.mkdir(self.nepi_config['FACTORY_CONFIG'])
+            os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
+            os.mkdir(self.nepi_config['DOCKER_CONFIG'])
+
         check_path=self.nepi_config['NEPI_IMPORT_PATH']
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
         check_path=self.nepi_config['NEPI_EXPORT_PATH']
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
-        check_config=self.nepi_config['NEPI_CONFIG']
-        if os.path.exists(check_config) == False:
-            new_folder = os.path.join(self.nepi_config['NEPI_STORAGE'],'nepi_config')
-            os.mkdir(new_folder)
-            self.nepi_config['NEPI_CONFIG']=new_folder
+
 
         nepi_system.set_nepi_config(self.nepi_config)
 
 
-        self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_MODEL']
-        self.status_msg.hw_type = self.nepi_config['NEPI_HW_MODEL']
+        self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
+        self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
 
         self.system_defs_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
         self.status_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
@@ -355,7 +363,7 @@ class SystemMgrNode():
         
         self.msg_if.pub_warn("Storing System Folders")
         nepi_system.set_system_folders(self.system_folders)
-        self.msg_if.pub_warn("Stored user folders: " + str(self.system_folders))
+        self.msg_if.pub_warn("Stored System Folders: " + str(self.system_folders))
 
 
 
