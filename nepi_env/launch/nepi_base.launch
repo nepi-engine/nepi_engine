@@ -25,9 +25,9 @@
     <rosparam command="load" file="$(arg config_file_root)/system_mgr.yaml" ns="system_mgr" />
     <!-- Partition layout depends on system type. Should be passed in from specialized launch file -->
     <rosparam command="load" file="$(arg config_file_root)/nepi_env/nepi_partitions/$(arg partition_layout_file)" ns="system_mgr" />
-    <node name="system_mgr" pkg="nepi_managers" type="system_mgr.py" respawn="true" output="$(arg output_destination)" />
+    <node name="system_mgr" pkg="nepi_managers" type="system_mgr.py" respawn="false" output="$(arg output_destination)" />
 
-    <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="true" output="$(arg output_destination)" />
+    <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="false" output="$(arg output_destination)" />
 
     <node if="$(arg run_robot_state_publisher)" name="nepi_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" required="true" />
 
@@ -50,7 +50,7 @@
     <!-- MGR:  Network -->
     <group if="$(arg run_mgr_network)" >
     <rosparam command="load" file="$(arg config_file_root)/network_mgr.yaml" ns="network_mgr" />
-    <node name="network_mgr" pkg="nepi_managers" type="network_mgr.py" respawn="true" output="$(arg output_destination)" />
+    <node name="network_mgr" pkg="nepi_managers" type="network_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group> 
 
     <!-- MGR:  Time Sync -->

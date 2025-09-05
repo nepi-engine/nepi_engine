@@ -99,17 +99,17 @@ class time_sync_mgr(object):
         self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
   
 
-        self.chrony_running = self.check_chrony_process()
-        if self.chrony_running == True:
-            self.msg_if.pub_warn("Chrony process running")
-        else:
-            self.msg_if.pub_warn("Chrony process not found. NEPI Time Management disabled")
+        #self.chrony_running = self.check_chrony_process()
+        # if self.chrony_running == True:
+        #     self.msg_if.pub_warn("Chrony process running")
+        # else:
+        #     self.msg_if.pub_warn("Chrony process not found. NEPI Time Management disabled")
         # Debug
-        self.managers_time = self.manages_time == True
+    
         
         ##############################
         # Initialize Class Variables
-
+        self.msg_if.pub_warn("Setting Timezone to: " + str(FACTORY_TIMEZONE))
         self.set_timezone(FACTORY_TIMEZONE)
 
         self.initCb(do_updates = False)

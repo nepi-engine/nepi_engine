@@ -27,7 +27,9 @@ from nepi_sdk import nepi_docker
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray, \
-                                UpdatePassword, EnableAdmin, UpdateRestricted
+                                DictString, DictStringEntry
+
+                                
 from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
@@ -96,25 +98,47 @@ class SystemMgrNode():
                             "nepi_src",
                             "tmp"]
 
-    ADMIN_RESTRICT_OPTIONS = ['Factory Cfg','System_Cfg','User_Cfg','Debug',
-                            'Time_NTP','Time_Sync_Clocks',
-                            'Device Name',
-                            'License',
-                            'Network','WiFi','Access Point', 
-                            'Software Manager','NavPose Manager','Driver Manager','AI Manager','Apps Manager',
-                            'IDX Devices','IDX_Controls',
-                            'PTX Devices','PTX_Controls',
-                            'LSX Devices','LSX_Controls',
-                            'RBX Devices','RBX_Controls',
-                            'NPX Devices','NPX_Controls',
-                            'Messages_View','Messages_Controls',
-                            'Save_Config_View','Save_Config_Controls',
-                            'Save_Data_View','Save_Data_Controls',
-                            'Settings_View','Settings_Controls',
-                            'Transform_View','Transform_Controls',
-                            'Triggers_View','Triggers_Controls',
-                            'States_View','States_Controls',
-                            'Image_Stats','Image_Controls']
+    ADMIN_RESTRICT_OPTIONS = {
+        'Sys-Admin': "Desc",
+        'Sys-Debug': "Desc",
+        'Cfg-Factory': "Desc",
+        'Cfg-System': "Desc",
+        'Cfg-User': "Desc",
+        'Mgr-Device': "Desc",        
+        'Mgr-Device-License': "Desc",
+        'Mgr-Time': "Desc",
+        'Mgr-Time_NTP': "Desc",
+        'Mgr-Time_Sync_Clocks': "Desc",
+        'Mgr-Network': "Desc",
+        'Mgr-Network-Wired': "Desc",
+        'Mgr-Network-DHCP': "Desc",
+        'Mgr-Network-WiFi': "Desc",
+        'Mgr-Network-Access Point': "Desc", 
+        'Mgr-Software Manager': "Desc",
+        'Mgr-NavPose Manager': "Desc",
+        'Mgr-Driver Manager': "Desc",
+        'Mgr-AI Manager': "Desc",
+        'Mgr-Apps Manager': "Desc",
+        'Dvc': "Desc",
+        'Dvc-Controls': "Desc",
+        'Dvc-Settings': "Desc",
+        'Dvc-Config': "Desc",
+        'Set-View': "Desc",
+        'Set-Controls': "Desc",
+        'Tfm-View': "Desc",
+        'Tfm-Controls': "Desc",
+        'Trig-View': "Desc",
+        'Tri-Controls': "Desc",
+        'Sta-View': "Desc",
+        'Sta-Controls': "Desc",
+        'Img-Stats': "Desc",
+        'Img-Controls': "Desc",
+        'Msg-View': "Desc",
+        'Msg-Controls': "Desc",
+        'Dat': "Desc",
+        'Dat-Controls': "Desc",
+        'Dat-Viwew': "Desc"
+    }
 
 
     node_if = None
@@ -153,7 +177,6 @@ class SystemMgrNode():
 
     debug_enabled = False
     admin_enabled = False
-    admin_password = 'nepiadmin'
     admin_restricted = []
 
     #######################
@@ -189,10 +212,10 @@ class SystemMgrNode():
 
 
         check_path=self.nepi_config['NEPI_STORAGE']
-        if os.path.exists==Fasle:
+        if os.path.exists(check_path)==False:
             os.mkdir(check_path)
         check_path=self.nepi_config['NEPI_CONFIG']
-        if os.path.exists==Fasle:
+        if os.path.exists(check_path)==False:
             os.mkdir(check_path)
             os.mkdir(self.nepi_config['FACTORY_CONFIG'])
             os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
@@ -205,9 +228,7 @@ class SystemMgrNode():
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
 
-
         nepi_system.set_nepi_config(self.nepi_config)
-
 
         self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
         self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
@@ -381,7 +402,13 @@ class SystemMgrNode():
             if status is False:
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
-        self.status_msg.sys_admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
+        roptions=[]
+        for key in self.ADMIN_RESTRICT_OPTIONS.keys():
+            ropt=DictStringEntry()
+            ropt.key = key
+            ropt.value = self.ADMIN_RESTRICT_OPTIONS[key]
+        self.status_msg.sys_admin_restrict_options = roptions
+        
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -450,10 +477,6 @@ class SystemMgrNode():
             'admin_restricted': {
                 'namespace': self.base_namespace,
                 'factory_val': []
-            },
-            'admin_password': {
-                'namespace': self.node_namespace,
-                'factory_val': self.admin_password
             }
         }
 
@@ -665,7 +688,7 @@ class SystemMgrNode():
             'enable_admin': {
                 'namespace': self.base_namespace,
                 'topic': 'admin_mode_enable',
-                'msg': EnableAdmin,
+                'msg': Bool,
                 'qsize': None,
                 'callback': self.enableAdminCb, 
                 'callback_args': ()
@@ -673,17 +696,9 @@ class SystemMgrNode():
             'set_admin_restricted': {
                 'namespace': self.base_namespace,
                 'topic': 'set_admin_restricted',
-                'msg': UpdateRestricted,
+                'msg': StringArray,
                 'qsize': None,
                 'callback': self.setAdminRestrictedCb, 
-                'callback_args': ()
-            },
-            'set_admin_password': {
-                'namespace': self.base_namespace,
-                'topic': 'set_admin_password',
-                'msg': UpdatePassword,
-                'qsize': None,
-                'callback': self.setAdminPasswordCb, 
                 'callback_args': ()
             }
         }
@@ -814,7 +829,6 @@ class SystemMgrNode():
 
             self.ssd_device = self.node_if.get_param("ssd_device")
 
-            self.admin_password = self.node_if.get_param("admin_password")
 
 
     
@@ -1058,7 +1072,7 @@ class SystemMgrNode():
                     self.status_msg.sys_img_update_status = "ready to install"
                     success = True
         if success == False:
-            self.status_msg.sys_img_update_options ["None"]
+            self.status_msg.sys_img_update_options["None"]
             self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
             resp.new_sys_img_version = 'none detected'
@@ -1108,15 +1122,9 @@ class SystemMgrNode():
         self.update_storage()
 
         # Update sys status and params if needed
-        if self.debug_enabled != self.status_msg.sys_debug_enabled:
-            self.status_msg.sys_debug_enabled = self.debug_enabled
-            nepi_system.set_debug_mode(self.debug_enabled)
-        if self.admin_enabled != self.status_msg.sys_admin_enabled:
-            self.status_msg.sys_admin_enabled = self.admin_enabled
-            nepi_system.set_admin_mode(self.admin_enabled)
-        if self.admin_restricted != self.status_msg.sys_admin_restricted:
-            self.status_msg.sys_admin_restricted = self.admin_restricted
-            nepi_system.set_admin_restricted(self.admin_restricted)
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        self.status_msg.sys_admin_restricted = self.admin_restricted
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
@@ -1136,47 +1144,24 @@ class SystemMgrNode():
             self.node_if.save_config()
 
     def enableAdminCb(self, msg):
-        pw = msg.admin_password
-        if pw != self.admin_password:
-            self.msg_if.pub_warn("Ignoring Set Admin. Password does not match")
-        else:
-            self.admin_enabled = msg.admin_enable
-            self.status_msg.sys_admin_enabled = msg.data
-            self.publish_status()
-            if self.node_if is not None:
-                self.node_if.set_param('admin_enabled',msg.data)
-                self.node_if.save_config()
+        self.admin_enabled = msg.data
+        self.status_msg.sys_admin_enabled = msg.data
+        self.publish_status()
+        #if self.node_if is not None:
+        #    self.node_if.set_param('admin_enabled',msg.data)
+        #    self.node_if.save_config()
 
 
     def setAdminRestrictedCb(self, msg):
-        pw = msg.admin_password
-        if pw != self.admin_password:
-            self.msg_if.pub_warn("Ignoring Set Admin Restrictions. Password does not match")
-        else:
-            restricted = []
-            for entry in msg.admin_restricted:
-                if entry in self.ADMIN_RESTRICT_OPTIONS:
-                    restricted.append(entry)
-            self.sys_admin_restricted = restricted
-            self.status_msg.sys_admin_enabled = restricted
-            self.publish_status()
-            if self.node_if is not None:
-                self.node_if.set_param('admin_restricted',restricted)
-                self.node_if.save_config()
-
-
-    def setAdminPasswordCb(self, msg):
-        pw = msg.cur_password
-        if pw == self.admin_password:
-            new_pw = msg.new_password
-            if new_pw.isalpha() == False:
-                self.msg_if.pub_warn("Ignoring password update. Password must start with a letter")
-            else:
-                self.admin_password = msg.new_password
-                self.publish_status()
-                if self.node_if is not None:
-                    self.node_if.set_param('admin_enabled',msg.data)
-                    self.node_if.save_config()
+        restricted = []
+        for key in msg.data:
+            if key in ADMIN_RESTRICT_OPTIONS:
+                restricted.appen(key)
+        self.admin_restricted = restricted
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('admin_restricted',restricted)
+            self.node_if.save_config()
 
 
 
