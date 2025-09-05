@@ -76,21 +76,12 @@ class SystemMgrNode():
                         "databases", 
                         "databases/targets", 
                         "license", 
-<<<<<<< HEAD
                         ".logs", 
                         ".logs/ros_log",
                         ".logs/automation_script_logs", 
                         "nepi_src",
                         "user_cfg",
                         "user_cfg/cal",]
-=======
-                        "logs", 
-                        "logs/ros_log",
-                        "logs/automation_script_logs", 
-                        "nepi_src",
-                        "user_cfg",
-                        "user_cfg/cal"]
->>>>>>> e55227ff83693a57b3f51e04fa69896de061d6bd
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
