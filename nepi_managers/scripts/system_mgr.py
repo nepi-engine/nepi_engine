@@ -245,14 +245,13 @@ class SystemMgrNode():
         self.system_defs_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
         self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
 
-        self.msg_if.pub_warn("Getting System Boot Device Info")
-        self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
+        self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
         self.system_defs_msg.in_container = self.in_container
         self.status_msg.in_container = self.in_container
 
 
-        self.boot_device = self.nepi_config['NEPI_BOOT_DEVICE']
-        self.nepi_storage = self.nepi_config['NEPI_STORAGE_DEVICE']
+        self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
+        self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging_removable = False
 
@@ -270,7 +269,7 @@ class SystemMgrNode():
             self.msg_if.pub_warn("NEPI Running in Container")
         else:
             self.nepi_image = nepi_software
-            self.msg_if.pub_warn("Using first stage boot device: " + str(self.boot_device))
+            self.msg_if.pub_warn("Using first stage boot device: " + str(self.first_rootfs))
 
         self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
         '''
@@ -353,7 +352,7 @@ class SystemMgrNode():
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_folder):
            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = self.nepi_image.mountPartition(self.nepi_storage, self.storage_folder)
+           ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
            if ret is False:
                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
                #return False # Allow it continue on local storage...
@@ -398,7 +397,7 @@ class SystemMgrNode():
         # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
         if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
             status, err_msg = self.nepi_image.resetBootFailCounter(
-                self.boot_device)
+                self.first_rootfs)
             if status is False:
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
@@ -438,9 +437,9 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.auto_switch_rootfs_on_new_img_install
             },
-            'boot_device': {
+            'first_rootfs': {
                 'namespace': self.base_namespace,
-                'factory_val': self.boot_device
+                'factory_val': self.first_rootfs
             },
             'new_img_staging': {
                 'namespace': self.base_namespace,
@@ -809,8 +808,8 @@ class SystemMgrNode():
             self.auto_switch_rootfs_on_new_img_install = nepi_sdk.get_param(
                 "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-            self.boot_device = nepi_sdk.get_param(
-                "~boot_device", self.boot_device)
+            self.first_rootfs = nepi_sdk.get_param(
+                "~first_rootfs", self.first_rootfs)
 
             # nepi_storage has some additional logic
             self.getNEPIStorageDevice()
@@ -1334,7 +1333,7 @@ class SystemMgrNode():
             if self.in_container == True:
                 status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
             elif self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_device)
+                status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
                 status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
             else:
@@ -1352,7 +1351,7 @@ class SystemMgrNode():
         if self.in_container == True:
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
         elif self.rootfs_ab_scheme == 'nepi':
-            status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.boot_device)
+            status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
         elif self.rootfs_ab_scheme == 'jetson':
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
@@ -1458,14 +1457,14 @@ class SystemMgrNode():
         # Gather some info about ROOTFS A/B configuration
         status = False
         if self.in_container == True:
-            self.system_defs_msg.boot_rootfs = "container"
+            self.system_defs_msg.first_rootfs = "container"
             (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
         else:
             if self.rootfs_ab_scheme == 'nepi':
-                self.system_defs_msg.boot_rootfs = self.get_friendly_name(self.boot_device)
-                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(self.boot_device)
+                self.system_defs_msg.first_rootfs = self.get_friendly_name(self.first_rootfs)
+                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(self.first_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
-                self.system_defs_msg.boot_rootfs = 'N/A'
+                self.system_defs_msg.first_rootfs = 'N/A'
                 (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
             else:
                 self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
@@ -1504,7 +1503,7 @@ class SystemMgrNode():
 
     def getNEPIStorageDevice(self):
         if self.in_container == True:
-            self.nepi_storage = self.storage_folder
+            self.nepi_storage_device = self.storage_folder
         else:
           # Try to read the NEPI storage device out of /etc/fstab
           if os.path.exists('/etc/fstab'):
@@ -1514,21 +1513,14 @@ class SystemMgrNode():
                       if self.storage_folder in line and not line.startswith('#'):
                           candidate = line.split()[0] # First token is the device
                           if candidate.startswith('/dev/'):
-                              self.nepi_storage = candidate
-                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage + ' from /etc/fstab')
+                              self.nepi_storage_device = candidate
+                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
                               return
                           else:
                               self.msg_if.pub_warn('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
             
           # If we get here, failed to get the storage device from /etc/fstab
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
-          if not nepi_sdk.has_param("~nepi_storage"):
-              self.msg_if.pub_warn("Parameter nepi_storage not available -- falling back to hard-coded " + self.nepi_storage)
-          else:
-              self.nepi_storage = nepi_sdk.get_param(
-                "~nepi_storage", self.nepi_storage)
-              self.msg_if.pub_info("Identified NEPI storage device " + self.nepi_storage + ' from config file')
-
     
 
 
