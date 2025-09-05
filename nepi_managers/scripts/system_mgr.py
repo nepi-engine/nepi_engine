@@ -1072,7 +1072,7 @@ class SystemMgrNode():
                     self.status_msg.sys_img_update_status = "ready to install"
                     success = True
         if success == False:
-            self.status_msg.sys_img_update_options["None"]
+            self.status_msg.sys_img_update_options = ["None"]
             self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
             resp.new_sys_img_version = 'none detected'
