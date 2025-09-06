@@ -24,7 +24,9 @@ set(OpenCV_DIR /usr/share/OpenCV)
 ## are combined into the generic corresponding catkin_<ENV_VARIABLE> stuff, so, for example
 ## we don't need to explicitly link OpenCV_LIBRARIES, instead just link to catkin_LIBRARIES and
 ## get OpenCV for free (same holds for catkin_INCLUDE_DIRS, etc.)
-find_package(catkin REQUIRED COMPONENTS roscpp nepi_sdk nepi_api nepi_interfaces cv_bridge OpenCV pcl_ros pcl_conversions tf2_ros)
+find_package(catkin REQUIRED
+    COMPONENTS
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -100,8 +102,6 @@ catkin_python_setup()
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#   INCLUDE_DIRS include
-#   CATKIN_DEPENDS nepi_sdk nepi_interfaces
 )
 
 catkin_install_python(PROGRAMS

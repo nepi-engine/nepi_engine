@@ -26,22 +26,11 @@ set(OpenCV_DIR /usr/share/OpenCV)
 ## get OpenCV for free (same holds for catkin_INCLUDE_DIRS, etc.)
 find_package(catkin REQUIRED
     COMPONENTS
-    message_generation
-    nepi_interfaces
-    roscpp
-    image_transport
-    cv_bridge
-    OpenCV
-    sensor_msgs
-    rospy
-    std_msgs
-    pcl_ros
-    tf2_ros
-    nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(PkgConfig)
 
 ## Use the verbose version of make
 #set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -76,13 +65,12 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 
+
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-     DEPENDENCIES
-     std_msgs  # Or other packages containing msgs
-     sensor_msgs
-     nepi_interfaces
-)
+# generate_messages(
+#     DEPENDENCIES
+#     std_msgs  # Or other packages containing msgs
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -114,10 +102,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS image_transport nepi_interfaces
 )
-
-
 
 ###########
 ## Build 

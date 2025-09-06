@@ -16,18 +16,6 @@
   <license>BSD-3-Clause</license>
 
 
-  <!-- Url tags are optional, but multiple are allowed, one per tag -->
-  <!-- Optional attribute type can be: website, bugtracker, or repository -->
-  <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/sdk</url> -->
-
-
-  <!-- Author tags are optional, multiple are allowed, one per tag -->
-  <!-- Authors do not have to be maintainers, but could be -->
-  <!-- Example: -->
-  <author email="jmaximoff@numurus.com">Josh Maximoff</author>
-
-
   <!-- The *depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
@@ -48,17 +36,7 @@
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
-  <depend>nepi_interfaces</depend>
-  <depend>roscpp</depend>
-  <depend>rospy</depend>
-  <depend>sensor_msgs</depend>
-  <depend>image_transport</depend>
-  <depend>cv_bridge</depend>
-  <depend>tf2_ros</depend>
-  <depend>pcl_ros</depend>
-  <build_depend>message_generation</build_depend>
   <buildtool_depend>catkin</buildtool_depend>
-  <exec_depend>message_runtime</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

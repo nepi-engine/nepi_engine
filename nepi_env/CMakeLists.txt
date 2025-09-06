@@ -26,18 +26,6 @@ set(OpenCV_DIR /usr/share/OpenCV)
 ## get OpenCV for free (same holds for catkin_INCLUDE_DIRS, etc.)
 find_package(catkin REQUIRED
     COMPONENTS
-    message_generation
-    nepi_interfaces
-    roscpp
-    image_transport
-    cv_bridge
-    OpenCV
-    sensor_msgs
-    rospy
-    std_msgs
-    pcl_ros
-    tf2_ros
-    nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -76,27 +64,26 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   WakeUpEvent.msg
-   NodeOutput.msg
-)
+#add_message_files(
+#   FILES
+#   WakeUpEvent.msg
+#   NodeOutput.msg
+#)
 
 
 ## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-   NepiDataDir.srv
-   ProcessCfgUpdates.srv
-)
+#add_service_files(
+#   FILES
+#   NepiDataDir.srv
+#   ProcessCfgUpdates.srv
+#)
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-     DEPENDENCIES
-     std_msgs  # Or other packages containing msgs
-     sensor_msgs
-     nepi_interfaces
-)
+#generate_messages(
+#     DEPENDENCIES
+#     std_msgs  # Or other packages containing msgs
+#     sensor_msgs
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -130,7 +117,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include 
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS image_transport nepi_interfaces
+#  CATKIN_DEPENDS image_transport
 )
 
 ###########

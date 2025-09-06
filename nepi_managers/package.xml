@@ -49,17 +49,6 @@
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
-  <depend>nepi_interfaces</depend>
-  <depend>nepi_sdk</depend>
-  <depend>nepi_api</depend>
-  <depend>roscpp</depend>
-  <depend>rospy</depend>
-  <depend>sensor_msgs</depend>
-  <depend>image_transport</depend>
-  <depend>cv_bridge</depend>
-  <depend>tf2_ros</depend>
-  <depend>pcl_ros</depend>
-  <build_depend>message_generation</build_depend>
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>message_runtime</exec_depend>
 
