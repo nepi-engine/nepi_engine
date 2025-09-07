@@ -98,6 +98,8 @@ BLANK_IMG_DICT = {
 }
 
 
+WATCHDOG_TIMEOUT=10
+
 class AiDetectorImgPub:
 
     IMG_DATA_PRODUCT = 'detection_image'
@@ -140,6 +142,7 @@ class AiDetectorImgPub:
     classes_list = []
     classes_colors_list = []
     
+    last_status_time=None
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
     def __init__(self):
         ####  IF INIT SETUP ####
@@ -293,7 +296,9 @@ class AiDetectorImgPub:
 
         # Start Timer Processes
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
-
+        self.last_status_time=nepi_utils.get_time()
+        nepi_sdk.on_shutdown()
+        nepi_sdk.start_timer_process((1), self.watchdogCb)
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -402,6 +407,13 @@ class AiDetectorImgPub:
 
 
         nepi_sdk.start_timer_process((.5), self.updaterCb, oneshot = True)
+
+    def watchdogCb(self,timer):
+        cur_time=nepi_utils.get_time()
+        timer=cur_time-self.last_status_msg
+        if timer > WATCHDOG_TIMEOUT:
+            msg="Lost connection to parent node.  Shutting down"
+            nepi_sdk.signal_shutdown(msg)
 
 
     def subscribeImgTopic(self,img_topic):
@@ -784,6 +796,7 @@ class AiDetectorImgPub:
         
 
     def statusCb(self,msg):
+        self.last_status_msg=nepi_utils.get_time()
         self.status_msg = msg
 
         self.model_name = self.status_msg.name
@@ -809,6 +822,9 @@ class AiDetectorImgPub:
         self.selected_img_topics = self.status_msg.selected_img_topics
         if last_sel_imgs != self.selected_img_topics:
             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_img_topics))
+
+    def shutdownCb(self):
+        pass
         
 
 #########################################
