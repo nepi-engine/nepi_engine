@@ -43,7 +43,7 @@ from nepi_interfaces.msg import BoundingBox, BoundingBoxes, BoundingBox3D, Bound
                                     StringArray, TargetLocalization, TargetLocalizations
 from nepi_interfaces.srv import ImageClassifierStatusQuery, ImageClassifierStatusQueryRequest
 from nepi_interfaces.msg import Frame3DTransform
-from nepi_app_ai_targeting.msg import AiTargetingStatus, AiTargetingTargets
+from nepi_interfaces.msg import MgrTargetsStatus, Targets
 
 
 from nepi_api.node_if import NodeClassIF
@@ -60,7 +60,7 @@ from nepi_api.data_if import ImageIF
 # Node Class
 #########################################
 
-class NepiAiTargetingApp(object):
+class NepiTargetsMgr(object):
   AI_MANAGER_NODE_NAME = "ai_detector_mgr"
 
   UDATE_PROCESS_DELAY = 1
@@ -186,7 +186,7 @@ class NepiAiTargetingApp(object):
   
   #######################
   ### Node Initialization
-  DEFAULT_NODE_NAME = "app_ai_targeting" # Can be overwitten by luanch command
+  DEFAULT_NODE_NAME = "mgr_targets" # Can be overwitten by luanch command
   def __init__(self):
     #### APP NODE INIT SETUP ####
     nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
@@ -275,14 +275,14 @@ class NepiAiTargetingApp(object):
         'status': {
             'namespace': self.node_namespace,
             'topic': 'status',
-            'msg': AiTargetingStatus,
+            'msg': MgrTargetsStatus,
             'qsize': 1,
             'latch': True
         },
         'targets': {
             'namespace': self.node_namespace,
             'topic': 'targets',
-            'msg': AiTargetingTargets,
+            'msg': Targets,
             'qsize': 1,
             'latch': True
         },
@@ -607,7 +607,7 @@ class NepiAiTargetingApp(object):
   ###################
   ## Status Publisher
   def publish_status(self):
-    status_msg = AiTargetingStatus()
+    status_msg = MgrTargetsStatus()
 
     status_msg.app_enabled = self.app_enabled
     status_msg.app_msg = self.app_msg
@@ -672,7 +672,7 @@ class NepiAiTargetingApp(object):
  
   ## Status Publisher
   def publish_targets(self):
-    targets_ms = AiTargetingTargets()
+    targets_ms = Targets()
 
     targets_list = self.active_targets_dict.keys()
     avail_targets_list = []
@@ -1764,4 +1764,4 @@ class NepiAiTargetingApp(object):
 # Main
 #########################################
 if __name__ == '__main__':
-  NepiAiTargetingApp()
+  NepiTargetsMgr()

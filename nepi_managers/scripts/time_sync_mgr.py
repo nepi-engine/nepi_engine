@@ -310,13 +310,16 @@ class time_sync_mgr(object):
      
 
     def check_chrony_process(self):
-        try:
-            # Check for the chronyd process using 'pgrep'
-            subprocess.check_output(["pgrep", "chronyd"])
-            return True
-        except subprocess.CalledProcessError:
-            # pgrep returns a non-zero exit code if the process is not found
+        if self.in_container == True:
             return False
+        else:    
+            try:
+                # Check for the chronyd process using 'pgrep'
+                subprocess.check_output(["pgrep", "chronyd"])
+                return True
+            except subprocess.CalledProcessError:
+                # pgrep returns a non-zero exit code if the process is not found
+                return False
 
 
     #######################
@@ -340,11 +343,10 @@ class time_sync_mgr(object):
 
 
     def restart_chrony(self):
-        if self.manages_time == True:
-            if self.in_container == True:
-                subprocess.call(["supervisorctl", "restart", CHRONY_SUPERVISER_SERVICE_NAME])
-            else:
-                subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
+        if self.in_container == True:
+            nepi_system.update_config_value('NEPI_NTP',1)
+        else:    
+            subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
 
     def reset_to_factory_conf(self):
         if os.path.exists(CHRONY_CFG_FACTORY) == True:
@@ -446,7 +448,9 @@ class time_sync_mgr(object):
 
     def gather_ntp_status(self):
         ntp_status = [] # List of lists
-        if self.chrony_running == True:
+        if self.in_container == True:
+            nepi_system.update_config_value('NEPI_NTP',1)
+        else:  
             chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
             
             for line in chronyc_sources[1:]:

@@ -297,7 +297,7 @@ class AiDetectorImgPub:
         # Start Timer Processes
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         self.last_status_time=nepi_utils.get_time()
-        nepi_sdk.on_shutdown()
+        nepi_sdk.on_shutdown(self.shutdownCb)
         nepi_sdk.start_timer_process((1), self.watchdogCb)
         #########################################################
         ## Initiation Complete
