@@ -198,7 +198,7 @@ def getAppsOrderedList(apps_dict):
     app_dict = apps_dict[app_name]
     order = app_dict['order']
     if order == -1:
-      order = 3.50
+      order = 1000
     while(order in order_list):
       order += 0.1
     order_list.append(order)

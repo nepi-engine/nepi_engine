@@ -323,7 +323,7 @@ def adjust_auto(cv2_img, sensitivity_ratio = 0.0):
     accumulator.append(accumulator[index -1] + float(hist[index]))
   # Locate points to clip
   maximum = accumulator[-1]
-  clip_hist_percent = (maximum/3.5)
+  clip_hist_percent = (maximum/100)
   clip_hist_percent /= 2.0
   # Locate left cut
   minimum_gray = 0

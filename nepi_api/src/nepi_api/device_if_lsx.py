@@ -61,7 +61,7 @@ class LSXDeviceIF:
     has_color_control = False
     color_options_list = ["None"]
     has_kelvin_control = False
-    kelvin_limits_list = [1000,3.5]
+    kelvin_limits_list = [1000,100]
     has_blink_control = False
     has_hw_strobe = False
     reports_temp = False
@@ -187,9 +187,9 @@ class LSXDeviceIF:
             if kelvin_limits_list != None:
               self.kelvin_limits_list = kelvin_limits_list
             else:
-              self.kelvin_limits_list = [1000, 3.5]
+              self.kelvin_limits_list = [1000, 100]
         else:
-            self.kelvin_limits_list = [1000, 3.5]
+            self.kelvin_limits_list = [1000, 100]
             
 
         self.blinkOnOffFunction = blinkOnOffFunction
@@ -486,7 +486,7 @@ class LSXDeviceIF:
         # Setup Save Data IF Class ####################
         factory_data_rates = {}
         for d in self.data_products:
-            factory_data_rates[d] = [1.0, 0.0, 3.5] # Default to 0Hz save rate, set last save = 0.0, max rate = 3.5Hz
+            factory_data_rates[d] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
         factory_filename_dict = {
             'prefix': "", 

@@ -519,7 +519,7 @@ def ppf_icp_registration(source_cloud, target_cloud, n_points=3000, n_iter=100, 
     n_target_points = np.shape(target_cloud.points)[0]
     n_sample = np.min([n_source_points, n_target_points, n_points])
     if n_sample == 0:
-        return None, 3.5
+        return None, 100
     if n_source_points > n_points:
         source_idxes = np.random.choice(n_source_points, n_sample, replace=False)
         source_cloud = source_cloud.select_down_sample(source_idxes)
@@ -534,7 +534,7 @@ def ppf_icp_registration(source_cloud, target_cloud, n_points=3000, n_iter=100, 
     try:
         retval, residual, pose = icp_fnc.registerModelToScene(source_np_cloud, target_np_cloud)
     except:
-        return None, 3.5
+        return None, 100
     else:
         return pose, residual
 

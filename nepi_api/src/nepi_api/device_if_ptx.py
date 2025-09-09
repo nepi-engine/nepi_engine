@@ -843,7 +843,7 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates = {}
             for d in self.data_products_list:
-                factory_data_rates[d] = [0.0, 0.0, 3.5] # Default to 10Hz save rate, set last save = 0.0, max rate = 3.5Hz
+                factory_data_rates[d] = [0.0, 0.0, 100] # Default to 10Hz save rate, set last save = 0.0, max rate = 100Hz
 
             factory_filename_dict = {
                 'prefix': "", 
@@ -1559,7 +1559,7 @@ class PTXActuatorIF:
             self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('auto_pan_enabled', self.auto_pan_enabled)
 
-
+    '''
     def setSinPanHandler(self, msg):
         enabled = msg.data
         self.auto_pan_last_time = nepi_utils.get_time()
@@ -1575,6 +1575,8 @@ class PTXActuatorIF:
             self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('sin_pan_enabled', self.sin_pan_enabled)
         
+    '''
+
     def setAutoPanWindowHandler(self, msg):
         if self.reverse_pan_enabled == True:
             adj_min_deg = msg.stop_range * self.rpi
@@ -1614,6 +1616,7 @@ class PTXActuatorIF:
             self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
 
+    '''
     def setSinTiltHandler(self, msg):
         enabled = msg.data
         self.auto_tilt_last_time = nepi_utils.get_time()
@@ -1627,6 +1630,7 @@ class PTXActuatorIF:
             self.msg_if.pub_info("4")
             self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('sin_tilt_enabled', self.sin_tilt_enabled)
+    '''
 
     def setAutoTiltWindowHandler(self, msg):
         if self.reverse_tilt_enabled == True:
@@ -1821,8 +1825,10 @@ class PTXActuatorIF:
             self.auto_pan_min = self.node_if.get_param('min_pan_softstop_deg')
             self.auto_pan_max = self.node_if.get_param('max_pan_softstop_deg')
 
+            '''
             self.sin_pan_enabled = self.node_if.get_param('sin_pan_enabled')
             self.sin_tilt_enabled = self.node_if.get_param('sin_tilt_enabled')
+            '''
 
             self.auto_tilt_enabled = self.node_if.get_param('auto_tilt_enabled')
             self.auto_tilt_min = self.node_if.get_param('min_tilt_softstop_deg')
@@ -1984,13 +1990,13 @@ class PTXActuatorIF:
         self.status_msg.auto_pan_enabled = self.auto_pan_enabled
         self.status_msg.auto_pan_range_window.start_range = self.getPanAdj(self.auto_pan_min)
         self.status_msg.auto_pan_range_window.stop_range = self.getPanAdj(self.auto_pan_max)
-        self.status_msg.sin_pan_enabled = self.sin_pan_enabled
+        #self.status_msg.sin_pan_enabled = self.sin_pan_enabled
 
 
         self.status_msg.auto_tilt_enabled = self.auto_tilt_enabled
         self.status_msg.auto_tilt_range_window.start_range = self.getTiltAdj(self.auto_tilt_min)
         self.status_msg.auto_tilt_range_window.stop_range = self.getTiltAdj(self.auto_tilt_max)
-        self.status_msg.sin_tilt_enabled = self.sin_tilt_enabled
+        #self.status_msg.sin_tilt_enabled = self.sin_tilt_enabled
 
         
         pan_changed = self.last_position[0] != self.current_position[0]

@@ -187,11 +187,11 @@ class SaveDataIF:
         save_rate_dict = dict()
         save_rate = 0.0
         last_time = 0.0
-        max_rate = 3.5
+        max_rate = 100
         for data_product in data_products:
             save_rate = 0.0
             last_time = 0.0
-            max_rate = 3.5
+            max_rate = 100
             save_rate_entry = [save_rate, last_time, max_rate]
             if factory_rate_dict is not None:
                 if data_product in factory_rate_dict.keys():
@@ -424,7 +424,7 @@ class SaveDataIF:
     def register_data_product(self, data_product):
         save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
-            save_rate_dict[data_product] = [1.0, 0.0, 3.5] # Default to 1Hz save rate, max rate = 3.5Hz
+            save_rate_dict[data_product] = [1.0, 0.0, 100] # Default to 1Hz save rate, max rate = 100Hz
             self.save_rate_dict = save_rate_dict
             self.snapshot_dict[data_product] = False
             self.publish_status()

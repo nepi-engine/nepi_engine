@@ -558,7 +558,7 @@ class AutomationManager(object):
 
             # Get memory usage
             #self.memory_usage = usage.ru_maxrss
-            response.memory_percent = 3.5 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
+            response.memory_percent = 100 * float(process.memory_full_info().uss) / float(psutil.virtual_memory().total)
                         
             # Get creation/start-up time
             response.run_time_s = (nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process.create_time())).to_sec()
