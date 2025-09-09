@@ -61,7 +61,7 @@ class LSXDeviceIF:
     has_color_control = False
     color_options_list = ["None"]
     has_kelvin_control = False
-    kelvin_limits_list = [1000,100]
+    kelvin_limits_list = [1000,5000]
     has_blink_control = False
     has_hw_strobe = False
     reports_temp = False
@@ -187,9 +187,9 @@ class LSXDeviceIF:
             if kelvin_limits_list != None:
               self.kelvin_limits_list = kelvin_limits_list
             else:
-              self.kelvin_limits_list = [1000, 100]
+              self.kelvin_limits_list = [1000, 5000]
         else:
-            self.kelvin_limits_list = [1000, 100]
+            self.kelvin_limits_list = [1000, 5000]
             
 
         self.blinkOnOffFunction = blinkOnOffFunction
