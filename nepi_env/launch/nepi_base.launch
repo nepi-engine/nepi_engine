@@ -13,6 +13,7 @@
   <arg name="run_mgr_time_sync" default="true" />
   <arg name="run_mgr_navpose" default="true" />
   <arg name="run_mgr_ai_models" default="true" />
+  <arg name="run_mgr_targets" default="false" />
   <arg name="run_mgr_drivers" default="true" />
   <arg name="run_mgr_apps" default="true" />
   <arg name="run_mgr_automation" default="true" />
@@ -23,8 +24,7 @@
 
 
     <rosparam command="load" file="$(arg config_file_root)/system_mgr.yaml" ns="system_mgr" />
-    <!-- Partition layout depends on system type. Should be passed in from specialized launch file -->
-    <rosparam command="load" file="$(arg config_file_root)/nepi_env/nepi_partitions/$(arg partition_layout_file)" ns="system_mgr" />
+
     <node name="system_mgr" pkg="nepi_managers" type="system_mgr.py" respawn="false" output="$(arg output_destination)" />
 
     <node name="config_mgr" pkg="nepi_managers" type="config_mgr.py" respawn="false" output="$(arg output_destination)" />
@@ -72,6 +72,11 @@
       <node name="ai_model_mgr" pkg="nepi_managers" type="ai_model_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
+ <!-- MGR: Targets Mgr -->
+    <group if="$(arg run_mgr_targets)" >
+      <rosparam command="load" file="$(arg config_file_root)/targets_mgr.yaml" ns="targets_mgr" />
+      <node name="targets_mgr" pkg="nepi_managers" type="targets_mgr.py" respawn="false" output="$(arg output_destination)" />
+    </group>
 
    <!-- MGR: Drivers -->
     <group if="$(arg run_mgr_drivers)" >

@@ -47,7 +47,7 @@ def get_image_publisher_namespaces(name):
 #########################
 ### Misc Functions
 
-def create_cv2_blank_img(width,height, color = (255, 255, 255) ):
+def create_cv2_blank_img(width=900, height=630, color = (255, 255, 255) ):
   # Create a black image (all zeros)
   img = np.zeros((height, width, 3), dtype=np.uint8)
 
