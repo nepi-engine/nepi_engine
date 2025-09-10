@@ -82,10 +82,11 @@ class config_mgr(object):
         self.msg_if.pub_info("Waiting for system folders")
         folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         self.msg_if.pub_warn("Got system folders: " + str(folders))
-        #for folder in self.config_folders.keys():
-        #    if folder in folders.keys():
-        #        self.config_folders[folder] = folders[folder]
+        for folder in self.config_folders.keys():
+            if folder in folders.keys():
+                self.config_folders[folder] = folders[folder]
         
+        self.msg_if.pub_warn("Using config folders: " + str(self.config_folders))
         ##############################
         ### Setup Node
 
@@ -373,9 +374,11 @@ class config_mgr(object):
 
                 
     def saveSystemCfgsCb(self,msg):
+        self.msg_if.pub_warn("Recieved save system config message")
         self.save_system_cfgs()
 
     def save_system_cfgs(self):
+        self.msg_if.pub_warn("Saving system config to " + str(SYSTEM_CFG_PATH))
         self.save_cfgs(SYSTEM_CFG_PATH)
 
         

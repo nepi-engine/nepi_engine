@@ -8,9 +8,13 @@
 ## License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 ##
 
-source /opt/nepi/etc/load_system_config.sh
+cur_dir=$(pwd)
+cd /opt/nepi/etc/
+source load_system_config.sh
 wait
+cd $cur_dir
 source /opt/nepi/nepi_engine/setup.sh
+
 
 SYS_ENV_FILE=/opt/nepi/sys_env.bash
 
@@ -18,18 +22,18 @@ SYS_ENV_FILE=/opt/nepi/sys_env.bash
 # (intentionally) not valid because TBD fields are not populated
 if [ ! -f ${SYS_ENV_FILE} ]; then
 	echo "ERROR! Could not find ${SYS_ENV_FILE}"
-	exit 1
+	return 1
 fi
 
 source ${SYS_ENV_FILE}
 if [ "$DEVICE_TYPE" = "TBD" ]; then
 	echo "ERROR! DEVICE_TYPE must be set in ${SYS_ENV_FILE}"
-	exit 1
+	return 1
 fi
 
 if [ "$DEVICE_SN" = "TBD" ]; then
 	echo "ERROR! DEVICE_SN must be set in ${SYS_ENV_FILE}"
-	exit 1
+	return 1
 fi
 
 if [ -z "$DEVICE_ID" ]; then
@@ -38,7 +42,7 @@ fi
 
 if [ "$ROS1_PACKAGE" = "TBD" ] || [ "$ROS1_LAUNCH_FILE" = "TBD" ]; then
 	echo "No ROS1 defs in ${SYS_ENV_FILE}... nothing to launch"
-	exit 0
+	return 0
 fi
 
 # This is a good place to monitor and purge large log sets
