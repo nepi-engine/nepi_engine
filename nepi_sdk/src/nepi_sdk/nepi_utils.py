@@ -709,6 +709,13 @@ def rotate_3d(vector, axis, angle_degrees):
         raise ValueError("Invalid axis. Choose 'x', 'y', or 'z'.")
     return np.dot(R, vector)
 
+def check_ratio(ratio):
+    if ratio < 0.0:
+        ratio = 0.0
+    if ratio > 1.0:
+        ratio = 1.0
+    return ratio
+
 ##################
 ## Misc String Functions
 

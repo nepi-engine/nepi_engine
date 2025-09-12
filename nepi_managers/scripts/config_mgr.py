@@ -35,7 +35,8 @@ from nepi_api.node_if import NodeClassIF
 NEPI_ENV_PACKAGE = 'nepi_env'
 
 NEPI_HOME_PATH = '/home/nepi'
-NEPI_ETC_PATH = '/opt/nepi/nepi_engine/etc'
+NEPI_ETC_PATH = '/opt/nepi/etc'
+NEPI_ENGINE_ETC_PATH = '/opt/nepi/nepi_engine/etc'
 FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
 SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
@@ -85,7 +86,9 @@ class config_mgr(object):
         for folder in self.config_folders.keys():
             if folder in folders.keys():
                 self.config_folders[folder] = folders[folder]
-        
+        self.FACTORY_CFG_PATH = self.config_folders['factory_cfg']
+        self.SYSTEM_CFG_PATH = self.config_folders['system_cfg']
+        self.USER_CFG_PATH = self.config_folders['user_cfg']
         self.msg_if.pub_warn("Using config folders: " + str(self.config_folders))
         ##############################
         ### Setup Node
@@ -152,12 +155,12 @@ class config_mgr(object):
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'save_config': {
+            'save_nepi_config': {
                 'namespace': self.base_namespace,
-                'topic': 'save_config',
+                'topic': 'save_nepi_config',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.saveSystemCfgsCb, 
+                'callback': self.saveNepiCfgCb, 
                 'callback_args': ()
             },
             'save_params': {
@@ -219,18 +222,18 @@ class config_mgr(object):
 
         # Save Factory if Empty
 
-        #if os.path.isdir(FACTORY_CFG_PATH):
-        #    empty = not os.listdir(FACTORY_CFG_PATH) 
+        #if os.path.isdir(self.FACTORY_CFG_PATH):
+        #    empty = not os.listdir(self.FACTORY_CFG_PATH) 
         #    if empty == True:
         #        self.msg_if.pub_warn("Initializing Factory Config Folder")
-        #        self.save_cfgs(FACTORY_CFG_PATH)
+        #        self.save_cfgs(self.FACTORY_CFG_PATH)
 
 
         # Restore configurations
         success = self.restore_cfgs()
         if success == True:
             self.msg_if.pub_warn("NEPI config files restored")
-        #succes = self.save_cfgs(SYSTEM_CFG_PATH)
+        #succes = self.save_cfgs(self.SYSTEM_CFG_PATH)
         #if success == True:
         #    self.msg_if.pub_warn("NEPI config files saved")
 
@@ -238,7 +241,7 @@ class config_mgr(object):
         ################
         # Save the current system config
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
-        self.save_params(USER_CFG_PATH, sys_ns)
+        self.save_params(self.USER_CFG_PATH, sys_ns)
 
         nepi_sdk.sleep(2)
         self.initCb(do_updates = True)
@@ -324,8 +327,8 @@ class config_mgr(object):
 
     def saveParamsCb(self,msg):
         namespace = msg.data
-        self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + USER_CFG_PATH )
-        self.save_params(USER_CFG_PATH, namespace)
+        self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + self.USER_CFG_PATH )
+        self.save_params(self.USER_CFG_PATH, namespace)
     
     def save_params(self, cfg_path, namespace):
         if os.path.exists(cfg_path):
@@ -341,28 +344,45 @@ class config_mgr(object):
         return success
 
  
- 
-    def save_cfgs(self,cfg_path = SYSTEM_CFG_PATH):
-        success = False
-        if cfg_path != USER_CFG_PATH:
-            # Save Save Files
-            source_dir = NEPI_ETC_PATH
-            target_dir = os.path.join(cfg_path,'etc')
-            if not os.path.exists(target_dir):
-                os.makedirs(target_dir)
-                if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
-                    ret_etc = nepi_utils.rsync_folders(source_dir,target_dir)
-            if cfg_path == SYSTEM_CFG_PATH:
-                # Copy User Configs to System Configs
-                source_dir = USER_CFG_PATH
-                target_dir = cfg_path
-                if not os.path.exists(target_dir):
+    def save_nepi_cfg(self,cfg_path = None):
+            if cfg_path is None:
+                cfg_path = self.SYSTEM_CFG_PATH
+            success = False
+            if cfg_path != self.USER_CFG_PATH:
+                # Save Save Files
+                source_dir = NEPI_ETC_PATH
+                target_dir = os.path.join(cfg_path,'etc')
+                self.msg_if.pub_warn("Looking for dest config target path: " + target_dir )
+                if os.path.exists(target_dir) == False:
                     os.makedirs(target_dir)
-                    if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
-                        ret_user = nepi_utils.rsync_folders(source_dir,target_dir)
+                self.msg_if.pub_warn("Looking for source config target path: " + source_dir )
+                if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
+                    self.msg_if.pub_warn("Syncing source to target path: " + source_dir + " : " + str(target_dir) )
+                    success = nepi_utils.rsync_folders(source_dir,target_dir)
+            return success
+
+ 
+    def save_cfgs(self,cfg_path = None):
+        if cfg_path is None:
+            cfg_path = self.SYSTEM_CFG_PATH
+        success = False
+        if cfg_path != self.USER_CFG_PATH:
+            ret_etc = self.save_nepi_cfg(cfg_path)
+            if cfg_path == self.SYSTEM_CFG_PATH:
+                # Copy User Configs to System Configs
+                source_dir = self.USER_CFG_PATH
+                target_dir = cfg_path
+                self.msg_if.pub_warn("Looking for dest config target path: " + target_dir )
+                if os.path.exists(target_dir) == False:
+                    os.makedirs(target_dir)
+                self.msg_if.pub_warn("Looking for source config target path: " + source_dir )
+                if os.path.exists(source_dir) == True and os.path.exists(target_dir) == True:
+                    self.msg_if.pub_warn("Syncing source to target path: " + source_dir + " : " + str(target_dir) )
+                    ret_user = nepi_utils.rsync_folders(source_dir,target_dir)
             if ret_etc == True or ret_user == True:
                 success = True
         return success
+
 
 
 
@@ -370,16 +390,23 @@ class config_mgr(object):
         self.save_factory_cfgs()
 
     def save_factory_cfgs(self):
-        self.save_cfgs(FACTORY_CFG_PATH)
+        self.save_cfgs(self.FACTORY_CFG_PATH)
 
-                
+
+    def saveNepiCfgCb(self,msg):
+        self.msg_if.pub_warn("Recieved save nepi config message")
+        self.msg_if.pub_warn("Saving nepi config to " + str(self.SYSTEM_CFG_PATH))
+        self.save_cfg(self.SYSTEM_CFG_PATH)
+            
+       
+
     def saveSystemCfgsCb(self,msg):
-        self.msg_if.pub_warn("Recieved save system config message")
+        self.msg_if.pub_warn("Recieved save system configs message")
         self.save_system_cfgs()
 
     def save_system_cfgs(self):
-        self.msg_if.pub_warn("Saving system config to " + str(SYSTEM_CFG_PATH))
-        self.save_cfgs(SYSTEM_CFG_PATH)
+        self.msg_if.pub_warn("Saving system configs to " + str(self.SYSTEM_CFG_PATH))
+        self.save_cfgs(self.SYSTEM_CFG_PATH)
 
         
 
@@ -387,7 +414,7 @@ class config_mgr(object):
 
     def restore_cfgs(self,config_folders = ['factory_cfg','system_cfg','user_cfg']): 
         success = False
-        target_dir = NEPI_ETC_PATH
+        target_dir = NEPI_ENGINE_ETC_PATH
         for name in config_folders:
             if name in self.config_folders.keys():
                 folder = os.path.join(self.config_folders[name],'etc')
@@ -404,9 +431,9 @@ class config_mgr(object):
         self.restore_factory_configs()
 
     def restore_factory_configs(self):
-        nepi_utils.delete_files_in_folder(USER_CFG_PATH)
-        nepi_utils.delete_files_in_folder(SYSTEM_CFG_PATH)
-        success = self.restore_cfgs(config_folders=[FACTORY_CFG_PATH])
+        nepi_utils.delete_files_in_folder(self.USER_CFG_PATH)
+        nepi_utils.delete_files_in_folder(self.SYSTEM_CFG_PATH)
+        success = self.restore_cfgs(config_folders=[self.FACTORY_CFG_PATH])
         time.sleep(1)
         os.system('reboot')
 
@@ -415,24 +442,26 @@ class config_mgr(object):
         self.restore_system_configs()
 
     def restore_system_cfgs(self):
-        nepi_utils.delete_files_in_folder(USER_CFG_PATH)
-        success = self.restore_cfgs(config_folders = SYSTEM_CFG_PATH)            
+        nepi_utils.delete_files_in_folder(self.USER_CFG_PATH)
+        success = self.restore_cfgs(config_folders = self.SYSTEM_CFG_PATH)            
 
 
 
-    def reset_handler(self,namespace, cfg_path = USER_CFG_PATH):
+    def reset_handler(self,namespace, cfg_path = None):
+        if cfg_path is None:
+            cfg_path = self.USER_CFG_PATH
         success = True
-        if cfg_path != USER_CFG_PATH:
+        if cfg_path != self.USER_CFG_PATH:
             # First delete user config files if it exists
-            ucfg_pathname = self.get_config_pathname(USER_CFG_PATH, namespace)
+            ucfg_pathname = self.get_config_pathname(self.USER_CFG_PATH, namespace)
             if os.path.exists(ucfg_pathname):
                 nepi_utils.delete_files_in_folder(ucfg_pathname)
-        if cfg_path == FACTORY_CFG_PATH:
+        if cfg_path == self.FACTORY_CFG_PATH:
             # Delete system config files for factory reset
-            scfg_pathname = self.get_scfg_pathname(SYSTEM_CFG_PATH, namespace)
+            scfg_pathname = self.get_scfg_pathname(self.SYSTEM_CFG_PATH, namespace)
             if os.path.exists(scfg_pathname):
                 nepi_utils.clear_folder(scfg_pathname)
-            factory_pathname = self.get_scfg_pathname(FACTORY_CFG_PATH, namespace)
+            factory_pathname = self.get_scfg_pathname(self.FACTORY_CFG_PATH, namespace)
             if os.path.exists(factory_pathname):
                 shutil.copy2(factory_pathname,scfg_pathname)  # Use copy2 to preserve metadata
         if success == True:
@@ -458,13 +487,13 @@ class config_mgr(object):
 
 
     def factoryResetHandler(self,req):
-        return self.reset_handler(req.namespace, cfg_path = FACTORY_CFG_PATH)
+        return self.reset_handler(req.namespace, cfg_path = self.FACTORY_CFG_PATH)
 
     def systemResetHandler(self,req):
-        return self.reset_handler(req.namespace, cfg_path = SYSTEM_CFG_PATH)
+        return self.reset_handler(req.namespace, cfg_path = self.SYSTEM_CFG_PATH)
 
     def userResetHandler(self,req):
-        return self.reset_handler(req.namespace, cfg_path = USER_CFG_PATH)
+        return self.reset_handler(req.namespace, cfg_path = self.USER_CFG_PATH)
 
 
 

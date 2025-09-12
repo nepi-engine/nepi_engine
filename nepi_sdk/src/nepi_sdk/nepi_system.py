@@ -121,7 +121,6 @@ def get_timezone(timeout = 1000, log_name_list = []):
 
 def set_timezone(value, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'timezone')
-    logger.log_warn("Setting timezone to: " + str(value) + " with namespace " + str(param_namespace), log_name_list = log_name_list)
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 

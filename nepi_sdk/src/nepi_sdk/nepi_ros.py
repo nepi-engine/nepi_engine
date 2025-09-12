@@ -341,8 +341,8 @@ def kill_node(node_name, log_name_list = []):
   if kill_node != "":
     os.system("rosnode kill " + kill_node)
 
-def kill_node_process(node_namespace, sub_process, log_name_list = []):
-    log_msg_warn("nepi_sdk: Killing app node: " + node_namespace, log_name_list = log_name_list)
+def kill_node_process(node_name, sub_process, log_name_list = []):
+    log_msg_warn("nepi_sdk: Killing app node: " + node_name, log_name_list = log_name_list)
     success = False
     if sub_process.poll() is None:
       sub_process.terminate()
@@ -361,9 +361,9 @@ def kill_node_process(node_namespace, sub_process, log_name_list = []):
         time.sleep(1)
     if sub_process.poll() is not None:
       success = True
-      log_msg_warn("nepi_sdk: Killed app node: " + node_namespace, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: Killed app node: " + node_name, log_name_list = log_name_list)
     else:
-      log_msg_warn("nepi_sdk: failed to app node: " + node_namespace, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: failed to app node: " + node_name, log_name_list = log_name_list)
     return success
         
 

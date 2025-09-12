@@ -14,9 +14,12 @@ import sys
 import declxml as xml
 import xml.etree.ElementTree as ET
 
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
+
+from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_ais"
@@ -77,7 +80,9 @@ EXAMPLE_BOX_DICT_ENTRY = {
 
 ########################
 ## Misc AI Helper Functions
-
+def get_ai_detector_publisher_namespaces():
+    msg_type = 'nepi_interfaces/AiDetectorStatus'
+    return nepi_sdk.find_topics_by_msg(msg_type)
 
 '''
 def get_classes_colors_list(classes_str_list):

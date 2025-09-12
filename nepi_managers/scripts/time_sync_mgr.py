@@ -86,6 +86,8 @@ class time_sync_mgr(object):
 
 
 
+        nepi_system.set_timezone(self.timezone)
+
         ##############################
         # Wait for System Info
         self.msg_if.pub_info("Waiting for nepi config info")

@@ -184,12 +184,14 @@ class ConnectAiDetectorIF:
         self.add_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/add_img_topics', StringArray, queue_size=10)
         self.remove_img_topic_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topic', String, queue_size=10)
         self.remove_img_topics_pub = rospy.Publisher(DET_PUB_NS + '/remove_img_topics', StringArray, queue_size=10)
+        self.select_img_file_pub = rospy.Publisher(DET_PUB_NS + '/select_img_file', String, queue_size=10)
         self.set_img_tiling_pub = rospy.Publisher(DET_PUB_NS + '/set_img_tiling', Bool, queue_size=10)
         self.set_overlay_labels_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_labels', Bool, queue_size=10)
         self.set_overlay_clf_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_clf_name', Bool, queue_size=10)
         self.set_overlay_img_name_pub = rospy.Publisher(DET_PUB_NS + '/set_overlay_img_name', Bool, queue_size=10)          
         self.set_threshold_pub = rospy.Publisher(DET_PUB_NS + '/set_threshold', Float32, queue_size=10)
-        self.set_max_rate_pub = rospy.Publisher(DET_PUB_NS + '/set_max_rate', Int32, queue_size=10)
+        self.set_max_proc_rate_pub = rospy.Publisher(DET_PUB_NS + '/set_max_proc_rate', Int32, queue_size=10)
+        self.set_max_img_rate_pub = rospy.Publisher(DET_PUB_NS + '/set_max_img_rate', Int32, queue_size=10)
 
         self.set_sleep_enable_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_enable', Bool, queue_size=10) 
         self.set_sleep_suspend_sec_pub = rospy.Publisher(DET_PUB_NS + '/set_sleep_suspend_sec', Int32, queue_size=10)
@@ -327,17 +329,17 @@ class ConnectAiDetectorIF:
     def get_ready_state(self):
         return self.ready
 
-    def wait_for_ready(self, timeout = float('inf') ):
+    def wait_for_ready(self, timeout = 20):
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to get ready", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
@@ -556,6 +558,20 @@ class ConnectAiDetectorIF:
         else:
             self.msg_if.pub_info("Requested img detector not registered: " + det_img_ns)
         return boxes_dict
+
+    def wait_for_boxes_dict(self, timeout = 10):
+        success = False
+        boxes_dict = None
+        if self.ready is not None:
+            #self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while boxes_dict is None and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+                get_clear_boxes_dict()
+        return boxes_dict  
+    
 
     def get_first_det_time(self,det_img_ns):
         first_det_time = None

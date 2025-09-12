@@ -1175,7 +1175,7 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
+            if False: # subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
                 os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
