@@ -147,7 +147,7 @@ class AiDetectorIF:
     use_last_image = DEFAULT_USE_LAST_IMAGE
     selected_img_topics = []
 
-    pub_image=True
+    pub_img_enabled=True
     pub_img_process=None
     pub_img_node_name = ""
     pub_img_namepace = ""
@@ -327,7 +327,7 @@ class AiDetectorIF:
             },
             'pub_image': {
                 'namespace': self.node_namespace,
-                'factory_val': self.pub_image
+                'factory_val': self.pub_img_enabled
             }
         }
 
@@ -689,8 +689,9 @@ class AiDetectorIF:
     def initCb(self,do_updates = False):
         self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
         if self.node_if is not None:
-            pub_img_enabled = self.node_if.get_param('pub_image')
-            self.set_pub_image(pub_img_enabled)
+            self.pub_img_enabled = self.node_if.get_param('pub_image')
+            self.msg_if.pub_warn("Starting with image pub enabled: " + str(self.pub_img_enabled))
+            self.set_pub_image(self.pub_img_enabled)
 
             self.enabled = self.node_if.get_param('enabled')
             self.selected_classes = self.node_if.get_param('selected_classes')
@@ -1026,14 +1027,16 @@ class AiDetectorIF:
                     self.pub_img_process = sub_process
                     self.pub_img_node_name = node_name
                     self.pub_img_namepace = namespace
-                self.msg_if.pub_warn("Img Pub Node launch return msg: " + msg)
+                self.msg_if.pub_warn("Img Pub Node launch return msg: " + str(msg))
         elif enable == False and self.pub_img_process is not None:
                 success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.pub_img_process)
                 if success == True:
                     self.pub_img_process = None
                     self.pub_img_node_name = node_name
                     self.pub_img_namepace = ""
-                self.msg_if.pub_warn("Img Pub Processing Disabled: " + msg)
+                self.msg_if.pub_warn("Img Pub Processing Disabled: " + str(msg))
+        else:
+            self.msg_if.pub_warn("Img Pub Processing Disabled: " + str(enable))
 
         if self.node_if is not None:
             self.node_if.set_param('pub_image',self.sleep_enabled)

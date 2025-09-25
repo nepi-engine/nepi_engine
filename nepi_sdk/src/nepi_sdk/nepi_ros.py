@@ -721,7 +721,7 @@ def find_topics_by_msg(msg_type):
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         if msg_str.find(msg_type) != -1:
           topic_list.append(topic_str)
-          log_msg_warn("msg found: " + str([msg_type, topic_str]))
+          #log_msg_warn("msg found: " + str([msg_type, topic_str]))
 
   except Exception as e:
     log_msg_warn("Nepi Sdk find_topics_by_msg failed: " + str(e))

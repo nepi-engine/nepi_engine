@@ -333,12 +333,12 @@ class config_mgr(object):
     def save_params(self, cfg_path, namespace):
         if os.path.exists(cfg_path):
             config_pathname = self.get_config_pathname(cfg_path, namespace)
-            backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
+            #backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
 
             self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
             # First, write to the user file
             nepi_sdk.save_params_to_file(config_pathname, namespace)
-            nepi_sdk.save_params_to_file(backup_pathname, namespace)
+            #nepi_sdk.save_params_to_file(backup_pathname, namespace)
             self.msg_if.pub_info("Params saved for namespace: " + namespace  + " in file " + config_pathname )
             success = True
         return success
