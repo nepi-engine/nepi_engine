@@ -313,6 +313,7 @@ class NepiDriversMgr(object):
         self.drvs_dict = drvs_dict
       if do_updates == True:
         self.refresh()
+        nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
         nepi_sdk.set_param('active_drivers', drvs_active_list)
       self.publish_status(do_updates = do_updates)
         
@@ -381,6 +382,7 @@ class NepiDriversMgr(object):
     #self.msg_if.pub_warn("Update start drvs: " + str(drvs_dict))
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
     nepi_sdk.set_param('active_drivers', drvs_active_list)
     #self.msg_if.pub_warn("Update start active drvs: " + str(drvs_active_list))
     ## Next process active driver processes
@@ -478,6 +480,7 @@ class NepiDriversMgr(object):
                   if retry == False:
                     self.failed_class_import_list.append(discovery_node_name)
                     self.msg_if.pub_warn("Will not retry discovery node launch: " + discovery_node_name )
+
 
               
 

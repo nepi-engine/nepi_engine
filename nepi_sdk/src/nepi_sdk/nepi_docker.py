@@ -29,7 +29,7 @@ from nepi_sdk import nepi_utils
 ###################################################################################################
 
 
-NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_config.yaml'
+NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
 config_dict=nepi_utils.read_dict_from_file(NEPI_CONFIG_FILE)
 
 def CheckPartitionBusy(partition_path):

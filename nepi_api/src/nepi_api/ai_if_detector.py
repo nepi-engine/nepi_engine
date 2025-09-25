@@ -211,6 +211,7 @@ class AiDetectorIF:
         namespace = nepi_sdk.create_namespace(namespace,'settings')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+        self.enable_image_pub = enable_image_pub
         self.has_img_tiling = has_img_tiling
 
         
@@ -1000,7 +1001,7 @@ class AiDetectorIF:
             img_pub_file = self.det_img_pub_file
             img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
     
-            if os.path.exists(img_pub_file_path) == False or enable_image_pub == False:
+            if os.path.exists(img_pub_file_path) == False or self.enable_image_pub == False:
                 self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path)
             else: 
                 #Try and launch node
