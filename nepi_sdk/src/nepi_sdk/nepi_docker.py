@@ -48,13 +48,17 @@ def getFWVersionStringForPartition(partition_device_name):
 
 
 def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removable):
-    return True, "New image file identified", ["FILE NAMES"], ["FILE_VERSIONS"] , ["FILE SIZES"]
+    return True, "New image file identified", ["nepi-3p2p2-jetson-orin-5d.tar"], ["3p2p2-jetson-orin-5d"] , [100]
 
-def getRootfsABStatus(first_stage_rootfs_device):
-    return True, "Success", dict()
+def getRootfsABStatus():
+    rootfs_ab_status_dict = {}
 
-def getRootfsABStatusJetson():
-    return True, "Success", dict()
+    rootfs_ab_status_dict["active_part_device"] = "nepi_fs_a"
+    rootfs_ab_status_dict["inactive_part_device"] = "nepi_fs_b"
+    rootfs_ab_status_dict["max_boot_fail_count"] = 1
+    rootfs_ab_status_dict["running_boot_fail_count"] = 0
+    rootfs_ab_status_dict["inactive_part_fw_version"] = "uknown"
+    return True, "Success", rootfs_ab_status_dict
 
 def identifyRootfsABScheme():
     return 'container'
@@ -119,6 +123,10 @@ def switchActiveAndInactivePartitionsJetson():
 def archiveInactiveToStaging(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
     return True, "Success"
 
+
+def restart():
+    success = False
+    return success
 # Restart fs from that call start script
 
 #############################################

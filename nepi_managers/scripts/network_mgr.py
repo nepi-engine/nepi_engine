@@ -424,7 +424,13 @@ class NetworkMgr:
             managed_ip_addrs = self.node_if.get_param('managed_ip_addrs')
             dhcp_enabled = self.node_if.get_param('dhcp_enabled')
             if self.in_container == True:
-                self.dmanaged_ip_addrs = self.nepi_config['NEPI_IP_ALIASES']
+                dmanaged_ip_addrs=[]
+                aliases = self.nepi_config['NEPI_ALIAS_IPS']
+                if aliases != "NONE" and aliases != "None":
+                    dmanaged_ip_addrs=[aliases]
+
+
+                self.dmanaged_ip_addrs = dmanaged_ip_addrs
                 managed_ip_addrs = managed_ip_addrs + self.dmanaged_ip_addrs
                 self.ddhcp_enabled = self.nepi_config['NEPI_DHCP_ON_START']
                 dhcp_enabled = dhcp_enabled + self.ddhcp_enabled
@@ -675,7 +681,7 @@ class NetworkMgr:
                             self.msg_if.pub_warn("Enabling DHCP Client")
                             self.msg_if.pub_warn("Enabling DHCP with current connection state: " + str(connected))
                             if self.in_container == True:
-                                nepi_system.update_docker_config('NEPI_DHCP',1)
+                                nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                             else:
                                 try:
                                     self.msg_if.pub_warn("Calling dhclient -nw subprocess")
@@ -798,7 +804,7 @@ class NetworkMgr:
 
     def add_ip_impl(self, addr):
         if self.in_container == True:
-            nepi_system.update_docker_config('NEPI_WIRED',1)
+            nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
         else:
             try:
                 subprocess.check_call(['ip','addr','add',addr,'dev',self.NET_IFACE])
@@ -838,7 +844,7 @@ class NetworkMgr:
 
     def remove_ip_impl(self, addr):
         if self.in_container == True:
-            nepi_system.update_docker_config('NEPI_WIRED',1)
+            nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
         else:
             try:
                 subprocess.check_call(['ip','addr','del',addr,'dev',self.NET_IFACE])
@@ -1056,7 +1062,7 @@ class NetworkMgr:
 
     def set_upload_bw_limit(self):
         if self.in_container == True:
-            pass #nepi_system.update_docker_config('NEPI_WIRED',1)
+            pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
         else:
             # Always clear the current settings
             try:
@@ -1072,7 +1078,7 @@ class NetworkMgr:
         # Now acquire the param from param server and update
         bw_limit_kbps = self.tx_bw_limit_mbps* 1000
         if self.in_container == True:
-            pass #nepi_system.update_docker_config('NEPI_WIRED',1)
+            pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
         else:
             try:
                 subprocess.call([self.WONDERSHAPER_CALL, '-a', self.NET_IFACE, '-u', str(bw_limit_kbps)])
@@ -1121,7 +1127,7 @@ class NetworkMgr:
                     # Turn off wifi power saving
                     self.msg_if.pub_warn("Turning off WiFi low power mode")
                     if self.in_container == True:
-                        nepi_system.update_docker_config('NEPI_WIFI_POWER_SAVE',1)
+                        nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                     else:
                         try:
                             subprocess.run(['iw',self.wifi_iface,'set','power_save','off'],
@@ -1215,7 +1221,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Enabling Wifi Hardware: " + str(self.wifi_iface))
             nepi_sdk.sleep(1) # Give time for updates to publish
             if self.in_container == True:
-                nepi_system.update_docker_config('NEPI_WIFI',1)
+                nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
             else:
                 try:
                     link_up_cmd = self.ENABLE_DISABLE_WIFI_ADAPTER_PRE + [self.wifi_iface] + self.ENABLE_WIFI_ADAPTER_POST
@@ -1229,7 +1235,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Disabling Wifi Hardware: " + str(self.wifi_iface))
             nepi_sdk.sleep(1) # Give time for updates to publish
             if self.in_container == True:
-                nepi_system.update_docker_config('NEPI_WIFI',1)
+                nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
             else:
                 try:
                     # Stop the supplicant
@@ -1333,7 +1339,7 @@ class NetworkMgr:
                     self.msg_if.pub_warn("Current  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
                     self.msg_if.pub_warn("New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
                     if self.in_container == True:
-                        pass #nepi_system.update_docker_config('NEPI_WIFI',1)
+                        pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                     else:
                         self.msg_if.pub_warn("Calling Stop Wifi with command " + str(self.STOP_WPA_SUPPLICANT_CMD))
                         subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
@@ -1376,7 +1382,7 @@ class NetworkMgr:
 
                             #### Try to connect
                             if self.in_container == True:
-                                nepi_system.update_docker_config('NEPI_WIFI',1)
+                                nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                             else:
                                 start_supplicant_cmd = self.WPA_START_SUPPLICANT_CMD_PRE + [self.wifi_iface] + self.WPA_START_SUPPLICANT_CMD_POST
                                 self.msg_if.pub_warn("Calling Start Wifi with command " + str(start_supplicant_cmd))
@@ -1424,7 +1430,7 @@ class NetworkMgr:
 
                             else:
                                 if self.in_container == True:
-                                    pass #nepi_system.update_docker_config('NEPI_WIFI',1)
+                                    pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                                 else:
                                     subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
                                     nepi_sdk.sleep(1)
@@ -1515,7 +1521,7 @@ class NetworkMgr:
                             self.wifi_ap_running = False
                             self.wifi_ap_connecting = False
                             nepi_system.update_config_value('NEPI_AP',1)
-                            pass #nepi_system.update_docker_config('NEPI_WIFI',1)
+                            pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                         else:
                             try:
                                 # Kill any current access point -- no problem if one isn't already running; just returns immediately
@@ -1533,7 +1539,7 @@ class NetworkMgr:
                             self.wifi_ap_running = True
                             self.wifi_ap_connecting = False
                             nepi_system.update_config_value('NEPI_AP',1)
-                            pass #nepi_system.update_docker_config('NEPI_WIFI',1)
+                            pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
                         else:                        
                             try:
                                 self.msg_if.pub_warn("Starting WiFi access point on ssid: " + str(self.wifi_ap_ssid))
@@ -1554,7 +1560,7 @@ class NetworkMgr:
                 self.wifi_ap_running_ssid = None
                 self.wifi_ap_running = False
                 nepi_system.update_config_value('NEPI_AP',1)
-                pass #nepi_system.update_docker_config('NEPI_WIFI',1)
+                pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
             else:
                 try:
                     subprocess.check_call([self.CREATE_AP_CALL, '--stop', self.wifi_iface])

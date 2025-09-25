@@ -8,6 +8,7 @@
 # License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
 #
 import os
+from socket import INADDR_UNSPEC_GROUP
 import time
 import shutil
 from collections import deque
@@ -699,6 +700,14 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.setAdminRestrictedCb, 
                 'callback_args': ()
+            },
+            'restart_nepi': {
+                'namespace': self.base_namespace,
+                'topic': 'restart_nepi',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.restartNepiCb, 
+                'callback_args': ()
             }
         }
 
@@ -1162,7 +1171,9 @@ class SystemMgrNode():
             self.node_if.set_param('admin_restricted',restricted)
             self.node_if.save_config()
 
-
+    def restartNepiCb(self, msg):
+        if self.in_container == True:
+            self.nepi_image.restart()
 
 
     def ensure_reqd_subdirs(self):
@@ -1458,7 +1469,7 @@ class SystemMgrNode():
         status = False
         if self.in_container == True:
             self.system_defs_msg.first_rootfs = "container"
-            (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
+            (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus()
         else:
             if self.rootfs_ab_scheme == 'nepi':
                 self.system_defs_msg.first_rootfs = self.get_friendly_name(self.first_rootfs)

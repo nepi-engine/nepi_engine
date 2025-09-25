@@ -346,7 +346,7 @@ class time_sync_mgr(object):
 
     def restart_chrony(self):
         if self.in_container == True:
-            nepi_system.update_config_value('NEPI_NTP',1)
+            nepi_system.update_config_value('NEPI_ETC_UPDATE',1)
         else:    
             subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
 
@@ -356,54 +356,66 @@ class time_sync_mgr(object):
             self.restart_chrony()
 
     def add_server(self,server_host):
-        #ensure just a simple hostname is being added
-        host = server_host.data.split()[0]
+        if self.in_container == True:
+            # Check if new and Update Docker Config
+            # Update Status
+            # Save to Params
+            pass
+        else:
+            #ensure just a simple hostname is being added
+            host = server_host.data.split()[0]
 
-        new_server_cfg_line = 'server ' + host + ' iburst minpoll 2'
-        # TODO: May one day want to user chrony option initstepslew for even earlier synchronization
-        #init_slew_cfg_line = 'initstepslew 1 ' + host
-        match_line = '^' + new_server_cfg_line
-        file = open(CHRONY_CFG_BASENAME, 'r+')
-        found_match = False
-        for line in file.readlines():
-            if re.search(match_line, line):
-                self.msg_if.pub_info("Ignoring redundant NTP server additions for: " + str(host))
-                found_match = True
-                break
+            new_server_cfg_line = 'server ' + host + ' iburst minpoll 2'
+            # TODO: May one day want to user chrony option initstepslew for even earlier synchronization
+            #init_slew_cfg_line = 'initstepslew 1 ' + host
+            match_line = '^' + new_server_cfg_line
+            file = open(CHRONY_CFG_BASENAME, 'r+')
+            found_match = False
+            for line in file.readlines():
+                if re.search(match_line, line):
+                    self.msg_if.pub_info("Ignoring redundant NTP server additions for: " + str(host))
+                    found_match = True
+                    break
 
-        #At EOF, so just write here
-        if (False == found_match):
-            self.msg_if.pub_info("Adding new NTP server: " + host)
-            file.write(new_server_cfg_line + '\n')
-            # Restart chrony to allow changes to take effect
-            self.restart_chrony()
+            #At EOF, so just write here
+            if (False == found_match):
+                self.msg_if.pub_info("Adding new NTP server: " + host)
+                file.write(new_server_cfg_line + '\n')
+                # Restart chrony to allow changes to take effect
+                self.restart_chrony()
 
     def remove_server(self,server_host):
-        #ensure just a simple hostname is being added
-        host = server_host.data.split()[0]
+        if self.in_container == True:
+            # Check if new and Update Docker Config
+            # Update Status
+            # Save to Params
+            pass
+        else:
+            #ensure just a simple hostname is being added
+            host = server_host.data.split()[0]
 
-        match_line = '^server ' + host + ' iburst minpoll 2'
-        # Must copy the file linebyline to a tmp, then overwrite the original
-        orig_file = open(CHRONY_CFG_BASENAME, 'r')
-        tmpfile_path = CHRONY_CFG_BASENAME + ".tmp"
-        tmp_file = open(tmpfile_path, 'w')
-        found_it = False
-        for line in orig_file.readlines():
-            if re.search(match_line, line):
-                # Don't write this line as we want to eliminate it
-                self.msg_if.pub_info("Removing NTP server: " + str(host))
-                found_it = True
-                continue
-            else:
-                tmp_file.write(line)
+            match_line = '^server ' + host + ' iburst minpoll 2'
+            # Must copy the file linebyline to a tmp, then overwrite the original
+            orig_file = open(CHRONY_CFG_BASENAME, 'r')
+            tmpfile_path = CHRONY_CFG_BASENAME + ".tmp"
+            tmp_file = open(tmpfile_path, 'w')
+            found_it = False
+            for line in orig_file.readlines():
+                if re.search(match_line, line):
+                    # Don't write this line as we want to eliminate it
+                    self.msg_if.pub_info("Removing NTP server: " + str(host))
+                    found_it = True
+                    continue
+                else:
+                    tmp_file.write(line)
 
-        orig_file.close()
-        tmp_file.close()
-        os.rename(tmpfile_path, CHRONY_CFG_BASENAME)
+            orig_file.close()
+            tmp_file.close()
+            os.rename(tmpfile_path, CHRONY_CFG_BASENAME)
 
-        if True == found_it:
-            # Restart chrony to allow changes to take effect
-            self.restart_chrony()
+            if True == found_it:
+                # Restart chrony to allow changes to take effect
+                self.restart_chrony()
 
     def gather_ntp_status_timer_cb(self,event):
         # Just call the implementation method. We don't care about the event payload
@@ -451,7 +463,9 @@ class time_sync_mgr(object):
     def gather_ntp_status(self):
         ntp_status = [] # List of lists
         if self.in_container == True:
-            nepi_system.update_config_value('NEPI_NTP',1)
+            # nepi_system.update_config_value('NEPI_ETC_UPDATE',1)
+            #ntp_status.append()
+            pass
         else:  
             chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
             
