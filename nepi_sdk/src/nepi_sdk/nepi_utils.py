@@ -603,16 +603,25 @@ def delete_files_in_folder(folder_path):
             except OSError as e:
                 print(f"Error deleting file {item_path}: {e}")
 
-def rsync_folders(source_folder,destitation_folder, options = "-arp"):    
+def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders = True, delete = False):    
     success = False
+
+    foption=""
+    if folders == False:
+       foptions="--exclude='*/'"
+
+    doption=""
+    if delete == True:
+       doption="--delete"
 
     if source_folder == destitation_folder or destitation_folder.find(source_folder) != -1:
         return success
     if os.path.basename(source_folder) == os.path.basename(destitation_folder):
         try: 
+
             destitation_folder = os.path.dirname(destitation_folder)
             # Basic rsync command with common options
-            command = ["rsync", options, source_folder,destitation_folder]
+            command = ["rsync", options, foptions, source_folder + "/*", destitation_folder + "/", doption]
             
             # Execute the command
             result = subprocess.run(command, capture_output=True, text=True, check=True)
