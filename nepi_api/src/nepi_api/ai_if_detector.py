@@ -93,7 +93,7 @@ class AiDetectorIF:
 
     node_if = None
 
-    det_img_pub_file = 'nepi_ai_detector_img_pub_node.py'
+    
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
 
@@ -147,8 +147,8 @@ class AiDetectorIF:
     use_last_image = DEFAULT_USE_LAST_IMAGE
     selected_img_topics = []
 
-    pub_img_enabled=True
-    pub_img_process=None
+    pub_image_enabled=True
+    launch_node_process=None
     pub_img_node_name = ""
     pub_img_namepace = ""
 
@@ -325,9 +325,9 @@ class AiDetectorIF:
                 'namespace': self.node_namespace,
                 'factory_val': 1
             },
-            'pub_image': {
+            'pub_image_enabled': {
                 'namespace': self.node_namespace,
-                'factory_val': self.pub_img_enabled
+                'factory_val': self.pub_image_enabled
             }
         }
 
@@ -492,6 +492,14 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.setTileImgCb, 
+                'callback_args': ()
+            },
+            'set_image_pub': {
+                'namespace': self.node_namespace,
+                'topic': 'set_image_pub',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setPubImageCb, 
                 'callback_args': ()
             },
             'set_overlay_labels': {
@@ -679,7 +687,57 @@ class AiDetectorIF:
             colors_msg_list.append(color_msg)
         return colors_msg_list
 
+    def launch_image_pub_node(self):
+            node_name = self.node_name + "_img_pub"
+            namespace = self.node_namespace + "_img_pub"
+            pkg_name = 'nepi_api'
+            node_file_folder = self.api_lib_folder
+            node_file_name = 'nepi_ai_detector_img_pub_node.py'
+           
+            ###############################
+            # Launch Node
+            node_file_path = os.path.join(node_file_folder,node_file_name)
+            if self.launch_node_process is not None:
+                self.msg_if.pub_warn("Node Already Launched: " + node_name)
+            elif os.path.exists(node_file_path) == False or self.enable_image_pub == False:
+                self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
+            else: 
+                #Try and launch node
+                
+                all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
+                self.msg_if.pub_warn("Launching Node: " + node_name)
 
+                # Pre Set Img Pub Params
+                param_ns = nepi_sdk.create_namespace(namespace,'data_product')
+                nepi_sdk.set_param(param_ns,self.img_data_product)
+
+                param_ns = nepi_sdk.create_namespace(namespace,'det_namespace')
+                nepi_sdk.set_param(param_ns,self.node_namespace)
+
+                param_ns = nepi_sdk.create_namespace(namespace,'all_namespace')
+                nepi_sdk.set_param(param_ns,self.all_namespace)
+                        
+
+                [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name)
+                if success == True:
+                    self.launch_node_process = sub_process
+                    self.pub_img_node_name = node_name
+                    self.pub_img_namepace = namespace
+                self.msg_if.pub_warn("Node launch return msg: " + str(msg))
+
+    def kill_image_pub_node(self):
+        if self.launch_node_process is None:
+            self.msg_if.pub_warn("Node Not Running")
+        else:
+            self.msg_if.pub_warn("Killing Node")
+            success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.launch_node_process)
+            if success == True:
+                self.launch_node_process = None
+                self.pub_img_node_name = node_name
+                self.pub_img_namepace = ""
+                self.msg_if.pub_warn("Node Killed")
+            else:
+                self.msg_if.pub_warn("Failed to Kill Node")
 
 
     def get_states_dict_function(self):    
@@ -689,9 +747,9 @@ class AiDetectorIF:
     def initCb(self,do_updates = False):
         self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
         if self.node_if is not None:
-            self.pub_img_enabled = self.node_if.get_param('pub_image')
-            self.msg_if.pub_warn("Starting with image pub enabled: " + str(self.pub_img_enabled))
-            self.set_pub_image(self.pub_img_enabled)
+            self.pub_image_enabled = self.node_if.get_param('pub_image_enabled')
+            self.msg_if.pub_warn("Launcing Image Pub Node")
+            self.launch_image_pub_node()
 
             self.enabled = self.node_if.get_param('enabled')
             self.selected_classes = self.node_if.get_param('selected_classes')
@@ -990,56 +1048,13 @@ class AiDetectorIF:
         self.set_pub_image(enable)
 
 
+
+
     def set_pub_image(self,enable):
-        self.pub_image = enable
+        self.pub_image_enabled = enable
         self.publish_status()
-
-        if enable == True and self.pub_img_process is None:
-            ###############################
-            # Launch detection img pub node that handles detection image publishing
-            pkg_name = 'nepi_api'
-            node_file_folder = self.api_lib_folder
-            img_pub_file = self.det_img_pub_file
-            img_pub_file_path = os.path.join(node_file_folder,img_pub_file)
-    
-            if os.path.exists(img_pub_file_path) == False or self.enable_image_pub == False:
-                self.msg_if.pub_warn("Could not find Img Pub Node file at: " + img_pub_file_path)
-            else: 
-                #Try and launch node
-                node_name = self.node_name + "_img_pub"
-                namespace = self.node_namespace + "_img_pub"
-                all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
-                self.msg_if.pub_warn("Launching Img Pub Node: " + node_name)
-
-                # Pre Set Img Pub Params
-                param_ns = nepi_sdk.create_namespace(namespace,'data_product')
-                nepi_sdk.set_param(param_ns,self.img_data_product)
-
-                param_ns = nepi_sdk.create_namespace(namespace,'det_namespace')
-                nepi_sdk.set_param(param_ns,self.node_namespace)
-
-                param_ns = nepi_sdk.create_namespace(namespace,'all_namespace')
-                nepi_sdk.set_param(param_ns,self.all_namespace)
-                        
-
-                [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, img_pub_file, node_name)
-                if success == True:
-                    self.pub_img_process = sub_process
-                    self.pub_img_node_name = node_name
-                    self.pub_img_namepace = namespace
-                self.msg_if.pub_warn("Img Pub Node launch return msg: " + str(msg))
-        elif enable == False and self.pub_img_process is not None:
-                success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.pub_img_process)
-                if success == True:
-                    self.pub_img_process = None
-                    self.pub_img_node_name = node_name
-                    self.pub_img_namepace = ""
-                self.msg_if.pub_warn("Img Pub Processing Disabled: " + str(msg))
-        else:
-            self.msg_if.pub_warn("Img Pub Processing Disabled: " + str(enable))
-
         if self.node_if is not None:
-            self.node_if.set_param('pub_image',self.sleep_enabled)
+            self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
             self.node_if.save_config()
 
     #######################################
@@ -1702,6 +1717,9 @@ class AiDetectorIF:
         sel_classes = copy.deepcopy(self.selected_classes)
         self.det_status_msg.selected_classes = sel_classes
         self.det_status_msg.selected_classes_colors = self.create_classes_colors_msg(sel_classes)
+
+
+        self.det_status_msg.pub_image_enabled = self.pub_image_enabled
         self.det_status_msg.overlay_labels = self.overlay_labels
         self.det_status_msg.overlay_clf_name = self.overlay_clf_name
         self.det_status_msg.overlay_img_name = self.overlay_img_name

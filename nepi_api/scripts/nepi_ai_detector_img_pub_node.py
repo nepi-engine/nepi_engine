@@ -174,7 +174,6 @@ class AiDetectorImgPub:
         self.msg_if.pub_warn("Starting with All Namespace: " + str(self.all_namespace))
 
 
-
         self.status_msg = AiDetectorStatus()
         self.model_name = os.path.basename(self.det_namespace)
         self.enabled = False
@@ -182,6 +181,7 @@ class AiDetectorImgPub:
         self.max_rate = 1.0
         self.use_last_image = True
 
+        self.pub_image_enabled = True
         self.overlay_labels = True
         self.overlay_clf_name = False
         self.overlay_img_name = False
@@ -364,9 +364,9 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn("Subscriber Check with image topics: " +  str(selected_img_topics))
         #self.msg_if.pub_warn("Subscriber Check  with active image topics: " +  str(active_img_topics))
         purge_list = []
-        if self.max_rate == -1:
+        if self.max_rate == -1 or self.pub_image_enabled == False:
             purge_list = selected_img_topics
-        else:
+        elif self.pub_image_enabled == True:
             # Update Image subscribers
             found_img_topics = []
             for img_topic in selected_img_topics:
@@ -815,6 +815,7 @@ class AiDetectorImgPub:
         self.classes_colors_list = classes_colors_list
         #self.msg_if.pub_warn("Got Classes Colors List " + str(self.classes_colors_list))
 
+        self.pub_image_enabled = self.status_msg.pub_image_enabled
         self.overlay_labels = self.status_msg.overlay_labels
         self.overlay_clf_name = self.status_msg.overlay_clf_name
         self.overlay_img_name = self.status_msg.overlay_img_name
