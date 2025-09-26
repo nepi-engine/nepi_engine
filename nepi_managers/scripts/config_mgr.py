@@ -465,7 +465,7 @@ class config_mgr(object):
             if os.path.exists(factory_pathname):
                 shutil.copy2(factory_pathname,scfg_pathname)  # Use copy2 to preserve metadata
         if success == True:
-            # Restore saved param config if exists from first find
+            # Restore saved param config if exists from first find in order (user,system,factory)
             config_folders = ['user_cfg','system_cfg','factory_cfg']
             for key in config_folders:
                 if key in self.config_folders.keys():
