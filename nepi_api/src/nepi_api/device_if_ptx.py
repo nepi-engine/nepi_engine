@@ -320,12 +320,13 @@ class PTXActuatorIF:
         self.supports_sin_scan = supportsSinScan
 
         # SPEED SETTINGS  #############
+        self.setSpeedRatioCb = setSpeedRatioCb
         if setSpeedRatioCb is None:
-            self.getSpeedRatioCb = self.getZeroCb
+            self.getSpeedRatioCb = self.getZeroCb #None
         else:
             self.setSpeedRatioCb = setSpeedRatioCb
         self.getSpeedRatioCb = getSpeedRatioCb
-        if getSpeedRatioCb is not None:
+        if getSpeedRatioCb is not None and setSpeedRatioCb is not None:
             self.has_adjustable_speed = True
 
 
@@ -705,6 +706,7 @@ class PTXActuatorIF:
                 'callback': self.setAutoPanWindowHandler, 
                 'callback_args': ()
             },
+            '''
             'set_auto_pan_sin': {
                 'namespace': self.namespace,
                 'topic': 'set_auto_pan_sin_enable',
@@ -713,6 +715,7 @@ class PTXActuatorIF:
                 'callback': self.setSinPanHandler, 
                 'callback_args': ()
             },
+            '''
             'set_auto_tilt': {
                 'namespace': self.namespace,
                 'topic': 'set_auto_tilt_enable',
@@ -729,6 +732,7 @@ class PTXActuatorIF:
                 'callback': self.setAutoTiltWindowHandler, 
                 'callback_args': ()
             },
+            '''
             'set_auto_tilt_sin': {
                 'namespace': self.namespace,
                 'topic': 'set_auto_tilt_sin_enable',
@@ -737,6 +741,7 @@ class PTXActuatorIF:
                 'callback': self.setSinTiltHandler, 
                 'callback_args': ()
             },
+            '''
             'set_mount_desc': {
                 'namespace': self.namespace,
                 'topic': 'set_mount_description',
@@ -1146,7 +1151,7 @@ class PTXActuatorIF:
             sin_len = math.ceil(auto_pan_time) *2
             self.auto_pan_sins = list( (np.sin(  (np.linspace(0,1,sin_len)*4*math.pi) - (math.pi)/2) + 1  ) /2 )
             self.auto_pan_sin_ind = 0
-            self.msg_if.pub_warn("updated pan sin " + str(self.auto_pan_sins), log_name_list = self.log_name_list)
+            #self.msg_if.pub_warn("updated pan sin " + str(self.auto_pan_sins), log_name_list = self.log_name_list)
 
 
 
@@ -1496,7 +1501,7 @@ class PTXActuatorIF:
         self.setAutoPan(False)
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
-            direction = msg.direction * self.rpisetSinPanHandler
+            direction = msg.direction * self.rpi
             time_s = msg.duration_s
             self.movePanCb(direction,  time_s)
             self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
@@ -1547,17 +1552,19 @@ class PTXActuatorIF:
         enabled = msg.data
         self.msg_if.pub_info("Setting auto pan: " + str(enabled))
         self.setAutoPan(enabled)
-
+        self.publish_status()
+        if enabled == False and self.auto_tilt_enabled == False and self.setSpeedRatioCb is not None:
+            self.msg_if.pub_info("1")
+            self.setSpeedRatioCb(self.speed_ratio)
+        self.node_if.set_param('auto_pan_enabled', enabled)
 
 
 
     def setAutoPan(self,enabled):
         self.auto_pan_enabled = enabled
         self.publish_status()
-        if enabled == False and self.auto_tilt_enabled == False and self.setSpeedRatioCb is not None:
-            self.msg_if.pub_info("1")
-            self.setSpeedRatioCb(self.speed_ratio)
-        self.node_if.set_param('auto_pan_enabled', self.auto_pan_enabled)
+
+        
 
     '''
     def setSinPanHandler(self, msg):
@@ -1607,14 +1614,17 @@ class PTXActuatorIF:
         enabled = msg.data
         self.msg_if.pub_info("Setting auto tilt: " + str(enabled))
         self.setAutoTilt(enabled)
-
-    def setAutoTilt(self,enabled):
-        self.auto_tilt_enabled = enabled
         self.publish_status()
         if enabled == False and self.auto_pan_enabled == False and self.setSpeedRatioCb is not None:
             self.msg_if.pub_info("3")
             self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
+
+    def setAutoTilt(self,enabled):
+        self.auto_tilt_enabled = enabled
+        self.publish_status()
+
+        
 
     '''
     def setSinTiltHandler(self, msg):
@@ -1897,7 +1907,7 @@ class PTXActuatorIF:
         self.status_msg.device_mount_description = self.get_mount_description()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
-            [pan_deg,tilt_deg] = self.getPositionCb()
+            [pan_deg ,tilt_deg] = self.getPositionCb()
             #self.msg_if.pub_warn("Got PT position: " + str(pan_deg) + " : " + str(tilt_deg))
             cur_time = nepi_utils.get_time()
             last_time = copy.deepcopy(self.pan_last_time)
@@ -2016,6 +2026,9 @@ class PTXActuatorIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
         pub_time = nepi_utils.get_time() - start_time
         return pub_time
+
+    def getZeroCb(self):
+        return 0
 
 
     def _publishStatusCb(self,timer):
