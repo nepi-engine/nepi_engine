@@ -60,6 +60,7 @@ NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
     
+    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_system_config.yaml'
 
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -68,7 +69,6 @@ class SystemMgrNode():
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
     SYS_ENV_PATH = NEPI_FOLDER + "/sys_env.bash"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
-    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_system_config.yaml'
 
     STATES_DICT = dict()
 
@@ -206,7 +206,7 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
-        for key in self.nepi_config.keys(): # Fixe empty arrays
+        for key in self.nepi_config.keys(): # Fix empty arrays
             if self.nepi_config[key] is None:
                 self.nepi_config[key]=[]
 

@@ -20,7 +20,8 @@ log_name = "nepi_system"
 logger = Logger(log_name = log_name)
 
 
-NEPI_CONFIG_FILE='/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
+NEPI_SYSTEM_CONFIG_FILE='/opt/etc/nepi_system_config.yaml'
+NEPI_DOCKER_CONFIG_FILE='/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
 
 #######################
 ## Get System Data Functions
@@ -157,6 +158,31 @@ def get_active_auto_scrips(timeout = 1000, log_name_list = []):
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 '''
+
+########################
+def load_nepi_system_config():
+    config_dict=dict()
+    config_dict = nepi_utils.read_dict_from_file(NEPI_SYSTEM_CONFIG_FILE)
+    if config_dict is None:
+        config_dict = dict()
+    for key in config_dict.keys(): # Fixe empty arrays
+        if config_dict[key] is None:
+            config_dict[key]=[]
+    return config_dict
+
+def save_nepi_system_config(config_dict):
+    success = nepi_utils.write_dict_to_file(config_dict, NEPI_SYSTEM_CONFIG_FILE)
+    return success
+
+def update_nepi_system_config(config_key, config_value, config_dict = None):
+    success=False
+    if config_dict is None:
+        config_dict=load_nepi_system_config()
+    if len(config_dict.keys()) > 0:
+        config_dict[config_key] = config_value
+        success=save_nepi_system_config(config_dict)
+    return success
+
 
 ########################
 def load_nepi_docker_config():

@@ -40,7 +40,6 @@ from nepi_api.node_if import NodeClassIF
 
 USER_CFG_SUFFIX = '.user'
 
-CHRONY_CFG_LINKNAME = '/etc/chrony/chrony.conf'
 CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony/chrony.conf'
 CHRONY_CFG_FACTORY = '/mnt/nepi_config/factory_cfg/etc/chrony/chrony.conf'
 CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
@@ -100,13 +99,13 @@ class time_sync_mgr(object):
         self.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
         self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
   
+        self.nepi_config_path = self.nepi_config['NEPI_CONFIG']
 
-        #self.chrony_running = self.check_chrony_process()
-        # if self.chrony_running == True:
-        #     self.msg_if.pub_warn("Chrony process running")
-        # else:
-        #     self.msg_if.pub_warn("Chrony process not found. NEPI Time Management disabled")
-        # Debug
+        self.nepi_system_etc_path = self.nepi_config_path + "/system_cfg/etc"
+        self.nepi_system_config_file = self.nepi_system_etc_path + "/nepi_system_config.yaml"
+
+        self.nepi_docker_config_path = self.nepi_config_path + "/docker_cfg/etc"
+        self.nepi_docker_config_file = self.nepi_docker_config_path + "/nepi_docker_config.yaml"
     
         
         ##############################
@@ -345,10 +344,12 @@ class time_sync_mgr(object):
 
 
     def restart_chrony(self):
-        if self.in_container == True:
-            nepi_system.update_config_value('NEPI_ETC_UPDATE',1)
-        else:    
-            subprocess.call(["systemctl", "restart", CHRONY_SYSTEMD_SERVICE_NAME])
+            ### Update ETC Files
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            subprocess.call([etc_update_script])
+            nepi_utils.sleep(1)
+            self.nepi_config = self.get_nepi_system_config()
+            ####################
 
     def reset_to_factory_conf(self):
         if os.path.exists(CHRONY_CFG_FACTORY) == True:
@@ -356,66 +357,22 @@ class time_sync_mgr(object):
             self.restart_chrony()
 
     def add_server(self,server_host):
-        if self.in_container == True:
-            # Check if new and Update Docker Config
-            # Update Status
-            # Save to Params
-            pass
-        else:
-            #ensure just a simple hostname is being added
-            host = server_host.data.split()[0]
-
-            new_server_cfg_line = 'server ' + host + ' iburst minpoll 2'
-            # TODO: May one day want to user chrony option initstepslew for even earlier synchronization
-            #init_slew_cfg_line = 'initstepslew 1 ' + host
-            match_line = '^' + new_server_cfg_line
-            file = open(CHRONY_CFG_BASENAME, 'r+')
-            found_match = False
-            for line in file.readlines():
-                if re.search(match_line, line):
-                    self.msg_if.pub_info("Ignoring redundant NTP server additions for: " + str(host))
-                    found_match = True
-                    break
-
-            #At EOF, so just write here
-            if (False == found_match):
-                self.msg_if.pub_info("Adding new NTP server: " + host)
-                file.write(new_server_cfg_line + '\n')
-                # Restart chrony to allow changes to take effect
-                self.restart_chrony()
+            ### Update ETC Files
+            nepi_system.update_nepi_system_config("NEPI_NTP_IPS",server_host)
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            subprocess.call([etc_update_script])
+            nepi_utils.sleep(1)
+            self.nepi_config = self.get_nepi_system_config()
+            ####################
 
     def remove_server(self,server_host):
-        if self.in_container == True:
-            # Check if new and Update Docker Config
-            # Update Status
-            # Save to Params
-            pass
-        else:
-            #ensure just a simple hostname is being added
-            host = server_host.data.split()[0]
-
-            match_line = '^server ' + host + ' iburst minpoll 2'
-            # Must copy the file linebyline to a tmp, then overwrite the original
-            orig_file = open(CHRONY_CFG_BASENAME, 'r')
-            tmpfile_path = CHRONY_CFG_BASENAME + ".tmp"
-            tmp_file = open(tmpfile_path, 'w')
-            found_it = False
-            for line in orig_file.readlines():
-                if re.search(match_line, line):
-                    # Don't write this line as we want to eliminate it
-                    self.msg_if.pub_info("Removing NTP server: " + str(host))
-                    found_it = True
-                    continue
-                else:
-                    tmp_file.write(line)
-
-            orig_file.close()
-            tmp_file.close()
-            os.rename(tmpfile_path, CHRONY_CFG_BASENAME)
-
-            if True == found_it:
-                # Restart chrony to allow changes to take effect
-                self.restart_chrony()
+            ### Update ETC Files
+            nepi_system.update_nepi_system_config("NEPI_NTP_IPS","NONE")
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            subprocess.call([etc_update_script])
+            nepi_utils.sleep(1)
+            self.nepi_config = self.get_nepi_system_config()
+            ####################
 
     def gather_ntp_status_timer_cb(self,event):
         # Just call the implementation method. We don't care about the event payload
@@ -463,8 +420,6 @@ class time_sync_mgr(object):
     def gather_ntp_status(self):
         ntp_status = [] # List of lists
         if self.in_container == True:
-            # nepi_system.update_config_value('NEPI_ETC_UPDATE',1)
-            #ntp_status.append()
             pass
         else:  
             chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
