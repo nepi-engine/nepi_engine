@@ -24,6 +24,7 @@ import shlex
 #import psutil
 
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 
 # Local rootfs definitions - These can be freely changed
 ###################################################################################################
@@ -95,7 +96,7 @@ def checkAndRepairPartition(partition_device):
     return True, "Success"
 
 def resetBootFailCounter(first_stage_rootfs_device):
-    NEPI_DOCKER_CONFIG["FAIL_COUNT"] = 0
+    nepi_system.update_nepi_docker_config("NEPI_WIFI_ACCESS_POINT_ENABLED",0)
     return True, "Success"
 
 def switchActiveAndInactivePartitions():
