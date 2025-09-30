@@ -115,6 +115,8 @@ class NepiDriversMgr(object):
         self.user_cfg_folder = system_folders['user_cfg']
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
     
+        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        config_folders = nepi_system.get_config_folders()    
         
         ##############################
         # Initialize Class Variables

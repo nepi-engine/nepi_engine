@@ -177,11 +177,8 @@ class NetworkMgr:
         self.nepi_system_etc_path = self.nepi_config_path + "/system_cfg/etc"
         self.nepi_system_config_file = self.nepi_system_etc_path + "/nepi_system_config.yaml"
 
-        # self.nepi_docker_config_path = self.nepi_config_path + "/docker_cfg/etc"
-        # self.nepi_docker_config_file = self.nepi_docker_config_path + "/nepi_docker_config.yaml"
-
-
-        #self.manages_network = self.manages_network and (self.in_container == False) 
+        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        config_folders = nepi_system.get_config_folders() 
 
         ##############################
         # Initialize Variables

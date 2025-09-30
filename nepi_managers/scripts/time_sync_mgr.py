@@ -108,6 +108,8 @@ class time_sync_mgr(object):
         self.nepi_docker_config_file = self.nepi_docker_config_path + "/nepi_docker_config.yaml"
     
         
+        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        config_folders = nepi_system.get_config_folders()
         ##############################
         # Initialize Class Variables
         self.msg_if.pub_warn("Setting Timezone to: " + str(FACTORY_TIMEZONE))

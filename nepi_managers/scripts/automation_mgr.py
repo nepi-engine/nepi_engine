@@ -94,6 +94,8 @@ class AutomationManager(object):
         self.scripts_log_folder = self.scripts_folder = user_folders['logs/automation_script_logs']
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
+        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        config_folders = nepi_system.get_config_folders()
           
 
         ##############################

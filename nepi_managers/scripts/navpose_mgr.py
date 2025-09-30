@@ -199,6 +199,10 @@ class NavPoseMgr(object):
 
         ##############################
         # Initialize Class Variables
+
+        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        config_folders = nepi_system.get_config_folders()
+
         self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
 
         self.cb_dict = {
