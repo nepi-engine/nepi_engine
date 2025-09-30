@@ -177,7 +177,7 @@ class NetworkMgr:
         self.nepi_system_etc_path = self.nepi_config_path + "/system_cfg/etc"
         self.nepi_system_config_file = self.nepi_system_etc_path + "/nepi_system_config.yaml"
 
-        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders() 
 
         ##############################

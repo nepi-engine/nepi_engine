@@ -200,6 +200,23 @@ class NepiTargetsMgr(object):
     self.msg_if = MsgIF(log_name = self.class_name)
     self.msg_if.pub_info("Starting IF Initialization Processes")
 
+    ##############################
+    # Get for Other Managers
+    self.msg_if.pub_info("Waiting for system folders")
+    system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+    self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+
+    self.databases_folder = system_folders['databases']
+    self.msg_if.pub_info("Using APPS Params Folder: " + str(self.apps_param_folder))
+
+    self.msg_if.pub_warn("Waiting for Config Mgr")
+    config_folders = nepi_system.get_config_folders()
+
+    self.msg_if.pub_info("Waiting for driver manager to start")
+    active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
+    nepi_sdk.sleep(5) # Some extra time for drivers to load
+
+
     ##############################     
     # Initialize Class Variables
 

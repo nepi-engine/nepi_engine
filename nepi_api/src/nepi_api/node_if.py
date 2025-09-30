@@ -128,9 +128,9 @@ class NodeConfigsIF:
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
         
-        if wait_cfg_mgr == True:
-            self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
-            config_folders = nepi_system.get_config_folders()
+        # if wait_cfg_mgr == True:
+        #     self.msg_if.pub_warn("Waiting for Config Mgr")
+        #     config_folders = nepi_system.get_config_folders()  
 
         # Subscribe to save config for node namespace
         nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)

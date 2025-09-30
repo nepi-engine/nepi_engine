@@ -115,7 +115,7 @@ class NepiDriversMgr(object):
         self.user_cfg_folder = system_folders['user_cfg']
         self.msg_if.pub_info("Using User Config Folder: " + str(self.user_cfg_folder))
     
-        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()    
         
         ##############################
@@ -402,20 +402,42 @@ class NepiDriversMgr(object):
     # First check on running nodes that should not be running
     purge_list = []
     for driver_name in drvs_ordered_list:
-      if driver_name not in drvs_active_list and driver_name in self.discovery_node_dict.keys():
+      if driver_name not in drvs_active_list:
+        purge_list.append(driver_name)
+
+    # purge from active discovery dict
+    for driver_name in purge_list:
+      process = drvs_dict[driver_name]['DISCOVERY_DICT']['process']
+      if process == "LAUNCH":
+        if driver_name in self.discovery_node_dict.keys():
+          self.msg_if.pub_warn("Disabling driver: " + str(driver_name))
           node_name = self.discovery_node_dict[driver_name]['node_name']
           if node_name in node_list:
-            process = self.discovery_node_dict[driver_name]['process']
-            if process == "LAUNCH":
+              self.msg_if.pub_warn("Killing driver node " + str(node_name) + " for driver: " + str(driver_name))
               sub_process = self.discovery_node_dict[driver_name]['subprocess']
               success = nepi_drvs.killDriverNode(node_name,sub_process)
               if success:
-                purge_list.append(driver_name)
-    # purge from active discovery dict
-    for driver_name in purge_list:
-      if driver_name in self.discovery_node_dict.keys():
-        del self.discovery_node_dict[driver_name]
-  
+                self.msg_if.pub_warn("Killed driver node " + str(node_name) + " for driver: " + str(driver_name))
+                if driver_name in self.discovery_node_dict.keys():
+                  del self.discovery_node_dict[driver_name]
+                  self.msg_if.pub_warn("Deleted driver node " + str(node_name) + " dict entry for driver: " + str(driver_name))
+              else:
+                self.msg_if.pub_warn("Failed to kill driver node " + str(node_name) + " for driver: " + str(driver_name))
+      if process == "CALL":
+        if driver_name in self.discovery_classes_dict.keys():
+          self.msg_if.pub_warn("Disabling driver: " + str(driver_name))
+          self.msg_if.pub_warn("Killing all devices for driver: " + str(driver_name) + " active paths list " + str(self.active_paths_list))
+          try:
+            
+            self.active_paths_list = self.discovery_classes_dict[driver_name].killAllDevices(self.active_paths_list)
+            self.msg_if.pub_warn("Got updated active paths list " + str(self.active_paths_list))
+          except:
+            self.msg_if.pub_warn("Driver has no killAllDevices function: " + str(driver_name))
+          self.msg_if.pub_warn("Deleting imported classes function for driver: " + str(driver_name))
+          del self.discovery_classes_dict[driver_name]
+          if driver_name in self.failed_class_import_list:
+            self.msg_if.pub_warn("Removing driver from failed imported list: " + str(driver_name))
+            self.failed_class_import_list.remove(driver_name) 
 
     ################################    
     ## Do Discovery
@@ -497,7 +519,7 @@ class NepiDriversMgr(object):
           # Call Auto-Call processes 
           if discovery_process == "CALL":
             active_paths_list = None
-            #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name + " with drv_dict " + str(drv_dict))
+            #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name ) #+ " with drv_dict " + str(drv_dict))
             if driver_name not in self.discovery_classes_dict.keys() and driver_name not in self.failed_class_import_list:
               self.msg_if.pub_info("")
               self.msg_if.pub_info("Importing discovery class " + discovery_class_name + " for driver " + driver_name)
@@ -520,11 +542,13 @@ class NepiDriversMgr(object):
               try:
                 active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
               except Exception as e:
-                self.msg_if.pub_info("Failed to call discovery function for driver: " + driver_name + " with drv_dict " + str(drv_dict))
-              if active_paths_list is None:
+                self.msg_if.pub_info("Failed to call discovery function for driver: " + driver_name + " : " + str(e))
+                self.msg_if.pub_info("Disabling driver: " + driver_name)
+                self.update_state(driver_name,False)
+                self.msg_if.pub_info("Deleting driver discovery class for : " + driver_name)
                 del self.discovery_classes_dict[driver_name]
-                if retry == False:
-                  self.failed_class_import_list.append(driver_name)
+                #if retry == False:
+                  #self.failed_class_import_list.append(driver_name)
               else:
                 self.active_paths_list = active_paths_list
 
@@ -838,8 +862,9 @@ class NepiDriversMgr(object):
 
   def disableAllCb(self,msg):
     self.msg_if.pub_info("Got disable all msg: " + str(msg))
-    drvs_dict = copy.deepcopy(self.drvs_dict)
-    self.drvs_dict =  nepi_drvs.disableAllDrivers(drvs_dict)
+    drvs_namses = self.drvs_dict.keys()
+    for driver_name in drvs_namses:
+      self.update_state(driver_name,False)
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
@@ -854,9 +879,13 @@ class NepiDriversMgr(object):
     self.publish_status()
 
   def updateStateCb(self,msg):
-    self.msg_if.pub_info("Got Update driver state msg: " + str(msg))
+    self.msg_if.pub_info("Got update driver state msg: " + str(msg))
     driver_name = msg.name
     new_active_state = msg.active_state
+    self.update_state(driver_name,new_active_state)
+
+  def update_state(self,driver_name,new_active_state):
+    self.msg_if.pub_info("Updateing driver " + driver_name + " state: " + str(new_active_state))
     drvs_dict = copy.deepcopy(self.drvs_dict)
     active_state = False
     if driver_name in drvs_dict.keys() and driver_name != 'None':

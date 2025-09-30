@@ -248,6 +248,7 @@ class config_mgr(object):
         self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
+        self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
         nepi_system.set_config_folders(self.config_folders)
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)

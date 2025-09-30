@@ -150,8 +150,8 @@ class SystemMgrNode():
     user_folders = dict()
     system_folders = dict()
 
-    folders_uid = 1000 # default to nepi
-    folders_gid = 130 # default to "sambashare" # TODO This is very fragile
+    folders_uid = 'nepi' #1000 # default to nepi
+    folders_gid = 'nepi'
 
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
@@ -210,7 +210,12 @@ class SystemMgrNode():
             if self.nepi_config[key] is None:
                 self.nepi_config[key]=[]
 
-
+        # Gather owner and group details for storage mountpoint
+        # stat_info = os.stat(self.storage_folder)
+        # self.folders_uid = stat_info.st_uid
+        # self.folders_gid = stat_info.st_gid
+        self.folders_uid = self.nepi_config['NEPI_USER']
+        self.folders_gid = self.nepi_config['NEPI_USER']
 
         check_path=self.nepi_config['NEPI_STORAGE']
         if os.path.exists(check_path)==False:
@@ -365,10 +370,7 @@ class SystemMgrNode():
             self.storage_folder = ""
             return False
 
-        # Gather owner and group details for storage mountpoint
-        stat_info = os.stat(self.storage_folder)
-        self.folders_uid = stat_info.st_uid
-        self.folders_gid = stat_info.st_gid
+
 
 
         self.msg_if.pub_warn("Checking System Folders")

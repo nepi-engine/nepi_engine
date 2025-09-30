@@ -99,7 +99,7 @@ class NepiAppsMgr(object):
         self.apps_install_folder = system_folders['apps_install']
         self.msg_if.pub_info("Using APPS Install Folder: " + str(self.apps_install_folder))
 
-        self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
         self.msg_if.pub_info("Waiting for driver manager to start")
