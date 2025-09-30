@@ -71,17 +71,19 @@ class NodeConfigsIF:
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
+        
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
-
+        
         ##############################  
         # Create Msg Class
         if msg_if is None:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
+        
         self.log_name_list = copy.deepcopy(log_name_list)
         self.log_name_list.append(self.class_name)
         self.msg_if.pub_debug("Starting Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
@@ -110,25 +112,25 @@ class NodeConfigsIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
-
+        
         # Create reset serivces
+        
         self.request_msg.namespace = self.namespace
         ns = nepi_sdk.create_namespace(self.namespace,'user_reset')
         self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.namespace,'factory_reset')
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-
+        
         ns = nepi_sdk.create_namespace(self.base_namespace,'user_reset')
         self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'factory_reset')
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
-
+        
         if wait_cfg_mgr == True:
-            self.msg_if.pub_debug("Waiting for Config Mgr", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Waiting for Config Mgr", log_name_list = self.log_name_list)
             config_folders = nepi_system.get_config_folders()
-
 
         # Subscribe to save config for node namespace
         nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)
@@ -150,7 +152,7 @@ class NodeConfigsIF:
 
         params_dict = nepi_sdk.get_param(self.namespace, dict())
         self.msg_if.pub_debug("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
-        
+
         if 'init_configs' in configs_dict.keys():
             
             init_configs = configs_dict['init_configs']
@@ -1073,6 +1075,7 @@ class NodeClassIF:
            
         ##############################  
         # Create Config Class After Params
+
         if configs_dict is not None:
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
@@ -1091,9 +1094,10 @@ class NodeClassIF:
 
         self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+
         self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-        
+
         nepi_sdk.sleep(0.1)
       
         ##############################  

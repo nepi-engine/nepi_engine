@@ -90,6 +90,7 @@ class config_mgr(object):
         self.SYSTEM_CFG_PATH = self.config_folders['system_cfg']
         self.USER_CFG_PATH = self.config_folders['user_cfg']
         self.msg_if.pub_warn("Using config folders: " + str(self.config_folders))
+        
         ##############################
         ### Setup Node
 
@@ -247,6 +248,7 @@ class config_mgr(object):
         self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
+        nepi_system.set_config_folders(self.config_folders)
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_sdk.spin()

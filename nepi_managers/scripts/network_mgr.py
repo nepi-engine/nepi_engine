@@ -867,7 +867,7 @@ class NetworkMgr:
                 scan_result = subprocess.check_output(network_scan_cmd, text=True)
                 #self.msg_if.pub_warn("Got WiFi scan results: " + str(scan_result))
             except Exception as e:
-                self.msg_if.pub_warn("Failed to scan for available WiFi networks: " + str(scan_result) + str(e))
+                #self.msg_if.pub_warn("Failed to scan for available WiFi networks: " + str(scan_result) + str(e))
                 pass
             if scan_result != "":
                 for scan_line in scan_result.splitlines():
