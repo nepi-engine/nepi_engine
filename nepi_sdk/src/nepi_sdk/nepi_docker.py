@@ -96,7 +96,11 @@ def checkAndRepairPartition(partition_device):
     return True, "Success"
 
 def resetBootFailCounter(first_stage_rootfs_device):
-    nepi_system.update_nepi_docker_config("NEPI_WIFI_ACCESS_POINT_ENABLED",0)
+    nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT",0)
+    nepi_system.update_nepi_docker_config("NEPI_TEST",0)
+    # print("<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    # print("Updating Fail Boot Count")
+    # print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
     return True, "Success"
 
 def switchActiveAndInactivePartitions():
