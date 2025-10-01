@@ -386,7 +386,7 @@ class NepiDriversMgr(object):
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
     nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
     nepi_sdk.set_param('active_drivers', drvs_active_list)
-    #self.msg_if.pub_warn("Update start active drvs: " + str(drvs_active_list))
+    
     ## Next process active driver processes
 
     ################################    
