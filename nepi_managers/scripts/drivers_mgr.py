@@ -400,10 +400,15 @@ class NepiDriversMgr(object):
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
     # First check on running nodes that should not be running
-    purge_list = []
     for driver_name in drvs_ordered_list:
       if driver_name not in drvs_active_list:
-        purge_list.append(driver_name)
+        if driver_name in self.discovery_node_dict.keys():
+            purge_list.append(driver_name)
+        if driver_name in self.discovery_classes_dict.keys():
+          purge_list.append(driver_name)
+
+    if len(purge_list) > 0:
+      self.msg_if.pub_warn("Processing driver purge list " + str(purge_list))
 
     # purge from active discovery dict
     for driver_name in purge_list:
