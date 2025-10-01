@@ -404,8 +404,8 @@ class NepiDriversMgr(object):
     for driver_name in drvs_ordered_list:
       if driver_name not in drvs_active_list:
         if driver_name in self.discovery_node_dict.keys():
-            purge_list.append(driver_name)
-        if driver_name in self.discovery_classes_dict.keys():
+          purge_list.append(driver_name)
+        elif driver_name in self.discovery_classes_dict.keys():
           purge_list.append(driver_name)
 
     if len(purge_list) > 0:
