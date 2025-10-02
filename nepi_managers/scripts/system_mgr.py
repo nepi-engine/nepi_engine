@@ -398,7 +398,7 @@ class SystemMgrNode():
         # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
         # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
         # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
-        if self.rootfs_ab_scheme == 'nepi': # The 'jetson' scheme handles this itself
+        if self.rootfs_ab_scheme == 'nepi' or self.in_container == 1 : # The 'jetson' scheme handles this itself
             status, err_msg = self.nepi_image.resetBootFailCounter(
                 self.first_rootfs)
             if status is False:
