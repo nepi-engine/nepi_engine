@@ -53,7 +53,6 @@ def getImageFileInfo(image_file):
     return info_dict
 
 
-
 def mountPartition(part_device_pathname, part_mountpoint):
     # Might already be mounted
     if os.path.ismount(part_mountpoint):
@@ -170,7 +169,7 @@ def switchActiveAndInactiveContainers():
     return True, "Success"
 
 
-def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
+def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
     return True, "Success"
 
 

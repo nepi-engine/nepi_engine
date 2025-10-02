@@ -1530,7 +1530,7 @@ class AiDetectorIF:
                                 detect_dict_list = []
                                 try:
                                     threshold = self.threshold
-                                    detect_dicts = self.processDetection(img_dict,threshold) 
+                                    #detect_dicts = self.processDetection(img_dict,threshold) 
                                     #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
                                     success = True
                                     self.first_detect_complete = True
