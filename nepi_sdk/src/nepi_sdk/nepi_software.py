@@ -290,7 +290,7 @@ def getPartitionFreeByteCount(partition_device):
     statvfs = os.statvfs(STAGING_MOUNTPOINT)
     return (float(statvfs.f_frsize) * statvfs.f_bavail)
 
-def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
+def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
     if not os.path.exists(new_img_staging_device):
         return False, "Staging partition device does not exist"
 
@@ -404,7 +404,7 @@ def switchActiveAndInactivePartitionsJetson():
     subprocess.call(['nvbootctrl', '-t', 'rootfs', 'set-active-boot-slot', new_slot_num], text=True)
     return True, "Success"
 
-def archiveInactiveToStaging(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
+def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
     # First, check that the devices exist and are mounted/unmounted as necessary
     if not os.path.exists(staging_device):
         return False, "Staging partition device does not exist"

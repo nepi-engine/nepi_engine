@@ -33,22 +33,49 @@ from nepi_sdk import nepi_system
 NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
 config_dict=nepi_utils.read_dict_from_file(NEPI_CONFIG_FILE)
 
-def CheckPartitionBusy(partition_path):
-    return False
+def getContainerInfo(which_container = 'Active'):
+    return name, tag, version, hw_type, hw_model, date
+
+def getImageInfo(image_file):
+    return name, tag, version, hw_type, hw_model, date
+
 
 def mountPartition(part_device_pathname, part_mountpoint):
-    return True, "Success"
+    # Might already be mounted
+    if os.path.ismount(part_mountpoint):
+        return True, "Already mounted"
+
+    if not os.path.exists(part_device_pathname):
+        return False, "Partition device does not exist"
+
+    if not os.path.isdir(part_mountpoint):
+        os.mkdir(part_mountpoint)
+
+    mount_rc = subprocess.call(
+        ["mount", part_device_pathname, part_mountpoint])
+    if mount_rc == 0:
+        return True, "Success"
+    else:
+        return False, "Failed to mount"
 
 
 def unmountPartition(part_mountpoint):
-    return True, "Success"
+    # Might already be unmounted
+    if not os.path.ismount(part_mountpoint):
+        return True, "Partition Already unmounted"
+
+    if CheckPartitionBusy(part_mountpoint) == True:
+        return False, "Partition Busy"
+
+    unmount_rc = subprocess.call(["umount", part_mountpoint])
+    if unmount_rc == 0:
+        return True, "Success"
+    else:
+        return False, "Failed to unmount"
 
 
-def getFWVersionStringForPartition(partition_device_name):
-    return True, "Success", "Uknown"
 
-
-def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removable):
+def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
     return True, "New image file identified", ["nepi-3p2p2-jetson-orin-5d.tar"], ["3p2p2-jetson-orin-5d"] , [100]
 
 def getRootfsABStatus():
@@ -73,7 +100,10 @@ def getPartitionFreeByteCount(partition_device):
     return 100000000000
 
 # Export
-def writeImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
+def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
+
+    ### CHECK IF FILE EXISTS
+
     path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
     try:
         # Execute the shell script and wait for it to complete
@@ -97,13 +127,16 @@ def checkAndRepairPartition(partition_device):
 
 def resetBootFailCounter(first_stage_rootfs_device):
     nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT",0)
-    nepi_system.update_nepi_docker_config("NEPI_TEST",0)
     # print("<<<<<<<<<<<<<<<<<<<<<<<<<<")
     # print("Updating Fail Boot Count")
     # print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
     return True, "Success"
 
-def switchActiveAndInactivePartitions():
+def switchActiveAndInactiveContainers():
+
+    ### CHECK IF AB FS Supported
+
+
     path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
     try:
         # Execute the shell script and wait for it to complete
@@ -122,10 +155,8 @@ def switchActiveAndInactivePartitions():
         print("Exit Code:", e.returncode)
     return True, "Success"
 
-def switchActiveAndInactivePartitionsJetson():
-    return True, "Success"
 
-def archiveInactiveToStaging(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
+def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None):
     return True, "Success"
 
 

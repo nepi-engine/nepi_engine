@@ -165,7 +165,7 @@ class SystemMgrNode():
     new_img_version = ""
     new_img_filesize = ""
     install_status = True
-    archiving_inactive_image = False
+    saving_image = False
 
     in_container = False
 
@@ -639,28 +639,28 @@ class SystemMgrNode():
                 'callback': self.systemErrorCb, 
                 'callback_args': ()
             },
-            'install_new_image': {
+            'install_nepi_image': {
                 'namespace': self.base_namespace,
-                'topic': 'install_new_image',
+                'topic': 'install_nepi_image',
                 'msg': String,
                 'qsize': 1,
-                'callback': self.installNewImageCb, 
+                'callback': self.installImageCb, 
                 'callback_args': ()
             },
-            'switch_active_inactive_rootfs': {
+            'switch_nepi_image': {
                 'namespace': self.base_namespace,
-                'topic': 'switch_active_inactive_rootfs',
+                'topic': 'switch_nepi_image',
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.handle_switch_active_inactive_rootfs, 
                 'callback_args': ()
             },
-            'archive_inactive_rootfs': {
+            'save_nepi_image': {
                 'namespace': self.base_namespace,
-                'topic': 'archive_inactive_rootfs',
+                'topic': 'save_nepi_image',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self.archiveImageCb, 
+                'callback': self.saveImageCb, 
                 'callback_args': ()
             },
             'save_data_prefix': {
@@ -1310,7 +1310,7 @@ class SystemMgrNode():
     def receive_archive_progress(self, progress_val):
         self.status_msg.sys_img_archive_progress = progress_val
     
-    def installNewImageCb(self, msg):
+    def installImageCb(self, msg):
         if self.installing_new_image:
             self.msg_if.pub_warn("New image is already being installed")
             return
@@ -1319,7 +1319,7 @@ class SystemMgrNode():
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
-        self.install_status, err_msg = self.nepi_image.writeImage(self.new_img_staging, decompressed_img_filename, self.inactive_rootfs, 
+        self.install_status, err_msg = self.nepi_image.installImage(self.new_img_staging, decompressed_img_filename, self.inactive_rootfs, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
@@ -1362,7 +1362,7 @@ class SystemMgrNode():
     
     def handle_switch_active_inactive_rootfs(self, msg):
         if self.in_container == True:
-            status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
+            status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
         elif self.rootfs_ab_scheme == 'nepi':
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
         elif self.rootfs_ab_scheme == 'jetson':
@@ -1379,34 +1379,46 @@ class SystemMgrNode():
         self.msg_if.pub_warn(
             "Switched active and inactive rootfs. Must reboot system for changes to take effect")
 
-    def archiveImageCb(self, msg):
-        if self.archiving_inactive_image is True:
-            self.msg_if.pub_warn("Already in the process of archiving image")
+    def saveImageCb(self, msg):
+        if self.saving_image is True:
+            self.msg_if.pub_warn("Already in the process of saving image")
             return
-        fw_str = self.system_defs_msg.inactive_rootfs_fw_version
-        fw_str = fw_str.replace('.','p')
-        fw_str = fw_str.replace(' ','_')
-        fw_str = fw_str.replace('/','_')
-        now = datetime.datetime.now()
-        backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
-        self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
-        self.status_msg.sys_img_archive_status = 'archiving'
-        self.status_msg.sys_img_archive_filename = backup_file_basename
+        
+        if self.in_container == True:
+            nepi_image.getContainerInfo('Active')
+            fw_str = self.get_fw_rev()
+            now = datetime.datetime.now()
+            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+            self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
+            self.status_msg.sys_img_archive_status = 'archiving'
+            self.status_msg.sys_img_archive_filename = backup_file_basename
+
+
+        else:
+            fw_str = self.system_defs_msg.inactive_rootfs_fw_version
+            fw_str = fw_str.replace('.','p')
+            fw_str = fw_str.replace(' ','_')
+            fw_str = fw_str.replace('/','_')
+            now = datetime.datetime.now()
+            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+            self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
+            self.status_msg.sys_img_archive_status = 'archiving'
+            self.status_msg.sys_img_archive_filename = backup_file_basename
 
         # Transfers to USB seem to have trouble with the standard block size, so allow those to proceed at a lower
         # block size
         slow_transfer = True if self.usb_device in self.new_img_staging else False
                 
-        self.archiving_inactive_image = True
-        status, err_msg = self.nepi_image.archiveInactiveToStaging(
+        self.saving_image = True
+        status, err_msg = self.nepi_image.saveImage(
             self.inactive_rootfs, self.new_img_staging, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
-        self.archiving_inactive_image = False
+        self.saving_image = False
 
         if status is False:
-            self.msg_if.pub_warn("Failed to backup inactive rootfs: " + err_msg)
+            self.msg_if.pub_warn("Failed to save image file: " + err_msg)
             self.status_msg.sys_img_archive_status = 'failed'
         else:
-            self.msg_if.pub_info("Finished archiving inactive rootfs")
+            self.msg_if.pub_info("Finished saving image file")
             self.status_msg.sys_img_archive_status = 'archive complete'
     
     def provide_system_defs(self, req):
