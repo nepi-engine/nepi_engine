@@ -21,7 +21,7 @@ import os.path
 import os
 import subprocess
 import shlex
-#import psutil
+import copy
 
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
@@ -33,11 +33,25 @@ from nepi_sdk import nepi_system
 NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
 config_dict=nepi_utils.read_dict_from_file(NEPI_CONFIG_FILE)
 
-def getContainerInfo(which_container = 'Active'):
-    return name, tag, version, hw_type, hw_model, date
+BLANK_IMAGE_DICT={
+    'name': 'uknown',
+    'version': 'uknown',
+    'size_mb': 0,
+    'hw_type': 'uknown',
+    'hw_type': 'uknown',
+    'date': 'uknown',
+    'desc': 'uknown'
+}
 
-def getImageInfo(image_file):
-    return name, tag, version, hw_type, hw_model, date
+
+def getContainerInfo(which_container = 'Active'):
+    info_dict = copy.deepcopy(BLANK_IMAGE_DICT)
+    return info_dict
+
+def getImageFileInfo(image_file):
+    info_dict = copy.deepcopy(BLANK_IMAGE_DICT)
+    return info_dict
+
 
 
 def mountPartition(part_device_pathname, part_mountpoint):

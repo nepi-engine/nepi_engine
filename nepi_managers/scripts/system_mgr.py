@@ -1385,11 +1385,12 @@ class SystemMgrNode():
             return
         
         if self.in_container == True:
-            nepi_image.getContainerInfo('Active')
+            info_dict=nepi_image.getContainerInfo('Active')
             fw_str = self.get_fw_rev()
+            info_dict['version']=fw_str
             now = datetime.datetime.now()
             backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
-            self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
+            self.msg_if.pub_warn("Saving NEPI File System to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename
 
