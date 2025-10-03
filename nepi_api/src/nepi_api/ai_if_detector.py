@@ -1752,6 +1752,12 @@ class AiDetectorIF:
 
         [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
 
+        # Check if save_data_if needs data
+        ds_dict = self.save_data_if.data_products_should_save_dict()
+        for ds in ds_dict.keys():
+            if ds == True:
+                has_subs = has_subs or ds
+
         if has_subs == True:
             self.img_ifs_lock.acquire()
             for img_topic in img_topics:

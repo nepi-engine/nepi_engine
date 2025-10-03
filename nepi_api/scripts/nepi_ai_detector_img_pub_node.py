@@ -492,7 +492,7 @@ class AiDetectorImgPub:
 
     def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, frame_3d = 'nepi_base', add_overlay_list = [], navpose_dict = None):
         if self.img_if is not None:
-            if self.img_if.has_subscribers_check() and self.pub_image_enabled:
+            if ( self.img_if.has_subscribers_check() or self.save_data_if.data_product_should_save('detection_image') ) and self.pub_image_enabled:
                 add_pubs = [self.all_namespace]
                 if img_topic in self.imgs_info_dict.keys():
                     pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
@@ -514,7 +514,7 @@ class AiDetectorImgPub:
 
     def imageCb(self, image_msg, args):     
         if self.img_if is not None:
-            if self.img_if.has_subscribers_check() and self.pub_image_enabled:
+            if ( self.img_if.has_subscribers_check() or self.save_data_if.data_product_should_save('detection_image') ) and self.pub_image_enabled:
                 start_time = nepi_sdk.get_time()   
                 img_topic = args
 
