@@ -60,8 +60,8 @@ DEFAULT_THRESHOLD = 0.3
 
 MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
-DEFAULT_MAX_PROC_RATE = 5
-DEFAULT_MAX_IMG_RATE = DEFAULT_MAX_PROC_RATE * 1.5
+DEFAULT_MAX_PROC_RATE = 1
+DEFAULT_MAX_IMG_RATE = 5
 DEFAULT_USE_LAST_IMAGE = True
 
 DEFAULT_WAIT_FOR_DETECT = False
@@ -1573,10 +1573,10 @@ class AiDetectorIF:
                                 self.msg_if.pub_warn("Callback provided None cv2_img, :  " + img_topic)
                                 pass
                             else:
-                                # Reset for next image grab
+                                # Clear image grab flags
                                 self.got_img_topic = "None"
-                                self.cur_img_topic = next_img_topic
-                                self.get_img_topic = next_img_topic
+                                self.cur_img_topic = "None"
+                                self.get_img_topic = "None"
 
                                 #self.msg_if.pub_warn("Detector got img_dict for topic:  " + img_topic + " with img size: " + str(img_dict['cv2_img'].shape[:2]))
                                 ##############################
@@ -1610,6 +1610,10 @@ class AiDetectorIF:
                             imgs_info_dict[img_topic]['detect_time'] = detect_time
                             #self.msg_if.pub_info("Detect Time: {:.2f}".format(detect_time))
                         
+                            # Reset for next image grab
+                            self.got_img_topic = "None"
+                            self.cur_img_topic = next_img_topic
+                            self.get_img_topic = next_img_topic                        
                         current_time = nepi_sdk.get_msg_stamp()
                         get_msg_stampstamp = img_dict['msg_stamp']
                         latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
