@@ -73,6 +73,8 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     rotate_ratio = 0.5,
     )
 
+FACTORY_FRAMERATE=5.0
+
 
 class IDXDeviceIF:
     # Default Global Values
@@ -246,6 +248,10 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
+        if getFramerate if not None:
+            cfr=getFramerate()
+            if cfg > 7:
+                self.factory_controls_dict["framerate_ratio"] = FACTORY_FRAMERATE/cfr
         self.msg_if.pub_warn("Using Factory Contrls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
