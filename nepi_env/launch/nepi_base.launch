@@ -9,7 +9,7 @@
   <arg name="run_robot_state_publisher" default="false" />
   <arg name="run_web_utils" default="true" />
 
-  <arg name="run_mgr_network" default="true" />
+  <arg name="run_mgr_network" default="false" />
   <arg name="run_mgr_time_sync" default="true" />
   <arg name="run_mgr_navpose" default="true" />
   <arg name="run_mgr_ai_models" default="true" />
