@@ -9,10 +9,14 @@
 ##
 
 cur_dir=$(pwd)
-cd /opt/nepi/etc/
-source load_system_config.sh
+
+echo "Running ETC Sync Script"
+cd /opt/nepi/etc/scripts
+source sync_from_configs.sh
 wait
+
 cd $cur_dir
+echo "Running nepi setup script"
 source /opt/nepi/nepi_engine/setup.sh
 
 

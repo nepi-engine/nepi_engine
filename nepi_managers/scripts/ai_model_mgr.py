@@ -558,7 +558,7 @@ class AIDetectorManager:
                         #self.msg_if.pub_info("Got model info response: " + str(response))
                         detector_info_dict[model_name] = response.detector_info
                     except Exception as e:
-                        self.msg_if.pub_info("Failed to obtain model info: " + str(model_name) + " , will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+                        self.msg_if.pub_info("Waiting for model to load: " + str(model_name) + " , will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
                 else:
                     self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
         self.detector_info_dict = detector_info_dict

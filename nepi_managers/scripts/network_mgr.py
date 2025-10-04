@@ -1016,7 +1016,7 @@ class NetworkMgr:
                     success = self.publish_status()
                     ### Update ETC Files
                     nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS",addr)
-                    etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_network.sh"
+                    etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
                     subprocess.call([etc_update_script])
                     nepi_utils.sleep(1)
                     self.nepi_config = self.get_nepi_system_config()
@@ -1050,7 +1050,7 @@ class NetworkMgr:
                     success = self.publish_status()
                     ### Update ETC Files
                     nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS","NONE")
-                    etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_network.sh"
+                    etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
                     subprocess.call([etc_update_script])
                     nepi_utils.sleep(1)
                     self.nepi_config = self.get_nepi_system_config()
@@ -1184,7 +1184,7 @@ class NetworkMgr:
             if enable == True:
                 update_val=1
             nepi_system.update_nepi_system_config("NEPI_WIFI_LOW_POWER_ENABLED",update_val)
-            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_enable.sh"
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_low_power.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
             ####################
@@ -1263,21 +1263,13 @@ class NetworkMgr:
                 self.msg_if.pub_warn("Recieved Wifi credential update") 
                 self.msg_if.pub_warn("Current  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
                 self.msg_if.pub_warn("New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
-                if self.in_container == True:
-                    pass #nepi_system.update_docker_config('NEPI_ETC_UPDATE',1)
-                else:
-                    self.msg_if.pub_warn("Calling Stop Wifi with command " + str(self.STOP_WPA_SUPPLICANT_CMD))
-                    subprocess.call(self.STOP_WPA_SUPPLICANT_CMD)
-                    self.wifi_client_connecting = False
-                    self.wifi_client_connected = False
-                    self.wifi_client_connected_ssid = 'None'
-                    self.wifi_client_connected_passphrase = ''
-                    nepi_sdk.sleep(1)
 
-
+                self.wifi_client_connecting = False
+                self.wifi_client_connected = False
+                self.wifi_client_connected_ssid = 'None'
+                self.wifi_client_connected_passphrase = ''
             
                 # Update wpa suplicant file if needed
-                
                 self.msg_if.pub_warn("Updating WiFi client credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
                 self.msg_if.pub_warn("Calling Open Wifi with command " + str(self.WPA_GENERATE_SUPPLICANT_CONF_CMD))
                 with open(self.WPA_SUPPLICANT_CONF_PATH, 'w') as f:
@@ -1309,7 +1301,7 @@ class NetworkMgr:
                         if enable == True:
                             update_val=1
                         nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ENABLED",update_val)
-                        etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_client_enable.sh"
+                        etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_client.sh"
                         subprocess.call([etc_update_script])
                         nepi_utils.sleep(1)
                         success = True
@@ -1427,7 +1419,7 @@ class NetworkMgr:
                 nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_ENABLED",1)
                 nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_ID",self.wifi_ap_ssid)
                 nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_PW",self.wifi_ap_passphrase)
-                etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_access_point_enable.sh"
+                etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_access_point.sh"
                 subprocess.call([etc_update_script])
                 nepi_utils.sleep(1)
                 success = True

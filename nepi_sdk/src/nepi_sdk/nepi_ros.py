@@ -33,6 +33,7 @@ import rosnode
 import rostopic
 import rosservice
 import rosparam
+import rosgraph
 from rospy_message_converter import message_converter
 
 # Import ROS msgs and srvs 
@@ -799,6 +800,39 @@ def wait_for_topic(topic_name, timeout = 60, log_name_list = []):
     timer = get_time() - start_time
   log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
   return topic
+
+def check_for_subscribers(topic_names,filters=[], log_name_list = []):
+  [has_subs,has_subs_dict] = find_subscribers(topic_names = topic_names,filters = filters, log_name_list = log_name_list)
+  return has_subs
+
+
+def find_subscribers(topic_names,filters=[], log_name_list = []):
+    """
+    Checks if topics have any active subscribers.
+    """
+    has_subs = False
+    has_subs_dict = dict()
+    if len(topic_names) > 0:
+      for topic in topic_names:
+        has_subs_dict[topic] = []
+      try:
+          master = rosgraph.Master('/rospy_info')  # Create a Master proxy
+          publishers, subscribers = master.getSystemState()[0], master.getSystemState()[1]
+
+          # Check if the topic exists in the list of published topics
+          for pub_topic, _ in publishers:
+              if pub_topic in topic_names:
+                  # If the topic is published, check if it has any subscribers
+                  for sub_topic, _ in subscribers:
+                      #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
+                      if sub_topic not in filters:
+                          has_subs = True
+                          has_subs_dict[pub_topic].append(sub_topic)  # Found subscribers for this 
+
+      except rospy.ROSException as e:
+          rospy.logerr(f"Error connecting to ROS Master: {e}")
+          return has_subs, has_subs_dict
+    return has_subs, has_subs_dict
 
 
 #########################

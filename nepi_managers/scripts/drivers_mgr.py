@@ -386,7 +386,7 @@ class NepiDriversMgr(object):
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
     nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
     nepi_sdk.set_param('active_drivers', drvs_active_list)
-    #self.msg_if.pub_warn("Update start active drvs: " + str(drvs_active_list))
+    
     ## Next process active driver processes
 
     ################################    
@@ -400,10 +400,16 @@ class NepiDriversMgr(object):
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])
     # First check on running nodes that should not be running
-    purge_list = []
+    purge_list=[]
     for driver_name in drvs_ordered_list:
       if driver_name not in drvs_active_list:
-        purge_list.append(driver_name)
+        if driver_name in self.discovery_node_dict.keys():
+          purge_list.append(driver_name)
+        elif driver_name in self.discovery_classes_dict.keys():
+          purge_list.append(driver_name)
+
+    if len(purge_list) > 0:
+      self.msg_if.pub_warn("Processing driver purge list " + str(purge_list))
 
     # purge from active discovery dict
     for driver_name in purge_list:
@@ -431,13 +437,14 @@ class NepiDriversMgr(object):
             
             self.active_paths_list = self.discovery_classes_dict[driver_name].killAllDevices(self.active_paths_list)
             self.msg_if.pub_warn("Got updated active paths list " + str(self.active_paths_list))
-          except:
-            self.msg_if.pub_warn("Driver has no killAllDevices function: " + str(driver_name))
+          except Exception as e:
+            self.msg_if.pub_warn("Failed to call killAllDevices function: " + str(driver_name) + " : " + str(e))
           self.msg_if.pub_warn("Deleting imported classes function for driver: " + str(driver_name))
           del self.discovery_classes_dict[driver_name]
           if driver_name in self.failed_class_import_list:
             self.msg_if.pub_warn("Removing driver from failed imported list: " + str(driver_name))
             self.failed_class_import_list.remove(driver_name) 
+
 
     ################################    
     ## Do Discovery
@@ -836,6 +843,8 @@ class NepiDriversMgr(object):
         status_driver_msg.display_name = drv_dict['display_name']
         status_driver_msg.description = drv_dict['description']
         status_driver_msg.active_state  = drv_dict['active']
+        running_state = driver_name in self.discovery_node_dict.keys() or driver_name in self.discovery_classes_dict.keys()
+        status_driver_msg.running_state = running_state
         status_driver_msg.order  = drv_dict['order']
         status_driver_msg.msg_str = drv_dict['msg']
       except Exception as e:

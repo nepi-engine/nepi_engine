@@ -549,6 +549,7 @@ class SaveDataIF:
         except:
             return False
 
+
     def data_product_should_save(self, data_product):
         # If saving is disabled for this node, then it is not time to save this data product!
         save_rate_dict = self.save_rate_dict
@@ -586,12 +587,15 @@ class SaveDataIF:
             return False
         return False
 
-    def data_product_snapshot_reset(self, data_product):
-        try:
-            self.snapshot_dict[data_product] = False
-        except:
-            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
-            pass
+    def data_products_should_save_dict(self):
+        dps_dict=copy.deepcopy(self.snapshot_dict)
+        for dp in dps_dict.keys()
+            ss =  dps_dict[dp]
+            sr = save_rate_dict[data_product][0] > 0
+            dps_dict[dp] = ss or (self.save_data and sr)
+        return dps_dict
+        
+
      
     def get_timestamp_string(self):
         return nepi_utils.get_datetime_str_now(add_ms = True, add_us = False)
@@ -600,6 +604,7 @@ class SaveDataIF:
         if self.save_path is None:
             return ""
         return os.path.join(self.save_path, self.read_write_if.get_filename_prefix())
+
 
 
 

@@ -100,12 +100,6 @@ class time_sync_mgr(object):
         self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
   
         self.nepi_config_path = self.nepi_config['NEPI_CONFIG']
-
-        self.nepi_system_etc_path = self.nepi_config_path + "/system_cfg/etc"
-        self.nepi_system_config_file = self.nepi_system_etc_path + "/nepi_system_config.yaml"
-
-        self.nepi_docker_config_path = self.nepi_config_path + "/docker_cfg/etc"
-        self.nepi_docker_config_file = self.nepi_docker_config_path + "/nepi_docker_config.yaml"
     
         
         self.msg_if.pub_warn("Waiting for Config Mgr")
@@ -347,7 +341,7 @@ class time_sync_mgr(object):
 
     def restart_chrony(self):
             ### Update ETC Files
-            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
@@ -361,7 +355,7 @@ class time_sync_mgr(object):
     def add_server(self,server_host):
             ### Update ETC Files
             nepi_system.update_nepi_system_config("NEPI_NTP_IPS",server_host)
-            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
@@ -370,7 +364,7 @@ class time_sync_mgr(object):
     def remove_server(self,server_host):
             ### Update ETC Files
             nepi_system.update_nepi_system_config("NEPI_NTP_IPS","NONE")
-            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time.sh"
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
