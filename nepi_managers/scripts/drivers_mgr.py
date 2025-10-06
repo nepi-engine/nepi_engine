@@ -620,6 +620,7 @@ class NepiDriversMgr(object):
       if namespace == dict_namespace:
         drv_dict = drvs_dict[driver_name]
         settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+        self.msg_if.pub_info("Updating Cap Settings from settings: " + str(settings))
         cap_list = []
         for setting_name in settings.keys():
           setting = settings[setting_name]
@@ -628,6 +629,7 @@ class NepiDriversMgr(object):
           setting_cap.type_str = setting['type']
           setting_cap.options_list = setting['options']
           cap_list.append(setting_cap)
+        self.msg_if.pub_info("Updated Caps List: " + str(cap_list))
         caps_report = SettingsCapabilitiesQueryResponse()
         caps_report.settings_count = len(cap_list)
         caps_report.setting_caps_list = cap_list
@@ -690,6 +692,7 @@ class NepiDriversMgr(object):
         drv_dict = drvs_dict[driver_name]
 
         settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+        self.msg_if.pub_info("Updating Status Cap Settings from settings: " + str(settings))
         settings_status_msg = SettingsStatus()
         settings_status_msg.settings_count = len(settings)
 
@@ -706,11 +709,14 @@ class NepiDriversMgr(object):
         caps_msgs_list = []
         for setting_name in settings.keys():
           cap_setting = settings[setting_name]
+          #self.msg_if.pub_info("Updating Status Cap Setting from setting: " + str(cap_setting))
           cap_msg = SettingCap()
           cap_msg.name_str = setting_name
-          cap_msg.type_str = setting['type']
-          cap_msg.options_list = setting['options']
+          cap_msg.type_str = cap_setting['type']
+          cap_msg.options_list = cap_setting['options']
+          #self.msg_if.pub_info("Updated Caps Msg: " + str(cap_msg))
           caps_msgs_list.append(cap_msg)
+        self.msg_if.pub_info("Updated Caps Msg List: " + str(caps_msgs_list))
         settings_status_msg.setting_caps_list = caps_msgs_list
 
         settings_status_msg.has_cap_updates = False
