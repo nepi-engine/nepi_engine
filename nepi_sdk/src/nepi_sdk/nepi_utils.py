@@ -606,7 +606,7 @@ def delete_files_in_folder(folder_path):
 def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders = True, delete = False):    
     success = False
 
-    foption=""
+    foptions=""
     if folders == False:
        foptions="--exclude='*/'"
 
