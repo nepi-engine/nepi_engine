@@ -167,7 +167,7 @@ class NetworkMgr:
         self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
         self.msg_if.pub_warn("Got NEPI Manages Network: " + str(self.manages_network))
 
-        self.start_dhcp_on_startup=self.nepi_config['NEPI_WIRED_DHCP_ON_START']
+        self.start_dhcp_on_startup=self.nepi_config['NEPI_WIRED_DHCP_ENABLED']
         self.start_wifi_client_on_startup=self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
         self.start_wifi_ap_on_startup=self.nepi_config['NEPI_WIFI_ACCESS_POINT_ENABLED']
 
@@ -478,7 +478,7 @@ class NetworkMgr:
             # Update DHCP settings
             ndhcp_enabled = self.node_if.get_param('dhcp_enabled')
             self.nepi_config = self.get_nepi_system_config()
-            cdhcp_enabled = self.nepi_config['NEPI_WIRED_DHCP_ON_START']
+            cdhcp_enabled = self.nepi_config['NEPI_WIRED_DHCP_ENABLED'] == 1
             self.dhcp_enabled = ndhcp_enabled or cdhcp_enabled
             if self.dhcp_enabled != ndhcp_enabled:
                 self.node_if.set_param('dhcp_enabled',self.dhcp_enabled)       
@@ -504,7 +504,7 @@ class NetworkMgr:
                 nwifi_enabled = self.node_if.get_param('wifi_enabled')
                 wifi_enabled = copy.deepcopy(nwifi_enabled)
                 self.nepi_config = self.get_nepi_system_config()
-                cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED']
+                cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
                 self.wifi_enabled = nwifi_enabled or cwifi_enabled
                 if self.wifi_enabled != nwifi_enabled:
                     self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
@@ -513,7 +513,7 @@ class NetworkMgr:
                     nepi_utils.sleep(1) 
                     # Check for update
                     self.nepi_config = self.get_nepi_system_config()
-                    self.wifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED']
+                    self.wifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
 
 
                 # Stop WiFi updates if not enabled
@@ -524,7 +524,7 @@ class NetworkMgr:
                     nlow_power_enabled = self.node_if.get_param('wifi_low_power_enabled')
                     low_power_enabled = copy.deepcopy(nlow_power_enabled)
                     self.nepi_config = self.get_nepi_system_config()
-                    clow_power_enabled = self.nepi_config['NEPI_WIFI_LOW_POWER_ENABLED']
+                    clow_power_enabled = self.nepi_config['NEPI_WIFI_LOW_POWER_ENABLED'] == 1
                     self.low_power_enabled = nlow_power_enabled or clow_power_enabled
                     if self.low_power_enabled != nlow_power_enabled:
                         self.enable_wifi_low_power(self.low_power_enabled)
@@ -534,7 +534,7 @@ class NetworkMgr:
                     nclient_enabled = self.node_if.get_param('wifi_client_enabled')
                     client_enabled = copy.deepcopy(nclient_enabled)
                     self.nepi_config = self.get_nepi_system_config()
-                    cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
+                    cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.client_enabled = nclient_enabled or cclient_enabled
                     if self.client_enabled != nclient_enabled:
                         self.node_if.set_param('wifi_client_enabled',self.client_enabled)    
@@ -544,7 +544,10 @@ class NetworkMgr:
 
 
                     self.wifi_client_ssid = self.node_if.get_param("wifi_client_ssid")
-                    self.wifi_client_passphrase = self.node_if.get_param("client_passphrase")
+                    passphrase = self.node_if.get_param("client_passphrase")
+                    if passphrase is None or passphrase == 'None':
+                        passphrase = ''
+                    self.wifi_client_passphrase = passphrase
 
                     self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
                     self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
@@ -554,7 +557,7 @@ class NetworkMgr:
                     naccess_point_enabled = self.node_if.get_param('wifi_access_point_enabled')
                     access_point_enabled = copy.deepcopy(naccess_point_enabled)
                     self.nepi_config = self.get_nepi_system_config()
-                    caccess_point_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
+                    caccess_point_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.access_point_enabled = naccess_point_enabled or caccess_point_enabled
                     if self.access_point_enabled != naccess_point_enabled:
                         self.node_if.set_param('wifi_access_point_enabled',self.access_point_enabled)       
@@ -653,22 +656,23 @@ class NetworkMgr:
                         return primary_ip_addr
             return "Unknown Primary IP"
         else:
-
-            """
-            Attempts to find the primary IP address of the local machine.
-            """
-            try:
-                # Create a UDP socket
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                # Connect to a public IP address (doesn't actually send data)
-                # This forces the system to choose a local interface for the connection
-                s.connect(("8.8.8.8", 80))  # Using Google's public DNS server
-                ip_address = s.getsockname()[0]
-                s.close()
-                return ip_address
-            except Exception as e:
-                self.msg_if.pub_warn("Error getting IP address " + str(e))
-                return "Unknown Primary IP"
+            primary_ip_addr = self.nepi_config['NEPI_IP']
+            return primary_ip_addr
+            # """
+            # Attempts to find the primary IP address of the local machine.
+            # """
+            # try:
+            #     # Create a UDP socket
+            #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            #     # Connect to a public IP address (doesn't actually send data)
+            #     # This forces the system to choose a local interface for the connection
+            #     s.connect(("8.8.8.8", 80))  # Using Google's public DNS server
+            #     ip_address = s.get sockname()[0]
+            #     s.close()
+            #     return ip_address
+            # except Exception as e:
+            #     self.msg_if.pub_warn("Error getting IP address " + str(e))
+            #     return "Unknown Primary IP"
 
 
 
@@ -676,36 +680,41 @@ class NetworkMgr:
         self.primary_ip_addr = self.get_primary_ip_addr()
         last_ip_addrs = copy.deepcopy(self.found_ip_addrs)
         managed_ips = self.managed_ip_addrs
-        dhcp_ip_addr = ''
-        rep_ips = [self.primary_ip_addr]
-        addr_list_output = subprocess.check_output(['ip','addr','list','dev',self.NET_IFACE], text=True)
-        tokens = addr_list_output.split()
-        for i, t in enumerate(tokens):
-            #self.msg_if.pub_warn("Start Return IPs: " + str(rep_ips))
-            if (t == 'inet'):
-                ip_addr = tokens[i+1]
-                # Ensure that aliases go at the back of the list and primary remains at the front and dhcp at end
-                #self.msg_if.pub_warn("Checking IP: " + str(ip_addr))
-                if ip_addr != self.primary_ip_addr and ip_addr != '':
-                    if ip_addr in managed_ips:
-                        #self.msg_if.pub_warn("Adding managed IP: " + str(ip_addr))
-                        rep_ips.append(ip_addr)
-                    elif ip_addr not in rep_ips:
-                        #self.msg_if.pub_warn("Updating DHCP IP: " + str(ip_addr))
-                        dhcp_ip_addr = copy.deepcopy(ip_addr)
-        rep_ips.append(dhcp_ip_addr)
-        #self.msg_if.pub_warn("End Return IPs: " + str(rep_ips))
-        self.dhcp_ip_addr = dhcp_ip_addr
-        found_ip_addrs = rep_ips
-        if rep_ips[-1] == '':
-            found_ip_addrs = rep_ips[:-1]
-        
+        if self.in_container == True:
+            dhcp_ip_addr = 'uknown'
+            rep_ips = [self.primary_ip_addr] + managed_ips
+            found_ip_addrs = rep_ips
+        else:
+            dhcp_ip_addr = ''
+            rep_ips = [self.primary_ip_addr]
+            addr_list_output = subprocess.check_output(['ip','addr','list','dev',self.NET_IFACE], text=True)
+            tokens = addr_list_output.split()
+            for i, t in enumerate(tokens):
+                #self.msg_if.pub_warn("Start Return IPs: " + str(rep_ips))
+                if (t == 'inet'):
+                    ip_addr = tokens[i+1]
+                    # Ensure that aliases go at the back of the list and primary remains at the front and dhcp at end
+                    #self.msg_if.pub_warn("Checking IP: " + str(ip_addr))
+                    if ip_addr != self.primary_ip_addr and ip_addr != '':
+                        if ip_addr in managed_ips:
+                            #self.msg_if.pub_warn("Adding managed IP: " + str(ip_addr))
+                            rep_ips.append(ip_addr)
+                        elif ip_addr not in rep_ips:
+                            #self.msg_if.pub_warn("Updating DHCP IP: " + str(ip_addr))
+                            dhcp_ip_addr = copy.deepcopy(ip_addr)
+            rep_ips.append(dhcp_ip_addr)
+            #self.msg_if.pub_warn("End Return IPs: " + str(rep_ips))
+            self.dhcp_ip_addr = dhcp_ip_addr
+            found_ip_addrs = rep_ips
+            if rep_ips[-1] == '':
+                found_ip_addrs = rep_ips[:-1]
+            
 
-        for ip in self.managed_ip_addrs:
-            if ip not in found_ip_addrs:
-                self.add_ip(ip)
+            for ip in self.managed_ip_addrs:
+                if ip not in found_ip_addrs:
+                    self.add_ip(ip)
+
         self.network_checked = True
-
 
         self.found_ip_addrs = found_ip_addrs
         if last_ip_addrs != self.found_ip_addrs:
@@ -789,6 +798,7 @@ class NetworkMgr:
             connected = nepi_utils.ping_ip("8.8.8.8")
             self.internet_connected = connected
             self.internet_checked = True
+        
         return connected
 
 
@@ -999,7 +1009,7 @@ class NetworkMgr:
         success = False
         if True == self.is_valid_ip(addr):
             if addr not in self.found_ip_addrs:
-
+                
                 if len(self.managed_ip_addrs) > 0:
                     self.msg_if.pub_warn("Failed to add IP address: " + str(addr) + ". Only one alias support currently")
                     self.publish_status()
@@ -1129,7 +1139,7 @@ class NetworkMgr:
             update_val=0
             if enable == True:
                 update_val=1
-            nepi_system.update_nepi_system_config("NEPI_WIRED_DHCP_ON_START",update_val)
+            nepi_system.update_nepi_system_config("NEPI_WIRED_DHCP_ENABLED",update_val)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_dhcp.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
@@ -1227,6 +1237,8 @@ class NetworkMgr:
         if msg.ssid == 'None' or msg.ssid == '':
             ssid = 'None'
             passphrase=msg.passphrase
+            if passphrase is None or passphrase == 'None':
+                passphrase = ''
             self.wifi_client_ssid = ssid
             self.wifi_client_passphrase = passphrase
             self.set_wifi_client(ssid,passphrase)
@@ -1460,6 +1472,9 @@ class NetworkMgr:
         with self.internet_connected_lock:
             internet_connected = self.internet_connected
         
+        passphrase = self.wifi_client_passphrase
+        if passphrase is None or passphrase == 'None':
+            passphrase = ''
 
         return {'has_wifi': (self.wifi_iface is not None), 
                 'wifi_ap_enabled': self.wifi_ap_enabled,
@@ -1470,7 +1485,7 @@ class NetworkMgr:
                 'wifi_client_connecting': self.wifi_client_connecting,
                 'wifi_client_connected': self.wifi_client_connected,
                 'wifi_client_ssid': self.wifi_client_ssid,
-                'wifi_client_passphrase': self.wifi_client_passphrase,
+                'wifi_client_passphrase': passphrase,
                 'available_networks': wifis,
                 'clock_skewed': self.clock_skewed,
                 'internet_connected': internet_connected}
@@ -1478,11 +1493,11 @@ class NetworkMgr:
 
     def publish_status(self):
         success = False
-        with self.wifi_available_networks_lock:
-            wifis = self.wifi_available_networks
+        #with self.wifi_available_networks_lock:
+        wifis = self.wifi_available_networks
 
-        with self.internet_connected_lock:
-            internet_connected = self.internet_connected
+        #with self.internet_connected_lock:
+        internet_connected = self.internet_connected
 
         self.status_msg.manages_network = self.manages_network
         # Wired Info
@@ -1502,7 +1517,11 @@ class NetworkMgr:
         self.status_msg.wifi_client_connecting =  self.wifi_client_connecting
         self.status_msg.wifi_client_connected =  self.wifi_client_connected
         self.status_msg.wifi_client_ssid =  self.wifi_client_ssid
-        self.status_msg.wifi_client_passphrase =  self.wifi_client_passphrase
+
+        passphrase = self.wifi_client_passphrase
+        if passphrase is None or passphrase == 'None':
+            passphrase = ''
+        self.status_msg.wifi_client_passphrase =  passphrase
         self.status_msg.available_networks =  wifis
         self.status_msg.clock_skewed =  self.clock_skewed
 
@@ -1510,8 +1529,10 @@ class NetworkMgr:
         self.status_msg.dhcp_ip_addr =  self.dhcp_ip_addr
         self.status_msg.internet_connected = internet_connected
 
+        #self.msg_if.pub_warn("Publishing Network Status Msg: " + str(self.status_msg))
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
+            #self.msg_if.pub_warn("Published Network Status Msg: " + str(self.status_msg))
             success = True
 
         return success
