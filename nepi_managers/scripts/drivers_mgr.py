@@ -582,7 +582,10 @@ class NepiDriversMgr(object):
     nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
-    self.msg_if.pub_info("Creating driver options dict: " + driver_name)
+    drvs_dict = copy.deepcopy(self.drvs_dict)
+    drv_dict = drvs_dict[driver_name]
+    settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
+    self.msg_if.pub_warn("Creating driver options dict: " + driver_name + " with settings: " + str(settings))
     self.discovery_settings_dict[driver_name] = dict()
     drv_dict = drvs_dict[driver_name]
     settings_node_name = drv_dict['DISCOVERY_DICT']['node_name']
@@ -647,7 +650,7 @@ class NepiDriversMgr(object):
           break
       if driver_name is not None:
         setting = nepi_settings.parse_setting_msg(msg)
-        self.msg_if.pub_info("Updating option: " + str(setting) + " for driver " + driver_name)
+        self.msg_if.pub_warn("Updating option: " + str(setting) + " for driver " + driver_name)
         self.updateSetting(driver_name,setting)
 
   def updateSetting(self,driver_name, setting):
