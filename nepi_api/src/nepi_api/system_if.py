@@ -589,7 +589,7 @@ class SaveDataIF:
 
     def data_products_should_save_dict(self):
         dps_dict=copy.deepcopy(self.snapshot_dict)
-        for dp in dps_dict.keys()
+        for dp in dps_dict.keys():
             ss =  dps_dict[dp]
             sr = save_rate_dict[data_product][0] > 0
             dps_dict[dp] = ss or (self.save_data and sr)

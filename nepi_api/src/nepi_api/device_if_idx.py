@@ -248,9 +248,9 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-        if getFramerate if not None:
+        if getFramerate is not None:
             cfr=getFramerate()
-            if cfg > 7:
+            if cfr > 7:
                 self.factory_controls_dict["framerate_ratio"] = FACTORY_FRAMERATE/cfr
         self.msg_if.pub_warn("Using Factory Contrls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']

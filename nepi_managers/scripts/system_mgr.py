@@ -368,7 +368,7 @@ class SystemMgrNode():
         if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:
             self.msg_if.pub_warn("Insufficient space on storage partition")
             self.storage_folder = ""
-            return False
+            #return False
 
 
 

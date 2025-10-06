@@ -17,6 +17,7 @@ import usb
 import copy
 import serial
 from serial.tools import list_ports
+import glob
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -48,6 +49,15 @@ def get_serial_ports_list():
     ports = list_ports.comports()
     for loc, desc, hwid in sorted(ports):
         ports_list.append(loc)
+    #self.logger.log_warn("ports: " + str(ports))###
+    add_ports = sorted(set(glob.glob('/dev/ttyTHS0')))
+    add_ports = add_ports + sorted(set(glob.glob('/dev/ttyTCU*')))
+    #self.logger.log_warn("add port: " + str(add_ports))###
+    for add_port in add_ports:
+        if add_port not in ports:
+            ports_list.append(add_port)
+    #self.logger.log_warn("ports list: " + str(self.ports_list))###
+
     return ports_list
 
 

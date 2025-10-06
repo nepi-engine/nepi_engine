@@ -441,6 +441,10 @@ class NepiDriversMgr(object):
             self.msg_if.pub_warn("Failed to call killAllDevices function: " + str(driver_name) + " : " + str(e))
           self.msg_if.pub_warn("Deleting imported classes function for driver: " + str(driver_name))
           del self.discovery_classes_dict[driver_name]
+          discovery_file = drvs_dict[driver_name]['DISCOVERY_DICT']['file_name']
+          discovery_module = discovery_file.split('.')[0]
+          self.msg_if.pub_warn("Removing Module : " + discovery_module)
+          del sys.modules[discovery_module]
           if driver_name in self.failed_class_import_list:
             self.msg_if.pub_warn("Removing driver from failed imported list: " + str(driver_name))
             self.failed_class_import_list.remove(driver_name) 
@@ -554,6 +558,9 @@ class NepiDriversMgr(object):
                 self.update_state(driver_name,False)
                 self.msg_if.pub_info("Deleting driver discovery class for : " + driver_name)
                 del self.discovery_classes_dict[driver_name]
+                discovery_module = discovery_file.split('.')[0]
+                self.msg_if.pub_info("Removing Module : " + discovery_module)
+                del sys.modules[discovery_module]
                 #if retry == False:
                   #self.failed_class_import_list.append(driver_name)
               else:
