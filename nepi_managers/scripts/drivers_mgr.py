@@ -627,7 +627,24 @@ class NepiDriversMgr(object):
           setting_cap = SettingCap()
           setting_cap.name_str = setting_name
           setting_cap.type_str = setting['type']
-          setting_cap.options_list = setting['options']
+          ######################################
+
+          if setting_name == 'serial_port':
+            serial_ports = nepi_serail.get_serial_ports_list()
+            avail_ports = []
+            for port in serial_ports:
+              if port not in self.active_paths_list:
+                port_name = os.path.basename(port)
+                avail_ports.append(port_name)
+            self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['options'] = avail_ports
+            if setting['value'] not in avail_ports and len(avail_ports) > 0:
+              setting['value'] = avail_ports[0]
+              self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['value'] = avail_ports[0]
+            setting_cap.options_list = avail_ports
+          else:
+            setting_cap.options_list = setting['options']
+         
+          #####################################
           cap_list.append(setting_cap)
         #self.msg_if.pub_info("Updated Caps List: " + str(cap_list))
         caps_report = SettingsCapabilitiesQueryResponse()
@@ -663,12 +680,11 @@ class NepiDriversMgr(object):
       settings_cap_dict = dict()
       for setting_name in settings.keys():
         setting = settings[setting_name]
-        setting_caps = dict()
-        setting_caps[setting_name] = dict()
-        setting_caps['name'] = setting_name
-        setting_caps['type'] = setting['type']
-        setting_caps['options'] =  setting['options']
-      valid = nepi_settings.check_valid_setting(setting,setting_caps)
+        setting_cap = dict()
+        setting_cap[setting_name] = dict()
+        setting_cap['name'] = setting_name
+        setting_cap['type'] = setting['type']
+      valid = nepi_settings.check_valid_setting(setting,setting_cap)
       if valid == True:
         #self.msg_if.pub_warn("Updating setting " + str(setting))
         setting_name = setting['name']
@@ -713,7 +729,23 @@ class NepiDriversMgr(object):
           cap_msg = SettingCap()
           cap_msg.name_str = setting_name
           cap_msg.type_str = cap_setting['type']
-          cap_msg.options_list = cap_setting['options']
+          ######################################
+
+          if setting_name == 'serial_port':
+            serial_ports = nepi_serail.get_serial_ports_list()
+            avail_ports = []
+            for port in serial_ports:
+              if port not in self.active_paths_list:
+                port_name = os.path.basename(port)
+                avail_ports.append(port_name)
+            self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['options'] = avail_ports
+            if cap_setting['value'] not in avail_ports and len(avail_ports) > 0:
+              cap_setting['value'] = avail_ports[0]
+              self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['value'] = avail_ports[0]
+            cap_msg.options_list = avail_ports
+          else:
+            cap_msg.options_list = cap_setting['options']
+          #####################################
           #self.msg_if.pub_info("Updated Caps Msg: " + str(cap_msg))
           caps_msgs_list.append(cap_msg)
         #self.msg_if.pub_info("Updated Caps Msg List: " + str(caps_msgs_list))

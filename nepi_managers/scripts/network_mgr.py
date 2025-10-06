@@ -510,7 +510,7 @@ class NetworkMgr:
                     self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
                 if self.wifi_enabled != cwifi_enabled:
                     self.enable_wifi(self.wifi_enabled)
-                    nepi_utils.sleep(1) 
+                    nepi_sdk.sleep(1) 
                     # Check for update
                     self.nepi_config = self.get_nepi_system_config()
                     self.wifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
@@ -1028,7 +1028,7 @@ class NetworkMgr:
                     nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS",addr)
                     etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
                     subprocess.call([etc_update_script])
-                    nepi_utils.sleep(1)
+                    nepi_sdk.sleep(1)
                     self.nepi_config = self.get_nepi_system_config()
                     ####################
                     self.msg_if.pub_warn("Added IP address: " + str(addr))
@@ -1053,23 +1053,23 @@ class NetworkMgr:
         if True == self.is_valid_ip(addr):
             if addr in self.found_ip_addrs:
                 if addr in self.managed_ip_addrs:
-                        self.managed_ip_addrs.remove(addr)
-                        self.publish_status()
-                if addr != self.primary_ip_addr : # and addr != self.dhcp_ip_addr:
-                    self.found_ip_addrs.remove(addr)
-                    success = self.publish_status()
-                    ### Update ETC Files
-                    nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS","NONE")
-                    etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
-                    subprocess.call([etc_update_script])
-                    nepi_utils.sleep(1)
-                    self.nepi_config = self.get_nepi_system_config()
-                    ####################
-                    self.msg_if.pub_warn("Removed IP address: " + str(addr))
-                    if self.node_if is not None:
-                        self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
-                    self.save_config()
-                    success = True
+                    self.managed_ip_addrs.remove(addr)
+                    self.publish_status()
+                    if addr != self.primary_ip_addr : # and addr != self.dhcp_ip_addr:
+                        self.found_ip_addrs.remove(addr)
+                        success = self.publish_status()
+                        ### Update ETC Files
+                        nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS","NONE")
+                        etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
+                        subprocess.call([etc_update_script])
+                        nepi_sdk.sleep(1)
+                        self.nepi_config = self.get_nepi_system_config()
+                        ####################
+                        self.msg_if.pub_warn("Removed IP address: " + str(addr))
+                        if self.node_if is not None:
+                            self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
+                        self.save_config()
+                        success = True
             else:
                 self.msg_if.pub_warn("Unable to remove invalid/ineligible IP address: " + str(addr))
         else:
@@ -1142,7 +1142,7 @@ class NetworkMgr:
             nepi_system.update_nepi_system_config("NEPI_WIRED_DHCP_ENABLED",update_val)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_dhcp.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
+            nepi_sdk.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
             ####################
             if self.node_if is not None:
@@ -1173,7 +1173,7 @@ class NetworkMgr:
             nepi_system.update_nepi_system_config("NEPI_WIFI_ENABLED",update_val)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_enable.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
+            nepi_sdk.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
             ####################
             if self.node_if is not None:
@@ -1196,7 +1196,7 @@ class NetworkMgr:
             nepi_system.update_nepi_system_config("NEPI_WIFI_LOW_POWER_ENABLED",update_val)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_low_power.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
+            nepi_sdk.sleep(1)
             ####################
             if self.node_if is not None:
                 self.node_if.set_param('wifi_low_power_enabled', enable)
@@ -1315,7 +1315,7 @@ class NetworkMgr:
                         nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ENABLED",update_val)
                         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_client.sh"
                         subprocess.call([etc_update_script])
-                        nepi_utils.sleep(1)
+                        nepi_sdk.sleep(1)
                         success = True
                         ####################
                         self.wifi_client_connected_ssid = ssid_set
@@ -1433,7 +1433,7 @@ class NetworkMgr:
                 nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_PW",self.wifi_ap_passphrase)
                 etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_access_point.sh"
                 subprocess.call([etc_update_script])
-                nepi_utils.sleep(1)
+                nepi_sdk.sleep(1)
                 success = True
                 ####################            
                     

@@ -199,7 +199,7 @@ class NavPoseMgr(object):
 
         ##############################
         # Initialize Class Variables
-
+        nepi_system.set_navpose_frames(self.navpose_frames_dict)
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
