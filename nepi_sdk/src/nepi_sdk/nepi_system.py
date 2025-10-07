@@ -74,11 +74,13 @@ def set_admin_restricted(value, log_name_list = []):
 
 def get_user_folders(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_folders')
+    #print("Waiting for User Folders in param: " + str(param_namespace))
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
 def set_user_folders(value, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_folders')
+    #print("Storing User Folders in param: " + str(param_namespace))
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 

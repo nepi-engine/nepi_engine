@@ -423,6 +423,7 @@ def save_params_to_file(file_path, namespace, save_all = False, log_name_list = 
     namespace = get_full_namespace(namespace)
     params_dict = dict()
     params = get_params(namespace,dict())
+    #log_msg_warn("Got params to save: " + str(params), log_name_list = log_name_list)
     if save_all == False: # Use only base ns level
       if params is not None:
         for key in params.keys():
@@ -435,19 +436,19 @@ def save_params_to_file(file_path, namespace, save_all = False, log_name_list = 
     try:
       rosparam.dump_params(file_path, namespace)
     except Exception as e:
-      log_msg_warn("Could not create params file: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+      log_msg_warn("Could not create params file: " + str(e), log_name_list = log_name_list)
   
 
 def has_param(namespace,param_name = None, log_name_list = []):
   if param_name is not None:
     namespace = create_namespace(namespace,param_name)
-  #namespace = get_full_namespace(namespace)
+  namespace = get_full_namespace(namespace)
   return rospy.has_param(namespace)
 
 
 def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
   params = None
-  #param_namespace = get_full_namespace(param_namespace)
+  param_namespace = get_full_namespace(param_namespace)
   try:
     if fallback_param is None:
       params = rospy.get_param(param_namespace)
@@ -460,7 +461,7 @@ def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
 
 def get_param(param_namespace,fallback_param = None, log_name_list = []):
   param = None
-  #param_namespace = get_full_namespace(param_namespace)
+  param_namespace = get_full_namespace(param_namespace)
   try:
     if fallback_param is None:
       param = rospy.get_param(param_namespace)
@@ -472,7 +473,7 @@ def get_param(param_namespace,fallback_param = None, log_name_list = []):
 
 def set_param(param_namespace,param_val, log_name_list = []):
   success = False
-  #param_namespace = get_full_namespace(param_namespace)
+  param_namespace = get_full_namespace(param_namespace)
   try:
     rospy.set_param(param_namespace,param_val)
     success = True

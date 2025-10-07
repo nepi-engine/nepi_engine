@@ -22,6 +22,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_drvs
 from nepi_sdk import nepi_settings
+from nepi_sdk import nepi_serial
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nepi_interfaces.msg import MgrSystemStatus
@@ -630,16 +631,13 @@ class NepiDriversMgr(object):
           ######################################
 
           if setting_name == 'serial_port':
-            serial_ports = nepi_serail.get_serial_ports_list()
+            serial_ports = nepi_serial.get_serial_ports_list()
             avail_ports = []
             for port in serial_ports:
               if port not in self.active_paths_list:
                 port_name = os.path.basename(port)
                 avail_ports.append(port_name)
-            self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['options'] = avail_ports
-            if setting['value'] not in avail_ports and len(avail_ports) > 0:
-              setting['value'] = avail_ports[0]
-              self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['value'] = avail_ports[0]
+            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             setting_cap.options_list = avail_ports
           else:
             setting_cap.options_list = setting['options']
@@ -676,14 +674,15 @@ class NepiDriversMgr(object):
       drvs_dict = copy.deepcopy(self.drvs_dict)
       drv_dict = drvs_dict[driver_name]
       settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
-      # Create cap options dict
+      setting_name = setting['name']
+      # Csetting_namereate cap options dict
       settings_cap_dict = dict()
-      for setting_name in settings.keys():
-        setting = settings[setting_name]
+      if setting_name = settings.keys():
         setting_cap = dict()
         setting_cap[setting_name] = dict()
-        setting_cap['name'] = setting_name
-        setting_cap['type'] = setting['type']
+        setting_cap[setting_name]['name'] = setting_name
+        setting_cap[setting_name]['type'] = setting['type']
+        setting_cap[setting_name]['options'] = setting['type']
       valid = nepi_settings.check_valid_setting(setting,setting_cap)
       if valid == True:
         #self.msg_if.pub_warn("Updating setting " + str(setting))
@@ -732,16 +731,13 @@ class NepiDriversMgr(object):
           ######################################
 
           if setting_name == 'serial_port':
-            serial_ports = nepi_serail.get_serial_ports_list()
+            serial_ports = nepi_serial.get_serial_ports_list()
             avail_ports = []
             for port in serial_ports:
               if port not in self.active_paths_list:
                 port_name = os.path.basename(port)
                 avail_ports.append(port_name)
-            self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['options'] = avail_ports
-            if cap_setting['value'] not in avail_ports and len(avail_ports) > 0:
-              cap_setting['value'] = avail_ports[0]
-              self.discovery_settings_dict[driver_name]['OPTIONS']['serial_port']['value'] = avail_ports[0]
+            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             cap_msg.options_list = avail_ports
           else:
             cap_msg.options_list = cap_setting['options']
@@ -916,6 +912,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.node_if.save_config() # Save config on options change
 
   def disableAllCb(self,msg):
     self.msg_if.pub_info("Got disable all msg: " + str(msg))
@@ -925,6 +922,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.node_if.save_config() # Save config on options change
 
 
   def selectDriverCb(self,msg):
@@ -958,6 +956,7 @@ class NepiDriversMgr(object):
       self.publish_status()
       if self.node_if is not None:
         self.node_if.set_param("drvs_dict",self.drvs_dict)
+        self.node_if.save_config() # Save config on options change
 
 
   def updateOrderCb(self,msg):
@@ -972,6 +971,7 @@ class NepiDriversMgr(object):
       self.publish_status()
       if self.node_if is not None:
         self.node_if.set_param("drvs_dict",self.drvs_dict)
+        self.node_if.save_config() # Save config on options change
 
 
   def getOrderUpdateFunction(self,move_cmd):
@@ -1011,6 +1011,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("retry_enabled",self.retry_enabled)
+      self.node_if.save_config() # Save config on options change
     
 
   def installDriverPkgCb(self,msg):

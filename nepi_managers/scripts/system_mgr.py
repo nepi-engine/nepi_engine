@@ -383,10 +383,18 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
         self.msg_if.pub_warn("Stored user folders: " + str(self.user_folders))
+
+        self.msg_if.pub_info("Waiting for user folders")
+        user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got user folders: " + str(user_folders))
         
         self.msg_if.pub_warn("Storing System Folders")
         nepi_system.set_system_folders(self.system_folders)
         self.msg_if.pub_warn("Stored System Folders: " + str(self.system_folders))
+
+        self.msg_if.pub_info("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
 
 
 

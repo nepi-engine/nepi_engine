@@ -420,6 +420,10 @@ class NetworkMgr:
 
         self.initCb(do_updates = True)
    
+        self.msg_if.pub_warn("Sleeping for 20")
+        nepi_sdk.sleep(20)
+
+
         ###########################
         # Complete Initialization
 
@@ -445,7 +449,7 @@ class NetworkMgr:
     def initCb(self, do_updates = False):
         self.primary_ip_addr = self.get_primary_ip_addr()
         if self.node_if is not None and self.manages_network == True:
-
+            
             # Run Some Checks
             self.msg_if.pub_warn("Init Updating IP List")
             ip_addrs = self.update_ip_addr_lists()
@@ -552,13 +556,14 @@ class NetworkMgr:
                     self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
                     self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
 
-
+                    
                     # Update WiFi Access Point settings
                     naccess_point_enabled = self.node_if.get_param('wifi_access_point_enabled')
                     access_point_enabled = copy.deepcopy(naccess_point_enabled)
                     self.nepi_config = self.get_nepi_system_config()
                     caccess_point_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.access_point_enabled = naccess_point_enabled or caccess_point_enabled
+
                     if self.access_point_enabled != naccess_point_enabled:
                         self.node_if.set_param('wifi_access_point_enabled',self.access_point_enabled)       
                     if self.access_point_enabled == True: 
@@ -567,6 +572,9 @@ class NetworkMgr:
                     self.wifi_ap_ssid = self.node_if.get_param('wifi_access_point_ssid')
                     self.wifi_ap_passphrase = self.node_if.get_param('wifi_access_point_passphrase')
     
+            success = self.save_config()
+
+            self.msg_if.pub_warn("Skipping InitCb")
 
         if do_updates == True:
             pass
@@ -575,7 +583,7 @@ class NetworkMgr:
         #self.msg_if.pub_warn("Ending Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
         #self.msg_if.pub_warn("Ending Init with Wifi Client password: " + str(self.wifi_client_passphrase))
 
-        success = self.save_config()
+        
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
@@ -904,6 +912,7 @@ class NetworkMgr:
     def save_config(self):
         success = True
         if self.node_if is not None:
+            #self.msg_if.pub_warn("not saving config")
             self.node_if.save_config()
             time.sleep(1) # Time for network changes to update
             #self.msg_if.pub_warn("Saving system config")
@@ -1381,17 +1390,14 @@ class NetworkMgr:
         self.publish_status()
 
         if self.wifi_enabled == False:
-            self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
-            return False
-        if self.wifi_enabled == False:
             self.msg_if.pub_warn("Cannot enable WiFi access point - WiFi adapter not enabled")
             return False
         if enable != is_enabled:
-            self.wifi_ap_enabled = enable
+            self.access_point_enabled = enable
             success = self.publish_status()
             self.set_wifi_ap()
             if self.node_if is not None:
-                self.node_if.set_param("access_point_enabled", enable)
+                self.node_if.set_param("wifi_access_point_enabled", enable)
                 success = self.save_config()
         return True
 
