@@ -120,7 +120,7 @@ class config_mgr(object):
             },
             'system_reset': {
                 'namespace': self.base_namespace,
-                'topic': 'user_reset',
+                'topic': 'system_reset',
                 'srv': ParamsReset,
                 'req': ParamsResetRequest(),
                 'resp': ParamsResetResponse(),

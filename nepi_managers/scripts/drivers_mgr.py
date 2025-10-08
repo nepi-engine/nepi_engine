@@ -276,6 +276,23 @@ class NepiDriversMgr(object):
 
         nepi_sdk.wait()
 
+        # drvs_dict = self.node_if.get_param("drvs_dict")
+        # self.msg_if.pub_warn("Node drvs keys: " + str(drvs_dict.keys()))
+        # drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        # self.msg_if.pub_warn("Node active drvs: " + str(drvs_active_list))
+        # drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
+        # self.msg_if.pub_warn("Node ordered drvs: " + str(drvs_ordered_list))
+  
+        # self.msg_if.pub_error("Sleeping")
+        # nepi_sdk.sleep(20)
+
+        # drvs_dict = self.node_if.get_param("drvs_dict")
+        # self.msg_if.pub_warn("Sleep drvs keys: " + str(drvs_dict.keys()))
+        # drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        # self.msg_if.pub_warn("Sleep active drvs: " + str(drvs_active_list))
+        # drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
+        # self.msg_if.pub_warn("Sleep ordered drvs: " + str(drvs_ordered_list))
+
         ###########################
         # Initialize Params
 
@@ -312,7 +329,11 @@ class NepiDriversMgr(object):
         self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
         drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
         self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
+        drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Init ordered drvs: " + str(drvs_ordered_list))
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
+        drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Refresh ordered drvs: " + str(drvs_ordered_list))
         self.drvs_dict = drvs_dict
       if do_updates == True:
         self.refresh()
@@ -435,7 +456,6 @@ class NepiDriversMgr(object):
           self.msg_if.pub_warn("Disabling driver: " + str(driver_name))
           self.msg_if.pub_warn("Killing all devices for driver: " + str(driver_name) + " active paths list " + str(self.active_paths_list))
           try:
-            
             self.active_paths_list = self.discovery_classes_dict[driver_name].killAllDevices(self.active_paths_list)
             self.msg_if.pub_warn("Got updated active paths list " + str(self.active_paths_list))
           except Exception as e:
@@ -530,7 +550,6 @@ class NepiDriversMgr(object):
           ############################
           # Call Auto-Call processes 
           if discovery_process == "CALL":
-            active_paths_list = self.active_paths_list
             #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name ) #+ " with drv_dict " + str(drv_dict))
             if driver_name not in self.discovery_classes_dict.keys() and driver_name not in self.failed_class_import_list:
               self.msg_if.pub_info("")
@@ -552,7 +571,9 @@ class NepiDriversMgr(object):
               discovery_class = self.discovery_classes_dict[driver_name]
               
               try:
-                active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
+                #self.msg_if.pub_info("Start discovery function with active paths: " + str(self.active_paths_list))
+                self.active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
+                #self.msg_if.pub_info("End discovery function with active paths: " + str(self.active_paths_list))
               except Exception as e:
                 self.msg_if.pub_info("Failed to call discovery function for driver: " + driver_name + " : " + str(e))
                 self.msg_if.pub_info("Disabling driver: " + driver_name)
@@ -562,10 +583,10 @@ class NepiDriversMgr(object):
                 discovery_module = discovery_file.split('.')[0]
                 self.msg_if.pub_info("Removing Module : " + discovery_module)
                 del sys.modules[discovery_module]
-                #if retry == False:
-                  #self.failed_class_import_list.append(driver_name)
-              else:
-                self.active_paths_list = active_paths_list
+              # if retry == False:
+              #     self.failed_class_import_list.append(driver_name)
+              # else:
+              #   self.active_paths_list = active_paths_list
 
           ################################
           # update options in param server
@@ -573,9 +594,8 @@ class NepiDriversMgr(object):
               success = self.createDriverOptionsIf(driver_name,drvs_dict)
               self.node_if.save_config() # Save config on options change
               self.msg_if.pub_info("Instantiated discovery settings IF class " + discovery_node_name + " for driver " + driver_name)
-          if driver_name in self.discovery_settings_dict.keys():
-            self.publishDiscoverySettingsStatus(driver_name) 
-
+      if driver_name in self.discovery_settings_dict.keys():
+        self.publishDiscoverySettingsStatus(driver_name) 
     # Publish Status
     self.publish_status()
     # And now that we are finished, start a timer for the drvt runDiscovery()
@@ -756,8 +776,9 @@ class NepiDriversMgr(object):
         settings_status_msg.setting_caps_list = caps_msgs_list
 
         settings_status_msg.has_cap_updates = False
-        settings_pub = self.discovery_settings_dict[driver_name]['settings_pub']
-        settings_pub.publish(settings_status_msg)
+        if driver_name in self.discovery_settings_dict.keys():
+          settings_pub = self.discovery_settings_dict[driver_name]['settings_pub']
+          settings_pub.publish(settings_status_msg)
 
 
   ###############################################

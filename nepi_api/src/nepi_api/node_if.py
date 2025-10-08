@@ -117,12 +117,16 @@ class NodeConfigsIF:
         
         self.request_msg.namespace = self.namespace
         ns = nepi_sdk.create_namespace(self.namespace,'user_reset')
-        self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        self.user_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        ns = nepi_sdk.create_namespace(self.namespace,'system_reset')
+        self.system_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.namespace,'factory_reset')
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         
         ns = nepi_sdk.create_namespace(self.base_namespace,'user_reset')
-        self.reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        self.user_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'system_reset')
+        self.system_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'factory_reset')
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
@@ -146,12 +150,12 @@ class NodeConfigsIF:
         nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
         nepi_sdk.create_subscriber('system_reset', Reset, self._systemResetCb)
 
-        self.msg_if.pub_debug("Resetting Params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
         self.reset_config()
         nepi_sdk.wait()
 
         params_dict = nepi_sdk.get_param(self.namespace, dict())
-        self.msg_if.pub_debug("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
 
         if 'init_configs' in configs_dict.keys():
             
@@ -204,7 +208,7 @@ class NodeConfigsIF:
     def reset_config(self):
         self.msg_if.pub_warn("Reseting Config: " + str(self.request_msg))
         success = False
-        success = nepi_sdk.call_service(self.reset_service,self.request_msg)
+        success = nepi_sdk.call_service(self.user_reset_service,self.request_msg)
         nepi_sdk.sleep(1)
         #if (self.resetCb and success == True) and not nepi_sdk.is_shutdown():
         #    self.resetCb() # Callback provided by container class to update based on param server, etc.
@@ -1075,6 +1079,10 @@ class NodeClassIF:
            
         ##############################  
         # Create Config Class After Params
+
+
+
+
 
         self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
