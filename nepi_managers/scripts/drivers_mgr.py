@@ -530,7 +530,7 @@ class NepiDriversMgr(object):
           ############################
           # Call Auto-Call processes 
           if discovery_process == "CALL":
-            active_paths_list = None
+            active_paths_list = self.active_paths_list
             #self.msg_if.pub_warn( "Checking on driver discovery class for: " + driver_name ) #+ " with drv_dict " + str(drv_dict))
             if driver_name not in self.discovery_classes_dict.keys() and driver_name not in self.failed_class_import_list:
               self.msg_if.pub_info("")
@@ -632,11 +632,14 @@ class NepiDriversMgr(object):
 
           if setting_name == 'serial_port':
             serial_ports = nepi_serial.get_serial_ports_list()
+            self.msg_if.pub_info("Got available Serial ports list: " + str(serial_ports))
+            self.msg_if.pub_info("Checking against active ports list: " + str(self.active_paths_list))
             avail_ports = []
             for port in serial_ports:
-              if port not in self.active_paths_list:
-                port_name = os.path.basename(port)
-                avail_ports.append(port_name)
+              if port is not None and self.active_paths_list is not None:
+                if port not in self.active_paths_list:
+                  port_name = os.path.basename(port)
+                  avail_ports.append(port_name)
             self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             setting_cap.options_list = avail_ports
           else:
@@ -677,28 +680,30 @@ class NepiDriversMgr(object):
       setting_name = setting['name']
       # Csetting_namereate cap options dict
       settings_cap_dict = dict()
-      if setting_name = settings.keys():
-        setting_cap = dict()
-        setting_cap[setting_name] = dict()
-        setting_cap[setting_name]['name'] = setting_name
-        setting_cap[setting_name]['type'] = setting['type']
-        setting_cap[setting_name]['options'] = setting['type']
-      valid = nepi_settings.check_valid_setting(setting,setting_cap)
-      if valid == True:
-        #self.msg_if.pub_warn("Updating setting " + str(setting))
-        setting_name = setting['name']
-        setting_value = setting['value']
-        try:
-          drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = setting_value
-          self.drvs_dict = drvs_dict
-          if self.node_if is not None:
-            self.node_if.set_param("drvs_dict",drvs_dict)
-          self.msg_if.pub_info("Update option " + str(setting) + " for driver: " + driver_name)
-        except Exception as e:
-          self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " with e " + str(e))
-      else:
-        self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " NOT VALID")
-      self.node_if.save_config()
+      if setting_name in settings.keys():
+        setting_caps = dict()
+        setting_caps[setting_name] = dict()
+        setting_caps[setting_name]['name'] = setting_name
+        setting_caps[setting_name]['type'] = settings[setting_name]['type']
+        setting_caps[setting_name]['options'] = settings[setting_name]['options']
+        self.msg_if.pub_warn("Updating setting " + str(setting) + " with caps " + str(setting_caps) )
+        valid = nepi_settings.check_valid_setting(setting,setting_caps)
+        if valid == True:
+          #self.msg_if.pub_warn("Updating setting " + str(setting))
+          setting_name = setting['name']
+          setting_value = setting['value']
+          try:
+            drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = setting_value
+            self.drvs_dict = drvs_dict
+            if self.node_if is not None:
+              self.node_if.set_param("drvs_dict",drvs_dict)
+              self.node_if.save_config()
+            self.msg_if.pub_info("Updated option " + str(setting) + " for driver: " + driver_name)
+          except Exception as e:
+            self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " with e " + str(e))
+        else:
+          self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " NOT VALID")
+        
       self.publishDiscoverySettingsStatus(driver_name)   
 
 
@@ -732,11 +737,14 @@ class NepiDriversMgr(object):
 
           if setting_name == 'serial_port':
             serial_ports = nepi_serial.get_serial_ports_list()
+            self.msg_if.pub_info("Got available Serial ports list: " + str(serial_ports))
+            self.msg_if.pub_info("Checking against active ports list: " + str(self.active_paths_list))
             avail_ports = []
             for port in serial_ports:
-              if port not in self.active_paths_list:
-                port_name = os.path.basename(port)
-                avail_ports.append(port_name)
+              if port is not None and self.active_paths_list is not None:
+                if port not in self.active_paths_list:
+                  port_name = os.path.basename(port)
+                  avail_ports.append(port_name)
             self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             cap_msg.options_list = avail_ports
           else:
@@ -1024,6 +1032,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.node_if.save_config()
 
   def removeDriverCb(self,msg):
     self.msg_if.pub_info(str(msg))
@@ -1039,6 +1048,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
+      self.node_if.save_config()
 
 
   def enableBackupCb(self,msg):
@@ -1047,6 +1057,7 @@ class NepiDriversMgr(object):
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("backup_enabled",self.backup_enabled)
+      self.node_if.save_config()
     
 
 
