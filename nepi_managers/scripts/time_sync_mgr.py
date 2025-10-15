@@ -247,7 +247,7 @@ class time_sync_mgr(object):
         timezone = self.node_if.get_param('timezone')
         self.set_timezone(timezone)
 
-        if self.manages_time == False:
+        if self.manages_time == True:
 
             # Initialize the system clock from the RTC if so configured
             # RTC will be updated whenever a "good" clock source is detected; that will control drift
@@ -258,12 +258,12 @@ class time_sync_mgr(object):
                 self.informClockUpdate() 
 
             # Set up a periodic timer to check for NTP sync so we can inform the rest of the system when first sync detected
-            self.ntp_status_check_timer = nepi_sdk.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
+            #self.ntp_status_check_timer = nepi_sdk.start_timer_process(5.0, self.gather_ntp_status_timer_cb)
             self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
             
 
         else:
-            self.msg_if.pub_info("NEPI running in Container Mode. Time and NTP managed by host system")
+            self.msg_if.pub_info("NEPI Time Management Disabled")
 
 
         nepi_sdk.start_timer_process(1, self.statusPubCb)
@@ -370,9 +370,9 @@ class time_sync_mgr(object):
             self.nepi_config = self.get_nepi_system_config()
             ####################
 
-    def gather_ntp_status_timer_cb(self,event):
-        # Just call the implementation method. We don't care about the event payload
-        self.gather_ntp_status()
+    # def gather_ntp_status_timer_cb(self,event):
+    #     # Just call the implementation method. We don't care about the event payload
+    #     self.gather_ntp_status()
 
 
     def updaterCb(self,timer):
@@ -415,27 +415,29 @@ class time_sync_mgr(object):
 
     def gather_ntp_status(self):
         ntp_status = [] # List of lists
-        if self.in_container == True:
-            pass
-        else:  
+        try:
             chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
-            
-            for line in chronyc_sources[1:]:
-                if re.search('^\^|#', line): # Find sources lines by their leading "Mode" indicator
-                    tokens = line.split()
-                    source = tokens[1]
-                    currently_syncd = ('*' in tokens[0]) or ('+' in tokens[0])
-                    last_sync = tokens[5]
-                    current_offset = tokens[6].split('[')[0] # The string has two parts
-                    ntp_status.append((source, currently_syncd, last_sync, current_offset))
-                    if (self.ntp_first_sync_time is None) and (currently_syncd is True):
-                        self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
-                        self.ntp_first_sync_time = nepi_utils.get_time()
-                        self.informClockUpdate()
+            #self.msg_if.pub_warn("Chrony returned status: " + str(chronyc_sources))
+        except Exception as e:
+            #self.msg_if.pub_warn("Failed to get Chrony status: " + str(e))
+            return ntp_status
+        
+        for line in chronyc_sources[1:]:
+            if re.search('^\^|#', line): # Find sources lines by their leading "Mode" indicator
+                tokens = line.split()
+                source = tokens[1]
+                currently_syncd = ('*' in tokens[0]) or ('+' in tokens[0])
+                last_sync = tokens[5]
+                current_offset = tokens[6].split('[')[0] # The string has two parts
+                ntp_status.append((source, currently_syncd, last_sync, current_offset))
+                if (self.ntp_first_sync_time is None) and (currently_syncd is True):
+                    self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
+                    self.ntp_first_sync_time = nepi_utils.get_time()
+                    self.informClockUpdate()
 
-                        # Update the RTC with this "better" clock source
-                        self.msg_if.pub_info("Updating hardware clock with NTP time")
-                        subprocess.call(['hwclock', '-w'])
+                    # Update the RTC with this "better" clock source
+                    self.msg_if.pub_info("Updating hardware clock with NTP time")
+                    subprocess.call(['hwclock', '-w'])
 
         return ntp_status
 

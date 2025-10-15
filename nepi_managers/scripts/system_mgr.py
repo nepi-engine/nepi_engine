@@ -1302,6 +1302,13 @@ class SystemMgrNode():
 
         # Now overwrite the original file as an autonomous operation
         os.rename(tmp_filename, self.SYS_ENV_PATH)
+        # Update etc files
+        nepi_system.update_nepi_system_config("NEPI_DEVICE_ID",msg.data)
+        etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_hostname.sh"
+        subprocess.call([etc_update_script])
+        nepi_utils.sleep(1)
+        self.nepi_config = self.get_nepi_system_config()
+        
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
         self.add_info_string(
             "Device ID updated - Requires device reboot", StampedString.PRI_ELEVATED)

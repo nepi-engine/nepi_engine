@@ -419,9 +419,6 @@ class NetworkMgr:
         nepi_sdk.wait()
 
         self.initCb(do_updates = True)
-   
-        self.msg_if.pub_warn("Sleeping for 20")
-        nepi_sdk.sleep(20)
 
 
         ###########################
@@ -491,13 +488,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Starting Init with DHCP Enabled: " + str(self.dhcp_enabled))
 
             # Update WiFi System
-            
-            cwifi_iface = self.nepi_config['NEPI_WIFI_INTERFACE']
-            if cwifi_iface == "Uknown":
-                self.updateWifiDevice()
-            else:
-                nwifi_iface = cwifi_iface
-            self.wifi_iface = nwifi_iface       
+            self.updateWifiDevice()
             if self.wifi_iface is None:
                 self.msg_if.pub_warn("No Wifi Device Detected")
             else:
@@ -1019,14 +1010,10 @@ class NetworkMgr:
         if True == self.is_valid_ip(addr):
             if addr not in self.found_ip_addrs:
                 
-                if len(self.managed_ip_addrs) > 0:
-                    self.msg_if.pub_warn("Failed to add IP address: " + str(addr) + ". Only one alias support currently")
-                    self.publish_status()
-                    return False 
 
                 if addr != self.primary_ip_addr: # and addr != self.dhcp_ip_addr:
                     if addr not in self.managed_ip_addrs:
-                        self.managed_ip_addrs.append(addr)
+                        self.managed_ip_addrs = [addr]
                         self.publish_status()
                         if self.node_if is not None:
                             self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
