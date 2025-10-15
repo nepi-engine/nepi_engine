@@ -327,7 +327,11 @@ class AiDetectorImgPub:
         return imgs_info_dict
 
     def getActiveImgTopics(self):
-        active_img_topics = list(self.imgs_info_dict.keys())
+        img_topics = list(self.imgs_info_dict.keys())
+        active_img_topics = []
+        for img_topic in img_topics:
+            if self.imgs_info_dict[img_topic]['active'] == True:
+                active_img_topics.append(img_topic)
         return active_img_topics
 
 
@@ -464,29 +468,31 @@ class AiDetectorImgPub:
 
 
     def unsubscribeImgTopic(self,img_topic):
-        self.msg_if.pub_warn('Unsubscribing from image topic: ' + img_topic)
-
-        # Remove img pubs
-        pub_namespace = None
-        try:
-            pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
-        except:
-            pass
-        if pub_namespace is not None:
-            self.img_if.remove_pub_namespace(pub_namespace)
-
-        # Unsubscribe
-        self.img_det_lock.acquire()
-        if img_topic in self.img_det_dict.keys():
-            self.img_det_dict[img_topic]['img_sub'].unregister()
-            self.img_det_dict[img_topic]['nav_sub'].unregister()
-        self.img_det_lock.release()
-
-        # Purge Dict
-
         if img_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[img_topic]['active'] = False
-        nepi_sdk.sleep(1)
+            if self.imgs_info_dict[img_topic]['active'] == True:
+                self.msg_if.pub_warn('Unsubscribing from image topic: ' + img_topic)
+
+                # Remove img pubs
+                pub_namespace = None
+                try:
+                    pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
+                except:
+                    pass
+                if pub_namespace is not None:
+                    self.img_if.remove_pub_namespace(pub_namespace)
+
+                # Unsubscribe
+                self.img_det_lock.acquire()
+                if img_topic in self.img_det_dict.keys():
+                    self.img_det_dict[img_topic]['img_sub'].unregister()
+                    self.img_det_dict[img_topic]['nav_sub'].unregister()
+                self.img_det_lock.release()
+
+                # Purge Dict
+
+                if img_topic in self.imgs_info_dict.keys():
+                    self.imgs_info_dict[img_topic]['active'] = False
+                nepi_sdk.sleep(1)
                    
         return True
 

@@ -799,10 +799,10 @@ class AiDetectorIF:
             self.get_img_topic = "None"
 
     def addAllClassesCb(self,msg):
+        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.addAllClasses()
 
     def addAllClasses(self):
-        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.publish_status(do_updates = False) # Updated Here
         self.selected_classes = self.classes
         self.publish_status()
@@ -1562,11 +1562,12 @@ class AiDetectorIF:
                         img_dict = None
                         if img_topic in self.imgs_locks_dict.keys() and img_topic in self.imgs_dict.keys():
                             self.imgs_locks_dict[img_topic].acquire()
-                            img_dict = self.imgs_dict[img_topic]
+                            img_dict = copy.deepcopy(self.imgs_dict[img_topic])
+                            self.imgs_dict[img_topic] = None
                             self.imgs_locks_dict[img_topic].release()
 
                         if img_dict is None:
-                            #self.msg_if.pub_warn("Callback provided None img_dict, :  " + img_topic)
+                            self.msg_if.pub_warn("Callback provided None img_dict, :  " + img_topic)
                             pass
                         else:
                             if img_dict['cv2_img'] is None:
@@ -1586,7 +1587,7 @@ class AiDetectorIF:
                                 try:
                                     threshold = self.threshold
                                     detect_dicts = self.processDetection(img_dict,threshold) 
-                                    #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dict_list))
+                                    #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
                                     success = True
                                     self.first_detect_complete = True
                                 except Exception as e:
@@ -1628,7 +1629,7 @@ class AiDetectorIF:
 
 
                        
-        nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
+        nepi_sdk.start_timer_process((1), self.updateDetectCb, oneshot = True)
 
     def publishDetectionData(self,img_dict, detect_dict_list,ros_img_header):
         det_count = len(detect_dict_list)
