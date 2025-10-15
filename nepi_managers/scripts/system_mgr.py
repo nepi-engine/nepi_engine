@@ -736,7 +736,7 @@ class SystemMgrNode():
         nepi_sdk.wait()
 
         # Config mgr not running yet, so have to load saved configs ourselfs
-        user_cfg_file = self.node_name + '.yaml.user'
+        user_cfg_file = self.node_name + '.yaml'
         user_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['user_cfg'],user_cfg_file)
         self.msg_if.pub_warn("Updating From Param Server")
         params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)

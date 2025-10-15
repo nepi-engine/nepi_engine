@@ -102,9 +102,9 @@ class NepiAppsMgr(object):
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
-        self.msg_if.pub_info("Waiting for driver manager to start")
-        active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
-        nepi_sdk.sleep(5) # Some extra time for drivers to load
+        # self.msg_if.pub_info("Waiting for driver manager to start")
+        # active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
+        # nepi_sdk.sleep(5) # Some extra time for drivers to load
           
         ##############################
         # Initialize Variables

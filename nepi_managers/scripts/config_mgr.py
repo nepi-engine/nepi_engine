@@ -41,8 +41,6 @@ FACTORY_CFG_PATH = '/mnt/nepi_config/factory_cfg'
 SYSTEM_CFG_PATH = '/mnt/nepi_config/system_cfg'
 USER_CFG_PATH = '/mnt/nepi_storage/user_cfg'
 CFG_SUFFIX = '.yaml'
-FACTORY_SUFFIX = '.factory'
-USER_SUFFIX = '.user'
 
 SYSTEM_MGR_NODENAME = 'system_mgr'
 
@@ -90,7 +88,8 @@ class config_mgr(object):
         self.SYSTEM_CFG_PATH = self.config_folders['system_cfg']
         self.USER_CFG_PATH = self.config_folders['user_cfg']
         self.msg_if.pub_warn("Using config folders: " + str(self.config_folders))
-        
+
+
         ##############################
         ### Setup Node
 
@@ -244,7 +243,7 @@ class config_mgr(object):
         sys_ns = nepi_sdk.create_namespace(self.base_namespace,SYSTEM_MGR_NODENAME)
         self.save_params(self.USER_CFG_PATH, sys_ns)
 
-        nepi_sdk.sleep(2)
+        nepi_sdk.sleep(1)
         self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
@@ -300,20 +299,19 @@ class config_mgr(object):
 
     def update_from_file(self,file_pathname, namespace):
         if os.path.exists(file_pathname) == False:
-            return [False]
+            self.msg_if.pub_warn("Could not find params file for namespace: " + namespace  + " at " + file_pathname )
+            return False
         else:
             self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
             params_dict = None
             try:
                 params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
                 self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()), log_name_list = [self.class_name])
-                if namespace.find('idx') != -1:
-                    params = nepi_sdk.get_params(namespace)
-                    self.msg_if.pub_warn("Got Params for idx namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict), log_name_list = [self.class_name])
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
+                return False
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
-        return [True]
+        return True
 
     def get_config_pathname(self, cfg_path, namespace):
         filename = self.get_filename_from_namespace(namespace)
@@ -347,6 +345,31 @@ class config_mgr(object):
         return success
 
  
+    def reset_params(self,namespace):
+        # Restore saved param config if exists from first find in order (user,system,factory)
+        config_folders = ['user_cfg','system_cfg','factory_cfg']
+        success = False
+        for key in config_folders:
+            if key in self.config_folders.keys():
+                restore_path = self.config_folders[key]
+                # Restore config if exits
+                restore_pathname = self.get_config_pathname(restore_path, namespace)
+                self.msg_if.pub_warn("Checking for saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
+                success = False
+                if os.path.exists(restore_pathname):
+                    self.msg_if.pub_warn("Loading for saved config for namespace: " + namespace + " from: " + str(restore_pathname))
+                    success = self.update_from_file(restore_pathname, namespace)
+                    if success == True:
+                        self.msg_if.pub_warn("Loaded saved config for namespace: " + namespace + " from: " + str(restore_pathname))
+                        return success
+                    else:
+                        self.msg_if.pub_warn("Failed to load. Removing config file for namespace: " + namespace + " from: " + str(restore_pathname))
+                        try:
+                            os.remove(restore_pathname)
+                        except Exception as e:
+                            print(f"An error occurred: {e}")
+        return success
+
     def save_nepi_cfg(self,cfg_path = None):
             if cfg_path is None:
                 cfg_path = self.SYSTEM_CFG_PATH
@@ -456,46 +479,36 @@ class config_mgr(object):
         success = True
         if cfg_path != self.USER_CFG_PATH:
             # First delete user config files if it exists
+            self.msg_if.pub_warn("Deleting User Config Files")
             ucfg_pathname = self.get_config_pathname(self.USER_CFG_PATH, namespace)
             if os.path.exists(ucfg_pathname):
                 nepi_utils.delete_files_in_folder(ucfg_pathname)
         if cfg_path == self.FACTORY_CFG_PATH:
             # Delete system config files for factory reset
+            self.msg_if.pub_warn("Restoring Factory Config Files")
             scfg_pathname = self.get_scfg_pathname(self.SYSTEM_CFG_PATH, namespace)
             if os.path.exists(scfg_pathname):
                 nepi_utils.clear_folder(scfg_pathname)
             factory_pathname = self.get_scfg_pathname(self.FACTORY_CFG_PATH, namespace)
             if os.path.exists(factory_pathname):
                 shutil.copy2(factory_pathname,scfg_pathname)  # Use copy2 to preserve metadata
-        if success == True:
-            # Restore saved param config if exists from first find in order (user,system,factory)
-            config_folders = ['user_cfg','system_cfg','factory_cfg']
-            for key in config_folders:
-                if key in self.config_folders.keys():
-                    rcfg_path = self.config_folders[key]
-                    # Restore config if exits
-                    restore_pathname = self.get_config_pathname(rcfg_path, namespace)
-                    success = False
-                    if os.path.exists(restore_pathname):
-                        success = self.update_from_file(restore_pathname, namespace)
-                        if success == False:
-                            try:
-                                os.remove(config_pathname)
-                            except Exception as e:
-                                print(f"An error occurred: {e}")
-                    if success == True:
-                        self.msg_if.pub_warn("Loaded saved config for namespace: " + namespace + " from: " + str(cfg_path))
-                        break
+        success = self.reset_params(namespace)
         return success
+
+    
+
 
 
     def factoryResetHandler(self,req):
+        self.msg_if.pub_warn("Got Factory Reset request: " + str(req))
         return self.reset_handler(req.namespace, cfg_path = self.FACTORY_CFG_PATH)
 
     def systemResetHandler(self,req):
+        self.msg_if.pub_warn("Got System Reset request: " + str(req))
         return self.reset_handler(req.namespace, cfg_path = self.SYSTEM_CFG_PATH)
 
     def userResetHandler(self,req):
+        self.msg_if.pub_warn("Got User Reset request: " + str(req))
         return self.reset_handler(req.namespace, cfg_path = self.USER_CFG_PATH)
 
 

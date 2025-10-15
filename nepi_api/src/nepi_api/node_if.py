@@ -1079,15 +1079,6 @@ class NodeClassIF:
            
         ##############################  
         # Create Config Class After Params
-
-
-
-
-
-        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-        self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-
-
         if configs_dict is not None:
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
@@ -1103,6 +1094,10 @@ class NodeClassIF:
                                             msg_if = self.msg_if, 
                                             log_name_list = self.log_name_list)
         nepi_sdk.sleep(1)
+
+
+        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+        self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
 
         self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
