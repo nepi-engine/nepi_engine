@@ -569,8 +569,9 @@ class SaveDataIF:
         save_period = float(1) / float(save_rate)
         now = nepi_utils.get_time()
         elapsed = now - save_rate_dict[data_product][1]
-        self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
-        if (elapsed >= save_period):
+        #self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
+        snapshot = self.snapshot_dict[data_product]
+        if (elapsed >= save_period or snapshot):
             self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
             self.save_rate_dict = save_rate_dict
             return True
@@ -586,6 +587,16 @@ class SaveDataIF:
             self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             return False
         return False
+    
+    def data_product_snapshot_reset(self, data_product):
+        try:
+            self.snapshot_dict[data_product] = False
+            return True
+        except:
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
+            return False
+        return False
+        
 
     def data_products_should_save_dict(self):
         dps_dict=copy.deepcopy(self.snapshot_dict)
