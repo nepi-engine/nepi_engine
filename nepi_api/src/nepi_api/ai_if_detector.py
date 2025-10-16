@@ -1626,10 +1626,8 @@ class AiDetectorIF:
                                 self.imgs_info_dict[img_topic] = imgs_info_dict[img_topic]
                             except:
                                 pass
-
-
                        
-        nepi_sdk.start_timer_process((1), self.updateDetectCb, oneshot = True)
+        nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
 
     def publishDetectionData(self,img_dict, detect_dict_list,ros_img_header):
         det_count = len(detect_dict_list)
