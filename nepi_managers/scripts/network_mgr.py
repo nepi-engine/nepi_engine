@@ -492,6 +492,7 @@ class NetworkMgr:
             if self.wifi_iface is None:
                 self.msg_if.pub_warn("No Wifi Device Detected")
             else:
+                cwifi_iface = self.nepi_config['NEPI_WIFI_INTERFACE']
                 if self.wifi_iface != cwifi_iface: 
                     nepi_system.update_nepi_system_config("NEPI_WIFI_INTERFACE",self.wifi_iface)      
 
