@@ -91,7 +91,7 @@ class time_sync_mgr(object):
         # Wait for System Info
         self.msg_if.pub_info("Waiting for nepi config info")
         self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
+        #self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
         self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))

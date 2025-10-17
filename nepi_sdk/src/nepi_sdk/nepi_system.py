@@ -20,7 +20,7 @@ log_name = "nepi_system"
 logger = Logger(log_name = log_name)
 
 
-NEPI_SYSTEM_CONFIG_FILE='/opt/etc/nepi_system_config.yaml'
+NEPI_SYSTEM_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
 NEPI_DOCKER_CONFIG_FILE='/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
 
 #######################
