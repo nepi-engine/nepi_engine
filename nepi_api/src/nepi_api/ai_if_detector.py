@@ -1340,17 +1340,24 @@ class AiDetectorIF:
 
     def imageCb(self,image_msg, args):     
         img_topic = args
-        if img_topic not in self.imgs_info_dict.keys():
-            pass
-        else:
-            img_info_dict = copy.deepcopy(self.imgs_info_dict[img_topic]) 
-            was_connected = copy.deepcopy(img_info_dict['connected'])
+
+        img_info_dict = copy.deepcopy(self.imgs_info_dict[img_topic]) 
+        was_connected = copy.deepcopy(img_info_dict['connected'])
+        img_info_dict['connected'] = True
+        start_time = nepi_sdk.get_time()   
+
+        if img_info_dict['active'] == True:
             img_info_dict['connected'] = True
-            start_time = nepi_sdk.get_time()   
 
+        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
 
-            if img_info_dict['active'] == True:
-                img_info_dict['connected'] = True
+        get_image = (img_topic == self.get_img_topic)
+        if get_image == True:
+            #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
+            self.get_img_topic = "None"
+            if img_topic not in self.imgs_info_dict.keys():
+                pass
+            else:
                 enabled = self.enabled                  
                 if enabled == True and self.sleep_state == False:
                     # Process ros image message
@@ -1359,135 +1366,128 @@ class AiDetectorIF:
                     latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
                     img_info_dict['image_latency_time'] = latency
                     #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
+                    
+                    ##############################
+                    ### Preprocess Image
+                    
+                    options_dict = dict()
+                    options_dict['tile'] = self.status_msg.img_tiling
+                    cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                    # Publish Update Image
+                    if was_connected == False and self.enable_image_pub == True:
+                        if img_topic in self.img_ifs_dict.keys():
+                            cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                            self.img_ifs_lock.acquire()
+                            self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img)
+                            self.img_ifs_lock.release() 
+
+                    
+                    ################################
+                    # Update img_dict
+                    img_dict = dict()
+                    img_dict['cv2_img'] = cv2_img
+                    get_msg_stampstamp = image_msg.header.stamp
+                    img_dict = self.preprocessImage(cv2_img,options_dict)
+                    img_dict['topic'] = img_topic
+                    img_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
+                    img_dict['msg_header'] = image_msg.header
+                    img_dict['msg_stamp'] = get_msg_stampstamp
+                    if img_topic in self.imgs_locks_dict.keys() and img_topic in self.imgs_dict.keys():
+                        self.imgs_locks_dict[img_topic].acquire()
+                        self.imgs_dict[img_topic] = img_dict
+                        self.imgs_locks_dict[img_topic].release()
+                        self.got_img_topic = img_topic
+                    ##############################
 
 
-                    get_image = (img_topic == self.get_img_topic)
-                    #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
-                    if True: #get_image == True:
-                        self.get_img_topic = "None"
 
-                        #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-                        ##############################
-                        ### Preprocess Image
-                        
-                        options_dict = dict()
-                        options_dict['tile'] = self.status_msg.img_tiling
-                        cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+                    preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
+                    img_info_dict['preprocess_time'] = preprocess_time
+
+        if img_topic in self.imgs_info_dict.keys():
+            try:
+                self.imgs_info_dict[img_topic] = img_info_dict
+            except:
+                pass
+
+    def setImageFileCb(self,str_msg, args):     
+        img_topic = args
+
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
+        was_connected = imgs_info_dict[img_topic]['connected']
+        start_time = nepi_sdk.get_time()   
+
+        if img_topic in imgs_info_dict.keys():
+            if imgs_info_dict[img_topic]['active'] == True:
+                imgs_info_dict[img_topic]['connected'] = True
+
+        get_image = (img_topic == self.get_img_topic)
+        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
+        if get_image == True:
+            self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
+            self.get_img_topic = "None"
+            img_file=os.path.join(img_topic,str_msg)
+            if os.path.exists(img_file) == False:
+                self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
+            else:
+                enabled = self.enabled                  
+                if enabled == True and self.sleep_state == False:
+                    # Process ros image message
+                    current_time = nepi_sdk.get_msg_stamp()
+                    #get_msg_stampstamp = image_msg.header.stamp
+                    latency = 0.0 #(current_time.to_sec() - get_msg_stampstamp.to_sec())
+                    imgs_info_dict[img_topic]['image_latency_time'] = latency
+                    #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
+
+                    #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
+                    ##############################
+                    ### Preprocess Image
+                    
+                    options_dict = dict()
+                    options_dict['tile'] = self.status_msg.img_tiling
+                    cv2_img = cv2.imread(file2open)
+                    if cv2_img is not None:
                         # Publish Update Image
                         if was_connected == False and self.enable_image_pub == True:
                             if img_topic in self.img_ifs_dict.keys():
                                 cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
                                 ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
                                 self.img_ifs_lock.acquire()
-                                self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img)
-                                self.img_ifs_lock.release() 
+                                self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img) 
+                                self.img_ifs_lock.release()
 
-                        
                         ################################
                         # Update img_dict
                         img_dict = dict()
                         img_dict['cv2_img'] = cv2_img
-                        get_msg_stampstamp = image_msg.header.stamp
+                        #get_msg_stampstamp = image_msg.header.stamp
                         img_dict = self.preprocessImage(cv2_img,options_dict)
-                        img_dict['topic'] = img_topic
-                        img_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
-                        img_dict['msg_header'] = image_msg.header
-                        img_dict['msg_stamp'] = get_msg_stampstamp
+                        img_dict['topic'] = os.path.join(img_topic,img_file)
+                        img_dict['timestamp'] = current_time #nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
+                        img_dict['msg_header'] = "None" #image_msg.header
+                        img_dict['msg_stamp'] = "None" # get_msg_stampstamp
+                        
                         if img_topic in self.imgs_locks_dict.keys() and img_topic in self.imgs_dict.keys():
                             self.imgs_locks_dict[img_topic].acquire()
                             self.imgs_dict[img_topic] = img_dict
                             self.imgs_locks_dict[img_topic].release()
                             self.got_img_topic = img_topic
                         ##############################
-
-
+                    
 
                         preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                        img_info_dict['preprocess_time'] = preprocess_time
+                        imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
 
-                if img_topic in self.imgs_info_dict.keys():
-                    try:
-                        self.imgs_info_dict[img_topic] = img_info_dict
-                    except:
-                        pass
-
-    def setImageFileCb(self,str_msg, args):     
-        img_topic = args
-        img_file=os.path.join(img_topic,str_msg)
-        if os.path.exists(img_file) == False:
-            self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
-        else:
-            imgs_info_dict = copy.deepcopy(self.imgs_info_dict) 
-            was_connected = imgs_info_dict[img_topic]['connected']
-            start_time = nepi_sdk.get_time()   
-
-            if img_topic in imgs_info_dict.keys():
-                if imgs_info_dict[img_topic]['active'] == True:
-                    imgs_info_dict[img_topic]['connected'] = True
-                    enabled = self.enabled                  
-                    if enabled == True and self.sleep_state == False:
-                        # Process ros image message
-                        current_time = nepi_sdk.get_msg_stamp()
-                        #get_msg_stampstamp = image_msg.header.stamp
-                        latency = 0.0 #(current_time.to_sec() - get_msg_stampstamp.to_sec())
-                        imgs_info_dict[img_topic]['image_latency_time'] = latency
-                        #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
-
-
-                        get_image = (img_topic == self.get_img_topic)
-                        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
-                        if get_image == True:
-                            self.get_img_topic = "None"
-
-                            #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-                            ##############################
-                            ### Preprocess Image
-                            
-                            options_dict = dict()
-                            options_dict['tile'] = self.status_msg.img_tiling
-                            cv2_img = cv2.imread(file2open)
-                            if cv2_img is not None:
-                                # Publish Update Image
-                                if was_connected == False and self.enable_image_pub == True:
-                                    if img_topic in self.img_ifs_dict.keys():
-                                        cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
-                                        ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
-                                        self.img_ifs_lock.acquire()
-                                        self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img) 
-                                        self.img_ifs_lock.release()
-
-                                ################################
-                                # Update img_dict
-                                img_dict = dict()
-                                img_dict['cv2_img'] = cv2_img
-                                #get_msg_stampstamp = image_msg.header.stamp
-                                img_dict = self.preprocessImage(cv2_img,options_dict)
-                                img_dict['topic'] = os.path.join(img_topic,img_file)
-                                img_dict['timestamp'] = current_time #nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
-                                img_dict['msg_header'] = "None" #image_msg.header
-                                img_dict['msg_stamp'] = "None" # get_msg_stampstamp
-                                
-                                if img_topic in self.imgs_locks_dict.keys() and img_topic in self.imgs_dict.keys():
-                                    self.imgs_locks_dict[img_topic].acquire()
-                                    self.imgs_dict[img_topic] = img_dict
-                                    self.imgs_locks_dict[img_topic].release()
-                                    self.got_img_topic = img_topic
-                                ##############################
-                            
-
-                                preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                                imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
-
-                        if img_topic in self.imgs_info_dict.keys():
-                            try:
-                                self.imgs_info_dict[img_topic] = imgs_info_dict[img_topic]
-                            except:
-                                pass
+        if img_topic in self.imgs_info_dict.keys():
+            try:
+                self.imgs_info_dict[img_topic] = imgs_info_dict[img_topic]
+            except:
+                pass
 
 
     def updateDetectCb(self,timer):
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        start_time = nepi_sdk.get_time()
         enabled = self.enabled
         if enabled == True:
             img_topics = self.selected_img_topics
@@ -1497,6 +1497,7 @@ class AiDetectorIF:
                     if imgs_info_dict[topic]['connected'] == True:
                         connected_list.append(topic)
             if len(connected_list) == 0:
+                #self.msg_if.pub_warn("No Connected Image Topics")
                 self.get_img_topic = "None"
             else:
                 # check timer
@@ -1526,14 +1527,16 @@ class AiDetectorIF:
 
                 # Check if current image topic is None
                 if img_topic == "None" and next_img_topic != "None":
+                    self.msg_if.pub_warn("Initializing get topic to: " +  next_img_topic)
                     self.get_img_topic = next_img_topic
                     self.cur_img_topic = next_img_topic
                     self.last_detect_time = nepi_sdk.get_time()
 
+
                 ##############################
                 # Check for non responding image streams                   
                 if timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
-                    #self.msg_if.pub_warn("Topic " + img_topic + " timed out. Setting next topic to: " +  next_img_topic)
+                    self.msg_if.pub_warn("Topic " + img_topic + " timed out. Setting next topic to: " +  next_img_topic)
                     if img_topic != self.img_folder_path:
                         if img_topic is not None and img_topic in imgs_info_dict.keys():
                             imgs_info_dict[img_topic]['connected'] = False
@@ -1542,8 +1545,6 @@ class AiDetectorIF:
                         self.last_detect_time = nepi_sdk.get_time()
 
                 elif timer > delay_time: 
-
-
                     if len(connected_list) > 0 and self.get_img_topic == "None" :
                         #Request new image before publishing current
                         #self.msg_if.pub_warn("Setting next topic to: " +  next_img_topic)
@@ -1556,7 +1557,7 @@ class AiDetectorIF:
 
                     #self.msg_if.pub_warn("Timer over delay check, looking for image topic: " +  img_topic)
                     if img_topic != "None" and img_topic in connected_list and img_topic == self.got_img_topic :
-                      
+                        start_time = nepi_sdk.get_time()
                         # Process got image
                         #self.msg_if.pub_warn("Copying img_dict from topic:  " + img_topic)
                         img_dict = None

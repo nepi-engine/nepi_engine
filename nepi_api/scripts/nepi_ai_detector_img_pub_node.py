@@ -392,6 +392,9 @@ class AiDetectorImgPub:
         # Do image sub purging if required
         #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         #self.msg_if.pub_warn("")
+        for img_topic in purge_list:
+                if img_topic not in active_img_topics:
+                    purge_list.remove(img_topic)
         if len(purge_list) > 0:
             self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
         for img_topic in purge_list:
