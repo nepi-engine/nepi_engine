@@ -80,7 +80,7 @@ class config_mgr(object):
         #time.sleep(10)
         self.msg_if.pub_info("Waiting for system folders")
         folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
-        self.msg_if.pub_warn("Got system folders: " + str(folders))
+        #self.msg_if.pub_warn("Got system folders: " + str(folders))
         for folder in self.config_folders.keys():
             if folder in folders.keys():
                 self.config_folders[folder] = folders[folder]

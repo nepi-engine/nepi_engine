@@ -50,7 +50,7 @@ def get_serial_ports_list():
     for loc, desc, hwid in sorted(ports):
         ports_list.append(loc)
     #self.logger.log_warn("ports: " + str(ports))###
-    add_ports = sorted(set(glob.glob('/dev/ttyTHS0')))
+    add_ports = sorted(set(glob.glob('/dev/ttyTHS*')))
     add_ports = add_ports + sorted(set(glob.glob('/dev/ttyTCU*')))
     #self.logger.log_warn("add port: " + str(add_ports))###
     for add_port in add_ports:
@@ -66,7 +66,7 @@ def get_serial_ports_list():
 def get_serial_ports_dict_list():
   port_dicts = dict()
   usb_ports = usb.core.find(find_all=True)
-  ports = list_ports.comports() #get_serial_ports_list()
+  ports = get_serial_ports_list() #get_serial_ports_list()
   for port in sorted(ports):
     device_dict = SERIAL_DEVICE_DICT
     device_dict = get_serial_device_dict(port)

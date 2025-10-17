@@ -132,23 +132,22 @@ def refreshDriversDict(drivers_path,drvs_dict):
     if drv_name not in drvs_dict.keys():
       get_drvs_dict[drv_name]['active'] = False
     else:
-      #logger.log_warn('')
+      #.log_warn('')
       #logger.log_warn('Updating drv: ' + drv_name)
       #logger.log_warn('Updating drv: ' + str(drvs_dict[drv_name]))
       get_drvs_dict[drv_name]['active'] = drvs_dict[drv_name]['active']
       get_drvs_dict[drv_name]['order'] = drvs_dict[drv_name]['order']
       drv_dict = drvs_dict[drv_name]
-      if 'OPTIONS' in drv_dict.keys():
-        options_dict = drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
-        get_options_dict = get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
-        if get_options_dict != "None":
-          if options_dict != "None":
-            for get_option_name in get_options_dict.keys():
-              if get_option_name in options_dict.keys():
-                cur_value = options_dict[get_option_name]['value']
-                if cur_value in options_dict[get_option_name]['options']:
-                  get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] = cur_value
-
+      if 'DISCOVERY_DICT' in drv_dict.keys():
+        if 'OPTIONS' in drv_dict['DISCOVERY_DICT'].keys():
+          options_dict = drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
+          get_options_dict = get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
+          for get_option_name in get_options_dict.keys():
+            if get_option_name in options_dict.keys():
+              cur_value = options_dict[get_option_name]['value']
+              #logger.log_warn('Using current drv option value: ' + str(drv_name) +":"+ str(get_option_name) +":"+ str(cur_value))
+              get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name]['value'] = cur_value
+          #logger.log_warn('Refreshed options ' + str(drv_name) +" : "+ str( get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] ))
 
 
   #logger.log_warn('Updated to: ' + str(get_drvs_dict))
