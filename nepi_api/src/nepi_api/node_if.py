@@ -400,30 +400,34 @@ class NodeParamsIF:
 
     def has_param(self, param_name):
         namespace = self.get_param_namespace(param_name)
-        return nepi_sdk.has_param(namespace)
+        if namespace is not None:
+            return nepi_sdk.has_param(namespace)
+        return False
 
     def get_param(self, param_name):
         value = None
         if param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
             namespace = self.get_param_namespace(param_name)
-            if 'init_val' in param_dict.keys():
-                fallback = param_dict['init_val']
-            else:
-                fallback = param_dict['factory_val']
-
-            if fallback is not None:  
-                if namespace in self.params_ns_dict.keys():
-                    value = self.params_ns_dict[namespace]
+            if namespace is not None:
+                if 'init_val' in param_dict.keys():
+                    fallback = param_dict['init_val']
                 else:
-                    value = fallback
+                    fallback = param_dict['factory_val']
+
+                if fallback is not None:  
+                    if namespace in self.params_ns_dict.keys():
+                        value = self.params_ns_dict[namespace]
+                    else:
+                        value = fallback
         return value
 
     def set_param(self, param_name, value):
         if not nepi_sdk.is_shutdown():
             namespace = self.get_param_namespace(param_name)
-            nepi_sdk.set_param(namespace,value)
-            self.params_ns_dict[namespace] = value
+            if namespace is not None:
+                nepi_sdk.set_param(namespace,value)
+                self.params_ns_dict[namespace] = value
 
     def reset_param(self, param_name):
         if param_name in self.params_dict.keys():
@@ -440,7 +444,7 @@ class NodeParamsIF:
 
 
     def get_param_namespace(self,param_name):
-        namespace = ""
+        namespace = None
         if param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
             param_dict = self.params_dict[param_name]
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)

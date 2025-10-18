@@ -538,7 +538,7 @@ def importDriverClass(file_name,file_path,module_name,class_name):
       success = False
       msg = "failed"
       file_list = os.listdir(file_path)
-      logger.log_warn("Looking for driver file: " + str(file_name) + " : " + str(file_list))
+      #logger.log_warn("Looking for driver file: " + str(file_name) + " : " + str(file_list))
       if file_name in file_list:
         sys.path.append(file_path)
         try:
