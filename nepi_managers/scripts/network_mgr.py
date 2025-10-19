@@ -427,7 +427,7 @@ class NetworkMgr:
         nepi_sdk.start_timer_process(self.BANDWIDTH_MONITOR_PERIOD_S, self.bandwidthCheckCb)
         nepi_sdk.start_timer_process(1, self.networkIpCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.internetCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.wifiCheckCb, oneshot = True)
+        #nepi_sdk.start_timer_process(1, self.wifiCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.wifiClientCheckCb, oneshot = True)
 
 
@@ -542,10 +542,10 @@ class NetworkMgr:
                         self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
 
 
-                        if self.client_enabled != nclient_enabled:
-                            self.node_if.set_param('wifi_client_enabled',self.client_enabled)    
-                        if self.client_enabled == True: 
-                            self.enable_wifi_client(self.client_enabled)
+                        # if self.client_enabled != nclient_enabled:
+                        #     self.node_if.set_param('wifi_client_enabled',self.client_enabled)    
+                        # if self.client_enabled == True: 
+                        #     self.enable_wifi_client(self.client_enabled)
                     
 
                     
@@ -1195,7 +1195,7 @@ class NetworkMgr:
 
     def enable_wifi(self, enabled):
         success = False
-        if self.wifi_iface is not None and self.wifi_enabled != enabled and self.wifi_client_connecting == False:
+        if self.wifi_iface is not None and self.wifi_client_connecting == False:
             self.wifi_enabled = enabled
             self.publish_status()
             ### Update ETC Files
