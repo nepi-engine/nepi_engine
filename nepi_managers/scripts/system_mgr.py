@@ -67,7 +67,7 @@ class SystemMgrNode():
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
-    SYS_ENV_PATH = NEPI_FOLDER + "/sys_env.bash"
+    SYS_ENV_PATH = SYS_ETC_PATH + "/sys_env.bash"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
 
     STATES_DICT = dict()
