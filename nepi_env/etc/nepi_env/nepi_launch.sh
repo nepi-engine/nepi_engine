@@ -102,7 +102,7 @@ update_value ${SYS_ENV_FILE} "export DEVICE_SN" "export DEVICE_SN=${NEPI_DEVICE_
 
 
 # Check if system hostname has changed
-if [[ "${hostname}" != "${NEPI_DEVICE_ID}" ]]; then
+if [[ "${HOSTNAME}" != "${NEPI_DEVICE_ID}" ]]; then
 	echo "System Hostname has changed, Running ETC hostname update script"
 	. /opt/nepi/etc/scripts/update_etc_hostname.sh
 fi

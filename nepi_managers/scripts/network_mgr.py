@@ -122,7 +122,7 @@ class NetworkMgr:
     wifi_ap_running_ssid = None
 
 
-    wifi_scan_thread = None
+    wifi_scanning = False
     wifi_available_networks = []
 
     internet_connected = False
@@ -428,6 +428,7 @@ class NetworkMgr:
         nepi_sdk.start_timer_process(1, self.networkIpCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.internetCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1, self.wifiCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.wifiClientCheckCb, oneshot = True)
 
 
 
@@ -506,19 +507,13 @@ class NetworkMgr:
                 self.nepi_config = self.get_nepi_system_config()
                 cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
                 self.wifi_enabled = nwifi_enabled or cwifi_enabled
-                if self.wifi_enabled != nwifi_enabled:
-                    self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
-                if self.wifi_enabled != cwifi_enabled:
-                    self.enable_wifi(self.wifi_enabled)
-                    nepi_sdk.sleep(1) 
-                    # Check for update
-                    self.nepi_config = self.get_nepi_system_config()
-                    self.wifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
-
+                self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
+                self.enable_wifi(self.wifi_enabled)
+                nepi_sdk.sleep(1) 
 
                 # Stop WiFi updates if not enabled
                 if self.wifi_enabled == False:
-                    self.msg_if.pub_warn("No Wifi Device Not Enabled")
+                    self.msg_if.pub_warn("WiFi Not Enabled")
                 else:
                     # Update WiFi Low Power settings
                     nlow_power_enabled = self.node_if.get_param('wifi_low_power_enabled')
@@ -608,6 +603,13 @@ class NetworkMgr:
         self.set_rosmaster_impl("localhost")
         self.msg_if.pub_warn("Factory reset complete -- must reboot device for IP and ROS_MASTER_URI changes to take effect")
 
+
+    def save_config(self):
+        success = True
+        if self.node_if is not None:
+            self.node_if.save_config()
+        return success
+
     def publishStatusCb(self,timer):
         self.publish_status()
 
@@ -642,13 +644,16 @@ class NetworkMgr:
     def wifiCheckCb(self,timer):
         #self.msg_if.pub_warn("Debugging: Entering WiFi Check process")
         # Refresh Wifi Networks
-        if self.wifi_enabled == True:
-            success = self.refresh_available_networks()
 
-            # Check for Wifi Connection
-            ssid = self.check_wifi_client_connected()
+        success = self.scan_for_wifi_networks()
    
-        nepi_sdk.start_timer_process(5, self.wifiCheckCb, oneshot=True)
+        nepi_sdk.start_timer_process(20, self.wifiCheckCb, oneshot=True)
+    
+    def wifiClientCheckCb(self,timer):
+        #self.msg_if.pub_warn("Debugging: Entering WiFi Client Check process")
+        # Check for Wifi Connection
+        ssid = self.check_wifi_client_connected()
+        nepi_sdk.start_timer_process(5, self.wifiClientCheckCb, oneshot=True)
 
 
     #######################
@@ -903,14 +908,18 @@ class NetworkMgr:
             return False
 
 
-    def update_wifi_available_networks(self):
+
+
+    def scan_for_wifi_networks(self):
         #self.msg_if.pub_warn("Checking if can update wifi networks: " + str([self.wifi_enabled == True, self.wifi_client_enabled == True, self.wifi_client_connecting == False]))
-        if self.wifi_enabled == True and self.wifi_client_enabled == True and self.wifi_client_connecting == False:
+        if self.wifi_enabled == True and self.wifi_client_enabled == True and self.wifi_client_connecting == False and self.wifi_scanning == False:
+            last_networks = copy.deepcopy(self.wifi_available_networks)
+            self.wifi_scanning = True
             #self.msg_if.pub_warn("Debugging: Scanning for available WiFi networks") 
             #self.msg_if.pub_warn("Debugging:" + str(self.wifi_client_enabled) + " " + " " + str(self.wifi_enabled))
             #self.msg_if.pub_info("Updating available WiFi connections on iface: " + str(self.wifi_iface))
             available_networks = []
-            network_scan_cmd = ['iw', self.wifi_iface, 'scan']
+            network_scan_cmd = ['iw', 'dev', self.wifi_iface, 'scan 2>/dev/null']
             scan_result = ""
             try:
                 #with self.wifi_lock:
@@ -927,32 +936,12 @@ class NetworkMgr:
                         if network and (network not in available_networks):
                             available_networks.append(network)
                 self.wifi_available_networks = list(available_networks)
-                #self.msg_if.pub_warn("Got WiFi networks list: " + str(available_networks))
-            self.msg_if.pub_warn("Exiting wifi scan process: " + str(available_networks))
-        self.wifi_scan_thread = None
+                self.msg_if.pub_warn("Got WiFi networks list: " + str(available_networks))
+                if last_networks != self.wifi_available_networks:
+                    self.msg_if.pub_warn("Got Updated WiFi networks list: " + str(available_networks))
+            #self.msg_if.pub_warn("Exiting wifi scan process: " + str(available_networks))
+            self.wifi_scanning = False
 
-
-
-    def refresh_available_networks(self):
-        if self.wifi_scan_thread is not None:
-            self.msg_if.pub_warn("Not refreshing available wifi networks because a refresh is already in progress")
-            return False
-        #self.msg_if.pub_info("Clear to refresh available wifi networks with iface: " + str(self.wifi_iface) )
-        # Clear the list, let the scan thread update it later
-        #self.msg_if.pub_warn("Checking if can refresh wifi networks: " + str([self.wifi_enabled == True, self.wifi_client_enabled == True, self.wifi_client_connecting == False]))
-        if self.wifi_enabled == True and self.wifi_client_enabled == True and self.wifi_client_connecting == False:
-            self.wifi_scan_thread = threading.Thread(target=self.update_wifi_available_networks)
-            self.wifi_scan_thread.daemon = True
-            self.wifi_scan_thread.start()
-            return True
-        return False
-
-    def save_config(self):
-        success = True
-        if self.node_if is not None:
-            #self.msg_if.pub_warn("Saving Network Mgr Config")
-            self.node_if.save_config()
-        return success
 
 
 
@@ -1190,8 +1179,7 @@ class NetworkMgr:
         ####################
         if self.node_if is not None:
             self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
-        self.save_config()
-        success = True
+            success = self.save_config()
         self.dhcp_connecting = False
         return success
        
@@ -1249,7 +1237,7 @@ class NetworkMgr:
 
     def refreshWifiNetworksCb(self, msg):
         self.msg_if.pub_info("Recieved refresh WiFi availble networks")
-        success = self.refresh_available_networks()
+        success = self.scan_for_wifi_networks()
 
 
 
@@ -1275,7 +1263,7 @@ class NetworkMgr:
 
             if self.node_if is not None:
                 self.node_if.set_param('wifi_client_enabled', enabled)
-                self.save_config()
+                success = self.save_config()
         return success
 
 
