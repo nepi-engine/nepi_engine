@@ -239,7 +239,7 @@ class NetworkMgr:
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_enabled
             },
-            'wifi_ap__ssid': {
+            'wifi_ap_ssid': {
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_ssid
             },
@@ -539,17 +539,17 @@ class NetworkMgr:
 
                         nwifi_client_ssid = self.node_if.get_param('wifi_client_ssid')
                         cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
-                        if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '':
+                        if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
                             nwifi_client_ssid=cwifi_client_ssid
-                        if nwifi_client_ssid == '':
+                        if nwifi_client_ssid == '' or nwifi_client_ssid is None:
                             nwifi_client_ssid='NONE'
                         self.wifi_client_ssid = nwifi_client_ssid
                         
                         nwifi_client_passphrase = self.node_if.get_param('wifi_client_passphrase')
                         cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
-                        if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '':
+                        if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
                             nwifi_client_passphrase=cwifi_client_passphrase
-                        if nwifi_client_passphrase == '':
+                        if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
                             nwifi_client_passphrase='NONE'
                         self.wifi_client_passphrase = nwifi_client_passphrase
 
@@ -579,17 +579,17 @@ class NetworkMgr:
                     self.nepi_config = self.get_nepi_system_config()
                     nwifi_ap_ssid = self.node_if.get_param('wifi_ap_ssid')
                     cwifi_ap_ssid = self.nepi_config['NEPI_WIFI_ACCESS_POINT_ID']
-                    if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '':
+                    if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
                         nwifi_ap_ssid=cwifi_ap_ssid
-                    if nwifi_ap_ssid == '' or nwifi_ap_ssid == 'NONE':
+                    if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
                         nwifi_ap_ssid='nepi_device_ap'
                     self.wifi_ap_ssid = nwifi_ap_ssid
                     
                     nwifi_ap_passphrase = self.node_if.get_param('wifi_ap_passphrase')
                     cwifi_ap_passphrase = self.nepi_config['NEPI_WIFI_ACCESS_POINT_PW']
-                    if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '':
+                    if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
                         nwifi_ap_passphrase=cwifi_ap_passphrase
-                    if nwifi_ap_passphrase == '' or nwifi_ap_passphrase == 'NONE':
+                    if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
                         nwifi_ap_passphrase='nepi_device_ap'
                     self.wifi_ap_passphrase = nwifi_ap_passphrase
 
@@ -1245,7 +1245,7 @@ class NetworkMgr:
             self.msg_if.pub_warn("Cannot enabled WiFi access point - system has no WiFi adapter")
             return False
         #self.msg_if.pub_warn("Checking if can enable wifi: " + str([self.wifi_iface is not None, self.wifi_client_enabled != enabled, self.wifi_client_connecting == False]))
-        if self.wifi_iface is not None and self.wifi_client_enabled != enabled and self.wifi_client_connecting == False:
+        if self.wifi_iface is not None and self.wifi_client_connecting == False:
             self.wifi_client_enabled = enabled
             self.publish_status()
             #Update credentials file
