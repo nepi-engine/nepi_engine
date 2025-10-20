@@ -102,7 +102,7 @@ class NetworkMgr:
     wifi_ready = False
     wifi_client_enabled = False
     wifi_client_retrty = False
-    wifi_client_ssid = 'None'
+    wifi_client_ssid = 'NONE'
     wifi_client_passphrase = ''
     
     wifi_client_connecting = False
@@ -114,8 +114,8 @@ class NetworkMgr:
     wifi_ap_ready = False
 
     wifi_ap_enabled = False
-    wifi_ap_ssid = ''
-    wifi_ap_passphrase = ''
+    wifi_ap_ssid = 'nepi_device_ap'
+    wifi_ap_passphrase = 'nepi_device_ap'
 
     wifi_ap_connecting = False
     wifi_ap_running = False
@@ -235,15 +235,15 @@ class NetworkMgr:
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_client_passphrase
             },
-           'wifi_access_point_enabled': {
+           'wifi_wifi_ap_enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_enabled
             },
-            'wifi_access_point_ssid': {
+            'wifi_ap__ssid': {
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_ssid
             },
-            'wifi_access_point_passphrase': {
+            'wifi_ap_passphrase': {
                 'namespace': self.node_namespace,
                 'factory_val': self.wifi_ap_passphrase
             }
@@ -385,7 +385,7 @@ class NetworkMgr:
                 'callback': self.setWifiClientCredentialsCb, 
                 'callback_args': ()
             },      
-            'enable_wifi_access_point': {
+            'enable_wifi_ap': {
                 'namespace': self.base_namespace,
                 'topic': 'enable_wifi_access_point',
                 'msg': Bool,
@@ -393,7 +393,7 @@ class NetworkMgr:
                 'callback': self.setWifiApEnableCb, 
                 'callback_args': ()
             },
-            'set_wifi_access_point_credentials': {
+            'set_wifi_ap_credentials': {
                 'namespace': self.base_namespace,
                 'topic': 'set_wifi_access_point_credentials',
                 'msg': NetworkWifiCredentials,
@@ -566,15 +566,15 @@ class NetworkMgr:
 
                     
                     # Update WiFi Access Point settings
-                    naccess_point_enabled = self.node_if.get_param('wifi_access_point_enabled')
+                    nap_enabled = self.node_if.get_param('wifi_ap_enabled')
                     self.nepi_config = self.get_nepi_system_config()
-                    caccess_point_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
-                    self.access_point_enabled = naccess_point_enabled or caccess_point_enabled
+                    cap_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
+                    self.ap_enabled = nap_enabled or cap_enabled
 
-                    if self.access_point_enabled != naccess_point_enabled:
-                        self.node_if.set_param('wifi_access_point_enabled',self.access_point_enabled)       
-                    if self.access_point_enabled == True: 
-                        self.enable_wifi_access_point(self.access_point_enabled)
+                    if self.ap_enabled != nap_enabled:
+                        self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
+                    if self.wifi_ap_enabled == True: 
+                        self.enable_wifi_access_point(self.wifi_ap_enabled)
                             
                     self.nepi_config = self.get_nepi_system_config()
                     nwifi_ap_ssid = self.node_if.get_param('wifi_ap_ssid')
@@ -1375,11 +1375,11 @@ class NetworkMgr:
             self.msg_if.pub_warn("Cannot enable WiFi access point - WiFi adapter not enabled")
             return False
         #if enabled != is_enabled:
-        self.access_point_enabled = enabled
+        self.wifi_ap_enabled = enabled
         success = self.publish_status()
         self.set_wifi_ap()
         if self.node_if is not None:
-            self.node_if.set_param("wifi_access_point_enabled", enabled)
+            self.node_if.set_param("wifi_wifi_ap_enabled", enabled)
             success = self.save_config()
         return True
 
@@ -1403,8 +1403,8 @@ class NetworkMgr:
             success = self.publish_status()
             self.set_wifi_ap()
             if self.node_if is not None:
-                self.node_if.set_param("access_point_ssid", msg.ssid)
-                self.node_if.set_param("access_point_passphrase", msg.passphrase)
+                self.node_if.set_param("wifi_ap_ssid", msg.ssid)
+                self.node_if.set_param("wifi_ap_passphrase", msg.passphrase)
                 success = self.save_config()
         return success
 
@@ -1502,7 +1502,7 @@ class NetworkMgr:
         self.status_msg.wifi_client_ssid =  self.wifi_client_ssid
 
         passphrase = self.wifi_client_passphrase
-        if passphrase is None or passphrase == 'None':
+        if passphrase is None or passphrase == 'None'  or passphrase == 'NONE':
             passphrase = ''
         self.status_msg.wifi_client_passphrase =  passphrase
 
