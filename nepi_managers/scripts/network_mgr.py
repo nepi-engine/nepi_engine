@@ -532,36 +532,37 @@ class NetworkMgr:
                     self.nepi_config = self.get_nepi_system_config()
                     cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.wifi_client_enabled = nclient_enabled or cclient_enabled
-                    if self.wifi_client_enabled == True:
 
 
-                        self.nepi_config = self.get_nepi_system_config()
+                    if self.wifi_client_enabled != nclient_enabled:
+                        self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
+                    if self.wifi_client_enabled == True: 
+                        self.msg_if.pub_warn("Initializing WiFi Client with NONE")
+                        self.wifi_client_passphrase = 'NONE'
+                        self.wifi_client_ssid = 'NONE'
+                        self.enable_wifi_client(self.wifi_client_enabled)
+                    
+                    self.nepi_config = self.get_nepi_system_config()
+                    nwifi_client_ssid = self.node_if.get_param('wifi_client_ssid')
+                    cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
+                    if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
+                        nwifi_client_ssid=cwifi_client_ssid
+                    if nwifi_client_ssid == '' or nwifi_client_ssid is None:
+                        nwifi_client_ssid='NONE'
+                    self.wifi_client_ssid = nwifi_client_ssid
+                    
+                    nwifi_client_passphrase = self.node_if.get_param('wifi_client_passphrase')
+                    cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
+                    if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
+                        nwifi_client_passphrase=cwifi_client_passphrase
+                    if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
+                        nwifi_client_passphrase='NONE'
+                    self.wifi_client_passphrase = nwifi_client_passphrase
 
-                        nwifi_client_ssid = self.node_if.get_param('wifi_client_ssid')
-                        cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
-                        if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
-                            nwifi_client_ssid=cwifi_client_ssid
-                        if nwifi_client_ssid == '' or nwifi_client_ssid is None:
-                            nwifi_client_ssid='NONE'
-                        self.wifi_client_ssid = nwifi_client_ssid
-                        
-                        nwifi_client_passphrase = self.node_if.get_param('wifi_client_passphrase')
-                        cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
-                        if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
-                            nwifi_client_passphrase=cwifi_client_passphrase
-                        if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
-                            nwifi_client_passphrase='NONE'
-                        self.wifi_client_passphrase = nwifi_client_passphrase
+                    self.msg_if.pub_warn("Starting Init with Wifi Client Enabled: " + str(self.wifi_client_enabled))
+                    self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
+                    self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
 
-                        self.msg_if.pub_warn("Starting Init with Wifi Client Enabled: " + str(self.wifi_client_enabled))
-                        self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
-                        self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
-
-                        if self.wifi_client_enabled != nclient_enabled:
-                            self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
-                        if self.wifi_client_enabled == True: 
-                            self.msg_if.pub_warn("Enabling WiFi Client")
-                            self.enable_wifi_client(self.wifi_client_enabled)
                     
 
                     
@@ -571,11 +572,7 @@ class NetworkMgr:
                     cap_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.ap_enabled = nap_enabled or cap_enabled
 
-                    if self.ap_enabled != nap_enabled:
-                        self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
-                    if self.wifi_ap_enabled == True: 
-                        self.enable_wifi_access_point(self.wifi_ap_enabled)
-                            
+                           
                     self.nepi_config = self.get_nepi_system_config()
                     nwifi_ap_ssid = self.node_if.get_param('wifi_ap_ssid')
                     cwifi_ap_ssid = self.nepi_config['NEPI_WIFI_ACCESS_POINT_ID']
@@ -592,6 +589,11 @@ class NetworkMgr:
                     if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
                         nwifi_ap_passphrase='nepi_device_ap'
                     self.wifi_ap_passphrase = nwifi_ap_passphrase
+
+                    if self.ap_enabled != nap_enabled:
+                        self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
+                    if self.wifi_ap_enabled == True: 
+                        self.enable_wifi_access_point(self.wifi_ap_enabled)
 
                     self.msg_if.pub_warn("Starting Init with Wifi AP Enabled: " + str(self.wifi_ap_enabled))
                     self.msg_if.pub_warn("Starting Init with Wifi AP ssid: " + str(self.wifi_ap_ssid))
@@ -807,10 +809,10 @@ class NetworkMgr:
 
         if self.wifi_enabled == False:
             self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
-            return 'None'
+            return 'NONE'
         if self.wifi_enabled == False:
             self.msg_if.pub_warn("Cannot enable WiFi access point - WiFi adapter not enabled")
-            return 'None'       
+            return 'NONE'       
 
         #self.msg_if.pub_warn("Starting Check wifi connection process with wifi iface: " + str(self.wifi_iface))
         try:
@@ -819,7 +821,7 @@ class NetworkMgr:
             #self.msg_if.pub_warn("Got wifi connection status: " + str(connection_status))
         except Excetion as e: 
             self.msg_if.pub_warn("Failed to check on wifi connection: " + str(e))
-            return 'None'
+            return 'NONE'
         if connection_status.startswith('Connected'):        
            self.wifi_client_connected = True    
            self.wifi_client_trying = False
@@ -830,7 +832,7 @@ class NetworkMgr:
                        self.wifi_client_ssid = connected_ssid
                    return connected_ssid
         
-        return 'None'
+        return 'NONE'
 
     
 
@@ -1259,9 +1261,9 @@ class NetworkMgr:
 
         ssid = msg.ssid
         if ssid == 'None' or ssid == '':
-            ssid = 'None'          
+            ssid = 'NONE'          
         passphrase=msg.passphrase
-        if passphrase is None or passphrase == 'None':
+        if passphrase is None or passphrase == 'NONE':
             passphrase = ''
 
         self.wifi_client_ssid = ssid
@@ -1273,8 +1275,8 @@ class NetworkMgr:
 
     def set_wifi_client(self, ssid, passphrase):
         success = False
-        if passphrase == '':
-            passphrase == 'None'
+        if passphrase == 'None' or passphrase == '':
+            passphrase == 'NONE'
         self.msg_if.pub_info("Setting WiFi client credentials (SSID: " + ssid + ", Passphrase: " + passphrase + ")")
         if self.wifi_enabled == False:
             self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
@@ -1304,8 +1306,8 @@ class NetworkMgr:
                 self.publish_status()
 
                 # Try and connect if needed
-                # if ssid_set == 'None':
-                #     self.wifi_client_connected_ssid = 'None'
+                # if ssid_set == 'NONE':
+                #     self.wifi_client_connected_ssid = 'NONE'
                 #     self.wifi_client_connected_passphrase = ''
                 # else:
                 #     with self.wifi_lock:
@@ -1316,10 +1318,10 @@ class NetworkMgr:
                 self.msg_if.pub_warn("Connecting WiFi client with credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
                 self.wifi_client_connecting = True
                 self.wifi_client_connected = False
-                self.wifi_client_connected_ssid = 'None'
+                self.wifi_client_connected_ssid = 'NONE'
                 self.wifi_client_connected_passphrase = ''
 
-                if ssid_set != "None":
+                if ssid_set != "NONE":
                     self.wifi_client_trying = True
                 else:
                     self.wifi_client_trying = False
@@ -1461,7 +1463,7 @@ class NetworkMgr:
             internet_connected = self.internet_connected
         
         passphrase = self.wifi_client_passphrase
-        if passphrase is None or passphrase == 'None':
+        if passphrase is None or passphrase == 'None' or passphrase == 'NONE':
             passphrase = ''
 
         return {'has_wifi': (self.wifi_iface is not None), 
