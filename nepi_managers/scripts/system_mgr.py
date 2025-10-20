@@ -664,7 +664,7 @@ class SystemMgrNode():
                 'topic': 'switch_nepi_image',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.handle_switch_active_inactive_rootfs, 
+                'callback': self.handle_switch_active_inactive_image, 
                 'callback_args': ()
             },
             'save_nepi_image': {
@@ -1379,7 +1379,8 @@ class SystemMgrNode():
                 self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
                 self.status_msg.sys_img_update_status = 'complete - needs reboot'
     
-    def handle_switch_active_inactive_rootfs(self, msg):
+    def handle_switch_active_inactive_image(self, msg):
+        self.msg_if.pub_warn("Received switch active/inactive nepi images msg")
         if self.in_container == True:
             status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
         elif self.rootfs_ab_scheme == 'nepi':

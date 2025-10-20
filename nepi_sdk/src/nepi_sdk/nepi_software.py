@@ -368,6 +368,7 @@ def resetBootFailCounter(first_stage_rootfs_device):
     return True, "Success"
 
 def switchActiveAndInactivePartitions(first_stage_rootfs_device):
+    #print("Switching NEPI Images. Requires Reboot")
     # First, mount the FLASH partition where the current ACTIVE/INACTIVE device info is stored
     status, err_msg = mountPartition(
         first_stage_rootfs_device, FLASH_ROOTFS_MOUNTPOINT)
@@ -398,6 +399,7 @@ def switchActiveAndInactivePartitions(first_stage_rootfs_device):
     return True, "Success"
 
 def switchActiveAndInactivePartitionsJetson():
+    #print("Switching NEPI Images. Requires Reboot")
     current_slot_num = int(subprocess.check_output(['nvbootctrl', '-t', 'rootfs', 'get-current-slot'], text=True))
     new_slot_num = '1' if current_slot_num == 0 else '0'
 
