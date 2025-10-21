@@ -177,7 +177,7 @@ class time_sync_mgr(object):
             }
         }  
 
-        if self.manages_time == False:
+        if self.manages_time == True:
             # Subscribers Config Dict ####################
             self.SUBS_DICT = {
                 'add_ntp_server': {
