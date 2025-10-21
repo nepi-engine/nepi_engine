@@ -444,9 +444,9 @@ class time_sync_mgr(object):
 
     def set_time(self,msg):
         # TODO: Bounds checking?
-        self.msg_if.pub_debug("Got time update msg: " + str(msg), throttle_s = 5.0)
+        self.msg_if.pub_warn("Got time update msg: " + str(msg), throttle_s = 5.0)
         update_time = msg.update_time
-        if update_time == True and self.manages_time == False:
+        if update_time == True and self.manages_time == True:
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
             timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
             try:
@@ -464,7 +464,7 @@ class time_sync_mgr(object):
             self.set_timezone(msg.timezone)
             self.node_if.save_config()
 
-        if self.manages_time == False:
+        if self.manages_time == True:
             # Update the hardware clock from this "better" clock source; helps with RTC drift
             self.msg_if.pub_info("Updating hardware clock from set_time value")
             subprocess.call(['hwclock', '-w'])
@@ -486,7 +486,7 @@ class time_sync_mgr(object):
                 self.msg_if.pub_warn("Failed to update timezone: " + str(e))
                 tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
                 self.timezone = nepi_utils.get_timezone_description(tz)
-            if self.manages_time == False:
+            if self.manages_time == True:
                 try:
                     subprocess.call(["timedatectl", "set-timezone", self.timezone])
                 except:
