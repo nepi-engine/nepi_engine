@@ -10,8 +10,6 @@
 
 cur_dir=$(pwd)
 
-echo "Running ETC Sync Script"
-
 system_config_path=/opt/nepi/etc/scripts
 cd $system_config_path
 echo "Syncing NEPI Cofiguration files from ${system_config_path}"
@@ -21,7 +19,6 @@ wait
 cd $cur_dir
 echo "Running nepi setup script"
 source /opt/nepi/nepi_engine/setup.sh
-
 
 echo "Loading updated nepi config"
 ETC_FOLDER=/opt/nepi/etc
@@ -52,7 +49,7 @@ function update_value(){
 }
 
 echo ""
-echo "Checking for Valid Config Values"
+echo "Checking for Valid Config Settings"
 
 # CHECK FOR VALID DEVICE ID
 # Check for empty string

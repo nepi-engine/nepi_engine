@@ -819,8 +819,8 @@ class NetworkMgr:
             check_connection_cmd = ['iw', self.wifi_iface, 'link']
             connection_status = subprocess.check_output(check_connection_cmd, text=True)
             #self.msg_if.pub_warn("Got wifi connection status: " + str(connection_status))
-        except Excetion as e: 
-            self.msg_if.pub_warn("Failed to check on wifi connection: " + str(e))
+        except Exception as e: 
+            #self.msg_if.pub_warn("Failed to check on wifi connection: " + str(e))
             return 'NONE'
         if connection_status.startswith('Connected'):        
            self.wifi_client_connected = True    
