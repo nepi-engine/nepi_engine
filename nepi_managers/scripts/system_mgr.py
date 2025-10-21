@@ -1421,7 +1421,7 @@ class SystemMgrNode():
             fw_str = fw_str.replace(' ','_')
             fw_str = fw_str.replace('/','_')
             now = datetime.datetime.now()
-            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y%m%d") + '.img.raw'
             self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename
