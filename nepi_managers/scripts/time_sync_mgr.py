@@ -444,7 +444,7 @@ class time_sync_mgr(object):
 
     def set_time(self,msg):
         # TODO: Bounds checking?
-        self.msg_if.pub_warn("Got time update msg: " + str(msg), throttle_s = 5.0)
+        #self.msg_if.pub_warn("Got time update msg: " + str(msg), throttle_s = 5.0)
         update_time = msg.update_time
         if update_time == True and self.manages_time == True:
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
