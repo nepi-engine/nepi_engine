@@ -108,8 +108,6 @@ class NetworkMgr:
     wifi_client_connecting = False
     wifi_client_trying = False
     wifi_client_connected = False
-    wifi_client_connected_ssid = None
-    wifi_client_connected_pp = None
 
     wifi_ap_ready = False
 
@@ -1275,9 +1273,7 @@ class NetworkMgr:
 
     def set_wifi_client(self, ssid, passphrase):
         success = False
-        if passphrase == 'None' or passphrase == '':
-            passphrase == 'NONE'
-        self.msg_if.pub_info("Setting WiFi client credentials (SSID: " + ssid + ", Passphrase: " + passphrase + ")")
+
         if self.wifi_enabled == False:
             self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
             return False
@@ -1288,64 +1284,41 @@ class NetworkMgr:
         if self.wifi_client_connecting == False and self.wifi_client_enabled == True: # and self.clock_skewed == False:
             self.msg_if.pub_warn("Checking if Wifi credential have changed")
             # Get current state
-            ssid_set = ssid
-            pp_set = passphrase
-            ssid_cur = self.wifi_client_connected_ssid
-            pp_cur = self.wifi_client_connected_pp
-            connecting = self.wifi_client_connecting
-            connected = self.wifi_client_connected
+            if ssid == 'None' or ssid == '':
+                ssid == 'NONE'
+            if passphrase == 'None' or passphrase == '':
+                passphrase == 'NONE'
+            self.msg_if.pub_info("Using WiFi client credentials (SSID: " + ssid + ", Passphrase: " + passphrase + ")")
 
-            # First shut down any connected networks
-            if (ssid_set != ssid_cur or pp_set != pp_cur):
-                self.msg_if.pub_warn("Wifi credential have changed") 
-                self.msg_if.pub_warn("Current  Wifi Credentials (SSID: " + str(ssid_cur) + ", Passphrase: " + str(pp_cur) + ")")
-                self.msg_if.pub_warn("New Wifi Credentials (SSID: " + str(ssid_set) + ", Passphrase: " + str(pp_set) + ")")
 
-                self.msg_if.pub_warn("Disabling Wired DHCP") 
-                self.dhcp_enabled = False
-                self.publish_status()
+            self.msg_if.pub_warn("Disabling Wired DHCP") 
+            self.dhcp_enabled = False
+            self.publish_status()
 
-                # Try and connect if needed
-                # if ssid_set == 'NONE':
-                #     self.wifi_client_connected_ssid = 'NONE'
-                #     self.wifi_client_connected_passphrase = ''
-                # else:
-                #     with self.wifi_lock:
-                #         wifis = self.wifi_available_networks
+            self.msg_if.pub_warn("Connecting WiFi client with credentials (SSID: " + ssid + ", Passphrase: " + passphrase + ")")
+            self.wifi_client_connecting = True
+            self.wifi_client_connected = False
 
-                #     if ssid_set in wifis:
-
-                self.msg_if.pub_warn("Connecting WiFi client with credentials (SSID: " + ssid_set + ", Passphrase: " + pp_set + ")")
-                self.wifi_client_connecting = True
-                self.wifi_client_connected = False
-                self.wifi_client_connected_ssid = 'NONE'
-                self.wifi_client_connected_passphrase = ''
-
-                if ssid_set != "NONE":
-                    self.wifi_client_trying = True
-                else:
-                    self.wifi_client_trying = False
-            
-
-                ### Update ETC Files
-                nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ID",ssid_set)
-                nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_PW",pp_set)
-                nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ENABLED",1)
-                etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_client.sh"
-                try:
-                    subprocess.call([etc_update_script])
-                    nepi_sdk.sleep(1)
-                    self.msg_if.pub_warn("Updated WiFi Client Network")
-                    success = True
-                except Exception as e:
-                    self.msg_if.pub_warn("Update WiFi Client Network subprocess failed: " + str(e))
-                    success = False
-                
-                ####################
-                self.wifi_client_connected_ssid = ssid_set
-                self.wifi_client_connected_passphrase = pp_set
+            if ssid != "NONE":
+                self.wifi_client_trying = True
             else:
-                self.msg_if.pub_warn("Wifi credential have not changed")                       
+                self.wifi_client_trying = False
+        
+
+            ### Update ETC Files
+            nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ID",ssid)
+            nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_PW",passphrase)
+            nepi_system.update_nepi_system_config("NEPI_WIFI_CLIENT_ENABLED",1)
+            etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_client.sh"
+            try:
+                subprocess.call([etc_update_script])
+                nepi_sdk.sleep(1)
+                self.msg_if.pub_warn("Updated WiFi Client Network")
+                success = True
+            except Exception as e:
+                self.msg_if.pub_warn("Update WiFi Client Network subprocess failed: " + str(e))
+                success = False
+                     
 
         if success == True and self.node_if is not None:
             self.node_if.set_param("wifi_client_ssid", ssid)
