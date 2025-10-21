@@ -163,7 +163,7 @@ class SystemMgrNode():
     installing_new_image = False
     new_img_file = ""
     new_img_version = ""
-    new_img_filesize = ""
+    new_img_filesize = 0
     install_status = True
     saving_image = False
 
@@ -1058,9 +1058,9 @@ class SystemMgrNode():
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
-            resp.new_sys_img = self.new_img_file
-            resp.new_sys_img_version = self.new_img_version
-            resp.new_sys_img_size_mb = self.new_img_filesize / BYTES_PER_MEGABYTE
+            resp.new_sys_img = self.new_img_files[sel_new_ind]
+            resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+            resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
             return resp
         
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work

@@ -23,6 +23,7 @@ import subprocess
 import shlex
 import copy
 import psutil
+import shutil
 
 from nepi_sdk import nepi_utils
 
@@ -296,6 +297,21 @@ def installImage(new_img_staging_device, uncompressed_img_filename, inactive_par
 
     if not os.path.exists(inactive_partition_device):
         return False, "Inactive partition device does not exist"
+    
+    # Clear Config Paths
+    cfg_path="/mnt/nepi_config/factory_cfg/etc"
+    if os.path.exists(cfg_path):
+        try:
+            shutil.rmtree(cfg_path)
+        except OSError as e:
+            print(f"Error: {folder_path} : {e.strerror}") 
+
+    cfg_path="/mnt/nepi_config/system_cfg/etc"
+    if os.path.exists(cfg_path):
+        try:
+            shutil.rmtree(cfg_path)
+        except OSError as e:
+            print(f"Error: {folder_path} : {e.strerror}") 
 
     status, err_msg = mountPartition(
         new_img_staging_device, STAGING_MOUNTPOINT)
