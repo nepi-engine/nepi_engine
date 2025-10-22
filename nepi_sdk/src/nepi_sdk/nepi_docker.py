@@ -115,25 +115,26 @@ def getPartitionFreeByteCount(partition_device):
 # Export
 def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
 
-    ### CHECK IF FILE EXISTS
-
     path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
-    try:
-        # Execute the shell script and wait for it to complete
-        result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)     
-        # Print the output and exit code
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        print("Exit Code:", result.returncode)
-    except FileNotFoundError:
-        print("Error: The 'sh' command or the script file was not found.")
-    except subprocess.CalledProcessError as e:
-        # The `check=True` flag causes this exception to be raised on non-zero exit codes
-        print("Error: The script returned a non-zero exit code.")
-        print("STDOUT:", e.stdout)
-        print("STDERR:", e.stderr)
-        print("Exit Code:", e.returncode)
-    return True, "Success"
+    if os.path.exists(path_to_sh):
+        try:
+            # Execute the shell script and wait for it to complete
+            result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)     
+            # Print the output and exit code
+            print("STDOUT:", result.stdout)
+            print("STDERR:", result.stderr)
+            print("Exit Code:", result.returncode)
+        except FileNotFoundError:
+            print("Error: The 'sh' command or the script file was not found.")
+        except subprocess.CalledProcessError as e:
+            # The `check=True` flag causes this exception to be raised on non-zero exit codes
+            print("Error: The script returned a non-zero exit code.")
+            print("STDOUT:", e.stdout)
+            print("STDERR:", e.stderr)
+            print("Exit Code:", e.returncode)
+        return True, "Success"
+    else:
+        print(f"The file '{file_path}' does not exist.")
 
 def checkAndRepairPartition(partition_device):
     return True, "Success"
