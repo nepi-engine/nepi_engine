@@ -48,7 +48,7 @@ DEFAULT_FRAMEWORK = 'yolov5'
 class AIDetectorManager:   
 
     MODEL_TYPE_LIST = ['detection']
-    MODEL_INFO_INTERVAL = 5
+    MODEL_INFO_INTERVAL = 10
 
     aif_classes_dict = dict()
 
@@ -324,8 +324,7 @@ class AIDetectorManager:
             if last_aifs_keys != cur_aifs_keys:
                 self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys), throttle_s = 5.0)
 
-            cur_models_dict = copy.deepcopy(self.models_dict)
-            models_dict = dict()
+            # Refresh Frameworks if Needed
             for aif_name in aifs_dict.keys():
                 aif_dict = aifs_dict[aif_name]
                 #self.msg_if.pub_info("Processing ais dict for aif name " + aif_name)
@@ -355,33 +354,37 @@ class AIDetectorManager:
                 else:
                     aif_if_class_instance = self.aifs_classes_dict[aif_name]
                     #self.msg_if.pub_warn("Got aif instantiated class: " + aif_name , throttle_s = 5.0)
-                    success == True
+                    success = True
 
+
+                # Refresh Models if Needed
                 if success == True:
                     success = False
-
+                    cur_models_dict = copy.deepcopy(self.models_dict)
                     aif_models_dict = aif_if_class_instance.getModelsDict()
-                    self.msg_if.pub_warn("Got models dict for aif: " + aif_name + " " + str(aif_models_dict.keys()), throttle_s = 5.0)
-                    if (len(aif_models_dict.keys()) < 1):
-                        self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
-                    else:
-                        self.msg_if.pub_info("Got models for framework: " + str(aif_name) + " from param server " + str(aif_models_dict.keys()))
-
-                    for model_name in aif_models_dict.keys():
-                        try:
-                            if model_name not in self.aif_classes_dict.keys():
-                                model_dict = aif_models_dict[model_name]
-                                if model_name in cur_models_dict.keys():
-                                    model_dict['active'] = cur_models_dict[model_name]['active']
-                                else:
-                                    model_dict['active'] = False
-                                models_dict[model_name] = model_dict
-                                self.msg_if.pub_info("Got update models dict for framework: " + str(aif_name) + " from param server " + str(models_dict.keys()))
-                                self.aif_classes_dict[model_name] = aif_if_class_instance
-                                success = True
-                        except Exception as e:
-                            self.msg_if.pub_warn("Failed to get models from class " + class_name + " " + str(e))
-                            continue
+                    models_dict = dict()
+                    if cur_models_dict != aif_models_dict:
+                        #self.msg_if.pub_warn("Got models dict for aif: " + aif_name + " " + str(aif_models_dict.keys()), throttle_s = 5.0)
+                        if (len(aif_models_dict.keys()) < 1):
+                            self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
+                        else:
+                            #self.msg_if.pub_info("Got models for framework: " + str(aif_name) + " from param server " + str(aif_models_dict.keys()))
+                            pass
+                        for model_name in aif_models_dict.keys():
+                            try:
+                                if model_name not in self.aif_classes_dict.keys():
+                                    model_dict = aif_models_dict[model_name]
+                                    if model_name in cur_models_dict.keys():
+                                        model_dict['active'] = cur_models_dict[model_name]['active']
+                                    else:
+                                        model_dict['active'] = False
+                                    models_dict[model_name] = model_dict
+                                    #self.msg_if.pub_info("Got update models dict for framework: " + str(aif_name) + " from param server " + str(models_dict.keys()))
+                                    self.aif_classes_dict[model_name] = aif_if_class_instance
+                                    success = True
+                            except Exception as e:
+                                self.msg_if.pub_warn("Failed to get models from class " + class_name + " " + str(e))
+                                continue
 
             # refresh active states from stored values
             #self.msg_if.pub_warn("Refreshing models dict with keys: " + str(self.models_dict.keys()))
