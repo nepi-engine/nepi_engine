@@ -243,8 +243,8 @@ class SystemMgrNode():
         self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
         self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
 
-        self.system_defs_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
-        self.status_msg.hw_model = self.nepi_config['NEPI_HW_MODEL']
+        self.system_defs_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
+        self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
 
         self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']

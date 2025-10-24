@@ -38,9 +38,8 @@ BLANK_IMAGE_DICT={
     'version': 'uknown',
     'size_mb': 0,
     'hw_type': 'uknown',
-    'hw_type': 'uknown',
+    'sw_desc': 'uknown',
     'date': 'uknown',
-    'desc': 'uknown'
 }
 
 
@@ -115,7 +114,7 @@ def getPartitionFreeByteCount(partition_device):
 # Export
 def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
 
-    path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
+    path_to_sh = '/mnt/nepi_config/docker_cfg/nepi_docker_install.sh'
     if os.path.exists(path_to_sh):
         try:
             # Execute the shell script and wait for it to complete
@@ -151,7 +150,7 @@ def switchActiveAndInactiveContainers():
     ### CHECK IF AB FS Supported
 
 
-    path_to_sh = '/mnt/nepi_config/docker_cfg/switch_nepi_docker.sh'
+    path_to_sh = '/mnt/nepi_config/docker_cfg/nepi_docker_switch.sh'
     try:
         # Execute the shell script and wait for it to complete
         result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)
