@@ -1313,6 +1313,15 @@ class SystemMgrNode():
         nepi_utils.sleep(1)
         self.nepi_config = self.get_nepi_system_config()
         
+        if 'NEPI_HW_TPE' not in self.nepi_config.keys():
+            self.nepi_config['NEPI_HW_TYPE'] = 'unknown'
+        
+        if 'NEPI_SW_DESC' not in self.nepi_config.keys():
+            self.nepi_config['NEPI_SW_DESC'] = 'unknown'
+
+        success = self.set_nepi_system_config(self.nepi_config)
+
+
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
         self.add_info_string(
             "Device ID updated - Requires device reboot", StampedString.PRI_ELEVATED)
@@ -1334,6 +1343,21 @@ class SystemMgrNode():
             self.msg_if.pub_warn("New image is already being installed")
             return
 
+        # Backup Current System Config File
+        source_file = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
+        destination_file = '/mnt/nepi_config/system_cfg/nepi_system_config.yaml.bak'
+
+        try:
+            shutil.copyfile(source_file, destination_file)
+            print(f"File '{source_file}' copied to '{destination_file}' successfully.")
+        except FileNotFoundError:
+            print(f"Error: Source file '{source_file}' not found.")
+        except SameFileError:
+            print("Error: Source and destination files are the same.")
+        except OSError as e:
+            print(f"Error copying file: {e}")
+
+        # Install Image
         decompressed_img_filename = msg.data
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True

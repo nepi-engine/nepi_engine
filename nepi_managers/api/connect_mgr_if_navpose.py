@@ -114,7 +114,7 @@ class ConnectMgrNavPoseIF:
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'navpose_query': {
-                'namespace': self.base_namespace,
+                'namespace': self.mgr_namespace,
                 'topic': 'navpose_query',
                 'srv': NavPoseQuery,
                 'req': NavPoseQueryRequest(),

@@ -292,7 +292,7 @@ class NavPoseMgr(object):
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'capabilities_query': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'topic': 'capabilities_query',
                 'srv': MgrNavPoseCapabilitiesQuery,
                 'req': MgrNavPoseCapabilitiesQueryRequest(),
@@ -300,7 +300,7 @@ class NavPoseMgr(object):
                 'callback': self._navposeCapsQueryHandler
             },
             'navpose_query': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'topic': 'navpose_query',
                 'srv': NavPoseQuery,
                 'req': NavPoseQueryRequest(),
