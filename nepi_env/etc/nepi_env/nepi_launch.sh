@@ -10,20 +10,36 @@
 
 cur_dir=$(pwd)
 
-system_config_path=/opt/nepi/etc/scripts
-cd $system_config_path
-echo "Syncing NEPI Cofiguration files from ${system_config_path}"
-source sync_from_configs.sh
-wait
+
+ETC_FOLDER=/opt/nepi/etc
+nepi_etc_scripts=${ETC_FOLDER}/scripts
+
+if [[ -f "$nepi_etc_scripts/update_sys_config.sh" ]]; then
+	cd $nepi_etc_scripts
+	echo "Updating NEPI System Cofiguration files from ${nepi_etc}"
+	source update_sys_config.sh
+	wait
+fi
+if [[ -f "$nepi_etc_scripts/sync_from_configs.sh" ]]; then
+	echo "Syncing NEPI Cofiguration files to ${nepi_etc}"
+	source sync_from_configs.sh
+	wait
+fi
 
 cd $cur_dir
 echo "Running nepi setup script"
 source /opt/nepi/nepi_engine/setup.sh
+if [[ "$?" -ne 0 ]]; then
+	echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
+	return 1
+fi
 
 echo "Loading updated nepi config"
-ETC_FOLDER=/opt/nepi/etc
 source ${ETC_FOLDER}/load_system_config.sh
-
+if [[ "$?" -ne 0 ]]; then
+	echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
+	return 1
+fi
 
 # Update and source nepi sys_env 
 SYS_ENV_FILE=/opt/nepi/etc/sys_env.bash
