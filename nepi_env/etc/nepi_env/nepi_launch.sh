@@ -22,6 +22,7 @@ if [[ -f "$nepi_etc_scripts/update_sys_config.sh" ]]; then
 fi
 if [[ -f "$nepi_etc_scripts/sync_from_configs.sh" ]]; then
 	echo "Syncing NEPI Cofiguration files to ${nepi_etc}"
+	cd $nepi_etc_scripts
 	source sync_from_configs.sh
 	wait
 fi

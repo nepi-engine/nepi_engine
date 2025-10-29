@@ -19,8 +19,14 @@ from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_system"
 logger = Logger(log_name = log_name)
 
+ncf = '/opt/nepi/etc/nepi_system_config.yaml'
+scf = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
 
-NEPI_SYSTEM_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
+if os.path.exists(scf):
+    NEPI_SYSTEM_CONFIG_FILE=scf
+else:
+    NEPI_SYSTEM_CONFIG_FILE=ncf
+    
 NEPI_DOCKER_CONFIG_FILE='/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
 
 #######################
@@ -183,7 +189,7 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
     if len(config_dict.keys()) > 0:
         config_dict[config_key] = config_value
         success=save_nepi_system_config(config_dict)
-    return success
+    return config_dict
 
 
 ########################

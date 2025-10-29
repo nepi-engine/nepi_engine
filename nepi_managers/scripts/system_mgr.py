@@ -972,7 +972,9 @@ class SystemMgrNode():
     def get_fw_rev(self):
         if (os.path.exists(self.FW_VERSION_PATH) and (os.path.getsize(self.FW_VERSION_PATH) > 0)):
             with open(self.FW_VERSION_PATH, "r") as f:
-                return f.readline().strip()
+                fw_version = f.readline().strip()
+                return fw_version
+
         return "UNSPECIFIED"
     
     def get_device_type(self):
@@ -1314,12 +1316,10 @@ class SystemMgrNode():
         self.nepi_config = self.get_nepi_system_config()
         
         if 'NEPI_HW_TPE' not in self.nepi_config.keys():
-            self.nepi_config['NEPI_HW_TYPE'] = 'unknown'
+            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
         
         if 'NEPI_SW_DESC' not in self.nepi_config.keys():
-            self.nepi_config['NEPI_SW_DESC'] = 'unknown'
-
-        success = self.set_nepi_system_config(self.nepi_config)
+             self.nepi_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
 
 
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
@@ -1431,6 +1431,7 @@ class SystemMgrNode():
         if self.in_container == True:
             info_dict=nepi_image.getContainerInfo('Active')
             fw_str = self.get_fw_rev()
+            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
             info_dict['version']=fw_str
             now = datetime.datetime.now()
             backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
@@ -1507,7 +1508,10 @@ class SystemMgrNode():
         return friendly_name
 
     def init_msgs(self):
-        self.system_defs_msg.firmware_version = self.get_fw_rev()
+
+        fw_str = self.get_fw_rev()
+        self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
+        self.system_defs_msg.firmware_version = fw_str
 
         self.system_defs_msg.device_sn = self.get_device_sn()
 
