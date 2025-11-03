@@ -10,20 +10,30 @@
 
 cur_dir=$(pwd)
 
-
 ETC_FOLDER=/opt/nepi/etc
 nepi_etc_scripts=${ETC_FOLDER}/scripts
 
 if [[ -f "$nepi_etc_scripts/update_sys_config.sh" ]]; then
 	cd $nepi_etc_scripts
-	echo "Updating NEPI System Cofiguration files from ${nepi_etc}"
-	source update_sys_config.sh
+	echo ""
+	echo "Running update_sys_config script"
+	bash update_sys_config.sh
 	wait
 fi
 if [[ -f "$nepi_etc_scripts/sync_from_configs.sh" ]]; then
-	echo "Syncing NEPI Cofiguration files to ${nepi_etc}"
+	echo ""
+	echo "Running sync_from_configs script"
 	cd $nepi_etc_scripts
-	source sync_from_configs.sh
+	bash sync_from_configs.sh
+	wait
+fi
+
+if [[ -f "$nepi_etc_scripts/etc_update_users.sh" ]]; then
+	echo ""
+	echo "Running etc_update_users script"
+	cd $nepi_etc_scripts
+	load_config=0
+	bash etc_update_users.sh $load_config
 	wait
 fi
 
@@ -35,6 +45,8 @@ if [[ "$?" -ne 0 ]]; then
 	return 1
 fi
 
+
+echo ""
 echo "Loading updated nepi config"
 source ${ETC_FOLDER}/load_system_config.sh
 if [[ "$?" -ne 0 ]]; then
@@ -42,7 +54,8 @@ if [[ "$?" -ne 0 ]]; then
 	return 1
 fi
 
-# Update and source nepi sys_env 
+echo ""
+echo "Sourcing NEPI sys_env script"
 SYS_ENV_FILE=/opt/nepi/etc/sys_env.bash
 
 if [ ! -f ${SYS_ENV_FILE} ]; then
@@ -142,12 +155,9 @@ if grep -q "G" <<< "$ROS_LOG_SIZE"; then
 fi
 
 
-# Check for and restore any broken config files, since that will cause roslaunch to fail
-echo "Running pre-launch config file checks"
-python /opt/nepi/nepi_engine/etc/nepi_env/fix_broken_cfg_file_links.py
+# # Check for and restore any broken config files, since that will cause roslaunch to fail
+# echo "Running pre-launch config file checks"
+# python /opt/nepi/nepi_engine/etc/nepi_env/fix_broken_cfg_file_links.py
 
-# Tune ethernet interfaces for fast sensor throughput (especially important for genicam)
-echo "Running pre-launch ethernet interface tuning"
-python /opt/nepi/nepi_engine/etc/nepi_env/tune_ethernet_interfaces.py
-
+echo "Running roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
 roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}
