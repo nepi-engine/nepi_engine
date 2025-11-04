@@ -10,41 +10,47 @@
 
 cur_dir=$(pwd)
 
+
+
+function run_script() {
+	run_script=$1
+	if [[ -f "${run_script}" ]]; then
+		cd $nepi_etc_scripts
+		echo "Running ${run_script}"
+		bash ${run_script}
+		wait
+	else
+		echo "Script file not found ${run_script}"
+	fi
+}
+
+
 ETC_FOLDER=/opt/nepi/etc
 nepi_etc_scripts=${ETC_FOLDER}/scripts
 
-if [[ -f "$nepi_etc_scripts/update_sys_config.sh" ]]; then
-	cd $nepi_etc_scripts
-	echo ""
-	echo "Running update_sys_config script"
-	bash update_sys_config.sh
-	wait
-fi
-if [[ -f "$nepi_etc_scripts/sync_from_configs.sh" ]]; then
-	echo ""
-	echo "Running sync_from_configs script"
-	cd $nepi_etc_scripts
-	bash sync_from_configs.sh
-	wait
-fi
+script_file=sync_to_sys_config.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
 
-if [[ -f "$nepi_etc_scripts/etc_update_users.sh" ]]; then
-	echo ""
-	echo "Running etc_update_users script"
-	cd $nepi_etc_scripts
-	load_config=0
-	bash etc_update_users.sh $load_config
-	wait
-fi
+script_file=update_sys_config.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
 
-cd $cur_dir
+script_file=sync_from_configs.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
+
+script_file=etc_update_users.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
+
+
 echo "Running nepi setup script"
 source /opt/nepi/nepi_engine/setup.sh
 if [[ "$?" -ne 0 ]]; then
 	echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
 	return 1
 fi
-
 
 echo ""
 echo "Loading updated nepi config"
@@ -54,94 +60,32 @@ if [[ "$?" -ne 0 ]]; then
 	return 1
 fi
 
-echo ""
-echo "Sourcing NEPI sys_env script"
-SYS_ENV_FILE=/opt/nepi/etc/sys_env.bash
 
-if [ ! -f ${SYS_ENV_FILE} ]; then
-	echo "ERROR! Could not find ${SYS_ENV_FILE}"
-	return 1
-fi
+script_file=update_sys_config.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
 
-function update_value(){
-  FILE=$1
-  KEY=$2
-  UPDATE=$3
-  if [ -f "$FILE" ]; then
-    if grep -q "$KEY" "$FILE"; then
-      sed -i "/^$KEY/c\\$UPDATE" "$FILE"
-    else
-      echo "$UPDATE" | sudo tee -a $FILE
-    fi
-  else
-    echo "File not found ${FILE}"
-  fi
-}
 
-echo ""
-echo "Checking for Valid Config Settings"
 
-# CHECK FOR VALID DEVICE ID
-# Check for empty string
-if [ -z "$NEPI_DEVICE_ID" ]; then
-	echo "ERROR! NEPI ID's can not be blank string."
-	return 1
-fi
-# Check that first char is a letter
-if [[ ! "$NEPI_DEVICE_ID" =~ ^[a-zA-Z] ]]; then
-	echo "ERROR! The first character or NEPI ID must be a letter."
-	return 1
-fi
-# Check if input is only letters numbers and underscores with no spaces
-if [[ ! "$NEPI_DEVICE_ID" =~ ^[a-zA-Z0-9_]+$ ]]; then
-	echo "ERROR! NEPI ID's must be only letters, numbers, and underscores with no spaces."
-	return 1
-fi
+script_file=update_sys_bash.sh
+script_path=${nepi_etc_scripts}/${script_file}
+run_script $script_path
 
-# CHECK FOR VALID DEVICE MODEL NAME
-# Check for empty string
-if [ -z "$NEPI_DEVICE_MD" ]; then
-	echo "ERROR! NEPI Device Model Name can not be blank string."
-	return 1
-fi
 
-# CHECK FOR VALID DEVICE SN
-# Check for empty string
-if [ -z "$NEPI_DEVICE_SN" ]; then
-	echo "ERROR! NEPI Serial Numbers can not be blank string."
-	return 1
-fi
-# Check if serial number is valid 6 digit number
-if [[ ! "$NEPI_DEVICE_SN" =~ ^[0-9]{6}$ ]]; then
-	echo "'ERROR! $NEPI_DEVICE_SN' is not a valid 6-digit number."
+SYS_BASH_FILE=/opt/nepi/etc/sys_env.bash
+
+if [ ! -f ${SYS_BASH_FILE} ]; then
+	echo "ERROR! Could not find ${SYS_BASH_FILE}"
 	return 1
 fi
 
 echo ""
-echo "Updating nepi system bash file"
-echo "Using Device ID: ${NEPI_DEVICE_ID}"
-update_value ${SYS_ENV_FILE} "export DEVICE_ID" "export DEVICE_ID=${NEPI_DEVICE_ID}"
-echo "Using Device Model Name: ${NEPI_DEVICE_MD}"
-update_value ${SYS_ENV_FILE} "export DEVICE_TYPE" "export DEVICE_TYPE=${NEPI_DEVICE_MD}"
-echo "Using Device Serial Number: ${NEPI_DEVICE_SN}"
-update_value ${SYS_ENV_FILE} "export DEVICE_SN" "export DEVICE_SN=${NEPI_DEVICE_SN}"
-
-
-
-# Check if system hostname has changed
-if [[ "${HOSTNAME}" != "${NEPI_DEVICE_ID}" ]]; then
-	echo "System Hostname has changed, Running ETC hostname update script"
-	. /opt/nepi/etc/scripts/update_etc_hostname.sh
-fi
-
-
-echo ""
-echo "Sourcing nepi system bash file"
-source ${SYS_ENV_FILE}
+echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
+source ${SYS_BASH_FILE}
 
 # CHECK FOR VALID ROS Package
 if [ "$ROS1_PACKAGE" = "TBD" ] || [ "$ROS1_LAUNCH_FILE" = "TBD" ]; then
-	echo "ERROR! No ROS defs in ${SYS_ENV_FILE}... nothing to launch"
+	echo "ERROR! No ROS defs in ${SYS_BASH_FILE}... nothing to launch"
 	return 0
 fi
 
