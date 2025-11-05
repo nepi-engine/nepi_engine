@@ -180,12 +180,6 @@ class SystemMgrNode():
     admin_enabled = False
     admin_restricted = []
 
-    install_img = ''
-    install_img_version = ''
-    install_img_size = ''
-
-
-
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -1066,17 +1060,15 @@ class SystemMgrNode():
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
+            resp.new_sys_img = self.new_img_files[sel_new_ind]
+            resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+            resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
             return resp
         
-
-        
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
-        self.install_img = ''
-        self.install_img_version = ''
-        self.install_img_size = ''
         self.status_msg.sys_img_update_status = ""
 
-        (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
+        (status, err_string, self.new_img_files, self.new_img_versions, self.new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
             self.new_img_staging, self.new_img_staging_removable)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
@@ -1088,26 +1080,23 @@ class SystemMgrNode():
         
         # Update the response
         success = False
-        sel_new_img = copy.deepcopy(self.selected_new_img)
-        if new_img_files:
-            if len(new_img_files) > 0 and sel_new_img != 'none_detected':
-                self.status_msg.sys_img_update_options= new_img_files
+        if self.new_img_files:
+            if len(self.new_img_files) > 0:
                 
-                sel_new_ind = new_img_files.index(sel_new_img)
- 
-                
-                if sel_new_ind == -1:
-                   sel_new_ind=0
-                   self.selected_new_img=new_img_files[0]
-
-                resp.new_sys_img = new_img_files[sel_new_ind]
-                resp.new_sys_img_version = new_img_versions[sel_new_ind]
-                resp.new_sys_img_size_mb = new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
-                self.status_msg.sys_img_update_status = "ready to install"
-                success = True
+                #####
+                self.selected_new_img=self.new_img_files[0]
+                #####
+                self.status_msg.sys_img_update_options= ['None'] + self.new_img_files
+                sel_new_img = copy.deepcopy(self.selected_new_img)
+                sel_new_ind = self.new_img_files.index(sel_new_img)
+                if sel_new_ind != -1:
+                    resp.new_sys_img = self.new_img_files[sel_new_ind]
+                    resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+                    resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+                    self.status_msg.sys_img_update_status = "ready to install"
+                    success = True
         if success == False:
-            self.selected_new_img="None"
-            self.status_msg.sys_img_update_options = ["none_detected"]
+            self.status_msg.sys_img_update_options = ["None"]
             self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
             resp.new_sys_img_version = 'none detected'
@@ -1354,16 +1343,26 @@ class SystemMgrNode():
             self.msg_if.pub_warn("New image is already being installed")
             return
 
-        # Install Image
-        img_filename = msg.data
-        self.selected_new_img=img_filename
+        # Backup Current System Config File
+        source_file = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
+        destination_file = '/mnt/nepi_config/system_cfg/nepi_system_config.yaml.bak'
 
+        try:
+            shutil.copyfile(source_file, destination_file)
+            print(f"File '{source_file}' copied to '{destination_file}' successfully.")
+        except FileNotFoundError:
+            print(f"Error: Source file '{source_file}' not found.")
+        except SameFileError:
+            print("Error: Source and destination files are the same.")
+        except OSError as e:
+            print(f"Error copying file: {e}")
+
+        # Install Image
+        decompressed_img_filename = msg.data
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
-    
-        
-        self.install_status, err_msg = self.nepi_image.installImage(self.new_img_staging, img_filename, self.inactive_rootfs, 
+        self.install_status, err_msg = self.nepi_image.installImage(self.new_img_staging, decompressed_img_filename, self.inactive_rootfs, 
                                                      do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
 
         # Finished installing
@@ -1373,7 +1372,7 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'failed'
             return
         else:
-            self.msg_if.pub_info("Finished flashing new image")
+            self.msg_if.pub_info("Finished flashing new image to inactive rootfs")
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary

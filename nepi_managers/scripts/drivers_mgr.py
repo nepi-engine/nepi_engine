@@ -81,6 +81,7 @@ class NepiDriversMgr(object):
 
   active_node_dict = dict()
 
+  active_drivers = []
 
   settings_dict = dict()
 
@@ -152,6 +153,10 @@ class NepiDriversMgr(object):
                 'namespace': self.node_namespace,
                 'factory_val': dict()
             },
+            'active_drivers': {
+                'namespace': self.node_namespace,
+                'factory_val': []
+            }
         }
 
 
@@ -327,18 +332,24 @@ class NepiDriversMgr(object):
         self.backup_enabled = self.node_if.get_param("backup_enabled")
         drvs_dict = self.node_if.get_param("drvs_dict")
         self.msg_if.pub_warn("Init drvs keys: " + str(drvs_dict.keys()))
+        active_drivers = self.node_if.get_param("active_drivers")
+        self.msg_if.pub_warn("active_drivers: " + str(active_drivers))
 
-        # print_drv='NPX_MICROSTRAIN_AHAR'
-        # if print_drv in drvs_dict.keys():
-        #   self.msg_if.pub_warn("Init drv dict for drv " + print_drv + " : " + str(drvs_dict[print_drv]))
-        
-        drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-        self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
+
+      
         drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
         self.msg_if.pub_warn("Init ordered drvs: " + str(drvs_ordered_list))
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
+
+        for driver in active_drivers:
+          if driver in drvs_dict.keys():
+            drvs_dict[driver]['active']=True
+
         drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
         self.msg_if.pub_warn("Refresh ordered drvs: " + str(drvs_ordered_list))
+
+        drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+        self.msg_if.pub_warn("Init active drvs: " + str(drvs_active_list))
 
         # print_drv='NPX_MICROSTRAIN_AHAR'
         # if print_drv in drvs_dict.keys():
