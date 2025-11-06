@@ -184,7 +184,7 @@ class SystemMgrNode():
     install_img_version = ''
     install_img_size = ''
 
-    selected_new_img="None"
+    selected_new_img="none_detected"
 
     #######################
     ### Node Initialization
@@ -1106,7 +1106,7 @@ class SystemMgrNode():
                 self.status_msg.sys_img_update_status = "ready to install"
                 success = True
         if success == False:
-            self.selected_new_img="None"
+            self.selected_new_img="none_detected"
             self.status_msg.sys_img_update_options = ["none_detected"]
             self.status_msg.sys_img_update_selected = "None"
             resp.new_sys_img = 'none detected'
@@ -1360,7 +1360,6 @@ class SystemMgrNode():
         # Install Image
         img_filename = msg.data
         self.selected_new_img=img_filename
-
         self.status_msg.sys_img_update_status = 'flashing'
         self.installing_new_image = True
         self.install_status = True
