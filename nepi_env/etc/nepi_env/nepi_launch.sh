@@ -11,7 +11,6 @@
 cur_dir=$(pwd)
 
 
-
 function run_script() {
 	run_script=$1
 	if [[ -f "${run_script}" ]]; then
@@ -23,7 +22,6 @@ function run_script() {
 		echo "Script file not found ${run_script}"
 	fi
 }
-
 
 ETC_FOLDER=/opt/nepi/etc
 nepi_etc_scripts=${ETC_FOLDER}/scripts

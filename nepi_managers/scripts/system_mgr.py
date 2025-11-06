@@ -184,7 +184,7 @@ class SystemMgrNode():
     install_img_version = ''
     install_img_size = ''
 
-
+    selected_new_img="None"
 
     #######################
     ### Node Initialization
@@ -1093,10 +1093,9 @@ class SystemMgrNode():
             if len(new_img_files) > 0 and sel_new_img != 'none_detected':
                 self.status_msg.sys_img_update_options= new_img_files
                 
-                sel_new_ind = new_img_files.index(sel_new_img)
- 
-                
-                if sel_new_ind == -1:
+                if sel_new_img in new_img_files:
+                    sel_new_ind = new_img_files.index(sel_new_img)
+                else:
                    sel_new_ind=0
                    self.selected_new_img=new_img_files[0]
 
@@ -1147,6 +1146,7 @@ class SystemMgrNode():
 
     def publishStatusCb(self, event):
         self.publish_status()
+        nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
         
     def publish_status(self):
         # Populate the rest of the message contents
