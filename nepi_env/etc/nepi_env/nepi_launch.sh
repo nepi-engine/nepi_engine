@@ -18,7 +18,6 @@ if [[ "$nepi_count" -gt 1 ]]; then
 	echo "Run 'nepistop' and try again."
 else
 
-	fi
 	function run_script() {
 		run_script=$1
 		if [[ -f "${run_script}" ]]; then
