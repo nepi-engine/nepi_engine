@@ -15,6 +15,7 @@ import numpy as np
 import copy
 import threading
 import cv2
+os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
 import open3d as o3d
 
 from nepi_sdk import nepi_sdk

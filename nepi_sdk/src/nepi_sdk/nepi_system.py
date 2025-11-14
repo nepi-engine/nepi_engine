@@ -11,6 +11,7 @@
 
 
 import os
+import shutil
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -19,15 +20,13 @@ from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_system"
 logger = Logger(log_name = log_name)
 
-ncf = '/opt/nepi/etc/nepi_system_config.yaml'
-scf = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
+NEPI_SYSTEM_CONFIG_FILE = '/opt/nepi/etc/nepi_system_config.yaml'
+SYSTEM_CONFIG_FILE = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
 
-if os.path.exists(scf):
-    NEPI_SYSTEM_CONFIG_FILE=scf
-else:
-    NEPI_SYSTEM_CONFIG_FILE=ncf
-    
-NEPI_DOCKER_CONFIG_FILE='/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
+
+NEPI_DOCKER_CONFIG_FILE = '/opt/nepi/docker_cfg/nepi_docker_config.yaml'
+DOCKER_CONFIG_FILE = '/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
+
 
 #######################
 ## Get System Data Functions
@@ -170,7 +169,22 @@ def get_active_auto_scrips(timeout = 1000, log_name_list = []):
 ########################
 def load_nepi_system_config():
     config_dict=dict()
-    config_dict = nepi_utils.read_dict_from_file(NEPI_SYSTEM_CONFIG_FILE)
+
+    target_file=SYSTEM_CONFIG_FILE
+    backup_file=NEPI_SYSTEM_CONFIG_FILE
+    if os.path.exists(target_file) == False:
+        folder=os.path.dirname(target_file)
+        if os.path.exists(folder) == False:       
+            try:
+                os.makedirs(folder)
+            except Exception as e:
+                print("Unable to create folder: " + str(e))
+        try:
+            shutil.copyfile(backup_file, target_file)
+        except Exception as e:
+            print("Unable to copy file: " + str(e))
+
+    config_dict = nepi_utils.read_dict_from_file(SYSTEM_CONFIG_FILE)
     if config_dict is None:
         config_dict = dict()
     for key in config_dict.keys(): # Fixe empty arrays
@@ -179,7 +193,20 @@ def load_nepi_system_config():
     return config_dict
 
 def save_nepi_system_config(config_dict):
-    success = nepi_utils.write_dict_to_file(config_dict, NEPI_SYSTEM_CONFIG_FILE)
+    target_file=SYSTEM_CONFIG_FILE
+    backup_file=NEPI_SYSTEM_CONFIG_FILE
+    if os.path.exists(target_file) == False:
+        folder=os.path.dirname(target_file)
+        if os.path.exists(folder) == False:       
+            try:
+                os.makedirs(folder)
+            except Exception as e:
+                print("Unable to create folder: " + str(e))
+        try:
+            shutil.copyfile(backup_file, target_file)
+        except Exception as e:
+            print("Unable to copy file: " + str(e))
+    success = nepi_utils.write_dict_to_file(config_dict, SYSTEM_CONFIG_FILE)
     return success
 
 def update_nepi_system_config(config_key, config_value, config_dict = None):
@@ -195,7 +222,23 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
 ########################
 def load_nepi_docker_config():
     config_dict=dict()
-    config_dict = nepi_utils.read_dict_from_file(NEPI_DOCKER_CONFIG_FILE)
+
+    target_file=DOCKER_CONFIG_FILE
+    backup_file=NEPI_DOCKER_CONFIG_FILE
+    if os.path.exists(target_file) == False:
+        folder=os.path.dirname(target_file)
+        if os.path.exists(folder) == False:       
+            try:
+                os.makedirs(folder)
+            except Exception as e:
+                print("Unable to create folder: " + str(e))
+        try:
+            shutil.copyfile(backup_file, target_file)
+        except Exception as e:
+            print("Unable to copy file: " + str(e))
+
+
+    config_dict = nepi_utils.read_dict_from_file(target_file)
     if config_dict is None:
         config_dict = dict()
     for key in config_dict.keys(): # Fixe empty arrays
@@ -204,7 +247,22 @@ def load_nepi_docker_config():
     return config_dict
 
 def save_nepi_docker_config(config_dict):
-    success = nepi_utils.write_dict_to_file(config_dict, NEPI_DOCKER_CONFIG_FILE)
+
+    target_file=DOCKER_CONFIG_FILE
+    backup_file=NEPI_DOCKER_CONFIG_FILE
+    if os.path.exists(target_file) == False:
+        folder=os.path.dirname(target_file)
+        if os.path.exists(folder) == False:       
+            try:
+                os.makedirs(folder)
+            except Exception as e:
+                print("Unable to create folder: " + str(e))
+        try:
+            shutil.copyfile(backup_file, target_file)
+        except Exception as e:
+            print("Unable to copy file: " + str(e))
+
+    success = nepi_utils.write_dict_to_file(config_dict, DOCKER_CONFIG_FILE)
     return success
 
 def update_nepi_docker_config(config_key, config_value):

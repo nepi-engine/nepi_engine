@@ -53,7 +53,7 @@ else
 	script_path=${nepi_etc_scripts}/${script_file}
 	run_script $script_path
 
-	echo "Running nepi setup script"
+	echo "Running NEPI Setup Script"
 	source /opt/nepi/nepi_engine/setup.sh
 	if [[ "$?" -ne 0 ]]; then
 		echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
@@ -61,7 +61,7 @@ else
 	fi
 
 	echo ""
-	echo "Loading updated nepi config"
+	echo "Loading Updated NEPI System Config"
 	source ${ETC_FOLDER}/load_system_config.sh
 	if [[ "$?" -ne 0 ]]; then
 		echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
