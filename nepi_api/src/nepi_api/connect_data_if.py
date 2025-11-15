@@ -13,8 +13,12 @@ import os
 import time 
 import copy
 import copy
-import cv2
+
+os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
 import open3d as o3d
+
+import cv2
+
 import threading
 
 from nepi_sdk import nepi_sdk

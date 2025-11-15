@@ -634,6 +634,21 @@ def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders =
             print(e.stderr)
     return success
 
+
+def remove_pycache_folders(directory):
+    """
+    Recursively removes all __pycache__ folders within the specified directory.
+
+    Args:
+        directory (str): The path to the root directory to start searching from.
+    """
+    for root, dirs, files in os.walk(directory):
+        if '__pycache__' in dirs:
+            pycache_path = os.path.join(root, '__pycache__')
+            print(f"Removing: {pycache_path}")
+            shutil.rmtree(pycache_path)
+
+
 #########################
 ### List Helper Functions
 
