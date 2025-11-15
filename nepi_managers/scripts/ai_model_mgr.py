@@ -531,7 +531,7 @@ class AIDetectorManager:
 
 
     def modelsInfoUpdaterCb(self,timer):
-        success = self.refresh()
+        #success = self.refresh()
         models_dict = copy.deepcopy(self.models_dict)
         model_names = models_dict.keys()
         #self.msg_if.pub_warn("Calling model info services for models: " + str(model_names))
