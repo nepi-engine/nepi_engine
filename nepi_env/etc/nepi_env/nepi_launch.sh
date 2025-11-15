@@ -45,13 +45,13 @@ else
 	script_path=${nepi_etc_scripts}/${script_file}
 	run_script $script_path
 
-	script_file=update_etc_users.sh
-	script_path=${nepi_etc_scripts}/${script_file}
-	run_script $script_path
+	# script_file=update_etc_users.sh
+	# script_path=${nepi_etc_scripts}/${script_file}
+	# run_script $script_path
 
-	script_file=update_etc_ssh_keys.sh
-	script_path=${nepi_etc_scripts}/${script_file}
-	run_script $script_path
+	# script_file=update_etc_ssh_keys.sh
+	# script_path=${nepi_etc_scripts}/${script_file}
+	# run_script $script_path
 
 	echo "Running NEPI Setup Script"
 	source /opt/nepi/nepi_engine/setup.sh

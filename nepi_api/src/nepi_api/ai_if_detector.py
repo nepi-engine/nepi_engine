@@ -796,7 +796,7 @@ class AiDetectorIF:
             self.node_if.set_param('enabled',self.enabled)
             #self.node_if.save_config()
         if msg.data == False and not nepi_sdk.is_shutdown():
-            self.get_img_topic = "None"
+            self.next_image_topic = "None"
 
     def addAllClassesCb(self,msg):
         self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
@@ -1349,12 +1349,11 @@ class AiDetectorIF:
         if img_info_dict['active'] == True:
             img_info_dict['connected'] = True
 
-        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
+        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.next_image_topic)
 
-        get_image = (img_topic == self.get_img_topic)
-        if get_image == True:
+        get_image = (img_topic == self.next_image_topic)
+        if True: #get_image == True:
             #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-            self.get_img_topic = "None"
             if img_topic not in self.imgs_info_dict.keys():
                 pass
             else:
@@ -1422,11 +1421,10 @@ class AiDetectorIF:
             if imgs_info_dict[img_topic]['active'] == True:
                 imgs_info_dict[img_topic]['connected'] = True
 
-        get_image = (img_topic == self.get_img_topic)
-        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.get_img_topic)
+        get_image = (img_topic == self.next_image_topic)
+        #self.msg_if.pub_warn("Callback got image from topic:  " + img_topic + " with get topic " + self.next_image_topic)
         if get_image == True:
             self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-            self.get_img_topic = "None"
             img_file=os.path.join(img_topic,str_msg)
             if os.path.exists(img_file) == False:
                 self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
@@ -1498,7 +1496,7 @@ class AiDetectorIF:
                         connected_list.append(topic)
             if len(connected_list) == 0:
                 #self.msg_if.pub_warn("No Connected Image Topics")
-                self.get_img_topic = "None"
+                self.next_image_topic = "None"
             else:
                 # check timer
                 max_rate = self.max_proc_rate_hz
@@ -1516,40 +1514,37 @@ class AiDetectorIF:
                     if img_topic in connected_list:
                         next_img_ind = connected_list.index(img_topic) + 1
                         if next_img_ind >= num_connected_list:
-                            next_img_topic = connected_list[0]
+                            self.next_image_topic = connected_list[0]
                         else:
-                            next_img_topic = connected_list[next_img_ind]
+                            self.next_image_topic = connected_list[next_img_ind]
                     else:
-                        next_img_topic = connected_list[0]
+                        self.next_image_topic = connected_list[0]
                 else:
-                    next_img_topic = "None"
-                #self.msg_if.pub_warn("Next Image Topic set to: " + next_img_topic)
+                    self.next_image_topic = "None"
+                #self.msg_if.pub_warn("Next Image Topic set to: " + self.next_image_topic)
 
                 # Check if current image topic is None
-                if img_topic == "None" and next_img_topic != "None":
-                    self.msg_if.pub_warn("Initializing get topic to: " +  next_img_topic)
-                    self.get_img_topic = next_img_topic
-                    self.cur_img_topic = next_img_topic
+                if img_topic == "None" and self.next_image_topic != "None":
+                    self.msg_if.pub_warn("Initializing get topic to: " +  self.next_image_topic)
+                    self.cur_img_topic = self.next_image_topic
                     self.last_detect_time = nepi_sdk.get_time()
 
 
                 ##############################
                 # Check for non responding image streams                   
                 if timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
-                    self.msg_if.pub_warn("Topic " + img_topic + " timed out. Setting next topic to: " +  next_img_topic)
+                    self.msg_if.pub_warn("Topic " + img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
                     if img_topic != self.img_folder_path:
                         if img_topic is not None and img_topic in imgs_info_dict.keys():
                             imgs_info_dict[img_topic]['connected'] = False
-                        self.get_img_topic = next_img_topic
-                        self.cur_img_topic = next_img_topic
+                        self.cur_img_topic = self.next_image_topic
                         self.last_detect_time = nepi_sdk.get_time()
 
                 elif timer > delay_time: 
-                    if len(connected_list) > 0 and self.get_img_topic == "None" :
+                    if len(connected_list) > 0:
                         #Request new image before publishing current
-                        #self.msg_if.pub_warn("Setting next topic to: " +  next_img_topic)
-                        self.cur_img_topic = next_img_topic
-                        self.get_img_topic = next_img_topic
+                        #self.msg_if.pub_warn("Setting next topic to: " +  self.next_image_topic)
+                        self.cur_img_topic = self.next_image_topic
                         detect_delay = nepi_utils.get_time() - self.last_detect_time
                         self.time_list.pop(0)
                         self.time_list.append(detect_delay)
@@ -1557,7 +1552,7 @@ class AiDetectorIF:
 
                     #self.msg_if.pub_warn("Timer over delay check, looking for image topic: " +  img_topic)
                     if img_topic != "None" and img_topic in connected_list and img_topic == self.got_img_topic :
-                        start_time = nepi_sdk.get_time()
+                        
                         # Process got image
                         #self.msg_if.pub_warn("Copying img_dict from topic:  " + img_topic)
                         img_dict = None
@@ -1575,10 +1570,12 @@ class AiDetectorIF:
                                 self.msg_if.pub_warn("Callback provided None cv2_img, :  " + img_topic)
                                 pass
                             else:
+                                start_time = nepi_sdk.get_time()
+                                 
                                 # Clear image grab flags
                                 self.got_img_topic = "None"
                                 self.cur_img_topic = "None"
-                                self.get_img_topic = "None"
+
 
                                 #self.msg_if.pub_warn("Detector got img_dict for topic:  " + img_topic + " with img size: " + str(img_dict['cv2_img'].shape[:2]))
                                 ##############################
@@ -1606,16 +1603,15 @@ class AiDetectorIF:
                                 for ind in sel_detect_ind:
                                     detect_dict_list.append(detect_dicts[ind])
 
+
+                                detect_time = round( (nepi_sdk.get_time() - start_time) , 3)
+                                imgs_info_dict[img_topic]['detect_time'] = detect_time
+                                #self.msg_if.pub_info("Detect Time: {:.2f}".format(detect_time))
+
                                 self.publishDetectionData(img_dict,detect_dict_list,ros_img_header)
-                                
-                            detect_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                            imgs_info_dict[img_topic]['detect_time'] = detect_time
-                            #self.msg_if.pub_info("Detect Time: {:.2f}".format(detect_time))
-                        
+                                                       
                             # Reset for next image grab
-                            self.got_img_topic = "None"
-                            self.cur_img_topic = next_img_topic
-                            self.get_img_topic = next_img_topic                        
+                            self.cur_img_topic = self.next_image_topic                       
                         current_time = nepi_sdk.get_msg_stamp()
                         get_msg_stampstamp = img_dict['msg_stamp']
                         latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())

@@ -1262,9 +1262,10 @@ class SystemMgrNode():
                     if not os.path.isdir(path_entry):
                             self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
                             os.makedirs(path_entry)
-                    nepi_utils.remove_pycache_folders(path_entry)
+                    
                     os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
                     os.system('chmod -R 0775 ' + path_entry)
+                    #nepi_utils.remove_pycache_folders(path_entry)
                 self.storage_subdirs[key] = path_entry
                 self.system_folders[key] = path_entry
         return True
