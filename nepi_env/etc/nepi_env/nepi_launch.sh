@@ -18,6 +18,13 @@ if [[ "$nepi_count" -gt 1 ]]; then
 	echo "Run 'nepistop' and try again."
 else
 
+
+	ros_log_path=/mnt/nepi_storage/logs/ros_logs
+	if [[ -d "$ros_log_path" ]]; then
+		echo "Clearing old logs in: ${ros_log_path}"
+		sduo rm -r ${ros_log_path}/*
+	fi
+
 	function run_script() {
 		run_script=$1
 		if [[ -f "${run_script}" ]]; then

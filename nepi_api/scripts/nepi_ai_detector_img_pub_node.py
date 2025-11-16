@@ -73,7 +73,6 @@ EXAMPLE_BOX_DICT_ENTRY = {
 
 
 NONE_IMG_DICT = {       
-    'cv2_img': None,
     'width': 0,
     'height': 0,
     'timestamp': nepi_sdk.get_time(),
@@ -88,7 +87,6 @@ BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
 BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
 
 BLANK_IMG_DICT = {       
-    'cv2_img': BLANK_CV2_IMAGE,
     'width': 0,
     'height': 0,
     'timestamp': nepi_sdk.get_time(),
@@ -537,9 +535,6 @@ class AiDetectorImgPub:
                  
 
 
-
-
-
     def imageCb(self, image_msg, args):     
         if self.img_if is not None:
             if ( self.img_if.has_subscribers_check() or self.save_data_if.data_product_should_save('detection_image') ) and self.pub_image_enabled:
@@ -775,6 +770,26 @@ class AiDetectorImgPub:
             self.imgs_info_dict[img_topic]['last_det_time'] = current_time
   
 
+    def create_classes_colors_msg(self,classes_list):
+        colors_msg_list = []
+        for class_name in classes_list:
+            color_msg  = ColorRGBA()
+            class_ind = classes_list.index(class_name)
+            if len(self.classes_colors) >= class_ind:
+                color = self.classes_colors[class_ind]
+                color_msg.r = color[2]
+                color_msg.g = color[1]
+                color_msg.b = color[0]
+            else:
+                color_msg.r = 0
+                color_msg.g = 200
+                color_msg.b = 0
+            colors_msg_list.append(color_msg)
+        return colors_msg_list   
+
+
+
+
     def statusCb(self,msg):
         self.last_status_msg=nepi_utils.get_time()
         self.status_msg = msg
@@ -786,14 +801,13 @@ class AiDetectorImgPub:
         self.use_last_image = self.status_msg.use_last_image
 
         self.classes_list = self.status_msg.selected_classes
-        class_colors = self.status_msg.selected_classes_colors
-        #self.msg_if.pub_warn("Got Classes Colors Msg " + str(class_colors))
-        classes_colors_list = []
-        for color_msg in class_colors:
-            class_color = (int(color_msg.b),int(color_msg.g),int(color_msg.r))
-            classes_colors_list.append(class_color)
-        self.classes_colors_list = classes_colors_list
-        #self.msg_if.pub_warn("Got Classes Colors List " + str(self.classes_colors_list))
+
+        if len(self.classes_colors_list) != len(self.classes_list) :
+            #self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
+            num_colors = len(self.classes_list)
+            self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
+            #self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors))
+
 
         self.pub_image_enabled = self.status_msg.pub_image_enabled
         self.overlay_labels = self.status_msg.overlay_labels
