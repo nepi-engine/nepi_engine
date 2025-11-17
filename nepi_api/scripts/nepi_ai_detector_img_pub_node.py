@@ -685,14 +685,18 @@ class AiDetectorImgPub:
             bot_left_box = (xmin, ymin)
             top_right_box = (xmax, ymax)
 
+
             class_color = (0,0,127)
             if class_name in self.classes_list:
                 class_ind = self.classes_list.index(class_name)
+                #self.msg_if.pub_warn("Got Class Index: " + str(class_ind))
                 if class_ind < len(self.classes_colors_list):
                     class_color = self.classes_colors_list[class_ind]
-            line_thickness = 1 + math.ceil(max([img_height, img_width])/2000)
 
-            #self.msg_if.pub_warn("Got Class Color: " + str(class_color))
+            #self.msg_if.pub_warn("Got Class Color: " + str(class_color) + ' type: ' + str(type(class_color)) + " type: " + str(type(class_color[0])) )
+            line_thickness = 1 + math.ceil(max([img_height, img_width])/2000)
+            
+
             success = False
             try:
                 cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
@@ -770,24 +774,6 @@ class AiDetectorImgPub:
             self.imgs_info_dict[img_topic]['last_det_time'] = current_time
   
 
-    def create_classes_colors_msg(self,classes_list):
-        colors_msg_list = []
-        for class_name in classes_list:
-            color_msg  = ColorRGBA()
-            class_ind = classes_list.index(class_name)
-            if len(self.classes_colors) >= class_ind:
-                color = self.classes_colors[class_ind]
-                color_msg.r = color[2]
-                color_msg.g = color[1]
-                color_msg.b = color[0]
-            else:
-                color_msg.r = 0
-                color_msg.g = 200
-                color_msg.b = 0
-            colors_msg_list.append(color_msg)
-        return colors_msg_list   
-
-
 
 
     def statusCb(self,msg):
@@ -806,7 +792,7 @@ class AiDetectorImgPub:
             #self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
             num_colors = len(self.classes_list)
             self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
-            #self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors))
+            self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors_list))
 
 
         self.pub_image_enabled = self.status_msg.pub_image_enabled

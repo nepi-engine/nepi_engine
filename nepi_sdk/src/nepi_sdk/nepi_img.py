@@ -112,7 +112,7 @@ def create_bgr_jet_color(x): # x -> 0-1
         c_list = np.array([0.0, 0.0, 0.0])
     c_list = c_list * 255
     c_list = c_list.astype(int)
-    return (c_list[0],c_list[1],c_list[2])
+    return (int(c_list[2]),int(c_list[1]),int(c_list[0]))
 
 def create_bgr_jet_colormap_list(num_colors=256):
   colors_list = []

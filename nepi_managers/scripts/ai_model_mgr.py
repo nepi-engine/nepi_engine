@@ -48,7 +48,7 @@ DEFAULT_FRAMEWORK = 'yolov5'
 class AIDetectorManager:   
 
     MODEL_TYPE_LIST = ['detection']
-    MODEL_INFO_INTERVAL = 10
+    MODEL_INFO_INTERVAL = 2
 
     aif_classes_dict = dict()
 
@@ -469,12 +469,13 @@ class AIDetectorManager:
         return aaifs
 
     def getActiveModels(self):
-        ams = []
+        active_models = []
         models_dict = copy.deepcopy(self.models_dict)
-        for m in models_dict.keys():
-            if models_dict[m]['active'] == True:
-                ams.append(m)
-        return ams
+        for model_name in models_dict.keys():
+            if models_dict[model_name]['active'] == True:
+                active_models.append(model_name)
+        return active_models
+
 
     def updaterCb(self,timer):
         active_aifs = self.getActiveAifs()
@@ -561,7 +562,8 @@ class AIDetectorManager:
                         #self.msg_if.pub_info("Got model info response: " + str(response))
                         detector_info_dict[model_name] = response.detector_info
                     except Exception as e:
-                        self.msg_if.pub_info("Waiting for model to load: " + str(model_name) + " , will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+                        #self.msg_if.pub_info("Waiting for model to load: " + str(model_name) + " , will try again in " + str(self.MODEL_INFO_INTERVAL) + " secs")
+                        pass
                 else:
                     self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
         self.detector_info_dict = detector_info_dict
@@ -589,13 +591,13 @@ class AIDetectorManager:
                 aif_class = self.aif_classes_dict[model_name]
                 self.msg_if.pub_warn("Creating model node " + model_name)
                 [success,node_namespace] = aif_class.loadModel(model_dict)
-                self.msg_if.pub_warn("Model Loaded with namespace: " + node_namespace)
+                self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to load model: " + model_name + " Removing from models dict list :" + str(e))
+                if model_name in self.models_dictmodels_dict.keys():
+                    self.models_dictmodels_dict[model_name]['active'] = False
+                self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " Removed from active models list :" + str(e))
 
-            if success == False:
-                self.msg_if.pub_warn("Failed to load model:" + model_name)
-            else:
+            if success == True:
 
                 # Just Assume Running for now
                 self.msg_if.pub_warn("Node Found: " + model_name)

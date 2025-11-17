@@ -1554,7 +1554,7 @@ class AiDetectorIF:
                 ##############################
                 # Check for non responding image streams                   
                 if self.got_img_topic is None and timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
-                    self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
+                    #self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
                     if cur_img_topic != self.img_folder_path:
                         if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
                             imgs_info_dict[cur_img_topic]['connected'] = False

@@ -1080,7 +1080,7 @@ class SystemMgrNode():
         (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
             self.new_img_staging, self.new_img_staging_removable)
         if status is False:
-            self.msg_if.pub_warn("Unable to update software status: " + err_string)
+            #self.msg_if.pub_warn("Unable to update software status: " + err_string)
             resp.new_sys_img = 'query failed'
             resp.new_sys_img_version = 'query failed'
             resp.new_sys_img_size_mb = 0

@@ -19,10 +19,10 @@ if [[ "$nepi_count" -gt 1 ]]; then
 else
 
 
-	ros_log_path=/mnt/nepi_storage/logs/ros_logs
+	ros_log_path=/mnt/nepi_storage/logs/ros_log
 	if [[ -d "$ros_log_path" ]]; then
 		echo "Clearing old logs in: ${ros_log_path}"
-		sduo rm -r ${ros_log_path}/*
+		sudo rm -r ${ros_log_path}/*
 	fi
 
 	function run_script() {
@@ -52,13 +52,13 @@ else
 	script_path=${nepi_etc_scripts}/${script_file}
 	run_script $script_path
 
-	# script_file=update_etc_users.sh
-	# script_path=${nepi_etc_scripts}/${script_file}
-	# run_script $script_path
+	script_file=update_etc_users.sh
+	script_path=${nepi_etc_scripts}/${script_file}
+	run_script $script_path
 
-	# script_file=update_etc_ssh_keys.sh
-	# script_path=${nepi_etc_scripts}/${script_file}
-	# run_script $script_path
+	script_file=update_etc_ssh_keys.sh
+	script_path=${nepi_etc_scripts}/${script_file}
+	run_script $script_path
 
 	echo "Running NEPI Setup Script"
 	source /opt/nepi/nepi_engine/setup.sh
@@ -74,11 +74,11 @@ else
 		echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
 		return 1
 	fi
-
+	LOAD_CONFIG=0
 
 	script_file=update_sys_config.sh
 	script_path=${nepi_etc_scripts}/${script_file}
-	run_script $script_path
+	run_script $script_path 
 
 
 

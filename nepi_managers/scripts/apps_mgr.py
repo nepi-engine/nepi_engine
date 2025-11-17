@@ -88,7 +88,7 @@ class NepiAppsMgr(object):
         # Get for System Folders
         self.msg_if.pub_info("Waiting for system folders")
         system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
-        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
 
         self.apps_param_folder = system_folders['apps_param']
         self.msg_if.pub_info("Using APPS Params Folder: " + str(self.apps_param_folder))
