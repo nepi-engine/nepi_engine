@@ -305,103 +305,118 @@ class AIDetectorManager:
     def refresh(self):
         success = False
         if self.node_if is not None:
+            models_dict = copy.deepcopy(self.models_dict)
             ## Find AI Frameworks
             # Get ai framework dict form param server and update
-            #self.msg_if.pub_warn("Refreshing latest ais dict " + str(self.aifs_dict), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Refreshing latest ais dict " + str(self.aifs_dict))
 
             # Update AI Frameworks Dict
             aifs_dict = copy.deepcopy(self.aifs_dict)
-            #self.msg_if.pub_warn("Refreshing")
-            #self.msg_if.pub_warn("Refreshing aifs dict with keys: " + str(self.aifs_dict.keys()))
-            #self.msg_if.pub_warn("Refreshing active aifs list: " + str(self.getActiveAifs())) 
+            self.msg_if.pub_warn("Refreshing")
+            self.msg_if.pub_warn("Refreshing aifs dict with keys: " + str(self.aifs_dict.keys()))
+            self.msg_if.pub_warn("Refreshing active aifs list: " + str(self.getActiveAifs())) 
             last_aifs_keys = aifs_dict.keys()
-            #self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys))
             aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
-            #self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
-            #self.msg_if.pub_warn("Refreshed active aifs list: " + str(self.getActiveAifs())) 
+            self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
+            self.msg_if.pub_warn("Refreshed active aifs list: " + str(self.getActiveAifs())) 
             cur_aifs_keys = aifs_dict.keys()
-            #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys))
             if last_aifs_keys != cur_aifs_keys:
-                self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys), throttle_s = 5.0)
+                self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys))
 
             # Refresh Frameworks if Needed
+            aif_purge_list = []
             for aif_name in aifs_dict.keys():
                 aif_dict = aifs_dict[aif_name]
-                #self.msg_if.pub_info("Processing ais dict for aif name " + aif_name)
+                self.msg_if.pub_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + aif_name)
+                self.msg_if.pub_info("Processing ais dict for aif name " + aif_name)
                 success = False
                 if aif_name not in self.aifs_classes_dict.keys():
-                    #self.msg_if.pub_info("Updating ai dict for framework: " + str(aif_name), throttle_s = 5.0)
+                    self.msg_if.pub_info("Updating ai dict for framework: " + str(aif_name))
                     file_name = aif_dict['if_file_name']
                     file_path = aif_dict['api_path']
                     module_name = aif_dict['if_module_name']
                     class_name = aif_dict['if_class_name']
-                    self.msg_if.pub_warn("Got aif dict: " + aif_name + " : " + str(aif_dict), throttle_s = 5.0)
+                    self.msg_if.pub_warn("Got aif dict: " + aif_name + " : " + str(aif_dict))
                     sys.path.append(file_path)
                     [success, msg, aif_class] = nepi_aifs.importAIFClass(file_name,file_path,module_name,class_name)
                     if success == True:
                         success = False
                         try:
-                            self.msg_if.pub_warn("Instantiating IF class for framework type: " + str(aif_name), throttle_s = 5.0)
+                            self.msg_if.pub_warn("Instantiating IF class for framework type: " + str(aif_name))
                             launch_namespace = os.path.join(self.base_namespace, "ai")
                             all_namespace = os.path.join(self.base_namespace, self.node_name)
                             aif_if_class_instance = aif_class(aif_dict,launch_namespace,all_namespace,self.ai_models_folder)
                             self.aifs_classes_dict[aif_name] = aif_if_class_instance
-                            self.msg_if.pub_warn("Created aif instantiated if class: " + aif_name , throttle_s = 5.0)
+                            self.msg_if.pub_warn("Created aif instantiated if class: " + aif_name )
                             success = True
                             time.sleep(1) # Give some time for publishers to set in class init
                         except Exception as e:
-                            self.msg_if.pub_warn("Failed to instantiate ai framework if class " + class_name + " " + str(e), throttle_s = 5.0)
+                            aif_purge_list.append(aif_name)
+                            self.msg_if.pub_warn("Failed to instantiate ai framework if class " + class_name + " " + str(e))
+                    else:
+                        aif_purge_list.append(aif_name)
+                        self.msg_if.pub_warn("Failed to Import ai framework if class " + class_name + " " + str(e))
+
                 else:
                     aif_if_class_instance = self.aifs_classes_dict[aif_name]
-                    #self.msg_if.pub_warn("Got aif instantiated class: " + aif_name , throttle_s = 5.0)
+                    self.msg_if.pub_warn("Got aif instantiated class: " + aif_name)
                     success = True
 
 
-                # Refresh Models if Needed
+
+
+                # Refresh Models Dict
                 if success == True:
-                    success = False
-                    cur_models_dict = copy.deepcopy(self.models_dict)
-                    aif_models_dict = aif_if_class_instance.getModelsDict()
-                    models_dict = dict()
-                    if cur_models_dict != aif_models_dict:
-                        #self.msg_if.pub_warn("Got models dict for aif: " + aif_name + " " + str(aif_models_dict.keys()), throttle_s = 5.0)
-                        if (len(aif_models_dict.keys()) < 1):
-                            self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
-                        else:
-                            #self.msg_if.pub_info("Got models for framework: " + str(aif_name) + " from param server " + str(aif_models_dict.keys()))
-                            pass
-                        for model_name in aif_models_dict.keys():
-                            try:
-                                if model_name not in self.aif_classes_dict.keys():
-                                    model_dict = aif_models_dict[model_name]
-                                    if model_name in cur_models_dict.keys():
-                                        model_dict['active'] = cur_models_dict[model_name]['active']
-                                    else:
-                                        model_dict['active'] = False
-                                    models_dict[model_name] = model_dict
-                                    #self.msg_if.pub_info("Got update models dict for framework: " + str(aif_name) + " from param server " + str(models_dict.keys()))
-                                    self.aif_classes_dict[model_name] = aif_if_class_instance
-                                    success = True
-                            except Exception as e:
-                                self.msg_if.pub_warn("Failed to get models from class " + class_name + " " + str(e))
-                                continue
+                    try:
+                        aif_models_dict = aif_if_class_instance.getModelsDict()
+                        self.msg_if.pub_warn("Got updated models dict for aif: " + aif_name + " " + str(aif_models_dict))
+                    except Exception as e:
+                        aif_purge_list.append(aif_name)
+                        self.msg_if.pub_warn("Failed to Get Model Info for ai framework: " + aif_name + " " + str(e))
+                    if (len(aif_models_dict.keys()) < 1):
+                        self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
+                    else:
+                        self.msg_if.pub_info("Got models for framework: " + str(aif_name) + " from param server " + str(aif_models_dict.keys()))
+                        pass
+                    for model_name in aif_models_dict.keys():
+                        try:
+                            model_active = False
+                            if model_name in models_dict.keys():
+                                model_active = models_dict[model_name]['active']
+                            models_dict[model_name] = aif_models_dict[model_name]
+                            models_dict[model_name]['active'] = model_active
+                            self.msg_if.pub_warn("Updated model dict: " + str( models_dict[model_name]))
+                            success = True
+                        except Exception as e:
+                            self.msg_if.pub_warn("Failed to get models from class " + class_name + " " + str(e))
+                            aif_purge_list.append(aif_name)
+                            continue
+                    
+
+            # Purge bad aifs        
+            for aif_name in aif_purge_list:
+                try:
+                    self.msg_if.pub_warn("Purging framework: " + aif_name)
+                    del aifs_dict[aif_name]
+                    del self.aifs_classes_dict[aif_name]
+                except:
+                    pass
+
+            self.aifs_dict = aifs_dict
+            self.models_dict =  models_dict
+              
 
             # refresh active states from stored values
-            #self.msg_if.pub_warn("Refreshing models dict with keys: " + str(self.models_dict.keys()))
-            #self.msg_if.pub_warn("Refreshing active models list: " + str(self.getActiveModels()))
+            self.msg_if.pub_warn("Refreshing models dict with keys: " + str(models_dict.keys()))
+            self.msg_if.pub_warn("Refreshing active models list: " + str(self.getActiveModels))
 
-            for model in models_dict.keys():
-                if model not in cur_models_dict.keys():
-                    cur_models_dict[model] = models_dict[model]
-
-            last_dict = copy.deepcopy(self.models_dict)
-            self.aifs_dict = aifs_dict
-            self.models_dict =  cur_models_dict
             self.node_if.set_param('aifs_dict', self.aifs_dict)
-            self.node_if.set_param('models_dict', self.models_dict)
-            if self.models_dict != last_dict:
-                self.save_config() # Save config
-                self.publish_status()
+            self.node_if.set_param('models_dict', self.models_dict)      
+
+            self.save_config() # Save config
+            self.publish_status()
        
             #self.msg_if.pub_warn("Refreshed models dict with keys: " + str(self.models_dict.keys()))
             #self.msg_if.pub_warn("Refreshed active models list: " + str(self.getActiveModels()))
@@ -434,10 +449,11 @@ class AIDetectorManager:
         self.models_dict = self.node_if.get_param('models_dict')
         self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
         self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
+        self.refresh()
+        self.msg_if.pub_warn("Refreshed models dict with keys: " + str(self.models_dict.keys()))
+        self.msg_if.pub_warn("Refreshed models dicts: " + str(self.models_dict))
         self.node_if.save_config()
 
-      if do_updates == True:
-        self.refresh()
       self.publish_status()
 
 
@@ -516,10 +532,10 @@ class AIDetectorManager:
                     if model_type == "detection":
                         self.detector_info_dict[model_name] = None # Gets updated in modelsInfoUpdateCb
                 else:
-                    self.msg_if.pub_warn("Model failed to load: " + model_name)
+                    self.msg_if.pub_warn("Model failed to launch: " + model_name)
                     self.msg_if.pub_warn("Setting model to disabled: " + model_name)
                     self.models_dict[model_name]['active'] = False
-                    self.models_dict = models_dict
+    
 
         #self.msg_if.pub_warn("Updated models dict with keys: " + str(self.models_dict.keys()))
         #self.msg_if.pub_warn("Updated active models list: " + str(self.getActiveModels()))
@@ -589,13 +605,11 @@ class AIDetectorManager:
         if model_name != "None": 
             try:
                 aif_class = self.aif_classes_dict[model_name]
-                self.msg_if.pub_warn("Creating model node " + model_name)
-                [success,node_namespace] = aif_class.loadModel(model_dict)
+                self.msg_if.pub_warn("Launching Node for Model " + model_name)
+                [success,node_namespace] = aif_class.launchModel(model_dict)
                 self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
             except Exception as e:
-                if model_name in self.models_dictmodels_dict.keys():
-                    self.models_dictmodels_dict[model_name]['active'] = False
-                self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " Removed from active models list :" + str(e))
+                self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " : " + str(e))
 
             if success == True:
 
