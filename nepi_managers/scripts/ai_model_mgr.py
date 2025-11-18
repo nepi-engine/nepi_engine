@@ -50,7 +50,6 @@ class AIDetectorManager:
     MODEL_TYPE_LIST = ['detection']
     MODEL_INFO_INTERVAL = 2
 
-    aif_classes_dict = dict()
 
     node_if = None
 
@@ -304,6 +303,17 @@ class AIDetectorManager:
 
     def refresh(self):
         success = False
+
+        self.msg_if.pub_warn("Stopping all running models")
+        for model_name in self.models_dict.keys():
+                if self.models_dict[model_name]['active'] == True:
+                  self.killModel(model_name)
+        time.sleep(1)
+        aif_classses = self.aifs_classes_dict.keys()
+        for aif_class in aif_classes:
+            del self.aifs_classes_dict[aif_class]
+
+
         if self.node_if is not None:
             models_dict = copy.deepcopy(self.models_dict)
             ## Find AI Frameworks
@@ -343,7 +353,7 @@ class AIDetectorManager:
                     if success == True:
                         success = False
                         try:
-                            self.msg_if.pub_warn("Instantiating IF class for framework type: " + str(aif_name))
+                            self.msg_if.pub_warn("Instantiating IF class for framework: " + str(aif_name))
                             launch_namespace = os.path.join(self.base_namespace, "ai")
                             all_namespace = os.path.join(self.base_namespace, self.node_name)
                             aif_if_class_instance = aif_class(aif_dict,launch_namespace,all_namespace,self.ai_models_folder)
@@ -467,7 +477,6 @@ class AIDetectorManager:
 
     def factoryResetCb(self,do_updates = True):
         self.aifs_classes_dict = dict()
-        self.aif_classes_dict = dict()
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -518,10 +527,8 @@ class AIDetectorManager:
         for model_name in active_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in self.running_models_list and model_aif in active_aifs:
-                self.msg_if.pub_warn("Loading model: " + model_name)
+                self.msg_if.pub_warn("Launching Node for model: " + model_name)
                 model_dict = models_dict[model_name]
-                self.msg_if.pub_warn("Loading model with model dict for model: " + model_name)
-                self.printModelDict(model_dict)
                 success = self.loadModel(model_name, model_dict)
                 if success == True:
                     self.msg_if.pub_warn("Model loaded successfully, adding to running models list: " + model_name)
@@ -602,52 +609,28 @@ class AIDetectorManager:
     def loadModel(self, model_name, model_dict):       
         success = False
         if model_name != "None": 
-            try:
-                aif_class = self.aif_classes_dict[model_name]
-                self.msg_if.pub_warn("Launching Node for Model " + model_name)
-                [success,node_namespace] = aif_class.launchModel(model_dict)
-                self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " : " + str(e))
+            aif_name=self.models_dict[model_name]['framework']
+            if aif_name not in self.aifs_classes_dict.keys():
+                self.msg_if.pub_warn("Model Framework Class not instantiated")
+            else:
+                try:
+                    aif_name=self.models_dict[model_name]['framework']
+                    aif_class = self.aifs_classes_dict[aif_name]
+                    self.msg_if.pub_warn("Launching Node for Model " + model_name)
+                    [success,node_namespace] = aif_class.launchModel(model_dict)
+                    self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " : " + str(e))
 
-            if success == True:
+                if success == True:
 
-                # Just Assume Running for now
-                self.msg_if.pub_warn("Node Found: " + model_name)
-                self.model_namespace_dict[model_name] = node_namespace
-                nepi_sdk.wait()
-
-                ''' Future check
-                # Try and Wait for model status message
-                status_topic = os.path.join(node_namespace,'status')
-                model_size = model_dict['size']
-                load_time = model_dict['load_time']
-
-                self.msg_if.pub_warn("Model " + model_name + " has model_size: " + str(model_size) + " and estimated load time of: " + str(load_time))
-                timeout = round(load_time * 2, 2)
-                if timeout < 60:
-                    timeout = 60
-                self.msg_if.pub_warn("Waiting for model " + model_name + " to publish status on topic: " + status_topic)
-                self.msg_if.pub_warn("Model " + model_name + " status wait timeout set to " + str(timeout))
-                got_topic = nepi_sdk.wait_for_topic(status_topic,timeout = timeout)
-                if got_topic == "":
-                    self.msg_if.pub_warn("Model status timed out for: " + model_name)
-                else:
-                    self.msg_if.pub_warn("Got model status: " + model_name)
-
-                # Check node is active
-                self.msg_if.pub_warn("Checking that node is active for model " + model_name )
-                node_running = nepi_sdk.check_for_node(model_name)
-                if node_running == True:
+                    # Just Assume Running for now
                     self.msg_if.pub_warn("Node Found: " + model_name)
                     self.model_namespace_dict[model_name] = node_namespace
-                else: 
-                    self.msg_if.pub_warn("Node Not Found" + model_name)
-                    success = False
-                '''
+                    nepi_sdk.wait()
 
-            self.save_config() # Save config
-            self.publish_status()
+                self.save_config() # Save config
+                self.publish_status()
             return success
         
     def killModel(self, model_name):
@@ -657,7 +640,8 @@ class AIDetectorManager:
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
                 return
             # Start the model
-            aif_class = self.aif_classes_dict[model_name]
+            aif_name=self.models_dict[model_name]['framework']
+            aif_class = self.aifs_classes_dict[aif_name]
             self.msg_if.pub_info("Killing model " + model_name)
             del self.model_namespace_dict[model_name]
             aif_class.killModel(model_name)

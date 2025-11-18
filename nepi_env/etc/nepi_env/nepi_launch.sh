@@ -33,10 +33,14 @@ else
 
 	function run_script() {
 		run_script=$1
+		arg_1=""
+		if [[ -n "$2" ]]; then
+			arg_1=$2
+		fi
 		if [[ -f "${run_script}" ]]; then
-			cd $NEPI_ETC_SCRIPTS $2
+			cd $NEPI_ETC_SCRIPTS 
 			echo "Running ${run_script}"
-			bash ${run_script}
+			bash ${run_script} $arg_1
 			wait
 		else
 			echo "Script file not found ${run_script}"
@@ -51,64 +55,63 @@ else
 		echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
 		return 1
 	fi
+
 	LOAD_CONFIG=0
 
-	if [[ "$NEPI_IN_CONTAINER" -eq 1 ]]; then
-
 		
-		script_file=sync_to_sys_config.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path $LOAD_CONFIG
+	script_file=sync_to_sys_config.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
 
-		script_file=update_sys_config.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path $LOAD_CONFIG
+	script_file=update_sys_config.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
 
-		script_file=sync_from_configs.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path $LOAD_CONFIG
+	script_file=sync_from_configs.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
 
-		script_file=update_etc_users.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path $LOAD_CONFIG
+	script_file=update_etc_users.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
 
-		script_file=update_etc_ssh_keys.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path $LOAD_CONFIG
+	script_file=update_etc_ssh_keys.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
 
-		echo "Running NEPI Setup Script"
-		source /opt/nepi/nepi_engine/setup.sh
-		if [[ "$?" -ne 0 ]]; then
-			echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
-			return 1
-		fi
-
-		echo ""
-		echo "Loading Updated NEPI System Config"
-		source ${ETC_FOLDER}/load_system_config.sh
-		if [[ "$?" -ne 0 ]]; then
-			echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
-			return 1
-		fi
-		LOAD_CONFIG=0
-
-		script_file=update_sys_config.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path 
-
-
-
-		script_file=update_sys_bash.sh
-		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-		run_script $script_path
-
-
-		if [ ! -f ${SYS_BASH_FILE} ]; then
-			echo "ERROR! Could not find ${SYS_BASH_FILE}"
-			return 1
-		fi
-
+	echo "Running NEPI Setup Script"
+	source /opt/nepi/nepi_engine/setup.sh
+	if [[ "$?" -ne 0 ]]; then
+		echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
+		return 1
 	fi
+
+	echo ""
+	echo "Loading Updated NEPI System Config"
+	source ${ETC_FOLDER}/load_system_config.sh
+	if [[ "$?" -ne 0 ]]; then
+		echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
+		return 1
+	fi
+	LOAD_CONFIG=0
+
+	script_file=update_sys_config.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path 
+
+
+
+	script_file=update_sys_bash.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path
+
+
+	if [ ! -f ${SYS_BASH_FILE} ]; then
+		echo "ERROR! Could not find ${SYS_BASH_FILE}"
+		return 1
+	fi
+
+
 
 	echo ""
 	echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
