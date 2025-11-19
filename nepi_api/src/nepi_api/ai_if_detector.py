@@ -127,7 +127,7 @@ class AiDetectorIF:
     first_detect_complete = False
 
     detection_state = False
-    
+    detect_latencies = [0,0,0,0,0,0,0,0,0,0]
     detect_delays = [0,0,0,0,0,0,0,0,0,0]
     detect_times = [0,0,0,0,0,0,0,0,0,0]
     sleep_state = False
@@ -140,6 +140,7 @@ class AiDetectorIF:
     sleep_run_sec = 0
     img_tiling = False
     overlay_labels = True
+    overlay_targeting = True
     overlay_clf_name = False
     overlay_img_name = False
     threshold = DEFAULT_THRESHOLD
@@ -284,6 +285,10 @@ class AiDetectorIF:
                 'factory_val': DEFAULT_IMG_TILING
             },
             'overlay_labels': {
+                'namespace': self.node_namespace,
+                'factory_val': DEFAULT_LABELS_OVERLAY
+            },
+            'overlay_targeting': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_LABELS_OVERLAY
             },
@@ -501,6 +506,14 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.setOverlayLabelsCb, 
+                'callback_args': ()
+            },
+            'set_overlay_targeting': {
+                'namespace': self.node_namespace,
+                'topic': 'set_overlay_targeting',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setOverlayTargetingCb, 
                 'callback_args': ()
             },
             'set_overlay_clf_name': {
@@ -738,6 +751,7 @@ class AiDetectorIF:
             self.sleep_run_sec = self.node_if.get_param('sleep_run_sec')
             self.img_tiling = self.node_if.get_param('img_tiling')
             self.overlay_labels = self.node_if.get_param('overlay_labels')
+            self.overlay_targeting = self.node_if.get_param('overlay_targeting')
             self.overlay_clf_name = self.node_if.get_param('overlay_clf_name')
             self.overlay_img_name = self.node_if.get_param('overlay_img_name')
             self.threshold = self.node_if.get_param('threshold')
@@ -907,7 +921,12 @@ class AiDetectorIF:
             self.node_if.set_param('overlay_labels',self.overlay_labels)
             self.node_if.save_config()
 
- 
+    def setOverlayTargetingCb(self,msg):
+        self.overlay_targeting = msg.data
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('overlay_targeting',self.overlay_targeting)
+            self.node_if.save_config()
 
 
     def setOverlayClfNameCb(self,msg):
@@ -1425,7 +1444,10 @@ class AiDetectorIF:
                     
                     cur_msg_time = nepi_sdk.get_msg_stamp()
                     get_msg_stampstamp = img_dict['msg_stamp']
-                    latency = (cur_msg_time.to_sec() - get_msg_stampstamp.to_sec())    
+                    latency = round( (cur_msg_time.to_sec() - get_msg_stampstamp.to_sec()) , 3)
+                    self.detect_latencies.pop(0)
+                    self.detect_latencies.append(latency)
+
                     
                     #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
                     if img_topic in self.imgs_info_dict.keys():
@@ -1519,7 +1541,7 @@ class AiDetectorIF:
                     if imgs_info_dict[topic]['connected'] == True:
                         connected_list.append(topic)
             if len(connected_list) == 0:
-                self.msg_if.pub_warn("No Connected Image Topics")
+                #self.msg_if.pub_warn("No Connected Image Topics")
                 self.next_image_topic = "None"
             else:
                 # check timer
@@ -1559,7 +1581,7 @@ class AiDetectorIF:
                 ##############################
                 # Check for non responding image streams                   
                 if self.got_img_topic is None and timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
-                    self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
+                    #self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
                     if cur_img_topic != self.img_folder_path:
                         if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
                             imgs_info_dict[cur_img_topic]['connected'] = False
@@ -1777,6 +1799,7 @@ class AiDetectorIF:
 
         self.det_status_msg.pub_image_enabled = self.pub_image_enabled
         self.det_status_msg.overlay_labels = self.overlay_labels
+        self.det_status_msg.overlay_targeting = self.overlay_targeting
         self.det_status_msg.overlay_clf_name = self.overlay_clf_name
         self.det_status_msg.overlay_img_name = self.overlay_img_name
 
@@ -1836,18 +1859,21 @@ class AiDetectorIF:
 
 
 
-        avg_rate = 0
+
         avg_time = sum(self.detect_delays) / len(self.detect_delays)
-        if avg_time > .01:
+        self.det_status_msg.avg_latency_sec = avg_time
+
+        avg_rate = 0
+        avg_times = sum(self.detect_latencies) / len(self.detect_latencies)
+        if avg_time > .005:
             avg_rate = float(1) / avg_time
-       
         self.det_status_msg.avg_rate_hz = avg_rate
+
 
         max_rate = 0
         max_time = sum(self.detect_times) / len(self.detect_times)
-        if max_time > .01:
+        if max_time > .005:
             max_rate = float(1) / max_time
-       
         self.det_status_msg.max_rate_hz = max_rate       
 
         #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.det_status_msg))
