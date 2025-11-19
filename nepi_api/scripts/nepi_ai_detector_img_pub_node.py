@@ -95,6 +95,8 @@ BLANK_IMG_DICT = {
     'ros_img_stamp': Header().stamp
 }
 
+
+WATCHDOG_DELAY=60
 WATCHDOG_TIMEOUT=10
 
 class AiDetectorImgPub:
@@ -288,7 +290,8 @@ class AiDetectorImgPub:
         
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         #nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
-        
+        self.last_status_time=nepi_utils.get_time()
+        nepi_sdk.start_timer_process(WATCHDOG_DELAY, self.watchdogCb, oneshot = True)
         nepi_sdk.on_shutdown(self.shutdownCb)
         
         #########################################################
@@ -421,6 +424,8 @@ class AiDetectorImgPub:
             msg="Lost connection to parent node statu msg.  Shutting down"
             self.msg_if.pub_warn(msg)
             nepi_sdk.signal_shutdown(msg)
+        
+        nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
 
 
     def subscribeImgTopic(self,img_topic):
@@ -779,7 +784,7 @@ class AiDetectorImgPub:
 
 
     def statusCb(self,msg):
-
+        self.last_status_time=nepi_utils.get_time()
 
         self.status_msg = msg
 
@@ -807,12 +812,8 @@ class AiDetectorImgPub:
         if last_sel_imgs != self.selected_img_topics:
             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_img_topics))
         
-        ### Start Watchdog timer
-        if self.last_status_time is None:
-            self.msg_if.pub_warn("Got first detector status msg: " + str(msg))
-            self.last_status_time=nepi_utils.get_time()
-            nepi_sdk.start_timer_process(1, self.watchdogCb)
-        self.last_status_time=nepi_utils.get_time()
+
+        
 
 
     def shutdownCb(self):
