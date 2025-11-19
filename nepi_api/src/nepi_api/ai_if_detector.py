@@ -666,11 +666,14 @@ class AiDetectorIF:
 
     def launch_image_pub_node(self):
             node_name = self.node_name + "_img_pub"
-            namespace = self.node_namespace + "_img_pub"
+            namespace=os.path.dirname(self.node_namespace)
+            node_namespace = self.node_namespace + "_img_pub"
             pkg_name = 'nepi_api'
             node_file_folder = self.api_lib_folder
             node_file_name = 'nepi_ai_detector_img_pub_node.py'
            
+
+            nepi_sdk.log_msg_warn(self.log_name + " Launching Detction Img Node with with settings " + str([pkg_name, node_file_name, node_name]))          
             ###############################
             # Launch Node
             node_file_path = os.path.join(node_file_folder,node_file_name)
@@ -685,21 +688,21 @@ class AiDetectorIF:
                 self.msg_if.pub_warn("Launching Node: " + node_name)
 
                 # Pre Set Img Pub Params
-                param_ns = nepi_sdk.create_namespace(namespace,'data_product')
+                param_ns = nepi_sdk.create_namespace(node_namespace,'data_product')
                 nepi_sdk.set_param(param_ns,self.img_data_product)
 
-                param_ns = nepi_sdk.create_namespace(namespace,'det_namespace')
+                param_ns = nepi_sdk.create_namespace(node_namespace,'det_namespace')
                 nepi_sdk.set_param(param_ns,self.node_namespace)
 
-                param_ns = nepi_sdk.create_namespace(namespace,'all_namespace')
+                param_ns = nepi_sdk.create_namespace(node_namespace,'all_namespace')
                 nepi_sdk.set_param(param_ns,self.all_namespace)
                         
 
-                [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name)
+                [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=self.launch_namespace)
                 if success == True:
                     self.launch_node_process = sub_process
                     self.pub_img_node_name = node_name
-                    self.pub_img_namepace = namespace
+                    self.pub_img_namepace = node_namespace
                 self.msg_if.pub_warn("Node launch return msg: " + str(msg))
 
     def kill_image_pub_node(self):
@@ -710,7 +713,7 @@ class AiDetectorIF:
             success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.launch_node_process)
             if success == True:
                 self.launch_node_process = None
-                self.pub_img_node_name = node_name
+                self.pub_img_node_name = ""
                 self.pub_img_namepace = ""
                 self.msg_if.pub_warn("Node Killed")
             else:

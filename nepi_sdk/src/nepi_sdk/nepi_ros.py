@@ -297,14 +297,17 @@ def wait_for_node(node_name, timeout = 60, log_name_list = []):
   return node
 
 
-def launch_node(pkg_name, file_name, ros_node_name, device_path = None, log_name_list = []):
+def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_path = None, log_name_list = []):
   sub_process = None
   msg = 'Success'
   success = False
+  if namespace is None:
+    namespace = get_base_namespace()
+
   if device_path is None:
-    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name]
+    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace]
   else:
-    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '_device_path:=' + device_path]
+    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace, '_device_path:=' + device_path]
   try:
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True

@@ -95,7 +95,6 @@ BLANK_IMG_DICT = {
     'ros_img_stamp': Header().stamp
 }
 
-
 WATCHDOG_TIMEOUT=10
 
 class AiDetectorImgPub:
@@ -286,11 +285,12 @@ class AiDetectorImgPub:
         # Complete Initialization
 
         # Start Timer Processes
+        
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         #nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
-        self.last_status_time=nepi_utils.get_time()
+        
         nepi_sdk.on_shutdown(self.shutdownCb)
-        nepi_sdk.start_timer_process((1), self.watchdogCb)
+        
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -415,9 +415,11 @@ class AiDetectorImgPub:
 
     def watchdogCb(self,timer):
         cur_time=nepi_utils.get_time()
-        timer=cur_time-self.last_status_msg
+        timer=cur_time-self.last_status_time
         if timer > WATCHDOG_TIMEOUT:
-            msg="Lost connection to parent node.  Shutting down"
+            
+            msg="Lost connection to parent node statu msg.  Shutting down"
+            self.msg_if.pub_warn(msg)
             nepi_sdk.signal_shutdown(msg)
 
 
@@ -777,7 +779,8 @@ class AiDetectorImgPub:
 
 
     def statusCb(self,msg):
-        self.last_status_msg=nepi_utils.get_time()
+
+
         self.status_msg = msg
 
         self.model_name = self.status_msg.name
@@ -803,6 +806,14 @@ class AiDetectorImgPub:
         self.selected_img_topics = self.status_msg.selected_img_topics
         if last_sel_imgs != self.selected_img_topics:
             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_img_topics))
+        
+        ### Start Watchdog timer
+        if self.last_status_time is None:
+            self.msg_if.pub_warn("Got first detector status msg: " + str(msg))
+            self.last_status_time=nepi_utils.get_time()
+            nepi_sdk.start_timer_process(1, self.watchdogCb)
+        self.last_status_time=nepi_utils.get_time()
+
 
     def shutdownCb(self):
         pass
