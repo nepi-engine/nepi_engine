@@ -309,7 +309,7 @@ class AIDetectorManager:
                 if self.models_dict[model_name]['active'] == True:
                   self.killModel(model_name)
         time.sleep(1)
-        aif_classses = self.aifs_classes_dict.keys()
+        aif_classes = self.aifs_classes_dict.keys()
         for aif_class in aif_classes:
             del self.aifs_classes_dict[aif_class]
 
@@ -614,7 +614,6 @@ class AIDetectorManager:
                 self.msg_if.pub_warn("Model Framework Class not instantiated")
             else:
                 try:
-                    aif_name=self.models_dict[model_name]['framework']
                     aif_class = self.aifs_classes_dict[aif_name]
                     self.msg_if.pub_warn("Launching Node for Model " + model_name)
                     [success,node_namespace] = aif_class.launchModel(model_dict)
@@ -635,18 +634,22 @@ class AIDetectorManager:
         
     def killModel(self, model_name):
         if model_name != "None": 
-            models_dict = copy.deepcopy(self.models_dict)
-            if not (model_name in models_dict.keys()):
-                self.msg_if.pub_warn("Unknown model model requested: " + model_name)
-                return
-            # Start the model
             aif_name=self.models_dict[model_name]['framework']
-            aif_class = self.aifs_classes_dict[aif_name]
-            self.msg_if.pub_info("Killing model " + model_name)
-            del self.model_namespace_dict[model_name]
-            aif_class.killModel(model_name)
-            # Kill Img Pub Node if running
-            nepi_sdk.kill_node(model_name + '/img_pub')
+            if aif_name not in self.aifs_classes_dict.keys():
+                self.msg_if.pub_warn("Model Framework Class not instantiated")
+            else:
+                models_dict = copy.deepcopy(self.models_dict)
+                if not (model_name in models_dict.keys()):
+                    self.msg_if.pub_warn("Unknown model model requested: " + model_name)
+                else:
+                    # Start the model
+                    aif_name=self.models_dict[model_name]['framework']
+                    aif_class = self.aifs_classes_dict[aif_name]
+                    self.msg_if.pub_info("Killing model " + model_name)
+                    del self.model_namespace_dict[model_name]
+                    aif_class.killModel(model_name)
+                    # Kill Img Pub Node if running
+                    nepi_sdk.kill_node(model_name + '/img_pub')
   
     def save_config(self):
         # Save framework and model dictionaries
