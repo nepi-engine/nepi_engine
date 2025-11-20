@@ -84,7 +84,7 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
     new_img_versions=[]
     new_img_filesizes=[]
     files_dict=nepi_utils.get_folder_files(image_install_path)
-    print(files_dict)
+    # print(files_dict)
     if "tar" in files_dict.keys():
         tar_files=files_dict["tar"]
         key='-'
