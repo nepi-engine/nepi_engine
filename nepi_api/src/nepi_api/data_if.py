@@ -1634,8 +1634,8 @@ EXAMPLE_CAPS_DICT = dict(
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate = False,
-        has_tilt = False
+        has_rotate_3d = False,
+        has_tilt_3d = False
     )
 
 EXAMPLE_ENHANCEMENTS_DICT = dict(
@@ -1657,8 +1657,8 @@ EXAMPLE_CONTROLS_DICT = dict(
     pan_left_right_ratio = 0.5,
     pan_up_down_ratio = 0.5,
     window_ratios = [0.0,1.0,0.0,1.0],
-    rotate_ratio = 0.5,
-    tilt_ratio = 0.5       
+    rotate_3d_ratio = 0.5,
+    tilt_3d_ratio = 0.5       
     )
 
 
@@ -1678,12 +1678,14 @@ class BaseImageIF:
         has_contrast = False,
         has_brightness = False,
         has_threshold = False,
+        has_flip_2d = False,
+        has_rotate_2d = False,
         has_range = False,
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate = False,
-        has_tilt = False
+        has_rotate_3d = False,
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict()
@@ -1696,14 +1698,16 @@ class BaseImageIF:
         brightness_ratio = 0.5,
         contrast_ratio =  0.5,
         threshold_ratio =  0.0,
+        flip_2d = False,
+        rotation_2d_deg = 0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
         zoom_ratio = 0.5, 
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
-        rotate_ratio = 0.5,
-        tilt_ratio = 0.5
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
         )
 
     ready = False
@@ -1849,13 +1853,15 @@ class BaseImageIF:
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
         self.caps_report.has_brightness = self.caps_dict['has_brightness']
         self.caps_report.has_threshold = self.caps_dict['has_threshold']
+        self.caps_report.has_flip_2d = self.caps_dict['has_flip_2d']
+        self.caps_report.has_rotate_2d = self.caps_dict['has_rotate_2d']
         self.caps_report.has_range = self.caps_dict['has_range']
         self.caps_report.has_auto_adjust = self.caps_dict['has_auto_adjust']
         self.caps_report.has_zoom = self.caps_dict['has_zoom']
         self.caps_report.has_pan = self.caps_dict['has_pan']
         self.caps_report.has_window = self.caps_dict['has_window']
-        self.caps_report.has_rotate = self.caps_dict['has_rotate']
-        self.caps_report.has_tilt = self.caps_dict['has_tilt']
+        self.caps_report.has_rotate_3d = self.caps_dict['has_rotate_3d']
+        self.caps_report.has_tilt_3d = self.caps_dict['has_tilt_3d']
 
         self.caps_report.has_enhances = self.has_enhance
         self.caps_report.enhance_options = self.enhance_options
@@ -2233,20 +2239,20 @@ class BaseImageIF:
                 'callback': self._setWindowCb, 
                 'callback_args': ()
             }
-        if caps_dict['has_rotate'] == True:
+        if caps_dict['has_rotate_3d'] == True:
             self.SUBS_DICT['set_rotate'] = {
                 'namespace': self.namespace,
-                'topic': 'set_rotate_ratio',
+                'topic': 'set_rotate_3d_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setRotateCb, 
                 'callback_args': ()
             }
 
-        if caps_dict['has_tilt'] == True:
+        if caps_dict['has_tilt_3d'] == True:
             self.SUBS_DICT['set_tilt'] = {
                 'namespace': self.namespace,
-                'topic': 'set_tilt_ratio',
+                'topic': 'set_tilt_3d_ratio',
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setTiltCb, 
@@ -2256,7 +2262,7 @@ class BaseImageIF:
         if self.has_enhance == True:
             self.SUBS_DICT['set_enhance_enable'] = {
                 'namespace': self.namespace,
-                'topic': 'set_tilt_ratio',
+                'topic': 'set_tilt_3d_ratio',
                 'msg': UpdateState,
                 'qsize': 1,
                 'callback': self._setEnhanceEnableCb, 
@@ -2264,7 +2270,7 @@ class BaseImageIF:
             }
             self.SUBS_DICT['set_enhance_ratio'] = {
                 'namespace': self.namespace,
-                'topic': 'set_tilt_ratio',
+                'topic': 'set_tilt_3d_ratio',
                 'msg': UpdateRatio,
                 'qsize': 1,
                 'callback': self._setEnhanceRatioCb, 
@@ -2756,22 +2762,22 @@ class BaseImageIF:
             self.controls_dict['window'] = [x_min,x_max,y_min,y_max]
             self.publish_status(do_updates=False) # Updated inline here  
 
-    def set_rotate_ratio(self, ratio):
+    def set_rotate_3d_ratio(self, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['rotate_ratio'] = ratio
-        self.status_msg.rotate_ratio = ratio
+        self.controls_dict['rotate_3d_ratio'] = ratio
+        self.status_msg.rotate_3d_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
-    def set_tilt_ratio(self, ratio):
+    def set_tilt_3d_ratio(self, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        self.controls_dict['tilt_ratio'] = enabled
-        self.status_msg.tilt_ratio = ratio
+        self.controls_dict['tilt_3d_ratio'] = enabled
+        self.status_msg.tilt_3d_ratio = ratio
         self.publish_status(do_updates=False) # Updated inline here
 
 
@@ -2924,8 +2930,8 @@ class BaseImageIF:
             self.status_msg.window_ratios.x_max = self.controls_dict['window_ratios'][1]
             self.status_msg.window_ratios.y_min = self.controls_dict['window_ratios'][2]
             self.status_msg.window_ratios.y_max = self.controls_dict['window_ratios'][3]
-            self.status_msg.rotate_ratio = self.controls_dict['rotate_ratio']
-            self.status_msg.tilt_ratio = self.controls_dict['tilt_ratio']
+            self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
+            self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
 
             enhance_options = []
             enhance_states = []
@@ -3100,11 +3106,11 @@ class BaseImageIF:
     def _setRotateCb(self, msg):
         self.msg_if.pub_info("Recived Rotate update message: " + str(msg), log_name_list = self.log_name_list)
         ratio = msg.data
-        self.set_rotate_ratio(ratio) 
+        self.set_rotate_3d_ratio(ratio) 
 
     def _setTiltCb(self, msg):
         ratio = msg.data
-        self.set_tilt_ratio(ratio) 
+        self.set_tilt_3d_ratio(ratio) 
 
     def _setEnhanceEnableCb(self, msg):
         self.msg_if.pub_info("Recived Enable Enhacement message: " + str(msg), log_name_list = self.log_name_list)
@@ -3185,8 +3191,8 @@ class ImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate = False,
-        has_tilt = False
+        has_rotate_3d = False,
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict(
@@ -3210,8 +3216,8 @@ class ImageIF(BaseImageIF):
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
-        rotate_ratio = 0.5,
-        tilt_ratio = 0.5
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
         )
 
     params_dict = None
@@ -3296,8 +3302,8 @@ class ColorImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate = False,
-        has_tilt = False
+        has_rotate_3d = False,
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict(
@@ -3321,8 +3327,8 @@ class ColorImageIF(BaseImageIF):
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
-        rotate_ratio = 0.5,
-        tilt_ratio = 0.5
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
         )
 
     params_dict = None
@@ -3909,8 +3915,8 @@ class DepthMapImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate = False,
-        has_tilt = False
+        has_rotate_3d = False,
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict()
@@ -3929,8 +3935,8 @@ class DepthMapImageIF(BaseImageIF):
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
-        rotate_ratio = 0.5,
-        tilt_ratio = 0.5
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
         )
 
     params_dict = None
@@ -4063,8 +4069,8 @@ class PointcloudIF:
     Factory_Image_Width = 955
     Factory_Image_Height = 600
     Factory_Zoom_Ratio = .5
-    Factory_Rotate_Ratio = .5
-    Factory_Tilt_Ratio = .5
+    Factory_Rotate_3D_Ratio = .5
+    Factory_Tilt_3D_Ratio = .5
     Factory_Cam_FOV = 60
     Factory_Cam_View = [3, 0, 0]
     Factory_Cam_Pos = [-5, 0, 0]
@@ -4084,8 +4090,8 @@ class PointcloudIF:
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
-        rotate_ratio = 0.5,
-        tilt_ratio = 0.5
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
         )
 
     ready = False
@@ -4472,8 +4478,8 @@ class PointcloudIF:
                 self.status_msg.range_ratios = range_ratios
 
                 self.status_msg.zoom_ratio = self.node_if.get_param('zoom_ratio')
-                self.status_msg.rotate_ratio = self.node_if.get_param('rotate_ratio')
-                self.status_msg.tilt_ratio = self.node_if.get_param('tilt_ratio')
+                self.status_msg.rotate_3d_ratio = self.node_if.get_param('rotate_3d_ratio')
+                self.status_msg.tilt_3d_ratio = self.node_if.get_param('tilt_3d_ratio')
 
                 fov = self.node_if.get_param('cam_fov')
                 self.status_msg.camera_fov = fov

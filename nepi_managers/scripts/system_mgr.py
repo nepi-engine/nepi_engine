@@ -60,8 +60,6 @@ NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
     
-    NEPI_CONFIG_FILE = NEPI_FOLDER + '/etc/nepi_system_config.yaml'
-
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
@@ -209,10 +207,18 @@ class SystemMgrNode():
 
 
         self.nepi_config = nepi_system.load_nepi_system_config()
+<<<<<<< HEAD
         # self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
         if len(self.nepi_config.keys()) == 0:
+=======
+        #self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
+        if self.nepi_config is None:
+            self.nepi_config = dict()
+        if len(self.nepi_config.keys()) == 0:
+            self.msg_if.pub_warn("Failed to Read NEPI config file")
+>>>>>>> f15d87d0f24c22e36d8bed043ba520f35e5f9850
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
         for key in self.nepi_config.keys(): # Fix empty arrays
@@ -251,8 +257,8 @@ class SystemMgrNode():
         self.system_defs_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
         self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
 
-        self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
-        self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA']
+        self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
+        self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
 
         self.system_defs_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
