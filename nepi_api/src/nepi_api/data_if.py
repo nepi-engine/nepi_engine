@@ -1635,7 +1635,7 @@ EXAMPLE_CAPS_DICT = dict(
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
-        has_tilt_3d  = False
+        has_tilt_3d = False
     )
 
 EXAMPLE_ENHANCEMENTS_DICT = dict(
@@ -1685,7 +1685,7 @@ class BaseImageIF:
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
-        has_tilt_3d  = False
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict()
@@ -1861,7 +1861,7 @@ class BaseImageIF:
         self.caps_report.has_pan = self.caps_dict['has_pan']
         self.caps_report.has_window = self.caps_dict['has_window']
         self.caps_report.has_rotate_3d = self.caps_dict['has_rotate_3d']
-        self.caps_report.has_tilt_3d  = self.caps_dict['has_tilt_3d']
+        self.caps_report.has_tilt_3d = self.caps_dict['has_tilt_3d']
 
         self.caps_report.has_enhances = self.has_enhance
         self.caps_report.enhance_options = self.enhance_options
@@ -2249,7 +2249,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
 
-        if caps_dict['has_tilt_3d '] == True:
+        if caps_dict['has_tilt_3d'] == True:
             self.SUBS_DICT['set_tilt'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_3d_ratio',
@@ -3192,7 +3192,7 @@ class ImageIF(BaseImageIF):
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
-        has_tilt_3d  = False
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict(
@@ -3303,7 +3303,7 @@ class ColorImageIF(BaseImageIF):
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
-        has_tilt_3d  = False
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict(
@@ -3916,7 +3916,7 @@ class DepthMapImageIF(BaseImageIF):
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
-        has_tilt_3d  = False
+        has_tilt_3d = False
         )
 
     DEFAULT_ENHANCEMENTS_DICT = dict()
