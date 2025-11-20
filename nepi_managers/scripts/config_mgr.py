@@ -354,7 +354,7 @@ class config_mgr(object):
                 restore_path = self.config_folders[key]
                 # Restore config if exits
                 restore_pathname = self.get_config_pathname(restore_path, namespace)
-                self.msg_if.pub_warn("Checking for saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
+                #self.msg_if.pub_warn("Checking for saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
                 success = False
                 if os.path.exists(restore_pathname):
                     self.msg_if.pub_warn("Loading for saved config for namespace: " + namespace + " from: " + str(restore_pathname))

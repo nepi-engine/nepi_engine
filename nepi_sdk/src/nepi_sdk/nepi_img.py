@@ -35,7 +35,12 @@ log_name = "nepi_img"
 logger = Logger(log_name = log_name)
 
 
-
+ROTATE_DICT = {
+'0': '0',
+'90': cv2.ROTATE_90_CLOCKWISE,
+'180': cv2.ROTATE_180,
+'270': cv2.ROTATE_90_COUNTERCLOCKWISE
+}
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
@@ -265,6 +270,16 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
 
     resized_image = cv2.resize(image, (new_width, new_height), interpolation=interp)
     return resized_image, ratio, new_width, new_height
+
+
+def rotate(cv2_img, degrees=0):
+    if degrees != 0:
+      deg_str=str(degrees)
+      if deg_str in ROTATE_DICT.keys():
+         cv2_img = cv2.rotate(image, ROTATE_DICT[deg_str])         
+    return cv2_img
+  
+      
 
 ###########################################
 ### Image process functions
