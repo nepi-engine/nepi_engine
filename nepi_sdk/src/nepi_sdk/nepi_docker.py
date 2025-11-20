@@ -26,13 +26,6 @@ import copy
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 
-# Local rootfs definitions - These can be freely changed
-###################################################################################################
-
-
-NEPI_CONFIG_FILE='/opt/nepi/etc/nepi_system_config.yaml'
-config_dict=nepi_utils.read_dict_from_file(NEPI_CONFIG_FILE)
-
 BLANK_IMAGE_DICT={
     'name': 'uknown',
     'version': 'uknown',
@@ -41,7 +34,6 @@ BLANK_IMAGE_DICT={
     'sw_desc': 'uknown',
     'date': 'uknown',
 }
-
 
 def getContainerInfo(which_container = 'Active'):
     info_dict = copy.deepcopy(BLANK_IMAGE_DICT)
@@ -88,7 +80,24 @@ def unmountPartition(part_mountpoint):
 
 
 def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
-    return True, "New image file identified", ["nepi-3p2p2-jetson-orin-5d.tar"], ["3p2p2-jetson-orin-5d"] , [100]
+    new_img_files=[]
+    new_img_versions=[]
+    new_img_filesizes=[]
+    files_dict=nepi_utils.get_folder_files(image_install_path)
+    print(files_dict)
+    if "tar" in files_dict.keys():
+        tar_files=files_dict["tar"]
+        key='-'
+        split_tar_files = [item.split(key) for item in tar_files]
+        new_img_files = [inner_array[0] for inner_array in split_tar_files]
+        new_img_versions = [inner_array[1] for inner_array in split_tar_files]
+        new_img_filesizes = [inner_array[4] for inner_array in split_tar_files]
+        # print("New Image Files: ", new_img_files)
+        # print("New Image Versions: ", new_img_versions)
+        # print("New Image Filesizes: ", new_img_filesizes)
+        # print("Tar Files Array: " + str(split_tar_files))
+    return True, "New image file identified", new_img_files, new_img_versions, new_img_filesizes
+
 
 def getRootfsABStatus():
     rootfs_ab_status_dict = {}
@@ -111,29 +120,11 @@ def getPartitionByteCount(partition_device):
 def getPartitionFreeByteCount(partition_device):
     return 100000000000
 
-# Export
+# Import
 def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
-
-    path_to_sh = '/mnt/nepi_config/docker_cfg/nepi_docker_install.sh'
-    if os.path.exists(path_to_sh):
-        try:
-            # Execute the shell script and wait for it to complete
-            result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)     
-            # Print the output and exit code
-            print("STDOUT:", result.stdout)
-            print("STDERR:", result.stderr)
-            print("Exit Code:", result.returncode)
-        except FileNotFoundError:
-            print("Error: The 'sh' command or the script file was not found.")
-        except subprocess.CalledProcessError as e:
-            # The `check=True` flag causes this exception to be raised on non-zero exit codes
-            print("Error: The script returned a non-zero exit code.")
-            print("STDOUT:", e.stdout)
-            print("STDERR:", e.stderr)
-            print("Exit Code:", e.returncode)
-        return True, "Success"
-    else:
-        print(f"The file '{file_path}' does not exist.")
+    nepi_system.update_nepi_docker_config("NEPI_FS_IMPORT", 1)
+    return True, "Success"
+    
 
 def checkAndRepairPartition(partition_device):
     return True, "Success"
@@ -146,30 +137,12 @@ def resetBootFailCounter(first_stage_rootfs_device):
     return True, "Success"
 
 def switchActiveAndInactiveContainers():
-
-    ### CHECK IF AB FS Supported
-
-
-    path_to_sh = '/mnt/nepi_config/docker_cfg/nepi_docker_switch.sh'
-    try:
-        # Execute the shell script and wait for it to complete
-        result = subprocess.run([path_to_sh], check=True, capture_output=True, text=True)
-        # Print the output and exit code
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        print("Exit Code:", result.returncode)
-    except FileNotFoundError:
-        print("Error: The 'sh' command or the script file was not found.")
-    except subprocess.CalledProcessError as e:
-        # The `check=True` flag causes this exception to be raised on non-zero exit codes
-        print("Error: The script returned a non-zero exit code.")
-        print("STDOUT:", e.stdout)
-        print("STDERR:", e.stderr)
-        print("Exit Code:", e.returncode)
+    nepi_system.update_nepi_docker_config("NEPI_FS_SWITCH", 1)
     return True, "Success"
 
-
+# Export
 def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
+    nepi_system.update_nepi_docker_config("NEPI_FS_EXPORT", 1)
     return True, "Success"
 
 

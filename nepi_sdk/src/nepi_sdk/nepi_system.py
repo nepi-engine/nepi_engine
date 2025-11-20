@@ -190,6 +190,7 @@ def load_nepi_system_config():
     for key in config_dict.keys(): # Fixe empty arrays
         if config_dict[key] is None:
             config_dict[key]=[]
+    # print("Printing System Config Dict " + str(config_dict))
     return config_dict
 
 def save_nepi_system_config(config_dict):
