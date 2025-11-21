@@ -1437,26 +1437,22 @@ class AiDetectorIF:
         self.imgs_info_dict[img_topic]['connected'] = True
         
         stamp = image_msg.header.stamp
-        timestamp = float(stamp.to_sec())
+        timestamp = copy.deepcopy(float(stamp.to_sec()))
 
-        start_time = nepi_sdk.get_time()
-
-        ###############################
-        cur_time = nepi_sdk.get_time()
-        
-        image_receive_latency = (cur_time - timestamp)
-
-        self.image_receive_latencies.pop(0)
-        self.image_receive_latencies.append(image_receive_latency)
-
-        image_receive_rate = round( 1.0 / (cur_time - self.last_receive_image_time) , 3)
-        self.image_receive_rates.pop(0)
-        self.image_receive_rates.append(image_receive_rate)
-        self.last_receive_image_time = copy.deepcopy(cur_time)
+         ###############################
+        image_receive_delay = (nepi_sdk.get_time() - self.last_receive_image_time)
+        if image_receive_delay > 0.01:
+            image_receive_rate = round( 1.0 / image_receive_delay , 3)
+            self.image_receive_rates.pop(0)
+            self.image_receive_rates.append(image_receive_rate)
+            self.last_receive_image_time = nepi_sdk.get_time()
 
         #####################################
+        if img_topic == self.get_img_topic:   
 
-        if img_topic == self.get_img_topic:     
+            start_time = nepi_sdk.get_time()  
+            timestamp = copy.deepcopy(float(stamp.to_sec()))
+
             #self.msg_if.pub_warn("Processing Image Topic " + img_topic)    
             # Reset image get flags
             self.get_img_topic = "None"
@@ -1472,9 +1468,9 @@ class AiDetectorIF:
             cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
 
             ###############################
-            cur_time = nepi_sdk.get_time()
 
-            image_process_time = round( (cur_time - start_time ) , 3)
+
+            image_process_time = round( (nepi_sdk.get_time() - start_time ) , 3)
             self.image_process_times.pop(0)
             self.image_process_times.append(image_process_time)
 
@@ -1485,17 +1481,22 @@ class AiDetectorIF:
             ### Get CV2 Image
 
             ###############################
-            cur_time = nepi_sdk.get_time()
 
-            image_process_latency = (cur_time - timestamp)
+            image_process_latency = (nepi_sdk.get_time() - timestamp)
 
             self.image_process_latencies.pop(0)
             self.image_process_latencies.append(image_process_latency)
 
-            image_process_rate = round( 1.0 / (cur_time - self.last_process_image_time) , 3)
+
+            image_process_rate = round( 1.0 / (nepi_sdk.get_time() - self.last_process_image_time) , 3)
             self.image_process_rates.pop(0)
             self.image_process_rates.append(image_process_rate)
-            self.last_process_image_time = copy.deepcopy(cur_time)
+            self.last_process_image_time = nepi_sdk.get_time()
+
+            # self.msg_if.pub_warn("")
+            # self.msg_if.pub_warn("Image_Process Timestamp: " + str(timestamp))
+            # self.msg_if.pub_warn("Image_Process Time: " + str(image_process_latency))
+            # self.msg_if.pub_warn("Image_Process Times: " + str(self.image_process_latencies))
 
             #####################################
 
@@ -1534,9 +1535,9 @@ class AiDetectorIF:
 
 
             ###############################
-            cur_time = nepi_sdk.get_time()
+            
 
-            detect_process_time = round( (cur_time - start_time ) , 3)
+            detect_process_time = round( (nepi_sdk.get_time() - start_time ) , 3)
             self.detect_process_times.pop(0)
             self.detect_process_times.append(detect_process_time)
 
@@ -1547,17 +1548,17 @@ class AiDetectorIF:
             ##################################
 
             ###############################
-            cur_time = nepi_sdk.get_time()
+            
 
-            detect_process_latency = (cur_time - timestamp)
+            detect_process_latency = (nepi_sdk.get_time() - timestamp)
 
             self.detect_process_latencies.pop(0)
             self.detect_process_latencies.append(detect_process_latency)
 
-            detect_process_rate = round( 1.0 / (cur_time - self.last_process_detect_time) , 3)
+            detect_process_rate = round( 1.0 / (nepi_sdk.get_time() - self.last_process_detect_time) , 3)
             self.detect_process_rates.pop(0)
             self.detect_process_rates.append(detect_process_rate)
-            self.last_process_detect_time = copy.deepcopy(cur_time)
+            self.last_process_detect_time = nepi_sdk.get_time()
 
             #####################################
             
@@ -1863,7 +1864,6 @@ class AiDetectorIF:
 
 
         #################
-        self.det_status_msg.avg_image_receive_latency = sum(self.image_receive_latencies) / len(self.image_receive_latencies)
         self.det_status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)
 
         self.det_status_msg.avg_image_process_time = sum(self.image_process_times) / len(self.image_process_times)
