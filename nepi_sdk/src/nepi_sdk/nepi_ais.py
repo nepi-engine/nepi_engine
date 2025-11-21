@@ -55,8 +55,9 @@ EXAMPLE_AI_MGR_STATUS_DICT = {
 
 EXAMPLE_BOXES_INFO_DICT_ENTRY = {
     'model_name': 'test_model',
-    'image_header': Header(),
+    'detect_timestamp': 0.0 ,
     'image_topic': '/test_topic',
+    'image_timestamp': 0.0 ,
     'image_height': 600,
     'image_width': 1000,
     'prc_height': 300,
@@ -103,8 +104,9 @@ def get_classes_colors_list(classes_str_list):
 def get_boxes_info_from_msg(bboxes_msg):
     boxes_info_dict  = {
         'model_name': bboxes_msg.model_name ,
-        'image_header': bboxes_msg.image_header ,
+        'detect_timestamp': bboxes_msg.detect_timestamp ,
         'image_topic': bboxes_msg.image_topic ,
+        'image_timestamp': bboxes_msg.image_timestamp ,
         'image_height': bboxes_msg.image_height ,
         'image_width': bboxes_msg.image_width ,
         'prc_height': bboxes_msg.prc_height ,

@@ -22,7 +22,7 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import MgrAiDetectorStatus
-from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, AiBoundingBoxes
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_interfaces.srv import SystemStorageFolderQuery
 from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
@@ -115,8 +115,9 @@ class AiDetectorIF:
 
     cur_img_topic = "None"
 
+    image_msg = None
     get_img_topic = "None"
-    got_img_topic = "None"
+    got_img_topic = None
 
     get_img_file = False
     got_img_file = False
@@ -127,9 +128,26 @@ class AiDetectorIF:
     first_detect_complete = False
 
     detection_state = False
-    detect_latencies = [0,0,0,0,0,0,0,0,0,0]
-    detect_delays = [0,0,0,0,0,0,0,0,0,0]
-    detect_times = [0,0,0,0,0,0,0,0,0,0]
+
+
+    image_receive_latencies = [0,0,0,0,0,0,0,0,0,0]
+    image_receive_rates = [0,0,0,0,0,0,0,0,0,0]
+
+    image_process_times = [0,0,0,0,0,0,0,0,0,0]
+
+    image_process_latencies = [0,0,0,0,0,0,0,0,0,0]
+    image_process_rates = [0,0,0,0,0,0,0,0,0,0]
+    
+    detect_process_times = [0,0,0,0,0,0,0,0,0,0]
+    
+    detect_process_latencies = [0,0,0,0,0,0,0,0,0,0]
+    detect_process_rates = [0,0,0,0,0,0,0,0,0,0]
+
+
+    last_receive_image_time = nepi_sdk.get_time()
+    last_process_image_time = nepi_sdk.get_time()
+    last_process_detect_time = nepi_sdk.get_time()
+
     sleep_state = False
 
 
@@ -352,7 +370,7 @@ class AiDetectorIF:
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'bounding_boxes_all': {
-                'msg': BoundingBoxes,
+                'msg': AiBoundingBoxes,
                 'namespace': self.node_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 1,
@@ -386,7 +404,7 @@ class AiDetectorIF:
         if all_namespace != '':
             self_managed = False
             self.PUBS_DICT['bounding_boxes_all'] = {
-                'msg': BoundingBoxes,
+                'msg': AiBoundingBoxes,
                 'namespace': self.all_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 1,
@@ -1146,7 +1164,7 @@ class AiDetectorIF:
             # Pubs Config Dict 
             img_pubs_dict = {
                 'bounding_boxes': {
-                    'msg': BoundingBoxes,
+                    'msg': AiBoundingBoxes,
                     'namespace': pub_namespace,
                     'topic': 'bounding_boxes',
                     'qsize': 1,
@@ -1219,10 +1237,6 @@ class AiDetectorIF:
                 imgs_info_dict['pub_namespaces'] = pub_namespaces    
                 imgs_info_dict['connected'] = connected 
                 imgs_info_dict['active'] = True
-                imgs_info_dict['image_latency_time'] = 0
-                imgs_info_dict['detect_latency_time'] = 0
-                imgs_info_dict['preprocess_time'] = 0 
-                imgs_info_dict['detect_time'] = 0  
                 self.imgs_info_dict[img_topic] = imgs_info_dict
 
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
@@ -1233,6 +1247,7 @@ class AiDetectorIF:
                                             log_name_list = self.log_name_list,
                                             msg_if = self.msg_if
                                             )
+            
 
                 ####################
                 # Pubs Config Dict 
@@ -1266,7 +1281,7 @@ class AiDetectorIF:
                 time.sleep(1)
                 ####################
                 # Publish blank msg to prime topics
-                img_pubs_if.publish_pub('bounding_boxes',BoundingBoxes())   
+                img_pubs_if.publish_pub('bounding_boxes',AiBoundingBoxes())   
 
                 if self.enable_image_pub == True:
                     cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
@@ -1280,25 +1295,17 @@ class AiDetectorIF:
                 ####################
                 # Create Img Dict
                 img_dict = dict()
+                img_dict['cv2_img'] = None
                 img_dict['topic'] = img_topic
+                img_dict['msg_header'] = 'None'
                 img_dict['timestamp'] = nepi_utils.get_time()
-                img_dict['msg_header'] = "None" 
-                img_dict['msg_stamp'] = "None" 
+                
 
                 self.imgs_dict[img_topic]=img_dict
     
             return True
 
-    def publishDetMsg(self,img_topic, pub_name, msg):
-        #self.msg_if.pub_warn("Publishing topic: " + str(pub_name))
-        self.node_if.publish_pub(pub_name,msg)
-        pub_name_all = pub_name + "_all"
-        self.node_if.publish_pub(pub_name_all,msg)
-        if img_topic in self.img_ifs_dict.keys():
-            self.img_ifs_lock.acquire()
-            self.img_ifs_dict[img_topic]['pubs_if'].publish_pub(pub_name,msg)
-            self.img_ifs_lock.release()
-                 
+                
 
     def unsubscribeImgTopic(self,img_topic):
 
@@ -1317,7 +1324,7 @@ class AiDetectorIF:
             self.imgs_info_dict[img_topic]['connected'] = False 
             self.imgs_info_dict[img_topic]['image_latency_time'] = 0
             self.imgs_info_dict[img_topic]['detect_latency_time'] = 0
-            self.imgs_info_dict[img_topic]['preprocess_time'] = 0 
+            self.imgs_info_dict[img_topic]['image_time'] = 0 
             self.imgs_info_dict[img_topic]['detect_time'] = 0 
 
         # Clear Img Dict
@@ -1325,8 +1332,8 @@ class AiDetectorIF:
         img_dict = dict()
         self.cv2_img = None
         img_dict['topic'] = img_topic
+        img_dict['msg_header'] = 'None'
         img_dict['timestamp'] = nepi_utils.get_time()
-        img_dict['msg_header'] = "None" 
         self.imgs_dict[img_topic] = img_dict
 
 
@@ -1334,197 +1341,6 @@ class AiDetectorIF:
         self.imgs_has_subs_dict[img_topic] = False
 
         return True
-
-
-    def imageCb(self,image_msg, args):     
-        img_topic = args
-        was_connected = self.imgs_info_dict[img_topic]['connected']
-        self.imgs_info_dict[img_topic]['connected'] = True
-        if img_topic == self.get_img_topic:           
-            # Reset image get flags
-            self.get_img_topic = "None"
-            self.got_img_topic = img_topic
-
-            img_info_dict = self.imgs_info_dict[img_topic]   
-            if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:
-                #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-                start_time = nepi_sdk.get_time() 
-
-                ##############################
-                ### Get CV2 Image
-                timestamp = start_time
-                msg_header = image_msg.header
-                msg_stamp = image_msg.header.stamp
-
-                get_msg_time = nepi_sdk.get_msg_stamp()
-                get_msg_stampstamp = image_msg.header.stamp
-                latency = (get_msg_time.to_sec() - get_msg_stampstamp.to_sec())
-
-                cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
-                preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                ##############################
-
-
-                # Update img_dict
-                img_dict = dict()
-                img_dict['topic'] = img_topic
-                img_dict['timestamp'] = timestamp
-                img_dict['msg_header'] = msg_header
-                img_dict['msg_stamp'] = msg_stamp
-                self.imgs_dict[img_topic] = img_dict                
-
-                # Update Image Pre Process Info
-                if img_topic in self.imgs_info_dict.keys():
-                    try:
-                        self.imgs_info_dict[img_topic]['image_latency_time'] = latency
-                        self.imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
-                    except:
-                        pass
-
-                #################################
-                ### Run Detection
-                if cv2_img is not None:
-
-
-
-                    ##############################
-                    # Process Detections
-                    det_start_time = nepi_sdk.get_time()
-
-                    detect_dict_list = []
-                    detect_dicts = []
-                    threshold = self.threshold
-                    try:
-                        ##################################
-                        #self.msg_if.pub_warn("AIF init img_dict: " + str(img_dict))
-                        [detect_dicts, img_dict] = self.processDetection(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
-                        #self.msg_if.pub_warn("AIF got img_dict: " + str(img_dict))
-                        #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
-                        self.imgs_dict[img_topic] = img_dict  
-                        ##################################
-                        success = True
-                        self.first_detect_complete = True
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
-
-
-                    ##############################
-                    # Publish Detections
-                    # Filter selected classes
-                    sel_classes = copy.deepcopy(self.selected_classes)
-                    sel_detect_ind = []
-                    for i, detect in enumerate(detect_dicts):
-                        if detect['name'] in sel_classes:
-                            sel_detect_ind.append(i)
-                    for ind in sel_detect_ind:
-                        detect_dict_list.append(detect_dicts[ind])
-
-                    ##################################
-                    self.publishDetectionData(img_topic, img_dict, detect_dict_list)
-                    ##################################
-
-
-                    ##############################
-                    # Upate Detection Info
-
-                    cur_time = nepi_sdk.get_time()
-
-                    detect_time = round( (cur_time - det_start_time) , 3)
-                    self.detect_times.pop(0)
-                    self.detect_times.append(detect_time)
-
-                    #self.msg_if.pub_warn("Updated Detect Times: " + str(self.detect_times))
-
-                    detect_delay = round( (cur_time - self.last_detect_time) , 3)
-                    self.detect_delays.pop(0)
-                    self.detect_delays.append(detect_delay)
-                    self.last_detect_time = cur_time
-
-                    #self.msg_if.pub_warn("Updated Detect Delays: " + str(self.detect_delays))
-                    
-                    cur_msg_time = nepi_sdk.get_msg_stamp()
-                    get_msg_stampstamp = img_dict['msg_stamp']
-                    latency = round( (cur_msg_time.to_sec() - get_msg_stampstamp.to_sec()) , 3)
-                    self.detect_latencies.pop(0)
-                    self.detect_latencies.append(latency)
-
-                    
-                    #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency))
-                    if img_topic in self.imgs_info_dict.keys():
-                        try:
-                            self.imgs_info_dict[img_topic]['detect_time'] = detect_time
-                            self.imgs_info_dict[img_topic]['detect_latency_time'] = latency
-                        except:
-                            pass
-
-                    ##############################
-                    # Publish Update Image for image pub node
-                    if was_connected == False and self.enable_image_pub == True:
-                        if img_topic in self.img_ifs_dict.keys():
-                            cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
-                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
-                            self.img_ifs_lock.acquire()
-                            self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img) 
-                            self.img_ifs_lock.release()
-
-
-
-
-
-
-
-    def setImageFileCb(self,str_msg, args):    
-        img_topic = args
-        was_connected = self.imgs_info_dict[img_topic]['connected']
-        self.imgs_info_dict[img_topic]['connected'] = True
-        if img_topic == self.get_img_topic:           
-            # Reset image get flags
-            self.get_img_topic = "None"
-            self.got_img_topic = img_topic
-
-            img_info_dict = self.imgs_info_dict[img_topic]   
-            if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:
-                #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-                start_time = nepi_sdk.get_time() 
-
-
-                ##############################
-                ### Get CV2 Image
-                img_file=os.path.join(img_topic,str_msg)
-                if os.path.exists(img_file) == False:
-                    self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
-                    return 
-
-                timestamp = start_time
-                msg_header = nepi_sdk.get_msg_header()
-                msg_stamp = nepi_sdk.get_msg_stamp()
-                latency = 0.0 #(start_time.to_sec() - get_msg_stampstamp.to_sec())
-                cv2_img = cv2.imread(img_file)
-                preprocess_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                ##############################
-
-
-                # Update img_dict
-                img_dict['topic'] = os.path.join(img_topic,img_file)
-                img_dict['timestamp'] = timestamp
-                img_dict['msg_header'] = msg_header
-                img_dict['msg_stamp'] = msg_stamp
-                self.imgs_dict[img_topic] = img_dict                
-
-                # Update Image Pre Process Info
-                if img_topic in self.imgs_info_dict.keys():
-                    try:
-                        self.imgs_info_dict[img_topic]['image_latency_time'] = latency
-                        self.imgs_info_dict[img_topic]['preprocess_time'] = preprocess_time
-                    except:
-                        pass
-
-                #################################
-                ### Run Detection
-                if cv2_img is not None:
-
-                    self.got_img_topic = img_topic  
-
 
 
 
@@ -1588,18 +1404,224 @@ class AiDetectorIF:
                         self.cur_img_topic = self.next_image_topic
                         #self.last_detect_time = nepi_sdk.get_time()
 
-                elif self.got_img_topic is not None and timer > delay_time: 
-                        # Set Next Image Topic on Delay
-                        self.cur_img_topic = copy.deepcopy(self.next_image_topic)
-                        self.get_img_topic = copy.deepcopy(self.next_image_topic)
-                        self.got_img_topic = None
+                elif self.got_img_topic is None and timer > delay_time:
+                    # Set Next Image Topic on Delay
+                    self.cur_img_topic = copy.deepcopy(self.next_image_topic)
+                    self.get_img_topic = copy.deepcopy(self.next_image_topic)
+                    #self.msg_if.pub_warn("Get Topic set to " + self.get_img_topic + " with time: " +  str(timer))
+    
+            
+                    # ##############################
+                    # # Publish Update Image for image pub node
+                    # if was_connected == False and self.enable_image_pub == True:
+                    #     if img_topic in self.img_ifs_dict.keys():
+                    #         cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
+                    #         ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                    #         self.img_ifs_lock.acquire()
+                    #         self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img) 
+                    #         self.img_ifs_lock.release()
 
-                        #self.msg_if.pub_warn("Reset Current and Get Image Topic: " +  self.cur_img_topic)
-                        #self.msg_if.pub_warn("With Delay and Timer: " + str(delay_time) + " " + str(timer))
 
-                        
-                       
+
+
+                    #self.msg_if.pub_warn("Reset Current and Get Image Topic: " +  self.cur_img_topic)
+                    #self.msg_if.pub_warn("With Delay and Timer: " + str(delay_time) + " " + str(timer))
+
+                    
         nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
+
+
+    def imageCb(self,image_msg, args):     
+        img_topic = args
+        was_connected = self.imgs_info_dict[img_topic]['connected']
+        self.imgs_info_dict[img_topic]['connected'] = True
+        
+        stamp = image_msg.header.stamp
+        timestamp = float(stamp.to_sec())
+
+        start_time = nepi_sdk.get_time()
+
+        ###############################
+        cur_time = nepi_sdk.get_time()
+        
+        image_receive_latency = (cur_time - timestamp)
+
+        self.image_receive_latencies.pop(0)
+        self.image_receive_latencies.append(image_receive_latency)
+
+        image_receive_rate = round( 1.0 / (cur_time - self.last_receive_image_time) , 3)
+        self.image_receive_rates.pop(0)
+        self.image_receive_rates.append(image_receive_rate)
+        self.last_receive_image_time = copy.deepcopy(cur_time)
+
+        #####################################
+
+        if img_topic == self.get_img_topic:     
+            #self.msg_if.pub_warn("Processing Image Topic " + img_topic)    
+            # Reset image get flags
+            self.get_img_topic = "None"
+            self.got_img_topic = img_topic
+
+            # Update img_dict
+            img_dict = dict()
+            img_dict['topic'] = img_topic
+            img_dict['msg_header'] = image_msg.header.stamp
+            img_dict['timestamp'] = timestamp
+            self.imgs_dict[img_topic] = img_dict                
+
+            cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+
+            ###############################
+            cur_time = nepi_sdk.get_time()
+
+            image_process_time = round( (cur_time - start_time ) , 3)
+            self.image_process_times.pop(0)
+            self.image_process_times.append(image_process_time)
+
+            #####################################
+
+
+            ##############################
+            ### Get CV2 Image
+
+            ###############################
+            cur_time = nepi_sdk.get_time()
+
+            image_process_latency = (cur_time - timestamp)
+
+            self.image_process_latencies.pop(0)
+            self.image_process_latencies.append(image_process_latency)
+
+            image_process_rate = round( 1.0 / (cur_time - self.last_process_image_time) , 3)
+            self.image_process_rates.pop(0)
+            self.image_process_rates.append(image_process_rate)
+            self.last_process_image_time = copy.deepcopy(cur_time)
+
+            #####################################
+
+
+            ##############################
+            # Process Detections
+           
+
+            detect_dict_list = []
+            detect_dicts = []
+            threshold = self.threshold
+            try:
+                ##################################
+                #self.msg_if.pub_warn("AIF init img_dict: " + str(img_dict))
+                [detect_dicts, img_dict] = self.processDetection(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
+                #self.msg_if.pub_warn("AIF got img_dict: " + str(img_dict))
+                #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
+                self.imgs_dict[img_topic] = img_dict  
+                ##################################
+                success = True
+                self.first_detect_complete = True
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
+
+            self.last_detect_time = nepi_sdk.get_time()
+            ##############################
+            # Publish Detections
+            # Filter selected classes
+            sel_classes = copy.deepcopy(self.selected_classes)
+            sel_detect_ind = []
+            for i, detect in enumerate(detect_dicts):
+                if detect['name'] in sel_classes:
+                    sel_detect_ind.append(i)
+            for ind in sel_detect_ind:
+                detect_dict_list.append(detect_dicts[ind])
+
+
+            ###############################
+            cur_time = nepi_sdk.get_time()
+
+            detect_process_time = round( (cur_time - start_time ) , 3)
+            self.detect_process_times.pop(0)
+            self.detect_process_times.append(detect_process_time)
+
+            #####################################
+
+            ##################################
+            self.publishDetectionData(img_topic, img_dict, detect_dict_list)
+            ##################################
+
+            ###############################
+            cur_time = nepi_sdk.get_time()
+
+            detect_process_latency = (cur_time - timestamp)
+
+            self.detect_process_latencies.pop(0)
+            self.detect_process_latencies.append(detect_process_latency)
+
+            detect_process_rate = round( 1.0 / (cur_time - self.last_process_detect_time) , 3)
+            self.detect_process_rates.pop(0)
+            self.detect_process_rates.append(detect_process_rate)
+            self.last_process_detect_time = copy.deepcopy(cur_time)
+
+            #####################################
+            
+            self.got_img_topic = None
+
+            #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
+
+    
+
+
+    def setImageFileCb(self,str_msg, args):    
+        img_topic = args
+        was_connected = self.imgs_info_dict[img_topic]['connected']
+        self.imgs_info_dict[img_topic]['connected'] = True
+        if img_topic == self.get_img_topic: 
+            img_info_dict = self.imgs_info_dict[img_topic]     
+            if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:     
+                # Reset image get flags
+                self.get_img_topic = "None"
+                self.got_img_topic = img_topic
+
+                img_info_dict = self.imgs_info_dict[img_topic]   
+                if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:
+                    #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
+                    start_time = nepi_sdk.get_time() 
+
+
+                    ##############################
+                    ### Get CV2 Image
+                    img_file=os.path.join(img_topic,str_msg)
+                    if os.path.exists(img_file) == False:
+                        self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
+                        return 
+
+                    timestamp = start_time
+                    msg_header = nepi_sdk.got_msg_header()
+                    latency = 0.0 #(start_time.to_sec() - got_msg_stampstamp.to_sec())
+                    cv2_img = cv2.imread(img_file)
+                    image_time = round( (nepi_sdk.get_time() - start_time) , 3)
+                    ##############################
+
+
+                    # Update img_dict
+                    img_dict['topic'] = os.path.join(img_topic,img_file)
+                    img_dict['timestamp'] = timestamp
+                    img_dict['msg_header'] = msg_header
+                    self.imgs_dict[img_topic] = img_dict                
+
+                    # Update Image Pre Process Info
+                    if img_topic in self.imgs_info_dict.keys():
+                        try:
+                            self.imgs_info_dict[img_topic]['image_latency_time'] = latency
+                            self.imgs_info_dict[img_topic]['image_time'] = image_time
+                        except:
+                            pass
+
+                    #################################
+                    ### Run Detection
+                    if cv2_img is not None:
+
+                        self.got_img_topic = img_topic  
+
+
+
 
     def publishDetectionData(self, img_topic, img_dict, detect_dict_list):
         #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
@@ -1607,6 +1629,7 @@ class AiDetectorIF:
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         img_topic = img_topic
         if imgs_info_dict[img_topic]['active'] == True:
+            #self.msg_if.pub_warn("Publisher imgage is active img_dict")
             bb_msg_list = []
             for detect_dict in detect_dict_list:
                 try:
@@ -1630,20 +1653,18 @@ class AiDetectorIF:
                     bb_msg_list.append(bb_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
-            bbs_msg = BoundingBoxes()
-            bbs_msg.header.stamp = nepi_sdk.get_msg_stamp()
-            bbs_msg.model_name = self.node_name
-            ros_img_header=img_dict['msg_header']
-            if ros_img_header is None:
-                ros_img_header = bbs_msg.header
-            bbs_msg.image_header = ros_img_header
+            
+            detect_timestamp = nepi_utils.get_time()
+            bbs_msg = AiBoundingBoxes()
+            bbs_msg.detect_timestamp = float(detect_timestamp)
             bbs_msg.image_topic = img_topic
+            bbs_msg.image_timestamp = float(img_dict['timestamp'])
             bbs_msg.image_width = img_dict['image_width']
             bbs_msg.image_height = img_dict['image_height']
             bbs_msg.prc_width = img_dict['prc_width']
             bbs_msg.prc_height = img_dict['prc_height']
             bbs_msg.bounding_boxes = bb_msg_list
-
+            #self.msg_if.pub_warn("Publisher create bb msg: " + str(bbs_msg))
             self.publishDetMsg(img_topic,'bounding_boxes',bbs_msg)
     
             if det_count > 0:
@@ -1659,14 +1680,22 @@ class AiDetectorIF:
             image_text = image_text.replace('/','_')
             if len(detect_dict_list) > 0:
                 data_product = 'bounding_boxes'
-                get_msg_stampstamp = bbs_msg.header.stamp
                 bbs_dict = nepi_ais.get_boxes_info_from_msg(bbs_msg)
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
                 bbs_dict['bounding_boxes']=bb_dict_list
-                self.save_data_if.save(data_product,'bounding_boxes',ros_img_header.stamp)
+                self.save_data_if.save(data_product,'bounding_boxes',detect_timestamp)
             
 
-
+    def publishDetMsg(self,img_topic, pub_name, msg):
+        #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
+        self.node_if.publish_pub(pub_name,msg)
+        pub_name_all = pub_name + "_all"
+        self.node_if.publish_pub(pub_name_all,msg)
+        if img_topic in self.img_ifs_dict.keys():
+            #self.msg_if.pub_warn("Publishing topic: " + str(pub_name))
+            self.img_ifs_lock.acquire()
+            self.img_ifs_dict[img_topic]['pubs_if'].publish_pub(pub_name,msg)
+            self.img_ifs_lock.release()
 
     def handleInfoRequest(self,_):
         resp = AiDetectorInfoQueryResponse().detector_info
@@ -1815,10 +1844,6 @@ class AiDetectorIF:
         img_det_namespaces = []
         img_det_states = []
         img_connects = []
-        img_img_lat_times = []
-        img_det_lat_times = []
-        img_pre_times = []
-        img_detect_times = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
                 state = imgs_info_dict[img_topic]['active']
@@ -1826,55 +1851,37 @@ class AiDetectorIF:
                     img_source_topics.append(img_topic)
                     img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
                     img_connects.append(imgs_info_dict[img_topic]['connected'])
-                    img_img_lat_times.append(imgs_info_dict[img_topic]['image_latency_time'])
-                    img_det_lat_times.append(imgs_info_dict[img_topic]['detect_latency_time'])
-                    img_pre_times.append(imgs_info_dict[img_topic]['preprocess_time'])
-                    img_detect_times.append(imgs_info_dict[img_topic]['detect_time'])
         self.det_status_msg.image_source_topics = img_source_topics
         self.det_status_msg.image_detector_namespaces = img_det_namespaces
         self.det_status_msg.images_connected = img_connects
-        self.det_status_msg.image_latency_times = img_img_lat_times
-        self.det_status_msg.detect_latency_times = img_det_lat_times
-        self.det_status_msg.preprocess_times = img_pre_times
-        self.det_status_msg.detect_times = img_detect_times
+
 
         img_selected = len(img_connects) > 0
         self.det_status_msg.image_selected = img_selected
         img_connected = True in img_connects
         self.det_status_msg.image_connected = img_connected
 
-        img_lat_time = 0.0
-        det_lat_time = 0.0
-        pre_time = 0.0
-        detect_time = 0.0
-        if img_connected:
-            img_lat_time = sum(img_img_lat_times) / len(img_img_lat_times)
-            det_lat_time = sum(img_det_lat_times) / len(img_det_lat_times)
-            pre_time = sum(img_pre_times) / len(img_pre_times)
-            detect_time = sum(img_detect_times) / len(img_detect_times)
-        self.det_status_msg.image_latency_time = img_lat_time
-        self.det_status_msg.detect_latency_time = det_lat_time
-        self.det_status_msg.preprocess_time = pre_time
-        self.det_status_msg.detect_time = detect_time
 
+        #################
+        self.det_status_msg.avg_image_receive_latency = sum(self.image_receive_latencies) / len(self.image_receive_latencies)
+        self.det_status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)
 
+        self.det_status_msg.avg_image_process_time = sum(self.image_process_times) / len(self.image_process_times)
+        self.det_status_msg.avg_image_process_latency = sum(self.image_process_latencies) / len(self.image_process_latencies)
+        self.det_status_msg.avg_image_process_rate = sum(self.image_process_rates) / len(self.image_process_rates)
+        
+        self.det_status_msg.avg_detect_process_time = sum(self.detect_process_times) / len(self.detect_process_times)
+        self.det_status_msg.avg_detect_process_latency = sum(self.detect_process_latencies) / len(self.detect_process_latencies)
+        self.det_status_msg.avg_detect_process_rate = sum(self.detect_process_rates) / len(self.detect_process_rates)
 
+        if self.det_status_msg.avg_detect_process_time > 0.001:
+            max_detect_rate= 1.0 / self.det_status_msg.avg_detect_process_time
+        else:
+            max_detect_rate= 0
+        self.det_status_msg.max_detect_rate = max_detect_rate
+    
 
-        avg_time = sum(self.detect_delays) / len(self.detect_delays)
-        self.det_status_msg.avg_latency_sec = avg_time
-
-        avg_rate = 0
-        avg_times = sum(self.detect_latencies) / len(self.detect_latencies)
-        if avg_time > .005:
-            avg_rate = float(1) / avg_time
-        self.det_status_msg.avg_rate_hz = avg_rate
-
-
-        max_rate = 0
-        max_time = sum(self.detect_times) / len(self.detect_times)
-        if max_time > .005:
-            max_rate = float(1) / max_time
-        self.det_status_msg.max_rate_hz = max_rate       
+        ################
 
         #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.det_status_msg))
         if self.node_if is not None:

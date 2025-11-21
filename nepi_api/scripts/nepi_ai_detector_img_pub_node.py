@@ -32,7 +32,7 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import NavPose
-from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes
+from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, AiBoundingBoxes
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 #from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
@@ -47,15 +47,18 @@ from nepi_api.data_if import ImageIF
 
 
 
+
 EXAMPLE_BOXES_INFO_DICT_ENTRY = {
     'model_name': 'test_model',
-    'image_header': Header(),
-    'image_topic': 'my/test_topic',
+    'detect_timestamp': 0.0 ,
+    'image_topic': '/test_topic',
+    'image_timestamp': 0.0 ,
     'image_height': 600,
     'image_width': 1000,
     'prc_height': 300,
     'prc_width': 500,
 }
+
 
 
 EXAMPLE_BOX_DICT_ENTRY = {
@@ -76,9 +79,9 @@ NONE_IMG_DICT = {
     'width': 0,
     'height': 0,
     'timestamp': nepi_sdk.get_time(),
-    'ros_img_topic': 'None',
+    'image_topic': 'None',
     'ros_img_header': Header(),
-    'ros_img_stamp': Header().stamp
+    'image_timestamp': Header().stamp
 }
 
 
@@ -90,9 +93,8 @@ BLANK_IMG_DICT = {
     'width': 0,
     'height': 0,
     'timestamp': nepi_sdk.get_time(),
-    'ros_img_topic': 'None',
-    'ros_img_header': Header(),
-    'ros_img_stamp': Header().stamp
+    'image_topic': 'None',
+    'image_timestamp': nepi_sdk.get_time()
 }
 
 
@@ -222,7 +224,7 @@ class AiDetectorImgPub:
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'bounding_boxes': {
-                'msg': BoundingBoxes,
+                'msg': AiBoundingBoxes,
                 'namespace': self.det_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 10,
@@ -770,8 +772,7 @@ class AiDetectorImgPub:
 
     def objectDetectedCb(self,msg):
         #self.msg_if.pub_info("Got Detection Msg: " + str(msg))
-        stamp = msg.header.stamp
-        img_stamp = msg.image_header.stamp
+        img_stamp = msg.image_timestamp
         img_topic = msg.image_topic
         current_time = nepi_utils.get_time()
         blist = nepi_ais.get_boxes_list_from_msg(msg)
