@@ -31,7 +31,7 @@ from nepi_interfaces.msg import MgrSystemStatus
 
 from nepi_interfaces.msg import UpdateState, MgrAiModelsStatus
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_interfaces.msg import BoundingBoxes, ObjectCount
+from nepi_interfaces.msg import AiBoundingBoxes, ObjectCount
 
 from nepi_interfaces.srv import SystemStorageFolderQuery
 from nepi_interfaces.srv import AiModelsInfoQuery, AiModelsInfoQueryRequest, AiModelsInfoQueryResponse
