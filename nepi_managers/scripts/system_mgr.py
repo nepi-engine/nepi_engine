@@ -207,18 +207,11 @@ class SystemMgrNode():
 
 
         self.nepi_config = nepi_system.load_nepi_system_config()
-<<<<<<< HEAD
-        # self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
-        if self.nepi_config is None:
-            self.nepi_config = dict()
-        if len(self.nepi_config.keys()) == 0:
-=======
         #self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
         if len(self.nepi_config.keys()) == 0:
             self.msg_if.pub_warn("Failed to Read NEPI config file")
->>>>>>> f15d87d0f24c22e36d8bed043ba520f35e5f9850
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
         for key in self.nepi_config.keys(): # Fix empty arrays
