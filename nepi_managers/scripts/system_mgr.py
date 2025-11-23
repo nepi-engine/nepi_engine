@@ -207,7 +207,7 @@ class SystemMgrNode():
 
 
         self.nepi_config = nepi_system.load_nepi_system_config()
-        #self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
+        self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
         if len(self.nepi_config.keys()) == 0:

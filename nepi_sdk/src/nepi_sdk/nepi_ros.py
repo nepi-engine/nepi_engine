@@ -303,7 +303,7 @@ def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_pat
   success = False
   if namespace is None:
     namespace = get_base_namespace()
-
+  msg = ("nepi_sdk: " + "Launching node " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd))
   if device_path is None:
     device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace]
   else:
@@ -312,11 +312,11 @@ def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_pat
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
-    msg = str("Failed to launch node %s with Exception: %s", ros_node_name, str(e), log_name_list = log_name_list, throttle_s = 5.0)
-    log_msg_debug("NEPI_NEX: " + msg)
+    msg = str("nepi_sdk: " + "Failed to launch node %s with Exception: %s", ros_node_name, str(e), log_name_list = log_name_list)
+    log_msg_debug("nepi_sdk: " + msg)
   if success: 
     if sub_process.poll() is not None:
-      msg = ("Failed to start " + device_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
+      msg = ("nepi_sdk: " + "Failed to start " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
       log_msg_warn(msg)
       sub_process = None
       success = False
