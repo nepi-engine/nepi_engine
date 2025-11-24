@@ -354,7 +354,7 @@ class AIDetectorManager:
                         success = False
                         try:
                             self.msg_if.pub_warn("Instantiating IF class for framework: " + str(aif_name))
-                            launch_namespace = os.path.join(self.base_namespace, "ai")
+                            launch_namespace = self.base_namespace #os.path.join(self.base_namespace, "ai")
                             all_namespace = os.path.join(self.base_namespace, self.node_name)
                             aif_if_class_instance = aif_class(aif_dict,launch_namespace,all_namespace,self.ai_models_folder)
                             self.aifs_classes_dict[aif_name] = aif_if_class_instance
@@ -609,6 +609,7 @@ class AIDetectorManager:
         success = False
         if model_name != "None": 
             aif_name=self.models_dict[model_name]['framework']
+            node_namespace ='None'
             if aif_name not in self.aifs_classes_dict.keys():
                 self.msg_if.pub_warn("Model Framework Class not instantiated")
             else:

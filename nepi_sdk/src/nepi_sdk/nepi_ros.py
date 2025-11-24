@@ -303,12 +303,13 @@ def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_pat
   success = False
   if namespace is None:
     namespace = get_base_namespace()
-  msg = ("nepi_sdk: " + "Launching node " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd))
+
   if device_path is None:
     device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace]
   else:
     device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace, '_device_path:=' + device_path]
   try:
+    msg = ("nepi_sdk: " + "Launching node " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd))
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
