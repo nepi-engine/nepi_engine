@@ -2630,6 +2630,7 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.publish_pub('data_pub', ros_img)
 
+    
 
     def unregister(self):
         self.ready = False
