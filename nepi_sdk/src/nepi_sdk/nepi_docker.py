@@ -87,11 +87,17 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
     # print(files_dict)
     if "tar" in files_dict.keys():
         tar_files=files_dict["tar"]
+        for filename in tar_files:
+            file_path=image_install_path + '/' + filename
+            # print(file_path)
+            if os.path.isfile(file_path):
+                new_img_filesizes.append(os.path.getsize(file_path))
+
         key='-'
         split_tar_files = [item.split(key) for item in tar_files]
         new_img_files = [inner_array[0] for inner_array in split_tar_files]
         new_img_versions = [inner_array[1] for inner_array in split_tar_files]
-        new_img_filesizes = [inner_array[4] for inner_array in split_tar_files]
+        # new_img_filesizes = [inner_array[4] for inner_array in split_tar_files]
         # print("New Image Files: ", new_img_files)
         # print("New Image Versions: ", new_img_versions)
         # print("New Image Filesizes: ", new_img_filesizes)
