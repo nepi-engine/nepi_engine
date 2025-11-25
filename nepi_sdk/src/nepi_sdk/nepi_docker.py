@@ -128,6 +128,7 @@ def getPartitionFreeByteCount(partition_device):
 
 # Import
 def installImage(new_img_staging_device, uncompressed_img_filename, inactive_partition_device, do_slow_transfer, progress_cb=None):
+    nepi_system.update_nepi_docker_config("NEPI_IMPORT_FILE", uncompressed_img_filename)
     nepi_system.update_nepi_docker_config("NEPI_FS_IMPORT", 1)
     return True, "Success"
     

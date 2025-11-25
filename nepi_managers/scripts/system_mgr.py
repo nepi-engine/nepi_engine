@@ -1420,7 +1420,7 @@ class SystemMgrNode():
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
             if self.in_container == True:
-                status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
+                status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
             elif self.rootfs_ab_scheme == 'nepi':
                 status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
             elif self.rootfs_ab_scheme == 'jetson':
