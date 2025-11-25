@@ -1109,22 +1109,27 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'query failed'
             return resp
         
+        # sel_new_ind=0
+        # print("New System Image: " + new_img_files[sel_new_ind])
+        # print("New Image Version: " + new_img_versions[sel_new_ind])
+        # print("New Image File Size: " + str(new_img_filesizes[sel_new_ind] / (1024**3)))
+
         # Update the response
         success = False
         sel_new_img = copy.deepcopy(self.selected_new_img)
         if new_img_files:
-            if len(new_img_files) > 0 and sel_new_img != 'none_detected':
+            if len(new_img_files) > 0:
                 self.status_msg.sys_img_update_options= new_img_files
                 
                 if sel_new_img in new_img_files:
                     sel_new_ind = new_img_files.index(sel_new_img)
                 else:
-                   sel_new_ind=0
-                   self.selected_new_img=new_img_files[0]
+                    sel_new_ind=0
+                    self.selected_new_img=new_img_files[0]
 
                 resp.new_sys_img = new_img_files[sel_new_ind]
                 resp.new_sys_img_version = new_img_versions[sel_new_ind]
-                resp.new_sys_img_size_mb = new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+                resp.new_sys_img_size_mb = int(new_img_filesizes[sel_new_ind]) / BYTES_PER_MEGABYTE
                 self.status_msg.sys_img_update_status = "ready to install"
                 success = True
         if success == False:
