@@ -15,7 +15,9 @@ import copy
 import numpy as np
 import cv2
 import math
+import pandas as pd
 from scipy.stats import linregress
+from scipy.signal import medfilt
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -27,8 +29,23 @@ BLANK_LINE_DICT['x'] = []
 BLANK_LINE_DICT['y'] = []
 
 
+IMAGE_PROCESS_OPTIONS_DICT = {
+    None: process_image_none,
+    Enhance: process_image_enhance
+}
+
+IMAGE_FILTER_OPTIONS_DICT = {
+    None: filter_image_none,
+    Denoise: filter_image_denoise
+}
+
 LINE_PROCESS_OPTIONS_DICT = {
-    Contours: get_line_contours
+    Contours: process_line_contours
+}
+
+LINE_FILTER_OPTIONS_DICT = {
+    None: filter_image_none,
+    IQR: filter_line_IQR
 }
 
 LINE_MERGE_OPTIONS_DICT = {
@@ -48,9 +65,39 @@ def get_point_count(line_dict):
     num_points = len(line_dict['x'])
 
 #########################
-# Get Line Point Functions
+# Image process Functions
+def process_image_none(cv2_img, sensitivity = 0.5 ):
+    img_quality = 1.0
+    return cv2_img, img_quality
 
-def get_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 ):
+
+def process_image_enhance(cv2_img, sensitivity = 0.5 ):
+
+    cv2_img_processed = nepi_img.adjust_auto(cv2_img, sensitivity_ratio = sensitivity)
+    img_quality = 1.0
+
+    return cv2_img_processed, img_quality
+
+
+#########################
+# Image Filter Functions
+def filter_image_none(cv2_img, sensitivity = 0.5 ):
+    img_quality = 1.0
+    return cv2_img, img_quality
+
+def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
+    kernel_float = 10 * (1 - sensitivity)
+    kernel_size = nepi_utils.get_closest_odd_integer(kernel_float)
+    cv2_img_filtered = nepi_img.denoise_filter(cv2_img, filter_type='gaussian', kernel_size=kernel_size)
+    img_quality = 1.0
+    return cv2_img_filtered, img_quality
+
+
+
+#########################
+# Line Point Functions
+
+def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 ):
     line_dict = dict()
     line_dict['x'] = []
     line_dict['y'] = []
@@ -84,6 +131,45 @@ def get_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.
         line_dict['x'].append(point[0])
         line_dict['y'].append(point[1])
     return line_dict, line_quality
+
+
+#########################
+# Line Filter Functions
+
+def filter_line_none(line_dict, sensitivity = 0.5 ):
+    line_quality = 1.0
+    return line_dict, line_quality
+
+
+def filter_line_IQR(line_dict, sensitivity = 0.5 ):
+
+    lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
+    upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
+
+    # Apply to y column
+    df = pd.DataFrame(line_dict)
+    column = 'y'
+    Q1 = df[column].quantile(lower_q_value)
+    Q3 = df[column].quantile(upper_q_value)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    line_dict = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+    # Apply to y column
+    df = pd.DataFrame(line_dict)
+    column = 'y'
+    Q1 = df[column].quantile(lower_q_value)
+    Q3 = df[column].quantile(upper_q_value)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    line_dict = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+    line_quality = 1.0
+
+    return line_dict, line_quality
+
 
 
 #########################

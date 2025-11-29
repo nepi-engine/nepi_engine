@@ -591,7 +591,35 @@ def get_contours(cv2_img):
                                        cv2.CHAIN_APPROX_NONE)
   return contours3, hierarchy3
 
+def denoise_filter(cv2_img, filter_type='gaussian', kernel_size=5):
+    """
+    Applies a specified noise filter to an image using OpenCV.
 
+    Args:
+        image_path (str): Path to the input image.
+        filter_type (str): Type of filter to apply ('gaussian', 'median', 'bilateral').
+        kernel_size (int): Size of the kernel for Gaussian and Median filters.
+                           For bilateral, it's the diameter of the pixel neighborhood.
+
+    Returns:
+        numpy.ndarray: The denoised image.
+    """
+
+    if filter_type == 'gaussian':
+        denoised_cv2_img = cv2.GaussianBlur(cv2_img, (kernel_size, kernel_size), 0)
+    elif filter_type == 'median':
+        denoised_cv2_img = cv2.medianBlur(cv2_img, kernel_size)
+    elif filter_type == 'bilateral':
+        # Bilateral filter requires more parameters:
+        # d: Diameter of pixel neighborhood
+        # sigmaColor: Filter sigma in the color space
+        # sigmaSpace: Filter sigma in the coordinate space
+        denoised_cv2_img = cv2.bilateralFilter(cv2_img, kernel_size, 75, 75)
+    else:
+        print("Invalid filter type. Choose 'gaussian', 'median', or 'bilateral'.")
+        return None
+
+    return denoised_cv2_img
 
 
 

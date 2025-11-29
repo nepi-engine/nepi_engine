@@ -23,6 +23,7 @@ import csv
 import inspect
 import numpy as np
 import string
+import math
 
 import pytz
 import datetime
@@ -751,3 +752,30 @@ def get_uppercase_letters():
 
 def get_lowercase_letters():
   return list(string.ascii_uppercase)
+
+##################
+## Misc Math Functions
+
+def get_closest_odd_integer(f_num):
+    """
+    Finds the closest odd integer to a given float.
+
+    Args:
+        f_num (float): The input floating-point number.
+
+    Returns:
+        int: The closest odd integer.
+    """
+    rounded_int = round(f_num)
+
+    if rounded_int % 2 != 0:  # If already odd
+        return int(rounded_int)
+    else:  # If even, find the closest odd neighbor
+        lower_odd = rounded_int - 1
+        upper_odd = rounded_int + 1
+
+        # Compare distances to the original float
+        if abs(f_num - lower_odd) <= abs(f_num - upper_odd):
+            return int(lower_odd)
+        else:
+            return int(upper_odd)
