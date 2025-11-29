@@ -574,11 +574,13 @@ class AiDetectorImgPub:
                             self.imgs_info_dict[img_topic]['last_img_time'] = current_time
 
 
-                            get_msg_stampstamp = image_msg.header.stamp
+                            stamp = image_msg.header.stamp
+                            timestamp = copy.deepcopy(float(stamp.to_sec()))
+
                             ros_frame_id = image_msg.header.frame_id
 
-                            current_time = nepi_sdk.get_msg_stamp()
-                            latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
+                            current_time = nepi_utils.get_time()
+                            latency = (current_time - timestamp )
                             self.imgs_info_dict[img_topic]['get_latency_time'] = latency
                             #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
                             # Request new img
@@ -602,12 +604,12 @@ class AiDetectorImgPub:
                                 success = self.processDetImage(img_topic, 
                                                             use_cv2_img, 
                                                             det_dict_list, 
-                                                            timestamp = get_msg_stampstamp, 
+                                                            timestamp = timestamp, 
                                                             frame_3d = ros_frame_id, 
                                                             navpose_dict = navpose_dict)
 
-                                current_time = nepi_sdk.get_msg_stamp()
-                                latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
+                                current_time = nepi_utils.get_time()
+                                latency = (current_time - timestamp )
                                 self.imgs_info_dict[img_topic]['pub_latency_time'] = latency                              
 
                                 self.imgs_info_lock.acquire()
@@ -623,6 +625,63 @@ class AiDetectorImgPub:
                                 self.cv2_img = cv2_img
                                 self.cv2_img_lock.release()
                                 #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
+
+    def processFileImg(self, img_file,det_dict_list):   
+        if self.img_if is not None:
+            if ( self.img_if.has_subscribers_check() or self.save_data_if.data_product_should_save('detection_image') ) and self.pub_image_enabled:
+                start_time = nepi_sdk.get_time()   
+                img_topic = img_file
+                navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+
+               
+                max_rate = copy.deepcopy(self.max_rate)
+                if max_rate > .01:
+                    if self.enabled == True and self.state == 'Running':
+                        # Process ros image message
+                        #self.msg_if.pub_warn("Processing image topic: " + str(img_topic))
+                        self.imgs_info_dict['img_file']['publishing'] = True
+
+                        # Check if time to publish
+                        delay_time = float(1) / max_rate 
+                        last_img_time = self.imgs_info_dict['img_file']['last_img_time']
+                        current_time = nepi_utils.get_time()
+                        timer = round((current_time - last_img_time), 3)
+                        #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
+                        if timer > delay_time: 
+                            cv2_img = cv2.imread(img_file)
+                            if cv2_img is not None:
+                                self.imgs_info_dict['img_file']['last_img_time'] = current_time
+
+
+                                timestamp = nepi_utils.get_time()
+                                ros_frame_id = 'nepi_base'
+
+                                current_time = nepi_utils.get_time()
+                                latency = (current_time - timestamp)
+                                self.imgs_info_dict['img_file']['get_latency_time'] = latency
+                                #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
+                                # Request new img
+                                
+                                #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
+                                if det_dict_list == None:
+                                    det_dict_list = []                
+                            
+                                success = self.processDetImage(img_topic, 
+                                                            cv2_img, 
+                                                            det_dict_list, 
+                                                            timestamp = get_msg_stampstamp, 
+                                                            frame_3d = ros_frame_id, 
+                                                            navpose_dict = navpose_dict)
+
+                                current_time = nepi_utils.get_time()
+                                latency = (current_time - timestamp)
+                                self.imgs_info_dict['img_file']['pub_latency_time'] = latency                              
+
+                                self.imgs_info_lock.acquire()
+                                if img_topic in self.imgs_info_dict.keys():
+                                    self.imgs_info_dict['img_file']['navpose_dict'] = navpose_dict
+                                self.imgs_info_lock.release()
+                           
 
 
     def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
@@ -780,6 +839,12 @@ class AiDetectorImgPub:
             self.imgs_info_dict[img_topic]['det_dict_list'] = blist
             self.imgs_info_dict[img_topic]['img_stamp'] = img_stamp      
             self.imgs_info_dict[img_topic]['last_det_time'] = current_time
+        else:
+            if os.path.exists(img_topic):
+                self.imgs_info_dict['img_file']['img_stamp'] = img_stamp      
+                self.imgs_info_dict['img_file']['last_det_time'] = current_time
+                self.processFileImg(img_topic,blist)
+
   
 
 

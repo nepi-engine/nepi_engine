@@ -16,6 +16,13 @@ import copy
 import numpy as np
 import cv2
 import math
+import random
+
+from colormath.color_objects import LabColor, sRGBColor
+from colormath.color_conversions import convert_color
+from colormath.color_diff import delta_e_cie2000
+import random
+
 
 '''
 from scipy.spatial import distance
@@ -96,8 +103,101 @@ def get_img_pointcloud_topic(img_topic):
     topic = None
   return topic
 
-def create_bgr_jet_color(x): # x -> 0-1
-    x = np.clip(x, 0, 1)
+
+def create_bgr_random_color(seed_value = random.random() ):
+    color_bgr = (0, 0, 0)
+
+    integer_seed = int(seed_value * 1000000) 
+    random.seed(integer_seed)
+    color_bgr[0] = random.randint(0, 255) 
+
+    
+    seed_value = color_bgr[0] / 255
+    integer_seed = int(seed_value * 1000000) 
+    random.seed(integer_seed)
+    color_bgr[1] = random.randint(0, 255)
+
+    seed_value = color_bgr[1] / 255
+    integer_seed = int(seed_value * 1000000) 
+    random.seed(integer_seed)
+    color_bgr[2] = random.randint(0, 255)
+
+    color_bgr = fix_color(color_bgr)
+
+    return color_bgr
+
+
+def convert_rgb2bgr(color_rgb):
+   color_bgr = fix_color(color_rgb[2],color_rgb[1],color_rgb[0])
+   return color_bgr
+
+def convert_bgr2rgb(color_bgr):
+   color_rgb = fix_color(color_bgr[2],color_bgr[1],color_bgr[0])
+   return color_rgb
+
+
+def adjust_bgr_contrast_color(base_bgr, contrast_bgr , min_delta_e=50):
+    base_rgb = convert_bgr2rgb(base_bgr)
+    base_lab = convert_color(base_rgb, LabColor)
+    contrast_rgb = convert_bgr2rgb(contrast_bgr)
+    delta_e = delta_e_cie2000(base_lab, contrast_rgb)
+    if delta_e < min_delta_e:
+        seed_value = sum(contrast_bgr)/(255*3)
+        contrast_bgr = create_bgr_contrast_color(base_bgr, seed_value = seed_value)
+    return contrast_bgr
+
+
+def create_bgr_contrast_color(base_bgr, seed_value = random.random() , min_delta_e=50):
+    base_rgb = convert_bgr2rgb(base_bgr)
+    base_lab = convert_color(base_rgb, LabColor)
+
+    contrast_bgr
+    attempts = 0
+    max_attempts_per_color = 1000  # Prevent infinite loops
+    contrast_bgr = None
+    while contrast_bgr is None and attempts < max_attempts_per_color:
+            # Generate a random RGB color fron seed
+            random_bgr = create_bgr_random_color((seed_value))
+            random_rgb = convert_bgr2rgb(random_bgr)
+            random_lab = convert_color(random_rgb, LabColor)
+            contrast_rgb = random_rgb.get_rgb_hex()
+            # Calculate the color difference (Delta E)
+            delta_e = delta_e_cie2000(base_lab, random_lab)
+            if delta_e >= min_delta_e:
+                contrast_bgr = convert_rgb2bgr(contrast_rgb)
+              
+            attempts += 1
+            # Update Seed Value
+            integer_seed = int(seed_value * 1000000) 
+            seed_value = random.seed(integer_seed)
+
+    if contrast_bgr is None:
+       contrast_bgr = convert_rgb2bgr(contrast_rgb)
+
+    return contrast_bgr
+
+# # Example usage:
+# base_color = "#FF0000"  # Red
+# num_contrasting = 3
+# contrasting_list = get_contrasting_colors(base_color, num_contrasting)
+# print(f"Contrasting colors for {base_color}: {contrasting_list}")
+
+# base_color_2 = "#008000" # Green
+# num_contrasting_2 = 5
+# contrasting_list_2 = get_contrasting_colors(base_color_2, num_contrasting_2, min_delta_e=60)
+# print(f"Contrasting colors for {base_color_2}: {contrasting_list_2}")
+
+
+def create_bgr_contrast_colormap_list(base_bgr, num_colors=256):
+  colors_list = []
+  for i in range(num_colors):
+    color = create_bgr_contrast_color(base_bgr, i/num_colors)
+    colors_list.append(color)
+  return colors_list
+
+
+def create_bgr_jet_color(seed_value): # seed_value -> 0-1
+    seed_value = np.clip(seed_value, 0, 1)
     
     c1 = np.array([0.267004, 0.004874, 0.329415])
     c2 = np.array([0.232985, 0.298771, 0.538668])
@@ -105,14 +205,14 @@ def create_bgr_jet_color(x): # x -> 0-1
     c4 = np.array([0.529777, 0.780797, 0.307166])
     c5 = np.array([0.993248, 0.906157, 0.143936])
 
-    if 0 <= x <= 0.25:
-        c_list = c1 + (c2 - c1) * (x / 0.25)
-    elif 0.25 < x <= 0.5:
-        c_list = c2 + (c3 - c2) * ((x - 0.25) / 0.25)
-    elif 0.5 < x <= 0.75:
-        c_list = c3 + (c4 - c3) * ((x - 0.5) / 0.25)
-    elif 0.75 < x <= 1:
-        c_list = c4 + (c5 - c4) * ((x - 0.75) / 0.25)
+    if 0 <= seed_value <= 0.25:
+        c_list = c1 + (c2 - c1) * (seed_value / 0.25)
+    elif 0.25 < seed_value <= 0.5:
+        c_list = c2 + (c3 - c2) * ((seed_value - 0.25) / 0.25)
+    elif 0.5 < seed_value <= 0.75:
+        c_list = c3 + (c4 - c3) * ((seed_value - 0.5) / 0.25)
+    elif 0.75 < seed_value <= 1:
+        c_list = c4 + (c5 - c4) * ((seed_value - 0.75) / 0.25)
     else:
         c_list = np.array([0.0, 0.0, 0.0])
     c_list = c_list * 255
@@ -128,8 +228,32 @@ def create_bgr_jet_colormap_list(num_colors=256):
 
 
 
+def fix_color(color = (255,255,255)):
+  for i, entry in enumerate(color):
+      if entry < 0:
+         color[i] = 0
+      if entry > 255:
+         color[i] = 255
+      color[i] = int(entry)
+  return color
+         
 
-
+def get_bounding_box_image(cv2_img, bounding_box_dict):
+    cv2_sub_img = None
+    if cv2_img is not None:
+      [height, width, channels] = cv2_img.shape
+      try:
+          xmin = bounding_box_dict['xmin']
+          xmax = bounding_box_dict['xmax']
+          ymin = bounding_box_dict['ymin']
+          ymax = bounding_box_dict['ymax']
+          success = True
+      except Exception as e:
+          self.msg_if.pub_warn("Failed to get bounding box data: " + str(e))
+          success = False
+      if success == True:
+        cv2_sub_img = cv2_img[ymin:ymin, xmin:xmax]
+    return cv2_sub_img
 
 '''
 def create_jet_colormap_list(num_colors=256):
@@ -245,6 +369,32 @@ def grayscale_to_rgb(gray_image):
 ###########################################
 ### Image filter functions    
 
+def get_bgr_filter(color_bgr, sensitivity):
+
+  # Define a tolerance level for each R, G, B channel
+  # This tolerance determines how much variation around the target color is allowed.
+  tolerance = 127 - ( 127 * sensitivity ) # Example: Allow a variation of +/- 20 for each channel
+
+
+  # Calculate the lower bound for the RGB filter
+  # Ensure values do not go below 0
+  lower_bound_bgr = np.array([
+      int(max(0, color_bgr[0] - tolerance)),
+      int(max(0, color_bgr[1] - tolerance)),
+      int(max(0, color_bgr[2] - tolerance))
+  ])
+
+
+
+  # Calculate the upper bound for the RGB filter
+  # Ensure values do not exceed 255
+  upper_bound_bgr = np.array([
+      int(min(255, color_bgr[0] + tolerance)),
+      int(min(255, color_bgr[1] + tolerance)),
+      int(min(255, color_bgr[2] + tolerance))
+  ])
+
+  return [lower_bound_bgr,upper_bound_bgr]
 
     
 ###########################################

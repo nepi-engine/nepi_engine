@@ -454,12 +454,12 @@ class AiDetectorIF:
                 'callback': self.removeImageTopicsCb, 
                 'callback_args': ()
             },
-            'select_img_file': {
+            'process_img_file': {
                 'namespace': self.node_namespace,
-                'topic': 'select_img_file',
+                'topic': 'process_img_file',
                 'msg': String,
                 'qsize': 10,
-                'callback': self.selectImageFileCb, 
+                'callback': self.processImageFileCb, 
                 'callback_args': ()
             },
             'add_all_classes': {
@@ -919,17 +919,6 @@ class AiDetectorIF:
             self.node_if.set_param('selected_img_topics',self.selected_img_topics)
             self.node_if.save_config()
 
-    def selectImageFileCb(self,msg):
-        #self.msg_if.pub_info("Received Process Image File: " + str(msg))
-        if self.img_folder_path is not None:
-            img_file_path = os.path.join(self.img_folder_path,self.msg.data)
-            if os.path.exists(img_file_path) == True:
-                self.img_file_path=img_file_path
-            else:
-                self.msg_if.pub_warn('Process image file failed, File not found: ' + str(img_file_path))
-                
-        else:
-            self.msg_if.pub_warn('Process image file failed, Folder not set as Image Topic')
 
 
     def setOverlayLabelsCb(self,msg):
@@ -1411,19 +1400,6 @@ class AiDetectorIF:
                     #self.msg_if.pub_warn("Get Topic set to " + self.get_img_topic + " with time: " +  str(timer))
     
             
-                    # ##############################
-                    # # Publish Update Image for image pub node
-                    # if was_connected == False and self.enable_image_pub == True:
-                    #     if img_topic in self.img_ifs_dict.keys():
-                    #         cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_PUB_MSG)
-                    #         ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
-                    #         self.img_ifs_lock.acquire()
-                    #         self.img_ifs_dict[img_topic]['pubs_if'].publish_pub('image_pub',ros_img) 
-                    #         self.img_ifs_lock.release()
-
-
-
-
                     #self.msg_if.pub_warn("Reset Current and Get Image Topic: " +  self.cur_img_topic)
                     #self.msg_if.pub_warn("With Delay and Timer: " + str(delay_time) + " " + str(timer))
 
@@ -1433,7 +1409,7 @@ class AiDetectorIF:
 
     def imageCb(self,image_msg, args):     
         img_topic = args
-        was_connected = self.imgs_info_dict[img_topic]['connected']
+
         self.imgs_info_dict[img_topic]['connected'] = True
         
         stamp = image_msg.header.stamp
@@ -1448,9 +1424,9 @@ class AiDetectorIF:
             self.last_receive_image_time = nepi_sdk.get_time()
 
         #####################################
-        if img_topic == self.get_img_topic:   
+        if img_topic == self.get_img_topic and self.got_img_topic is None:   
 
-            start_time = nepi_sdk.get_time()  
+
             timestamp = copy.deepcopy(float(stamp.to_sec()))
 
             #self.msg_if.pub_warn("Processing Image Topic " + img_topic)    
@@ -1466,10 +1442,54 @@ class AiDetectorIF:
             self.imgs_dict[img_topic] = img_dict                
 
             cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+            self.processImage(cv2_img, img_dict)
 
-            ###############################
 
 
+    
+
+
+    def processImageFileCb(self,str_msg):    
+        img_file = str_msg.data
+        img_topic = img_file
+
+
+        ##############################
+        ### Get CV2 Image)
+        if os.path.exists(img_file) == False:
+            self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
+            return 
+        
+
+        timestamp = nepi_sdk.get_time() 
+        msg_header = nepi_sdk.got_msg_header()
+        cv2_img = cv2.imread(img_file)
+
+        if cv2_img is not None:
+            ##############################
+            while self.got_img_topic is not None:
+                nepi_sdk.sleep(0.01)
+
+
+            ##############################
+            self.got_img_topic = img_topic
+
+
+            # Update img_dict
+            img_dict = dict()
+            img_dict['topic'] = img_file
+            img_dict['timestamp'] = timestamp
+            img_dict['msg_header'] = msg_header
+            
+            self.processImage(cv2_img, img_dict)
+
+
+
+    def processImage(self,cv2_img, img_dict):
+            start_time = nepi_sdk.get_time()  
+
+            img_topic = img_dict['topic']
+            timestamp = img_dict['timestamp']
             image_process_time = round( (nepi_sdk.get_time() - start_time ) , 3)
             self.image_process_times.pop(0)
             self.image_process_times.append(image_process_time)
@@ -1565,63 +1585,6 @@ class AiDetectorIF:
             self.got_img_topic = None
 
             #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
-
-    
-
-
-    def setImageFileCb(self,str_msg, args):    
-        img_topic = args
-        was_connected = self.imgs_info_dict[img_topic]['connected']
-        self.imgs_info_dict[img_topic]['connected'] = True
-        if img_topic == self.get_img_topic: 
-            img_info_dict = self.imgs_info_dict[img_topic]     
-            if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:     
-                # Reset image get flags
-                self.get_img_topic = "None"
-                self.got_img_topic = img_topic
-
-                img_info_dict = self.imgs_info_dict[img_topic]   
-                if img_info_dict['active'] == True and img_topic in self.imgs_info_dict.keys() and self.enabled == True and self.sleep_state == False:
-                    #self.msg_if.pub_warn("Processing img for topic:  " + img_topic)
-                    start_time = nepi_sdk.get_time() 
-
-
-                    ##############################
-                    ### Get CV2 Image
-                    img_file=os.path.join(img_topic,str_msg)
-                    if os.path.exists(img_file) == False:
-                        self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
-                        return 
-
-                    timestamp = start_time
-                    msg_header = nepi_sdk.got_msg_header()
-                    latency = 0.0 #(start_time.to_sec() - got_msg_stampstamp.to_sec())
-                    cv2_img = cv2.imread(img_file)
-                    image_time = round( (nepi_sdk.get_time() - start_time) , 3)
-                    ##############################
-
-
-                    # Update img_dict
-                    img_dict['topic'] = os.path.join(img_topic,img_file)
-                    img_dict['timestamp'] = timestamp
-                    img_dict['msg_header'] = msg_header
-                    self.imgs_dict[img_topic] = img_dict                
-
-                    # Update Image Pre Process Info
-                    if img_topic in self.imgs_info_dict.keys():
-                        try:
-                            self.imgs_info_dict[img_topic]['image_latency_time'] = latency
-                            self.imgs_info_dict[img_topic]['image_time'] = image_time
-                        except:
-                            pass
-
-                    #################################
-                    ### Run Detection
-                    if cv2_img is not None:
-
-                        self.got_img_topic = img_topic  
-
-
 
 
     def publishDetectionData(self, img_topic, img_dict, detect_dict_list):
