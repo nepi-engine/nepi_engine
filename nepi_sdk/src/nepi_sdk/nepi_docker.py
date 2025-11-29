@@ -19,6 +19,7 @@
 import glob
 import os.path
 import os
+import time
 import subprocess
 import shlex
 import copy
@@ -80,16 +81,15 @@ def unmountPartition(part_mountpoint):
 
 
 def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
+    # Save array of image name, version, and filesize
     new_img_files=[]
     new_img_versions=[]
     new_img_filesizes=[]
-    files_dict=nepi_utils.get_folder_files(image_install_path)
-    # print(files_dict)
+    files_dict=nepi_utils.get_folder_files(image_install_path) # Get images from install file path
     if "tar" in files_dict.keys():
         tar_files=files_dict["tar"]
         for filename in tar_files:
             file_path=image_install_path + '/' + filename
-            # print(file_path)
             if os.path.isfile(file_path):
                 new_img_filesizes.append(os.path.getsize(file_path))
 
@@ -97,11 +97,6 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
         split_tar_files = [item.split(key) for item in tar_files]
         new_img_files = [inner_array[0] for inner_array in split_tar_files]
         new_img_versions = [inner_array[1] for inner_array in split_tar_files]
-        # new_img_filesizes = [inner_array[4] for inner_array in split_tar_files]
-        # print("New Image Files: ", new_img_files)
-        # print("New Image Versions: ", new_img_versions)
-        # print("New Image Filesizes: ", new_img_filesizes)
-        # print("Tar Files Array: " + str(split_tar_files))
     return True, "New image file identified", new_img_files, new_img_versions, new_img_filesizes
 
 
@@ -138,9 +133,6 @@ def checkAndRepairPartition(partition_device):
 
 def resetBootFailCounter(first_stage_rootfs_device):
     nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT",0)
-    # print("<<<<<<<<<<<<<<<<<<<<<<<<<<")
-    # print("Updating Fail Boot Count")
-    # print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
     return True, "Success"
 
 def switchActiveAndInactiveContainers():
@@ -149,7 +141,33 @@ def switchActiveAndInactiveContainers():
 
 # Export
 def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
+    config_dict=nepi_system.load_nepi_docker_config()
+    # Check if there is availible space to export
+    if config_dict['NEPI_RUNNING_SIZE_GB'] > config_dict['NEPI_EXPORT_AVAIL_GB']:
+        print("Not enough availible space. Running Container Size: " + str(config_dict['NEPI_RUNNING_SIZE_GB']) + " Availible Space: " + str(config_dict['NEPI_EXPORT_AVAIL_GB']))
+        return False, "Fail"
     nepi_system.update_nepi_docker_config("NEPI_FS_EXPORT", 1)
+    # Monitor export process
+    interval=1
+    target_size=config_dict['NEPI_RUNNING_SIZE_GB']
+    while True:
+        try:
+            config_dict=nepi_system.load_nepi_docker_config() # Update config dict
+            file_path=config_dict["NEPI_EXPORT_FILE"]
+            current_size = os.stat(file_path).st_size / (1024 ** 3)
+        except FileNotFoundError:
+            print(f"Waiting for file '{file_path}' to appear...")
+            time.sleep(interval)
+            continue
+        except NameError:
+            print("...")
+
+        if current_size == target_size:
+            print(f"\nFile export complete. Final size: {current_size} GB.")
+            break
+        else:
+            print(f"Current file size: {current_size} GB", end='\r')
+            time.sleep(interval)
     return True, "Success"
 
 
