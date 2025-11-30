@@ -128,11 +128,11 @@ def create_bgr_random_color(seed_value = random.random() ):
 
 
 def convert_rgb2bgr(color_rgb):
-   color_bgr = fix_color(color_rgb[2],color_rgb[1],color_rgb[0])
+   color_bgr = fix_color((color_rgb[2],color_rgb[1],color_rgb[0]))
    return color_bgr
 
 def convert_bgr2rgb(color_bgr):
-   color_rgb = fix_color(color_bgr[2],color_bgr[1],color_bgr[0])
+   color_rgb = fix_color((color_bgr[2],color_bgr[1],color_bgr[0]))
    return color_rgb
 
 
@@ -151,10 +151,9 @@ def create_bgr_contrast_color(base_bgr, seed_value = random.random() , min_delta
     base_rgb = convert_bgr2rgb(base_bgr)
     base_lab = convert_color(base_rgb, LabColor)
 
-    contrast_bgr
     attempts = 0
     max_attempts_per_color = 1000  # Prevent infinite loops
-    contrast_bgr = None
+    contrast_bgr = base_bgr
     while contrast_bgr is None and attempts < max_attempts_per_color:
             # Generate a random RGB color fron seed
             random_bgr = create_bgr_random_color((seed_value))
@@ -173,7 +172,7 @@ def create_bgr_contrast_color(base_bgr, seed_value = random.random() , min_delta
 
     if contrast_bgr is None:
        contrast_bgr = convert_rgb2bgr(contrast_rgb)
-
+    print(contrast_bgr)
     return contrast_bgr
 
 # # Example usage:
@@ -229,11 +228,11 @@ def create_bgr_jet_colormap_list(num_colors=256):
 
 
 def fix_color(color = (255,255,255)):
-  for i, entry in enumerate(color):
+  for i, entry in enumerate(list(color)):
       if entry < 0:
-         color[i] = 0
+         entry = 0
       if entry > 255:
-         color[i] = 255
+         entry = 255
       color[i] = int(entry)
   return color
          

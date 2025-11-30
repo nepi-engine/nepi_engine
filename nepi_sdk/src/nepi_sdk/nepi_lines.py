@@ -29,28 +29,6 @@ BLANK_LINE_DICT['x'] = []
 BLANK_LINE_DICT['y'] = []
 
 
-IMAGE_PROCESS_OPTIONS_DICT = {
-    None: process_image_none,
-    Enhance: process_image_enhance
-}
-
-IMAGE_FILTER_OPTIONS_DICT = {
-    None: filter_image_none,
-    Denoise: filter_image_denoise
-}
-
-LINE_PROCESS_OPTIONS_DICT = {
-    Contours: process_line_contours
-}
-
-LINE_FILTER_OPTIONS_DICT = {
-    None: filter_image_none,
-    IQR: filter_line_IQR
-}
-
-LINE_MERGE_OPTIONS_DICT = {
-    Replace: merge_lines_replace
-}
 
 
 
@@ -253,3 +231,28 @@ def merge_lines_replace(base_line, merge_line, sensitivity):
 
 # # xyz_points = extract_laser_line_points("laser_image.jpg", K, dist, laser_plane, R_cam2world, t_cam2world)
 # # print(xyz_points)
+
+
+
+IMAGE_PROCESS_OPTIONS_DICT = {
+    'None': process_image_none,
+    'Enhance': process_image_enhance
+}
+
+IMAGE_FILTER_OPTIONS_DICT = {
+    'None': filter_image_none,
+    'Denoise': filter_image_denoise
+}
+
+LINE_PROCESS_OPTIONS_DICT = {
+    'Contours': process_line_contours
+}
+
+LINE_FILTER_OPTIONS_DICT = {
+    'None': filter_line_none,
+    'IQR': filter_line_IQR
+}
+
+LINE_MERGE_OPTIONS_DICT = {
+    'Replace': merge_lines_replace
+}

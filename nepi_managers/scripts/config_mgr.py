@@ -340,7 +340,7 @@ class config_mgr(object):
             # First, write to the user file
             nepi_sdk.save_params_to_file(config_pathname, namespace)
             #nepi_sdk.save_params_to_file(backup_pathname, namespace)
-            self.msg_if.pub_info("Params saved for namespace: " + namespace  + " in file " + config_pathname )
+            #self.msg_if.pub_info("Params saved for namespace: " + namespace  + " in file " + config_pathname )
             success = True
         return success
 
