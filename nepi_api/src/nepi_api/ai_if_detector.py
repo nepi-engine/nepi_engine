@@ -1462,7 +1462,7 @@ class AiDetectorIF:
         
 
         timestamp = nepi_sdk.get_time() 
-        msg_header = nepi_sdk.got_msg_header()
+        msg_header = Header()
         cv2_img = cv2.imread(img_file)
 
         if cv2_img is not None:

@@ -251,7 +251,7 @@ def get_bounding_box_image(cv2_img, bounding_box_dict):
           self.msg_if.pub_warn("Failed to get bounding box data: " + str(e))
           success = False
       if success == True:
-        cv2_sub_img = cv2_img[ymin:ymin, xmin:xmax]
+        cv2_sub_img = cv2_img[ymin:ymax, xmin:xmax]
     return cv2_sub_img
 
 '''

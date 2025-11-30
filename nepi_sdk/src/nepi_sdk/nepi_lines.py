@@ -41,6 +41,7 @@ def get_blank_line_dict():
 
 def get_point_count(line_dict):
     num_points = len(line_dict['x'])
+    return num_points
 
 #########################
 # Image process Functions
@@ -82,12 +83,12 @@ def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity 
 
     line_quality = 1.0
 
-    [lower_bound_bgr,upper_bound_bgr] = nepi_img.get_bgr_filter(line_color_bgr, sensitivity)
+
 
     # Convert to HSV and isolate laser color (example for red laser)
+    #print("Calc Contours for image size: " + str(cv2_img.shape))
     hsv = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2HSV)
-    lower_bound_bgr = np.array([0, 100, 100])
-    upper_bound_bgr = np.array([10, 255, 255])
+    [lower_bound_bgr,upper_bound_bgr] = nepi_img.get_bgr_filter(line_color_bgr, sensitivity)
     mask = cv2.inRange(hsv, lower_bound_bgr, upper_bound_bgr)
 
     # Further processing to refine the line (e.g., morphological operations, line detection)
@@ -101,13 +102,14 @@ def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity 
         if M["m00"] != 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            line_pixels.append((cx, cy))
+            line_dict['x'].append(cx)
+            line_dict['y'].append(cy)
 
-    # Undistort points
-    undistorted_pixels = cv2.undistortPoints(np.array(line_pixels, dtype=np.float32).reshape(-1, 1, 2), K, dist)
-    for point in undistorted_pixels:
-        line_dict['x'].append(point[0])
-        line_dict['y'].append(point[1])
+    # # Undistort points
+    # undistorted_pixels = cv2.undistortPoints(np.array(line_pixels, dtype=np.float32).reshape(-1, 1, 2), K, dist)
+    # for point in undistorted_pixels:
+    #     line_dict['x'].append(point[0])
+    #     line_dict['y'].append(point[1])
     return line_dict, line_quality
 
 
@@ -170,11 +172,11 @@ def merge_lines_replace(base_line, merge_line, sensitivity):
     
     merged_line = dict()
 
-    merged_line['x'] = [x for x in base_line if x < xmin or x > xmax]
-    merged_line['x'].extends = merge_line[x]
+    merged_line['x'] = [x for x in base_line['x'] if x < xmin or x > xmax]
+    #merged_line['x'].extends = merge_line[x]
 
-    merged_line['y'] = [y for y in base_line if y < ymin or y > yma]
-    merged_line['y'].extends = merge_line[y]
+    merged_line['y'] = [y for y in base_line['y'] if y < ymin or y > ymax]
+    #merged_line['y'].extends = merge_line[y]
 
     return merged_line, merge_quality
 

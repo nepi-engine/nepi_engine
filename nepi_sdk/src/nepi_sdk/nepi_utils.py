@@ -284,20 +284,28 @@ def get_file_list(search_path,ext_str="",ext_strs=[]):
   count = 0
   file_list = []
   for f in os.listdir(search_path):
-    if os.path.isfile(f):
-        if f.endswith(ext_str) or (os.path.splitext(f) in ext_strs) or (ext_str == "" and len(ext_strs) == 0) :
+    f_path = os.path.join(search_path,f)
+    if os.path.isfile(f_path):
+        ext = os.path.splitext(f)[1]
+        if ext[0] == '.':
+            ext = ext[1:]
+        if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
             #logger.log_warn('Found image file')
             count = count + 1
             file = (search_path + '/' + f)
             file_list.append(file)
-  return file_list,count
+  return file_list, count
 
 def get_file_count(search_path,ext_str="",ext_strs=[]):
   count = 0
   if os.path.exists(search_path):
     for f in os.listdir(search_path):
-        if os.path.isfile(f):
-            if f.endswith(ext_str) or (os.path.splitext(f) in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
+        f_path = os.path.join(search_path,f)
+        if os.path.isfile(f_path):
+            ext = os.path.splitext(f)[1]
+            if ext[0] == '.':
+               ext = ext[1:]
+            if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
                 #logger.log_warn('Found image file')
                 count = count + 1
   return count

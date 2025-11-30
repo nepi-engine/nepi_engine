@@ -82,8 +82,12 @@ EXAMPLE_BOX_DICT_ENTRY = {
 ########################
 ## Misc AI Helper Functions
 def get_ai_detector_publisher_namespaces():
+    namespace = []
     msg_type = 'nepi_interfaces/AiDetectorStatus'
-    return nepi_sdk.find_topics_by_msg(msg_type)
+    namespaces = nepi_sdk.find_topics_by_msg(msg_type)
+    for i, namespace in enumerate(namespaces):
+        namespaces[i] = os.path.dirname(namespaces[i])
+    return namespaces 
 
 '''
 def get_classes_colors_list(classes_str_list):
