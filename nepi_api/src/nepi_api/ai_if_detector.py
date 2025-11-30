@@ -1592,7 +1592,7 @@ class AiDetectorIF:
         det_count = len(detect_dict_list)
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         img_topic = img_topic
-        if imgs_info_dict[img_topic]['active'] == True:
+        if True: #imgs_info_dict[img_topic]['active'] == True:
             #self.msg_if.pub_warn("Publisher imgage is active img_dict")
             bb_msg_list = []
             for detect_dict in detect_dict_list:

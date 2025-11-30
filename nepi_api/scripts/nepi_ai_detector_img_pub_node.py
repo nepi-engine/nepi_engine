@@ -337,9 +337,11 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn("Updating active topics: " +  str(img_topics))
         active_img_topics = []
         for img_topic in img_topics:
-            if imgs_info_dict[img_topic]['active'] == True:
-                #self.msg_if.pub_warn("Found active topic: " +  str(img_topic))
-                active_img_topics.append(img_topic)
+            if img_topic in imgs_info_dict.keys():
+                if 'active' in imgs_info_dict[img_topic].keys()
+                if imgs_info_dict[img_topic]['active'] == True:
+                    #self.msg_if.pub_warn("Found active topic: " +  str(img_topic))
+                    active_img_topics.append(img_topic)
         return active_img_topics
 
 
@@ -841,6 +843,7 @@ class AiDetectorImgPub:
             self.imgs_info_dict[img_topic]['last_det_time'] = current_time
         else:
             if os.path.exists(img_topic):
+                self.imgs_info_dict['img_file'] = dict()
                 self.imgs_info_dict['img_file']['img_stamp'] = img_stamp      
                 self.imgs_info_dict['img_file']['last_det_time'] = current_time
                 self.processFileImg(img_topic,blist)
