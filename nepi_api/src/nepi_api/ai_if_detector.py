@@ -92,7 +92,7 @@ class AiDetectorIF:
     triggers_dict = dict()
 
     node_if = None
-
+    save_data_if = None
     
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
@@ -1587,7 +1587,73 @@ class AiDetectorIF:
             #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
 
 
+    def cleanBoxes(self,detect_dict_list):
+        size_dict = dict()
+        detect_dict = dict()
+        sorted_dict = dict()
+        center_dict = dict()
+        clean_dict = dict()
+        clean_boxes = []
+        for class_name in self.classes:
+            size_dict[class_name] = []
+            detect_dict[class_name] = []
+            sorted_dict[class_name] = []
+            center_dict[class_name] = []
+            clean_dict[class_name] = []
+        for det in detect_dict_list:
+            class_name = det['name']
+            xmin = det['xmin']
+            ymin = det['ymin']
+            xmax = det['xmax']
+            ymax = det['ymax']
+            xysize = (xmax - xmin) * (ymax - ymin)
+            size_dict[class_name].append(xysize)
+            detect_dict[class_name].append(det)
+        for class_name in size_dict.keys():
+            size_list = size_dict[class_name]
+            list_tmp = size_list.copy()
+            list_sorted = size_list.copy()
+            list_sorted.sort()
+
+            list_index = []
+            for x in list_sorted:
+                list_index.insert(0,list_tmp.index(x))
+                list_tmp[list_tmp.index(x)] = -1
+            for ind in list_index:
+                sorted_dict[class_name].append(detect_dict[class_name][ind])
+        for class_name in sorted_dict.keys():
+            for det in sorted_dict[class_name]:
+                xmin = det['xmin']
+                ymin = det['ymin']
+                xmax = det['xmax']
+                ymax = det['ymax']
+                xcent = xmin + (xmax - xmin)/2
+                ycent = ymin + (ymax - ymin)/2
+                best = True
+                for bdet in clean_dict[class_name]:
+                    bxmin = bdet['xmin']
+                    bymin = bdet['ymin']
+                    bxmax = bdet['xmax']
+                    bymax = bdet['ymax']
+                    if (xcent > bxmin and xcent < bxmax) and (ycent > bymin and ycent < bymax):
+                        best = False
+                if best == True:
+                    clean_dict[class_name].append(det)
+        for class_name in clean_dict.keys():
+            for det in clean_dict[class_name]:
+                clean_boxes.append(det)
+        
+        return clean_boxes
+
+            
+           
+        
+
+            
+
+
     def publishDetectionData(self, img_topic, img_dict, detect_dict_list):
+        detect_dict_list = self.cleanBoxes(detect_dict_list)
         #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
         det_count = len(detect_dict_list)
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
@@ -1632,9 +1698,10 @@ class AiDetectorIF:
             self.publishDetMsg(img_topic,'bounding_boxes',bbs_msg)
     
             if det_count > 0:
-                trigger_dict = self.triggers_dict['detection_trigger']
-                trigger_dict['time']=nepi_utils.get_time()
-                self.triggers_if.publish_trigger(trigger_dict)
+                if 'detection_trigger' in self.triggers_dict.keys():
+                    trigger_dict = self.triggers_dict['detection_trigger']
+                    trigger_dict['time']=nepi_utils.get_time()
+                    self.triggers_if.publish_trigger(trigger_dict)
 
                 self.detection_state = True
              
@@ -1642,7 +1709,7 @@ class AiDetectorIF:
             # Save Bounding Data if needed
             image_text = img_topic.replace(self.base_namespace,"")
             image_text = image_text.replace('/','_')
-            if len(detect_dict_list) > 0:
+            if len(detect_dict_list) > 0 and self.save_data_if is not None:
                 data_product = 'bounding_boxes'
                 bbs_dict = nepi_ais.get_boxes_info_from_msg(bbs_msg)
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
