@@ -1733,6 +1733,9 @@ class BaseImageIF:
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
+    dm_topic = ""
+    pc_topic = ""
+
     caps_dict = DEFAULT_CAPS_DICT
     controls_dict = DEFAULT_CONTROLS_DICT
     init_controls_dict = controls_dict
@@ -1867,16 +1870,16 @@ class BaseImageIF:
         self.caps_report.enhance_options = self.enhance_options
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
-        dm_topic = nepi_sdk.find_topic(dm_ns)
-        has_dm = dm_topic != ""
+        self.dm_topic = nepi_sdk.find_topic(dm_ns)
+        has_dm = self.dm_topic != ""
         pc_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        pc_topic = nepi_sdk.find_topic(pc_ns)
-        has_pc = pc_topic != ""
+        self.pc_topic = nepi_sdk.find_topic(pc_ns)
+        has_pc = self.pc_topic != ""
 
         self.caps_report.has_depth_map = has_dm
-        self.caps_report.depth_map_topic = dm_topic
+        self.caps_report.depth_map_topic = self.dm_topic
         self.caps_report.has_pointcloud = has_pc
-        self.caps_report.pointcloud_topic = pc_topic
+        self.caps_report.pointcloud_topic = self.pc_topic
 
 
 
@@ -2933,6 +2936,8 @@ class BaseImageIF:
             self.status_msg.window_ratios.y_max = self.controls_dict['window_ratios'][3]
             self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
             self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
+            self.status_msg.depth_map_topic = self.dm_topic
+            self.status_msg.pointcloud_topic = self.pc_topic
 
             enhance_options = []
             enhance_states = []

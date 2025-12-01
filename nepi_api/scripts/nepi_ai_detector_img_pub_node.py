@@ -26,6 +26,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_targets
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
@@ -106,7 +107,7 @@ class AiDetectorImgPub:
     IMG_DATA_PRODUCT = 'detection_image'
 
     det_sub_names = ['bounding_boxes']
-
+    
     node_if = None
 
 
@@ -190,6 +191,7 @@ class AiDetectorImgPub:
 
         self.pub_image_enabled = True
         self.overlay_labels = True
+        self.overlay_range_bearing = True
         self.overlay_clf_name = False
         self.overlay_img_name = False
 
@@ -487,6 +489,7 @@ class AiDetectorImgPub:
         img_info_dict['last_img_time'] = 0
         img_info_dict['last_det_time'] = 0
         img_info_dict['det_dict_list'] = []   
+        img_info_dict['loc_dict_list'] = []
 
         self.imgs_info_lock.acquire()
         self.imgs_info_dict[img_topic] = img_info_dict
@@ -603,6 +606,11 @@ class AiDetectorImgPub:
                             #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                             if det_dict_list == None:
                                 det_dict_list = []
+                                
+                            loc_dict_list = copy.deepcopy(self.imgs_info_dict[img_topic]['loc_dict_list'])
+                            #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
+                            if loc_dict_list == None:
+                                loc_dict_list = []
                             
                             if self.use_last_image == False:
                                 # process image for next time
@@ -619,6 +627,7 @@ class AiDetectorImgPub:
                                 success = self.processDetImage(img_topic, 
                                                             use_cv2_img, 
                                                             det_dict_list, 
+                                                            loc_dict_list,
                                                             timestamp = timestamp, 
                                                             frame_3d = ros_frame_id, 
                                                             navpose_dict = navpose_dict)
@@ -641,7 +650,7 @@ class AiDetectorImgPub:
                                 self.cv2_img_lock.release()
                                 #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
 
-    def processFileImg(self, img_file,det_dict_list):   
+    def processFileImg(self, img_file,det_dict_list,loc_dict_list):   
         if self.img_if is not None:
             needs_save = False
             if self.save_data_if is not None:
@@ -683,11 +692,13 @@ class AiDetectorImgPub:
                                 
                                 #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                                 if det_dict_list == None:
-                                    det_dict_list = []                
+                                    det_dict_list = []   
+                                    loc_dict_list = []             
                             
                                 success = self.processDetImage(img_topic, 
                                                             cv2_img, 
                                                             det_dict_list, 
+                                                            loc_dict_list,
                                                             timestamp = get_msg_stampstamp, 
                                                             frame_3d = ros_frame_id, 
                                                             navpose_dict = navpose_dict)
@@ -703,13 +714,13 @@ class AiDetectorImgPub:
                            
 
 
-    def processDetImage(self,img_topic, cv2_img, detect_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
+    def processDetImage(self,img_topic, cv2_img, detect_dict_list, loc_dict_list, timestamp = None, frame_3d = 'nepi_base',navpose_dict = None):
       
         # Post process image with overlays
         if detect_dict_list is not None:
             # Publish image first for consumers
             #self.msg_if.pub_warn("Starting detect image: " + str(cv2_img.shape))
-            cv2_img = self.apply_detection_overlay(img_topic, detect_dict_list, cv2_img)
+            cv2_img = self.apply_detection_overlay(img_topic, detect_dict_list, loc_dict_list, cv2_img)
             #self.msg_if.pub_warn("Return detect image: " + str(cv2_img.shape)
 
             add_overlay_list = []
@@ -734,18 +745,18 @@ class AiDetectorImgPub:
         return True
 
 
-    def apply_detection_overlay(self,img_topic, detect_dict_list, cv2_img):
+    def apply_detection_overlay(self,img_topic, detect_dict_list, loc_dict_list, cv2_img):
         cv2_det_img = copy.deepcopy(cv2_img)
         cv2_shape = cv2_img.shape
         img_width = cv2_shape[1] 
         img_height = cv2_shape[0] 
 
-        for detect_dict in detect_dict_list:
+        for i, detect_dict in enumerate(detect_dict_list):
             img_size = cv2_img.shape[:2]
 
             # Overlay text data on OpenCV image
             font = cv2.FONT_HERSHEY_DUPLEX
-            scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/500)
+            scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/700)
             fontScale, fontThickness  = nepi_img.optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
             fontColor = (255, 255, 255)
             fontColorBk = (0,0,0)
@@ -796,19 +807,40 @@ class AiDetectorImgPub:
             if success == True:
 
 
-                ## Overlay Labels
+                ## Overlay Text
                 overlay_labels =  self.overlay_labels
+                overlay_range_bearing =  self.overlay_range_bearing
+
+                overlay_text = ""
+
                 if overlay_labels:
-                    text2overlay=class_name
+                    overlay_text = overlay_text + class_name + " "
+                if overlay_range_bearing:
+                    rb_text = ''
+                    if len(loc_dict_list) > i:
+                        loc_dict = loc_dict_list[i]
+                        if loc_dict['range_m'] != -999 and loc_dict['range_m'] != '':
+                            rb_text = rb_text + str(round(loc_dict['range_m'],1)) + 'm :'
+                        if loc_dict['azimuth_deg'] != -999 and loc_dict['elevation_deg'] != -999:
+                            rb_text = rb_text + str(round(loc_dict['azimuth_deg'],1)) + 'deg '
+                            rb_text = rb_text + str(round(loc_dict['elevation_deg'],1)) + 'deg '
+                    if len(rb_text) > 0:
+                        overlay_text = overlay_text + rb_text
+
+
+
+                if len(overlay_text) > 0:
+                    text2overlay=overlay_text
                     text_size = cv2.getTextSize(text2overlay, 
                         font, 
                         fontScale,
-                        fontThickness) 
+                        fontThickness)
                     #self.msg_if.pub_warn("Text Size: " + str(text_size))
                     line_height = text_size[0][1]
                     line_width = text_size[0][0]
                     x_padding = int(line_height*0.4)
                     y_padding = int(line_height*0.4)
+                    
                     center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
                     #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
                     bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
@@ -855,8 +887,17 @@ class AiDetectorImgPub:
         img_topic = msg.image_topic
         current_time = nepi_utils.get_time()
         blist = nepi_ais.get_boxes_list_from_msg(msg)
+        llist = []
+        l_msg_list = msg.localizations
+        for l_msg in l_msg_list:
+            l_dict = dict()
+            l_dict['range_m'] = l_msg.range_m
+            l_dict['azimuth_deg'] = l_msg.azimuth_deg
+            l_dict['elevation_deg'] = l_msg.elevation_deg
+            llist.append(l_dict)
         if img_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[img_topic]['det_dict_list'] = blist
+            self.imgs_info_dict[img_topic]['loc_dict_list'] = llist
             self.imgs_info_dict[img_topic]['img_stamp'] = img_stamp      
             self.imgs_info_dict[img_topic]['last_det_time'] = current_time
         else:
@@ -892,6 +933,7 @@ class AiDetectorImgPub:
 
         self.pub_image_enabled = self.status_msg.pub_image_enabled
         self.overlay_labels = self.status_msg.overlay_labels
+        self.overlay_range_bearing = self.status_msg.overlay_range_bearing
         self.overlay_clf_name = self.status_msg.overlay_clf_name
         self.overlay_img_name = self.status_msg.overlay_img_name
         last_sel_imgs = copy.deepcopy(self.selected_img_topics)

@@ -18,6 +18,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_targets
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nav_msgs.msg import Odometry
@@ -50,6 +51,14 @@ class PTXActuatorIF:
 
     AUTO_SCAN_SWITCH_DEG = 5 # If angle withing this bound, switch dir
     AUTO_SCAN_UPDATE_INTERVAL = .5
+
+    TRACK_MAX_UPDATE_RATE = 1
+    TRACK_EXIT_FUNCTION = 'HOME'
+    TRACK_DEFAULT_TARGETS = ['boat','person']
+
+    TRACK_FILTER_OPTIONS = nepi_targets.TARGET_FILTER_OPTIONS
+    TRACK_DEFAULT_FILTERS = ['SMALLEST','LARGEST']
+
 
     orientation_dict = {
         'time_orientation': nepi_utils.get_time(),
