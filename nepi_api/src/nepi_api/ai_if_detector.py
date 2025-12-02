@@ -1872,12 +1872,16 @@ class AiDetectorIF:
             targets_msg.has_3d_data = False
             targets_msg.has_range_data = True
             targets_msg.has_bearing_data = True
-            if len(navpose_dict.keys()) == 0:
-                targets_msg.has_nav_data = False
-                targets_msg.has_pose_data = False
-            else:
-                targets_msg.has_nav_data = True
-                targets_msg.has_pose_data = True
+
+            targets_msg.has_nav_data = True
+            targets_msg.has_pose_data = True
+            try:
+                if len(navpose_dict.keys()) == 0:
+                    targets_msg.has_nav_data = False
+                    targets_msg.has_pose_data = False
+            except:
+                pass
+
 
             targets_msg.has_color_data = False
             targets_msg.has_countour_data = False

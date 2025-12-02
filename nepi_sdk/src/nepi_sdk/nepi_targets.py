@@ -187,75 +187,76 @@ def get_targeting_source_publisher_namespaces():
     return namespaces 
 
 
-def filter_targets_list(targets_list, ordered_targets_list = [], target_filter = 'LARGEST'):
-   filtered_target = None
-   for i, target in enumerate(targets_list):
-        size_dict = dict()
-        target_dict = dict()
-        sorted_dict = dict()
-        center_dict = dict()
-        best_dict = dict()
-        best_target = None
-        for target_name in self.classes:
-            size_dict[target_name] = []
-            target_dict[target_name] = []
-            sorted_dict[target_name] = []
-            center_dict[target_name] = []
-            best_dict[target_name] = None
-        for target in target_dict_list:
-            target_name = target['target_name']
-            target_size = target['area_ratio']
-            size_dict[target_name].append(target_size)
-            target_dict[target_name].append(target)
-        for target_name in size_dict.keys():
-            size_list = size_dict[target_name]
-            list_tmp = size_list.copy()
-            list_sorted = size_list.copy()
-            list_sorted.sort()
+def filter_targets_list(targets_dict_list, ordered_targets_list = [], target_filter = 'LARGEST'):
+    #print(targets_dict_list)
+    filtered_target = None
+    size_dict = dict()
+    target_dict = dict()
+    sorted_dict = dict()
+    center_dict = dict()
+    filtered_dict = dict()
+    filtered_target = None
+    for target in targets_dict_list:
+        target_name = target['target_name']
+        size_dict[target_name] = []
+        sorted_dict[target_name] = []
+        center_dict[target_name] = []
+        target_dict[target_name] = [] 
+        filtered_dict[target_name] = None
+    for target in targets_dict_list:
+        target_name = target['target_name']
+        target_size = target['area_ratio']
+        target_dict[target_name].append(target)
+        size_dict[target_name].append(target_size)
+    for target_name in size_dict.keys():
+        size_list = size_dict[target_name]
+        list_tmp = size_list.copy()
+        list_sorted = size_list.copy()
+        list_sorted.sort()
 
-            list_index = []
-            for x in list_sorted:
-                list_index.insert(0,list_tmp.index(x))
-                list_tmp[list_tmp.index(x)] = -1
-            for ind in list_index:
-                sorted_dict[target_name].append(target_dict[target_name][ind])
-        for target_name in sorted_dict.keys():
-            for target in sorted_dict[target_name]:
-                tsize = target['area_ratio']
-                best = True
-                btarget = best_dict[target_name]
-                if btarget is not None:
-                    bsize = btarget['area_ratio']
-                    if target_filter == 'LARGEST' and tsize < bsize:
-                        best = False
-                    elif target_filter == 'SMALLEST' and tsize > bsize:
-                       best = False
-                if best == True:
-                    best_dict[target_name] = target
-        for target_name in best_dict.keys():
-            if len(ordered_targets_list) > 0:
-                if target_name in ordered_targets_list:
-                    tindex = ordered_targets_list.index(target_name)
-                    if best_target is None:
-                        best_target = best_dict[target_name]
-                    else:
-                        btarget_name = best_target['target_name']
-                        if btarget_name in ordered_targets_list:
-                            bindex = ordered_targets_list.index(btarget_name)
-                            if tindex < bindex:
-                                best_target = best_dict[target_name]
-            else:
-                if best_target is None:
-                    best_target = best_dict[target_name]
+        list_index = []
+        for x in list_sorted:
+            list_index.insert(0,list_tmp.index(x))
+            list_tmp[list_tmp.index(x)] = -1
+        for ind in list_index:
+            sorted_dict[target_name].append(target_dict[target_name][ind])
+    for target_name in sorted_dict.keys():
+        for target in sorted_dict[target_name]:
+            tsize = target['area_ratio']
+            best = True
+            btarget = filtered_dict[target_name]
+            if btarget is not None:
+                bsize = btarget['area_ratio']
+                if target_filter == 'LARGEST' and tsize < bsize:
+                    best = False
+                elif target_filter == 'SMALLEST' and tsize > bsize:
+                    best = False
+            if best == True:
+                filtered_dict[target_name] = target
+    for target_name in filtered_dict.keys():
+        if len(ordered_targets_list) > 0:
+            if target_name in ordered_targets_list:
+                tindex = ordered_targets_list.index(target_name)
+                if filtered_target is None:
+                    filtered_target = filtered_dict[target_name]
                 else:
-                    tsize = best_dict[target_name]['area_ratio']
-                    bsize = best_dict[target_name]['area_ratio']
-                    if target_filter == 'LARGEST' and tsize > bsize:
-                        best_dict[target_name]
-                    elif target_filter == 'SMALLEST' and tsize < bsize:
-                        best_dict[target_name]
-                
-        return best_target
+                    btarget_name = filtered_target['target_name']
+                    if btarget_name in ordered_targets_list:
+                        bindex = ordered_targets_list.index(btarget_name)
+                        if tindex < bindex:
+                            filtered_target = filtered_dict[target_name]
+        else:
+            if filtered_target is None:
+                filtered_target = filtered_dict[target_name]
+            else:
+                tsize = filtered_dict[target_name]['area_ratio']
+                bsize = filtered_dict[target_name]['area_ratio']
+                if target_filter == 'LARGEST' and tsize > bsize:
+                    filtered_dict[target_name]
+                elif target_filter == 'SMALLEST' and tsize < bsize:
+                    filtered_dict[target_name]
+            
+        return filtered_target
             
 
    
