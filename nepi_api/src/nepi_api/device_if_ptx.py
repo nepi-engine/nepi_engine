@@ -203,6 +203,7 @@ class PTXActuatorIF:
     track_max_update_rate = TRACK_MAX_UPDATE_RATE
     track_filter = TRACK_DEFAULT_FILTER
     track_source_topic = TRACK_DEFAULT_SOURCE
+    track_source_connected_namespace = "None"
     track_source_connected = False
     track_source_connecting = False
 
@@ -2098,13 +2099,15 @@ class PTXActuatorIF:
 
     def connectTrackSourceCb(self,timer):
         track_namespace = copy.deepcopy(self.track_source_namespace)
-        if track_namespace != 'None' and self.track_source_connecting == False:
-            self.track_source_connecting == True
+        if track_namespace != self.track_source_connected_namespace  and self.track_source_connecting == False:
             if self.track_if is not None:
                 self.track_if = None
                 nepi_sdk.sleep(1)
-                self.track_source_connected == False
-            if nepi_sdk.find_topic(track_namespace) != "":                  
+            self.track_source_connected == False
+            #self.msg_if.pub_warn("set_track_source connected False")
+            if nepi_sdk.find_topic(track_namespace) != "": 
+
+                self.track_source_connecting = True                 
                 self.track_if = nepi_sdk.create_subscriber(track_namespace, Targets, self.targetsCb, queue_size = 1, callback_args= (track_namespace), log_name_list = [])
         
         nepi_sdk.start_timer_process(1, self.connectTrackSourceCb, oneshot = True)
@@ -2114,6 +2117,8 @@ class PTXActuatorIF:
     def targetsCb(self,msg, args):
         target_namespace = args
         self.track_source_connected == True
+        #self.msg_if.pub_warn("set_track_source connected True")
+        self.track_source_connected_namespace = self.track_source_namespace
         self.track_source_connecting == False
         self.last_track_msg = nepi_utils.get_time()
         targets_dict_list = []
