@@ -54,10 +54,11 @@ class PTXActuatorIF:
 
     TRACK_MAX_UPDATE_RATE = 1
     TRACK_EXIT_FUNCTION = 'HOME'
-    TRACK_DEFAULT_TARGETS = ['boat','person']
+    TRACK_DEFAULT_TARGETS = ['boat','person','bottle']
 
     TRACK_FILTER_OPTIONS = nepi_targets.TARGET_FILTER_OPTIONS
     TRACK_DEFAULT_FILTER = 'LARGEST'
+    TRACK_MIN_ERROR_DEG = 5
     TRACK_DEFAULT_SOURCE = 'targets'
 
 
@@ -202,6 +203,7 @@ class PTXActuatorIF:
     track_ordered_list = TRACK_DEFAULT_TARGETS
     track_max_update_rate = TRACK_MAX_UPDATE_RATE
     track_filter = TRACK_DEFAULT_FILTER
+    track_min_error_deg = TRACK_MIN_ERROR_DEG
     track_source_topic = TRACK_DEFAULT_SOURCE
     track_source_connected_namespace = "None"
     track_source_connected = False
@@ -1281,8 +1283,9 @@ class PTXActuatorIF:
                 self.auto_pan_enabled = False
             pan_cur = self.current_position[0]
             pan_error = self.track_dict['azimuth_deg']
-            pan_to_goal = pan_cur + pan_error /2
-            self.gotoPanPosition(pan_to_goal)
+            if pan_error > self.track_min_error_deg:
+                pan_to_goal = pan_cur + pan_error # /2
+                self.gotoPanPosition(pan_to_goal)
      
     def trackTiltProcess(self,timer):
         if self.track_tilt_enabled == True and self.track_source_connected == True and self.track_dict is not None:
@@ -1290,8 +1293,9 @@ class PTXActuatorIF:
                 self.auto_tilt_enabled = False
             tilt_cur = self.current_position[0]
             tilt_error = self.track_dict['elevation_deg']
-            tilt_to_goal = tilt_cur + tilt_error /2
-            self.gotoTiltPosition(tilt_to_goal)
+            if tilt_error > self.track_min_error_deg:
+                tilt_to_goal = tilt_cur + tilt_error # /2
+                self.gotoTiltPosition(tilt_to_goal)
 
 
     def check_ready(self):
@@ -1647,9 +1651,9 @@ class PTXActuatorIF:
     def setAutoPan(self,enabled):
         self.auto_pan_enabled = enabled
         self.publish_status()
-        if enabled == False and self.auto_tilt_enabled == False and self.setSpeedRatioCb is not None:
-            self.msg_if.pub_info("1")
-            self.setSpeedRatioCb(self.speed_ratio)
+        # if enabled == False and self.auto_tilt_enabled == False and self.setSpeedRatioCb is not None:
+        #     self.msg_if.pub_info("1")
+        #     self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('auto_pan_enabled', enabled)
 
 
@@ -1719,9 +1723,9 @@ class PTXActuatorIF:
     def setAutoTilt(self,enabled):
         self.auto_tilt_enabled = enabled
         self.publish_status()
-        if enabled == False and self.auto_pan_enabled == False and self.setSpeedRatioCb is not None:
-            self.msg_if.pub_info("3")
-            self.setSpeedRatioCb(self.speed_ratio)
+        # if enabled == False and self.auto_pan_enabled == False and self.setSpeedRatioCb is not None:
+        #     self.msg_if.pub_info("3")
+        #     self.setSpeedRatioCb(self.speed_ratio)
         self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
 
 

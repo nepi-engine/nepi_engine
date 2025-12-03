@@ -25,6 +25,8 @@ if [[ "$nepi_count" -gt 1 ]]; then
 else
 
 
+	#####################################
+
 	ros_log_path=/mnt/nepi_storage/logs/ros_log
 	if [[ -d "$ros_log_path" ]]; then
 		echo "Clearing old logs in: ${ros_log_path}"
@@ -48,6 +50,13 @@ else
 	}
 
 
+	#####################################
+
+	script_file=nepi_system_sync.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path
+
+
 	echo ""
 	echo "Loading Updated NEPI System Config"
 	source ${ETC_FOLDER}/load_system_config.sh
@@ -58,18 +67,15 @@ else
 
 	LOAD_CONFIG=0
 
-		
-	script_file=sync_to_sys_config.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
-
 	script_file=update_sys_config.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
-	script_file=sync_from_configs.sh
+
+	script_file=update_sys_bash.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
+
 
 	script_file=update_etc_users.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
@@ -79,6 +85,8 @@ else
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
+	#########################################
+
 	echo "Running NEPI Setup Script"
 	source /opt/nepi/nepi_engine/setup.sh
 	if [[ "$?" -ne 0 ]]; then
@@ -86,32 +94,10 @@ else
 		return 1
 	fi
 
-	echo ""
-	echo "Loading Updated NEPI System Config"
-	source ${ETC_FOLDER}/load_system_config.sh
-	if [[ "$?" -ne 0 ]]; then
-		echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
-		return 1
-	fi
-	LOAD_CONFIG=0
-
-	script_file=update_sys_config.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path 
-
-
-
-	script_file=update_sys_bash.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path
-
-
 	if [ ! -f ${SYS_BASH_FILE} ]; then
 		echo "ERROR! Could not find ${SYS_BASH_FILE}"
 		return 1
 	fi
-
-
 
 	echo ""
 	echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
@@ -136,6 +122,8 @@ else
 	# # Check for and restore any broken config files, since that will cause roslaunch to fail
 	# echo "Running pre-launch config file checks"
 	# python /opt/nepi/nepi_engine/etc/nepi_env/fix_broken_cfg_file_links.py
+
+	########################
 
 	echo "Running roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
 	roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}

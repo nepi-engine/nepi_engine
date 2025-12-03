@@ -254,7 +254,7 @@ def read_sh_variables(filepath):
             line = line.strip()
             if '=' in line and not line.startswith('#'):  # Basic check for variable assignment
                 key, value = line.split('=', 1)
-                variables[key.strip()] = value.strip().strip('"\'') # Remove quotes
+                variables[key.strip()] = value.strip().strip('"\'') # Remove quotes_l
     return variables
 
 
@@ -287,13 +287,14 @@ def get_file_list(search_path,ext_str="",ext_strs=[]):
     f_path = os.path.join(search_path,f)
     if os.path.isfile(f_path):
         ext = os.path.splitext(f)[1]
-        if ext[0] == '.':
-            ext = ext[1:]
-        if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
-            #logger.log_warn('Found image file')
-            count = count + 1
-            file = (search_path + '/' + f)
-            file_list.append(file)
+        if len(ext)>1:
+            if ext[0] == '.':
+                ext = ext[1:]
+            if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
+                #logger.log_warn('Found image file')
+                count = count + 1
+                file = (search_path + '/' + f)
+                file_list.append(file)
   return file_list, count
 
 def get_file_count(search_path,ext_str="",ext_strs=[]):
@@ -303,11 +304,13 @@ def get_file_count(search_path,ext_str="",ext_strs=[]):
         f_path = os.path.join(search_path,f)
         if os.path.isfile(f_path):
             ext = os.path.splitext(f)[1]
+        if len(ext)>1:
             if ext[0] == '.':
-               ext = ext[1:]
+                ext = ext[1:]
             if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
                 #logger.log_warn('Found image file')
                 count = count + 1
+
   return count
 
 def check_make_folder(pathname):
