@@ -1282,10 +1282,13 @@ class PTXActuatorIF:
             if self.auto_pan_enabled == True:
                 self.auto_pan_enabled = False
             pan_cur = self.current_position[0]
-            pan_error = self.track_dict['azimuth_deg']
-            if pan_error > self.track_min_error_deg:
-                pan_to_goal = pan_cur + pan_error # /2
-                self.gotoPanPosition(pan_to_goal)
+            if self.track_dict is not None:
+                pan_error = self.track_dict['azimuth_deg']
+                if abs(pan_error) > self.track_min_error_deg:
+                    pan_to_goal = pan_cur + pan_error # /2
+                    self.gotoPanPosition(pan_to_goal)
+            else:
+                self.gotoPanPosition(0.0)
      
     def trackTiltProcess(self,timer):
         if self.track_tilt_enabled == True and self.track_source_connected == True and self.track_dict is not None:
@@ -1293,9 +1296,12 @@ class PTXActuatorIF:
                 self.auto_tilt_enabled = False
             tilt_cur = self.current_position[0]
             tilt_error = self.track_dict['elevation_deg']
-            if tilt_error > self.track_min_error_deg:
-                tilt_to_goal = tilt_cur + tilt_error # /2
-                self.gotoTiltPosition(tilt_to_goal)
+            if abs(self.track_dict) is not None:
+                if tilt_error > self.track_min_error_deg:
+                    tilt_to_goal = tilt_cur + tilt_error # /2
+                    self.gotoTiltPosition(tilt_to_goal)
+            else:
+                self.gotoPanPosition(0.0)
 
 
     def check_ready(self):
@@ -2035,12 +2041,14 @@ class PTXActuatorIF:
         self.last_track_msg = nepi_utils.get_time()
         targets_dict_list = []
         targets_msg = msg.targets
-
+        track_dict = None
         for target_msg in targets_msg:
-            target_dict = nepi_targets.convert_target_msg2dict(target_msg)
-            targets_dict_list.append(target_dict)
-        
-        track_dict = nepi_targets.filter_targets_list(targets_dict_list,self.track_ordered_list,self.track_filter)
+            if target_msg.target_name in self.track_ordered_list:
+                target_dict = nepi_targets.convert_target_msg2dict(target_msg)
+                targets_dict_list.append(target_dict)
+
+        if len(targets_dict_list) > 1:
+            track_dict = nepi_targets.filter_targets_list(targets_dict_list,self.track_ordered_list,self.track_filter)
         #self.msg_if.pub_warn("Got track dict " + str(track_dict))
         self.track_dict = copy.deepcopy(track_dict)
 
