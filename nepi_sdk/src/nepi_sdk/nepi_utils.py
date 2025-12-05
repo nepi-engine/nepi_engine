@@ -286,15 +286,17 @@ def get_file_list(search_path,ext_str="",ext_strs=[]):
   for f in os.listdir(search_path):
     f_path = os.path.join(search_path,f)
     if os.path.isfile(f_path):
-        ext = os.path.splitext(f)[1]
-        if len(ext)>1:
-            if ext[0] == '.':
-                ext = ext[1:]
-            if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
-                #logger.log_warn('Found image file')
-                count = count + 1
-                file = (search_path + '/' + f)
-                file_list.append(file)
+        split = os.path.splitext(f)
+        if len(split) > 1:
+            ext = split[1]
+            if len(ext)>1:
+                if ext[0] == '.':
+                    ext = ext[1:]
+                if (ext_str != "" and f.endswith(ext_str)) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
+                    #logger.log_warn('Found image file')
+                    count = count + 1
+                    file = (search_path + '/' + f)
+                    file_list.append(file)
   return file_list, count
 
 def get_file_count(search_path,ext_str="",ext_strs=[]):
@@ -303,13 +305,15 @@ def get_file_count(search_path,ext_str="",ext_strs=[]):
     for f in os.listdir(search_path):
         f_path = os.path.join(search_path,f)
         if os.path.isfile(f_path):
-            ext = os.path.splitext(f)[1]
-        if len(ext)>1:
-            if ext[0] == '.':
-                ext = ext[1:]
-            if f.endswith(ext_str) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
-                #logger.log_warn('Found image file')
-                count = count + 1
+            split = os.path.splitext(f)
+            if len(split) > 1:
+                ext = split[1]
+                if len(ext)>1:
+                    if ext[0] == '.':
+                        ext = ext[1:]
+                    if (ext_str != "" and f.endswith(ext_str)) or (ext in ext_strs) or (ext_str == "" and len(ext_strs) == 0):
+                        #logger.log_warn('Found image file')
+                        count = count + 1
 
   return count
 
