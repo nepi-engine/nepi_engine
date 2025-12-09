@@ -42,8 +42,6 @@ USER_CFG_SUFFIX = '.user'
 
 CHRONY_CFG_BASENAME = '/opt/nepi/etc/chrony/chrony.conf'
 CHRONY_CFG_FACTORY = '/mnt/nepi_config/factory_cfg/etc/chrony/chrony.conf'
-CHRONY_SYSTEMD_SERVICE_NAME = 'chrony.service'
-CHRONY_SUPERVISER_SERVICE_NAME = 'nepi_time'
 
 FACTORY_TIMEZONE = 'UTC'
 
@@ -254,7 +252,7 @@ class time_sync_mgr(object):
             init_from_rtc = self.node_if.get_param("init_time_from_rtc")
             if init_from_rtc is True:
                 self.msg_if.pub_info("Initializing system clock from hardware clock")
-                subprocess.call(['hwclock', '-s'])
+                subprocess.call(['sudo','hwclock', '-s'])
                 self.informClockUpdate() 
 
             # Set up a periodic timer to check for NTP sync so we can inform the rest of the system when first sync detected
@@ -312,7 +310,7 @@ class time_sync_mgr(object):
         else:    
             try:
                 # Check for the chronyd process using 'pgrep'
-                subprocess.check_output(["pgrep", "chronyd"])
+                subprocess.check_output(['sudo',"pgrep", "chronyd"])
                 return True
             except subprocess.CalledProcessError:
                 # pgrep returns a non-zero exit code if the process is not found
@@ -384,7 +382,7 @@ class time_sync_mgr(object):
         #pps_exists = os.path.isfile('/sys/class/pps/pps0/assert')
         pps_exists = False # Hard code if for now, since Jetson isn't defining /sys/class/pps -- we may never actually use PPS
         if pps_exists:
-            pps_string = subprocess.check_output(["cat", "/sys/class/pps/pps0/assert"], text=True)
+            pps_string = subprocess.check_output(['sudo',"cat", "/sys/class/pps/pps0/assert"], text=True)
             pps_tokens = pps_string.split('#')
             if (len(pps_tokens) >= 2):
                 self.status_msg.last_pps = float(pps_string.split('#')[0])
@@ -416,7 +414,7 @@ class time_sync_mgr(object):
     def gather_ntp_status(self):
         ntp_status = [] # List of lists
         try:
-            chronyc_sources = subprocess.check_output(["chronyc", "sources"], text=True).splitlines()
+            chronyc_sources = subprocess.check_output(['sudo',"chronyc", "sources"], text=True).splitlines()
             #self.msg_if.pub_warn("Chrony returned status: " + str(chronyc_sources))
         except Exception as e:
             #self.msg_if.pub_warn("Failed to get Chrony status: " + str(e))
@@ -437,7 +435,7 @@ class time_sync_mgr(object):
 
                     # Update the RTC with this "better" clock source
                     self.msg_if.pub_info("Updating hardware clock with NTP time")
-                    subprocess.call(['hwclock', '-w'])
+                    subprocess.call(['sudo','hwclock', '-w'])
 
         return ntp_status
 
@@ -450,7 +448,7 @@ class time_sync_mgr(object):
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
             timestring = '@' + str(float(msg.secs) + (float(msg.nsecs) / float(1e9)))
             try:
-                subprocess.call(["date", "-s", timestring])
+                subprocess.call(["sudo","date", "-s", timestring])
                 self.last_set_time = float(msg.secs) + float(msg.nsecs)/1000000000
                 new_date = subprocess.check_output(["date"], text=True)
                 self.msg_if.pub_info("Updated date: " + str(new_date))
@@ -467,7 +465,7 @@ class time_sync_mgr(object):
         if self.manages_time == True:
             # Update the hardware clock from this "better" clock source; helps with RTC drift
             self.msg_if.pub_info("Updating hardware clock from set_time value")
-            subprocess.call(['hwclock', '-w'])
+            subprocess.call(['sudo','hwclock', '-w'])
 
         # And tell the rest of the system
         #self.informClockUpdate()
@@ -486,11 +484,11 @@ class time_sync_mgr(object):
                 self.msg_if.pub_warn("Failed to update timezone: " + str(e))
                 tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzname()
                 self.timezone = nepi_utils.get_timezone_description(tz)
-            if self.manages_time == True:
-                try:
-                    subprocess.call(["timedatectl", "set-timezone", self.timezone])
-                except:
-                    pass
+            # if self.manages_time == True:
+            #     try:
+            #         subprocess.call(['sudo',"timedatectl", "set-timezone", self.timezone])
+            #     except:
+            #         pass
             nepi_system.set_timezone(self.timezone)
             self.publish_status()
             if self.node_if is not None:
