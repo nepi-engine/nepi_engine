@@ -1630,6 +1630,9 @@ EXAMPLE_CAPS_DICT = dict(
         has_contrast = False,
         has_brightness = False,
         has_threshold = False,
+        has_rotate_2d = False,
+        has_flip_horz = False,
+        has_flip_vert = False,
         has_range = False,
         has_zoom = False,
         has_pan = False,
@@ -1638,11 +1641,12 @@ EXAMPLE_CAPS_DICT = dict(
         has_tilt_3d = False
     )
 
-EXAMPLE_ENHANCEMENTS_DICT = dict(
-    low_light = {
-        'enabled': False,
-        'ratio': 0.0
-    }
+EXAMPLE_FILTERS_DICT = dict(
+    # Low_Light = {
+    #     'enabled': False,
+    #     'function': nepi_img.low_light_filter,
+    #     'ratio': 0.5
+    # }
 )
 
 EXAMPLE_CONTROLS_DICT = dict( 
@@ -1678,8 +1682,9 @@ class BaseImageIF:
         has_contrast = False,
         has_brightness = False,
         has_threshold = False,
-        has_flip_2d = False,
         has_rotate_2d = False,
+        has_flip_horz = False,
+        has_flip_vert = False,
         has_range = False,
         has_zoom = False,
         has_pan = False,
@@ -1688,7 +1693,7 @@ class BaseImageIF:
         has_tilt_3d = False
         )
 
-    DEFAULT_ENHANCEMENTS_DICT = dict()
+    DEFAULT_FILTERS_DICT = dict()
 
     #Default Control Values 
     DEFAULT_CONTROLS_DICT = dict( 
@@ -1698,8 +1703,9 @@ class BaseImageIF:
         brightness_ratio = 0.5,
         contrast_ratio =  0.5,
         threshold_ratio =  0.0,
-        flip_2d = False,
-        rotation_2d_deg = 0,
+        rotate_2d_deg = 0,
+        flip_horz = False,
+        flip_vert = False,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
         zoom_ratio = 0.5, 
@@ -1757,10 +1763,10 @@ class BaseImageIF:
 
 
     auto_adjust_controls = []
-    enhance_dict = dict()
-    has_enhance = False
-    enhance_options = []
-    sel_enhances = []
+    filter_dict = dict()
+    has_filter = False
+    filter_options = []
+    sel_filters = []
 
 
     data_source_description = 'imaging_sensor'
@@ -1786,7 +1792,7 @@ class BaseImageIF:
                 perspective,
                 caps_dict,
                 controls_dict, 
-                enhance_dict,
+                filter_dict,
                 params_dict,
                 services_dict,
                 pubs_dict,
@@ -1833,12 +1839,12 @@ class BaseImageIF:
         if perspective is not None:
             self.perspective = perspective
 
-        # Setup enhance dict
-        if enhance_dict is not None:
-            self.enhance_dict = enhance_dict
-            self.enhance_options = list(self.enhance_dict.keys())
-            if len(self.enhance_options) > 0:
-                self.has_enhance = True
+        # Setup filter dict
+        if filter_dict is not None:
+            self.filter_dict = filter_dict
+            self.filter_options = list(self.filter_dict.keys())
+            if len(self.filter_options) > 0:
+                self.has_filter = True
 
 
 
@@ -1856,8 +1862,9 @@ class BaseImageIF:
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
         self.caps_report.has_brightness = self.caps_dict['has_brightness']
         self.caps_report.has_threshold = self.caps_dict['has_threshold']
-        self.caps_report.has_flip_2d = self.caps_dict['has_flip_2d']
         self.caps_report.has_rotate_2d = self.caps_dict['has_rotate_2d']
+        self.caps_report.has_flip_horz = self.caps_dict['has_flip_horz']
+        self.caps_report.has_flip_vert = self.caps_dict['has_flip_vert']
         self.caps_report.has_range = self.caps_dict['has_range']
         self.caps_report.has_auto_adjust = self.caps_dict['has_auto_adjust']
         self.caps_report.has_zoom = self.caps_dict['has_zoom']
@@ -1866,8 +1873,8 @@ class BaseImageIF:
         self.caps_report.has_rotate_3d = self.caps_dict['has_rotate_3d']
         self.caps_report.has_tilt_3d = self.caps_dict['has_tilt_3d']
 
-        self.caps_report.has_enhances = self.has_enhance
-        self.caps_report.enhance_options = self.enhance_options
+        self.caps_report.has_filters = self.has_filter
+        self.caps_report.filter_options = self.filter_options
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         self.dm_topic = nepi_sdk.find_topic(dm_ns)
@@ -1965,6 +1972,18 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["threshold_ratio"]
             },
+            'rotate_2d_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict["rotate_2d_deg"]
+            },
+            'flip_horz': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict["flip_horz"]
+            },
+            'flip_vert': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict["flip_vert"]
+            },
             'start_range_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["start_range_ratio"]
@@ -1973,9 +1992,9 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
             },
-            'enhance_dict': {
+            'filter_dict': {
                 'namespace': self.namespace,
-                'factory_val': self.enhance_dict
+                'factory_val': self.filter_dict
             },
             'overlay_size_ratio': {
                 'namespace': self.namespace,
@@ -2197,6 +2216,33 @@ class BaseImageIF:
                 'callback': self._setThresholdingCb, 
                 'callback_args': ()
             }
+        if caps_dict['has_rotate_2d'] == True:
+            self.SUBS_DICT['rotate_2d'] = {
+                'namespace': self.namespace,
+                'topic': 'rotate_2d',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._setRotate2dCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_flip_horz'] == True:
+            self.SUBS_DICT['set_flip_horz'] = {
+                'namespace': self.namespace,
+                'topic': 'set_flip_horz',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setFlipHorzCb, 
+                'callback_args': ()
+            }
+        if caps_dict['has_flip_vert'] == True:
+            self.SUBS_DICT['set_flip_vert'] = {
+                'namespace': self.namespace,
+                'topic': 'set_flip_vert',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setFlipVertCb, 
+                'callback_args': ()
+            }
         if caps_dict['has_range'] == True:
             self.SUBS_DICT['set_range'] = {
                 'namespace': self.namespace,
@@ -2261,19 +2307,18 @@ class BaseImageIF:
                 'callback': self._setTiltCb, 
                 'callback_args': ()
             }
-
-        if self.has_enhance == True:
-            self.SUBS_DICT['set_enhance_enable'] = {
+        if self.has_filter == True:
+            self.SUBS_DICT['set_filter_enable'] = {
                 'namespace': self.namespace,
-                'topic': 'set_tilt_3d_ratio',
+                'topic': 'set_filter_enable',
                 'msg': UpdateState,
                 'qsize': 1,
                 'callback': self._setEnhanceEnableCb, 
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_enhance_ratio'] = {
+            self.SUBS_DICT['set_filter_ratio'] = {
                 'namespace': self.namespace,
-                'topic': 'set_tilt_3d_ratio',
+                'topic': 'set_filter_ratio',
                 'msg': UpdateRatio,
                 'qsize': 1,
                 'callback': self._setEnhanceRatioCb, 
@@ -2714,6 +2759,26 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('threshold_ratio', ratio)
 
+    def set_rotate_2d_deg(self, deg):
+        deg_int = int(round(deg,0))
+        self.controls_dict['rotate_2d_deg'] = deg_int
+        self.status_msg.rotate_2d_deg = deg_int
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.node_if is not None:
+            self.node_if.set_param('rotate_2d_deg', deg_int)
+
+    def set_flip_horz(self, enabled):
+        self.controls_dict['flip_horz'] = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.node_if is not None:
+            self.node_if.set_param('flip_horz', enabled)
+
+    def set_flip_vert(self, enabled):
+        self.controls_dict['flip_vert'] = enabled
+        self.publish_status(do_updates=False) # Updated inline here
+        if self.node_if is not None:
+            self.node_if.set_param('flip_vert', enabled)
+
     def set_range_ratios(self, start_ratio, stop_ratio):
         if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
             self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
@@ -2785,30 +2850,30 @@ class BaseImageIF:
         self.publish_status(do_updates=False) # Updated inline here
 
 
-    def set_enhance_enable(self,name, enabled):
-        if name in self.enhance_dict.keys():
-            was_enabled = self.enhance_dict[name]['enabled']
+    def set_filter_enable(self,name, enabled):
+        if name in self.filter_dict.keys():
+            was_enabled = self.filter_dict[name]['enabled']
             if was_enabled != enabled:
-                if enable == True:
-                    self.msg_if.pub_info("Enabling Enhancment: " + name, log_name_list = self.log_name_list)
+                if enabled == True:
+                    self.msg_if.pub_info("Enabling Filter: " + name, log_name_list = self.log_name_list)
                 else:
-                    self.msg_if.pub_info("Disabling Enhancment: " + name, log_name_list = self.log_name_list)
-                self.enhance_dict[name]['enabled'] = enabled
+                    self.msg_if.pub_info("Disabling Filter: " + name, log_name_list = self.log_name_list)
+                self.filter_dict[name]['enabled'] = enabled
                 self.publish_status(do_updates=False) # Updated inline here
                 if self.node_if is not None:
-                    self.node_if.set_param('enhance_dict', self.enhance_dict)
+                    self.node_if.set_param('filter_dict', self.filter_dict)
 
 
-    def set_enhance_ratio(self, ratio):
+    def set_filter_ratio(self, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
-        if name in self.enhance_dict.keys():
-            self.msg_if.pub_info("Setting Enhancment Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
-            self.enhance_dict[name]['ratio'] = ratio
+        if name in self.filter_dict.keys():
+            self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
+            self.filter_dict[name]['ratio'] = ratio
             self.publish_status(do_updates=False) # Updated inline here
-            self.node_if.set_param('enhance_dict', self.enhance_dict)
+            self.node_if.set_param('filter_dict', self.filter_dict)
 
 
     def set_overlay_size_ratio(self, ratio):
@@ -2881,9 +2946,12 @@ class BaseImageIF:
         self.node_if.factory_reset_param('brightness_ratio')
         self.node_if.factory_reset_param('contrast_ratio')
         self.node_if.factory_reset_param('threshold_ratio')
+        self.node_if.factory_reset_param('rotate_2d_deg')
+        self.node_if.factory_reset_param('flip_horz')
+        self.node_if.factory_reset_param('flip_vert')
         self.node_if.factory_reset_param('start_range_ratio')
         self.node_if.factory_reset_param('stop_range_ratio')
-        self.node_if.factory_reset_param('enhance_dict')
+        self.node_if.factory_reset_param('filter_dict')
 
 
         self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
@@ -2893,10 +2961,14 @@ class BaseImageIF:
         self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
         self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
 
+        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
+        self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
+        self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
+
         self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
         self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
-        self.enhance_dict = self.node_if.get_param('enhance_dict')
+        self.filter_dict = self.node_if.get_param('filter_dict')
 
         self.publish_status(do_updates=False)
 
@@ -2925,6 +2997,11 @@ class BaseImageIF:
             self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
             self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
             self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
+
+            self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
+            self.status_msg.flip_horz = self.controls_dict['flip_horz']
+            self.status_msg.flip_vert = self.controls_dict['flip_vert']
+
             self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
             self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
             self.status_msg.zoom_ratio = self.controls_dict['zoom_ratio']
@@ -2939,17 +3016,17 @@ class BaseImageIF:
             self.status_msg.depth_map_topic = self.dm_topic
             self.status_msg.pointcloud_topic = self.pc_topic
 
-            enhance_options = []
-            enhance_states = []
-            enhance_ratios = []
-            for name in self.enhance_dict.keys():
-                e_dict = self.enhance_dict[name]
-                enhance_options.append(name)
-                enhance_states.append(e_dict['enabled'])
-                enhance_ratios.append(e_dict['ratio'])
-            self.status_msg.enhance_options = enhance_options
-            self.status_msg.enhance_states = enhance_states
-            self.status_msg.enhance_ratios = enhance_ratios
+            filter_options = []
+            filter_states = []
+            filter_ratios = []
+            for name in self.filter_dict.keys():
+                filter_dict = self.filter_dict[name]
+                filter_options.append(name)
+                filter_states.append(filter_dict['enabled'])
+                filter_ratios.append(filter_dict['ratio'])
+            self.status_msg.filter_options = filter_options
+            self.status_msg.filter_states = filter_states
+            self.status_msg.filter_ratios = filter_ratios
 
             self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
@@ -2979,11 +3056,15 @@ class BaseImageIF:
             self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
             self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
 
+            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
+            self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
+            self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
+
             self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
             self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
 
-            self.enhance_dict = self.node_if.get_param('enhance_dict')
+            self.filter_dict = self.node_if.get_param('filter_dict')
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
             self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
             self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
@@ -3077,6 +3158,26 @@ class BaseImageIF:
         ratio = msg.data
         self.set_threshold_ratio(ratio)
 
+
+    def _setRotate2dCb(self, msg):
+        self.msg_if.pub_info("Received Rotate 2d Deg update message: " + str(msg), log_name_list = self.log_name_list)
+        cur_angle = self.controls_dict['rotate_2d_deg']
+        new_angle = cur_angle + 90
+        if new_angle >= 360:
+            new_angle = 0
+        new_angle = int(round(new_angle/90.0,0) * 90)
+        self.set_rotate_2d_deg(new_angle)
+
+    def _setFlipHorzCb(self, msg):
+        self.msg_if.pub_info("Received Flip Horz update message: " + str(msg), log_name_list = self.log_name_list)
+        enable = msg.data
+        self.set_flip_horz(enable)
+
+    def _setFlipVertCb(self, msg):
+        self.msg_if.pub_info("Received Flip Vert update message: " + str(msg), log_name_list = self.log_name_list)
+        enable = msg.data
+        self.set_flip_vert(enable)
+
     def _setRangeCb(self, msg):
         self.msg_if.pub_info("Recived Range update message: " + str(msg), log_name_list = self.log_name_list)
         start_ratio = msg.start_range
@@ -3122,13 +3223,13 @@ class BaseImageIF:
         self.msg_if.pub_info("Recived Enable Enhacement message: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
         enabled = msg.active_state
-        self.set_enhance_enable(name,enabled) 
+        self.set_filter_enable(name,enabled) 
 
     def _setEnhanceRatioCb(self, msg):
         self.msg_if.pub_info("Recived Ehnacement Ratio update message: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
         ratio = msg.ratio
-        self.set_enhance_ratio(name,ratio) 
+        self.set_filter_ratio(name,ratio) 
 
 
     def _setOverlaySizeCb(self,msg):
@@ -3176,7 +3277,7 @@ class BaseImageIF:
         self.reset_overlays()
 
     def _resetEnhancessCb(self,msg):
-        self.reset_enhances()
+        self.reset_filters()
 
     def _navposeCb(self,msg):
         self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
@@ -3193,6 +3294,9 @@ class ImageIF(BaseImageIF):
         has_contrast = False,
         has_brightness = False,
         has_threshold = False,
+        has_rotate_2d = False,
+        has_flip_horz = False,
+        has_flip_vert = False,
         has_range = False,
         has_zoom = False,
         has_pan = False,
@@ -3201,11 +3305,7 @@ class ImageIF(BaseImageIF):
         has_tilt_3d = False
         )
 
-    DEFAULT_ENHANCEMENTS_DICT = dict(
-        low_light = {
-            'enabled': False,
-            'ratio': 0.0
-        }
+    DEFAULT_FILTERS_DICT = dict(
     )
 
     #Default Control Values 
@@ -3260,7 +3360,7 @@ class ImageIF(BaseImageIF):
                 perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
-                self.DEFAULT_ENHANCEMENTS_DICT, 
+                self.DEFAULT_FILTERS_DICT, 
                 self.params_dict,
                 self.services_dict,
                 self.pubs_dict,
@@ -3304,6 +3404,9 @@ class ColorImageIF(BaseImageIF):
         has_contrast = True,
         has_brightness = True,
         has_threshold = True,
+        has_rotate_2d = True,
+        has_flip_horz = True,
+        has_flip_vert = True,
         has_range = False,
         has_zoom = False,
         has_pan = False,
@@ -3312,11 +3415,12 @@ class ColorImageIF(BaseImageIF):
         has_tilt_3d = False
         )
 
-    DEFAULT_ENHANCEMENTS_DICT = dict(
-        low_light = {
-            'enabled': False,
-            'ratio': 0.0
-        }
+    DEFAULT_FILTERS_DICT = dict(
+        # Low_Light = {
+        #     'enabled': False,
+        #     'function': nepi_img.low_light_filter,
+        #     'ratio': 0.5
+        # }
     )
 
     #Default Control Values 
@@ -3371,7 +3475,7 @@ class ColorImageIF(BaseImageIF):
                 perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
-                self.DEFAULT_ENHANCEMENTS_DICT, 
+                self.DEFAULT_FILTERS_DICT, 
                 self.params_dict,
                 self.services_dict,
                 self.pubs_dict,
@@ -3400,12 +3504,14 @@ class ColorImageIF(BaseImageIF):
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
-        # Apply Low Light Enhancment
-        if self.enhance_dict['low_light']['enabled'] == True:
-            ratio = self.enhance_dict['low_light']['ratio']
-            if ratio > 0.05:
-                pass
-                #cv2_img = nepi_img.enhance_low_light_dual_illumination(cv2_img)
+        # Apply Filters
+        for filter_name in self.filter_dict.keys():
+            enabled = self.filter_dict[filter_name]['enabled']
+            if enabled == True:
+                ratio = self.filter_dict[filter_name]['ratio']
+                if ratio > 0.05:
+                    function = self.filter_dict[filter_name]['function']
+                    cv2_img = function(cv2_img,ratio)
 
         # Apply Adjustment Controls
         auto = self.controls_dict['auto_adjust_enabled']
@@ -3419,8 +3525,26 @@ class ColorImageIF(BaseImageIF):
             cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
             cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
         else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,0.3)
+            cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
+
+    
+        # Apply Oreantation Controls
+        degrees = self.controls_dict['rotate_2d_deg']
+        fliph = self.controls_dict['flip_horz']
+        flipv = self.controls_dict['flip_vert']
+
+        if degrees != 0:
+           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees) 
+
+        if fliph == True:
+            cv2_img = nepi_img.flip_horz(cv2_img) 
+
+        if flipv == True:
+            cv2_img = nepi_img.flip_vert(cv2_img) 
+
+
         return cv2_img
+
 
 
 
@@ -3917,6 +4041,9 @@ class DepthMapImageIF(BaseImageIF):
         has_contrast = False,
         has_brightness = False,
         has_threshold = False,
+        has_rotate_2d = True,
+        has_flip_horz = True,
+        has_flip_vert = True,
         has_range = True,
         has_zoom = False,
         has_pan = False,
@@ -3925,7 +4052,7 @@ class DepthMapImageIF(BaseImageIF):
         has_tilt_3d = False
         )
 
-    DEFAULT_ENHANCEMENTS_DICT = dict()
+    DEFAULT_FILTERS_DICT = dict()
 
     #Default Control Values 
     DEFAULT_CONTROLS_DICT = dict( 
@@ -3977,7 +4104,7 @@ class DepthMapImageIF(BaseImageIF):
                 perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
-                self.DEFAULT_ENHANCEMENTS_DICT, 
+                self.DEFAULT_FILTERS_DICT, 
                 self.params_dict,
                 self.services_dict,
                 self.pubs_dict,

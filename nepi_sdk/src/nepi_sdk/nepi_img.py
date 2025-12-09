@@ -24,12 +24,12 @@ from colormath.color_diff import delta_e_cie2000
 import random
 
 
-'''
+
 from scipy.spatial import distance
 from scipy.ndimage.filters import convolve
 from scipy.sparse import diags, csr_matrix
 from scipy.sparse.linalg import spsolve
-'''
+
 
 
 from sensor_msgs.msg import Image
@@ -46,7 +46,8 @@ ROTATE_DICT = {
 '0': '0',
 '90': cv2.ROTATE_90_CLOCKWISE,
 '180': cv2.ROTATE_180,
-'270': cv2.ROTATE_90_COUNTERCLOCKWISE
+'270': cv2.ROTATE_90_COUNTERCLOCKWISE,
+'360': '0'
 }
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
@@ -421,11 +422,20 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
     return resized_image, ratio, new_width, new_height
 
 
-def rotate(cv2_img, degrees=0):
+def rotate_degrees(cv2_img, degrees=0):
     if degrees != 0:
       deg_str=str(degrees)
       if deg_str in ROTATE_DICT.keys():
-         cv2_img = cv2.rotate(image, ROTATE_DICT[deg_str])         
+         if ROTATE_DICT[deg_str] != '0':
+            cv2_img = cv2.rotate(cv2_img, ROTATE_DICT[deg_str])         
+    return cv2_img
+
+def flip_horz(cv2_img):
+    cv2_img = cv2.flip(cv2_img, 1)          
+    return cv2_img
+
+def flip_vert(cv2_img):
+    cv2_img = cv2.flip(cv2_img, 0)         
     return cv2_img
   
       
@@ -563,14 +573,16 @@ def adjust_resolution_ratio(cv2_img, ratio):
   return cv2_img,cv2_img.shape
 
 def adjust_framerate_ratio(current_fps,ratio):
-  if ratio < 0.1:
-    ratio = 0.1
-  if ratio > .99:
-    ratio = 1
-  if ratio != 1:
-    adj_fr = ratio * current_fps
-  else:
-    adj_fr = current_fps
+  adj_fr = 7
+  if current_fps is not None:
+    if ratio < 0.1:
+        ratio = 0.1
+    if ratio > .99:
+        ratio = 1
+    if ratio != 1:
+        adj_fr = ratio * current_fps
+    else:
+        adj_fr = current_fps
   return adj_fr
 
 def get_contours(cv2_img):
@@ -946,9 +958,8 @@ def write_image_file(cv2_img,file_path, log_name_list = []):
 # Low Light Enhancment Dual Illumination
 # github.com/pvnieo/Low-light-Image-Enhancement
 
-'''
-def enhance_low_light_dual_illumination(cv2_img, gamma = 0.6, lambda_ = 0.15, sigma = 3,
-                           bc = 1, bs = 1, be = 1):
+
+def low_light_filter(cv2_img, ratio):
     """Enhance input image, using either DUAL method, or LIME method. For more info, please see original papers.
 
     Arguments:
@@ -965,6 +976,15 @@ def enhance_low_light_dual_illumination(cv2_img, gamma = 0.6, lambda_ = 0.15, si
     Returns:
         np.ndarray -- image exposure enhanced. same shape as `cv2_img`.
     """
+
+    gamma = ratio
+    lambda_ = 0.3 * ratio
+    sigma = int(round(3 * ratio,0))
+    bc = ratio
+    bs = ratio
+    be = ratio
+
+
     # create spacial affinity kernel
     kernel = create_spacial_affinity_kernel(sigma)
 
@@ -1152,7 +1172,4 @@ def get_sparse_neighbor(p: int, n: int, m: int):
     if j + 1 < m:
         d[i * m + j + 1] = (i, j + 1, 1)
     return d   
-    
-    
-'''
 
