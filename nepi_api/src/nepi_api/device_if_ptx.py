@@ -1287,13 +1287,13 @@ class PTXActuatorIF:
             track_dict = copy.deepcopy(self.track_dict)
             if track_dict is not None:
                 pan_error = track_dict['azimuth_deg']
-                self.msg_if.pub_warn("Got track pan error " + str(pan_error), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got track pan error " + str(pan_error), log_name_list = self.log_name_list)
                 
                 self.pan_errors.append(pan_error)
                 if len(self.pan_errors) > self.num_errors:
                     self.pan_errors.pop(0)
                 avg_error =  sum(self.pan_errors) / len(self.pan_errors)
-                self.msg_if.pub_warn("Got avg pan error " + str(avg_error), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got avg pan error " + str(avg_error), log_name_list = self.log_name_list)
                 if abs(avg_error) > self.track_min_error_deg:
                     pan_to_goal = pan_cur + avg_error /2
                     self.gotoPanPosition(pan_to_goal)
@@ -1512,7 +1512,7 @@ class PTXActuatorIF:
                 return
             self.pan_goal_deg = pan_deg
             self.tilt_goal_deg = tilt_deg
-            self.msg_if.pub_info("Driving to Pan/Tilt deg position  " + "%.2f" % (self.pan_goal_deg * self.rpi) + " " + "%.2f" % (self.tilt_goal_deg * self.rti))
+            #self.msg_if.pub_info("Driving to Pan/Tilt deg position  " + "%.2f" % (self.pan_goal_deg * self.rpi) + " " + "%.2f" % (self.tilt_goal_deg * self.rti))
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
 
@@ -1531,11 +1531,11 @@ class PTXActuatorIF:
                 return
             self.pan_goal_deg = pan_deg
             if self.gotoPanPositionCb is not None:
-                self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (self.pan_goal_deg * self.rpi))
+                #self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (self.pan_goal_deg * self.rpi))
                 self.gotoPanPositionCb(self.pan_goal_deg)
             elif self.gotoPositionCb is not None:
                 self.tilt_goal_deg = tilt_deg
-                self.msg_if.pub_info("Driving to pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+                #self.msg_if.pub_info("Driving to pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
                 self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
                  
@@ -1555,11 +1555,11 @@ class PTXActuatorIF:
                 return
             self.tilt_goal_deg = tilt_deg
             if self.gotoTiltPositionCb is not None:
-                self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (self.tilt_goal_deg * self.rti))
+                #self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (self.tilt_goal_deg * self.rti))
                 self.gotoTiltPositionCb(self.tilt_goal_deg)    
             elif self.gotoPositionCb is not None:
                 self.pan_goal_deg = pan_deg
-                self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+                #self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
                 self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
     
@@ -1574,13 +1574,13 @@ class PTXActuatorIF:
             return
         self.pan_goal_deg = self.panRatioToDeg(ratio) # Function takes care of reverse conversion
         if self.gotoPanPositionCb is not None:
-            self.msg_if.pub_info("Driving to pan ratio - pan deg:  " + str(self.pan_goal_deg * self.rpi))
+            #self.msg_if.pub_info("Driving to pan ratio - pan deg:  " + str(self.pan_goal_deg * self.rpi))
             self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
             self.gotoPanPositionCb(self.pan_goal_deg)
         elif self.gotoPositionCb is not None:
             self.setAutoTilt(False)
             self.tilt_goal_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
-            self.msg_if.pub_info("Driving to pan ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+            #self.msg_if.pub_info("Driving to pan ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
         self.publish_status()
         
@@ -1595,13 +1595,13 @@ class PTXActuatorIF:
             return
         self.tilt_goal_deg = self.tiltRatioToDeg(ratio) # Function takes care of reverse conversion
         if self.gotoTiltPositionCb is not None:
-            self.msg_if.pub_info("Driving to tilt ratio - tilt deg  " + "%.2f" % self.tilt_goal_deg * self.rti)
+            #self.msg_if.pub_info("Driving to tilt ratio - tilt deg  " + "%.2f" % self.tilt_goal_deg * self.rti)
             self.gotoTiltPositionCb(self.tilt_goal_deg)
         elif self.gotoPositionCb is not None:
             self.stopPanControls()
 
             self.pan_goal_deg = self.getPanAdj(self.status_msg.pan_now_deg)
-            self.msg_if.pub_info("Driving to tilt ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
+            #self.msg_if.pub_info("Driving to tilt ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
         self.publish_status()
         
