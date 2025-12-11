@@ -918,6 +918,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('selected_img_topics',self.selected_img_topics)
+            self.node_if.save_config()
 
 
     def removeImageTopicCb(self,msg):

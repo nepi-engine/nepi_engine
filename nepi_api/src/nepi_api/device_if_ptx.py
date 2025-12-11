@@ -1518,8 +1518,6 @@ class PTXActuatorIF:
 
     def gotoPanPositionHandler(self, msg):
         self.stopPanControls()
-        if self.gotoPositionCb is not None:
-            self.setAutoTilt(False)
         pan_deg_adj = self.getPanAdj(msg.data)
         self.gotoPanPosition(pan_deg_adj)
 
@@ -1542,8 +1540,6 @@ class PTXActuatorIF:
 
     def gotoTiltPositionHandler(self, msg):
         self.setAutoTilt(False)
-        if self.gotoPositionCb is not None:
-            self.stopPanControls()
         tilt_deg_adj = self.getTiltAdj(msg.data)
         self.gotoTiltPosition(tilt_deg_adj)
 
@@ -1566,8 +1562,6 @@ class PTXActuatorIF:
 
     def gotoToPanRatioHandler(self, msg):
         self.stopPanControls()
-        if self.gotoPositionCb is not None:
-            self.setAutoTilt(False)
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid pan position ratio " + "%.2f" % ratio)
@@ -1578,7 +1572,6 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
             self.gotoPanPositionCb(self.pan_goal_deg)
         elif self.gotoPositionCb is not None:
-            self.setAutoTilt(False)
             self.tilt_goal_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
             #self.msg_if.pub_info("Driving to pan ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
@@ -1586,9 +1579,7 @@ class PTXActuatorIF:
         
 
     def gotoToTiltRatioHandler(self, msg):
-        self.setAutoTilt(False)
-        if self.gotoPositionCb is not None:
-            self.stopPanControls()
+        self.stopTiltControls()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid tilt position ratio " + "%.2f" % ratio)
@@ -1598,7 +1589,7 @@ class PTXActuatorIF:
             #self.msg_if.pub_info("Driving to tilt ratio - tilt deg  " + "%.2f" % self.tilt_goal_deg * self.rti)
             self.gotoTiltPositionCb(self.tilt_goal_deg)
         elif self.gotoPositionCb is not None:
-            self.stopPanControls()
+            
 
             self.pan_goal_deg = self.getPanAdj(self.status_msg.pan_now_deg)
             #self.msg_if.pub_info("Driving to tilt ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
@@ -1618,6 +1609,9 @@ class PTXActuatorIF:
         self.setNavLockTilt(False)
 
     def stopMovingHandler(self, _):
+        self.stopMoving()
+
+    def stopMoving(self):
         self.stopPanControls()
         self.stopTiltControls()
         self.pan_goal_deg = self.status_msg.pan_now_deg * self.rpi
@@ -1645,8 +1639,6 @@ class PTXActuatorIF:
 
     def jogTimedTiltHandler(self, msg):
         self.setAutoTilt(False)
-        if self.gotoPositionCb is not None:
-            self.stopPanControls()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             direction = msg.direction * self.rti
