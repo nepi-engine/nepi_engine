@@ -352,7 +352,7 @@ class time_sync_mgr(object):
 
     def add_server(self,server_host):
             ### Update ETC Files
-            nepi_system.update_nepi_system_config("NEPI_NTP_IPS",server_host)
+            nepi_system.update_nepi_system_config("NEPI_NTP_IP",server_host)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)
@@ -361,7 +361,7 @@ class time_sync_mgr(object):
 
     def remove_server(self,server_host):
             ### Update ETC Files
-            nepi_system.update_nepi_system_config("NEPI_NTP_IPS","NONE")
+            nepi_system.update_nepi_system_config("NEPI_NTP_IP","NONE")
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
             nepi_utils.sleep(1)

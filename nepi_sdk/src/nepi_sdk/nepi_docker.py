@@ -102,12 +102,18 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
 
 def getRootfsABStatus():
     rootfs_ab_status_dict = {}
-
+    config_dict=nepi_system.load_nepi_docker_config()
     rootfs_ab_status_dict["active_part_device"] = "nepi_fs_a"
-    rootfs_ab_status_dict["inactive_part_device"] = "nepi_fs_b"
+    has_ab_fs=config_dict['NEPI_AB_FS'] == 1
+    inactive_fs='None'
+    inactive_fw='None'
+    if has_ab_fs:
+        inactive_fs='nepi_fs_b'
+        inactive_fw=config_dict['NEPI_FSB_VERSION']
+    rootfs_ab_status_dict["inactive_part_device"] = inactive_fs
     rootfs_ab_status_dict["max_boot_fail_count"] = 1
     rootfs_ab_status_dict["running_boot_fail_count"] = 0
-    rootfs_ab_status_dict["inactive_part_fw_version"] = "uknown"
+    rootfs_ab_status_dict["inactive_part_fw_version"] = inactive_fw
     return True, "Success", rootfs_ab_status_dict
 
 def identifyRootfsABScheme():
