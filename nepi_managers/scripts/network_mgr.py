@@ -849,53 +849,59 @@ class NetworkMgr:
 
     def is_valid_ip(self,addr):
         valid = False
-        addr_split = addr.split('/')
-        if len(addr_split) > 1:
-            ip = addr_split[0]
-            try:
-                ipaddress.ip_address(ip)
-                valid = True
-            except ValueError:
-                pass
+        if addr is not None:
+            addr_split = addr.split('/')
+            if len(addr_split) > 1:
+                ip = addr_split[0]
+                nm = addr_split[1]
+                try:
+                    ipaddress.ip_address(ip)
+                    if nm >= 0 and nm <= 32:
+                        valid = True
+                except ValueError:
+                    pass
         return valid
 
 
     def validate_cidr_ip(self, addr):
         # First, validate the input
-        tokens = addr.split('/')
-        new_ip = tokens[0]
-        new_ip_bits = 0
-        try:
-            new_ip_bits = socket.inet_aton(new_ip)
-        except Exception as e:
-            self.msg_if.pub_warn("Rejecting invalid IP address: " + str(addr) + " " + str(e))
+        if addr is None:
             return False
-        if (len(tokens) != 2):
-            self.msg_if.pub_warn("Rejecting invalid address must be in CIDR notation (x.x.x.x/y). Got " + str(addr))
-            return False
-        cidr_netmask = (int)(tokens[1])
-        if cidr_netmask < 1 or cidr_netmask > 32:
-            self.msg_if.pub_warn("Rejecting invalid CIDR netmask (got " + str(addr))
-            return False
-
-        # Finally, verify that this isn't the "fixed" address on the device. Don't let anyone sneak past the same
-        # address in a different numerical format - compare as a 32-bit val
-        cur_ip_addrs = copy.deepcopy(self.found_ip_addrs)
-        if len(cur_ip_addrs) > 0:
-            fixed_ip_addr = cur_ip_addrs[0].split('/')[0]
-            fixed_ip_bits = 0
-            try:
-                fixed_ip_bits = socket.inet_aton(fixed_ip_addr)
-            except Exception as e:
-                self.msg_if.pub_warn("Cannot validate IP address becaused fixed IP appears invalid "  + str(fixed_ip_addr) + " " + str(e))
-                return False
-            if (new_ip_bits == fixed_ip_bits):
-                self.msg_if.pub_warn("IP address invalid because it matches fixed primary IP")
-                return False
-
-            return True
         else:
-            return False
+            tokens = addr.split('/')
+            new_ip = tokens[0]
+            new_ip_bits = 0
+            try:
+                new_ip_bits = socket.inet_aton(new_ip)
+            except Exception as e:
+                self.msg_if.pub_warn("Rejecting invalid IP address: " + str(addr) + " " + str(e))
+                return False
+            if (len(tokens) != 2):
+                self.msg_if.pub_warn("Rejecting invalid address must be in CIDR notation (x.x.x.x/y). Got " + str(addr))
+                return False
+            cidr_netmask = (int)(tokens[1])
+            if cidr_netmask < 1 or cidr_netmask > 32:
+                self.msg_if.pub_warn("Rejecting invalid CIDR netmask (got " + str(addr))
+                return False
+
+            # Finally, verify that this isn't the "fixed" address on the device. Don't let anyone sneak past the same
+            # address in a different numerical format - compare as a 32-bit val
+            cur_ip_addrs = copy.deepcopy(self.found_ip_addrs)
+            if len(cur_ip_addrs) > 0:
+                fixed_ip_addr = cur_ip_addrs[0].split('/')[0]
+                fixed_ip_bits = 0
+                try:
+                    fixed_ip_bits = socket.inet_aton(fixed_ip_addr)
+                except Exception as e:
+                    self.msg_if.pub_warn("Cannot validate IP address becaused fixed IP appears invalid "  + str(fixed_ip_addr) + " " + str(e))
+                    return False
+                if (new_ip_bits == fixed_ip_bits):
+                    self.msg_if.pub_warn("IP address invalid because it matches fixed primary IP")
+                    return False
+
+                return True
+            else:
+                return False
 
 
 
@@ -1042,7 +1048,7 @@ class NetworkMgr:
                     self.found_ip_addrs.append(addr)
                     success = self.publish_status()
                     ### Update ETC Files
-                    nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS",addr.split('/')[0])
+                    nepi_system.update_nepi_system_config("NEPI_ALIAS_IPS",addr)
                     etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_aliases.sh"
                     subprocess.call([etc_update_script])
                     nepi_sdk.sleep(1)
