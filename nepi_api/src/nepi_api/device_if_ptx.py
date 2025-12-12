@@ -1179,8 +1179,6 @@ class PTXActuatorIF:
         if self.auto_pan_enabled == False:
             self.is_auto_pan = False
         else:
-            if self.has_seperate_pan_tilt_control == False:
-                self.setAutoTilt(False)
             start_auto_pan = False
             if self.is_auto_pan == False:
                 start_auto_pan = True     
@@ -1233,8 +1231,6 @@ class PTXActuatorIF:
         else:
             if self.track_tilt_enabled == True:
                 self.track_tilt_enabled = False
-            if self.has_seperate_pan_tilt_control == False:
-                self.setAutoPan(False)
             start_auto_tilt = False
             if self.is_auto_tilt == False:
                 start_auto_tilt = True     
@@ -1295,26 +1291,26 @@ class PTXActuatorIF:
                 avg_error =  sum(self.pan_errors) / len(self.pan_errors)
                 #self.msg_if.pub_warn("Got avg pan error " + str(avg_error), log_name_list = self.log_name_list)
                 if abs(avg_error) > self.track_min_error_deg:
-                    pan_to_goal = pan_cur + avg_error /2
+                    pan_to_goal = pan_cur + avg_error /2 * self.rpi
                     self.gotoPanPosition(pan_to_goal)
             else:
                 self.gotoPanPosition(0.0)
      
     def trackTiltProcess(self,timer):
         if self.track_tilt_enabled == True and self.track_source_connected == True:
-            tilt_cur = self.current_position[0]
+            tilt_cur = self.current_position[1]
             track_dict = copy.deepcopy(self.track_dict)
             if track_dict is not None:
-                tilt_error = track_dict['azimuth_deg']
-                self.msg_if.pub_warn("Got track tilt error " + str(tilt_error), log_name_list = self.log_name_list)
+                tilt_error = track_dict['elevation_deg']
+                #self.msg_if.pub_warn("Got track tilt error " + str(tilt_error), log_name_list = self.log_name_list)
                 
                 self.tilt_errors.append(tilt_error)
                 if len(self.tilt_errors) > self.num_errors:
                     self.tilt_errors.pop(0)
                 avg_error =  sum(self.tilt_errors) / len(self.tilt_errors)
-                self.msg_if.pub_warn("Got avg tilt error " + str(avg_error), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got avg tilt error " + str(avg_error), log_name_list = self.log_name_list)
                 if abs(avg_error) > self.track_min_error_deg:
-                    tilt_to_goal = tilt_cur + avg_error /2
+                    tilt_to_goal = tilt_cur + avg_error /2 * self.rti
                     self.gotoTiltPosition(tilt_to_goal)
             else:
                 self.gotoTiltPosition(0.0)
@@ -1522,9 +1518,8 @@ class PTXActuatorIF:
         self.gotoPanPosition(pan_deg_adj)
 
     def gotoPanPosition(self,pan_deg):
-        tilt_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
         if self.positionWithinSoftLimits is not None:
-            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
+            if not self.positionWithinSoftLimits(pan_deg, self.tilt_goal_deg):
                 self.msg_if.pub_warn("Requested goto pan position is invalid... ignoring", log_name_list = self.log_name_list)
                 return
             self.pan_goal_deg = pan_deg
@@ -1532,21 +1527,19 @@ class PTXActuatorIF:
                 #self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (self.pan_goal_deg * self.rpi))
                 self.gotoPanPositionCb(self.pan_goal_deg)
             elif self.gotoPositionCb is not None:
-                self.tilt_goal_deg = tilt_deg
                 #self.msg_if.pub_info("Driving to pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
                 self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
                  
 
     def gotoTiltPositionHandler(self, msg):
-        self.setAutoTilt(False)
+        self.stopTiltControls()
         tilt_deg_adj = self.getTiltAdj(msg.data)
         self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
-        pan_deg = self.getPanAdj(self.status_msg.pan_now_deg)
         if self.positionWithinSoftLimits is not None:
-            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
+            if not self.positionWithinSoftLimits(self.pan_goal_deg, tilt_deg):
                 self.msg_if.pub_warn("Requested goto tilt position is invalid... ignoring", log_name_list = self.log_name_list)
                 return
             self.tilt_goal_deg = tilt_deg
@@ -1554,7 +1547,6 @@ class PTXActuatorIF:
                 #self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (self.tilt_goal_deg * self.rti))
                 self.gotoTiltPositionCb(self.tilt_goal_deg)    
             elif self.gotoPositionCb is not None:
-                self.pan_goal_deg = pan_deg
                 #self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
                 self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
@@ -1572,9 +1564,9 @@ class PTXActuatorIF:
             self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
             self.gotoPanPositionCb(self.pan_goal_deg)
         elif self.gotoPositionCb is not None:
-            self.tilt_goal_deg = self.getTiltAdj(self.status_msg.tilt_now_deg)
+            tilt_goal_deg = self.getTiltAdj(self.tilt_goal_deg)
             #self.msg_if.pub_info("Driving to pan ratio - pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
-            self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+            self.gotoPositionCb(self.pan_goal_deg, tilt_goal_deg)
         self.publish_status()
         
 
@@ -1614,20 +1606,18 @@ class PTXActuatorIF:
     def stopMoving(self):
         self.stopPanControls()
         self.stopTiltControls()
-        self.pan_goal_deg = self.status_msg.pan_now_deg * self.rpi
-        self.tilt_goal_deg = self.status_msg.tilt_now_deg * self.rti
+        pan_cur_deg = self.status_msg.pan_now_deg * self.rpi
+        tilt_cur_deg = self.status_msg.tilt_now_deg * self.rti
         self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
         if self.stopMovingCb is not None:
             self.stopMovingCb()
         elif self.gotoPositionCb is not None:
-            self.gotoPositionCb(self.pan_goal_deg,self.tilt_goal_deg)
+            self.gotoPositionCb(pan_cur_deg,tilt_cur_deg)
         self.publish_status()
         
 
     def jogTimedPanHandler(self, msg):
-        self.setAutoPan(False)
-        if self.gotoPositionCb is not None:
-            self.setAutoTilt(False)
+        self.stopPanControls()
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             direction = msg.direction * self.rpi
@@ -1638,7 +1628,7 @@ class PTXActuatorIF:
         
 
     def jogTimedTiltHandler(self, msg):
-        self.setAutoTilt(False)
+        self.stopTiltControls()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             direction = msg.direction * self.rti
@@ -1691,6 +1681,33 @@ class PTXActuatorIF:
         self.node_if.set_param('auto_pan_enabled', enabled)
 
 
+    def setAutoPanWindowHandler(self, msg):
+        if self.reverse_pan_enabled == True:
+            adj_min_deg = msg.stop_range * self.rpi
+            adj_max_deg = msg.start_range * self.rpi
+        else:            
+            adj_min_deg = msg.start_range
+            adj_max_deg = msg.stop_range
+        self.msg_if.pub_info("Setting auto pan limits to: " + "%.2f" % adj_min_deg * self.rpi + " " + "%.2f" % adj_max_deg * self.rpi)
+        self.setAutoPanWindow(adj_min_deg,adj_max_deg)
+
+
+    def setAutoPanWindow(self, min_deg, max_deg):
+        if max_deg > min_deg:
+            if max_deg > self.max_pan_softstop_deg:
+                max_deg = self.max_pan_softstop_deg
+            if min_deg < self.min_pan_softstop_deg:
+                min_deg = self.min_pan_softstop_deg
+            self.auto_pan_min = min_deg
+            self.auto_pan_max = max_deg
+            self.msg_if.pub_info("Auto Pan limits set to: " + "%.2f" % min_deg * self.rpi + " " + "%.2f" % max_deg * self.rpi)
+            self.publish_status()
+            self.node_if.set_param('min_pan_softstop_deg', min_deg)
+            self.node_if.set_param('max_pan_softstop_deg', max_deg)
+
+
+
+
     def setTrackPanHandler(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting track pan: " + str(enabled))
@@ -1737,30 +1754,6 @@ class PTXActuatorIF:
         
     '''
 
-    def setAutoPanWindowHandler(self, msg):
-        if self.reverse_pan_enabled == True:
-            adj_min_deg = msg.stop_range * self.rpi
-            adj_max_deg = msg.start_range * self.rpi
-        else:            
-            adj_min_deg = msg.start_range
-            adj_max_deg = msg.stop_range
-        self.msg_if.pub_info("Setting auto pan limits to: " + "%.2f" % adj_min_deg * self.rpi + " " + "%.2f" % adj_max_deg * self.rpi)
-        self.setAutoPanWindow(adj_min_deg,adj_max_deg)
-
-
-    def setAutoPanWindow(self, min_deg, max_deg):
-        if max_deg > min_deg:
-            if max_deg > self.max_pan_softstop_deg:
-                max_deg = self.max_pan_softstop_deg
-            if min_deg < self.min_pan_softstop_deg:
-                min_deg = self.min_pan_softstop_deg
-            self.auto_pan_min = min_deg
-            self.auto_pan_max = max_deg
-            self.msg_if.pub_info("Auto Pan limits set to: " + "%.2f" % min_deg * self.rpi + " " + "%.2f" % max_deg * self.rpi)
-            self.publish_status()
-            self.node_if.set_param('min_pan_softstop_deg', min_deg)
-            self.node_if.set_param('max_pan_softstop_deg', max_deg)
-
 
 
     def setAutoTiltHandler(self, msg):
@@ -1775,6 +1768,31 @@ class PTXActuatorIF:
         self.auto_tilt_enabled = enabled
         self.publish_status()
         self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
+
+
+    def setAutoTiltWindowHandler(self, msg):
+        if self.reverse_tilt_enabled == True:
+            adj_min_deg = msg.stop_range * self.rti
+            adj_max_deg = msg.start_range * self.rti
+        else:            
+            adj_min_deg = msg.start_range
+            adj_max_deg = msg.stop_range
+        self.msg_if.pub_info("Setting auto tilt limits to: " + "%.2f" % adj_min_deg * self.rti + " " + "%.2f" % adj_max_deg * self.rti)
+        self.setAutoTiltWindow(adj_min_deg,adj_max_deg)
+
+
+    def setAutoTiltWindow(self, min_deg, max_deg):
+        if max_deg > min_deg:
+            if max_deg > self.max_tilt_softstop_deg:
+                max_deg = self.max_tilt_softstop_deg
+            if min_deg < self.min_tilt_softstop_deg:
+                min_deg = self.min_tilt_softstop_deg
+            self.auto_tilt_min = min_deg
+            self.auto_tilt_max = max_deg
+            self.msg_if.pub_info("Auto Tilt limits set to: " + "%.2f" % min_deg * self.rti + " " + "%.2f" % max_deg * self.rti)
+            self.publish_status()
+            self.node_if.set_param('min_tilt_softstop_deg', min_deg)
+            self.node_if.set_param('max_tilt_softstop_deg', max_deg)
 
 
     def setTrackTiltHandler(self, msg):
@@ -1817,29 +1835,6 @@ class PTXActuatorIF:
         self.node_if.set_param('sin_tilt_enabled', self.sin_tilt_enabled)
     '''
 
-    def setAutoTiltWindowHandler(self, msg):
-        if self.reverse_tilt_enabled == True:
-            adj_min_deg = msg.stop_range * self.rti
-            adj_max_deg = msg.start_range * self.rti
-        else:            
-            adj_min_deg = msg.start_range
-            adj_max_deg = msg.stop_range
-        self.msg_if.pub_info("Setting auto tilt limits to: " + "%.2f" % adj_min_deg * self.rti + " " + "%.2f" % adj_max_deg * self.rti)
-        self.setAutoTiltWindow(adj_min_deg,adj_max_deg)
-
-
-    def setAutoTiltWindow(self, min_deg, max_deg):
-        if max_deg > min_deg:
-            if max_deg > self.max_tilt_softstop_deg:
-                max_deg = self.max_tilt_softstop_deg
-            if min_deg < self.min_tilt_softstop_deg:
-                min_deg = self.min_tilt_softstop_deg
-            self.auto_tilt_min = min_deg
-            self.auto_tilt_max = max_deg
-            self.msg_if.pub_info("Auto Tilt limits set to: " + "%.2f" % min_deg * self.rti + " " + "%.2f" % max_deg * self.rti)
-            self.publish_status()
-            self.node_if.set_param('min_tilt_softstop_deg', min_deg)
-            self.node_if.set_param('max_tilt_softstop_deg', max_deg)
 
     def setMountDescCb(self,msg):
         self.msg_if.pub_info("Recived set mount description message: " + str(msg))
