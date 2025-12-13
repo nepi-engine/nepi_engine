@@ -30,13 +30,18 @@ class ModbusRTUMaster:
     def __init__(self, port_name: str, baud_rate: int) -> None:
         self._lock = Lock()
         self._com = Serial(port=port_name, baudrate=baud_rate, timeout=0.5)
-        if self._com.is_open:
-            logger.log_info("Open serial port: " + str(port_name) + " successful")
-        sleep(0.1)
+        logger.log_info("Got _com: " + str(self._com) + " successful")
+        if self._com is not None:
+            if self._com.is_open:
+                logger.log_info("Open serial port: " + str(port_name) + " successful")
+            sleep(0.1)
+        else:
+            logger.log_info("Failed to open serial port: " + str(port_name) + " successful")
 
     def __del__(self):
-        logger.log_info("closing")
-        self._com.close()
+        #logger.log_info("closing")
+        if self._com is not None:
+            self._com.close()
 
     def set_multiple_registers(self, slave_id: int, address: int, data):  # 0x10 = 16
 

@@ -75,7 +75,7 @@ DEFAULT_LABELS_OVERLAY = True
 DEFAULT_CLF_OVERLAY = False
 DEFAULT_IMG_OVERLAY = False
 
-GET_IMAGE_TIMEOUT_SEC = 1 
+GET_IMAGE_TIMEOUT_SEC = 5 
 
 
 
@@ -177,7 +177,6 @@ class AiDetectorIF:
     pub_img_node_name = ""
     pub_img_namepace = ""
 
-    img_folder_path=None
     img_file_path=None
 
     next_image_topic="None"
@@ -906,12 +905,6 @@ class AiDetectorIF:
         img_topics = copy.deepcopy(self.selected_img_topics)
         if img_topic not in img_topics:
             img_topics.append(img_topic)
-        elif os.path.isdir(img_topic) == True:
-            if self.img_folder_path is not None:
-                if self.img_folder_path in img_topics:
-                    img_topics.remove(self.img_folder_path)
-            img_topics.append(img_topic)
-            self.img_folder_path=img_topic
         else:
             self.msg_if.pub_warn('Selected image topic not found as image or folder')
         self.selected_img_topics = img_topics
@@ -1110,7 +1103,7 @@ class AiDetectorIF:
 
     def updaterCb(self,timer):
         #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
-        selected_img_topics = self.selected_img_topics
+        selected_img_topics = copy.deepcopy(self.selected_img_topics)
         active_img_topics = self.getActiveImgTopics()
 
 
@@ -1121,11 +1114,7 @@ class AiDetectorIF:
         # Update Image subscribers
         found_img_topics = []
         for img_topic in selected_img_topics:
-            if img_topic == self.img_folder_path:
-                if os.path.isdir(img_topic) != True:
-                    img_topic = ''
-            else:
-                img_topic = nepi_sdk.find_topic(img_topic, exact = True)
+            img_topic = nepi_sdk.find_topic(img_topic, exact = True)
             if img_topic != '':
                 found_img_topics.append(img_topic)
                 if img_topic not in active_img_topics:
@@ -1133,7 +1122,7 @@ class AiDetectorIF:
                     success = self.subscribeImgTopic(img_topic)              
         # Update Image Subs purge list
         for img_topic in active_img_topics:
-            if img_topic not in found_img_topics:
+            if img_topic not in found_img_topics or img_topic not in selected_img_topics:
                 purge_list.append(img_topic)
         if len(purge_list) > 0:
             self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
@@ -1426,11 +1415,10 @@ class AiDetectorIF:
                 # Check for non responding image streams                   
                 if self.got_img_topic is None and timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
                     #self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
-                    if cur_img_topic != self.img_folder_path:
-                        if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
-                            imgs_info_dict[cur_img_topic]['connected'] = False
-                        self.cur_img_topic = self.next_image_topic
-                        #self.last_detect_time = nepi_sdk.get_time()
+                    if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
+                        imgs_info_dict[cur_img_topic]['connected'] = False
+                    self.cur_img_topic = self.next_image_topic
+                    #self.last_detect_time = nepi_sdk.get_time()
 
                 elif self.got_img_topic is None and timer > delay_time:
                     # Set Next Image Topic on Delay
