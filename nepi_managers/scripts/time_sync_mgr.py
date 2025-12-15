@@ -49,6 +49,7 @@ class time_sync_mgr(object):
  
 
     last_set_time = 0.0
+    clock_synced = False
     ntp_first_sync_time = None
     ntp_status_check_timer = None
 
@@ -450,6 +451,7 @@ class time_sync_mgr(object):
             try:
                 subprocess.call(["sudo","date", "-s", timestring])
                 self.last_set_time = float(msg.secs) + float(msg.nsecs)/1000000000
+                self.clock_synced = True
                 new_date = subprocess.check_output(["date"], text=True)
                 self.msg_if.pub_info("Updated date: " + str(new_date))
             except Exception as e:
@@ -498,7 +500,7 @@ class time_sync_mgr(object):
 
 
     def autoSyncClocksCb(self,msg):
-        self.auto_clock_sync = msg.data
+        self.auto_sync_clocks = msg.data
         self.publish_status()
         if self.node_if is not None:
             nepi_sdk.set_param('auto_sync_clocks',msg.data)
@@ -564,6 +566,7 @@ class time_sync_mgr(object):
 
         # Last set time (cheater clock sync method)
         self.status_msg.last_set_time = self.last_set_time
+        self.status_msg.clock_synced = self.clock_synced
 
         self.status_msg.auto_sync_clocks = self.auto_sync_clocks
         self.status_msg.auto_sync_timezones = self.auto_sync_timezones
