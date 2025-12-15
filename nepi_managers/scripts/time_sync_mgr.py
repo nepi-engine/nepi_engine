@@ -211,7 +211,7 @@ class time_sync_mgr(object):
                     'callback': self.autoSyncClocksCb, 
                     'callback_args': ()
                 },
-                'auto_sync_clocks': {
+                'auto_sync_timezones': {
                     'namespace': self.base_namespace,
                     'topic': 'auto_sync_timezones',
                     'msg': Bool,
@@ -432,6 +432,7 @@ class time_sync_mgr(object):
                 if (self.ntp_first_sync_time is None) and (currently_syncd is True):
                     self.msg_if.pub_info("NTP sync first detected... publishing on sys_time_update")
                     self.ntp_first_sync_time = nepi_utils.get_time()
+                    self.clock_synced = True
                     self.informClockUpdate()
 
                     # Update the RTC with this "better" clock source
@@ -571,6 +572,8 @@ class time_sync_mgr(object):
         self.status_msg.auto_sync_clocks = self.auto_sync_clocks
         self.status_msg.auto_sync_timezones = self.auto_sync_timezones
         return self.status_msg
+    
+
         
     def handle_time_status_query(self,req):
         status_msg = self.get_status_msg()
