@@ -54,6 +54,7 @@ else
 
 	script_file=nepi_system_sync.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	echo "Running script ${script_path}"
 	run_script $script_path
 
 
