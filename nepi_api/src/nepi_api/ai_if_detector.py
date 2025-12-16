@@ -1726,8 +1726,13 @@ class AiDetectorIF:
             for detect_dict in detect_dict_list:
 
                 # Calculate target bearings
-                image_fov_vert = self.imgs_info_dict[img_topic]['height_deg']
-                image_fov_horz = self.imgs_info_dict[img_topic]['width_deg']
+                if img_topic in self.imgs_info_dict.keys():
+                    image_fov_vert = self.imgs_info_dict[img_topic]['height_deg']
+                    image_fov_horz = self.imgs_info_dict[img_topic]['width_deg']
+                else:
+                    image_fov_vert = 70
+                    image_fov_horz = 100
+
                 object_loc_y_pix = float(detect_dict['ymin'] + ((detect_dict['ymax'] - detect_dict['ymin']))  / 2) 
                 object_loc_x_pix = float(detect_dict['xmin'] + ((detect_dict['xmax'] - detect_dict['xmin']))  / 2)
                 object_loc_y_ratio_from_center = float(object_loc_y_pix - img_dict['image_height']/2) / float(img_dict['image_height']/2)
@@ -1824,10 +1829,11 @@ class AiDetectorIF:
                     target_msg.range_m = -999
                     target_msg.azimuth_deg = target_horz_angle_deg
                     target_msg.elevation_deg = target_vert_angle_deg
-                    navpose_dict = self.imgs_info_dict[img_topic]['navpose_dict']
-                    if len(navpose_dict.keys()) == 0:
-                        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-                        target_msg.source_nav_pose = navpose_msg       
+                    if img_topic in self.imgs_info_dict.keys():
+                        navpose_dict = self.imgs_info_dict[img_topic]['navpose_dict']
+                        if len(navpose_dict.keys()) == 0:
+                            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+                            target_msg.source_nav_pose = navpose_msg       
                     targets_msg_list.append(target_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 

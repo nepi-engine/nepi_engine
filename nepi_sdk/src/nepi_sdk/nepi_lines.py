@@ -76,7 +76,7 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
 #########################
 # Line Point Functions
 
-def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 ):
+def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
     line_dict = dict()
     line_dict['x'] = []
     line_dict['y'] = []
@@ -102,8 +102,8 @@ def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity 
         if M["m00"] != 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            line_dict['x'].append(cx)
-            line_dict['y'].append(cy)
+            line_dict['x'].append(cx + x_offset)
+            line_dict['y'].append(cy + y_offset)
 
     # # Undistort points
     # undistorted_pixels = cv2.undistortPoints(np.array(line_pixels, dtype=np.float32).reshape(-1, 1, 2), K, dist)
