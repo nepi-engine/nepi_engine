@@ -573,6 +573,12 @@ class NodeServicesIF:
         self.srvs_dict[service_name] = service_dict
         self._initialize_services()
 
+    def register_services(self,services_dict):
+        for service_name in services_dict.keys():
+            service_dict = services_dict[service_name]
+            self.srvs_dict[service_name] = service_dict
+        self._initialize_services()
+
     def unregister_service(self,service_name):
         self._unregister_service(service_name)
 
@@ -757,6 +763,12 @@ class NodePublishersIF:
         self.pubs_dict[pub_name] = pub_dict
         self._initialize_pubs()
 
+    def register_pubs(self,pubs_dict):
+        for pub_name in pubs_dict.keys():
+            pub_dict = pubs_dict[pub_name]
+            self.pubs_dict[pub_name] = pub_dict
+        self._initialize_pubs()
+
     def unregister_pub(self,pub_name):
         self._unregister_pub(pub_name)
 
@@ -897,6 +909,12 @@ class NodeSubscribersIF:
 
     def register_sub(self,sub_name, sub_dict):
         self.subs_dict[sub_name] = sub_dict
+        self._initialize_subs()
+
+    def register_subs(self,subs_dict):
+        for sub_name in subs_dict.keys():
+            sub_dict = subs_dict[sub_name]
+            self.subs_dict[sub_name] = sub_dict
         self._initialize_subs()
 
     def unregister_sub(self,sub_name):
@@ -1224,6 +1242,10 @@ class NodeClassIF:
         if self.services_if is not None:
             self.services_if.register_service(service_name, service_dict)
 
+    def register_services(self, services_dict):
+        if self.services_if is not None:
+            self.services_if.register_services( service_dict)
+
 
     def unregister_service(self,service_name):
         if self.services_if is not None:
@@ -1252,6 +1274,10 @@ class NodeClassIF:
         if self.pubs_if is not None:
             self.pubs_if.register_pub(pub_name, pub_dict)
 
+    def register_pubs(self,pubs_dict):
+        if self.pubs_if is not None:
+            self.pubs_if.register_pubs(pubs_dict)
+
 
     def unregister_pub(self,pub_name):
         if self.pubs_if is not None:
@@ -1279,6 +1305,9 @@ class NodeClassIF:
         if self.subs_if is not None:
             self.subs_if.register_sub(sub_name, sub_dict)
 
+    def register_subs(self, subs_dict):
+        if self.subs_if is not None:
+            self.subs_if.register_subs(subs_dict)
 
     def unregister_sub(self,sub_name):
         if self.subs_if is not None:

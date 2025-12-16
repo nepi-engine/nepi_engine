@@ -1375,6 +1375,7 @@ class AiDetectorIF:
                         connected_list.append(topic)
             if len(connected_list) == 0:
                 #self.msg_if.pub_warn("No Connected Image Topics")
+                self.cur_img_topic = "None"
                 self.next_image_topic = "None"
             else:
                 # check timer
@@ -1400,7 +1401,12 @@ class AiDetectorIF:
                         self.next_image_topic = connected_list[0]
                 else:
                     self.next_image_topic = "None"
-                #self.msg_if.pub_warn("Next Image Topic set to: " + self.next_image_topic)
+
+                # Check if current image topic active
+                if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
+                    active = imgs_info_dict[cur_img_topic]['active']
+                    if active == False:
+                        self.cur_img_topic = "None"
 
                 # Check if image topic has been initialized.
                 if cur_img_topic == "None" and self.next_image_topic != "None":
@@ -1429,7 +1435,10 @@ class AiDetectorIF:
             
                     #self.msg_if.pub_warn("Reset Current and Get Image Topic: " +  self.cur_img_topic)
                     #self.msg_if.pub_warn("With Delay and Timer: " + str(delay_time) + " " + str(timer))
-
+        # self.msg_if.pub_warn("Current Image Topic set to: " + str(self.cur_img_topic))
+        # self.msg_if.pub_warn("Get Image Topic set to: " + str(self.get_img_topic))
+        # self.msg_if.pub_warn("Got Image Topic set to: " + str(self.got_img_topic))
+        # self.msg_if.pub_warn("Next Image Topic set to: " + str(self.next_image_topic))
                     
         nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
 
@@ -1449,6 +1458,9 @@ class AiDetectorIF:
 
     def imageCb(self,image_msg, args):     
         img_topic = args
+        
+        #self.msg_if.pub_warn("Recieved Image Topic : " + img_topic)
+        #self.msg_if.pub_warn("Get Image Topic set to: " + self.get_img_topic)
 
         self.imgs_info_dict[img_topic]['connected'] = True
         
