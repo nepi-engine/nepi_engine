@@ -151,13 +151,30 @@ def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removab
     if (len(img_files) == 0):
         unmountPartition(STAGING_MOUNTPOINT)
         return True, "No new image file identified", [], [], []
-    elif (len(img_files) > 1):
-        unmountPartition(STAGING_MOUNTPOINT)
-        # TODO: Maybe we should allow more than one detectable image so users can select desired one?
-        return False, "More than one image file identified",  [], [], []
 
-    # Detected a single image, so grab the version string from inside it (with the staging parition still mounted, of course)... 
-    # this validates that it the image file mountable and is (probably) a nepi rootfs image
+    new_img_files=[]
+    new_img_versions=[]
+    new_img_filesizes=[]
+    for new_img_pathname in img_files:
+        if os.path.isfile(new_img_pathname):
+            try:
+                status, err_msg, new_img_version = getFWVersionStringForPartition(new_img_pathname)
+                new_img_filesize = os.path.getsize(new_img_pathname)
+                new_img_files.append(os.path.basename(new_img_pathname))
+                new_img_versions.append(new_img_version)
+                new_img_filesizes.append(new_img_filesize)
+            except:
+                pass
+    unmountPartition(STAGING_MOUNTPOINT)
+
+    if len(new_img_files) == 0:
+        return False, "No new image file identified",  [], [], []
+    
+    return True, "New image file identified", new_img_files, new_img_versions, new_img_filesizes
+
+
+
+
     new_img_pathname = img_files[0]
     status, err_msg, new_img_version = getFWVersionStringForPartition(new_img_pathname)
     
@@ -167,10 +184,9 @@ def checkForNewImagesAvailable(new_img_staging_device, staging_device_is_removab
         status = False
         new_img_filesize = 0
 
-    unmountPartition(STAGING_MOUNTPOINT)
+    
 
-    if status == False:
-        return False, err_msg,  [], [], []
+
 
     return True, "New image file identified", [os.path.basename(new_img_pathname)], [new_img_version], [new_img_filesize]
 
