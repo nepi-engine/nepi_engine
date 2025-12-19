@@ -378,21 +378,19 @@ def get_bgr_filter(color_bgr, sensitivity):
 
   # Calculate the lower bound for the RGB filter
   # Ensure values do not go below 0
-  lower_bound_bgr = np.array([
+  lower_bound_bgr = (
       int(max(0, color_bgr[0] - tolerance)),
       int(max(0, color_bgr[1] - tolerance)),
       int(max(0, color_bgr[2] - tolerance))
-  ])
-
-
+    )
 
   # Calculate the upper bound for the RGB filter
   # Ensure values do not exceed 255
-  upper_bound_bgr = np.array([
+  upper_bound_bgr = (
       int(min(255, color_bgr[0] + tolerance)),
       int(min(255, color_bgr[1] + tolerance)),
-      int(min(255, color_bgr[2] + tolerance))
-  ])
+      int(min(255, color_bgr[2] + tolerance))   
+    )
 
   return [lower_bound_bgr,upper_bound_bgr]
 
@@ -627,11 +625,10 @@ def denoise_filter(cv2_img, filter_type='gaussian', kernel_size=5):
         # sigmaSpace: Filter sigma in the coordinate space
         denoised_cv2_img = cv2.bilateralFilter(cv2_img, kernel_size, 75, 75)
     else:
-        print("Invalid filter type. Choose 'gaussian', 'median', or 'bilateral'.")
+        logger.log_warn("Invalid filter type. Choose 'gaussian', 'median', or 'bilateral'.")
         return None
 
     return denoised_cv2_img
-
 
 
 ###########################################
@@ -792,6 +789,13 @@ def create_message_image(message, image_size = (350, 700, 3),color_rgb = (0, 255
         lineType)
     return cv2_img
 
+
+def rgb_to_hex(rgb_tuple):
+  """
+  Converts an RGB tuple (0-255) to a hexadecimal color string.
+  e.g., (255, 0, 0) -> '#FF0000'
+  """
+  return "#{:02X}{:02X}{:02X}".format(*rgb_tuple)
     
 ###########################################
 ### Image saving functions
@@ -822,8 +826,55 @@ def write_image_file(cv2_img,file_path, log_name_list = []):
     return success
 
 
-    #########################
-    # Image Analysis Functions
+
+#########################
+# Image Analysis Functions
+
+def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5):
+
+    # Convert to HSV and isolate laser color (example for red laser)
+    #logger.log_warn("Calc Contours for image size: " + str(cv2_img.shape))
+    hsv = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2HSV)
+
+    # Define range filters for color in HSV
+    logger.log_warn("Using BGR Color " + str(color_bgr ))
+
+    color_array = np.array([[[color_bgr[0], color_bgr[1], color_bgr[2]]]], dtype=np.uint8)
+    hsv_color = cv2.cvtColor(color_array, cv2.COLOR_BGR2HSV)[0,0,:]
+    logger.log_warn("Using HSV Color " + str(hsv_color ))
+
+    sensitivity = 1 - sensitivity
+    sscaler = 2
+    vscaler = 2
+
+    h =  int( hsv_color[0] - 90 * sensitivity )
+    
+    if h < 0:
+       h = 179 + h
+    lower_bound = np.array([
+      h,
+      int(max(0, hsv_color[1] - 128 * sensitivity / sscaler )),
+      int(max(0, hsv_color[2] - 128 * sensitivity / vscaler))
+    ])
+
+
+    h =  int( hsv_color[0] + 90 * sensitivity )
+    if h > 179:
+       h = h - 179
+    upper_bound = np.array([
+      h,
+      int(min(255, hsv_color[1] + 128 * sensitivity / sscaler )),
+      int(min(255, hsv_color[2] + 128 * sensitivity / vscaler))
+    ])
+
+    logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))
+
+    # Threshold the HSV image to get only red colors
+    mask = cv2.inRange(hsv, lower_bound, upper_bound)
+
+    return mask
+
+
 
     '''
   def getShapeDistribution(cv2_img,x_px = None, y_px = None, w_px = None, h_px = None):

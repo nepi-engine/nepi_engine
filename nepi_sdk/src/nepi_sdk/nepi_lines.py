@@ -24,13 +24,13 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_img 
 
 
+from nepi_sdk.nepi_sdk import logger as Logger
+log_name = "nepi_img"
+logger = Logger(log_name = log_name)
+
 BLANK_LINE_DICT = dict()
 BLANK_LINE_DICT['x'] = []
 BLANK_LINE_DICT['y'] = []
-
-
-
-
 
 ##########################
 # Misc Util Functions
@@ -65,8 +65,12 @@ def filter_image_none(cv2_img, sensitivity = 0.5 ):
     return cv2_img, img_quality
 
 def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
-    kernel_float = 10 * (1 - sensitivity)
+    cv2_shape = cv2_img.shape
+    img_width = cv2_shape[1] 
+    img_height = cv2_shape[0] 
+    kernel_float = int( (10 + min(img_width,img_height) * 0.01) * (sensitivity))
     kernel_size = nepi_utils.get_closest_odd_integer(kernel_float)
+    logger.log_warn("Applying Denoise Filter with K size of " + str(kernel_size))
     cv2_img_filtered = nepi_img.denoise_filter(cv2_img, filter_type='gaussian', kernel_size=kernel_size)
     img_quality = 1.0
     return cv2_img_filtered, img_quality
@@ -76,41 +80,67 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
 #########################
 # Line Point Functions
 
-def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
+def process_line_color_mask(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
     line_dict = dict()
     line_dict['x'] = []
     line_dict['y'] = []
 
     line_quality = 1.0
 
+   
+    mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity)
 
 
-    # Convert to HSV and isolate laser color (example for red laser)
-    #print("Calc Contours for image size: " + str(cv2_img.shape))
-    hsv = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2HSV)
-    [lower_bound_bgr,upper_bound_bgr] = nepi_img.get_bgr_filter(line_color_bgr, sensitivity)
-    mask = cv2.inRange(hsv, lower_bound_bgr, upper_bound_bgr)
+    coordinates_array = cv2.findNonZero(mask)
 
-    # Further processing to refine the line (e.g., morphological operations, line detection)
-    # ... (e.g., using cv2.findContours and fitting a line or extracting the center line)
+    if coordinates_array is None:
+        logger.log_warn("COLOR MASK Got None Mask ")
+    else:
+        
+        # Reshape from (N, 1, 2) to (N, 2)
+        points = coordinates_array.reshape(-1, 2)
+        logger.log_warn("COLOR MASK Got Line Data Shape " + str(points.shape))
+        cols1, cols2 = zip(*points)
+        line_dict['x'] = [item + x_offset for item in list(cols1)]
+        line_dict['y'] = [item + y_offset for item in list(cols2)]
+    
 
-    # Example: Simple centroid extraction for illustration
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    line_pixels = []
-    for contour in contours:
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            line_dict['x'].append(cx + x_offset)
-            line_dict['y'].append(cy + y_offset)
-
-    # # Undistort points
-    # undistorted_pixels = cv2.undistortPoints(np.array(line_pixels, dtype=np.float32).reshape(-1, 1, 2), K, dist)
-    # for point in undistorted_pixels:
-    #     line_dict['x'].append(point[0])
-    #     line_dict['y'].append(point[1])
     return line_dict, line_quality
+
+def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
+    line_dict = dict()
+    line_dict['x'] = []
+    line_dict['y'] = []
+    line_quality = 1.0
+
+    mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity)
+
+    # # Optional: Clean up the mask with morphological operations (erosion/dilation) to reduce noise
+    # kernel = np.ones((5, 5), np.uint8)
+    # mask = cv2.erode(mask, kernel, iterations=1)
+    # mask = cv2.dilate(mask, kernel, iterations=1)
+
+    # Find the contours of the laser line
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return line_dict, line_quality
+
+    # Combine all contours into one set of points for processing
+    all_laser_points = np.vstack(contours)
+    
+    # Extract the coordinates (points)
+    # The shape of all_laser_points will be (N, 1, 2)
+    # We reshape it to (N, 2) for easier use, where N is the number of points.
+    points = all_laser_points.reshape(-1, 2)
+    logger.log_warn("CONTOURS Got Line Data Shape " + str(points.shape))
+    cols1, cols2 = zip(*points)
+    line_dict['x'] = [item + x_offset for item in list(cols1)]
+    line_dict['y'] = [item + y_offset for item in list(cols2)]
+    return line_dict, line_quality
+
+
+
 
 
 #########################
@@ -125,7 +155,10 @@ def filter_line_IQR(line_dict, sensitivity = 0.5 ):
 
     lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
     upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
-
+    filtered_line_dict = {
+        'x': [],
+        'y': []
+    }
     # Apply to y column
     df = pd.DataFrame(line_dict)
     column = 'y'
@@ -134,17 +167,19 @@ def filter_line_IQR(line_dict, sensitivity = 0.5 ):
     IQR = Q3 - Q1
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
-    line_dict = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-
+    dfx = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+    #logger.log_warn("IQR FILTER X got line data size " + str(dfx.shape))
     # Apply to y column
-    df = pd.DataFrame(line_dict)
     column = 'y'
-    Q1 = df[column].quantile(lower_q_value)
-    Q3 = df[column].quantile(upper_q_value)
+    Q1 = dfx[column].quantile(lower_q_value)
+    Q3 = dfx[column].quantile(upper_q_value)
     IQR = Q3 - Q1
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
-    line_dict = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+    dfy = dfx[(dfx[column] >= lower_bound) & (dfx[column] <= upper_bound)]
+    #logger.log_warn("IQR FILTER Y got line data size " + str(dfy.shape))
+  
+    line_dict = dfy.to_dict('list')
 
     line_quality = 1.0
 
@@ -172,10 +207,10 @@ def merge_lines_replace(base_line, merge_line, sensitivity):
     
     merged_line = dict()
 
-    merged_line['x'] = [x for x in base_line['x'] if x < xmin or x > xmax]
+    merged_line['x'] = base_line['x'] + merge_line['x'] #[x for x in base_line['x'] if x < xmin or x > xmax]
     #merged_line['x'].extends = merge_line[x]
 
-    merged_line['y'] = [y for y in base_line['y'] if y < ymin or y > ymax]
+    merged_line['y']  = base_line['y'] + merge_line['y'] # [y for y in base_line['y'] if y < ymin or y > ymax]
     #merged_line['y'].extends = merge_line[y]
 
     return merged_line, merge_quality
@@ -247,6 +282,7 @@ IMAGE_FILTER_OPTIONS_DICT = {
 }
 
 LINE_PROCESS_OPTIONS_DICT = {
+    'Color Mask': process_line_color_mask,
     'Contours': process_line_contours
 }
 

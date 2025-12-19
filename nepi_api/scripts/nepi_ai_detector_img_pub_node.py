@@ -905,7 +905,7 @@ class AiDetectorImgPub:
                 self.imgs_info_dict['img_file'] = dict()
                 self.imgs_info_dict['img_file']['img_stamp'] = img_stamp      
                 self.imgs_info_dict['img_file']['last_det_time'] = current_time
-                self.processFileImg(img_topic,blist)
+                self.processFileImg(img_topic,blist,llist)
 
   
 
