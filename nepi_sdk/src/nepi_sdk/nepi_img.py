@@ -875,7 +875,23 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5):
     return mask
 
 
-
+def pad_to_ratio(cv2_img, ratio , color_bgr = (0,0,0)):
+    cv2_shape = cv2_img.shape
+    img_width = cv2_shape[1] 
+    img_height = cv2_shape[0] 
+    cratio = img_width/img_height
+    if ratio != 1 and ratio != cratio and ratio > 0.01:
+        [top, bottom, left, right] = [0,0,0,0]
+        
+        if cratio > ratio:
+            pad = int((img_width/ratio - img_height)/2)
+            [top, bottom] = [pad,pad]
+        elif cratio < ratio:
+            pad = int((img_height * ratio - img_width)/2)
+            [left, right] = [pad,pad]
+           
+        cv2_img = cv2.copyMakeBorder(cv2_img, top, bottom, left, right, cv2.BORDER_CONSTANT, color_bgr)
+    return cv2_img
     '''
   def getShapeDistribution(cv2_img,x_px = None, y_px = None, w_px = None, h_px = None):
     https://www.geeksforgeeks.org/how-to-detect-shapes-in-images-in-python-using-opencv/
