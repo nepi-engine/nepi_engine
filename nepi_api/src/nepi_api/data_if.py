@@ -49,7 +49,7 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindowRatios
+from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindow, RangeWindow, ImagePixel
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -966,9 +966,10 @@ class NavPoseIF:
     def publish_status(self):
         if self.node_if is not None and self.status_msg is not None:
             avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
            
             self.node_if.publish_pub('status_pub', self.status_msg)
@@ -1529,9 +1530,10 @@ class NavPoseTrackIF:
     def publish_status(self):
         if self.node_if is not None and self.status_msg is not None:
             avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
            
             self.status_msg.track_length = self.track_length
@@ -1657,7 +1659,7 @@ EXAMPLE_CONTROLS_DICT = dict(
     threshold_ratio =  0.0,
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
-    zoom_ratio = 0.5, 
+    zoom_ratio = 0.0, 
     pan_left_right_ratio = 0.5,
     pan_up_down_ratio = 0.5,
     window_ratios = [0.0,1.0,0.0,1.0],
@@ -1708,7 +1710,7 @@ class BaseImageIF:
         flip_vert = False,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.5, 
+        zoom_ratio = 0.0,  
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
@@ -1777,12 +1779,29 @@ class BaseImageIF:
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     get_navpose_function = None    
     has_navpose = False
+    pub_navpose = False
 
     perspective = 'pov'
 
     add_pubs_dict = dict()
 
     pub_count = 0
+
+    pixel_callback = None
+    pixel = [0,0]
+    window_callback = None
+    window = [0,0,0,0]
+    needs_update_callback = None
+
+    x_offset = 0
+    y_offset = 0
+
+    raw_height = 0
+    raw_width = 0
+    proc_height = 0
+    proc_width = 0
+
+    window_ratios = [0,1,0,1]
 
     def __init__(self, 
                 namespace , 
@@ -1798,6 +1817,9 @@ class BaseImageIF:
                 pubs_dict,
                 subs_dict,
                 pub_navpose,
+                pixel_callback,
+                window_callback,
+                needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -1846,7 +1868,12 @@ class BaseImageIF:
             if len(self.filter_options) > 0:
                 self.has_filter = True
 
+        self.pub_navpose = pub_navpose
 
+        self.pixel_callback = pixel_callback
+        self.window_callback = window_callback
+
+        self.needs_update_callback = needs_update_callback
 
         # Create and update capabilities dictionary
         if caps_dict is not None:
@@ -1875,6 +1902,9 @@ class BaseImageIF:
 
         self.caps_report.has_filters = self.has_filter
         self.caps_report.filter_options = self.filter_options
+
+        self.caps_report.has_pixel_callback = (pixel_callback is not None)
+        self.caps_report.has_window_callback = (window_callback is not None)
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         self.dm_topic = nepi_sdk.find_topic(dm_ns)
@@ -2078,20 +2108,52 @@ class BaseImageIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'reset': {
-                'namespace': self.namespace,
-                'topic': 'reset',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetCb, 
-                'callback_args': ()
-            },
-            'reset_controls': {
+            'reset_all': {
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self._resetControlsCb, 
+                'callback_args': ()
+            },
+            'reset_filters': {
+                'namespace': self.namespace,
+                'topic': 'reset_filters',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetFiltersCb, 
+                'callback_args': ()
+            },
+            'reset_overalys': {
+                'namespace': self.namespace,
+                'topic': 'reset_overalys',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetOverlaysCb, 
+                'callback_args': ()
+            },
+            'reset_res_orients': {
+                'namespace': self.namespace,
+                'topic': 'reset_res_orients',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetResOrientsCb, 
+                'callback_args': ()
+            },
+            'reset_renders': {
+                'namespace': self.namespace,
+                'topic': 'reset_renders',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._resetRendersCb, 
+                'callback_args': ()
+            },
+            'set_pixel': {
+                'namespace': self.namespace,
+                'topic': 'set_pixelreset',
+                'msg': ImagePixel,
+                'qsize': 1,
+                'callback': self._setPixelCb, 
                 'callback_args': ()
             },
             'overlay_size_ratio': {
@@ -2149,14 +2211,6 @@ class BaseImageIF:
                 'topic': 'clear_overlay_list',
                 'qsize': 1,
                 'callback': self._clearOverlayListCb
-            },
-            'reset_overlays': {
-                'namespace': self.namespace,
-                'topic': 'reset_overlays',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetOverlaysCb, 
-                'callback_args': ()
             }
         }
 
@@ -2282,10 +2336,26 @@ class BaseImageIF:
         if caps_dict['has_window'] == True:
             self.SUBS_DICT['set_window'] = {
                 'namespace': self.namespace,
-                'topic': 'set_window_ratios',
-                'msg': ImageWindowRatios,
+                'topic': 'set_window',
+                'msg': ImageWindow,
                 'qsize': 1,
                 'callback': self._setWindowCb, 
+                'callback_args': ()
+            }
+            self.SUBS_DICT['set_x_window_ratios'] = {
+                'namespace': self.namespace,
+                'topic': 'set_x_window_ratios',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self._setXWindowCb, 
+                'callback_args': ()
+            }
+            self.SUBS_DICT['set_y_window_ratios'] = {
+                'namespace': self.namespace,
+                'topic': 'set_y_window_ratios',
+                'msg': RangeWindow,
+                'qsize': 1,
+                'callback': self._setYWindowCb, 
                 'callback_args': ()
             }
         if caps_dict['has_rotate_3d'] == True:
@@ -2313,7 +2383,7 @@ class BaseImageIF:
                 'topic': 'set_filter_enable',
                 'msg': UpdateState,
                 'qsize': 1,
-                'callback': self._setEnhanceEnableCb, 
+                'callback': self._setFilterEnableCb, 
                 'callback_args': ()
             }
             self.SUBS_DICT['set_filter_ratio'] = {
@@ -2321,7 +2391,7 @@ class BaseImageIF:
                 'topic': 'set_filter_ratio',
                 'msg': UpdateRatio,
                 'qsize': 1,
-                'callback': self._setEnhanceRatioCb, 
+                'callback': self._setFilterRatioCb, 
                 'callback_args': ()
             }
 
@@ -2549,13 +2619,19 @@ class BaseImageIF:
                 self.status_msg.max_range_m = 1
 
             [height,width] = cv2_img.shape[0:2]
+            [self.raw_height,self.raw_width] = [height,width]
             self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
+
 
             if process_data == True:
                 cv2_img = self.process_cv2_img(cv2_img)
             
 
             [height,width] = cv2_img.shape[0:2]
+            [self.proc_height,self.proc_width] = [height,width]
+
+
+
             last_width = self.status_msg.width_px
             last_height = self.status_msg.height_px
             self.status_msg.width_px = width
@@ -2627,6 +2703,7 @@ class BaseImageIF:
 
 
 
+
             
             navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
             if navpose_msg is not None:
@@ -2687,18 +2764,8 @@ class BaseImageIF:
         self.namespace = '~'
         self.status_msg = None
 
-
-    def set_resolution_ratio(self, ratio):
-        if (ratio < 0.2):
-            ratio = 0.2
-        if (ratio > 1.0):
-            ratio = 1.0
-        self.controls_dict['resolution_ratio'] = ratio
-        self.status_msg.resolution_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
-        if self.node_if is not None:
-            self.node_if.set_param('resolution_ratio', ratio)
-
+    ########################
+    # Filter Functions
 
     def set_auto_adjust_enable(self, enabled):
         if enabled:
@@ -2706,8 +2773,8 @@ class BaseImageIF:
         else:
             self.msg_if.pub_info("Disabling Auto Adjust", log_name_list = self.log_name_list)
         self.controls_dict['auto_adjust_enabled'] = enabled
-        self.status_msg.auto_adjust_enabled = enabled
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('auto_adjust_enabled', enabled)
 
@@ -2718,8 +2785,8 @@ class BaseImageIF:
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['auto_adjust_ratio'] = ratio
-        self.status_msg.auto_adjust_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('auto_adjust_ratio', ratio)
 
@@ -2729,8 +2796,8 @@ class BaseImageIF:
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['brightness_ratio'] = ratio
-        self.status_msg.brightness_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('brightness_ratio', ratio)
 
@@ -2741,8 +2808,8 @@ class BaseImageIF:
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['contrast_ratio'] = ratio
-        self.status_msg.contrast_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('contrast_ratio', ratio)
         
@@ -2754,100 +2821,11 @@ class BaseImageIF:
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['threshold_ratio'] = ratio
-        self.status_msg.threshold_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('threshold_ratio', ratio)
 
-    def set_rotate_2d_deg(self, deg):
-        deg_int = int(round(deg,0))
-        self.controls_dict['rotate_2d_deg'] = deg_int
-        self.status_msg.rotate_2d_deg = deg_int
-        self.publish_status(do_updates=False) # Updated inline here
-        if self.node_if is not None:
-            self.node_if.set_param('rotate_2d_deg', deg_int)
-
-    def set_flip_horz(self, enabled):
-        self.controls_dict['flip_horz'] = enabled
-        self.publish_status(do_updates=False) # Updated inline here
-        if self.node_if is not None:
-            self.node_if.set_param('flip_horz', enabled)
-
-    def set_flip_vert(self, enabled):
-        self.controls_dict['flip_vert'] = enabled
-        self.publish_status(do_updates=False) # Updated inline here
-        if self.node_if is not None:
-            self.node_if.set_param('flip_vert', enabled)
-
-    def set_range_ratios(self, start_ratio, stop_ratio):
-        if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
-            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
-            return
-
-        self.controls_dict['start_range_ratio'] = start_ratio
-        self.status_msg.range_ratios.start_range = start_ratio
-        self.controls_dict['stop_range_ratio'] = stop_ratio
-        self.status_msg.range_ratios.stop_range = stop_ratio
-
-        self.publish_status(do_updates=False) # Updated inline here 
-        if self.node_if is not None:
-            self.node_if.set_param('start_range_ratio', start_ratio)
-            self.node_if.set_param('stop_range_ratio', stop_ratio)
-      
-
-    def set_zoom_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['zoom_ratio'] = ratio
-        self.status_msg.zoom_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
-
-
-    def set_pan_left_right_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['pan_left_right_ratio'] = ratio
-        self.status_msg.pan_left_right_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
-
-
-    def set_pan_up_down_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['pan_up_down_ratio'] = ratio
-        self.status_msg.pan_up_down_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
-
-    def set_window_ratios(self, x_min, x_max, y_min, y_max):
-        if x_min >= 0 and x_max <= 1.0 and x_max > x_min \
-            and y_min >= 0 and y_max <= 1.0 and y_max > y_min:
-            self.controls_dict['window'] = [x_min,x_max,y_min,y_max]
-            self.publish_status(do_updates=False) # Updated inline here  
-
-    def set_rotate_3d_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['rotate_3d_ratio'] = ratio
-        self.status_msg.rotate_3d_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
-
-    def set_tilt_3d_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['tilt_3d_ratio'] = enabled
-        self.status_msg.tilt_3d_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
 
 
     def set_filter_enable(self,name, enabled):
@@ -2859,12 +2837,13 @@ class BaseImageIF:
                 else:
                     self.msg_if.pub_info("Disabling Filter: " + name, log_name_list = self.log_name_list)
                 self.filter_dict[name]['enabled'] = enabled
-                self.publish_status(do_updates=False) # Updated inline here
+                self.publish_status()  
+                self.needs_update()
                 if self.node_if is not None:
                     self.node_if.set_param('filter_dict', self.filter_dict)
 
 
-    def set_filter_ratio(self, ratio):
+    def set_filter_ratio(self,name, ratio):
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
@@ -2872,9 +2851,231 @@ class BaseImageIF:
         if name in self.filter_dict.keys():
             self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
             self.filter_dict[name]['ratio'] = ratio
-            self.publish_status(do_updates=False) # Updated inline here
+            self.publish_status() 
+            self.needs_update()
             self.node_if.set_param('filter_dict', self.filter_dict)
 
+    ########################
+    # Res and Orientation Functions
+
+    def set_resolution_ratio(self, ratio):
+        if (ratio < 0.2):
+            ratio = 0.2
+        if (ratio > 1.0):
+            ratio = 1.0
+        self.controls_dict['resolution_ratio'] = ratio
+        self.publish_status() 
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('resolution_ratio', ratio)
+
+    def set_rotate_2d_deg(self, deg):
+        deg_int = int(round(deg,0))
+        self.controls_dict['rotate_2d_deg'] = deg_int
+        self.publish_status() 
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('rotate_2d_deg', deg_int)
+
+    def set_flip_horz(self, enabled):
+        self.publish_status() 
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('flip_horz', enabled)
+
+    def set_flip_vert(self, enabled):
+        self.publish_status() 
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('flip_vert', enabled)
+
+    ########################
+    # Render Functions
+
+    def set_range_ratios(self, start_ratio, stop_ratio):
+        if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
+            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
+            self.publishStatus(do_updates=False) # No change
+            return
+
+        self.controls_dict['start_range_ratio'] = start_ratio
+        self.controls_dict['stop_range_ratio'] = stop_ratio
+
+        self.publish_status() 
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('start_range_ratio', start_ratio)
+            self.node_if.set_param('stop_range_ratio', stop_ratio)
+      
+
+    def set_zoom_ratio(self, ratio):
+        if ratio < 0.0:
+            ratio = 0.0
+        if ratio > 0.9:
+            ratio = 0.9
+        self.controls_dict['zoom_ratio'] = ratio
+
+        x_min = self.controls_dict['window_ratios'][0]
+        x_max = self.controls_dict['window_ratios'][1]
+        xratio = self.controls_dict['pan_left_right_ratio']
+
+        rlength = (x_max - x_min) 
+        x_min = xratio - rlength / 2 * (1 - ratio)
+        x_max = xratio + rlength / 2 * (1 - ratio)
+
+        xratio = x_min + (x_max - x_min) / 2
+        self.msg_if.pub_warn("Setting Pan X Ratio Updates: "  + str([x_min,x_max,ratio]), log_name_list = self.log_name_list)
+        self.update_pan_left_right_ratio(xratio)
+
+        y_min = self.controls_dict['window_ratios'][2]
+        y_max = self.controls_dict['window_ratios'][3]
+        yratio = self.controls_dict['pan_up_down_ratio']
+
+        rlength = (y_max - y_min)
+        y_min = yratio - rlength / 2 * (1 - ratio)
+        y_max = yratio + rlength / 2 * (1 - ratio)
+        yratio = y_min + (y_max - y_min) / 2
+
+        #self.msg_if.pub_warn("Setting Pan Y Ratio Updates: "  + str([y_min,y_max,ratio]), log_name_list = self.log_name_list)
+        self.update_pan_up_down_ratio(yratio)
+
+        self.window_ratios = [x_min,x_max,y_min,y_max]
+
+        self.publish_status() 
+        self.needs_update()
+
+
+    def set_pan_left_right_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        
+        x_min = self.window_ratios[0]
+        x_max = self.window_ratios[1]    
+        rlength = (x_max - x_min) 
+        x_min = ratio - rlength / 2
+        x_max = ratio + rlength / 2
+        if x_min < 0:
+            x_min = 0
+            x_max = rlength
+        if x_max > 1:
+            x_min = 1 - rlength
+            x_max = 1
+        ratio = x_min + (x_max - x_min) / 2
+        self.window_ratios[0] = x_min
+        self.window_ratios[1] = x_max  
+        #self.msg_if.pub_warn("Setting Pan X Ratio Updates: "  + str([x_min,x_max,ratio]), log_name_list = self.log_name_list)
+        self.update_pan_left_right_ratio(ratio)
+
+    def update_pan_left_right_ratio(self, ratio):
+        self.controls_dict['pan_left_right_ratio'] = ratio
+
+        x_min = self.controls_dict['window_ratios'][0]
+        x_max = self.controls_dict['window_ratios'][1]    
+        rlength = (x_max - x_min) 
+        x_min = ratio - rlength / 2
+        x_max = ratio + rlength / 2
+        if x_min < 0:
+            x_min = 0
+            x_max = rlength
+        if x_max > 1:
+            x_min = 1 - rlength
+            x_max = 1
+        self.controls_dict['window_ratios'][0] = x_min
+        self.controls_dict['window_ratios'][1] = x_max
+
+        self.publish_status() 
+        self.needs_update()
+
+
+    def set_pan_up_down_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        
+        y_min = self.window_ratios[2]
+        y_max = self.window_ratios[3]    
+        rlength = (y_max - y_min)
+        y_min = ratio - rlength / 2
+        y_max = ratio + rlength / 2
+        if y_min < 0:
+            y_min = 0
+            y_max = rlength
+        if y_max > 1:
+            y_min = 1 - rlength
+            y_max = 1
+        ratio = y_min + (y_max - y_min) / 2
+        self.window_ratios[2] = y_min
+        self.window_ratios[3] = y_max  
+        #self.msg_if.pub_warn("Setting Pan Y Ratio Updates: "  + str([y_min,y_max,ratio]), log_name_list = self.log_name_list)
+        self.update_pan_up_down_ratio(ratio)
+
+    def update_pan_up_down_ratio(self, ratio):
+        self.controls_dict['pan_up_down_ratio'] = ratio  
+
+        y_min = self.controls_dict['window_ratios'][2]
+        y_max = self.controls_dict['window_ratios'][3]    
+        rlength = (y_max - y_min) 
+        y_min = ratio - rlength / 2
+        y_max = ratio + rlength / 2
+        if y_min < 0:
+            y_min = 0
+            y_max = rlength
+        if y_max > 1:
+            y_min = 1 - rlength
+            y_max = 1
+        self.controls_dict['window_ratios'][2] = y_min
+        self.controls_dict['window_ratios'][3] = y_max
+
+
+        self.publish_status() 
+        self.needs_update()
+
+
+    def set_x_window_ratios(self, x_min, x_max):
+        if x_min >= 0 and x_max <= 1.0 and x_max > x_min and (x_max - x_min) > 0.1:
+            self.controls_dict['zoom_ratio'] = 0.0
+            self.controls_dict['window_ratios'][0] = x_min
+            self.controls_dict['window_ratios'][1] = x_max
+            self.controls_dict['pan_left_right_ratio'] = x_min + (x_max - x_min) / 2
+            self.window_ratios = self.controls_dict['window_ratios']
+            self.publish_status()  
+            self.needs_update()
+
+    def set_y_window_ratios(self, y_min, y_max):
+        if y_min >= 0 and y_max <= 1.0 and y_max > y_min and (y_max - y_min) > 0.1:
+            self.controls_dict['zoom_ratio'] = 0.0
+            self.controls_dict['window_ratios'][2] = y_min
+            self.controls_dict['window_ratios'][3] = y_max
+            self.controls_dict['pan_up_down_ratio'] = y_min + (y_max - y_min) / 2
+            self.window_ratios = self.controls_dict['window_ratios']
+            self.publish_status() 
+            self.needs_update()  
+ 
+    def set_rotate_3d_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['rotate_3d_ratio'] = ratio
+        self.publish_status()  
+        self.needs_update()
+
+    def set_tilt_3d_ratio(self, ratio):
+        if ratio < 0:
+            ratio = 0
+        if ratio > 1.0:
+            ratio = 1.0
+        self.controls_dict['tilt_3d_ratio'] = ratio
+        self.publish_status()  
+        self.needs_update()
+
+
+
+    ########################
+    # Overlay Functions
 
     def set_overlay_size_ratio(self, ratio):
         if ratio < 0:
@@ -2882,40 +3083,40 @@ class BaseImageIF:
         if ratio > 1.0:
             ratio = 1.0
         self.overlay_size_ratio = ratio
-        self.status_msg.overlay_size_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() 
+        self.needs_update()
 
 
 
     def set_overlay_image_name(self,enabled):
         self.overlays_dict['overlay_img_name'] = enabled
-        self.status_msg.overlay_img_name = enabled
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()
+        self.needs_update()
         self.node_if.set_param('overlay_img_name', enabled)
 
     def set_overlay_date_time(self,enabled):
         self.overlays_dict['overlay_date_time'] = enabled
-        self.status_msg.overlay_date_time =  enabled
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('overlay_date_time', enabled)
 
     def set_overlay_nav(self,enabled):
         self.overlays_dict['overlay_nav'] = enabled
-        self.status_msg.overlay_nav = enabled
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('overlay_nav', enabled)
 
     def set_overlay_pose(self,enabled):
         self.overlays_dict['overlay_pose'] = enabled
-        self.status_msg.overlay_pose = enabled
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('overlay_pose', enabled)
 
 
     def set_overlay_list(self,overlay_list):
         self.overlays_dict['add_overlay_list'] = overlay_list
-        self.status_msg.add_overlay_list = overlay_list  
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('add_overlay_list', overlay_list)
 
 
@@ -2923,54 +3124,39 @@ class BaseImageIF:
         overlay_list = self.overlays_dict['add_overlay_list']
         overlay_list.append(text)
         self.overlays_dict['add_overlay_list'] = overlay_list
-        self.status_msg.add_overlay_list = overlay_list
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('add_overlay_list', overlay_list)
 
 
     def clear_overlay_list(self):
         self.overlays_dict['add_overlay_list'] = []
-        self.status_msg.add_overlay_list = []
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status()  
+        self.needs_update()
         self.node_if.set_param('add_overlay_list', [])
 
 
-    def reset_controls(self):
+    def reset_filters(self):
         
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
 
-        self.node_if.factory_reset_param('resolution_ratio')
         self.node_if.factory_reset_param('auto_adjust_enabled')
         self.node_if.factory_reset_param('auto_adjust_ratio')
         self.node_if.factory_reset_param('brightness_ratio')
         self.node_if.factory_reset_param('contrast_ratio')
         self.node_if.factory_reset_param('threshold_ratio')
-        self.node_if.factory_reset_param('rotate_2d_deg')
-        self.node_if.factory_reset_param('flip_horz')
-        self.node_if.factory_reset_param('flip_vert')
-        self.node_if.factory_reset_param('start_range_ratio')
-        self.node_if.factory_reset_param('stop_range_ratio')
         self.node_if.factory_reset_param('filter_dict')
 
-
-        self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
         self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
         self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param('auto_adjust_ratio')
         self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
         self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
         self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
-
-        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
-        self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
-        self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
-
-        self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
-        self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
-
         self.filter_dict = self.node_if.get_param('filter_dict')
 
-        self.publish_status(do_updates=False)
+        self.publish_status()
+
 
     def reset_overlays(self):
         self.node_if.factory_reset_param('overlay_size_ratio')
@@ -2986,36 +3172,65 @@ class BaseImageIF:
         self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
         self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
         
-        self.publish_status(do_updates=False)
+        self.publish_status()
 
 
-    def publish_status(self, do_updates = True):
+    def reset_res_orients(self):
+        
+        # First reset controls to init dict to capture non param managed settings
+        self.controls_dict = self.init_controls_dict
+
+        self.node_if.factory_reset_param('resolution_ratio')
+        self.node_if.factory_reset_param('rotate_2d_deg')
+        self.node_if.factory_reset_param('flip_horz')
+        self.node_if.factory_reset_param('flip_vert')
+
+
+        self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
+        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
+        self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
+        self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
+
+
+
+        self.filter_dict = self.node_if.get_param('filter_dict')
+
+        self.publish_status()
+
+    def reset_renders(self):
+        self.controls_dict = self.init_controls_dict
+        self.controls_dict['start_range_ratio'] = 0
+        self.controls_dict['stop_range_ratio'] = 1
+        self.controls_dict['zoom_ratio'] = 0.0
+        self.controls_dict['pan_left_right_ratio'] = 0.5
+        self.controls_dict['pan_up_down_ratio'] = 0.5
+        self.controls_dict['window_ratios'][0] = 0
+        self.controls_dict['window_ratios'][1] = 1
+        self.controls_dict['window_ratios'][2] = 0
+        self.controls_dict['window_ratios'][3] = 1
+
+        self.window_ratios = [0,1,0,1]
+
+        self.controls_dict['rotate_3d_ratio'] = 0.5
+        self.controls_dict['tilt_3d_ratio'] = 0.5
+
+        self.node_if.factory_reset_param('start_range_ratio')
+        self.node_if.factory_reset_param('stop_range_ratio')
+
+        self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
+        self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+
+        self.publish_status()
+
+
+    def publish_status(self):
         if self.node_if is not None and self.status_msg is not None:
-            self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
+
             self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
             self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
             self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
             self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
             self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
-
-            self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
-            self.status_msg.flip_horz = self.controls_dict['flip_horz']
-            self.status_msg.flip_vert = self.controls_dict['flip_vert']
-
-            self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
-            self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
-            self.status_msg.zoom_ratio = self.controls_dict['zoom_ratio']
-            self.status_msg.pan_left_right_ratio = self.controls_dict['pan_left_right_ratio']
-            self.status_msg.pan_up_down_ratio = self.controls_dict['pan_up_down_ratio']
-            self.status_msg.window_ratios.x_min = self.controls_dict['window_ratios'][0]
-            self.status_msg.window_ratios.x_max = self.controls_dict['window_ratios'][1]
-            self.status_msg.window_ratios.y_min = self.controls_dict['window_ratios'][2]
-            self.status_msg.window_ratios.y_max = self.controls_dict['window_ratios'][3]
-            self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
-            self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
-            self.status_msg.depth_map_topic = self.dm_topic
-            self.status_msg.pointcloud_topic = self.pc_topic
-
             filter_options = []
             filter_states = []
             filter_ratios = []
@@ -3028,6 +3243,28 @@ class BaseImageIF:
             self.status_msg.filter_states = filter_states
             self.status_msg.filter_ratios = filter_ratios
 
+            self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
+            self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
+            self.status_msg.flip_horz = self.controls_dict['flip_horz']
+            self.status_msg.flip_vert = self.controls_dict['flip_vert']
+
+            self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
+            self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
+            self.status_msg.zoom_ratio = self.controls_dict['zoom_ratio']
+            self.status_msg.pan_left_right_ratio = self.controls_dict['pan_left_right_ratio']
+            self.status_msg.pan_up_down_ratio = self.controls_dict['pan_up_down_ratio']
+            self.status_msg.window_x_ratios.start_range = self.controls_dict['window_ratios'][0]
+            self.status_msg.window_x_ratios.stop_range = self.controls_dict['window_ratios'][1]
+            self.status_msg.window_y_ratios.start_range = self.controls_dict['window_ratios'][2]
+            self.status_msg.window_y_ratios.stop_range = self.controls_dict['window_ratios'][3]
+            self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
+            self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
+
+
+            self.status_msg.depth_map_topic = self.dm_topic
+            self.status_msg.pointcloud_topic = self.pc_topic
+
+
             self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
             self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
@@ -3037,11 +3274,12 @@ class BaseImageIF:
             self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
 
             avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
-
+            #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list)
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
@@ -3060,8 +3298,14 @@ class BaseImageIF:
             self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
             self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
 
-            self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
-            self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+
+            self.controls_dict['zoom_ratio'] = 0.0
+            self.controls_dict['pan_left_right_ratio'] = 0.5
+            self.controls_dict['pan_up_down_ratio'] = 0.5
+            self.controls_dict['window_ratios'] = [0,1,0,1]
+            self.window_ratios = [0,1,0,1]
+            self.controls_dict['start_range_ratio'] = 0
+            self.controls_dict['stop_range_ratio'] = 1
 
 
             self.filter_dict = self.node_if.get_param('filter_dict')
@@ -3073,6 +3317,10 @@ class BaseImageIF:
             self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
         if do_updates == True:
             pass
+        self.pixel = [0,0]
+        self.window = [0,0,0,0]
+        self.x_offset = 0
+        self.y_offset = 0
         self.publish_status()
 
     def reset(self):
@@ -3114,6 +3362,10 @@ class BaseImageIF:
     def _publishStatusCb(self,timer):
         self.publish_status()
 
+    def needs_update(self):
+        if self.needs_update_callback is not None:
+            self.needs_update_callback(self.controls_dict)
+
     def _updateRangesM(self, min_m, max_m):
         if min_m < 0:
             min_m = 0
@@ -3123,11 +3375,34 @@ class BaseImageIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
-    def _setResolutionRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Resolution update message: " + str(msg), log_name_list = self.log_name_list)
-        ratio = msg.data
-        self.set_resolution_ratio(ratio)
+    def _setPixelCb(self,msg):
+        self.msg_if.pub_info("Recived set pixel message: " + str(msg), log_name_list = self.log_name_list)
+        self.pixel[msg.x,msg.y]
+        if self.pixel_callback is not None:
+            adj_pixel = [msg.x + self.x_offset, msg.y + self.y_offset]
+            self.pixel_callback(adj_pixel)
 
+    def _setWindowCb(self,msg):
+        self.msg_if.pub_info("Recived set window message: " + str(msg), log_name_list = self.log_name_list)
+        self.window[msg.x_min,msg.x_max,msg.y_min,msg.y_max]
+        if self.window_callback is not None:
+            adj_window = [msg.x_min + self.x_offset , msg.x_max + self.x_offset, msg.y_min + self.y_offset, msg.y_max + self.y_offset]
+            self.window_callback(adj_window)
+
+    ########################
+    # Filter Callbacks
+
+    def _setFilterEnableCb(self, msg):
+        self.msg_if.pub_info("Recived Enable Enhacement message: " + str(msg), log_name_list = self.log_name_list)
+        name = msg.name
+        enabled = msg.active_state
+        self.set_filter_enable(name,enabled) 
+
+    def _setFilterRatioCb(self, msg):
+        self.msg_if.pub_info("Recived Ehnacement Ratio update message: " + str(msg), log_name_list = self.log_name_list)
+        name = msg.name
+        ratio = msg.ratio
+        self.set_filter_ratio(name,ratio) 
 
 
     def _setAutoAdjustCb(self, msg):
@@ -3159,6 +3434,16 @@ class BaseImageIF:
         self.set_threshold_ratio(ratio)
 
 
+
+    ########################
+    # Res and Orientation Callbacks
+
+    def _setResolutionRatioCb(self, msg):
+        self.msg_if.pub_info("Recived Resolution update message: " + str(msg), log_name_list = self.log_name_list)
+        ratio = msg.data
+        self.set_resolution_ratio(ratio)
+
+
     def _setRotate2dCb(self, msg):
         self.msg_if.pub_info("Received Rotate 2d Deg update message: " + str(msg), log_name_list = self.log_name_list)
         cur_angle = self.controls_dict['rotate_2d_deg']
@@ -3177,6 +3462,9 @@ class BaseImageIF:
         self.msg_if.pub_info("Received Flip Vert update message: " + str(msg), log_name_list = self.log_name_list)
         enable = msg.data
         self.set_flip_vert(enable)
+
+    ########################
+    # Render Callbacks
 
     def _setRangeCb(self, msg):
         self.msg_if.pub_info("Recived Range update message: " + str(msg), log_name_list = self.log_name_list)
@@ -3201,13 +3489,14 @@ class BaseImageIF:
         ratio = msg.data
         self.set_pan_up_down_ratio(ratio)
 
-    def _setWindowCb(self, msg):
-        self.msg_if.pub_info("Recived window update message: " + str(msg), log_name_list = self.log_name_list)
-        x_min = msg.x_min
-        x_max = msg.x_max
-        y_min = msg.y_min
-        y_max = msg.y_max
-        self.set_window_ratios(x_min,x_max,y_min,y_max)
+
+    def _setXWindowCb(self, msg):
+        self.msg_if.pub_info("Recived x window ratios update message: " + str(msg), log_name_list = self.log_name_list)
+        self.set_x_window_ratios(msg.start_range,msg.stop_range)
+
+    def _setYWindowCb(self, msg):
+        self.msg_if.pub_info("Recived x window ratios update message: " + str(msg), log_name_list = self.log_name_list)
+        self.set_y_window_ratios(msg.start_range,msg.stop_range)
 
 
     def _setRotateCb(self, msg):
@@ -3219,18 +3508,10 @@ class BaseImageIF:
         ratio = msg.data
         self.set_tilt_3d_ratio(ratio) 
 
-    def _setEnhanceEnableCb(self, msg):
-        self.msg_if.pub_info("Recived Enable Enhacement message: " + str(msg), log_name_list = self.log_name_list)
-        name = msg.name
-        enabled = msg.active_state
-        self.set_filter_enable(name,enabled) 
 
-    def _setEnhanceRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Ehnacement Ratio update message: " + str(msg), log_name_list = self.log_name_list)
-        name = msg.name
-        ratio = msg.ratio
-        self.set_filter_ratio(name,ratio) 
 
+    ########################
+    # Render Callbacks
 
     def _setOverlaySizeCb(self,msg):
         ratio = msg.data
@@ -3267,17 +3548,22 @@ class BaseImageIF:
         self.clear_overlay_list()
 
     def _resetControlsCb(self,msg):
-        self.reset_controls()
+        self.reset_filters()
         self.reset_overlays()
+        self.reset_res_orients()
+        self.reset_renders()
 
-    def _resetControlsCb(self,msg):
-        self.reset_controls()
+    def _resetFiltersCb(self,msg):
+        self.reset_filters()
 
     def _resetOverlaysCb(self,msg):
         self.reset_overlays()
 
-    def _resetEnhancessCb(self,msg):
-        self.reset_filters()
+    def _resetResOrientsCb(self,msg):
+        self.reset_res_orients()
+    
+    def _resetRendersCb(self,msg):
+        self.reset_renders()
 
     def _navposeCb(self,msg):
         self.navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
@@ -3318,7 +3604,7 @@ class ImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.5, 
+        zoom_ratio = 0.0, 
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
@@ -3346,6 +3632,9 @@ class ImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3366,6 +3655,9 @@ class ImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
+                pixel_callback,
+                window_callback,
+                needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -3408,9 +3700,9 @@ class ColorImageIF(BaseImageIF):
         has_flip_horz = True,
         has_flip_vert = True,
         has_range = False,
-        has_zoom = False,
-        has_pan = False,
-        has_window = False,
+        has_zoom = True,
+        has_pan = True,
+        has_window = True,
         has_rotate_3d = False,
         has_tilt_3d = False
         )
@@ -3433,7 +3725,7 @@ class ColorImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.5, 
+        zoom_ratio = 0.0, 
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
         window_ratios = [0.0,1.0,0.0,1.0],
@@ -3461,6 +3753,9 @@ class ColorImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3481,6 +3776,9 @@ class ColorImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
+                pixel_callback,
+                window_callback,
+                needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -3499,35 +3797,42 @@ class ColorImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        cv2_shape = cv2_img.shape
+        img_width = cv2_shape[1] 
+        img_height = cv2_shape[0] 
+        ratio = img_width / img_height
+        #self.msg_if.pub_info("Image Raw: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+        #####################
+        # Apply render controls
+        [xr_min,xr_max,yr_min,yr_max] = self.window_ratios 
+        #self.msg_if.pub_info("Got Image Ratios: " + str([xr_min,xr_max,yr_min,yr_max]), log_name_list = self.log_name_list)
+
+
+        x_min = int(max(0, img_width * xr_min )) 
+        x_max = int(min(img_width, img_width * xr_max))
+        y_min = int(max(0, img_height * yr_min))
+        y_max = int(min(img_height, img_height * yr_max))
+        #self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+
+
+
+
+        #self.msg_if.pub_info("Got Image Pan: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+        self.x_offset = x_min 
+        self.y_offset = y_min
+
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+        ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
-        # Apply Filters
-        for filter_name in self.filter_dict.keys():
-            enabled = self.filter_dict[filter_name]['enabled']
-            if enabled == True:
-                ratio = self.filter_dict[filter_name]['ratio']
-                if ratio > 0.05:
-                    function = self.filter_dict[filter_name]['function']
-                    cv2_img = function(cv2_img,ratio)
-
-        # Apply Adjustment Controls
-        auto = self.controls_dict['auto_adjust_enabled']
-        auto_ratio = self.controls_dict['auto_adjust_ratio']
-        brightness = self.controls_dict['contrast_ratio']
-        contrast = self.controls_dict['brightness_ratio']
-        threshold = self.controls_dict['threshold_ratio']
-
-        if auto is False:
-            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
-            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
-            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
-        else:
-            cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
-
-    
+        ##########
         # Apply Oreantation Controls
         degrees = self.controls_dict['rotate_2d_deg']
         fliph = self.controls_dict['flip_horz']
@@ -3542,6 +3847,39 @@ class ColorImageIF(BaseImageIF):
         if flipv == True:
             cv2_img = nepi_img.flip_vert(cv2_img) 
 
+        #self.msg_if.pub_info("Image Orient: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+        ###################
+        # Apply Filters
+        for filter_name in self.filter_dict.keys():
+            enabled = self.filter_dict[filter_name]['enabled']
+            if enabled == True:
+                ratio = self.filter_dict[filter_name]['ratio']
+                if ratio > 0.05:
+                    function = self.filter_dict[filter_name]['function']
+                    cv2_img = function(cv2_img,ratio)
+
+
+        ##########
+        # Apply Adjustment Controls
+        auto = self.controls_dict['auto_adjust_enabled']
+        auto_ratio = self.controls_dict['auto_adjust_ratio']
+        brightness = self.controls_dict['contrast_ratio']
+        contrast = self.controls_dict['brightness_ratio']
+        threshold = self.controls_dict['threshold_ratio']
+
+        if auto is False:
+            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+        else:
+            cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
+
+        #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+        ##########
+        # Pad image if needed
+        cv2_img = nepi_img.pad_to_ratio(cv2_img, ratio)
 
         return cv2_img
 
@@ -3597,7 +3935,9 @@ class DepthMapIF:
 
     image_if = None
     navpose_if = None
-
+    pixel_callback = None
+    window_callback = None
+    needs_update_callback = None
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     get_navpose_function = None    
     has_navpose = False
@@ -3610,7 +3950,9 @@ class DepthMapIF:
                 pub_image = True,
                 get_navpose_function = None,
                 pub_navpose = False,
-                init_overlay_list = [],
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -3645,6 +3987,9 @@ class DepthMapIF:
             self.get_navpose_function = get_navpose_function
             self.has_navpose = True
 
+        self.pixel_callback = pixel_callback
+        self.window_callback = window_callback
+        self.needs_update_callback = needs_update_callback
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
@@ -3772,6 +4117,9 @@ class DepthMapIF:
                         data_ref_description = self.data_ref_description,
                         perspective = self.perspective,
                         get_navpose_function = self.get_navpose_dict,
+                        pixel_callback = self.pixel_callback,
+                        window_callback = self.window_callback,
+                        needs_update_callback = self.needs_update_callback,
                         log_name = img_data_product,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -3962,9 +4310,10 @@ class DepthMapIF:
             self.status_msg.min_range_m = self.min_range_m
             self.status_msg.max_range_m = self.max_range_m
             avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
             self.node_if.publish_pub('status_pub',self.status_msg)
@@ -4064,6 +4413,168 @@ class DepthMapImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
+        zoom_ratio = 1.0, 
+        pan_left_right_ratio = 0.5,
+        pan_up_down_ratio = 0.5,
+        window_ratios = [0.0,1.0,0.0,1.0],
+        rotate_3d_ratio = 0.5,
+        tilt_3d_ratio = 0.5
+        )
+
+    params_dict = None
+    services_dict = None
+    pubs_dict = None
+    subs_dict = None
+
+    data_product = 'depth_map'
+
+    auto_adjust_controls = []
+
+
+    def __init__(self, namespace = None , 
+                data_product_name = 'depth_map_image',
+                data_source_description = 'depth_map_sensor',
+                data_ref_description = 'sensor',
+                perspective = 'pov',
+                init_overlay_list = [],
+                get_navpose_function = None,
+                pub_navpose = False,
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+
+
+        self.data_product = data_product_name
+        # Call the parent class constructor
+        super().__init__(namespace , 
+                self.data_product,
+                data_source_description,
+                data_ref_description,
+                perspective,
+                self.DEFAULT_CAPS_DICT,
+                self.DEFAULT_CONTROLS_DICT,
+                self.DEFAULT_FILTERS_DICT, 
+                self.params_dict,
+                self.services_dict,
+                self.pubs_dict,
+                self.subs_dict,
+                pub_navpose,
+                pixel_callback,
+                window_callback,
+                needs_update_callback,
+                init_overlay_list,
+                get_navpose_function,
+                log_name,
+                log_name_list,
+                msg_if
+                )
+
+        ###############################
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        ###############################
+
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    def publish_cv2_depth_map_img(self,cv2_depth_map,
+                            width_deg = 100,
+                            height_deg = 70,
+                            min_range_m = 0, 
+                            max_range_m = 1,
+                            timestamp = None,
+                            frame_3d = 'sensor_frame',
+                            device_mount_description = 'fixed',
+                            navpose_dict = None,
+                            pub_twice = False
+                            ):
+
+                
+        cv2_img = None
+        if cv2_depth_map is not None:
+            start_range_ratio = self.controls_dict['start_range_ratio']
+            stop_range_ratio = self.controls_dict['stop_range_ratio']
+            depth_data = (np.array(cv2_depth_map, dtype=np.float32)) # replace nan values
+            # Get range data
+            delta_range_m = max_range_m - min_range_m
+            # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
+            max_range_m = min_range_m + stop_range_ratio * delta_range_m
+            min_range_m = min_range_m + start_range_ratio * delta_range_m
+            delta_range_m = max_range_m - min_range_m
+            # Filter depth_data in range
+            depth_data[np.isnan(depth_data)] = max_range_m 
+            depth_data[depth_data <= min_range_m] = max_range_m # set to max
+            depth_data[depth_data >= max_range_m] = max_range_m # set to max
+            # Create colored cv2 depth image
+            depth_data = depth_data - min_range_m # Shift down 
+            depth_data = np.abs(depth_data - max_range_m) # Reverse for colormap
+            depth_data = np.array(255*depth_data/delta_range_m,np.uint8) # Scale for bgr colormap
+            cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
+
+            self.publish_cv2_img(cv2_img,
+                                encoding = 'bgr8',
+                                width_deg = width_deg,
+                                height_deg = height_deg,
+                                min_range_m = min_range_m, 
+                                max_range_m = max_range_m,
+                                timestamp = timestamp,
+                                frame_3d = frame_3d,
+                                device_mount_description = device_mount_description,
+                                navpose_dict = navpose_dict,
+                                pub_twice = pub_twice
+                             )
+            return cv2_img
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
+
+
+
+##################################################
+# PointcloudImageIF
+
+class PointcloudImageIF(BaseImageIF):
+
+    #Default Control Values 
+    DEFAULT_CAPS_DICT = dict( 
+        has_resolution = False,
+        has_auto_adjust = False,
+        has_contrast = False,
+        has_brightness = False,
+        has_threshold = False,
+        has_rotate_2d = True,
+        has_flip_horz = True,
+        has_flip_vert = True,
+        has_range = True,
+        has_zoom = False,
+        has_pan = False,
+        has_window = False,
+        has_rotate_3d = False,
+        has_tilt_3d = False
+        )
+
+    DEFAULT_FILTERS_DICT = dict()
+
+    #Default Control Values 
+    DEFAULT_CONTROLS_DICT = dict( 
+        resolution_ratio = 1.0,
+        auto_adjust_enabled = False,
+        auto_adjust_ratio = 0.3,
+        brightness_ratio = 0.5,
+        contrast_ratio =  0.5,
+        threshold_ratio =  0.0,
+        start_range_ratio = 0.0,
+        stop_range_ratio = 1.0,
         zoom_ratio = 0.5, 
         pan_left_right_ratio = 0.5,
         pan_up_down_ratio = 0.5,
@@ -4089,6 +4600,9 @@ class DepthMapImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -4110,6 +4624,9 @@ class DepthMapImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
+                pixel_callback,
+                window_callback,
+                needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
                 log_name,
@@ -4188,7 +4705,6 @@ class DepthMapImageIF(BaseImageIF):
 
 
 
-
 ##################################################
 # PointcloudIF
 
@@ -4257,6 +4773,13 @@ class PointcloudIF:
     get_navpose_function = None    
     has_navpose = False
 
+    voxel_callback = None
+    voxel = [0,0,0]
+    pixel_callback = None
+    window_callback = None
+
+    needs_update_callback = None
+
     def __init__(self, namespace = None,
                 data_product_name = 'pointcloud',
                 data_source_description = 'pointcloud_sensor',
@@ -4265,6 +4788,10 @@ class PointcloudIF:
                 pub_image = True,
                 get_navpose_function = None,
                 pub_navpose = False,
+                voxel_callback = None,
+                pixel_callback = None,
+                window_callback = None,
+                needs_update_callback = None,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -4299,6 +4826,13 @@ class PointcloudIF:
         if get_navpose_function is not None and pub_navpose == True:
             self.get_navpose_function = get_navpose_function
             self.has_navpose = True
+ 
+        self.init_overlay_list = init_overlay_list
+
+        self.voxel_callback = voxel_callback
+        self.pixel_callback = pixel_callback
+        self.window_callback = window_callback
+        self.needs_update_callback = needs_update_callback
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
@@ -4416,19 +4950,25 @@ class PointcloudIF:
 
         ###############################
         #Setup Image Pub if needed
-        if pub_image == True:
-            img_data_product = get_image_data_product(self.data_product)
-            self.data_products_list = self.data_products_list + [img_data_product]
-            image_if = DepthMapImageIF(namespace = self.namespace, 
-                        data_product_name = img_data_product, 
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        perspective = self.perspective,
-                        get_navpose_function = self.get_navpose_function,
-                        log_name = img_data_product,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
+        # if pub_image == True:
+        #     img_data_product = get_image_data_product(self.data_product)
+        #     self.data_products_list = self.data_products_list + [img_data_product]
+        #     image_if = PointcloudImageIF(namespace = self.namespace, 
+        #                 data_product_name = img_data_product, 
+        #                 data_source_description = self.data_source_description,
+        #                 data_ref_description = self.data_ref_description,
+        #                 perspective = self.perspective,
+        #                 init_overlay_list = self.init_overlay_list,
+        #                 get_navpose_function = self.get_navpose_function,
+        #                 pixel_callback = self.pixel_callback,
+        #                 window_callback = self.window_callback,
+        #                 needs_update_callback = needs_update_callback,
+        #                 log_name = img_data_product,
+        #                 log_name_list = self.log_name_list,
+        #                 msg_if = self.msg_if
+        #                 )
+
+
         '''
         ################################
         # Setup navpose data IF if needed
@@ -4502,6 +5042,13 @@ class PointcloudIF:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         return navpose_dict
 
+
+    def _setVoxelCb(self,msg):
+        self.msg_if.pub_info("Recived set voxel message: " + str(msg), log_name_list = self.log_name_list)
+        self.voxel[msg.x,msg.y,msg.z]
+        if self.voxel_callback is not None:
+            self.voxel_callback(self.pixel)
+
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
                         frame_3d = 'sensor_frame', 
@@ -4510,7 +5057,11 @@ class PointcloudIF:
                         min_range_m = None,
                         max_range_m = None,
                         device_mount_description = 'fixed',
-                        pub_twice = False):
+                        navpose_dict = None,
+                        process_data = True,
+                        pub_twice = False,
+                        add_pubs = []):
+        
 
         if self.node_if is None and self.status_msg is not None:
             self.msg_if.pub_info("Can't publish on None publisher", log_name_list = self.log_name_list)
@@ -4554,16 +5105,7 @@ class PointcloudIF:
 
         self.status_msg.publishing = True
 
-        navpose_dict = self.get_navpose_dict()
-        if self.node_if is not None and self.has_subs == True:
-            #Convert to ros Image message
-            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc, frame_3d = frame_3d)
-            sec = nepi_sdk.sec_from_timestamp(timestamp)
-            ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-            self.node_if.publish_pub('data_pub', ros_pc)
-            if pub_twice == True:
-                nepi_sdk.sleep(0.01)
-                self.node_if.publish_pub('data_pub', ros_pc)
+
 
         process_time = round( (nepi_utils.get_time() - start_time) , 3)
         self.status_msg.process_time = process_time
@@ -4642,9 +5184,10 @@ class PointcloudIF:
                 self.status_msg.white_background = use_wbg
 
             avg_rate = 0
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
             self.node_if.publish_pub('status_pub',self.status_msg)
