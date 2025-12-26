@@ -794,3 +794,15 @@ def get_closest_odd_integer(f_num):
             return int(lower_odd)
         else:
             return int(upper_odd)
+        
+
+##################
+## Misc Check Functions
+
+
+def check_ratio(ratio):
+    if ratio < 0:
+      ratio = 0
+    if ratio > 1:
+       ratio = 1
+    return ratio

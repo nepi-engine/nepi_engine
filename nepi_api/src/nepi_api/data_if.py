@@ -1659,10 +1659,7 @@ EXAMPLE_CONTROLS_DICT = dict(
     threshold_ratio =  0.0,
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
-    zoom_ratio = 0.0, 
-    pan_left_right_ratio = 0.5,
-    pan_up_down_ratio = 0.5,
-    window_ratios = [0.0,1.0,0.0,1.0],
+    window_ratios = [0,1,0,1],
     rotate_3d_ratio = 0.5,
     tilt_3d_ratio = 0.5       
     )
@@ -1710,13 +1707,17 @@ class BaseImageIF:
         flip_vert = False,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.0,  
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
+
+
+    DEFAULT_MOUSE_DICT = dict(
+        click_callback = None,
+        drag_callback = None,
+        window_callback = None
+    )
 
     ready = False
     namespace = '~'
@@ -1787,29 +1788,34 @@ class BaseImageIF:
 
     pub_count = 0
 
-    pixel_callback = None
-    pixel = None
 
-    window_callback = None
+    pixel = None
     window = None
 
-    drag_callback = None
+
     drag_pixel = None
     drag_window = None
 
+
     needs_update_callback = None
+
+
+    mouse_dict = copy.deepcopy(DEFAULT_MOUSE_DICT)
+
 
     x_offset = 0
     y_offset = 0
-
-    x_pad = 0
-    y_pad = 0
+    x_scaler = 1
+    y_scaler = 1
 
     raw_height = 0
     raw_width = 0
     proc_height = 0
     proc_width = 0
 
+    zoom_ratio = 1
+    x_ratio = 0.5
+    y_ratio = 0.5
     window_ratios = [0,1,0,1]
 
     def __init__(self, 
@@ -1826,9 +1832,6 @@ class BaseImageIF:
                 pubs_dict,
                 subs_dict,
                 pub_navpose,
-                pixel_callback,
-                drag_callback,
-                window_callback,
                 needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
@@ -1858,6 +1861,8 @@ class BaseImageIF:
         ##############################    
         # Initialize Class Variables
 
+        
+
         if data_product_name is not None:
             self.data_product = data_product_name
 
@@ -1880,9 +1885,6 @@ class BaseImageIF:
 
         self.pub_navpose = pub_navpose
 
-        self.pixel_callback = pixel_callback
-        self.drag_callback = drag_callback
-        self.window_callback = window_callback
 
         self.needs_update_callback = needs_update_callback
 
@@ -1914,9 +1916,6 @@ class BaseImageIF:
         self.caps_report.has_filters = self.has_filter
         self.caps_report.filter_options = self.filter_options
 
-        self.caps_report.has_pixel_callback = (pixel_callback is not None)
-        self.caps_report.has_drag_callback = (drag_callback is not None)
-        self.caps_report.has_window_callback = (window_callback is not None)
 
         dm_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         self.dm_topic = nepi_sdk.find_topic(dm_ns)
@@ -2109,20 +2108,6 @@ class BaseImageIF:
                 'topic': 'navpose',
                 'qsize': 1,
                 'latch': False
-            },
-            'pixel_pub': {
-                'msg': ImagePixel,
-                'namespace': self.namespace,
-                'topic': 'pixel',
-                'qsize': 1,
-                'latch': True
-            },
-            'window_pub': {
-                'msg': ImageWindow,
-                'namespace': self.namespace,
-                'topic': 'window',
-                'qsize': 1,
-                'latch': True
             }
 
         }
@@ -2174,12 +2159,12 @@ class BaseImageIF:
                 'callback': self._resetRendersCb, 
                 'callback_args': ()
             },
-            'set_pixel': {
+            'set_click': {
                 'namespace': self.namespace,
-                'topic': 'set_pixel',
+                'topic': 'set_click',
                 'msg': ImagePixel,
                 'qsize': 1,
-                'callback': self._setPixelCb, 
+                'callback': self._clickCb, 
                 'callback_args': ()
             },
             'set_drag': {
@@ -2187,15 +2172,15 @@ class BaseImageIF:
                 'topic': 'set_drag',
                 'msg': ImagePixel,
                 'qsize': 1,
-                'callback': self._setDragCb, 
+                'callback': self._dragCb, 
                 'callback_args': ()
             },
-            'set_window': {
+            'set_window':  {
                 'namespace': self.namespace,
                 'topic': 'set_window',
                 'msg': ImageWindow,
                 'qsize': 1,
-                'callback': self._setWindowCb, 
+                'callback': self._windowCb, 
                 'callback_args': ()
             },
             'overlay_size_ratio': {
@@ -2358,48 +2343,23 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_pan'] == True:
-            self.SUBS_DICT['set_pan_left_right'] = {
+            self.SUBS_DICT['set_pan_x_ratio'] = {
                 'namespace': self.namespace,
-                'topic': 'set_pan_left_right_ratio',
+                'topic': 'set_pan_x_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self._setPanLrCb, 
+                'callback': self._setPanXCb, 
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_pan_up_down'] = {
+            self.SUBS_DICT['set_pan_y_ratio'] = {
                 'namespace': self.namespace,
-                'topic': 'set_pan_up_down_ratio',
+                'topic': 'set_pan_y_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self._setPanUdCb, 
+                'callback': self._setPanYCb, 
                 'callback_args': ()
             }
 
-        if caps_dict['has_window'] == True:
-            self.SUBS_DICT['set_window'] = {
-                'namespace': self.namespace,
-                'topic': 'set_window',
-                'msg': ImageWindow,
-                'qsize': 1,
-                'callback': self._setWindowCb, 
-                'callback_args': ()
-            }
-            self.SUBS_DICT['set_x_window_ratios'] = {
-                'namespace': self.namespace,
-                'topic': 'set_x_window_ratios',
-                'msg': RangeWindow,
-                'qsize': 1,
-                'callback': self._setXWindowCb, 
-                'callback_args': ()
-            }
-            self.SUBS_DICT['set_y_window_ratios'] = {
-                'namespace': self.namespace,
-                'topic': 'set_y_window_ratios',
-                'msg': RangeWindow,
-                'qsize': 1,
-                'callback': self._setYWindowCb, 
-                'callback_args': ()
-            }
         if caps_dict['has_rotate_3d'] == True:
             self.SUBS_DICT['set_rotate'] = {
                 'namespace': self.namespace,
@@ -2598,6 +2558,17 @@ class BaseImageIF:
         else:
             navpose_dict = self.navpose_dict
         return navpose_dict
+    
+    def get_mouse_callback_options(self):
+        return list(self.mouse_dict.keys())
+    
+    def set_mouse_callback(self,name,function):
+        if name in self.mouse_dict.keys():
+            self.mouse_dict.keys['name'] = function
+
+    def clear_mouse_callback(self,name):
+        if name in self.mouse_dict.keys():
+            self.mouse_dict.keys['name'] = None   
 
     def process_cv2_img(self, cv2_img):
         return cv2_img
@@ -2668,118 +2639,124 @@ class BaseImageIF:
             if process_data == True:
                 cv2_img = self.process_cv2_img(cv2_img)
             
+            if cv2_img is not None:
+                
+                
 
-            [height,width] = cv2_img.shape[0:2]
-            [self.proc_height,self.proc_width] = [height,width]
+                [height,width] = cv2_img.shape[0:2]
+                [self.proc_height,self.proc_width] = [height,width]
+
+                if height > 5 and width > 5:
+                    self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
+                    last_width = self.status_msg.width_px
+                    last_height = self.status_msg.height_px
+                    self.status_msg.width_px = width
+                    self.status_msg.height_px = height
+                    res_str = str(width) + ":" + str(height)
+                    self.status_msg.resolution_current = res_str
 
-            last_width = self.status_msg.width_px
-            last_height = self.status_msg.height_px
-            self.status_msg.width_px = width
-            self.status_msg.height_px = height
-            res_str = str(width) + ":" + str(height)
-            self.status_msg.resolution_current = res_str
+                    if navpose_dict is None:
+                        navpose_dict = self.get_navpose_dict()
 
-            if navpose_dict is None:
-                navpose_dict = self.get_navpose_dict()
-
-            
-            # Apply Overlays
-            overlay_list = []
-            if self.status_msg.overlay_img_name == True:
-                overlay = nepi_img.getImgShortName(self.namespace)
-                overlay_list.append(overlay)
-            
-            if self.status_msg.overlay_date_time == True:
-                overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-                overlay = overlay.replace('D','')
-                overlay = overlay.replace('T',' T: ')
-                overlay_list.append(overlay)
-
-            
-            if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                if navpose_dict is not None:
-                    if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                    
+                    # Apply Overlays
+                    overlay_list = []
+                    if self.status_msg.overlay_img_name == True:
+                        overlay = nepi_img.getImgShortName(self.namespace)
+                        overlay_list.append(overlay)
+                    
+                    if self.status_msg.overlay_date_time == True:
+                        overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                        overlay = overlay.replace('D','')
+                        overlay = overlay.replace('T',' T: ')
                         overlay_list.append(overlay)
 
-                    if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                        overlay_list.append(overlay)
+                    
+                    if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                        if navpose_dict is not None:
+                            if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                                overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                                overlay_list.append(overlay)
 
-            overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+                            if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                                overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                                overlay_list.append(overlay)
 
-            if len(overlay_list) > 0:
-                start_y = (height * 0.01)
-                cv2_img = nepi_img.overlay_text_list(cv2_img, 
-                                        text_list = overlay_list, 
-                                        x_px = 10 , y_px = start_y, 
-                                        color_rgb = (0, 255, 0), 
-                                        apply_shadow = True, 
-                                        size_ratio = self.overlay_size_ratio )
+                    overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
-            
-            if self.node_if is not None and self.has_subs == True:
-                #self.msg_if.pub_warn("Publishing once")
-                #Convert to ros Image message
-                ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-                sec = nepi_sdk.sec_from_timestamp(timestamp)
-                header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-                #self.msg_if.pub_warn("Publishing image with header: " + str(header))
-                ros_img.header = header
-                self.node_if.publish_pub('data_pub', ros_img)
-                for namespace in add_pubs:
-                    if namespace in self.add_pubs_dict.keys():
-                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                        #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
-                        self.node_if.publish_pub(img_ns, ros_img)
-                if pub_twice == True:
-                    #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
-                    nepi_sdk.sleep(0.01)
-                    self.node_if.publish_pub('data_pub', ros_img)
+                    if len(overlay_list) > 0:
+                        start_y = (height * 0.01)
+                        cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                                text_list = overlay_list, 
+                                                x_px = 10 , y_px = start_y, 
+                                                color_rgb = (0, 255, 0), 
+                                                apply_shadow = True, 
+                                                size_ratio = self.overlay_size_ratio )
+
+                    
+                    if self.node_if is not None and self.has_subs == True:
+                        #self.msg_if.pub_warn("Publishing once")
+                        #Convert to ros Image message
+                        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+                        sec = nepi_sdk.sec_from_timestamp(timestamp)
+                        header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                        #self.msg_if.pub_warn("Publishing image with header: " + str(header))
+                        ros_img.header = header
+                        self.node_if.publish_pub('data_pub', ros_img)
+
+                        for namespace in add_pubs:
+                            if namespace in self.add_pubs_dict.keys():
+                                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
+                                self.node_if.publish_pub(img_ns, ros_img)
+                        if pub_twice == True:
+                            #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
+                            nepi_sdk.sleep(0.01)
+                            self.node_if.publish_pub('data_pub', ros_img)
+                            for namespace in add_pubs:
+                                if namespace in self.add_pubs_dict.keys():
+                                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                    self.node_if.publish_pub(img_ns, ros_img)
+
+
+
+
+                    
+                    navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+                    if navpose_msg is not None:
+                        self.node_if.publish_pub('navpose_pub', navpose_msg)
+                        for namespace in add_pubs:
+                            if namespace in self.add_pubs_dict.keys():
+                                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                self.node_if.publish_pub(nav_ns, navpose_msg)
+                    
+                    # Update stats
+                    process_time = round( (nepi_utils.get_time() - start_time) , 3)
+                    self.status_msg.process_time = process_time
+                    latency = (current_time - timestamp)
+                    self.status_msg.pub_latency_time = latency
+                    
+
+                    if self.last_pub_time is None:
+                        self.last_pub_time = nepi_utils.get_time()
+                    else:
+                        cur_time = nepi_utils.get_time()
+                        pub_time_sec = cur_time - self.last_pub_time
+                        self.last_pub_time = cur_time
+                        self.status_msg.last_pub_sec = pub_time_sec
+
+                        self.time_list.pop(0)
+                        self.time_list.append(pub_time_sec)
+
+                    # Update blank image if needed
+                    if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
+                        self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
                     for namespace in add_pubs:
                         if namespace in self.add_pubs_dict.keys():
                             [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                            self.node_if.publish_pub(img_ns, ros_img)
-
-
-
-
-            
-            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-            if navpose_msg is not None:
-                self.node_if.publish_pub('navpose_pub', navpose_msg)
-                for namespace in add_pubs:
-                    if namespace in self.add_pubs_dict.keys():
-                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                        self.node_if.publish_pub(nav_ns, navpose_msg)
-            
-            # Update stats
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-            
-
-            if self.last_pub_time is None:
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-                self.status_msg.last_pub_sec = pub_time_sec
-
-                self.time_list.pop(0)
-                self.time_list.append(pub_time_sec)
-
-            # Update blank image if needed
-            if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-                self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-            for namespace in add_pubs:
-                if namespace in self.add_pubs_dict.keys():
-                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                    self.node_if.publish_pub(status_ns, self.status_msg)
+                            self.node_if.publish_pub(status_ns, self.status_msg)
         except Exception as e:
             self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
         return cv2_img
@@ -2950,167 +2927,243 @@ class BaseImageIF:
             self.node_if.set_param('stop_range_ratio', stop_ratio)
       
 
+
     def set_zoom_ratio(self, ratio):
-        if ratio < 0.0:
-            ratio = 0.0
-        if ratio > 0.9:
-            ratio = 0.9
-        self.controls_dict['zoom_ratio'] = ratio
+        self.drag_pixel = None
+        self.drag_window = None
 
-        x_min = self.controls_dict['window_ratios'][0]
-        x_max = self.controls_dict['window_ratios'][1]
-        xratio = self.controls_dict['pan_left_right_ratio']
+        # Update Ratios
 
-        rlength = (x_max - x_min) 
-        x_min = xratio - rlength / 2 * (1 - ratio)
-        x_max = xratio + rlength / 2 * (1 - ratio)
+        wrs = copy.deepcopy(self.controls_dict['window_ratios'])
+        xr_ratio = wrs[0] + (wrs[1] - wrs[0]) / 2
+        yr_ratio = wrs[2] + (wrs[3] - wrs[2]) / 2
 
-        xratio = x_min + (x_max - x_min) / 2
-        self.msg_if.pub_warn("Setting Pan X Ratio Updates: "  + str([x_min,x_max,ratio]), log_name_list = self.log_name_list)
-        self.update_pan_left_right_ratio(xratio)
+        xlen_max_r = (1 - abs(xr_ratio - 0.)) * 2
+        ylen_max_r = (1 - abs(yr_ratio - 0.5)) * 2
+        len_min_r = 0.05
+        len_max_r = min(xlen_max_r, ylen_max_r)
 
-        y_min = self.controls_dict['window_ratios'][2]
-        y_max = self.controls_dict['window_ratios'][3]
-        yratio = self.controls_dict['pan_up_down_ratio']
+        len_zoom = 1 - ratio * len_max_r
+        if len_zoom < len_min_r:
+            len_zoom = len_min_r
 
-        rlength = (y_max - y_min)
-        y_min = yratio - rlength / 2 * (1 - ratio)
-        y_max = yratio + rlength / 2 * (1 - ratio)
-        yratio = y_min + (y_max - y_min) / 2
+        xr_min = xr_ratio - len_zoom / 2
+        xr_max = xr_ratio + len_zoom / 2
+        if xr_min < 0:
+            xr_min = 0
+            xr_max = len_zoom
+        if xr_max > 1:
+            xr_min = 1 - len_zoom
+            xr_max = 1
+    
+        yr_min = yr_ratio - len_zoom / 2
+        yr_max = yr_ratio + len_zoom / 2
+        if yr_min < 0:
+            yr_min = 0
+            yr_max = len_zoom
+        if yr_max > 1:
+            yr_min = 1 - len_zoom
+            yr_max = 1
 
-        #self.msg_if.pub_warn("Setting Pan Y Ratio Updates: "  + str([y_min,y_max,ratio]), log_name_list = self.log_name_list)
-        self.update_pan_up_down_ratio(yratio)
-
-        self.window_ratios = [x_min,x_max,y_min,y_max]
-
-        self.publish_status() 
-        self.needs_update()
-
-
-    def set_pan_left_right_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        
-        x_min = self.window_ratios[0]
-        x_max = self.window_ratios[1]    
-        rlength = (x_max - x_min) 
-        x_min = ratio - rlength / 2
-        x_max = ratio + rlength / 2
-        if x_min < 0:
-            x_min = 0
-            x_max = rlength
-        if x_max > 1:
-            x_min = 1 - rlength
-            x_max = 1
-        ratio = x_min + (x_max - x_min) / 2
-        self.window_ratios[0] = x_min
-        self.window_ratios[1] = x_max  
-        #self.msg_if.pub_warn("Setting Pan X Ratio Updates: "  + str([x_min,x_max,ratio]), log_name_list = self.log_name_list)
-        self.update_pan_left_right_ratio(ratio)
-
-    def update_pan_left_right_ratio(self, ratio):
-        self.controls_dict['pan_left_right_ratio'] = ratio
-
-        x_min = self.controls_dict['window_ratios'][0]
-        x_max = self.controls_dict['window_ratios'][1]    
-        rlength = (x_max - x_min) 
-        x_min = ratio - rlength / 2
-        x_max = ratio + rlength / 2
-        if x_min < 0:
-            x_min = 0
-            x_max = rlength
-        if x_max > 1:
-            x_min = 1 - rlength
-            x_max = 1
-        self.controls_dict['window_ratios'][0] = x_min
-        self.controls_dict['window_ratios'][1] = x_max
+        self.msg_if.pub_info("Zoom Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+        self.x_ratio = xr_min + (xr_max - xr_min) / 2
+        self.y_ratio = yr_min + (yr_max - yr_min) / 2
+        self.zoom_ratio = ratio
 
         self.publish_status() 
         self.needs_update()
 
 
-    def set_pan_up_down_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        
-        y_min = self.window_ratios[2]
-        y_max = self.window_ratios[3]    
-        rlength = (y_max - y_min)
-        y_min = ratio - rlength / 2
-        y_max = ratio + rlength / 2
-        if y_min < 0:
-            y_min = 0
-            y_max = rlength
-        if y_max > 1:
-            y_min = 1 - rlength
-            y_max = 1
-        ratio = y_min + (y_max - y_min) / 2
-        self.window_ratios[2] = y_min
-        self.window_ratios[3] = y_max  
-        #self.msg_if.pub_warn("Setting Pan Y Ratio Updates: "  + str([y_min,y_max,ratio]), log_name_list = self.log_name_list)
-        self.update_pan_up_down_ratio(ratio)
+    def set_pixel(self, pixel, color_gbr = [0,0,0,0]):
 
-    def update_pan_up_down_ratio(self, ratio):
-        self.controls_dict['pan_up_down_ratio'] = ratio  
+        self.drag_pixel = None
+        self.drag_window = None
 
-        y_min = self.controls_dict['window_ratios'][2]
-        y_max = self.controls_dict['window_ratios'][3]    
-        rlength = (y_max - y_min) 
-        y_min = ratio - rlength / 2
-        y_max = ratio + rlength / 2
-        if y_min < 0:
-            y_min = 0
-            y_max = rlength
-        if y_max > 1:
-            y_min = 1 - rlength
-            y_max = 1
-        self.controls_dict['window_ratios'][2] = y_min
-        self.controls_dict['window_ratios'][3] = y_max
+    
+        # Update Ratios
+        xr_ratio = pixel[0] / self.raw_width
+        yr_ratio = pixel[1] / self.raw_height
+        wrs = copy.deepcopy(self.controls_dict['window_ratios'])
 
+        xr_len = wrs[1] - wrs[0]
+        xr_min = xr_ratio - xr_len / 2
+        xr_max = xr_ratio + xr_len / 2
+        if xr_min < 0:
+            xr_min = 0
+            xr_max = xr_len
+        if xr_max > 1:
+            xr_min = 1 - xr_len
+            xr_max = 1
+    
+        yr_len = wrs[3] - wrs[2]
+        yr_min = yr_ratio - yr_len / 2
+        yr_max = yr_ratio + yr_len / 2
+        if yr_min < 0:
+            yr_min = 0
+            yr_max = yr_len
+        if yr_max > 1:
+            yr_min = 1 - yr_len
+            yr_max = 1
+
+        self.msg_if.pub_info("Pixel Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+        self.x_ratio = xr_min + (xr_max - xr_min) / 2
+        self.y_ratio = yr_min + (yr_max - yr_min) / 2
+        self.zoom_ratio = 1 - max(xr_len, yr_len)
+
+        self.publish_status()  
+        self.needs_update()    
+
+
+
+    def set_x_ratio(self, ratio):
+
+        self.drag_pixel = None
+        self.drag_window = None
+
+
+        wrs = copy.deepcopy(self.controls_dict['window_ratios'])
+        xr_len = wrs[1] - wrs[0]
+        yr_len = wrs[3] - wrs[2]
+
+        r_min = xr_len / 2
+        r_max = 1 - xr_len / 2
+        xr_r = r_min + (ratio * (r_max - r_min))
+
+        xr_min = xr_r - xr_len / 2
+        xr_max = xr_r + xr_len / 2
+        if xr_min < 0:
+            xr_min = 0
+            xr_max = xr_len
+        if xr_max > 1:
+            xr_min = 1 - xr_len
+            xr_max = 1
+    
+        yr_r = wrs[2] + yr_len / 2
+        yr_min = yr_r - xr_len / 2
+        yr_max = yr_r + xr_len / 2
+        if yr_min < 0:
+            yr_min = 0
+            yr_max = xr_len
+        if yr_max > 1:
+            yr_min = 1 - xr_len
+            yr_max = 1
+
+        self.msg_if.pub_info("X Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+        self.x_ratio = xr_min + (xr_max - xr_min) / 2
+        self.y_ratio = yr_min + (yr_max - yr_min) / 2
+        self.zoom_ratio = 1 - xr_len
+
+        self.publish_status() 
+        self.needs_update()
+
+    def set_y_ratio(self, ratio): 
+
+        self.drag_pixel = None
+        self.drag_window = None
+
+
+        wrs = copy.deepcopy(self.controls_dict['window_ratios'])
+        xr_len = wrs[1] - wrs[0]
+        yr_len = wrs[3] - wrs[2]
+
+        r_min = yr_len / 2
+        r_max = 1 - yr_len / 2
+        yr_r = r_min + (ratio * (r_max - r_min))
+
+        yr_min = yr_r - yr_len / 2
+        yr_max = yr_r + yr_len / 2
+        if yr_min < 0:
+            yr_min = 0
+            yr_max = yr_len
+        if yr_max > 1:
+            yr_min = 1 - yr_len
+            yr_max = 1
+    
+        xr_r = wrs[0] + xr_len / 2
+        xr_min = xr_r - yr_len / 2
+        xr_max = xr_r + yr_len / 2
+        if xr_min < 0:
+            xr_min = 0
+            xr_max = yr_len
+        if xr_max > 1:
+            xr_min = 1 - yr_len
+            xr_max = 1
+
+        self.msg_if.pub_info("Y Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+        self.x_ratio = xr_min + (xr_max - xr_min) / 2
+        self.y_ratio = yr_min + (yr_max - yr_min) / 2
+        self.zoom_ratio = 1 - yr_len
 
         self.publish_status() 
         self.needs_update()
 
 
-    def set_x_window_ratios(self, x_min, x_max):
-        if x_min >= 0 and x_max <= 1.0 and x_max > x_min and (x_max - x_min) > 0.01:
-            self.controls_dict['zoom_ratio'] = 0.0
-            self.controls_dict['window_ratios'][0] = x_min
-            self.controls_dict['window_ratios'][1] = x_max
-            self.controls_dict['pan_left_right_ratio'] = x_min + (x_max - x_min) / 2
-            self.window_ratios = self.controls_dict['window_ratios']
-            self.publish_status()  
-            self.needs_update()
+    def set_window(self, window):
 
-    def set_y_window_ratios(self, y_min, y_max):
-        if y_min >= 0 and y_max <= 1.0 and y_max > y_min and (y_max - y_min) > 0.01:
-            self.controls_dict['zoom_ratio'] = 0.0
-            self.controls_dict['window_ratios'][2] = y_min
-            self.controls_dict['window_ratios'][3] = y_max
-            self.controls_dict['pan_up_down_ratio'] = y_min + (y_max - y_min) / 2
-            self.window_ratios = self.controls_dict['window_ratios']
-            self.publish_status() 
-            self.needs_update()  
+        self.drag_pixel = None
+        self.drag_window = None
  
+        # Update Ratios
+        xr_len = (window[1] - window[0]) / self.raw_width
+        yr_len = (window[3] - window[2]) / self.raw_height
+        xr_ratio = window[0] / self.raw_width + (xr_len / 2) 
+        yr_ratio = window[2] / self.raw_height + (yr_len / 2)
+
+        r_len_max = max(xr_len, yr_len)
+
+        xr_min = xr_ratio - r_len_max / 2
+        xr_max = xr_ratio + r_len_max / 2
+        if xr_min < 0:
+            xr_min = 0
+            xr_max = r_len_max
+        if xr_max > 1:
+            xr_min = 1 - r_len_max
+            xr_max = 1
+    
+
+        yr_min = yr_ratio - r_len_max / 2
+        yr_max = yr_ratio + r_len_max / 2
+        if yr_min < 0:
+            yr_min = 0
+            yr_max = r_len_max
+        if yr_max > 1:
+            yr_min = 1 - r_len_max
+            yr_max = 1
+
+        self.msg_if.pub_info("Window Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+        self.x_ratio = xr_min + (xr_max - xr_min) / 2
+        self.y_ratio = yr_min + (yr_max - yr_min) / 2
+        self.zoom_ratio = 1 - r_len_max 
+
+        self.publish_status()  
+        self.needs_update()    
+        self.publish_status()  
+        self.needs_update()
+
+
+
+
+
+
+
+    def update_window_ratios(self): 
+        self.y_ratio = nepi_utils.check_ratio(ratio)
+        self.publish_status() 
+        self.needs_update()
+
+
     def set_rotate_3d_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['rotate_3d_ratio'] = ratio
+        self.controls_dict['rotate_3d_ratio'] = nepi_utils.check_ratio(ratio)
         self.publish_status()  
         self.needs_update()
 
     def set_tilt_3d_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.controls_dict['tilt_3d_ratio'] = ratio
+        self.controls_dict['tilt_3d_ratio'] = nepi_utils.check_ratio(ratio)
         self.publish_status()  
         self.needs_update()
 
@@ -3120,11 +3173,7 @@ class BaseImageIF:
     # Overlay Functions
 
     def set_overlay_size_ratio(self, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        self.overlay_size_ratio = ratio
+        self.overlay_size_ratio = nepi_utils.check_ratio(ratio)
         self.publish_status() 
         self.needs_update()
 
@@ -3241,21 +3290,19 @@ class BaseImageIF:
         self.needs_update()
 
     def reset_renders(self):
-        #self.msg_if.pub_warn("Reseting render values", log_name_list = self.log_name_list)
-        self.pixel = None
-        self.window = None
+        self.msg_if.pub_warn("Reseting render values", log_name_list = self.log_name_list)
         self.drag_pixel = None
         self.drag_window = None
+        self.zoom_ratio = 0
+        self.x_ratio = 0.5
+        self.y_ratio = 0.5
         self.x_offset = 0
         self.y_offset = 0
-        self.x_pad = 0
-        self.y_pad = 0
+        self.x_scaler = 1
+        self.y_scaler = 1
         self.controls_dict = self.init_controls_dict
         self.controls_dict['start_range_ratio'] = 0
         self.controls_dict['stop_range_ratio'] = 1
-        self.controls_dict['zoom_ratio'] = 0.0
-        self.controls_dict['pan_left_right_ratio'] = 0.5
-        self.controls_dict['pan_up_down_ratio'] = 0.5
         self.controls_dict['window_ratios'] = [0,1,0,1]
 
         self.window_ratios = [0,1,0,1]
@@ -3303,9 +3350,11 @@ class BaseImageIF:
 
             self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
             self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
-            self.status_msg.zoom_ratio = self.controls_dict['zoom_ratio']
-            self.status_msg.pan_left_right_ratio = self.controls_dict['pan_left_right_ratio']
-            self.status_msg.pan_up_down_ratio = self.controls_dict['pan_up_down_ratio']
+
+
+            self.status_msg.zoom_ratio = self.zoom_ratio
+            self.status_msg.pan_x_ratio = self.x_ratio
+            self.status_msg.pan_y_ratio = self.y_ratio
             self.status_msg.window_x_ratios.start_range = self.controls_dict['window_ratios'][0]
             self.status_msg.window_x_ratios.stop_range = self.controls_dict['window_ratios'][1]
             self.status_msg.window_y_ratios.start_range = self.controls_dict['window_ratios'][2]
@@ -3352,11 +3401,7 @@ class BaseImageIF:
             self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
 
 
-            self.controls_dict['zoom_ratio'] = 0.0
-            self.controls_dict['pan_left_right_ratio'] = 0.5
-            self.controls_dict['pan_up_down_ratio'] = 0.5
             self.controls_dict['window_ratios'] = [0,1,0,1]
-            self.window_ratios = [0,1,0,1]
             self.controls_dict['start_range_ratio'] = 0
             self.controls_dict['stop_range_ratio'] = 1
 
@@ -3370,12 +3415,13 @@ class BaseImageIF:
             self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
         if do_updates == True:
             pass
-        self.pixel = None
-        self.window = None
+        self.zoom_ratio = 0
+        self.x_ratio = 0.5
+        self.y_ratio = 0.5
         self.x_offset = 0
         self.y_offset = 0
-        self.x_pad = 0
-        self.y_pad = 0
+        self.x_scaler = 1
+        self.y_scaler = 1
 
         self.publish_status()
 
@@ -3388,6 +3434,9 @@ class BaseImageIF:
         if self.node_if is not None:
             pass
         self.init()
+
+
+
 
     ###############################
     # Class Private Methods
@@ -3431,62 +3480,62 @@ class BaseImageIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
-    def _setPixelCb(self,msg):
-        #self.msg_if.pub_info("Received set pixel message: " + str(msg), log_name_list = self.log_name_list)
-        pixel = [msg.x + self.x_offset, msg.y + self.y_offset]
-        color_gbr = (msg.g,msg.b,msg.r)
-        if self.pixel_callback is not None:
-            self.pixel_callback(pixel,color_gbr)
+    def _clickCb(self,msg):
+        self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
+        pixel = [msg.x * self.x_scaler + self.x_offset, msg.y  * self.y_scaler + self.y_offset]
+        color_gbr = (msg.g,msg.b,msg.r,msg.a)
+        if self.mouse_dict['click_callback'] is not None:
+            self.mouse_dict['click_callback'](pixel,color_gbr)
         else:
-            self.pixel = pixel
-        self.drag_pixel = None
-        self.drag_window = None
-        self.node_if.publish_pub('pixel_pub', msg)
+                self.last_click_time = nepi_utils.get_time()
+                nepi_sdk.sleep(0.3)
+                if self.last_click_time is not None:
+                    if (nepi_utils.get_time() - self.last_click_time) >= 0.3:
+                        self.last_click_time = None
+                        self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
+                        self.set_pixel(pixel,color_gbr)
+                    else:
+                        self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
+                        self.reset_renders()
+                        self.last_click_time = None
 
-    def _setDragCb(self,msg):
-        #self.msg_if.pub_info("Received set drag_window message: " + str(msg), log_name_list = self.log_name_list)
-        pixel = [msg.x + self.x_offset, msg.y + self.y_offset]
-        if self.drag_callback is not None:
-            self.drag_callback(pixel)
-        else:
-            if self.window_ratios != [0,1,0,1] and self.drag_window is None:
-                self.drag_pixel = pixel
+ 
+    def _dragCb(self,msg):
+        self.msg_if.pub_info("Received set drag mouse message: " + str(msg), log_name_list = self.log_name_list)
+        self.last_click_time = None
+        pixel = [msg.x  * self.x_scaler + self.x_offset, msg.y  * self.y_scaler + self.y_offset]
+        self.msg_if.pub_info("Using drag pixel: " + str(pixel), log_name_list = self.log_name_list)
+        if self.mouse_dict['drag_callback'] is not None:
+            self.mouse_dict['drag_callback'](pixel)
+        elif self.zoom_ratio < 0.01:
+            if self.drag_window is None:
+                self.drag_window = [pixel[0], pixel[0] + 1, pixel[1],  pixel[1] + 1]
             else:
-                if self.drag_window is None:
-                    self.drag_window = [pixel[0],pixel[1],pixel[0]+1,pixel[1]+1]
-                else:
-                    self.drag_window[2] = pixel[0]
-                    self.drag_window[3] = pixel[1]
-                self.publish_status()  
+                self.drag_window[1] = pixel[0]
+                self.drag_window[3] = pixel[1]
                 self.needs_update()
-
-
-    def _setWindowCb(self,msg):
-        self.msg_if.pub_info("Received set window message: " + str(msg), log_name_list = self.log_name_list)
-        window = [msg.x_min + self.x_offset , msg.x_max + self.x_offset, msg.y_min + self.y_offset, msg.y_max + self.y_offset]
-
-        if msg.x_min > msg.x_max:
-            window[0] = msg.x_max + self.x_offset
-            window[1] = msg.x_min + self.x_offset
-        if msg.y_min > msg.y_max:
-            window[2] = msg.y_max + self.y_offset
-            window[3] = msg.y_min + self.y_offset
-
-        if self.window_callback is not None:
-            self.window_callback(window)
         else:
-            self.window = window
-            self.publish_status()  
-            self.needs_update()
+            self.set_pixel(pixel)
 
-        window_msg = ImageWindow()
-        window_msg.x_min = window[0]
-        window_msg.x_max = window[1]
-        window_msg.y_min = window[2]
-        window_msg.y_max = window[3]
-        self.drag_pixel = None
-        self.drag_window = None
-        self.node_if.publish_pub('window_pub', window_msg)
+
+
+    def _windowCb(self,msg):
+        self.msg_if.pub_info("Received set window message: " + str(msg), log_name_list = self.log_name_list)
+        window = [msg.x_min  * self.x_scaler + self.x_offset , msg.x_max  * self.x_scaler + self.x_offset, msg.y_min  * self.y_scaler + self.y_offset, msg.y_max * self.y_scaler + self.y_offset]
+        if msg.x_min > msg.x_max:
+            window[0] = msg.x_max * self.x_scaler + self.x_offset
+            window[1] = msg.x_min * self.x_scaler + self.x_offset
+        if msg.y_min > msg.y_max:
+            window[2] = msg.y_max  * self.y_scaler + self.y_offset
+            window[3] = msg.y_min  * self.y_scaler + self.y_offset
+
+        if self.mouse_dict['window_callback'] is not None:
+            self.mouse_dict['window_callback'](window)
+        elif self.zoom_ratio <= 0.01:
+            self.set_window(window)
+
+
+
 
 
     ########################
@@ -3578,25 +3627,16 @@ class BaseImageIF:
         ratio = msg.data
         self.set_zoom_ratio(ratio)
 
-    def _setPanLrCb(self, msg):
+    def _setPanXCb(self, msg):
         self.msg_if.pub_info("Received Pan Left Right update message: " + str(msg), log_name_list = self.log_name_list)
         ratio = msg.data
-        self.set_pan_left_right_ratio(ratio)
+        self.set_x_ratio(ratio)
 
 
-    def _setPanUdCb(self, msg):
+    def _setPanYCb(self, msg):
         self.msg_if.pub_info("Received Pan Up Down update message: " + str(msg), log_name_list = self.log_name_list)
         ratio = msg.data
-        self.set_pan_up_down_ratio(ratio)
-
-
-    def _setXWindowCb(self, msg):
-        self.msg_if.pub_info("Received x window ratios update message: " + str(msg), log_name_list = self.log_name_list)
-        self.set_x_window_ratios(msg.start_range,msg.stop_range)
-
-    def _setYWindowCb(self, msg):
-        self.msg_if.pub_info("Received x window ratios update message: " + str(msg), log_name_list = self.log_name_list)
-        self.set_y_window_ratios(msg.start_range,msg.stop_range)
+        self.set_y_ratio(ratio)
 
 
     def _setRotateCb(self, msg):
@@ -3705,10 +3745,7 @@ class ImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.0, 
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
-        window_ratios = [0.0,1.0,0.0,1.0],
+        window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
@@ -3733,9 +3770,6 @@ class ImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
@@ -3757,9 +3791,6 @@ class ImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
-                pixel_callback,
-                drag_callback,
-                window_callback,
                 needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
@@ -3828,10 +3859,7 @@ class ColorImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.0, 
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
-        window_ratios = [0.0,1.0,0.0,1.0],
+        window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
@@ -3856,9 +3884,6 @@ class ColorImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
@@ -3880,9 +3905,6 @@ class ColorImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
-                pixel_callback,
-                drag_callback,
-                window_callback,
                 needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
@@ -3908,44 +3930,30 @@ class ColorImageIF(BaseImageIF):
         ratio = img_width / img_height
         #self.msg_if.pub_info("Image Raw: " + str(cv2_img.shape), log_name_list = self.log_name_list)
 
-
         #####################
-        # Apply render controls
-        window = copy.deepcopy(self.window)
-        self.window = None
-        if window is not None:
-            [x_min,x_max,y_min,y_max] = window
-            res_ratio = self.controls_dict['resolution_ratio']
-            xr_min = int(max(0, x_min / img_width / res_ratio)) 
-            xr_max = int(min(1,  x_max / img_width / res_ratio))
-            yr_min = int(max(0, y_min / img_height / res_ratio))
-            yr_max = int(min(1, y_max / img_height / res_ratio))
-            self.set_x_window_ratios(xr_min,xr_max)
-            self.set_y_window_ratios(yr_min,yr_max)
-        else:
-            [xr_min,xr_max,yr_min,yr_max] = self.window_ratios 
-            #self.msg_if.pub_info("Got Image Ratios: " + str([xr_min,xr_max,yr_min,yr_max]), log_name_list = self.log_name_list)
+        # Apply render controls 
+        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
+        x_min = int(max(0, img_width * xr_min )) 
+        x_max = int(min(img_width, img_width * xr_max))
+        y_min = int(max(0, img_height * yr_min))
+        y_max = int(min(img_height, img_height * yr_max))
+        #self.msg_if.pub_info("Got Image Ratios: " + str([xr_min,xr_max,yr_min,yr_max]), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
-            x_min = int(max(0, img_width * xr_min )) 
-            x_max = int(min(img_width, img_width * xr_max))
-            y_min = int(max(0, img_height * yr_min))
-            y_max = int(min(img_height, img_height * yr_max))
-            #self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
-
-        #self.msg_if.pub_info("Got Image Pan: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
-
-        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
-
-
-
-        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
         ##########
         # Show Drag Box if Needed
         drag_window = copy.deepcopy(self.drag_window)
+
+        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
         if drag_window is not None:
+            self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
             # Define the rectangle parameters
-            [x1, y1, x2, y2] = drag_window # Top-left corner (x, y), width, height
+            x1 = min(drag_window[0], drag_window[1])
+            x2 = max(drag_window[0], drag_window[1])
+            y1 = min(drag_window[2], drag_window[3])
+            y2 = max(drag_window[2], drag_window[3])
             color = (0, 200, 0) # Green color in BGR
             alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
 
@@ -3958,9 +3966,21 @@ class ColorImageIF(BaseImageIF):
             cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
 
 
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+
+
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
+
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
+        cv2_shape = cv2_img.shape
+        img_width1 = cv2_shape[1] 
+        img_height1 = cv2_shape[0] 
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
@@ -4009,19 +4029,18 @@ class ColorImageIF(BaseImageIF):
 
         #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
 
+    
+
         ##########
-        # Pad image if needed
-        cv2_shape_1 = cv2_img.shape
-        cv2_img = nepi_img.pad_to_ratio(cv2_img, ratio)
-        cv2_shape_2 = cv2_img.shape
+        # Update last image info
+        cv2_shape = cv2_img.shape
+        img_width2 = cv2_shape[1] 
+        img_height2 = cv2_shape[0] 
 
-        self.x_pad = int((cv2_shape_2[0] / cv2_shape_1[0]) / 2)
-        self.y_pad = int((cv2_shape_2[1] / cv2_shape_1[1]) / 2)
-
-        res_ratio = self.controls_dict['resolution_ratio']
-
-        self.x_offset = x_min - self.x_pad
-        self.y_offset = y_min - self.y_pad
+        self.x_offset = x_min 
+        self.y_offset = y_min
+        self.x_scaler = img_width1 / img_width2
+        self.y_scaler = img_height1 / img_height2
 
         return cv2_img
 
@@ -4077,9 +4096,6 @@ class DepthMapIF:
 
     image_if = None
     navpose_if = None
-    pixel_callback = None
-    drag_callback = None
-    window_callback = None
     needs_update_callback = None
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
     get_navpose_function = None    
@@ -4093,9 +4109,6 @@ class DepthMapIF:
                 pub_image = True,
                 get_navpose_function = None,
                 pub_navpose = False,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
@@ -4131,9 +4144,7 @@ class DepthMapIF:
             self.get_navpose_function = get_navpose_function
             self.has_navpose = True
 
-        self.pixel_callback = pixel_callback
-        self.drag_callback = drag_callback
-        self.window_callback = window_callback
+
         self.needs_update_callback = needs_update_callback
 
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
@@ -4262,9 +4273,6 @@ class DepthMapIF:
                         data_ref_description = self.data_ref_description,
                         perspective = self.perspective,
                         get_navpose_function = self.get_navpose_dict,
-                        pixel_callback = self.pixel_callback,
-                        drag_callback = self.drag_callback,
-                        window_callback = self.window_callback,
                         needs_update_callback = self.needs_update_callback,
                         log_name = img_data_product,
                         log_name_list = self.log_name_list,
@@ -4559,10 +4567,7 @@ class DepthMapImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 1.0, 
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
-        window_ratios = [0.0,1.0,0.0,1.0],
+        window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
@@ -4585,9 +4590,6 @@ class DepthMapImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
@@ -4610,9 +4612,6 @@ class DepthMapImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
-                pixel_callback,
-                drag_callback,
-                window_callback,
                 needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
@@ -4723,10 +4722,7 @@ class PointcloudImageIF(BaseImageIF):
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.5, 
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
-        window_ratios = [0.0,1.0,0.0,1.0],
+        window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
@@ -4748,9 +4744,6 @@ class PointcloudImageIF(BaseImageIF):
                 init_overlay_list = [],
                 get_navpose_function = None,
                 pub_navpose = False,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 log_name = None,
                 log_name_list = [],
@@ -4773,9 +4766,6 @@ class PointcloudImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 pub_navpose,
-                pixel_callback,
-                drag_callback,
-                window_callback,
                 needs_update_callback,
                 init_overlay_list,
                 get_navpose_function,
@@ -4885,10 +4875,7 @@ class PointcloudIF:
         threshold_ratio =  0.0,
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
-        zoom_ratio = 0.5, 
-        pan_left_right_ratio = 0.5,
-        pan_up_down_ratio = 0.5,
-        window_ratios = [0.0,1.0,0.0,1.0],
+        window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5
         )
@@ -4925,9 +4912,6 @@ class PointcloudIF:
 
     voxel_callback = None
     voxel = [0,0,0]
-    pixel_callback = None
-    drag_callback = None
-    window_callback = None
 
     needs_update_callback = None
 
@@ -4940,9 +4924,6 @@ class PointcloudIF:
                 get_navpose_function = None,
                 pub_navpose = False,
                 voxel_callback = None,
-                pixel_callback = None,
-                drag_callback = None,
-                window_callback = None,
                 needs_update_callback = None,
                 init_overlay_list = [],
                 log_name = None,
@@ -4981,11 +4962,7 @@ class PointcloudIF:
  
         self.init_overlay_list = init_overlay_list
 
-        self.voxel_callback = voxel_callback
-        self.pixel_callback = pixel_callback
-        self.window_callback = window_callback
-        self.needs_update_callback = needs_update_callback
-
+  
         self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
         if namespace is None:
             namespace = self.namespace
@@ -5112,9 +5089,6 @@ class PointcloudIF:
         #                 perspective = self.perspective,
         #                 init_overlay_list = self.init_overlay_list,
         #                 get_navpose_function = self.get_navpose_function,
-        #                 pixel_callback = self.pixel_callback,
-        #                 drag_callback = self.drag_callback,
-        #                 window_callback = self.window_callback,
         #                 needs_update_callback = needs_update_callback,
         #                 log_name = img_data_product,
         #                 log_name_list = self.log_name_list,
@@ -5198,9 +5172,9 @@ class PointcloudIF:
 
     def _setVoxelCb(self,msg):
         self.msg_if.pub_info("Received set voxel message: " + str(msg), log_name_list = self.log_name_list)
-        self.voxel[msg.x,msg.y,msg.z]
+        self.voxel = [msg.x,msg.y,msg.z]
         if self.voxel_callback is not None:
-            self.voxel_callback(self.pixel)
+            self.voxel_callback(self.voxel)
 
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None, 
