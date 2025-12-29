@@ -18,6 +18,8 @@ import math
 import pandas as pd
 from scipy.stats import linregress
 from scipy.signal import medfilt
+from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import CubicSpline
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -25,7 +27,7 @@ from nepi_sdk import nepi_img
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_img"
+log_name = "nepi_lines"
 logger = Logger(log_name = log_name)
 
 BLANK_LINE_DICT = dict()
@@ -42,6 +44,62 @@ def get_blank_line_dict():
 def get_point_count(line_dict):
     num_points = len(line_dict['x'])
     return num_points
+
+
+def find_brightest_pixels_per_row(cv2_img):
+
+    # Convert the image to grayscale for single-channel intensity analysis
+    # This simplifies finding "brightness"
+    if nepi_img.is_gray(cv2_img) == True:
+        cv2_img_gray = cv2_img
+    else:
+        cv2_img_gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
+
+    # Find the x-coordinate (column index) of the maximum intensity in each row
+    # np.argmax with axis=1 returns the index of the max value in each row
+    x_coords = np.argmax(cv2_img_gray, axis=1)
+
+    # Get the total number of rows (height) of the image
+    height = cv2_img_gray.shape[0]
+
+    # Generate the corresponding y-coordinates (row indices)
+    y_coords = np.arange(height)
+
+    # Combine x and y coordinates into a list of (x, y) tuples
+    # The format in OpenCV generally uses (x, y) coordinates for location, 
+    # where x is the column and y is the row
+    brightest_pixel_positions = list(zip(x_coords, y_coords))
+
+    return brightest_pixel_positions
+
+def find_brightest_pixels_per_column(cv2_img):
+
+    # Convert the image to grayscale for single-channel intensity analysis
+    # This simplifies finding "brightness"
+
+    if nepi_img.is_gray(cv2_img) == True:
+        cv2_img_gray = cv2_img
+    else:
+        cv2_img_gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
+
+    # Find the y-coordinate (row index) of the maximum intensity in each row
+    # np.argmax with axis=1 returns the index of the max value in each row
+    y_coords = np.argmax(cv2_img_gray, axis=0)
+
+    # Get the total number of rows (height) of the image
+    width = cv2_img_gray.shape[1]
+
+    # Generate the corresponding x-coordinates (columns indices)
+    x_coords = np.arange(width)
+
+
+    # Combine x and y coordinates into a list of (x, y) tuples
+    # The format in OpenCV generally uses (x, y) coordinates for location, 
+    # where x is the column and y is the row
+    brightest_pixel_positions = list(zip(x_coords, y_coords))
+
+    return brightest_pixel_positions
+
 
 #########################
 # Image process Functions
@@ -70,6 +128,8 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
     img_height = cv2_shape[0] 
     kernel_float = int( (10 + min(img_width,img_height) * 0.01) * (sensitivity))
     kernel_size = nepi_utils.get_closest_odd_integer(kernel_float)
+    if kernel_size < 1:
+        kernel_size = 1
     logger.log_warn("Applying Denoise Filter with K size of " + str(kernel_size))
     cv2_img_filtered = nepi_img.denoise_filter(cv2_img, filter_type='gaussian', kernel_size=kernel_size)
     img_quality = 1.0
@@ -80,78 +140,46 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
 #########################
 # Line Point Functions
 
-def process_line_color_mask(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
+def process_line_brightest(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
     line_dict = dict()
     line_dict['x'] = []
     line_dict['y'] = []
 
     line_quality = 1.0
 
-   
-    mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity)
-
-
-    coordinates_array = cv2.findNonZero(mask)
-
-    if coordinates_array is None:
-        logger.log_warn("COLOR MASK Got None Mask ")
-    else:
+    # Apply color mask filter
         
-        # Reshape from (N, 1, 2) to (N, 2)
-        points = coordinates_array.reshape(-1, 2)
-        logger.log_warn("COLOR MASK Got Line Data Shape " + str(points.shape))
-        cols1, cols2 = zip(*points)
-        line_dict['x'] = [item + x_offset for item in list(cols1)]
-        line_dict['y'] = [item + y_offset for item in list(cols2)]
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [2,1], vscalers = [2,1])
+
+    mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
+
+    # Process brightest for each row and column
+  
+    b_pixels = []
+    b_pixels = b_pixels + find_brightest_pixels_per_row(mask_img)
+    b_pixels = b_pixels + find_brightest_pixels_per_column(mask_img)
     
+    # Filter out Edge pixels
+    filtered_points = [(x, y) for x, y in b_pixels if x != 0 and y != mask_img.shape[1] and y != 0 and y != mask_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
 
-    return line_dict, line_quality
-
-def process_line_contours(cv2_img, line_color_bgr = (147, 175, 35), sensitivity = 0.5 , x_offset = 0, y_offset = 0):
-    line_dict = dict()
-    line_dict['x'] = []
-    line_dict['y'] = []
-    line_quality = 1.0
-
-    mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity)
-
-    # # Optional: Clean up the mask with morphological operations (erosion/dilation) to reduce noise
-    # kernel = np.ones((5, 5), np.uint8)
-    # mask = cv2.erode(mask, kernel, iterations=1)
-    # mask = cv2.dilate(mask, kernel, iterations=1)
-
-    # Find the contours of the laser line
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if not contours:
-        return line_dict, line_quality
-
-    # Combine all contours into one set of points for processing
-    all_laser_points = np.vstack(contours)
-    
-    # Extract the coordinates (points)
-    # The shape of all_laser_points will be (N, 1, 2)
-    # We reshape it to (N, 2) for easier use, where N is the number of points.
-    points = all_laser_points.reshape(-1, 2)
-    logger.log_warn("CONTOURS Got Line Data Shape " + str(points.shape))
-    cols1, cols2 = zip(*points)
+    cols1, cols2 = zip(*filtered_points)
     line_dict['x'] = [item + x_offset for item in list(cols1)]
     line_dict['y'] = [item + y_offset for item in list(cols2)]
+    
+
     return line_dict, line_quality
-
-
 
 
 
 #########################
 # Line Filter Functions
 
-def filter_line_none(line_dict, sensitivity = 0.5 ):
+def filter_line_none(line_dict, line_color_bgr = (147, 175, 35), sensitivity = 0.5 ):
     line_quality = 1.0
     return line_dict, line_quality
 
 
-def filter_line_IQR(line_dict, sensitivity = 0.5 ):
+def filter_line_IQR(line_dict, line_color_bgr = (147, 175, 35), sensitivity = 0.5 ):
 
     lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
     upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
@@ -183,7 +211,7 @@ def filter_line_IQR(line_dict, sensitivity = 0.5 ):
 
     line_quality = 1.0
 
-    return line_dict, line_quality
+    return filtered_line_dict, line_quality
 
 
 
@@ -267,7 +295,7 @@ def merge_lines_replace(base_line, merge_line, sensitivity):
 # # t_cam2world = np.zeros(3) # Translation vector from camera to world
 
 # # xyz_points = extract_laser_line_points("laser_image.jpg", K, dist, laser_plane, R_cam2world, t_cam2world)
-# # print(xyz_points)
+# # logger.log_warn(xyz_points)
 
 
 
@@ -282,13 +310,12 @@ IMAGE_FILTER_OPTIONS_DICT = {
 }
 
 LINE_PROCESS_OPTIONS_DICT = {
-    'Color Mask': process_line_color_mask,
-    'Contours': process_line_contours
+    'Brightest': process_line_brightest
+
 }
 
 LINE_FILTER_OPTIONS_DICT = {
-    'None': filter_line_none,
-    'IQR': filter_line_IQR
+    'None': filter_line_none
 }
 
 LINE_MERGE_OPTIONS_DICT = {

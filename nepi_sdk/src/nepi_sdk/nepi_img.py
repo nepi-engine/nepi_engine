@@ -830,7 +830,7 @@ def write_image_file(cv2_img,file_path, log_name_list = []):
 #########################
 # Image Analysis Functions
 
-def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5):
+def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , hscalers = [2,2], sscalers = [2,2], vscalers = [2,2]):
 
     # Convert to HSV and isolate laser color (example for red laser)
     #logger.log_warn("Calc Contours for image size: " + str(cv2_img.shape))
@@ -844,27 +844,25 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5):
     logger.log_warn("Using HSV Color " + str(hsv_color ))
 
     sensitivity = 1 - sensitivity
-    sscaler = 2
-    vscaler = 2
 
-    h =  int( hsv_color[0] - 90 * sensitivity )
+    h =  int( hsv_color[0] - 90 * sensitivity / hscalers[0])
     
     if h < 0:
        h = 179 + h
     lower_bound = np.array([
       h,
-      int(max(0, hsv_color[1] - 128 * sensitivity / sscaler )),
-      int(max(0, hsv_color[2] - 128 * sensitivity / vscaler))
+      int(max(0, hsv_color[1] - 128 * sensitivity / sscalers[0] )),
+      int(max(0, hsv_color[2] - 128 * sensitivity / vscalers[0]))
     ])
 
 
-    h =  int( hsv_color[0] + 90 * sensitivity )
+    h =  int( hsv_color[0] + 90 * sensitivity / hscalers[1])
     if h > 179:
        h = h - 179
     upper_bound = np.array([
       h,
-      int(min(255, hsv_color[1] + 128 * sensitivity / sscaler )),
-      int(min(255, hsv_color[2] + 128 * sensitivity / vscaler))
+      int(min(255, hsv_color[1] + 128 * sensitivity / sscalers[1])),
+      int(min(255, hsv_color[2] + 128 * sensitivity / vscalers[1]))
     ])
 
     logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))

@@ -1713,7 +1713,7 @@ class BaseImageIF:
         )
 
 
-    DEFAULT_MOUSE_DICT = dict(
+    DEFAULT_mouse_override_dict = dict(
         click_callback = None,
         drag_callback = None,
         window_callback = None
@@ -1800,7 +1800,7 @@ class BaseImageIF:
     needs_update_callback = None
 
 
-    mouse_dict = copy.deepcopy(DEFAULT_MOUSE_DICT)
+    mouse_override_dict = copy.deepcopy(DEFAULT_mouse_override_dict)
 
 
     x_offset = 0
@@ -1817,6 +1817,8 @@ class BaseImageIF:
     x_ratio = 0.5
     y_ratio = 0.5
     window_ratios = [0,1,0,1]
+
+    publishing = False
 
     def __init__(self, 
                 namespace , 
@@ -2560,15 +2562,19 @@ class BaseImageIF:
         return navpose_dict
     
     def get_mouse_callback_options(self):
-        return list(self.mouse_dict.keys())
+        return list(self.mouse_override_dict.keys())
     
     def set_mouse_callback(self,name,function):
-        if name in self.mouse_dict.keys():
-            self.mouse_dict.keys['name'] = function
+        self.msg_if.pub_warn("Got set mouse callback for: " + str(name), log_name_list = self.log_name_list)
+        if name in self.mouse_override_dict.keys():
+            self.msg_if.pub_warn("Mouse callback set for: " + str(name), log_name_list = self.log_name_list)
+            self.mouse_override_dict[name] = function
+        #self.msg_if.pub_info("Updated mouse overide dict: " + str(self.mouse_override_dict), log_name_list = self.log_name_list)
 
     def clear_mouse_callback(self,name):
-        if name in self.mouse_dict.keys():
-            self.mouse_dict.keys['name'] = None   
+        self.msg_if.pub_warn("Got clear mouse callback for: " + str(name), log_name_list = self.log_name_list)
+        if name in self.mouse_override_dict.keys():
+            self.mouse_override_dict[name] = None   
 
     def process_cv2_img(self, cv2_img):
         return cv2_img
@@ -2588,178 +2594,182 @@ class BaseImageIF:
                         pub_twice = False,
                         add_pubs = []
                         ):
-        #self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
-        success = False
-        if cv2_img is None and self.status_msg is not None:
-            self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
-            return cv2_img
+        if self.publishing == False:
+            self.publishing = True
+            #self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
+            success = False
+            if cv2_img is None and self.status_msg is not None:
+                self.msg_if.pub_warn("Can't publish None image", log_name_list = self.log_name_list)
+                return cv2_img
 
-        # Process 
-        try: # Catch for lost camera in middle of send
-            self.device_mount_description = device_mount_description
-            self.status_msg.device_mount_description = self.device_mount_description
-            
-            self.status_msg.frame_3d = frame_3d
-
-            self.status_msg.encoding = encoding
-            #self.msg_if.pub_warn("Got timestamp: " + str(timestamp), log_name_list = self.log_name_list)
-            if timestamp == None:
-                timestamp = nepi_utils.get_time()
-            else:
-                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-            #self.msg_if.pub_warn("Using timestamp: " + str(timestamp), log_name_list = self.log_name_list)
-
-
-            current_time = nepi_utils.get_time()
-            latency = (current_time - timestamp)
-            self.status_msg.get_latency_time = latency
-            #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-            # Start Img Pub Process
-            start_time = nepi_utils.get_time()   
-
-
-
-            self.status_msg.width_deg = width_deg
-            self.status_msg.height_deg = height_deg
-
-            if (min_range_m is not None and max_range_m is not None):
-                self._updateRangesM(min_range_m,max_range_m)
-                self.status_msg.min_range_m = self.min_range_m
-                self.status_msg.max_range_m = self.max_range_m
-            else:
-                self.status_msg.min_range_m = 0
-                self.status_msg.max_range_m = 1
-
-            [height,width] = cv2_img.shape[0:2]
-            [self.raw_height,self.raw_width] = [height,width]
-            self.msg_if.pub_debug("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
-
-
-            if process_data == True:
-                cv2_img = self.process_cv2_img(cv2_img)
-            
-            if cv2_img is not None:
+            # Process 
+            try: # Catch for lost camera in middle of send
+                self.device_mount_description = device_mount_description
+                self.status_msg.device_mount_description = self.device_mount_description
                 
-                
+                self.status_msg.frame_3d = frame_3d
+
+                self.status_msg.encoding = encoding
+                #self.msg_if.pub_warn("Got timestamp: " + str(timestamp), log_name_list = self.log_name_list)
+                if timestamp == None:
+                    timestamp = nepi_utils.get_time()
+                else:
+                    timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+                #self.msg_if.pub_warn("Using timestamp: " + str(timestamp), log_name_list = self.log_name_list)
+
+
+                current_time = nepi_utils.get_time()
+                latency = (current_time - timestamp)
+                self.status_msg.get_latency_time = latency
+                #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+                # Start Img Pub Process
+                start_time = nepi_utils.get_time()   
+
+
+
+                self.status_msg.width_deg = width_deg
+                self.status_msg.height_deg = height_deg
+
+                if (min_range_m is not None and max_range_m is not None):
+                    self._updateRangesM(min_range_m,max_range_m)
+                    self.status_msg.min_range_m = self.min_range_m
+                    self.status_msg.max_range_m = self.max_range_m
+                else:
+                    self.status_msg.min_range_m = 0
+                    self.status_msg.max_range_m = 1
 
                 [height,width] = cv2_img.shape[0:2]
-                [self.proc_height,self.proc_width] = [height,width]
-
-                if height > 5 and width > 5:
-                    self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
+                [self.raw_height,self.raw_width] = [height,width]
+                self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
-                    last_width = self.status_msg.width_px
-                    last_height = self.status_msg.height_px
-                    self.status_msg.width_px = width
-                    self.status_msg.height_px = height
-                    res_str = str(width) + ":" + str(height)
-                    self.status_msg.resolution_current = res_str
-
-                    if navpose_dict is None:
-                        navpose_dict = self.get_navpose_dict()
-
+                if process_data == True:
+                    cv2_img = self.process_cv2_img(cv2_img)
+                
+                if cv2_img is not None:
                     
-                    # Apply Overlays
-                    overlay_list = []
-                    if self.status_msg.overlay_img_name == True:
-                        overlay = nepi_img.getImgShortName(self.namespace)
-                        overlay_list.append(overlay)
                     
-                    if self.status_msg.overlay_date_time == True:
-                        overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-                        overlay = overlay.replace('D','')
-                        overlay = overlay.replace('T',' T: ')
-                        overlay_list.append(overlay)
 
-                    
-                    if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                        if navpose_dict is not None:
-                            if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                                overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
-                                overlay_list.append(overlay)
+                    [height,width] = cv2_img.shape[0:2]
+                    [self.proc_height,self.proc_width] = [height,width]
 
-                            if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                                overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                                overlay_list.append(overlay)
+                    if height > 5 and width > 5:
+                        self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
 
-                    overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
-                    if len(overlay_list) > 0:
-                        start_y = (height * 0.01)
-                        cv2_img = nepi_img.overlay_text_list(cv2_img, 
-                                                text_list = overlay_list, 
-                                                x_px = 10 , y_px = start_y, 
-                                                color_rgb = (0, 255, 0), 
-                                                apply_shadow = True, 
-                                                size_ratio = self.overlay_size_ratio )
+                        last_width = self.status_msg.width_px
+                        last_height = self.status_msg.height_px
+                        self.status_msg.width_px = width
+                        self.status_msg.height_px = height
+                        res_str = str(width) + ":" + str(height)
+                        self.status_msg.resolution_current = res_str
 
-                    
-                    if self.node_if is not None and self.has_subs == True:
-                        #self.msg_if.pub_warn("Publishing once")
-                        #Convert to ros Image message
-                        ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
-                        sec = nepi_sdk.sec_from_timestamp(timestamp)
-                        header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
-                        #self.msg_if.pub_warn("Publishing image with header: " + str(header))
-                        ros_img.header = header
-                        self.node_if.publish_pub('data_pub', ros_img)
+                        if navpose_dict is None:
+                            navpose_dict = self.get_navpose_dict()
 
-                        for namespace in add_pubs:
-                            if namespace in self.add_pubs_dict.keys():
-                                [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                                #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
-                                self.node_if.publish_pub(img_ns, ros_img)
-                        if pub_twice == True:
-                            #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
-                            nepi_sdk.sleep(0.01)
+                        
+                        # Apply Overlays
+                        overlay_list = []
+                        if self.status_msg.overlay_img_name == True:
+                            overlay = nepi_img.getImgShortName(self.namespace)
+                            overlay_list.append(overlay)
+                        
+                        if self.status_msg.overlay_date_time == True:
+                            overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                            overlay = overlay.replace('D','')
+                            overlay = overlay.replace('T',' T: ')
+                            overlay_list.append(overlay)
+
+                        
+                        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                            if navpose_dict is not None:
+                                if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                                    overlay_list.append(overlay)
+
+                                if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                                    overlay_list.append(overlay)
+
+                        overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+
+                        if len(overlay_list) > 0:
+                            start_y = (height * 0.01)
+                            cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                                    text_list = overlay_list, 
+                                                    x_px = 10 , y_px = start_y, 
+                                                    color_rgb = (0, 255, 0), 
+                                                    apply_shadow = True, 
+                                                    size_ratio = self.overlay_size_ratio )
+
+                        
+                        if self.node_if is not None and self.has_subs == True:
+                            #self.msg_if.pub_warn("Publishing once")
+                            #Convert to ros Image message
+                            ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
+                            sec = nepi_sdk.sec_from_timestamp(timestamp)
+                            header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = frame_3d)
+                            #self.msg_if.pub_warn("Publishing image with header: " + str(header))
+                            ros_img.header = header
                             self.node_if.publish_pub('data_pub', ros_img)
+
                             for namespace in add_pubs:
                                 if namespace in self.add_pubs_dict.keys():
                                     [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                    #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns), log_name_list = self.log_name_list, throttle_s = 5.0)
                                     self.node_if.publish_pub(img_ns, ros_img)
+                            if pub_twice == True:
+                                #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
+                                nepi_sdk.sleep(0.01)
+                                self.node_if.publish_pub('data_pub', ros_img)
+                                for namespace in add_pubs:
+                                    if namespace in self.add_pubs_dict.keys():
+                                        [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                        self.node_if.publish_pub(img_ns, ros_img)
 
 
 
 
-                    
-                    navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-                    if navpose_msg is not None:
-                        self.node_if.publish_pub('navpose_pub', navpose_msg)
+                        
+                        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+                        if navpose_msg is not None:
+                            self.node_if.publish_pub('navpose_pub', navpose_msg)
+                            for namespace in add_pubs:
+                                if namespace in self.add_pubs_dict.keys():
+                                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                                    self.node_if.publish_pub(nav_ns, navpose_msg)
+                        
+                        # Update stats
+                        process_time = round( (nepi_utils.get_time() - start_time) , 3)
+                        self.status_msg.process_time = process_time
+                        latency = (current_time - timestamp)
+                        self.status_msg.pub_latency_time = latency
+                        
+
+                        if self.last_pub_time is None:
+                            self.last_pub_time = nepi_utils.get_time()
+                        else:
+                            cur_time = nepi_utils.get_time()
+                            pub_time_sec = cur_time - self.last_pub_time
+                            self.last_pub_time = cur_time
+                            self.status_msg.last_pub_sec = pub_time_sec
+
+                            self.time_list.pop(0)
+                            self.time_list.append(pub_time_sec)
+
+                        # Update blank image if needed
+                        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
+                            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
                         for namespace in add_pubs:
                             if namespace in self.add_pubs_dict.keys():
                                 [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                                self.node_if.publish_pub(nav_ns, navpose_msg)
-                    
-                    # Update stats
-                    process_time = round( (nepi_utils.get_time() - start_time) , 3)
-                    self.status_msg.process_time = process_time
-                    latency = (current_time - timestamp)
-                    self.status_msg.pub_latency_time = latency
-                    
-
-                    if self.last_pub_time is None:
-                        self.last_pub_time = nepi_utils.get_time()
-                    else:
-                        cur_time = nepi_utils.get_time()
-                        pub_time_sec = cur_time - self.last_pub_time
-                        self.last_pub_time = cur_time
-                        self.status_msg.last_pub_sec = pub_time_sec
-
-                        self.time_list.pop(0)
-                        self.time_list.append(pub_time_sec)
-
-                    # Update blank image if needed
-                    if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-                        self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
-                    for namespace in add_pubs:
-                        if namespace in self.add_pubs_dict.keys():
-                            [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                            self.node_if.publish_pub(status_ns, self.status_msg)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                                self.node_if.publish_pub(status_ns, self.status_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list)
+        self.publishing = False
         return cv2_img
+        
 
     def publish_msg_img(self, msg_text, timestamp = None, frame_3d = 'nepi_base'):
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, text)
@@ -2975,7 +2985,7 @@ class BaseImageIF:
         self.needs_update()
 
 
-    def set_pixel(self, pixel, color_gbr = [0,0,0,0]):
+    def set_pixel(self, pixel, color_bgr = [0,0,0,0]):
 
         self.drag_pixel = None
         self.drag_window = None
@@ -3134,7 +3144,7 @@ class BaseImageIF:
             yr_min = 1 - r_len_max
             yr_max = 1
 
-        self.msg_if.pub_info("Window Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Window Image Window set to: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
         self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
         self.x_ratio = xr_min + (xr_max - xr_min) / 2
         self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -3482,10 +3492,14 @@ class BaseImageIF:
 
     def _clickCb(self,msg):
         self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
-        pixel = [msg.x * self.x_scaler + self.x_offset, msg.y  * self.y_scaler + self.y_offset]
-        color_gbr = (msg.g,msg.b,msg.r,msg.a)
-        if self.mouse_dict['click_callback'] is not None:
-            self.mouse_dict['click_callback'](pixel,color_gbr)
+        pixel = [int(msg.x  * self.x_scaler + self.x_offset), int(msg.y  * self.y_scaler + self.y_offset)]
+        color_bgr = (msg.b,msg.g,msg.r,msg.a)
+        #self.msg_if.pub_info("Checking for click_callback function in mouse overide dict: " + str(self.mouse_override_dict), log_name_list = self.log_name_list)
+        if self.mouse_override_dict['click_callback'] is not None:
+            try:
+                self.mouse_override_dict['click_callback'](pixel = pixel,color_bgr = color_bgr)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call mouse click_callback: " + str(e), log_name_list = self.log_name_list)
         else:
                 self.last_click_time = nepi_utils.get_time()
                 nepi_sdk.sleep(0.3)
@@ -3493,7 +3507,7 @@ class BaseImageIF:
                     if (nepi_utils.get_time() - self.last_click_time) >= 0.3:
                         self.last_click_time = None
                         self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
-                        self.set_pixel(pixel,color_gbr)
+                        self.set_pixel(pixel,color_bgr)
                     else:
                         self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
                         self.reset_renders()
@@ -3503,25 +3517,31 @@ class BaseImageIF:
     def _dragCb(self,msg):
         self.msg_if.pub_info("Received set drag mouse message: " + str(msg), log_name_list = self.log_name_list)
         self.last_click_time = None
-        pixel = [msg.x  * self.x_scaler + self.x_offset, msg.y  * self.y_scaler + self.y_offset]
+        pixel = [int(msg.x  * self.x_scaler + self.x_offset), int(msg.y  * self.y_scaler + self.y_offset)]
+        color_bgr = (msg.b,msg.g,msg.r,msg.a)
         self.msg_if.pub_info("Using drag pixel: " + str(pixel), log_name_list = self.log_name_list)
-        if self.mouse_dict['drag_callback'] is not None:
-            self.mouse_dict['drag_callback'](pixel)
-        elif self.zoom_ratio < 0.01:
+        if self.mouse_override_dict['drag_callback'] is not None:
+            try:
+                self.mouse_override_dict['drag_callback'](pixel, color_bgr)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call mouse drag_callback: " + str(e), log_name_list = self.log_name_list)
+        else: #if self.zoom_ratio < 0.01:
             if self.drag_window is None:
                 self.drag_window = [pixel[0], pixel[0] + 1, pixel[1],  pixel[1] + 1]
             else:
                 self.drag_window[1] = pixel[0]
                 self.drag_window[3] = pixel[1]
                 self.needs_update()
-        else:
-            self.set_pixel(pixel)
+
 
 
 
     def _windowCb(self,msg):
         self.msg_if.pub_info("Received set window message: " + str(msg), log_name_list = self.log_name_list)
-        window = [msg.x_min  * self.x_scaler + self.x_offset , msg.x_max  * self.x_scaler + self.x_offset, msg.y_min  * self.y_scaler + self.y_offset, msg.y_max * self.y_scaler + self.y_offset]
+        window = [int(msg.x_min  * self.x_scaler + self.x_offset) , 
+                int(msg.x_max  * self.x_scaler + self.x_offset), 
+                int(msg.y_min  * self.y_scaler + self.y_offset), 
+                int(msg.y_max * self.y_scaler + self.y_offset)]
         if msg.x_min > msg.x_max:
             window[0] = msg.x_max * self.x_scaler + self.x_offset
             window[1] = msg.x_min * self.x_scaler + self.x_offset
@@ -3529,10 +3549,15 @@ class BaseImageIF:
             window[2] = msg.y_max  * self.y_scaler + self.y_offset
             window[3] = msg.y_min  * self.y_scaler + self.y_offset
 
-        if self.mouse_dict['window_callback'] is not None:
-            self.mouse_dict['window_callback'](window)
-        elif self.zoom_ratio <= 0.01:
+        if self.mouse_override_dict['window_callback'] is not None:
+            try:
+                self.mouse_override_dict['window_callback'](window)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call mouse window_callback: " + str(e), log_name_list = self.log_name_list)
+        else:
             self.set_window(window)
+            self.needs_update()
+        self.drag_window = None
 
 
 
@@ -3937,10 +3962,8 @@ class ColorImageIF(BaseImageIF):
         x_max = int(min(img_width, img_width * xr_max))
         y_min = int(max(0, img_height * yr_min))
         y_max = int(min(img_height, img_height * yr_max))
-        #self.msg_if.pub_info("Got Image Ratios: " + str([xr_min,xr_max,yr_min,yr_max]), log_name_list = self.log_name_list)
-        #self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
-        self.msg_if.pub_info("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
         ##########
         # Show Drag Box if Needed

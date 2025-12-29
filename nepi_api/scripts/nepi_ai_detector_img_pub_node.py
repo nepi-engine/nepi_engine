@@ -671,7 +671,9 @@ class AiDetectorImgPub:
 
                         # Check if time to publish
                         delay_time = float(1) / max_rate 
-                        last_img_time = self.imgs_info_dict['img_file']['last_img_time']
+                        last_img_time = 0
+                        if 'last_img_time' in self.imgs_info_dict['img_file'].keys():
+                            last_img_time = self.imgs_info_dict['img_file']['last_img_time']
                         current_time = nepi_utils.get_time()
                         timer = round((current_time - last_img_time), 3)
                         #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
