@@ -701,7 +701,7 @@ class AiDetectorImgPub:
                                                             cv2_img, 
                                                             det_dict_list, 
                                                             loc_dict_list,
-                                                            timestamp = get_msg_stampstamp, 
+                                                            timestamp = timestamp, 
                                                             frame_3d = ros_frame_id, 
                                                             navpose_dict = navpose_dict)
 

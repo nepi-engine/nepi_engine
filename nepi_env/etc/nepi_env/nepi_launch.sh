@@ -33,6 +33,12 @@ else
 		sudo rm -r ${ros_log_path}/* 2>/dev/null
 	fi
 
+	lost_found_path='/mnt/nepi_storage/lost+found'
+	if [[ -d "$lost_found_path" ]]; then
+		echo "Clearing lost and found in: ${lost_found_path}"
+		sudo rm -r ${lost_found_path}/* 2>/dev/null
+	fi
+
 	function run_script() {
 		run_script=$1
 		arg_1=""
