@@ -130,7 +130,7 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
     kernel_size = nepi_utils.get_closest_odd_integer(kernel_float)
     if kernel_size < 1:
         kernel_size = 1
-    logger.log_warn("Applying Denoise Filter with K size of " + str(kernel_size))
+    #logger.log_warn("Applying Denoise Filter with K size of " + str(kernel_size))
     cv2_img_filtered = nepi_img.denoise_filter(cv2_img, filter_type='gaussian', kernel_size=kernel_size)
     img_quality = 1.0
     return cv2_img_filtered, img_quality

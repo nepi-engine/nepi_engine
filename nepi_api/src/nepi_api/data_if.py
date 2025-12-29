@@ -2641,7 +2641,7 @@ class BaseImageIF:
 
                 [height,width] = cv2_img.shape[0:2]
                 [self.raw_height,self.raw_width] = [height,width]
-                self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
                 if process_data == True:
@@ -2655,7 +2655,7 @@ class BaseImageIF:
                     [self.proc_height,self.proc_width] = [height,width]
 
                     if height > 5 and width > 5:
-                        self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
+                        #self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
                         last_width = self.status_msg.width_px
@@ -3963,7 +3963,7 @@ class ColorImageIF(BaseImageIF):
         y_min = int(max(0, img_height * yr_min))
         y_max = int(min(img_height, img_height * yr_max))
 
-        self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
         ##########
         # Show Drag Box if Needed
@@ -3971,7 +3971,7 @@ class ColorImageIF(BaseImageIF):
 
         #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
         if drag_window is not None:
-            self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
             # Define the rectangle parameters
             x1 = min(drag_window[0], drag_window[1])
             x2 = max(drag_window[0], drag_window[1])

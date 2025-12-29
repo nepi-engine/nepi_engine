@@ -1026,7 +1026,7 @@ class AiDetectorIF:
 
     def setThresholdCb(self,msg):
         threshold = msg.data
-        self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
+        #self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
         if threshold <  MIN_THRESHOLD:
             threshold = MIN_THRESHOLD
         elif threshold > MAX_THRESHOLD:

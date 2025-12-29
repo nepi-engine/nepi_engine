@@ -837,11 +837,11 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , h
     hsv = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2HSV)
 
     # Define range filters for color in HSV
-    logger.log_warn("Using BGR Color " + str(color_bgr ))
+    #logger.log_warn("Using BGR Color " + str(color_bgr ))
 
     color_array = np.array([[[color_bgr[0], color_bgr[1], color_bgr[2]]]], dtype=np.uint8)
     hsv_color = cv2.cvtColor(color_array, cv2.COLOR_BGR2HSV)[0,0,:]
-    logger.log_warn("Using HSV Color " + str(hsv_color ))
+    #logger.log_warn("Using HSV Color " + str(hsv_color ))
 
     sensitivity = 1 - sensitivity
 
@@ -865,7 +865,7 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , h
       int(min(255, hsv_color[2] + 128 * sensitivity / vscalers[1]))
     ])
 
-    logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))
+    #logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))
 
     # Threshold the HSV image to get only red colors
     mask = cv2.inRange(hsv, lower_bound, upper_bound)
