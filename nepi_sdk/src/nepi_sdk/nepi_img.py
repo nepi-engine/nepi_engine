@@ -841,31 +841,26 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , h
 
     color_array = np.array([[[color_bgr[0], color_bgr[1], color_bgr[2]]]], dtype=np.uint8)
     hsv_color = cv2.cvtColor(color_array, cv2.COLOR_BGR2HSV)[0,0,:]
-    #logger.log_warn("Using HSV Color " + str(hsv_color ))
+    logger.log_warn("Using HSV Color " + str(hsv_color ))
 
     sensitivity = 1 - sensitivity
 
-    h =  int( hsv_color[0] - 90 * sensitivity / hscalers[0])
     
-    if h < 0:
-       h = 179 + h
+  
     lower_bound = np.array([
-      h,
+      int(max(0, hsv_color[0] - 90 * sensitivity / hscalers[0] )),
       int(max(0, hsv_color[1] - 128 * sensitivity / sscalers[0] )),
       int(max(0, hsv_color[2] - 128 * sensitivity / vscalers[0]))
     ])
 
 
-    h =  int( hsv_color[0] + 90 * sensitivity / hscalers[1])
-    if h > 179:
-       h = h - 179
     upper_bound = np.array([
-      h,
+      int(min(90, hsv_color[0] + 90 * sensitivity / hscalers[0] )),
       int(min(255, hsv_color[1] + 128 * sensitivity / sscalers[1])),
       int(min(255, hsv_color[2] + 128 * sensitivity / vscalers[1]))
     ])
 
-    #logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))
+    logger.log_warn("Using Mask Colors " + str([lower_bound, upper_bound]))
 
     # Threshold the HSV image to get only red colors
     mask = cv2.inRange(hsv, lower_bound, upper_bound)
