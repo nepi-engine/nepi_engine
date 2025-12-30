@@ -54,7 +54,7 @@ class PTXActuatorIF:
 
     TRACK_MAX_UPDATE_RATE = 1
     TRACK_EXIT_FUNCTION = 'HOME'
-    TRACK_DEFAULT_TARGETS = ['boat','bottle','cup','person']
+    TRACK_DEFAULT_TARGETS = ['person']
 
     TRACK_FILTER_OPTIONS = nepi_targets.TARGET_FILTER_OPTIONS
     TRACK_DEFAULT_FILTER = 'LARGEST'

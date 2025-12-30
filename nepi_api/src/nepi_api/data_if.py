@@ -3497,7 +3497,7 @@ class BaseImageIF:
         #self.msg_if.pub_info("Checking for click_callback function in mouse overide dict: " + str(self.mouse_override_dict), log_name_list = self.log_name_list)
         if self.mouse_override_dict['click_callback'] is not None:
             try:
-                self.mouse_override_dict['click_callback'](pixel = pixel,color_bgr = color_bgr)
+                self.mouse_override_dict['click_callback'](pixel[0],pixel[1],msg.b,msg.g,msg.r,msg.a)
             except Exception as e:
                 self.msg_if.pub_warn("Failed to call mouse click_callback: " + str(e), log_name_list = self.log_name_list)
         else:
