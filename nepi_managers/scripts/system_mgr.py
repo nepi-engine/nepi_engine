@@ -76,10 +76,6 @@ class SystemMgrNode():
                         "data", 
                         "databases", 
                         "databases/targets", 
-                        "install",
-                        "install/apps",
-                        "install/drivers",
-                        "install/updates",
                         "license", 
                         "logs", 
                         "logs/ros_log",
@@ -269,6 +265,7 @@ class SystemMgrNode():
 
 
         self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
+        self.first_rootfs = self.nepi_config['NEPI_AB_FS']
         self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging_removable = False
@@ -826,9 +823,6 @@ class SystemMgrNode():
         nepi_sdk.spin()
 
 
-
-    
-
     def initConfig(self):
         if self.node_if is not None:
             op_env = self.node_if.get_param("op_environment")
@@ -848,17 +842,13 @@ class SystemMgrNode():
             self.getNEPIStorageDevice()
             
             if self.in_container==True:
-                self.new_img_staging = nepi_sdk.get_param(
-                    "~new_img_staging", self.new_img_folder)
+                self.new_img_staging = self.new_img_folder
 
                 self.new_img_staging_removable = False
-                print("In Container: " + self.new_img_staging)
             else:
-                self.new_img_staging = nepi_sdk.get_param(
-                    "~new_img_staging", self.new_img_staging)
+                self.new_img_staging = self.new_img_staging
 
-                self.new_img_staging_removable = nepi_sdk.get_param(
-                    "~new_img_staging_removable", self.new_img_staging_removable)
+                self.new_img_staging_removable = self.new_img_staging_removable
 
             self.emmc_device = self.node_if.get_param("emmc_device")
 
@@ -1071,11 +1061,12 @@ class SystemMgrNode():
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
     def provide_sw_update_status(self, req):
-    
+        # self.msg_if.pub_warn("Entering Provide Software Update Status")
         resp = SystemSoftwareStatusQueryResponse()
         resp.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
         resp.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
-
+        # self.msg_if.pub_warn("Got New Img Staging Name: " + str(resp.new_sys_img_staging))
+        # self.msg_if.pub_warn("Got Partition Free MB: " + str(resp.new_sys_img_staging_free_mb))
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
             return resp
@@ -1088,25 +1079,19 @@ class SystemMgrNode():
         self.install_img_size = ''
         self.status_msg.sys_img_update_status = ""
 
-        
         if self.in_container==True:
-            self.new_img_staging = nepi_sdk.get_param(
-                "~new_img_staging", self.new_img_folder)
+            self.new_img_staging = self.new_img_folder
 
             self.new_img_staging_removable = False
-            print("In Container: " + self.new_img_staging)
         else:
-            self.new_img_staging = nepi_sdk.get_param(
-                "~new_img_staging", self.new_img_staging)
+            self.new_img_staging = self.new_img_staging
 
-            self.new_img_staging_removable = nepi_sdk.get_param(
-                "~new_img_staging_removable", self.new_img_staging_removable)
-
+            self.new_img_staging_removable = self.new_img_staging_removable
 
         (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
             self.new_img_staging, self.new_img_staging_removable)
         if status is False:
-            #self.msg_if.pub_warn("Unable to update software status: " + err_string)
+            self.msg_if.pub_warn("Unable to update software status: " + err_string)
             resp.new_sys_img = 'query failed'
             resp.new_sys_img_version = 'query failed'
             resp.new_sys_img_size_mb = 0
@@ -1382,7 +1367,6 @@ class SystemMgrNode():
         self.status_msg.sys_img_archive_progress = progress_val
     
     def installImageCb(self, msg):
-        self.msg_if.pub_warn("Installing Image...")
         if self.installing_new_image:
             self.msg_if.pub_warn("New image is already being installed")
             return
@@ -1470,7 +1454,7 @@ class SystemMgrNode():
             self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
             info_dict['version']=fw_str
             now = datetime.datetime.now()
-            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S") + '.img.raw'
+            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S")
             self.msg_if.pub_warn("Saving NEPI File System to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename
@@ -1482,7 +1466,7 @@ class SystemMgrNode():
             fw_str = fw_str.replace(' ','_')
             fw_str = fw_str.replace('/','_')
             now = datetime.datetime.now()
-            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y%m%d") + '.img.raw'
+            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y%m%d")
             self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename

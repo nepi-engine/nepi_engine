@@ -81,6 +81,8 @@ def unmountPartition(part_mountpoint):
 
 
 def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
+    print(image_install_path)
+    print(install_device_is_removable)
     # Save array of image name, version, and filesize
     new_img_files=[]
     new_img_versions=[]
@@ -102,18 +104,12 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
 
 def getRootfsABStatus():
     rootfs_ab_status_dict = {}
-    config_dict=nepi_system.load_nepi_docker_config()
+
     rootfs_ab_status_dict["active_part_device"] = "nepi_fs_a"
-    has_ab_fs=config_dict['NEPI_AB_FS'] == 1
-    inactive_fs='None'
-    inactive_fw='None'
-    if has_ab_fs:
-        inactive_fs='nepi_fs_b'
-        inactive_fw=config_dict['NEPI_FSB_VERSION']
-    rootfs_ab_status_dict["inactive_part_device"] = inactive_fs
+    rootfs_ab_status_dict["inactive_part_device"] = "nepi_fs_b"
     rootfs_ab_status_dict["max_boot_fail_count"] = 1
     rootfs_ab_status_dict["running_boot_fail_count"] = 0
-    rootfs_ab_status_dict["inactive_part_fw_version"] = inactive_fw
+    rootfs_ab_status_dict["inactive_part_fw_version"] = "uknown"
     return True, "Success", rootfs_ab_status_dict
 
 def identifyRootfsABScheme():
@@ -149,6 +145,7 @@ def switchActiveAndInactiveContainers():
 def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
     config_dict=nepi_system.load_nepi_docker_config()
     # Check if there is availible space to export
+    print(config_dict["NEPI_EXPORT_FILE"])
     if config_dict['NEPI_RUNNING_SIZE_GB'] > config_dict['NEPI_EXPORT_AVAIL_GB']:
         print("Not enough availible space. Running Container Size: " + str(config_dict['NEPI_RUNNING_SIZE_GB']) + " Availible Space: " + str(config_dict['NEPI_EXPORT_AVAIL_GB']))
         return False, "Fail"
