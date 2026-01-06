@@ -117,7 +117,16 @@ def identifyRootfsABScheme():
 
 # Get how much availible space
 def getPartitionByteCount(partition_device):
-    return 100000000000 
+    config_dict=nepi_system.load_nepi_docker_config()
+    # print(config_dict)
+    # if config_dict['NEPI_ACTIVE_FS'] == 'nepi_fs_a':
+    #     print('Active FS: ' + config_dict['NEPI_ACTIVE_FS'])
+    #     print('Active FS size: ' + config_dict['NEPI_FSA_SIZE_MB'] )
+    #     return config_dict['NEPI_FSA_SIZE_MB']
+    # elif config_dict['NEPI_ACTIVE_FS'] == 'nepi_fs_b':
+    #     return config_dict['NEPI_FSB_SIZE_MB']
+    print('Active FS size: ' + config_dict['NEPI_FSA_SIZE_MB'])
+    return config_dict['NEPI_RUNNING_SIZE_GB'] 
 
 # How much pace is free
 def getPartitionFreeByteCount(partition_device):
