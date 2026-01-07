@@ -125,7 +125,7 @@ def getPartitionByteCount(partition_device):
     #     return config_dict['NEPI_FSA_SIZE_MB']
     # elif config_dict['NEPI_ACTIVE_FS'] == 'nepi_fs_b':
     #     return config_dict['NEPI_FSB_SIZE_MB']
-    print('Active FS size: ' + config_dict['NEPI_FSA_SIZE_MB'])
+    print('Active FS size: ' + str(config_dict['NEPI_FSA_SIZE_MB']))
     return config_dict['NEPI_RUNNING_SIZE_GB'] 
 
 # How much pace is free
