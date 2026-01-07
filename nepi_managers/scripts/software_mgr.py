@@ -160,6 +160,7 @@ class SystemMgrNode():
     auto_switch_rootfs_on_new_img_install = True
     sw_update_progress = ""
 
+    selected_new_img = "None"
     installing_new_image = False
     new_img_file = ""
     new_img_version = ""
@@ -651,6 +652,14 @@ class SystemMgrNode():
                 'callback': self.systemErrorCb, 
                 'callback_args': ()
             },
+            'select_nepi_image': {
+                'namespace': self.base_namespace,
+                'topic': 'select_nepi_image',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.selectImageCb, 
+                'callback_args': ()
+            },
             'install_nepi_image': {
                 'namespace': self.base_namespace,
                 'topic': 'install_nepi_image',
@@ -1060,9 +1069,14 @@ class SystemMgrNode():
 
         # Don't query anything if we are in the middle of installing a new image
         if self.installing_new_image:
-            resp.new_sys_img = self.new_img_files[sel_new_ind]
-            resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
-            resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+            sel_new_img = copy.deepcopy(self.selected_new_img)
+            sel_new_ind = self.new_img_files.index(sel_new_img)        
+            try:   
+                resp.new_sys_img = self.new_img_files[sel_new_ind]
+                resp.new_sys_img_version = self.new_img_versions[sel_new_ind]
+                resp.new_sys_img_size_mb = self.new_img_filesizes[sel_new_ind] / BYTES_PER_MEGABYTE
+            except:
+                pass
             return resp
         
         # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
@@ -1084,10 +1098,13 @@ class SystemMgrNode():
             if len(self.new_img_files) > 0:
                 
                 #####
-                self.selected_new_img=self.new_img_files[0]
+                if self.selected_new_img in self.new_img_files:
+                    selected_new_img = self.selected_new_img
+                else:
+                    selected_new_img=self.new_img_files[0]
                 #####
                 self.status_msg.sys_img_update_options= ['None'] + self.new_img_files
-                sel_new_img = copy.deepcopy(self.selected_new_img)
+                sel_new_img = copy.deepcopy(selected_new_img)
                 sel_new_ind = self.new_img_files.index(sel_new_img)
                 if sel_new_ind != -1:
                     resp.new_sys_img = self.new_img_files[sel_new_ind]
@@ -1338,6 +1355,12 @@ class SystemMgrNode():
     def receive_archive_progress(self, progress_val):
         self.status_msg.sys_img_archive_progress = progress_val
     
+    def selectImageCb(self, msg):
+        selected_new_img = msg.data
+        if select_nepi_image in self.new_img_files:
+            self.selected_new_img = selected_new_img
+      
+
     def installImageCb(self, msg):
         if self.installing_new_image:
             self.msg_if.pub_warn("New image is already being installed")
