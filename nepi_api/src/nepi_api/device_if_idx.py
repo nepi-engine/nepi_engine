@@ -64,7 +64,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
     resolution_ratio = 1.0, 
-    max_framerate = 100, 
+    max_framerate = 10, 
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
     min_range_m = 0.0,
@@ -108,7 +108,7 @@ class IDXDeviceIF:
     contrast_ratio = 0.5
     threshold_ratio = 0.0
     resolution_ratio = 1.0  
-    max_framerate = 100
+    max_framerate = 10
     start_range_ratio = 0.0
     stop_range_ratio = 1.0
 
