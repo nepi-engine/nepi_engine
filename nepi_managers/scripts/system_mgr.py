@@ -157,7 +157,7 @@ class SystemMgrNode():
 
     auto_switch_rootfs_on_new_img_install = True
     sw_update_progress = ""
-
+    selected_new_img="none_detected"
     installing_new_image = False
     new_img_file = ""
     new_img_version = ""
@@ -182,7 +182,7 @@ class SystemMgrNode():
     install_img_version = ''
     install_img_size = ''
 
-    selected_new_img="none_detected"
+    
 
     #######################
     ### Node Initialization
@@ -657,6 +657,14 @@ class SystemMgrNode():
                 'callback': self.systemErrorCb, 
                 'callback_args': ()
             },
+            'select_nepi_image': {
+                'namespace': self.base_namespace,
+                'topic': 'select_nepi_image',
+                'msg': String,
+                'qsize': 1,
+                'callback': self.selectImageCb, 
+                'callback_args': ()
+            },
             'install_nepi_image': {
                 'namespace': self.base_namespace,
                 'topic': 'install_nepi_image',
@@ -1090,6 +1098,7 @@ class SystemMgrNode():
 
         (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
             self.new_img_staging, self.new_img_staging_removable)
+        self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
         if status is False:
             self.msg_if.pub_warn("Unable to update software status: " + err_string)
             resp.new_sys_img = 'query failed'
@@ -1098,8 +1107,10 @@ class SystemMgrNode():
             self.status_msg.sys_img_update_status = 'query failed'
             return resp
 
+        
         # Update the response
         success = False
+        selected_new_img="none_detected"
         sel_new_img = copy.deepcopy(self.selected_new_img)
         if new_img_files:
             if len(new_img_files) > 0:
@@ -1365,6 +1376,11 @@ class SystemMgrNode():
 
     def receive_archive_progress(self, progress_val):
         self.status_msg.sys_img_archive_progress = progress_val
+
+    def selectImageCb(self, msg):
+        selected_new_img = msg.data
+        if select_nepi_image in self.new_img_files:
+            self.selected_new_img = selected_new_img        
     
     def installImageCb(self, msg):
         if self.installing_new_image:
