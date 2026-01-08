@@ -437,7 +437,7 @@ class RBXRobotIF:
             'home_location': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_HOME_LOCATION
-            }
+            },
             'max_error_m': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_M
