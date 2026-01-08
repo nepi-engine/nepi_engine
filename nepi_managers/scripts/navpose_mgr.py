@@ -588,12 +588,9 @@ class NavPoseMgr(object):
 
     def _updateConnectionsCb(self, timer):
         # Register new topic requests
-        self.subs_dict_lock.acquire()
-        subs_dict = copy.deepcopy(self.subs_dict)
-        self.subs_dict_lock.release()
         for name in self.connect_dict.keys():
             topic = self.connect_dict[name]['topic']
-            if topic != subs_dict[name]['topic']:
+            if topic != self.subs_dict[name]['topic']:
                 transform = self.ZERO_TRANSFORM
                 # Fixed: Use self.transforms_dict instead of undefined transform_dict 
                 if topic in self.transforms_dict.keys():
@@ -732,7 +729,6 @@ class NavPoseMgr(object):
         #self.msg_if.pub_warn("publish_status self.transforms_dict" + str(self.transforms_dict))
 
         connect_dict = copy.deepcopy(self.connect_dict)
-        subs_dict = copy.deepcopy(self.subs_dict)
         avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
 
         self.status_msg.nepi_frame_description = self.nepi_frame_desc
@@ -826,17 +822,14 @@ class NavPoseMgr(object):
 
         if self.avail_topics_dict != last_dict:
             self.publish_status()
-        self.msg_if.pub_warn("Updater - Got avail_topics_dict: " + str(self.avail_topics_dict))
+        #self.msg_if.pub_warn("Updater - Got avail_topics_dict: " + str(self.avail_topics_dict))
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
     def _updateConnectionsCb(self, timer):
         # Register new topic requests
-        self.subs_dict_lock.acquire()
-        subs_dict = copy.deepcopy(self.subs_dict)
-        self.subs_dict_lock.release()
         for name in self.connect_dict.keys():
             topic = self.connect_dict[name]['topic']
-            if topic != subs_dict[name]['topic']:
+            if topic != self.subs_dict[name]['topic']:
                 transform = self.ZERO_TRANSFORM
                 if topic in self.transforms_dict.keys():
                     transform = self.transforms_dict[topic]
