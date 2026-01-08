@@ -64,7 +64,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
     resolution_ratio = 1.0, 
-    framerate_ratio = 0.5, 
+    max_framerate = 10, 
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
     min_range_m = 0.0,
@@ -73,7 +73,7 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     rotate_ratio = 0.5,
     )
 
-FACTORY_FRAMERATE=5.0
+
 
 
 class IDXDeviceIF:
@@ -108,7 +108,7 @@ class IDXDeviceIF:
     contrast_ratio = 0.5
     threshold_ratio = 0.0
     resolution_ratio = 1.0  
-    framerate_ratio = 1.0
+    max_framerate = 10
     start_range_ratio = 0.0
     stop_range_ratio = 1.0
 
@@ -176,7 +176,7 @@ class IDXDeviceIF:
                  data_ref_description = 'sensor',
                  getFOV=None, perspective = 'pov',
                  get_rtsp_url = None,
-                 setResolutionRatio=None, setFramerateRatio=None,
+                 setResolutionRatio=None, setMaxFramerate=None,
                  setContrastRatio=None, setBrightnessRatio=None, 
                  setThresholdingRatio=None, setRangeRatio=None, 
                  setAutoAdjustRatio=None, autoAdjustControls=[],
@@ -248,10 +248,6 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-        if getFramerate is not None:
-            cfr=getFramerate()
-            if cfr > 7:
-                self.factory_controls_dict["framerate_ratio"] = FACTORY_FRAMERATE/cfr
         self.msg_if.pub_warn("Using Factory Contrls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
@@ -279,8 +275,8 @@ class IDXDeviceIF:
 
         ## Set None Capabilities Variables
 
-        self.setFramerateRatio = setFramerateRatio
-        if self.setFramerateRatio is not None:
+        self.setMaxFramerate = setMaxFramerate
+        if self.setMaxFramerate is not None:
             self.caps_report.has_framerate = True
         
         self.getFramerate = getFramerate
@@ -373,9 +369,9 @@ class IDXDeviceIF:
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["resolution_ratio"]
             },
-            'framerate_ratio': {
+            'max_framerate': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["framerate_ratio"]
+                'factory_val': self.factory_controls_dict["max_framerate"]
             },
             'start_range_ratio': {
                 'namespace': self.namespace,
@@ -515,12 +511,12 @@ class IDXDeviceIF:
                 'callback': self.setResolutionRatioCb, 
                 'callback_args': ()
             },
-            'set_framerate_ratio': {
+            'set_max_framerate': {
                 'namespace': self.namespace,
-                'topic': 'set_framerate_ratio',
+                'topic': 'set_max_framerate',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setFramerateRatioCb, 
+                'callback': self.setMaxFramerateCb, 
                 'callback_args': ()
             },
             'set_range_window': {
@@ -914,7 +910,9 @@ class IDXDeviceIF:
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
             self.resolution_ratio = self.node_if.get_param('resolution_ratio')
-            self.framerate_ratio = self.node_if.get_param('framerate_ratio')     
+            max_framerate = self.node_if.get_param('max_framerate') 
+            if max_framerate is not None:
+                self.max_framerate = max_framerate
             self.auto_adjust_ebabled = self.node_if.get_param('auto_adjust_ebabled') 
             self.brightness_ratio = self.node_if.get_param('brightness_ratio')
             self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
@@ -987,9 +985,9 @@ class IDXDeviceIF:
             self.setThresholdingRatio(self.threshold_ratio)
         if (self.setResolutionRatio is not None):
             self.setResolutionRatio(self.resolution_ratio)
-        if (self.setFramerateRatio is not None):
-            self.msg_if.pub_warn("Apply Config Framerate: " + str(self.framerate_ratio))
-            self.setFramerateRatio(self.framerate_ratio)
+        if (self.setMaxFramerate is not None and self.max_framerate is not None):
+            self.msg_if.pub_warn("Apply Config Framerate: " + str(self.max_framerate))
+            self.setMaxFramerate(self.max_framerate)
         if (self.setRangeRatio is not None):
             self.setRangeRatio(self.start_range_ratio, self.stop_range_ratio)
 
@@ -1174,23 +1172,23 @@ class IDXDeviceIF:
 
 
         
-    def setFramerateRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Framerate update message: " + str(msg))
-        ratio = msg.data
+    def setMaxFramerateCb(self, msg):
+        self.msg_if.pub_info("Recived Max Framerate update message: " + str(msg))
+        rate = msg.data
  
-        if ratio < 0.1:
-            ratio = 0.1
-        if ratio > 1.0:
-            ratio = 1.0
+        if rate < 1:
+            rate = 1
+        if rate > 100:
+            rate = 100
 
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-        self.framerate_ratio = ratio
+        self.max_framerate = rate
         self.publish_status(do_updates=False) # Updated inline here
 
-        if self.setFramerateRatio is not None:
+        if self.setMaxFramerate is not None:
             #self.msg_if.pub_warn("Sending update framerate ratio to driver: ")
-            status, err_str = self.setFramerateRatio(ratio)
+            status, err_str = self.setMaxFramerate(rate)
             #self.msg_if.pub_warn("Recived Framerate update: " + str(status))
 
 
@@ -1198,7 +1196,7 @@ class IDXDeviceIF:
             self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
 
         if self.node_if is not None:
-            self.node_if.set_param('framerate_ratio', ratio)
+            self.node_if.set_param('max_framerate', rate)
 
 
  
@@ -1271,7 +1269,7 @@ class IDXDeviceIF:
         self.node_if.reset_param('contrast_ratio')        
         self.node_if.reset_param('threshold_ratio')
         self.node_if.reset_param('resolution_ratio')   
-        self.node_if.reset_param('framerate_ratio')
+        self.node_if.reset_param('max_framerate')
         self.node_if.reset_param('start_range_ratio')
         self.node_if.reset_param('stop_range_ratio')
         self.node_if.reset_param('mount_desc')
@@ -1287,7 +1285,7 @@ class IDXDeviceIF:
         self.node_if.factory_reset_param('contrast_ratio')        
         self.node_if.factory_reset_param('threshold_ratio')
         self.node_if.factory_reset_param('resolution_ratio')   
-        self.node_if.factory_reset_param('framerate_ratio')
+        self.node_if.factory_reset_param('max_framerate')
         self.node_if.factory_reset_param('start_range_ratio')
         self.node_if.factory_reset_param('stop_range_ratio')
         self.factoryResetCb(do_updates = True)
@@ -1309,7 +1307,9 @@ class IDXDeviceIF:
             self.fps_queue[data_product].pop(0)
             self.fps_queue[data_product].append(current_fps)
             self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
-            self.current_fps[data_product] = sum(self.fps_queue[data_product])/len(self.fps_queue[data_product])
+            fps_queue = [x for x in self.fps_queue[data_product] if x != 0]
+            if len(fps_queue) > 1:
+                self.current_fps[data_product] = round(sum(fps_queue)/len(fps_queue),0)
             fps_changed = abs(self.current_fps[data_product] - last_fps) > 1
             fps_changing = 0 in self.fps_queue[data_product]
             if fps_changed or fps_changing:
@@ -1509,7 +1509,7 @@ class IDXDeviceIF:
                         dp_stop_data()
                     acquiring = False
                     self.current_fps[data_product] = 0.0
-                    self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
+                    self.fps_queue[data_product] = [0 for _ in range(100)]
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_sdk.sleep(0.25)
@@ -1657,12 +1657,12 @@ class IDXDeviceIF:
         res_str = str(self.width_px) + ":" + str(self.height_px)
         self.status_msg.resolution_current = res_str
 
-        self.status_msg.framerate_ratio = self.framerate_ratio
+        self.status_msg.max_framerate = self.max_framerate
         self.status_msg.data_products = self.data_products_base_list
-        framerates = []
-        for dp in self.current_fps.keys():
-            framerates.append(self.current_fps[dp])
-        self.status_msg.framerates = framerates
+        # framerates = []
+        # for dp in self.current_fps.keys():
+        #     framerates.append(self.current_fps[dp])
+        # self.status_msg.framerates = framerates
 
 
         self.status_msg.auto_adjust_enabled = self.auto_adjust_ebabled

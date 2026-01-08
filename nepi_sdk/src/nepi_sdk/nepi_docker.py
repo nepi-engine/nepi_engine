@@ -81,8 +81,13 @@ def unmountPartition(part_mountpoint):
 
 
 def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
+<<<<<<< HEAD
+    #print(image_install_path)
+    #print(install_device_is_removable)
+=======
     # print(image_install_path)
     # print(install_device_is_removable)
+>>>>>>> 7d4395b039ebdf948eb9a5611b1863b5729ed9e6
     # Save array of image name, version, and filesize
     new_img_files=[]
     new_img_versions=[]
