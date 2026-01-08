@@ -278,6 +278,7 @@ class NPXDeviceIF:
                 self.has_position = navpose_dict['has_position'] 
                 self.has_altitude = navpose_dict['has_altitude'] 
                 self.has_depth = navpose_dict['has_depth'] 
+        
 
         # Create capabilities report
         self.caps_report = NPXCapabilitiesQueryResponse()
