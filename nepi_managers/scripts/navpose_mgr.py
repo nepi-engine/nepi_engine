@@ -811,6 +811,7 @@ class NavPoseMgr(object):
         [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('orientation')
         self.avail_topics_dict['orientation']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['orientation']['msgs'] = copy.deepcopy(msg_list)
+
       
         [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('position')
         self.avail_topics_dict['position']['topics'] = copy.deepcopy(topic_list)
@@ -825,7 +826,7 @@ class NavPoseMgr(object):
 
         if self.avail_topics_dict != last_dict:
             self.publish_status()
-        #self.msg_if.pub_warn("Updater - Got avail_topics_dict: " + str(self.avail_topics_dict))
+        self.msg_if.pub_warn("Updater - Got avail_topics_dict: " + str(self.avail_topics_dict))
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
     def _updateConnectionsCb(self, timer):

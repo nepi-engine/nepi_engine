@@ -748,6 +748,7 @@ def find_topics_by_msgs(msg_type_list):
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         for msg_type in msg_type_list:
           if msg_str.find(msg_type) != -1:
+            #log_msg_warn("msg check: " + str([topic_str, msg_str]))
             topic_list.append(topic_str)
             msg_list.append(msg_str)
             #log_msg_warn("msgs found: " + str([msg_type, topic_str]))

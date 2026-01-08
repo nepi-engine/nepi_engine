@@ -81,8 +81,13 @@ def unmountPartition(part_mountpoint):
 
 
 def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
+<<<<<<< HEAD
     #print(image_install_path)
     #print(install_device_is_removable)
+=======
+    # print(image_install_path)
+    # print(install_device_is_removable)
+>>>>>>> 7d4395b039ebdf948eb9a5611b1863b5729ed9e6
     # Save array of image name, version, and filesize
     new_img_files=[]
     new_img_versions=[]
@@ -92,13 +97,24 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
         tar_files=files_dict["tar"]
         for filename in tar_files:
             file_path=image_install_path + '/' + filename
+            # cleaned_filename = filename.replace(".tar", "")
+            # new_img_files.append(str(cleaned_filename))
             if os.path.isfile(file_path):
                 new_img_filesizes.append(os.path.getsize(file_path))
 
         key='-'
         split_tar_files = [item.split(key) for item in tar_files]
-        new_img_files = [inner_array[0] for inner_array in split_tar_files]
+        # print("Tar Files: " + str(split_tar_files))
+        # new_img_files = [inner_array[:-1] for inner_array in split_tar_files]
+        for inner_array in split_tar_files:
+            all_but_last = inner_array[:-1] 
+            img_file = "-".join(all_but_last)
+            new_img_files.append(img_file)
+
+        # new_img_files = list(files_dict.values())
+        # print("Img Files: " + str(new_img_files))
         new_img_versions = [inner_array[1] for inner_array in split_tar_files]
+        # print("Img Versions: " + str(new_img_versions))
     return True, "New image file identified", new_img_files, new_img_versions, new_img_filesizes
 
 
