@@ -158,13 +158,17 @@ def process_line_brightest(cv2_img, line_color_bgr = (147, 175, 35), sensitivity
     b_pixels = []
     b_pixels = b_pixels + find_brightest_pixels_per_row(mask_img)
     b_pixels = b_pixels + find_brightest_pixels_per_column(mask_img)
-    
-    # Filter out Edge pixels
-    filtered_points = [(x, y) for x, y in b_pixels if x != 0 and y != mask_img.shape[1] and y != 0 and y != mask_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
 
-    cols1, cols2 = zip(*filtered_points)
-    line_dict['x'] = [item + x_offset for item in list(cols1)]
-    line_dict['y'] = [item + y_offset for item in list(cols2)]
+    if len(b_pixels) == 0:
+        filtered_points = b_pixels
+    else:
+        # Filter out Edge pixels
+        filtered_points = [(x, y) for x, y in b_pixels if x != 0 and y != mask_img.shape[1] and y != 0 and y != mask_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
+    
+    if len(filtered_points) > 0:
+        cols1, cols2 = zip(*filtered_points)
+        line_dict['x'] = [item + x_offset for item in list(cols1)]
+        line_dict['y'] = [item + y_offset for item in list(cols2)]
     
 
     return line_dict, line_quality

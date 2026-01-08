@@ -297,6 +297,7 @@ def get_file_list(search_path,ext_str="",ext_strs=[]):
                     count = count + 1
                     file = (search_path + '/' + f)
                     file_list.append(file)
+  file_list = sorted(file_list)
   return file_list, count
 
 def get_file_count(search_path,ext_str="",ext_strs=[]):
