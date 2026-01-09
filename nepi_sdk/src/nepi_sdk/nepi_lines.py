@@ -149,7 +149,7 @@ def process_line_brightest(cv2_img, line_color_bgr = (147, 175, 35), sensitivity
 
     # Apply color mask filter
         
-    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [2,1], vscalers = [2,1])
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
 
     mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
 
