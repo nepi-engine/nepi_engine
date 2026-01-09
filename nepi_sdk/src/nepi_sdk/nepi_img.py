@@ -515,31 +515,31 @@ def adjust_auto(cv2_img, sensitivity_ratio = 0.0):
   cv2_img = cv2.convertScaleAbs(cv2_img, alpha=alpha, beta=beta)
   return cv2_img
     
-def adjust_brightness(cv2_img, sensitivity_ratio = 0.5):
+def adjust_contrast(cv2_img, sensitivity_ratio = 0.5):
   if sensitivity_ratio < 0.49 or sensitivity_ratio > 0.51:
     max_value = 200
-    brightness = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
-    if abs(brightness) > max_value:
-      brightness = np.sign(brightness) * max_value
-    if brightness != 0:
-      if brightness > 0:
-        shadow = brightness
+    contrast = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
+    if abs(contrast) > max_value:
+      contrast = np.sign(contrast) * max_value
+    if contrast != 0:
+      if contrast > 0:
+        shadow = contrast
         highlight = 255
       else:
         shadow = 0
-        highlight = 255 + brightness
+        highlight = 255 + contrast
     alpha = (highlight - shadow)/255
     gamma = shadow
     cv2_img = cv2.addWeighted(cv2_img, alpha, cv2_img, 0, gamma)
   return cv2_img
 
-def adjust_contrast(cv2_img, sensitivity_ratio = 0.5):
+def adjust_brightness(cv2_img, sensitivity_ratio = 0.5):
   if sensitivity_ratio < 0.49 or sensitivity_ratio > 0.51:
     max_value = 90
-    contrast = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
-    if abs(contrast) > max_value:
-      contrast = np.sign(contrast) * max_value
-    f = 131*(contrast + 127)/(127*(131-contrast))
+    brightness = int((sensitivity_ratio - 0.5) * 2 * max_value) # +- max_value
+    if abs(brightness) > max_value:
+      brightness = np.sign(brightness) * max_value
+    f = 131*(brightness + 127)/(127*(131-brightness))
     alpha = f
     gamma = 127*(1-f)
     
