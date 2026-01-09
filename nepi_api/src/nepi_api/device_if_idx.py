@@ -677,7 +677,7 @@ class IDXDeviceIF:
         for data_product in self.data_products_base_list:
             self.last_data_time[data_product] = nepi_utils.get_time()
             self.current_fps[data_product] = 0
-            self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
+            self.fps_queue[data_product] = [0 for _ in range(100)]
 
         # Launch the acquisition and saving threads
         if self.image_thread is not None:
@@ -1193,7 +1193,7 @@ class IDXDeviceIF:
 
 
         for data_product in self.data_products_base_list:
-            self.fps_queue[data_product] = [0,0,0,0,0,0,0,0,0,0]
+            self.fps_queue[data_product] = [0 for _ in range(100)]
 
         if self.node_if is not None:
             self.node_if.set_param('max_framerate', rate)

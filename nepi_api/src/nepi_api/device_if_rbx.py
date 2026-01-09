@@ -437,7 +437,7 @@ class RBXRobotIF:
             'home_location': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_HOME_LOCATION
-            }
+            },
             'max_error_m': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_GOTO_MAX_ERROR_M
@@ -534,7 +534,7 @@ class RBXRobotIF:
                 'qsize': None,
                 'callback': self.setErrorBoundsCb, 
                 'callback_args': ()
-            }
+            },
             'set_state': {
                 'namespace': self.namespace,
                 'topic': 'set_state',
@@ -901,9 +901,9 @@ class RBXRobotIF:
         navpose_dict = None
         start_time = nepi_utils.get_time()
         navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-            if navpose_dict is not None:
-                frame_3d = 'nepi_frame'
-                self.transform_if.set_end_description('nepi_frame')
+        if navpose_dict is not None:
+            frame_3d = 'nepi_frame'
+            self.transform_if.set_end_description('nepi_frame')
                 
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
