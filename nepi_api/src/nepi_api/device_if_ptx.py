@@ -25,6 +25,7 @@ from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow, Target, Targets, TargetFilter, TargetFilters, TargetingStatus
 from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
+from nepi_interfaces.msg import NavPosePanTilt
 
 from nepi_interfaces.msg import Frame3DTransform
 from nepi_interfaces.msg import NavPose
@@ -597,7 +598,15 @@ class PTXActuatorIF:
                 'topic': 'navpose',
                 'qsize': 1,
                 'latch': False
+            },
+            'pan_tilt_pub': {
+                'msg': NavPosePanTilt,
+                'namespace': self.namespace,
+                'topic': 'pan_tilt',
+                'qsize': 1,
+                'latch': False
             }
+
         }
 
 
@@ -2245,6 +2254,13 @@ class PTXActuatorIF:
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
+            pan_tilt_msg = NavPosePanTilt()
+            pan_tilt_msg.timestamp = nepi_utils.get_time()
+            pan_tilt_msg.pan_deg = self.status_msg.pan_now_deg
+            pan_tilt_msg.tilt_deg = self.status_msg.tilt_now_deg
+            self.node_if.publish_pub('pan_tilt_pub',pan_tilt_msg)
+
+
         pub_time = nepi_utils.get_time() - start_time
         return pub_time
 
@@ -2254,6 +2270,7 @@ class PTXActuatorIF:
 
     def _publishStatusCb(self,timer):
         self.publish_status()
+
 
     def passFunction(self):
         return 0

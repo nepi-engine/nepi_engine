@@ -49,53 +49,6 @@ from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 from nepi_api.data_if import NavPoseIF
 from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
 
-
-EXAMPLE_NAVPOSE_DATA_DICT = {
-    'frame_3d': 'nepi_frame',
-    'frame_nav': 'ENU',
-    'frame_altitude': 'WGS84',
-    'frame_depth': 'MSL',
-
-    'geoid_height_meters': 0,
-
-    'has_location': True,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 47.080909,
-    'longitude': -120.8787889,
-    
-    'has_heading': True,
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
-
-    'has_position': True,
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
-
-    'has_orientation': True,
-    'time_oreientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
-
-
-
-    'has_altitude': True,
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified altitude_m frame
-    'altitude_m': 12.321,
-
-    'has_depth': False,
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive meters
-    'depth_m': 0.0
-}
-
 #########################################
 # Node Class
 #########################################
@@ -142,6 +95,7 @@ class NPXDeviceIF:
   has_position = False
   has_altitude = False
   has_depth = False
+  has_pan_tilt = False
   supports_updates = True
 
   set_location_source = False
@@ -150,6 +104,7 @@ class NPXDeviceIF:
   set_position_source = False
   set_altitude_source = False
   set_depth_source = False
+  set_pan_tilt_source = False
 
   was_location_source = False
   was_heading_source = False
@@ -157,8 +112,9 @@ class NPXDeviceIF:
   was_position_source = False
   was_altitude_source = False
   was_depth_source = False
+  was_pan_tilt_source = False
 
-  navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+  navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
   navpose_if = None  
 
@@ -278,6 +234,7 @@ class NPXDeviceIF:
                 self.has_position = navpose_dict['has_position'] 
                 self.has_altitude = navpose_dict['has_altitude'] 
                 self.has_depth = navpose_dict['has_depth'] 
+                self.has_pan_tilt = navpose_dict['has_pan_tilt']
         
 
         # Create capabilities report
@@ -288,6 +245,7 @@ class NPXDeviceIF:
         self.caps_report.has_location = self.has_location      
         self.caps_report.has_altitude = self.has_altitude
         self.caps_report.has_depth =  self.has_depth
+        self.caps_report.has_pan_tilt = self.has_pan_tilt
 
 
         self.caps_report.supports_updates = self.supports_updates
@@ -321,6 +279,7 @@ class NPXDeviceIF:
         self.status_msg.has_position = self.has_position
         self.status_msg.has_altitude = self.has_altitude
         self.status_msg.has_depth = self.has_depth
+        self.status_msg.has_pan_tilt = self.has_pan_tilt
 
         self.status_msg.frame_3d = self.frame_3d
 
@@ -571,6 +530,7 @@ class NPXDeviceIF:
                             pub_position = self.has_position,
                             pub_altitude = self.has_altitude,
                             pub_depth = self.has_depth,
+                            pub_pan_tilt = self.has_pan_tilt,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -812,7 +772,7 @@ class NPXDeviceIF:
             pass
 
     if navpose_dict is None:
-        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     # publish navpose data
     has_transform = True
     if 'frame_3d' in navpose_dict:
@@ -824,7 +784,7 @@ class NPXDeviceIF:
 
     transform = self.get_3d_transform()
     if self.navpose_if is not None:
-        self.navpose_dict = self.navpose_if.publish_navpose(self.navpose_dict, 
+        self.navpose_dict = self.navpose_if.publish_navpose(navpose_dict, 
                                             frame_3d_transform = transform,
                                             device_mount_description = self.get_mount_description())
 

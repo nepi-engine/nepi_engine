@@ -45,6 +45,7 @@ from nepi_interfaces.msg import NavPoseTrack
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
 from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.msg import NavPosePanTilt
 from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 
 
@@ -491,7 +492,13 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     'has_depth': False,
     'time_depth': nepi_utils.get_time(),
     # Depth should be provided in positive meters
-    'depth_m': 0.0
+    'depth_m': 0.0,
+
+    'has_pan_tilt': False,
+    'time_pan_tilt': nepi_utils.get_time(),
+    # Pan Tilt should be provided in positive degs
+    'pan_deg': 0.0,
+    'tilt_deg': 0.0
 }
 
 
@@ -521,7 +528,7 @@ class NavPoseIF:
     frame_altitude = 'WGS84'
     frame_depth = 'MSL'
 
-    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+    navpose_frames_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_FRAMES_DICT)
 
     caps_report = NavPoseCapabilitiesQueryResponse()
 
@@ -535,6 +542,7 @@ class NavPoseIF:
                 pub_location = False, pub_heading = False,
                 pub_orientation = False, pub_position = False,
                 pub_altitude = False, pub_depth = False,
+                pub_pan_tilt = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -571,6 +579,7 @@ class NavPoseIF:
         self.pub_position = pub_position
         self.pub_altitude = pub_altitude
         self.pub_depth = pub_depth
+        self.pub_pan_tilt = pub_pan_tilt
 
         # Create Capabilities Report
 
@@ -579,6 +588,7 @@ class NavPoseIF:
         self.caps_report.has_position_pub = self.pub_position
         self.caps_report.has_orientation_pub = self.pub_orientation
         self.caps_report.has_depth_pub = self.pub_depth
+        self.caps_report.has_pan_tilt = self.pub_pan_tilt
 
 
 
@@ -695,6 +705,15 @@ class NavPoseIF:
                 'latch': False
             }
 
+        if self.pub_pan_tilt == True:
+            self.PUBS_DICT['pan_tilt_pub'] = {
+                'msg': NavPosePanTilt,
+                'namespace': self.namespace,
+                'topic': 'pan_tilt',
+                'qsize': 1,
+                'latch': False
+            }
+
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
@@ -773,7 +792,8 @@ class NavPoseIF:
         return [self.data_product]
 
     def get_blank_navpose_dict(self):
-        return nepi_nav.BLANK_NAVPOSE_DICT
+        blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        return blank_navpose_dict
 
     def get_status_dict(self):
         status_dict = None
@@ -793,7 +813,7 @@ class NavPoseIF:
                         timestamp = None, 
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
-        np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
         else:
@@ -886,6 +906,15 @@ class NavPoseIF:
                 msg.depth_m = np_dict['depth_m']
                 self.node_if.publish_pub(pub_name,msg)
 
+            if self.pub_pan_tilt == True:
+                pub_name = 'pan_tilt_pub'
+                msg = self.PUBS_DICT[pub_name]['msg']()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.pan_deg = np_dict['pan_deg']
+                msg.tilt_deg = np_dict['tilt_deg']
+                self.node_if.publish_pub(pub_name,msg)
+
             # Transform navpose in ENU and WSG84 frames
             if frame_3d_transform is not None:
                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
@@ -914,7 +943,7 @@ class NavPoseIF:
             self.status_msg.pub_frame_depth = np_dict['frame_depth']
 
 
-
+            data_msg = None
             try:
                 data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
             except Exception as e:
@@ -1276,7 +1305,8 @@ class NavPoseTrackIF:
         return [self.data_product]
 
     def get_blank_navpose_dict(self):
-        return nepi_nav.BLANK_NAVPOSE_DICT
+        blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        return blank_navpose_dict
 
     def get_status_dict(self):
         status_dict = None
@@ -1296,7 +1326,7 @@ class NavPoseTrackIF:
                         timestamp = None, 
                         frame_3d_transform = None,
                         device_mount_description = 'fixed'):      
-        np_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
         else:
@@ -1777,7 +1807,7 @@ class BaseImageIF:
 
     data_product = 'image'
 
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     get_navpose_function = None    
     has_navpose = False
     pub_navpose = False
@@ -4120,7 +4150,7 @@ class DepthMapIF:
     image_if = None
     navpose_if = None
     needs_update_callback = None
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     get_navpose_function = None    
     has_navpose = False
 
@@ -4368,7 +4398,7 @@ class DepthMapIF:
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
         else:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
     def publish_cv2_depth_map(self, cv2_depth_map, 
@@ -4929,7 +4959,7 @@ class PointcloudIF:
 
     image_if = None
     navpose_if = None
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     get_navpose_function = None    
     has_navpose = False
 
@@ -5189,7 +5219,7 @@ class PointcloudIF:
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
         else:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
 

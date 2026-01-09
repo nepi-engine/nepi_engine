@@ -110,11 +110,11 @@ class NavPoseMgr(object):
 
     node_if = None
     data_products_list = ['navpose']
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     navpose_dict['frame_3d'] = 'nepi_frame'
     navpose_dict_lock = threading.Lock()
-    init_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    last_npdata_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    init_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    last_npdata_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
     mgr_namespace = ""
     status_msg = MgrNavPoseStatus()
@@ -129,7 +129,8 @@ class NavPoseMgr(object):
         'orientation': copy.deepcopy(BLANK_CONNECT),
         'position': copy.deepcopy(BLANK_CONNECT),
         'altitude': copy.deepcopy(BLANK_CONNECT),
-        'depth': copy.deepcopy(BLANK_CONNECT)
+        'depth': copy.deepcopy(BLANK_CONNECT),
+        'pan_tilt': copy.deepcopy(BLANK_CONNECT)
     }
 
     subs_dict_lock = threading.Lock()
@@ -139,7 +140,8 @@ class NavPoseMgr(object):
         'orientation': copy.deepcopy(BLANK_SUB),
         'position': copy.deepcopy(BLANK_SUB),
         'altitude': copy.deepcopy(BLANK_SUB),
-        'depth': copy.deepcopy(BLANK_SUB)
+        'depth': copy.deepcopy(BLANK_SUB),
+        'pan_tilt': copy.deepcopy(BLANK_SUB)
     }
 
     transforms_dict = {
@@ -148,11 +150,9 @@ class NavPoseMgr(object):
         'orientation': copy.deepcopy(ZERO_TRANSFORM),
         'position': copy.deepcopy(ZERO_TRANSFORM),
         'altitude': copy.deepcopy(ZERO_TRANSFORM),
-        'depth': copy.deepcopy(ZERO_TRANSFORM)
+        'depth': copy.deepcopy(ZERO_TRANSFORM),
+        'pan_tilt': copy.deepcopy(ZERO_TRANSFORM)
     }
-
-
-
 
 
 
@@ -162,7 +162,8 @@ class NavPoseMgr(object):
         'orientation': copy.deepcopy(BLANK_AVIAL_TOPIC),
         'position': copy.deepcopy(BLANK_AVIAL_TOPIC),
         'altitude': copy.deepcopy(BLANK_AVIAL_TOPIC),
-        'depth': copy.deepcopy(BLANK_AVIAL_TOPIC)
+        'depth': copy.deepcopy(BLANK_AVIAL_TOPIC),
+        'pan_tilt': copy.deepcopy(BLANK_AVIAL_TOPIC)
     }
 
 
@@ -212,17 +213,8 @@ class NavPoseMgr(object):
             'position': self._positionSubCb,
             'altitude': self._altitudeSubCb,
             'depth': self._depthSubCb,
+            'pan_tilt': self._panTiltSubCb,
         }
-
-        self.transforms_dict = {
-            'location':  [0,0,0,0,0,0,0],
-            'heading':  [0,0,0,0,0,0,0],
-            'orientation':  [0,0,0,0,0,0,0],
-            'position':  [0,0,0,0,0,0,0],
-            'altitude':  [0,0,0,0,0,0,0],
-            'depth':  [0,0,0,0,0,0,0]
-        }
-
 
 
         self.caps_response.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
@@ -479,9 +471,20 @@ class NavPoseMgr(object):
             self.frame_alt = self.node_if.get_param('frame_alt')
             self.frame_depth = self.node_if.get_param('frame_depth')
             self.set_pub_rate = self.node_if.get_param('pub_rate')
-            self.connect_dict = self.node_if.get_param('connect_dict')
-            #self.transforms_dict = self.node_if.get_param('transforms_dict')
-            #self.msg_if.pub_warn("initCB self.transforms_dict" + str(self.transforms_dict))
+            connect_dict = self.node_if.get_param('connect_dict')
+            for entry in self.connect_dict.keys():
+                if entry not in connect_dict.keys():
+                    connect_dict[entry] = self.connect_dict[entry]
+            try:
+                transforms_dict = self.node_if.get_param('transforms_dict')
+                for entry in self.transforms_dict.keys():
+                    if entry not in transforms_dict.keys():
+                        transforms_dict[entry] = self.transforms_dict[entry]
+                self.transforms_dict = transforms_dict
+            except:
+                self.node_if.set_param('transforms_dict',self.transforms_dict)
+
+            self.msg_if.pub_warn("initCB self.transforms_dict" + str(self.transforms_dict))
             self.init_navpose_dict = self.node_if.get_param('init_navpose_dict')
   
 
@@ -490,6 +493,9 @@ class NavPoseMgr(object):
         self.navpose_dict_lock.release()
         if do_updates == True:
             self.update_navpose_frames()
+            if self.node_if is not None:
+                self.node_if.save_config()
+
         self.publish_status()
 
     def resetCb(self,do_updates = True):
@@ -527,6 +533,7 @@ class NavPoseMgr(object):
         self.update_navpose_frames()
         if self.node_if is not None:
             self.node_if.set_param('nepi_frame_desc',desc)
+            self.node_if.save_config()
             
             
     def setFrameNav(self,frame):
@@ -535,6 +542,7 @@ class NavPoseMgr(object):
         self.update_navpose_frames()
         if self.node_if is not None:
             self.node_if.set_param('frame_nav',frame)
+            self.node_if.save_config()
 
     def setFrameAlt(self,frame):
         self.frame_alt = frame
@@ -542,6 +550,7 @@ class NavPoseMgr(object):
         self.update_navpose_frames()
         if self.node_if is not None:
             self.node_if.set_param('frame_alt',frame)
+            self.node_if.save_config()
 
     def setFrameDepth(self,frame):
         self.frame_depth = frame
@@ -549,6 +558,7 @@ class NavPoseMgr(object):
         self.update_navpose_frames()
         if self.node_if is not None:
             self.node_if.set_param('frame_depth',frame)
+            self.node_if.save_config()
      
 
     def setPublishRateCb(self,rate):
@@ -562,11 +572,15 @@ class NavPoseMgr(object):
         self.publish_status(do_updates = False)
         if self.node_if is not None:
             self.node_if.set_param('pub_rate',rate)
+            self.node_if.save_config()
 
 
     def setTopic(self,name,topic,transform = None):
         self.connect_dict[name]['fixed'] = False
         self._connectTopic(name,topic,transform = transform)
+        if self.node_if is not None:
+            self.node_if.set_param('connect_dict',self.connect_dict)
+            self.node_if.save_config()
 
     def clearTopic(self,name):
         self._unregisterTopic(name)
@@ -578,6 +592,9 @@ class NavPoseMgr(object):
                 self.connect_dict[name]['transform'] = transform
                 if topic != '':
                     self.transforms_dict[topic] = transform
+            if self.node_if is not None:
+                self.node_if.set_param('connect_dict',self.connect_dict)
+                self.node_if.save_config()
 
     def clearTransform(self,name):
         if name in self.connect_dict.keys():
@@ -585,12 +602,16 @@ class NavPoseMgr(object):
             topic = self.connect_dict[name]['topic']
             if topic != '':
                 self.transforms_dict[topic] = self.ZERO_TRANSFORM
+            if self.node_if is not None:
+                self.node_if.set_param('transforms_dict',self.transforms_dict)
+                self.node_if.save_config()
+
 
     def _updateConnectionsCb(self, timer):
         # Register new topic requests
         for name in self.connect_dict.keys():
             topic = self.connect_dict[name]['topic']
-            if topic != self.subs_dict[name]['topic']:
+            if topic != subs_dict[name]['topic']:
                 transform = self.ZERO_TRANSFORM
                 # Fixed: Use self.transforms_dict instead of undefined transform_dict 
                 if topic in self.transforms_dict.keys():
@@ -599,6 +620,7 @@ class NavPoseMgr(object):
         nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot=True)
 
     def _connectTopic(self, name, topic, transform=None):
+        self.navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if name in self.avail_topics_dict.keys():
             if topic == 'None' or topic == '':
                 success = self._unregisterTopic(name)
@@ -618,8 +640,9 @@ class NavPoseMgr(object):
                     cb = self.cb_dict[name]
 
                     self.subs_dict_lock.acquire()
-                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args=(name,))
                     self.subs_dict[name]['topic'] = topic
+                    self.publish_status(do_updates = False)
+                    sub = nepi_sdk.create_subscriber(topic, msg, cb, callback_args=(name,))
                     self.subs_dict[name]['msg'] = msg_str
                     self.connect_dict[name]['msg'] = msg_str
                     self.subs_dict[name]['sub'] = sub  
@@ -633,6 +656,10 @@ class NavPoseMgr(object):
                     elif topic in self.transforms_dict.keys():
                         new_transform = self.transforms_dict[topic]
                     self.connect_dict[name]['transform'] = new_transform
+                    if self.node_if is not None:
+                        self.node_if.set_param('connect_dict',self.connect_dict)
+                        self.node_if.set_param('transforms_dict',self.transforms_dict)
+                        self.node_if.save_config()
 
     def _compSubCb(self, msg, args):
         name = args
@@ -663,9 +690,6 @@ class NavPoseMgr(object):
         if npdata_dict is not None:
             if npdata_dict['has_location'] == True and self.connect_dict['location']['fixed'] == True:
                 success = self._unregisterTopic('location')
-                #self.msg_if.pub_warn("self.transforms_dict" + str(self.transforms_dict))
-
-                self.transforms_dict
                 self.transforms_dict['location'] = self.ZERO_TRANSFORM
             else:
                 self.connect_dict['location']['fixed'] = False
@@ -701,6 +725,12 @@ class NavPoseMgr(object):
             else:
                 self.connect_dict['depth']['fixed'] = False
 
+            if npdata_dict['has_pan_tilt'] == True and self.connect_dict['has_pan_tilt']['fixed'] == True:
+                success = self._unregisterTopic('depth')  
+                self.transforms_dict['pan_tilt'] = self.ZERO_TRANSFORM
+            else:
+                self.connect_dict['has_pan_tilt']['fixed'] = False
+
             navpose_dict = copy.deepcopy(self.navpose_dict)
             navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict, npdata_dict)
             self.navpose_dict_lock.acquire()
@@ -710,7 +740,7 @@ class NavPoseMgr(object):
 
     def resetNavPose(self):
         self.navpose_dict_lock.acquire()
-        self.navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        self.navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         self.navpose_dict['frame_3d'] = 'nepi_frame'
         self.navpose_dict_lock.release()
         if self.node_if is not None:
@@ -820,6 +850,10 @@ class NavPoseMgr(object):
         self.avail_topics_dict['depth']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['depth']['msgs'] = copy.deepcopy(msg_list)
 
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('pan_tilt')
+        self.avail_topics_dict['pan_tilt']['topics'] = copy.deepcopy(topic_list)
+        self.avail_topics_dict['pan_tilt']['msgs'] = copy.deepcopy(msg_list)
+
         if self.avail_topics_dict != last_dict:
             self.publish_status()
         #self.msg_if.pub_warn("Updater - Got avail_topics_dict: " + str(self.avail_topics_dict))
@@ -921,6 +955,7 @@ class NavPoseMgr(object):
         transform = None
         if apply_tr:
             transform = msg.transform
+
         self.setTopic(name, topic, transform = transform)
        
 
@@ -930,6 +965,7 @@ class NavPoseMgr(object):
 
     def _setFrameDescCb(self,msg):
         self.setFrame3dDescription(msg.data) 
+
 
     def _setFrameNavCb(self,msg):
         self.setFrameNav(msg.data) 
@@ -978,6 +1014,9 @@ class NavPoseMgr(object):
 
     def _depthSubCb(self, msg, args=None):
         self._compSubCb(msg, 'depth')
+
+    def _panTiltSubCb(self, msg, args=None):
+        self._compSubCb(msg, 'pan_tilt')
 
 
     ### Setup a regular background navpose get and publish timer callback
