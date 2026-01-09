@@ -2937,12 +2937,14 @@ class BaseImageIF:
             self.node_if.set_param('rotate_2d_deg', deg_int)
 
     def set_flip_horz(self, enabled):
+        self.controls_dict['flip_horz'] = enabled
         self.publish_status() 
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('flip_horz', enabled)
 
     def set_flip_vert(self, enabled):
+        self.controls_dict['flip_vert'] = enabled
         self.publish_status() 
         self.needs_update()
         if self.node_if is not None:
