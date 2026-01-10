@@ -254,15 +254,7 @@ class NepiDriversMgr(object):
                 'qsize': 10,
                 'callback': self.enableRetryCb, 
                 'callback_args': ()
-            },
-            'enable_all_drivers': {
-                'namespace': self.node_namespace,
-                'topic': 'enable_all_drivers',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.enableAllCb, 
-                'callback_args': ()
-            },
+            }
 
         }
 

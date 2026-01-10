@@ -3255,7 +3255,7 @@ class BaseImageIF:
 
     def set_overlay_text(self,overlay_text):
         overlay_list = self.overlays_dict['add_overlay_list']
-        overlay_list.append(text)
+        overlay_list.append(overlay_text)
         self.overlays_dict['add_overlay_list'] = overlay_list
         self.publish_status()  
         self.needs_update()
@@ -3738,7 +3738,7 @@ class BaseImageIF:
 
     def _setOverlayTextCb(self,msg):
         overlay_text = msg.data
-        self.set_overlay_text(overlay_list)
+        self.set_overlay_text(overlay_text)
 
 
     def _clearOverlayListCb(self,msg):
