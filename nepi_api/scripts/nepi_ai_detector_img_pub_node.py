@@ -42,7 +42,7 @@ from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
-from nepi_api.data_if import ImageIF
+from nepi_api.data_if import ColorImageIF
 
 
 
@@ -264,7 +264,7 @@ class AiDetectorImgPub:
         
 
         # Create image publisher
-        self.img_if = ImageIF(namespace = self.det_namespace ,
+        self.img_if = ColorImageIF(namespace = self.det_namespace ,
                         data_product_name = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',

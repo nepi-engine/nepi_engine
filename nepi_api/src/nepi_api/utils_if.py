@@ -25,23 +25,28 @@ from nepi_api.messages_if import MsgIF
 
 
 
+##########################################
+## ListIF
+
+BLANK_LIST_DICT = {
+    'self.list_dict['ordered_items_list']': [],
+    'ordered_names_list': [],
+    'active_items_list': [],
+    'selected_item': None,
+    'self.list_dict['selected_item_index']': -1
+}
+   
+
+BLANK_CALLBACK_DICT = {
+    'itemSelectCb': None,
+    'listUpdatedCb': None,
+    'refreshListCb': None
+}
+
 class ListIF:
-    ordered_items_list = []
-    ordered_names_list = []
-    active_items_list = []
-    selected_item = None  
-    selected_item_index = -1
-    
-
-    reset_ordered_items_list = []
-    reset_ordered_names_list = []
-    reset_active_items_list = []
-    reset_selected_item = None    
-    reset_selected_item = -1
-
-    itemSelectCb = None
-    listUpdatedCb = None
-    refreshListCb = None
+    list_dict = copy.deepcopy(BLANK_LIST_DICT)
+    reset_list_dict = copy.deepcopy(BLANK_LIST_DICT)
+    callback_dict = copy.deepcopy(BLANK_CALLBACK_DICT)
 
     multi_select_enabled = False
     update_order_enabled = False
@@ -49,13 +54,8 @@ class ListIF:
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
-                ordered_items_list = [],
-                ordered_names_list = None,
-                active_items_list = [],
-                selected_item = None,
-                itemSelectCb = None,
-                listUpdatedCb = None,
-                refreshListCb = None,
+                list_dict = None,
+                callback_dict = None,
                 multi_select_enabled = False,
                 update_order_enabled = False,
                 log_name = None,
@@ -88,18 +88,17 @@ class ListIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         self.msg_if.pub_warn("Using list namespace: " + self.namespace, log_name_list = self.log_name_list)
         
-        self.reset_ordered_items_list = self.ordered_items_list
-        self.reset_ordered_names_list = self.ordered_names_list
-        self.reset_active_items_list = self.active_items_list
-        self.reset_selected_item = self.selected_item    
-        self.reset_selected_item = self.selected_item_index
 
-        if itemSelectCb is not None:
-           self.itemSelectCb = itemSelectCb
-        if listUpdatedCb is not None:
-           self.listUpdatedCb = listUpdatedCb
-        if refreshListCb is not None:
-           self.refreshListCb = refreshListCb
+        self.reset_list_dict = self.update_list_dict(list_dict)
+
+        if callback_dict is None:
+            callback_dict = copy.deepcopy(BLANK_CALLBACK_DICT)
+        else:
+            for key in self.callback_dict():
+                if key not in callback_dict:
+                    callback_dict[key] = self.callback_dict[key]
+        self.callback_dict = callback_dict
+        
 
         self.multi_select_enabled = multi_select_enabled
         self.update_order_enabled = update_order_enabled
@@ -232,65 +231,76 @@ class ListIF:
     def publish_status(self):
         if self.node_if is not None:
             status_msg = ListIFStatus()
-            status_msg.ordered_items_list = self.ordered_items_list
-            status_msg.ordered_names_list = self.ordered_names_list
-            status_msg.active_items_list = self.active_items_list
-            status_msg.selected_item = self.selected_item    
-            status_msg.selected_item = self.selected_item_index
+            status_msg.ordered_items_list = self.self.list_dict['ordered_items_list']
+            status_msg.ordered_names_list = self.list_dict['ordered_names_list']
+            status_msg.active_items_list = self.list_dict['active_items_list']
+            status_msg.selected_item = self.list_dict['selected_item']    
+            status_msg.selected_item = self.self.list_dict['selected_item_index']
             status_msg.multi_select_enabled = self.multi_select_enabled
             status_msg.update_order_enabled = self.update_order_enabled
             self.node_if.publish_pub('status_pub', status_msg)
 
 
-    def get_list_data(self):
-        return self.ordered_items_list, self.ordered_names_list, self.active_items_list, self.selected_item
+    def get_list_dict(self):
+        return self.list_dict
 
-    def update_list_data(self, ordered_items_list, ordered_names_list, active_items_list, selected_item):
-        self.ordered_items_list = ordered_items_list
-        if ordered_names_list is None:
-            self.ordered_names_list = ordered_items_list
-        elif len(ordered_names_list) != len(ordered_items_list):
-            self.ordered_names_list = ordered_items_list
+    def update_list_dict(self, list_dict):
+        if list_dict is None:
+            list_dict = copy.deepcopy(BLANK_LIST_DICT)
         else:
-            self.ordered_names_list = ordered_names_list
+            for key in self.list_dict():
+                if key not in list_dict:
+                    list_dict[key] = self.list_dict[key]
 
         ########
         if selected_item is not None:
-            if selected_item in ordered_items_list:
-                self.selected_item = selected_item
-                self.selected_item_index = ordered_items_list.index(selected_item)
+            if selected_item in list_dict['ordered_items_list']:
+                self.list_dict['selected_item'] = selected_item
+                self.self.list_dict['selected_item_index'] = self.list_dict['ordered_items_list'].index(selected_item)
         ########
         if self.multi_select_enabled == False:
-            if self.selected_item in self.ordered_items_list:
-                self.active_items_list = [self.selected_item]
+            if self.list_dict['selected_item'] in self.self.list_dict['ordered_items_list']:
+                self.list_dict['active_items_list'] = [self.list_dict['selected_item']]
         else:
             for item in active_items_list:
-                if item in self.ordered_items_list:
-                    self.active_items_list.append(item)
+                if item in self.self.list_dict['ordered_items_list']:
+                    self.list_dict['active_items_list'].append(item)
 
-        return self.get_list_data()
+        ######        
+        ordered_names_list = list_dict['ordered_items_list']
+        if ordered_names_list is None:
+            list_dict['ordered_names_list'] = list_dict['ordered_items_list']
+        elif len(ordered_names_list) != len(list_dict['ordered_items_list']):
+            list_dict['ordered_names_list'] = list_dict['ordered_items_list']
+        else:
+            list_dict['ordered_names_list'] = ordered_names_list
 
-    def signalUpdate(self):
-        if self.listUpdatedCb is not None:
-            self.listUpdatedCb(self.get_list_data())
+        self.list_dict = list_dict
+        return self.list_dict
 
     def signalSelect(self,item):
-        if self.signalSelectCb is not None:
-            active = item in self.active_list
-            self.signalSelectCb(item,ative)        
+        if self.callback_dict['itemSelectCb'] is not None:
+            active = item in self.list_dict['active_items_list']
+            self.callback_dict['itemSelectCb'](item,active)  
+
+    def signalUpdate(self):
+        if self.callback_dict['listUpdatedCb'] is not None:
+            self.callback_dict['listUpdatedCb'](self.get_list_dict())
+
+      
 
   ###################
   ## List Mgr Callbacks
   def enableAllCb(self,msg):
     self.msg_if.pub_info("Got Update enable all msg: " + str(msg))
-    self.active_items_list = self.ordered_items_list
-    self.signalUdpdate()
+    self.list_dict['active_items_list'] = self.self.list_dict['ordered_items_list']
+    self.signalUpdate()
     self.publish_status()
 
   def disableAllCb(self,msg):
     self.msg_if.pub_info("Got disable all msg: " + str(msg))
-    self.active_items_list = []
-    self.signalUdpdate()
+    self.list_dict['active_items_list'] = []
+    self.signalUpdate()
     self.publish_status()
 
 
@@ -300,12 +310,12 @@ class ListIF:
     self.selectItem(item)
 
   def selectItem(self,item)
-    ordered_items_list = copy.deepcopy(self.ordered_items_list)
-    if item in ordered_items_list:
-        self.selected_item = item
-        self.selected_item_index = ordered_items_list.index(selected_item)
+    self.list_dict['ordered_items_list'] = copy.deepcopy(self.self.list_dict['ordered_items_list'])
+    if item in self.list_dict['ordered_items_list']:
+        self.list_dict['selected_item'] = item
+        self.self.list_dict['selected_item_index'] = self.list_dict['ordered_items_list'].index(selected_item)
         if self.multi_select_enabled == False:
-            self.active_items_list = [item]
+            self.list_dict['active_items_list'] = [item]
         self.signalSelect(item)
     self.publish_status()
 
@@ -319,19 +329,19 @@ class ListIF:
   def update_state(self,item,active_state):
     if self.multi_select_enabled == True:
         self.msg_if.pub_info("Updateding " + item + " state: " + str(active_state))
-        ordered_items_list = copy.deepcopy(self.ordered_items_list)
-        active_items_list = copy.deepcopy(self.active_items_list)
-        if active_state == False and item in ordered_items_list and item in active_items_list:
+        self.list_dict['ordered_items_list'] = copy.deepcopy(self.self.list_dict['ordered_items_list'])
+        active_items_list = copy.deepcopy(self.list_dict['active_items_list'])
+        if active_state == False and item in self.list_dict['ordered_items_list'] and item in active_items_list:
             active_items_list.remove(item)
-            #self.msg_if.pub_warn("Update state dict: " + str(ordered_items_list[item]))
-            self.active_items_list = active_items_list
-            self.signalUdpdate()
+            #self.msg_if.pub_warn("Update state dict: " + str(self.list_dict['ordered_items_list'][item]))
+            self.list_dict['active_items_list'] = active_items_list
+            self.signalUpdate()
             self.publish_status()
-        if active_state == True and item in ordered_items_list and item not in active_items_list:
+        if active_state == True and item in self.list_dict['ordered_items_list'] and item not in active_items_list:
             active_items_list.append(item)
-            #self.msg_if.pub_warn("Update state dict: " + str(ordered_items_list[item]))
-            self.active_items_list = active_items_list
-            self.signalUdpdate()
+            #self.msg_if.pub_warn("Update state dict: " + str(self.list_dict['ordered_items_list'][item]))
+            self.list_dict['active_items_list'] = active_items_list
+            self.signalUpdate()
         self.publish_status()
 
 
@@ -340,13 +350,13 @@ class ListIF:
     item = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
-    if item in self.ordered_items_list:
-        ordered_items_list = copy.deepcopy(self.ordered_items_list)
-        ordered_names_list = copy.deepcopy(self.ordered_names_list)
-        [ordered_items_list,ordered_names_list] = moveFunction(item,ordered_items_list,ordered_names_list)
-        self.ordered_items_list = ordered_items_list
-        self.ordered_names_list = ordered_names_list
-        self.signalUdpdate()
+    if item in self.self.list_dict['ordered_items_list']:
+        self.list_dict['ordered_items_list'] = copy.deepcopy(self.self.list_dict['ordered_items_list'])
+        ordered_names_list = copy.deepcopy(self.list_dict['ordered_names_list'])
+        [self.list_dict['ordered_items_list'],ordered_names_list] = moveFunction(item,self.list_dict['ordered_items_list'],ordered_names_list)
+        self.self.list_dict['ordered_items_list'] = self.list_dict['ordered_items_list']
+        self.list_dict['ordered_names_list'] = ordered_names_list
+        self.signalUpdate()
     self.publish_status()
      
 
@@ -364,24 +374,24 @@ class ListIF:
       updateFunction = self.moveDriverNone
     return updateFunction
 
-  def moveDriverNone(self,item,ordered_items_list):
-    return ordered_items_list
-    self.signalUdpdate()
+  def moveDriverNone(self,item,self.list_dict['ordered_items_list']):
+    return self.list_dict['ordered_items_list']
+    self.signalUpdate()
     self.publish_status()
 
  
   def resetCb(self,msg):
-    self.ordered_items_list = self.reset_ordered_items_list
-    self.ordered_names_list = self.reset_ordered_names_list
-    self.active_items_list = self.reset_active_items_list
-    self.selected_item = self.reset_selected_item    
-    self.selected_item = self.reset_selected_item_index
-    self.signalUdpdate()
+    self.list_dict = copy.deepcopy(self.reset_list_dict)
+    self.list_dict['ordered_names_list'] = self.reset_ordered_names_list
+    self.list_dict['active_items_list'] = self.reset_active_items_list
+    self.list_dict['selected_item'] = self.reset_selected_item    
+    self.list_dict['selected_item'] = self.reset_selected_item_index
+    self.signalUpdate()
     self.publish_status()
 
   def refreshCb(self,msg):
-    if self.refreshListCb is not None:
-        self.refreshListCb()
+    if self.callback_dict['refreshListCb'] is not None:
+        self.callback_dict['refreshListCb']()
     
     
 
