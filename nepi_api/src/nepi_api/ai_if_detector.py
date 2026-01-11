@@ -928,14 +928,14 @@ class AiDetectorIF:
 
 
 
-    def removeImageTopic(self,img_topic):
+    def removeImageTopic(self,img_topic,save_config = True):
         self.msg_if.pub_info("Removing Image Topic: " + img_topic)         
         img_topics = copy.deepcopy(self.selected_img_topics)
         if img_topic in img_topics:
             img_topics.remove(img_topic)
         self.selected_img_topics = img_topics
         self.publish_status()
-        if self.node_if is not None:
+        if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_img_topics',self.selected_img_topics)
             self.node_if.save_config()
 
