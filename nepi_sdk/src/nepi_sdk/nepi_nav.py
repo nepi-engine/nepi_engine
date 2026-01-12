@@ -423,7 +423,7 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
         self.msg_if.pub_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     if success == True:
       pass
-  return npdata_dict
+  return navpose_dict
 
 
 #######################
