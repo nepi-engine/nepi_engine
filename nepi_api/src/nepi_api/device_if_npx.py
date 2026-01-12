@@ -2,10 +2,11 @@
 #
 # Copyright (c) 2024 Numurus <https://www.numurus.com>.
 #
-# This file is part of nepi applications (nepi_apps) repo
-# (see https://https://github.com/nepi-engine/nepi_apps)
+# This file is part of nepi engine (nepi_engine) repo
+# (see https://github.com/nepi-engine/nepi_engine)
 #
-# License: nepi applications are licensed under the "Numurus Software License", 
+# License: NEPI Engine repo source-code and NEPI Images that use this source-code
+# are licensed under the "Numurus Software License", 
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -14,6 +15,8 @@
 # Contact Information:
 # ====================
 # - mailto:nepi@numurus.com
+#
+
 
 import os
 import numpy as np
