@@ -753,53 +753,6 @@ class NavPoseMgr(object):
 
 
 
-
-    def publish_status(self, do_updates = False):
-        #self.msg_if.pub_warn("========publish_status called========")
-        #self.msg_if.pub_warn("publish_status self.transforms_dict" + str(self.transforms_dict))
-
-        connect_dict = copy.deepcopy(self.connect_dict)
-        avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
-
-        self.status_msg.nepi_frame_description = self.nepi_frame_desc
-
-        comp_names = []
-        comp_infos = []
-        for name in self.connect_dict.keys():
-            comp_names.append(name)
-
-            comp_info = MgrNavPoseCompInfo()
-            comp_info.name = name
-            comp_info.available_topics = avail_topics_dict[name]['topics']
-            comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']
-            comp_info.fixed = connect_dict[name]['fixed']
-            comp_info.topic = connect_dict[name]['topic']
-            comp_info.topic_msg = connect_dict[name]['msg']
-
-            times = connect_dict[name]['times']
-            avg_times = sum(times)/len(times)
-            if avg_times > .01:
-                avg_rate = float(1.0) / avg_times
-            else:
-                avg_rate = 0
-            comp_info.avg_rate = avg_rate
-            comp_info.last_time = connect_dict[name]['last_time']
-            transform = connect_dict[name]['transform']
-
-            comp_info.transform = nepi_nav.convert_transform_list2msg(transform, source_ref_description = 'data_source', end_ref_description = 'nepi_frame')
-
-            comp_infos.append(comp_info)
-        self.status_msg.comp_names = comp_names
-        self.status_msg.comp_infos = comp_infos
-
-
-        self.status_msg.pub_rate = self.set_pub_rate
-        #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
-        if self.node_if is not None:
-            self.node_if.publish_pub('status_pub',self.status_msg)
-
-
-
     def get_navpose_dict(self):
         self.navpose_dict_lock.acquire() 
         navpose_dict = copy.deepcopy(self.navpose_dict)
@@ -934,14 +887,12 @@ class NavPoseMgr(object):
         self.navpose_dict_lock.release()            
         
         # Update time info - Fixed list manipulation
-        last_time = self.connect_dict[name]['last_time']
-        cur_time = nepi_utils.get_time()
-        times = self.connect_dict[name]['times']
+        last_time = copy.deepcopy(self.connect_dict[name]['last_time'])
+        times = copy.deepcopy(self.connect_dict[name]['times'])
         times.pop(0)  # Remove first element
-        times.append(cur_time - last_time)  # Add new time difference
+        times.append(nepi_utils.get_time() - last_time)  # Add new time difference
         self.connect_dict[name]['times'] = times  # Assign back to dict
-        self.connect_dict[name]['last_time'] = cur_time
-
+        self.connect_dict[name]['last_time'] = nepi_utils.get_time()
 
     def _setPublishRateCb(self,msg):
         rate = msg.data
@@ -977,7 +928,9 @@ class NavPoseMgr(object):
         self.setFrameDepth(msg.data) 
 
     def _setTransformCb(self,msg):
-        self.setTransform(msg.name, msg.transform)
+        name = msg.name
+        transform = nepi_nav.convert_transform_msg2list(msg.transform)
+        self.setTransform(name, transform)
 
     def _clearTransformCb(self,msg):
         self.clearTransform(msg.data)
@@ -1055,6 +1008,56 @@ class NavPoseMgr(object):
             np_dict = self.get_navpose_dict()
             self.navpose_if.publish_navpose(np_dict,
                         device_mount_description = self.device_mount_description)
+
+
+
+
+
+    def publish_status(self, do_updates = False):
+        #self.msg_if.pub_warn("========publish_status called========")
+        #self.msg_if.pub_warn("publish_status self.transforms_dict" + str(self.transforms_dict))
+
+        connect_dict = copy.deepcopy(self.connect_dict)
+        avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
+
+        self.status_msg.nepi_frame_description = self.nepi_frame_desc
+
+        comp_names = []
+        comp_infos = []
+        for name in self.connect_dict.keys():
+            comp_names.append(name)
+
+            comp_info = MgrNavPoseCompInfo()
+            comp_info.name = name
+            comp_info.available_topics = avail_topics_dict[name]['topics']
+            comp_info.available_topic_msgs = avail_topics_dict[name]['msgs']
+            comp_info.fixed = connect_dict[name]['fixed']
+            comp_info.topic = connect_dict[name]['topic']
+            comp_info.topic_msg = connect_dict[name]['msg']
+
+            times = connect_dict[name]['times']
+            avg_times = sum(times)/len(times)
+            if avg_times > .01:
+                avg_rate = float(1.0) / avg_times
+            else:
+                avg_rate = 0
+            comp_info.avg_rate = round( avg_rate, 3)
+            comp_info.last_time = round( nepi_utils.get_time() - connect_dict[name]['last_time'], 3)
+            transform = connect_dict[name]['transform']
+
+            comp_info.transform = nepi_nav.convert_transform_list2msg(transform, source_ref_description = 'data_source', end_ref_description = 'nepi_frame')
+
+            comp_infos.append(comp_info)
+        self.status_msg.comp_names = comp_names
+        self.status_msg.comp_infos = comp_infos
+
+
+        self.status_msg.pub_rate = self.set_pub_rate
+        #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub',self.status_msg)
+
+
 
     def _cleanupActions(self):
         self.msg_if.pub_info("Shutting down: Executing script cleanup actions")

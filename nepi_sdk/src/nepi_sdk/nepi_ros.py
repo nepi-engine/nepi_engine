@@ -681,7 +681,7 @@ def get_topic_list():
   topic_list = []
   try:
     pubs, subs =rostopic.get_topic_list()
-    topic_list = pubs + subs
+    topic_list = pubs
   except Exception as e:
     log_msg_warn("Nepi Sdk get_topic_list failed: " + str(e))
   return topic_list
