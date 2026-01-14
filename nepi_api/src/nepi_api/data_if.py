@@ -2439,17 +2439,17 @@ class BaseImageIF:
                 'callback_args': ()
             }
 
-        if self.has_navpose == False:
-            ##############################
-            ## Connect NEPI System NavPose
-            self.SUBS_DICT['navpose_sub'] = {
-                'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,
-                'qsize': 1,
-                'callback': self._navposeCb, 
-                'callback_args': ()
-            }
+        # if self.has_navpose == False:
+        #     ##############################
+        #     ## Connect NEPI System NavPose
+        #     self.SUBS_DICT['navpose_sub'] = {
+        #         'namespace': self.base_namespace,
+        #         'topic': 'navpose',
+        #         'msg': NavPose,
+        #         'qsize': 1,
+        #         'callback': self._navposeCb, 
+        #         'callback_args': ()
+        #     }
 
 
         if subs_dict is not None:
@@ -2594,7 +2594,7 @@ class BaseImageIF:
         return self.has_subs
 
     def get_navpose_dict(self):
-        navpose_dict = None
+        navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
         else:
@@ -2705,8 +2705,8 @@ class BaseImageIF:
                         res_str = str(width) + ":" + str(height)
                         self.status_msg.resolution_current = res_str
 
-                        if navpose_dict is None:
-                            navpose_dict = self.get_navpose_dict()
+                        # if navpose_dict is None:
+                        #     navpose_dict = self.get_navpose_dict()
 
                         
                         # Apply Overlays
@@ -2722,15 +2722,15 @@ class BaseImageIF:
                             overlay_list.append(overlay)
 
                         
-                        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                            if navpose_dict is not None:
-                                if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
-                                    overlay_list.append(overlay)
+                        # if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
+                        #     if navpose_dict is not None:
+                        #         if self.status_msg.overlay_nav == True and navpose_dict is not None:
+                        #             overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                        #             overlay_list.append(overlay)
 
-                                if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
-                                    overlay_list.append(overlay)
+                        #         if self.status_msg.overlay_pose == True and navpose_dict is not None:
+                        #             overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                        #             overlay_list.append(overlay)
 
                         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
 
@@ -2772,13 +2772,13 @@ class BaseImageIF:
 
 
                         
-                        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-                        if navpose_msg is not None:
-                            self.node_if.publish_pub('navpose_pub', navpose_msg)
-                            for namespace in add_pubs:
-                                if namespace in self.add_pubs_dict.keys():
-                                    [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                                    self.node_if.publish_pub(nav_ns, navpose_msg)
+                        # navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+                        # if navpose_msg is not None:
+                        #     self.node_if.publish_pub('navpose_pub', navpose_msg)
+                        #     for namespace in add_pubs:
+                        #         if namespace in self.add_pubs_dict.keys():
+                        #             [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
+                        #             self.node_if.publish_pub(nav_ns, navpose_msg)
                         
                         # Update stats
                         process_time = round( (nepi_utils.get_time() - start_time) , 3)

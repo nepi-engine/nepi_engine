@@ -107,8 +107,7 @@ class IDXDeviceIF:
     save_data_if = None
     transform_if = None
     npx_if = None
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
+
 
     device_name = ''
 
@@ -172,9 +171,10 @@ class IDXDeviceIF:
     connect_ptx_if = None
     pt_connected = False
 
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    pt_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    navpose_frames_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_FRAMES_DICT)
+    sys_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    pt_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
     #######################
     ### IF Initialization
@@ -814,6 +814,8 @@ class IDXDeviceIF:
 
     def get_navpose_dict(self):
         navpose_dict = copy.deepcopy(self.navpose_dict)
+        if navpose_dict is None:
+            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         # Transform navpose in ENU and WSG84 frames
         frame_3d_transform = self.get_3d_transform()
         if frame_3d_transform is not None:
