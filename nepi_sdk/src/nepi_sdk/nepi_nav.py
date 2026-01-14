@@ -372,6 +372,7 @@ def convert_transform_msg2list(transform_msg):
 
 def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame', log_name_list = []):
   success = True
+  navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
   if npdata_dict is None:
     success = False
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
@@ -385,7 +386,6 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
       pitch = transform[4]
       yaw = transform[5]
       rotate_vector = [roll, pitch, yaw]
-      navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
       try:
 
         navpose_dict['frame_3d'] = output_frame_3d
