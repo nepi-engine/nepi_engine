@@ -242,7 +242,7 @@ class AiDetectorImgPub:
         self.SUBS_DICT = {
             'bounding_boxes': {
                 'msg': AiBoundingBoxes,
-                'namespace': self.det_namespace,
+                'namespace': self.det_namespace + '/all',
                 'topic': 'bounding_boxes',
                 'qsize': 10,
                 'callback': self.objectDetectedCb, 
@@ -274,7 +274,7 @@ class AiDetectorImgPub:
         
 
         # Create image publisher
-        self.img_if = ColorImageIF(namespace = self.det_namespace ,
+        self.img_if = ColorImageIF(namespace = self.det_namespace + '/all' ,
                         data_product_name = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',

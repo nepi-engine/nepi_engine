@@ -166,7 +166,7 @@ class AiDetectorIF:
     sleep_state = False
 
 
-    enabled = False
+    enabled = True
     selected_classes = []
     sleep_enabled = False
     sleep_suspend_sec = 0
@@ -386,7 +386,7 @@ class AiDetectorIF:
         self.PUBS_DICT = {
             'bounding_boxes': {
                 'msg': AiBoundingBoxes,
-                'namespace': self.node_namespace,
+                'namespace': self.node_namespace + '/all',
                 'topic': 'bounding_boxes',
                 'qsize': 1,
                 'latch': False
@@ -414,7 +414,7 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace,
+                'namespace': self.node_namespace  + '/all',
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
@@ -435,14 +435,14 @@ class AiDetectorIF:
             },
         }
 
-        if self.enable_image_pub == True:
-            self.PUBS_DICT['image_pub'] = {
-                'msg': Image,
-                'namespace': self.node_namespace,
-                'topic': 'detection_image',
-                'qsize': 1,
-                'latch': False
-            }
+        # if self.enable_image_pub == True:
+        #     self.PUBS_DICT['image_pub'] = {
+        #         'msg': Image,
+        #         'namespace': self.node_namespace  + '/all',
+        #         'topic': 'detection_image',
+        #         'qsize': 1,
+        #         'latch': False
+        #     }
 
 
 
@@ -843,7 +843,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('enabled',self.enabled)
-            #self.node_if.save_config()
+            self.node_if.save_config()
         if msg.data == False and not nepi_sdk.is_shutdown():
             self.next_image_topic = "None"
 
