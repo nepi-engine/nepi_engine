@@ -25,10 +25,7 @@ import numpy as np
 import copy
 import threading
 
-os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
-import open3d as o3d
 
-import cv2
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -71,7 +68,10 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, Transform3DIF
 
+os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
+import open3d as o3d
 
+import cv2
 
 ##################################################
 
@@ -176,7 +176,7 @@ class NavPoseIF:
 
     node_if = None
     save_data_if = None
-    tranform_if = None
+    transform_if = None
 
     status_msg = NavPoseStatus()
 
@@ -755,16 +755,14 @@ class NavPoseIF:
 
     def publish_status(self):
         if self.node_if is not None and self.status_msg is not None:
-
-            if self.node_if is not None:
-                try:
-                    navpose_dict = copy.deepcopy(self.navpose_dict)
-                    data_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    success = False
-                self.status_msg.navpose = data_msg
-                self.status_msg.navpose_frame_options = self.navpose_frames
+            navpose_dict = copy.deepcopy(self.navpose_dict)
+            try:
+                data_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                success = False
+            self.status_msg.navpose_frame_options = self.navpose_frames
+            self.status_msg.navpose_frame = navpose_dict['navpose_frame']
 
 
             avg_rate = 0
@@ -1318,7 +1316,6 @@ class NavPoseTrackIF:
                 pub_time_sec = cur_time - self.last_pub_time
                 self.last_pub_time = cur_time
 
-            self.status_msg.navpose_frame = navpose_dict['navpose_frame']
             self.status_msg.publishing = True
 
             self.time_list.pop(0)
