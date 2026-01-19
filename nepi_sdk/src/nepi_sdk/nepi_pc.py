@@ -98,12 +98,7 @@ def o3dpc_to_rospc(o3d_pc, stamp=None, frame_id=None):
 
     ros_pc = open3d_ros_helper.o3dpc_to_rospc(o3d_pc, stamp, frame_id)
     return ros_pc
-    
-    
-def rosimg_to_o3dimg(ros_img_msg):
-    np_array = ros_numpy.image.image_to_numpy(ros_img_msg)  
-    o3d_img = o3d.geometry.Image(np_array)
-    return o3d_img
+
 
 def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     np_array = np.asarray(o3d_img)
@@ -119,6 +114,13 @@ def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     else:
         ros_img_msg.header.frame_id="nepi_frame"
     return ros_img_msg
+    
+
+def rosimg_to_o3dimg(ros_img_msg):
+    np_array = ros_numpy.image.image_to_numpy(ros_img_msg)  
+    o3d_img = o3d.geometry.Image(np_array)
+    return o3d_img
+
 
 def o3dimg_to_cv2img(o3d_img):
     np_array = np.asarray(o3d_img)
@@ -184,7 +186,20 @@ def do_transform_point(o3d_pc, transform_stamped):
     '''
     o3d_pc = open3d_ros_helper.do_transform_point(o3d_pc, transform_stamped)
     return o3dpc
-    
+
+def transform_pointcloud(o3d_pc, transform):
+    x = transform[0]
+    y = transform[1]
+    z = transform[2]
+    translation_vector = [x, y, z]
+    roll = transform[3]
+    pitch = transform[4]
+    yaw = transform[5]
+    rotate_vector = [roll, pitch, yaw]
+    o3d_pc = nepi_pc.translate_pc(o3d_pc, translation_vector)
+    o3d_pc = nepi_pc.rotate_pc(o3d_pc, rotate_vector)
+    return o3d_pc
+
 
 
 def crop_with_2dmask(o3d_pc, mask, K=None):

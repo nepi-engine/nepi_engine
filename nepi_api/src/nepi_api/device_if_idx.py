@@ -40,21 +40,18 @@ from sensor_msgs.msg import Image, PointCloud2
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_interfaces.msg import ImageStatus, PointcloudStatus
-from nepi_interfaces.msg import Frame3DTransform
 
-from geometry_msgs.msg import Vector3
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SettingsIF, SaveDataIF, Transform3DIF
+from nepi_api.system_if import SettingsIF, SaveDataIF
 
 
-from nepi_interfaces.msg import NavPose
 from nepi_api.data_if import ColorImageIF
 from nepi_api.data_if import DepthMapIF
 from nepi_api.data_if import PointcloudIF
-from nepi_api.device_if_npx import NPXDeviceIF
-from nepi_api.connect_device_if_ptx import ConnectPTXDeviceIF
+from nepi_api.data_if import NavPoseIF
+
 
 
 
@@ -64,8 +61,6 @@ SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
                             'intensity_map','depth_map','pointcloud']
 
 PERSPECTIVE_OPTIONS = ['pov','top']
-
-FRAME_3D_OPTIONS = ['sensor_frame','nepi_frame','world_frame']
 
 #Factory Control Values 
 DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
@@ -91,8 +86,6 @@ class IDXDeviceIF:
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
     UPDATE_NAVPOSE_RATE_HZ = 10
 
-    ZERO_TRANSFORM = [0,0,0,0,0,0,0]
-
     DEFUALT_IMG_WIDTH_DEG = 100
     DEFUALT_IMG_HEIGHT_DEG = 70
 
@@ -104,8 +97,8 @@ class IDXDeviceIF:
 
     node_if = None
     settings_if = None
+    navpose_if = None
     save_data_if = None
-    transform_if = None
     npx_if = None
 
 
@@ -156,25 +149,9 @@ class IDXDeviceIF:
     depth_map_thread = None
     pointcloud_thread = None
 
-    frame_3d = 'nepi_frame'
-    tr_source_ref_description = 'sensor'
-    tr_end_ref_description = 'nepi_frame'
-
     data_source_description = 'imaging_sensor'
     data_ref_description = 'sensor'
-    device_mount_description = 'fixed'
-    mount_desc = 'None'
 
-    avail_pts = []
-    pt_mounted = False
-    pt_topic = ''
-    connect_ptx_if = None
-    pt_connected = False
-
-    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-    navpose_frames_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_FRAMES_DICT)
-    sys_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-    pt_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
     #######################
     ### IF Initialization
@@ -233,7 +210,6 @@ class IDXDeviceIF:
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
-        self.tr_source_ref_description = data_ref_description
 
         self.msg_if.pub_warn("Got driver supported data products: " + str(data_products))
         #self.msg_if.pub_warn("Supported data products: " + str(SUPPORTED_DATA_PRODUCTS))
@@ -317,8 +293,6 @@ class IDXDeviceIF:
         if self.setResolutionRatio is not None:
             self.caps_report.has_resolution = True
 
-        self.caps_report.frame_3d_options = FRAME_3D_OPTIONS
-
 
         # Initialize status message
 
@@ -328,7 +302,7 @@ class IDXDeviceIF:
         self.status_msg.hw_version = self.hw_version
         self.status_msg.sw_version = self.sw_version
 
-        self.status_msg.device_mount_description = self.get_mount_description()         
+     
 
         ##################################################
         ### Node Class Setup
@@ -390,22 +364,6 @@ class IDXDeviceIF:
             'stop_range_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict["stop_range_ratio"]
-            },
-            'frame_3d': {
-                'namespace': self.namespace,
-                'factory_val': self.frame_3d
-            },
-            'pt_mounted': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
-            'pt_topic': {
-                'namespace': self.namespace,
-                'factory_val': ''
-            },
-            'mount_desc': {
-                'namespace': self.namespace,
-                'factory_val': 'None'
             }
 
 
@@ -435,13 +393,6 @@ class IDXDeviceIF:
                 'msg': DeviceIDXStatus,
                 'qsize': 1,
                 'latch': True
-            },
-            'navpose_pub': {
-                'msg': NavPose,
-                'namespace': self.namespace,
-                'topic': 'navpose',
-                'qsize': 1,
-                'latch': False
             }
         }
         
@@ -537,60 +488,12 @@ class IDXDeviceIF:
                 'callback': self.setRangeRatioCb, 
                 'callback_args': ()
             },
-            'set_frame_3d': {
-                'namespace': self.namespace,
-                'topic': 'set_frame_3d',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setFrame3dCb, 
-                'callback_args': ()
-            },
             'reset_controls': {
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
-                'callback_args': ()
-            },
-            'set_pt_mounted': {
-                'namespace': self.namespace,
-                'topic': 'set_pt_mounted',
-                'msg': Bool,
-                'qsize': 1,
-                'callback': self.setPtMountedCb, 
-                'callback_args': ()
-            },
-            'set_pt_topic': {
-                'namespace': self.namespace,
-                'topic': 'set_pt_topic',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setPtTopicCb, 
-                'callback_args': ()
-            },
-            'set_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'set_mount_description',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setMountDescCb, 
-                'callback_args': ()
-            },
-            'reset_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'reset_mount_description',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
-                'callback_args': ()
-            },
-            'sys_navpose_sub': {
-                'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,
-                'qsize': 1,
-                'callback': self.navposeSysCb, 
                 'callback_args': ()
             }
             
@@ -727,7 +630,6 @@ class IDXDeviceIF:
 
         ##################################
         # Setup Save Data IF Class ####################
-        self.data_products_save_list.append('navpose')
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates= {}
         for d in self.data_products_save_list:
@@ -755,139 +657,28 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                         )
 
-        #############################
-        # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = self.namespace
-
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
+        ####################
+        # Setup Save Data IF Class 
+        self.msg_if.pub_info("Starting NavPoe IF Initialization")
+        self.navpose_if = NavPoseIF(namespace = self.namespace,
+                                    data_product = 'navpose',    
+                                    save_data_if = self.save_data_if)
+            
+        self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+        self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_if))
 
         ##################################
         # Start Node Processes
-        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
-        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
 
-        '''
-        ##################################
-        if self.getNavPoseCb is not None:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            npx_if = NPXDeviceIF(device_info, 
-                data_source_description = self.data_source_description,
-                data_ref_description = self.data_ref_description,
-                getNavPoseCb = self.getNavPoseCb,
-                get3DTransformCb = None, # Don't use the idx transform
-                max_navpose_update_rate = self.navpose_update_rate,
-                log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                )
-        '''
-
-
+    
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
 
         
-    def get_3d_transform(self):
-        transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
-        return transform
-
-
-    def get_mount_description(self):
-        desc = self.device_mount_description
-        if self.mount_desc != 'None':
-            desc = self.mount_desc
-        return desc
-
-    def navposeSysCb(self,msg):
-        self.sys_navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
-
-    def get_navpose_dict(self):
-        navpose_dict = copy.deepcopy(self.navpose_dict)
-        if navpose_dict is None:
-            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        # Transform navpose in ENU and WSG84 frames
-        frame_3d_transform = self.get_3d_transform()
-        if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = 'nepi_frame')
-                    
-        # Transform navpose data frames to system set frames
-        frame_nav = self.navpose_frames_dict['frame_nav']
-        frame_alt = self.navpose_frames_dict['frame_alt']
-        frame_depth = self.navpose_frames_dict['frame_depth']
-        
-        if navpose_dict['frame_nav'] != frame_nav:
-            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
-                nepi_nav.convert_navpose_ned2enu(navpose_dict)
-            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
-                nepi_nav.convert_navpose_enu2ned(navpose_dict)
-        if navpose_dict['frame_altitude'] != frame_alt:
-            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
-                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
-            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
-                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
-        #if navpose_dict['frame_depth'] != 'MSL':
-        #    if navpose_dict['frame_depth'] == 'DEPTH':
-        #        pass # need to add conversions                 
-
-
-        return navpose_dict
-        
-    def publish_navpose(self):
-        navpose_dict = self.get_navpose_dict()
-        timestamp = nepi_utils.get_time()
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-        self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
-
-    def navPoseUpdaterCb(self,timer):
-        navpose_dict = None
-        start_time = nepi_utils.get_time()
-        if self.connect_ptx_if is not None and self.pt_connected == True:
-            navpose_dict = self.connect_ptx_if.get_navpose_dict()
-            if navpose_dict is not None:
-                frame_3d = 'nepi_frame'
-                self.transform_if.set_end_description('pantilt_center_tilt_axis')
-        if navpose_dict is None:
-            navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-            if navpose_dict is not None:
-                frame_3d = 'nepi_frame'
-                self.transform_if.set_end_description('nepi_frame')
-        if navpose_dict is None:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            frame_3d = 'sensor_frame'
-            self.transform_if.set_end_description('sensor_frame')
-
-        
-
-        self.end_ref_description = self.transform_if.get_end_description()
-        self.navpose_dict = navpose_dict
-
-        # Publish the navpose solution
-        self.publish_navpose()
-
-        # Repeat
-        process_time = nepi_utils.get_time() - start_time
-        rate = 1
-        rate = self.navpose_update_rate
-        delay = float(1.0) / rate - process_time
-        nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
- 
-
-    def navposeFramesCheckCb(self,timer):
-        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
-        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True) 
+    
 
     ###############################
     # Class Methods
@@ -935,7 +726,6 @@ class IDXDeviceIF:
             self.pt_mounted = self.node_if.get_param('pt_mounted')
             self.pt_topic = self.node_if.get_param('pt_topic')
 
-            self.mount_desc = self.node_if.get_param('mount_desc')
 
       if do_updates == True:
         self.ApplyConfigUpdates()
@@ -954,10 +744,9 @@ class IDXDeviceIF:
                 pass
       if self.save_data_if is not None:
           self.save_data_if.reset()
+
       if self.settings_if is not None:
           self.settings_if.reset()
-      if self.transform_if is not None:
-          self.transform_if.reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -975,10 +764,9 @@ class IDXDeviceIF:
                 pass
       if self.save_data_if is not None:
           self.save_data_if.factory_reset()
+
       if self.settings_if is not None:
           self.settings_if.factory_reset()
-      if self.transform_if is not None:
-          self.transform_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -1234,43 +1022,7 @@ class IDXDeviceIF:
             self.node_if.set_param('start_range_ratio', new_start_range_ratio)
             self.node_if.set_param('stop_range_ratio', new_stop_range_ratio)
      
-    def setFrame3dCb(self, msg):
-        self.msg_if.pub_info("Recived Output Frame 3D update message: " + str(msg))
-        self.setFrame3d(msg.data)
-
-    def setFrame3d(self, frame_3d):
-        if frame_3d in FRAME_3D_OPTIONS:
-            self.frame_3d = frame_3d
-            self.publish_status(do_updates=False) # Updated inline here 
-            self.node_if.set_param('frame_3d',  self.frame_3d)
-
-
-
-    def setPtMountedCb(self,msg):
-        self.msg_if.pub_info("Recived pt mounted message: " + str(msg))
-        self.pt_mounted = msg.data
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('pt_mounted', self.pt_mounted)
-
-    def setPtTopicCb(self,msg):
-        self.msg_if.pub_info("Recived pt topic message: " + str(msg))
-        self.pt_topic = msg.data
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('pt_mounted', self.pt_mounted)
-
-    def setMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
-        self.mount_desc = msg.data
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
-    def resetMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
-        self.mount_desc = 'None'
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-        
-   
+  
 
     def resetControlsCb(self, msg):
         self.msg_if.pub_info("Recived reset controls message: " + str(msg))
@@ -1284,7 +1036,6 @@ class IDXDeviceIF:
         self.node_if.reset_param('max_framerate')
         self.node_if.reset_param('start_range_ratio')
         self.node_if.reset_param('stop_range_ratio')
-        self.node_if.reset_param('mount_desc')
         self.resetCb(do_updates = True)
 
 
@@ -1300,6 +1051,7 @@ class IDXDeviceIF:
         self.node_if.factory_reset_param('max_framerate')
         self.node_if.factory_reset_param('start_range_ratio')
         self.node_if.factory_reset_param('stop_range_ratio')
+
         self.factoryResetCb(do_updates = True)
 
 
@@ -1353,12 +1105,14 @@ class IDXDeviceIF:
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
-                            get_navpose_function = self.get_navpose_dict,
+                            navpose_if = self.navpose_if,
+                            save_data_if = self.save_data_if,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                             )
                 ready = dp_if.wait_for_ready()
+                
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
@@ -1394,13 +1148,11 @@ class IDXDeviceIF:
                         
 
                         # Now process and publish image
-                        frame_3d = 'sensor_frame'
                         cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
-                                                        frame_3d = frame_3d,
                                                         width_deg = self.width_deg,
-                                                        height_deg = self.height_deg,
-                                                        device_mount_description = self.get_mount_description())
+                                                        height_deg = self.height_deg
+                                                        )
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
@@ -1449,16 +1201,18 @@ class IDXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_list = [],
+                        navpose_if = self.navpose_if,
+                        save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                        msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
+            
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
 
-            
             # Get Data Product Dict and Data_IF
             self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1495,16 +1249,14 @@ class IDXDeviceIF:
                             range_m = self.max_range_m - self.min_range_m
                             min_range_m = self.min_range_m + self.start_range_ratio * range_m
                             max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                            frame_3d = 'sensor_frame'
                             [cv2_depth_map, cv2_depth_map_img] = dp_if.publish_cv2_depth_map(cv2_depth_map,
                                                     encoding = encoding,
                                                     width_deg = self.width_deg,
                                                     height_deg = self.height_deg,
                                                     min_range_m = min_range_m,
                                                     max_range_m = max_range_m,
-                                                    timestamp = timestamp,
-                                                    frame_3d = frame_3d,
-                                                    device_mount_description = self.get_mount_description())
+                                                    timestamp = timestamp
+                                                    )
                         if (dp_should_save == True):
                             self.save_data_if.save(data_product,cv2_depth_map,timestamp = timestamp,save_check=False)
                             self.save_data_if.save(data_product + '_image',cv2_depth_map_img,timestamp = timestamp,save_check=False)
@@ -1554,16 +1306,18 @@ class IDXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_list = [],
+                        navpose_if = self.navpose_if,
+                        save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                        msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
 
-            
+        
             # Get Data Product Dict and Data_IF
             self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1581,31 +1335,19 @@ class IDXDeviceIF:
                 get_data = dp_has_subs or dp_should_save
                 if get_data == True:
                     acquiring = True
-                    status, msg, o3d_pc, timestamp, frame_3d = dp_get_data()
+                    status, msg, o3d_pc, timestamp, pc_frame = dp_get_data()
                     if o3d_pc is not None:
-                        #********************
-                        frame_3d = self.frame_3d
-                        if frame_3d != 'sensor_frame':
-                            transform = self.get_3d_transform()
-                        if transform != self.ZERO_TRANSFORM:   
-                            o3d_pc = self.transformPointcloud(o3d_pc,transform)
-                        if frame_3d == 'world_frame':
-                            pass #  Need to implement
-                        
-                        #********************
-
                         if (dp_has_subs == True):
                             range_m = self.max_range_m - self.min_range_m
                             min_range_m = self.min_range_m + self.start_range_ratio * range_m
                             max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                            [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(cv2_depth_map,
+                            [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(o3d_pc,
                                                     width_deg = self.width_deg,
                                                     height_deg = self.height_deg,
                                                     min_range_m = min_range_m,
                                                     max_range_m = max_range_m,
-                                                    timestamp = timestamp,
-                                                    frame_3d = frame_3d,
-                                                    device_mount_description = self.get_mount_description())
+                                                    timestamp = timestamp
+                                                    )
                         if (dp_should_save == True ):
                             self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp,save_check=False)
                             self.save_data_if.save(data_product + '_image',cv2_pc_img,timestamp = timestamp,save_check=False)
@@ -1623,21 +1365,6 @@ class IDXDeviceIF:
                 nepi_sdk.sleep(0.01) # Yield
                 
 
-
-
-
-    def transformPointcloud(self, o3d_pc, transform):
-        x = transform[0]
-        y = transform[1]
-        z = transform[2]
-        translation_vector = [x, y, z]
-        roll = transform[3]
-        pitch = transform[4]
-        yaw = transform[5]
-        rotate_vector = [roll, pitch, yaw]
-        o3d_pc = nepi_pc.translate_pc(o3d_pc, translation_vector)
-        o3d_pc = nepi_pc.rotate_pc(o3d_pc, rotate_vector)
-        return o3d_pc
 
 
     def runImageThread(self):
@@ -1659,7 +1386,6 @@ class IDXDeviceIF:
 
     def publish_status(self, do_updates = True):
         self.status_msg.device_name = self.device_name
-        self.status_msg.device_mount_description = self.get_mount_description()
 
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
@@ -1690,41 +1416,6 @@ class IDXDeviceIF:
         self.status_msg.max_range_m = self.max_range_m
 
 
-
-
-        self.status_msg.avail_pantilt_topics = self.avail_pts
-
-        self.status_msg.pantilt_mounted = self.pt_mounted
-        '''
-        if self.pt_topic in self.avail_pts and self.pt_mounted == True:
-            pt_topic = self.pt_topic
-            pt_name = self.pt_topic.split('/ptx')[0]
-            pt_name = pt_name.replace(self.base_namespace)
-            if pt_name[0] == '/':
-                pt_name = pt_name[1:]
-            pt_connected = self.pt_connected
-        else:
-            pt_topic = 'None'
-            pt_name = 'None'
-            pt_connected = False
-        self.status_msg.sel_pantilt_device_topic = pt_topic
-        self.status_msg.sel_pantilt_name = pt_name
-        self.status_msg.sel_pantilt_connected = pt_connected
-        '''
-
-        # The transfer frame into which 3D data (pointclouds) are transformed for the pointcloud data topic
-
-        
-        self.status_msg.output_frame_3d = self.frame_3d
-        
-        #self.status_msg.frame_3d = self.frame_3d
-        transform = self.get_3d_transform()
-        transform_msg = nepi_nav.convert_transform_list2msg(transform)
-        transform_msg.source_ref_description = self.tr_source_ref_description
-        transform_msg.end_ref_description = self.tr_end_ref_description
-        self.status_msg.frame_3d_transform = transform_msg
-        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
-
         if do_updates == True:
            
             rtsp_url = ""
@@ -1742,48 +1433,3 @@ class IDXDeviceIF:
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
     
-
-    def registerPTX(self,pt_topic):
-        success = False
-        if self.connect_ptx_if is not None and pt_topic in self.avail_pts:
-            self.connect_ptx_if = ConnectPTXDeviceIF(pt_topic)
-            self.device_mount_description = 'pan_tilt'
-            success = True
-        return success
-
-    def unregisterPTX(self):
-        success = True
-        if self.connect_ptx_if is not None:
-            try:
-                self.connect_ptx_if.unregister()
-                nepi_sdk.sleep(1)
-                self.connect_ptx_if = None
-                self.pt_connected = False
-                self.device_mount_description = 'fixed'
-            except:
-                pass
-        return success
-
-    def getPtStatus(self,status_dict):
-        self.pt_connected = True
-        self.pt_pan_deg = status_dict['pan_now_deg']
-        self.pt_tilt_deg = status_dict['tilt_now_deg']
-        tr_msg = status_dict['frame_3d_transform']
-        self.pt_transform = nepi_nav.convert_transform_msg2list(tr_msg)
-
-    def get_3d_transform(self):
-        transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
-        return transform
-
-    def updaterCb(self,timer):
-        self.avail_pts = nepi_devices.get_ptx_device_namespaces()
-        sel_pt = self.pt_topic
-        if sel_pt == '' or sel_pt == 'None':
-            success = self.unregisterPTX()
-        if sel_pt != '' and sel_pt != 'None' and sel_pt not in self.avail_pts:
-            success = self.unregisterPTX()
-        if sel_pt != '' and sel_pt != 'None' and sel_pt in self.avail_pts:
-            success = self.registerPTX()
-#        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)

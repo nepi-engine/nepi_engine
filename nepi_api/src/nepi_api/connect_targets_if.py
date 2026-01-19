@@ -269,7 +269,6 @@ class ConnectTargetsIF:
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
-        self.status_msg.device_mount_description = self.get_mount_description() 
 
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_timed_positioning = self.has_timed_positioning
@@ -380,10 +379,6 @@ class ConnectTargetsIF:
             'max_auto_tilt_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
-            },
-            'mount_desc': {
-                'namespace': self.namespace,
-                'factory_val': 'None'
             }
         }
         
@@ -408,13 +403,6 @@ class ConnectTargetsIF:
                 'topic': 'status',
                 'msg': DevicePTXStatus,
                 'qsize': 10,
-                'latch': False
-            },
-            'navpose_pub': {
-                'msg': NavPose,
-                'namespace': self.namespace,
-                'topic': 'navpose',
-                'qsize': 1,
                 'latch': False
             }
         }
@@ -627,26 +615,10 @@ class ConnectTargetsIF:
                 'callback_args': ()
             },
             '''
-            'set_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'set_mount_description',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setMountDescCb, 
-                'callback_args': ()
-            },
-            'reset_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'reset_mount_description',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
-                'callback_args': ()
-            },
-            'sys_navpose_sub': {
+            'sys_navposes_sub': {
                 'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,
+                'topic': 'navposes',
+                'msg': NavPoses,
                 'qsize': 1,
                 'callback': self.navposeSysCb, 
                 'callback_args': ()
@@ -1655,18 +1627,6 @@ class ConnectTargetsIF:
     '''
 
 
-    def setMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
-        self.mount_desc = msg.data
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
-    def resetMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
-        self.mount_desc = 'None'
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
     def navposeSysCb(self,msg):
         self.sys_navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
 
@@ -1693,9 +1653,9 @@ class ConnectTargetsIF:
     def get_navpose_dict(self):
         navpose_dict = copy.deepcopy(self.navpose_dict)
         # Transform navpose in ENU and WSG84 frames
-        frame_3d_transform = self.get_3d_transform()
-        if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = 'nepi_frame')
+        navpose_frame_transform = self.get_3d_transform()
+        if navpose_frame_transform is not None:
+            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,navpose_frame_transform, output_navpose_frame = 'nepi_frame')
                     
         # Transform navpose data frames to system set frames
         frame_nav = self.navpose_frames_dict['frame_nav']
@@ -1717,28 +1677,17 @@ class ConnectTargetsIF:
         #        pass # need to add conversions   
         return navpose_dict
 
-        
-    def publish_navpose(self):
-        navpose_dict = self.get_navpose_dict()
-        timestamp = nepi_utils.get_time()
-        # Publish navpose at same rate
-        #self.msg_if.pub_warn("NavPose Dict: " + str(navpose_dict), throttle_s = 5)
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        #self.msg_if.pub_warn("NavPose Msg: " + str(navpose_msg), throttle_s = 5)
-
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-            self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
+    
 
     def navPoseUpdaterCb(self,timer):
         navpose_dict = None
         if navpose_dict is None:
             navpose_dict = copy.deepcopy(self.sys_navpose_dict)
         if navpose_dict is not None:
-            frame_3d = 'nepi_frame'
+            navpose_frame = 'nepi_frame'
         else:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            frame_3d = 'sensor_frame'
+            navpose_frame = 'sensor_frame'
 
  
         self.navpose_dict = navpose_dict
@@ -1751,12 +1700,6 @@ class ConnectTargetsIF:
         self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
         nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)         
 
-
-    def get_mount_description(self):
-        desc = self.device_mount_description
-        if self.mount_desc != 'None':
-            desc = self.mount_desc
-        return desc
 
     def provideCapabilities(self, _):
         return self.capabilities_report

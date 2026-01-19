@@ -45,10 +45,8 @@ from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_interfaces.msg import NavPose
-from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
-from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
-from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.msg import NavPose, NavPoses
+
 
 from nepi_interfaces.srv import MgrNavPoseCapabilitiesQuery, MgrNavPoseCapabilitiesQueryRequest, MgrNavPoseCapabilitiesQueryResponse
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
@@ -111,9 +109,11 @@ class NavPoseMgr(object):
         }
 
     node_if = None
-    data_products_list = ['navpose']
+    save_data_if = None
+    data_products_list = ['navposes']
     navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-    navpose_dict['frame_3d'] = 'nepi_frame'
+    navpose_dict['navpose_frame'] = 'nepi_frame'
+    navpose_dict['navpose_description'] = 'nepi base frame'
     navpose_dict_lock = threading.Lock()
     init_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     last_npdata_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -169,17 +169,16 @@ class NavPoseMgr(object):
     }
 
 
-    nepi_frame_desc = 'Undefined'
+    navpose_description = 'Undefined'
     frame_nav = 'ENU'
     frame_alt = 'WGS84'
     frame_depth = 'DEPTH'
 
-    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
-
+    navpose_info_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
+    navpose_frames = ['None','nepi_frame']
     data_source_description = 'nepi_navpose_solution'
     data_ref_description = 'nepi_frame'
-    device_mount_description = 'fixed'
-    add_mount_description = ''
+
 
 
     #######################
@@ -202,7 +201,8 @@ class NavPoseMgr(object):
 
         ##############################
         # Initialize Class Variables
-        nepi_system.set_navpose_frames(self.navpose_frames_dict)
+        nepi_system.set_navpose_settings(self.navpose_info_dict)
+        nepi_system.set_navpose_frames(self.navpose_frames)
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
@@ -246,9 +246,9 @@ class NavPoseMgr(object):
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'nepi_frame_desc': {
+            'navpose_description': {
                 'namespace': self.mgr_namespace,
-                'factory_val': self.nepi_frame_desc
+                'factory_val': self.navpose_description
             },
             'frame_nav': {
                 'namespace': self.mgr_namespace,
@@ -313,10 +313,10 @@ class NavPoseMgr(object):
                 'qsize': 1,
                 'latch': True
             },
-            'navpose_data': {
+            'navposes_pub': {
                 'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,  # This should be the correct message type
+                'topic': 'navposes',
+                'msg': NavPoses,  # This should be the correct message type
                 'qsize': 1,
                 'latch': False
             }
@@ -427,22 +427,12 @@ class NavPoseMgr(object):
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
 
-        # Setup navpose data IF
-        np_namespace = self.base_namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
-
         ##############################
         # Set up save data services ########################################################
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-            if d == 'navpose':
+            if d == 'navposes':
                 factory_data_rates[d][0] = float(1.0) / self.FACTORY_PUB_RATE_HZ
         self.save_data_if = SaveDataIF(data_products = self.data_products_list, factory_rate_dict = factory_data_rates,namespace = self.node_namespace)
 
@@ -458,7 +448,6 @@ class NavPoseMgr(object):
         nepi_sdk.start_timer_process(1.0, self._updateConnectionsCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
         np_pub_delay = float(1.0)/self.set_pub_rate
-        nepi_sdk.start_timer_process(1.0, self._publishNavPoseCb, oneshot = True)
 
         ##############################
         ## Initiation Complete
@@ -468,7 +457,7 @@ class NavPoseMgr(object):
 
     def initCb(self,do_updates = False):
         if self.node_if is not None:
-            self.nepi_frame_desc = self.node_if.get_param('nepi_frame_desc')
+            self.navpose_description = self.node_if.get_param('navpose_description')
             self.frame_nav = self.node_if.get_param('frame_nav')
             self.frame_alt = self.node_if.get_param('frame_alt')
             self.frame_depth = self.node_if.get_param('frame_depth')
@@ -520,21 +509,22 @@ class NavPoseMgr(object):
 
 
     def update_navpose_frames(self):
-        self.navpose_frames_dict['nepi_frame_desc'] = self.nepi_frame_desc
-        self.navpose_frames_dict['frame_nav'] = self.frame_nav
-        self.navpose_frames_dict['frame_alt'] = self.frame_alt
-        self.navpose_frames_dict['frame_depth'] = self.frame_depth
-        nepi_system.set_navpose_frames(self.navpose_frames_dict)
+        nepi_system.set_navpose_frames(self.navpose_frames)
+        
+        self.navpose_info_dict['frame_nav'] = self.frame_nav
+        self.navpose_info_dict['frame_alt'] = self.frame_alt
+        self.navpose_info_dict['frame_depth'] = self.frame_depth
+        nepi_system.set_navpose_settings(self.navpose_info_dict)
 
     #######################
     ### Node Methods
 
     def setFrame3dDescription(self,desc):
-        self.nepi_frame_desc = desc
+        self.navpose_description = desc
         self.publish_status(do_updates = False)
         self.update_navpose_frames()
         if self.node_if is not None:
-            self.node_if.set_param('nepi_frame_desc',desc)
+            self.node_if.set_param('navpose_description',desc)
             self.node_if.save_config()
             
             
@@ -743,7 +733,8 @@ class NavPoseMgr(object):
     def resetNavPose(self):
         self.navpose_dict_lock.acquire()
         self.navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        self.navpose_dict['frame_3d'] = 'nepi_frame'
+        self.navpose_dict['navpose_frame'] = 'nepi_frame'
+        self.navpose_dict['navpose_description'] = 'nepi base frame'
         self.navpose_dict_lock.release()
         if self.node_if is not None:
             self.node_if.set_param('init_nav_pose',navpose_dict)
@@ -982,18 +973,24 @@ class NavPoseMgr(object):
         npdata_dict = copy.deepcopy(self.navpose_dict)
         self.navpose_dict_lock.release()
         npdata_dict = self.applyInitNavPose(npdata_dict)
-
+        npsdata_dict = dict()
         if npdata_dict is not None:
             #self.msg_if.pub_warn("Got navpose data dict: " + str(npdata_dict))
+
             npdata_msg = nepi_nav.convert_navpose_dict2msg(npdata_dict)
             #self.msg_if.pub_warn("Got navpose data msg: " + str(npdata_msg))
+            npsdata_msg = NavPoses()
+            frames = [npdata_dict['navpose_frame']]
+            npsdata_msg.navposes = [npdata_msg]
+
+            npsdata_dict[npdata_dict['navpose_frame']] = npdata_dict
             if npdata_msg is not None:
                 self.status_msg.publishing = True
                 if self.node_if is not None:
-                    self.node_if.publish_pub('navpose_data',npdata_msg)  
+                    self.node_if.publish_pub('navpose_pub',npsdata_msg)  
             if self.last_npdata_dict != npdata_dict:
                 if self.save_data_if is not None:
-                    self.save_data_if.save('navpose',npdata_dict,timestamp)
+                    self.save_data_if.save('navposes',npsdata_dict,timestamp)
             # Setup nex update check
             self.last_npdata_dict = npdata_dict
 
@@ -1004,17 +1001,6 @@ class NavPoseMgr(object):
         self.publish_status()
 
 
-    def _publishNavPoseCb(self,timer):
-        self.status_msg.publishing = True
-        if self.navpose_if is not None:
-            np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict,
-                        device_mount_description = self.device_mount_description)
-
-
-
-
-
     def publish_status(self, do_updates = False):
         #self.msg_if.pub_warn("========publish_status called========")
         #self.msg_if.pub_warn("publish_status self.transforms_dict" + str(self.transforms_dict))
@@ -1022,7 +1008,6 @@ class NavPoseMgr(object):
         connect_dict = copy.deepcopy(self.connect_dict)
         avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
 
-        self.status_msg.nepi_frame_description = self.nepi_frame_desc
 
         comp_names = []
         comp_infos = []
@@ -1053,6 +1038,14 @@ class NavPoseMgr(object):
         self.status_msg.comp_names = comp_names
         self.status_msg.comp_infos = comp_infos
 
+        is_saving = False
+        save_rate = 0.0
+        if self.save_data_if is not None:
+            is_saving = self.save_data_if.get_saving_enabled()
+            save_rate = self.save_data_if.data_product_save_rate('navposes')
+        
+        self.status_msg.is_saving = is_saving
+        self.status_msg.save_rate = save_rate
 
         self.status_msg.pub_rate = self.set_pub_rate
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))

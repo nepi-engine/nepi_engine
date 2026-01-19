@@ -183,7 +183,7 @@ class NepiTargetsMgr(object):
   target_min_px_ratio = self.FACTORY_TARGET_MIN_PX_RATIO
   target_min_dist_m = self.FACTORY_TARGET_MIN_DIST_METERS
   target_age_filter = self.FACTORY_TARGET_MAX_AGE_SEC
-  frame_3d_transform = self.ZERO_TRANSFORM
+  navpose_frame_transform = self.ZERO_TRANSFORM
   
   #######################
   ### Node Initialization
@@ -281,7 +281,7 @@ class NepiTargetsMgr(object):
             'namespace': self.node_namespace,
             'factory_val': self.FACTORY_TARGET_MAX_AGE_SEC
         },
-        'frame_3d_transform': {
+        'navpose_frame_transform': {
             'namespace': self.node_namespace,
             'factory_val': self.ZERO_TRANSFORM
         }
@@ -455,17 +455,17 @@ class NepiTargetsMgr(object):
             'callback': self.setAgeFilterCb, 
             'callback_args': ()
         },
-        'set_frame_3d_transform': {
+        'set_navpose_frame_transform': {
             'namespace': self.node_namespace,
-            'topic': 'set_frame_3d_transform',
+            'topic': 'set_navpose_frame_transform',
             'msg': Frame3DTransform,
             'qsize': 10,
             'callback': self.setFrame3dTransformCb, 
             'callback_args': ()
         },
-        'clear_frame_3d_transform': {
+        'clear_navpose_frame_transform': {
             'namespace': self.node_namespace,
-            'topic': 'clear_frame_3d_transform',
+            'topic': 'clear_navpose_frame_transform',
             'msg': Empty,
             'qsize': 10,
             'callback': self.clearFrame3dTransformCb, 
@@ -598,7 +598,7 @@ class NepiTargetsMgr(object):
         self.target_min_px_ratio = self.node_if.get_param('target_min_px_ratio')
         self.target_min_dist_m = self.node_if.get_param('target_min_dist_m')
         self.target_age_filter = self.node_if.get_param('target_age_filter')
-        self.frame_3d_transform = self.node_if.get_param('frame_3d_transform')
+        self.navpose_frame_transform = self.node_if.get_param('navpose_frame_transform')
 
       if do_updates == True:
         pass
@@ -673,7 +673,7 @@ class NepiTargetsMgr(object):
     status_msg.target_min_dist_m = self.target_min_dist_m
     status_msg.target_age_filter = self.target_age_filter
     # The transfer frame for target data adjustments from image's native frame to the nepi center frame
-    transform = self.frame_3d_transform
+    transform = self.navpose_frame_transform
     transform_msg = Frame3DTransform()
     transform_msg.translate_vector.x = transform[0]
     transform_msg.translate_vector.y = transform[1]
@@ -682,7 +682,7 @@ class NepiTargetsMgr(object):
     transform_msg.rotate_vector.y = transform[4]
     transform_msg.rotate_vector.z = transform[5]
     transform_msg.heading_offset = transform[6]
-    status_msg.frame_3d_transform = transform_msg
+    status_msg.navpose_frame_transform = transform_msg
 
     if self.node_if is not None:
       self.node_if.publish_pub('status_pub', status_msg)
@@ -1071,10 +1071,10 @@ class NepiTargetsMgr(object):
       yaw = transform_msg.rotate_vector.z
       heading = transform_msg.heading_offset
       transform = [x,y,z,roll,pitch,yaw,heading]
-      self.frame_3d_transform = transform
+      self.navpose_frame_transform = transform
       self.publish_status()
       if self.node_if is not None:
-        self.node_if.set_param('frame_3d_transform',  transform)
+        self.node_if.set_param('navpose_frame_transform',  transform)
       #self.msg_if.pub_info("AI_TARG_APP: Updated Transform: " + str(transform))
 
   def clearFrame3dTransformCb(self, msg):
@@ -1083,11 +1083,11 @@ class NepiTargetsMgr(object):
 
   def clearFrame3dTransform(self, transform_msg):
       transform = self.ZERO_TRANSFORM
-      self.idx/frame_3d_transform = transform
+      self.idx/navpose_frame_transform = transform
       self.publish_status()
       if self.node_if is not None:
-        self.node_if.set_param('idx/frame_3d_transform',  transform)
-      self.status_msg.frame_3d_transform = transform_msg
+        self.node_if.set_param('idx/navpose_frame_transform',  transform)
+      self.status_msg.navpose_frame_transform = transform_msg
       self.publishStatus(do_updates=False) # Updated inline here 
 
   
@@ -1111,7 +1111,7 @@ class NepiTargetsMgr(object):
       get_msg_timestamp = bounding_boxes_msg.header.stamp
       image_seq_num = bounding_boxes_msg.header.seq
       bbs_msg=copy.deepcopy(bounding_boxes_msg)
-      transform = self.frame_3d_transform
+      transform = self.navpose_frame_transform
       selected_classes_dict = self.selected_classes_dict
 
       # Process targets

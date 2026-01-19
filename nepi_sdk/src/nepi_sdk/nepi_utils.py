@@ -23,6 +23,7 @@
 
   
 import os
+import re
 import sys
 import shutil
 import time
@@ -271,6 +272,9 @@ def clear_end_slash(str_2_check):
     if str_2_check[-1] == '/':
       str_2_check[0:-1]
     return str_2_check
+
+def get_clean_name(name, invalid_chars = r'[<>:"/\\|?*\x00-\x1F]', replacement='_'):
+    return re.sub(invalid_chars, replacement, name)
   
 
 def get_folder_list(search_path):
@@ -712,12 +716,6 @@ def find_all_indexes(input_string, char):
 
 ########################
 ### Class and Method Helper Functions
-
-
-
-# These calls must be imbedded in class method
-#  method_name = sys._getframe().f_code.co_name
-#  caller_method_name = inspect.currentframe().f_back.f_code.co_name
 
 
 def get_caller_class(self):

@@ -37,15 +37,11 @@ from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition,
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 from nepi_interfaces.msg import NavPosePanTilt
 
-from nepi_interfaces.msg import Frame3DTransform
-from nepi_interfaces.msg import NavPose
 
-from tf.transformations import quaternion_from_euler
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
-from nepi_api.device_if_npx import NPXDeviceIF
+from nepi_api.system_if import SettingsIF
 
 
 
@@ -85,10 +81,6 @@ class PTXActuatorIF:
 
     node_if = None
     settings_if = None
-    save_data_if = None
-    transform_if = None
-    npx_if = None
-    navpose_if = None
 
     status_msg = DevicePTXStatus()
 
@@ -177,7 +169,7 @@ class PTXActuatorIF:
     sin_tilt_enabled = False
     auto_tilt_sin_ind = 0
 
-    frame_3d = 'nepi_frame'
+    navpose_frame = 'nepi_frame'
     tr_source_ref_description = 'tilt_axis_center'
     tr_end_ref_description = 'nepi_frame'
 
@@ -185,14 +177,9 @@ class PTXActuatorIF:
     data_source_description = 'pan_tilt'
     data_ref_description = 'tilt_axis_center'
     data_end_description = 'nepi_frame'
-    device_mount_description = 'fixed'
-    mount_desc = 'None'
+    navpose_frame = 'None'
     
     is_moving = False
-
-    navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    navpose_frames_dict = nepi_nav.BLANK_NAVPOSE_FRAMES_DICT
-    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
 
     speed_pan_dps = 0
     scan_pan_speed = 0
@@ -235,6 +222,7 @@ class PTXActuatorIF:
     last_track_msg = None
     track_dict = None
 
+    navpose_frame = 'None'
     ### IF Initialization
     def __init__(self,  device_info, 
                  capSettings, factorySettings, 
@@ -461,7 +449,6 @@ class PTXActuatorIF:
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
-        self.status_msg.device_mount_description = self.get_mount_description() 
 
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_timed_positioning = self.has_timed_positioning
@@ -573,7 +560,7 @@ class PTXActuatorIF:
                 'namespace': self.namespace,
                 'factory_val': self.factoryLimits['max_tilt_softstop_deg']
             },
-            'mount_desc': {
+            'navpose_frame': {
                 'namespace': self.namespace,
                 'factory_val': 'None'
             }
@@ -600,13 +587,6 @@ class PTXActuatorIF:
                 'topic': 'status',
                 'msg': DevicePTXStatus,
                 'qsize': 10,
-                'latch': False
-            },
-            'navpose_pub': {
-                'msg': NavPose,
-                'namespace': self.namespace,
-                'topic': 'navpose',
-                'qsize': 1,
                 'latch': False
             },
             'pan_tilt_pub': {
@@ -816,41 +796,8 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self.setAutoTiltWindowHandler, 
                 'callback_args': ()
-            },
-            '''
-            'set_auto_tilt_sin': {
-                'namespace': self.namespace,
-                'topic': 'set_auto_tilt_sin_enable',
-                'msg': Bool,
-                'qsize': 1,
-                'callback': self.setSinTiltHandler, 
-                'callback_args': ()
-            },
-            '''
-            'set_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'set_mount_description',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setMountDescCb, 
-                'callback_args': ()
-            },
-            'reset_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'reset_mount_description',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
-                'callback_args': ()
-            },
-            'sys_navpose_sub': {
-                'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,
-                'qsize': 1,
-                'callback': self.navposeSysCb, 
-                'callback_args': ()
             }
+            
         }
         
         
@@ -928,72 +875,15 @@ class PTXActuatorIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-        '''
-        ##############################
-        # Setup Save Data IF Classes ####################
-        if self.getNavPoseCb is not None:
-            self.data_products_list.append('navpose')
-            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
-            factory_data_rates = {}
-            for d in self.data_products_list:
-                factory_data_rates[d] = [0.0, 0.0, 100] # Default to 10Hz save rate, set last save = 0.0, max rate = 100Hz
+    
 
-            factory_filename_dict = {
-                'prefix': "", 
-                'add_timestamp': True, 
-                'add_ms': True,
-                'add_us': False,
-                'suffix': "ptx",
-                'add_node_name': True
-                }
-                
-            sd_namespace = self.namespace
-            self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                    factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict,
-                                    namespace = sd_namespace,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-
-        ############################
-        # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = self.namespace
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-                        get_3d_transform_function = None,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-        ##################################
-        # Start Node Processes
-        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
-        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)
-
-      
-        ###############################
-        # Create a NPX Device IF
-        if self.getNavPoseCb is not None:
-            self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            self.npx_if = NPXDeviceIF(device_info, 
-                data_source_description = self.data_source_description,
-                data_ref_description = self.data_ref_description,
-                getNavPoseCb = self.getNavPoseCb,
-                get3DTransformCb = self.get_3d_transform,
-                max_navpose_update_rate = self.navpose_update_rate,
-                log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                )
-
-        '''
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
+
+
+
 
     ###############################
     # Class Methods
@@ -1854,110 +1744,6 @@ class PTXActuatorIF:
         self.node_if.set_param('sin_tilt_enabled', self.sin_tilt_enabled)
     '''
 
-
-    def setMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
-        self.mount_desc = msg.data
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
-    def resetMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
-        self.mount_desc = 'None'
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
-    def navposeSysCb(self,msg):
-        self.sys_navpose_dict = nepi_nav.convert_navpose_msg2dict(msg,self.log_name_list)
-
-    def setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
-        transform_msg = msg
-        x = transform_msg.translate_vector.x
-        y = transform_msg.translate_vector.y
-        z = transform_msg.translate_vector.z
-        roll = transform_msg.rotate_vector.x
-        pitch = transform_msg.rotate_vector.y
-        yaw = transform_msg.rotate_vector.z
-        heading = transform_msg.heading_offset
-        transform = [x,y,z,roll,pitch,yaw,heading]
-        self.setFrame3dTransform(transform)
-
-
-    def get_3d_transform(self):
-        transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
-        return transform
-
-    def get_navpose_dict(self):
-        navpose_dict = copy.deepcopy(self.navpose_dict)
-        # Transform navpose in ENU and WSG84 frames
-        frame_3d_transform = self.get_3d_transform()
-        if frame_3d_transform is not None:
-            navpose_dict = nepi_nav.transform_navpose_dict(navpose_dict,frame_3d_transform, output_frame_3d = 'nepi_frame')
-                    
-        # Transform navpose data frames to system set frames
-        frame_nav = self.navpose_frames_dict['frame_nav']
-        frame_alt = self.navpose_frames_dict['frame_alt']
-        frame_depth = self.navpose_frames_dict['frame_depth']
-        
-        if navpose_dict['frame_nav'] != frame_nav:
-            if navpose_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
-                nepi_nav.convert_navpose_ned2enu(navpose_dict)
-            elif navpose_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
-                nepi_nav.convert_navpose_enu2ned(navpose_dict)
-        if navpose_dict['frame_altitude'] != frame_alt:
-            if navpose_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
-                nepi_nav.convert_navpose_amsl2wgs84(navpose_dict)
-            elif navpose_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
-                nepi_nav.convert_navpose_wgs842amsl(navpose_dict)
-        #if navpose_dict['frame_depth'] != 'MSL':
-        #    if navpose_dict['frame_depth'] == 'DEPTH':
-        #        pass # need to add conversions   
-        return navpose_dict
-
-        
-    def publish_navpose(self):
-        navpose_dict = self.get_navpose_dict()
-        timestamp = nepi_utils.get_time()
-        # Publish navpose at same rate
-        #self.msg_if.pub_warn("NavPose Dict: " + str(navpose_dict), throttle_s = 5)
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        #self.msg_if.pub_warn("NavPose Msg: " + str(navpose_msg), throttle_s = 5)
-
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-            self.save_data_if.save('navpose',navpose_dict,timestamp = timestamp,save_check=True)
-
-    def navPoseUpdaterCb(self,timer):
-        navpose_dict = None
-        if navpose_dict is None:
-            navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-        if navpose_dict is not None:
-            frame_3d = 'nepi_frame'
-        else:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            frame_3d = 'sensor_frame'
-
- 
-        self.navpose_dict = navpose_dict
-        self.publish_navpose()
-    
-        delay = float(1.0)/self.navpose_update_rate
-        nepi_sdk.start_timer_process(1.0, self.navPoseUpdaterCb, oneshot = True) 
-
-    def navposeFramesCheckCb(self,timer):
-        self.navpose_frames_dict = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
-        nepi_sdk.start_timer_process(1.0, self.navposeFramesCheckCb, oneshot = True)         
-
-
-    def get_mount_description(self):
-        desc = self.device_mount_description
-        if self.mount_desc != 'None':
-            desc = self.mount_desc
-        return desc
-
     def provideCapabilities(self, _):
         return self.capabilities_report
     
@@ -2058,10 +1844,6 @@ class PTXActuatorIF:
             self.save_data_if.reset()
         if self.settings_if is not None:
             self.settings_if.reset()
-        if self.transform_if is not None:
-            self.transform_if.reset()
-        if self.navpose_if is not None:
-            self.navpose_if.reset()
         if do_updates == True:
             pass
         self.initCb(do_updates = True)
@@ -2073,10 +1855,6 @@ class PTXActuatorIF:
             self.save_data_if.factory_reset()
         if self.settings_if is not None:
             self.settings_if.factory_reset()
-        if self.transform_if is not None:
-            self.transform_if.factory_reset()
-        if self.navpose_if is not None:
-            self.navpose_if.factory_reset()
         if do_updates == True:
             pass
         self.initCb(do_updates = True)
@@ -2131,7 +1909,6 @@ class PTXActuatorIF:
         #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
         self.status_msg.device_name = self.device_name
-        self.status_msg.device_mount_description = self.get_mount_description()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             
@@ -2252,14 +2029,6 @@ class PTXActuatorIF:
         #self.status_msg.sin_tilt_enabled = self.sin_tilt_enabled
 
         
-
-
-        #self.status_msg.frame_3d = self.frame_3d
-        transform = self.get_3d_transform()
-        transform_msg = nepi_nav.convert_transform_list2msg(transform)
-        transform_msg.source_ref_description = self.tr_source_ref_description
-        transform_msg.end_ref_description = self.tr_end_ref_description
-        self.status_msg.frame_3d_transform = transform_msg
         #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
         #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
         if self.node_if is not None:

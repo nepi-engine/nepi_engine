@@ -32,7 +32,6 @@ from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import Frame3DTransform
-from nepi_interfaces.msg import NavPose
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -80,23 +79,15 @@ class LSXDeviceIF:
 
     node_if = None
     settings_if = None
-    save_data_if = None
-    transform_if = None
-    npx_if = None
-    navpose_if = None
 
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
-    frame_3d = 'nepi_frame'
-    tr_source_ref_description = 'light_center'
-    tr_end_ref_description = 'nepi_frame'
+    navpose_frame = 'nepi_frame'
 
     data_source_description = 'lighting_device'
-    data_ref_description = 'sensor'
-    device_mount_description = 'fixed'
+    data_ref_description = 'device'
 
-    mount_desc = 'None'
 
     #######################
     ### IF Initialization    
@@ -104,7 +95,7 @@ class LSXDeviceIF:
                  factorySettings, settingUpdateFunction, getSettingsFunction,
                  factoryControls = None, 
                  data_source_description = 'lighting_device',
-                 data_ref_description = 'sensor',
+                 data_ref_description = 'device',
                  standbyEnableFunction = None, turnOnOffFunction = None,
                  setIntensityRatioFunction = None, 
                  color_options_list =  None, setColorFunction = None,
@@ -248,7 +239,6 @@ class LSXDeviceIF:
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
-        self.status_msg.device_mount_description = self.get_mount_description() 
         ##################################################
         ### Node Class Setup
 
@@ -299,7 +289,7 @@ class LSXDeviceIF:
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
             },
-            'mount_desc': {
+            'navpose_frame': {
                 'namespace': self.namespace,
                 'factory_val': 'None'
             }
@@ -413,20 +403,12 @@ class LSXDeviceIF:
                 'callback': self.resetControlsCb, 
                 'callback_args': ()
             },
-            'set_mount_desc': {
+            'set_navpose_frame': {
                 'namespace': self.namespace,
-                'topic': 'set_mount_description',
+                'topic': 'set_navpose_frame',
                 'msg': String,
                 'qsize': 1,
                 'callback': self.setMountDescCb, 
-                'callback_args': ()
-            },
-            'reset_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'reset_mount_description',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
                 'callback_args': ()
             }
 
@@ -459,18 +441,6 @@ class LSXDeviceIF:
 
         self.publish_status()
 
-        ###############################
-        # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = nepi_sdk.create_namespace(self.namespace,'lsx')
-
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-                        get_3d_transform_function = self.get_3d_transform,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
 
 
         # Setup Settings IF Class ####################
@@ -490,45 +460,6 @@ class LSXDeviceIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-
-        '''
-        self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
-        # Setup Save Data IF Class ####################
-        factory_data_rates = {}
-        for d in self.data_products:
-            factory_data_rates[d] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-
-        factory_filename_dict = {
-            'prefix': "", 
-            'add_timestamp': True, 
-            'add_ms': True,
-            'add_us': False,
-            'suffix': "",
-            'add_node_name': True
-            }
-
-        sd_namespace = self.namespace
-        self.save_data_if = SaveDataIF(data_products = self.data_products_list,
-                                factory_rate_dict = factory_data_rates,
-                                factory_filename_dict = factory_filename_dict,
-                                namespace = sd_namespace,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-        
- 
-        # Setup navpose data IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        log_name = 'navpose',
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
-
-        time.sleep(1)
-        '''
         
         ####################################
         self.ready = True
@@ -574,16 +505,16 @@ class LSXDeviceIF:
 
 
     def setMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
-        self.mount_desc = msg.data
+        self.msg_if.pub_info("Recived set navpose_frame message: " + str(msg))
+        self.navpose_frame = msg.data
         self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
+        self.node_if.set_param('navpose_frame', self.navpose_frame)
 
     def resetMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
-        self.mount_desc = 'None'
+        self.msg_if.pub_info("Recived reset navpose_frame message: " + str(msg))
+        self.navpose_frame = 'None'
         self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
+        self.node_if.set_param('navpose_frame', self.navpose_frame)
 
     def initConfig(self):
         self.initCb(do_updates = True)
@@ -600,10 +531,6 @@ class LSXDeviceIF:
         self.node_if.reset_params()
       if self.save_data_if is not None:
           self.save_data_if.reset()
-      if self.settings_if is not None:
-          self.settings_if.reset()
-      if self.transform_if is not None:
-          self.transform_if.reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -615,8 +542,6 @@ class LSXDeviceIF:
           self.save_data_if.factory_reset()
       if self.settings_if is not None:
           self.settings_if.factory_reset()
-      if self.transform_if is not None:
-          self.transform_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -657,7 +582,6 @@ class LSXDeviceIF:
     ### Status callback
     def publish_status(self):
         self.status_msg.device_name = self.device_name
-        self.status_msg.device_mount_description = self.get_mount_description()
         # update status values from device
         if self.node_if is not None:
             blink_interval = self.node_if.get_param('blink_interval_sec')
@@ -674,40 +598,7 @@ class LSXDeviceIF:
                 except Exception as e:
                     self.msg_if.pub_info("Failed to publish status msg with exception: " + str(e))
 
-    def get_3d_transform(self):
-        transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
-        return transform
-        
-    '''
-    def get_navpose_dict(self):
-        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        if self.nav_mgr_if is not None:
-            navpose_dict = self.nav_mgr_if.get_navpose_dict()
-        return navpose_dict
 
-        
-    def publish_navpose(self):
-        self.np_status_msg.publishing = True
-        if self.navpose_if is not None:
-            np_dict = self.get_navpose_dict()
-            self.navpose_if.publish_navpose(np_dict, device_mount_description = self.get_mount_description())
-
-
-    def _publishNavPoseCb(self,timer):
-        self.publish_navpose()
-        rate = 1
-        if self.nav_mgr_if is not None:
-            rate = self.nav_mgr_if.get_pub_rate()
-        delay = float(1.0) / rate
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
-    '''
-    def get_mount_description(self):
-      desc = self.device_mount_description
-      if self.mount_desc != 'None':
-          desc = self.mount_desc
-      return desc
 
     ### Capabilities callback
     def capabilities_query_callback(self, _):

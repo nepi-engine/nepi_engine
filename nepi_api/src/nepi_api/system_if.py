@@ -21,6 +21,14 @@
 import os
 import time 
 import copy
+import numpy as np
+import copy
+import threading
+
+os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
+import open3d as o3d
+
+import cv2
 
 
 from nepi_sdk import nepi_sdk
@@ -51,8 +59,362 @@ from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest,
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
-from nepi_api.data_if import ReadWriteIF
 
+
+################################################
+## ReadWriteIF
+
+
+class ReadWriteIF:
+
+    ready = False
+    
+    # Save data variables
+    filename_dict = {
+        'prefix': "",
+        'suffix': "",
+        'add_timestamp': True, 
+        'use_utc_tz': True,
+        'add_ms': True,
+        'add_us': False,
+        'add_tz': True,
+        'add_node_name': True
+        }
+
+    node_if = None
+
+
+    #######################
+    ### IF Initialization
+    def __init__(self,
+                filename_dict = None,
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        
+
+        #############################
+        # Initialize Class Variables
+        if filename_dict is not None:
+            for key in self.filename_dict.keys():
+                if key in filename_dict.keys():
+                    self.filename_dict[key] = filename_dict[key]
+
+        self.data_dict = {
+            'dict': {
+                'data_type': dict,
+                'file_types': ['yaml'],
+                'read_function': self.read_dict_file,
+                'write_function': self.write_dict_file
+            },
+            'image': {
+                'data_type': np.ndarray,
+                'file_types': ['png','PNG','jpg','jpeg','JPG'],
+                'read_function': self.read_image_file,
+                'write_function': self.write_image_file 
+            },
+            'pointcloud': {
+                'data_type': o3d.geometry.PointCloud,
+                'file_types': ['pcd'],
+                'read_function': self.read_pointcloud_file,
+                'write_function': self.write_pointcloud_file 
+            },
+        }
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        ###############################
+
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            timer = 0
+            time_start = nepi_utils.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_utils.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+        return self.ready   
+        
+
+    def get_namespace(self):
+        return self.namespace
+
+    def get_supported_data_dict(self):
+        return self.data_dict
+
+
+    def get_filename_prefix(self):
+        return self.filename_dict['prefix']
+
+    def set_filename_prefix(self, prefix = ''):
+        self.filename_dict['prefix'] = prefix
+
+    def get_use_utc_tz(self):
+        return self.filename_dict['use_utc_tz']
+
+    def set_use_utc_tz(self, use_utc_tz):
+        self.filename_dict['use_utc_tz'] = use_utc_tz
+
+    def get_add_timestamp(self):
+        return self.filename_dict['add_timestamp']
+
+    def set_add_timestamp(self, add_timestamp):
+        self.filename_dict['add_timestamp'] = add_timestamp
+
+    def get_add_ms(self):
+        return self.filename_dict['add_ms']
+
+    def set_add_ms(self, add_ms):
+        self.filename_dict['add_ms'] = add_ms
+
+    def get_add_us(self):
+        return self.filename_dict['add_us']
+
+    def set_add_us(self, add_us):
+        self.filename_dict['add_us'] = add_us
+
+    def get_add_tz(self):
+        return self.filename_dict['add_tz']
+
+    def set_add_tz(self, add_tz):
+        self.filename_dict['add_tz'] = add_tz
+
+
+    def get_filename_dict(self):
+        return self.filename_dict
+    
+    def set_filename_dict(self,filename_dict):
+        for key in self.filename_dict.keys():
+            if key not in filename_dict.keys():
+                filename_dict[key] = self.filename_dict[key]
+
+        self.filename_dict = filename_dict
+        return self.filename_dict
+
+
+    def get_folder_files(self, path, ext_str = ""):
+        file_list = nepi_utils.get_file_list(path,ext_str=ext_str)
+        return file_list
+
+    def get_time_from_filename(self,filename):
+        file_time = None
+        dt_str = self._getDtStr(filename)
+        file_time = nepi_utils.get_time_from_datetime_str(dt_str)
+        return file_time
+
+
+
+    def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
+        data_type = type(data)
+        found_type = False
+        for data_key in self.data_dict:
+            if data_type == self.data_dict[data_key]['data_type']:
+                save_function = self.data_dict[data_key]['write_function']
+                self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
+                save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
+                found_type = True
+        if found_type == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) , log_name_list = self.log_name_list)
+
+
+    def read_dict_file(self, filepath, filename):
+        data_key = 'dict'
+        data = None
+        ext_str = os.path.splitext(filename)[1]
+        file_types = self.data_dict[data_key]['file_types']
+        if ext_str not in file_types:
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+        else:
+            file_path = os.path.join(filepath,filename)
+            data_type = self.data_dict[data_key]['data_type']
+            if isinstance(read_data,data_type) == False:
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+            else:
+                data = nepi_utils.read_yaml_2_dict(file_path)
+        return data
+
+    def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
+        data_key = 'dict'
+        success = False
+        data_type = self.data_dict[data_key]['data_type']
+        if isinstance(data,data_type) == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+        else:
+            file_types = self.data_dict[data_key]['file_types']
+            if ext_str not in file_types:
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            else:
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                file_path = os.path.join(filepath,filename)
+                if os.path.exists(file_path) == True:
+                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                else:
+                    success = nepi_utils.write_dict_2_yaml(data, file_path)
+        return success
+
+
+    def read_image_file(self, filepath, filename):
+        data_key = 'image'
+        data = None
+        ext_str = os.path.splitext(filename)[1]
+        file_types = self.data_dict[data_key]['file_types']
+        if ext_str not in file_types:
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+        else:
+            file_path = os.path.join(filepath,filename)
+            data_type = self.data_dict[data_key]['data_type']
+            if isinstance(read_data,data_type) == False:
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+            else:
+                data = nepi_img.read_image_file(file_path)
+        return data
+
+    def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
+        data_key = 'image'
+        success = False
+        data_type = self.data_dict[data_key]['data_type']
+        if isinstance(data,data_type) == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)), log_name_list = self.log_name_list)
+        else:
+            file_types = self.data_dict[data_key]['file_types']
+            if ext_str not in file_types:
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            else:
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                file_path = os.path.join(filepath,filename)
+                if os.path.exists(file_path) == True:
+                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                else:
+                    success = nepi_img.write_image_file(data, file_path)
+        return success
+
+
+    def read_pointcloud_file(self, filepath, filename):
+        data_key = 'pointcloud'
+        data = None
+        ext_str = os.path.splitext(filename)[1]
+        file_types = self.data_dict[data_key]['file_types']
+        if ext_str not in file_types:
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+        else:
+            file_path = os.path.join(filepath,filename)
+            data_type = self.data_dict[data_key]['data_type']
+            if isinstance(read_data,data_type) == False:
+                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+            else:
+                data = nepi_pc.read_pointcloud_file(file_path)
+        return data
+
+    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
+        data_key = 'pointcloud'
+        success = False
+        data_type = self.data_dict[data_key]['data_type']
+        if isinstance(data,data_type) == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+        else:
+            file_types = self.data_dict[data_key]['file_types']
+            if ext_str not in file_types:
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            else:
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                file_path = os.path.join(filepath,filename)
+                if os.path.exists(file_path) == True:
+                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                else:
+                    success = nepi_pc.write_pointcloud_file(file_path)
+        return success
+
+
+    def get_example_filename(self, data_name = 'data_product', timestamp = None, timezone = None, ext_str = 'ext'):
+        filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+        return filename
+    ###############################
+    # Class Private Methods
+    ###############################
+
+    def _createFileName(self, data_name_str, timestamp = None, timezone = None, ext_str = ""):
+        if timestamp == None:
+            timestamp = nepi_utils.get_time()
+        prefix = self.filename_dict['prefix']
+        if len(prefix) > 0:
+            if prefix[-1] != '_':
+                prefix = prefix + '_'
+        suffix = self.filename_dict['suffix']
+        if len(suffix) > 0:
+            if suffix[0] != '_':
+                suffix = '_' + suffix
+        add_time = self.filename_dict['add_timestamp']
+        data_time_str = ''
+        if add_time == True:
+            time_ns = nepi_sdk.sec_from_timestamp(timestamp)
+            add_ms = self.filename_dict['add_ms']
+            add_us = self.filename_dict['add_us']
+            add_tz = self.filename_dict['add_tz']
+            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, add_tz = add_tz, timezone = timezone) + '_'
+        node_name_str = ""
+        if self.filename_dict['add_node_name'] == True:
+            node_name_str = self.node_name
+        if len(ext_str) > 0:
+            ext_str  = '.' + ext_str
+        if len(data_name_str) >  0:
+            data_name_str = '-' + data_name_str
+        filename = prefix + data_time_str + node_name_str + data_name_str + suffix + ext_str
+        return filename
+
+    
+    def _getDtStr(self,filename):
+        d_inds = nepi_utils.find_all_indexes(filename, 'D')
+        dt_ind = None
+        dt_str = filename
+        for ind in d_inds:
+            if len(filename) >= ind + 1:
+                if filename[ind + 1].isdigit() == True:
+                    dt_ind = ind
+                    break
+        dt_str = dt_str[dt_ind:]
+        dt_str = dt_str.split('_')[0]
+        return dt_str
+                
+
+
+
+
+################################################
+## SaveDataIF
 
 FALLBACK_DATA_FOLDER = '/mnt/nepi_storage/data'
 
@@ -72,6 +434,7 @@ EXAMPLE_RATE_DICT = {
 
 EXAMPLE_FILENAME_DICT = {
     'prefix': "", 
+    'subfolder': "",
     'add_timestamp': True, 
     'use_utc_tz': True,
     'add_ms': True,
@@ -99,6 +462,7 @@ class SaveDataIF:
 
     filename_dict = {
         'prefix': "", 
+        'subfolder': "", 
         'add_timestamp': True, 
         'use_utc_tz': True,
         'add_ms': True,
@@ -240,6 +604,10 @@ class SaveDataIF:
             'filename_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
+            },
+            'filename_dict': {
+                'namespace': self.namespace,
+                'factory_val': self.filename_dict
             }
         }
 
@@ -283,12 +651,28 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
+            'log_navpose_enable': {
+                'namespace': self.namespace,
+                'msg': Bool,
+                'topic': 'log_navpose_enable',
+                'qsize': 1,
+                'callback': self._losgNavPoseEnableCb, 
+                'callback_args': ()
+            }, 
             'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
+                'callback_args': ()
+            },
+            'subfolder': {
+                'namespace': self.namespace,
+                'msg': String,
+                'topic': 'save_data_subfolder',
+                'qsize': 1,
+                'callback': self._setSubfolderCb, 
                 'callback_args': ()
             },
             'save_data_utc': {
@@ -339,12 +723,28 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },
+            'log_navpose_enable': {
+                'namespace': self.base_namespace,
+                'msg': Bool,
+                'topic': 'log_navpose_enable',
+                'qsize': 1,
+                'callback': self._losgNavPoseEnableCb, 
+                'callback_args': ()
+            }, 
             'prefix_all': {
                 'namespace': self.base_namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
                 'qsize': 1,
                 'callback': self._setPrefixCb, 
+                'callback_args': ()
+            },
+            'subfolder_all': {
+                'namespace': self.base_namespace,
+                'msg': String,
+                'topic': 'save_data_subfolder',
+                'qsize': 1,
+                'callback': self._setSubfolderCb, 
                 'callback_args': ()
             },
             'use_local_tz_all': {
@@ -431,6 +831,8 @@ class SaveDataIF:
         return self.ready    
 
             
+    def get_namespace(self):
+        return self.namespace
 
     def register_data_product(self, data_product):
         save_rate_dict = self.save_rate_dict
@@ -443,66 +845,46 @@ class SaveDataIF:
 
     def update_filename_dict(self,filename_dict):
         if self.filename_dict != filename_dict:
-            cur_prefix = self.filename_dict['prefix']
             if 'prefix' in filename_dict.keys():
-                new_prefix = filename_dict['prefix']
-            else:
-                new_prefix = cur_prefix
+               new_prefix = filename_dict['prefix']
+               self.filename_dict['prefix'] = nepi_utils.get_clean_name(new_prefix)
 
+            if 'subfolder' in filename_dict.keys():
+                new_subfolder= nepi_utils.get_clean_name(filename_dict['subfolder'])
+                 
 
-            # Get the file floder and file info from prefix
-            if '\\' not in new_prefix:
-                if new_prefix.find('/') == -1:
-                    subfolder = ""
-                    file_prefix = new_prefix
-                else:
-                    prefix_split = new_prefix.rsplit('/',1)
-                    subfolder = prefix_split[0]
-                    file_prefix = prefix_split[1]
-                # Now ensure the directory exists if this prefix defines a subdirectory
-            else:
-                subfolder = ""
-                file_prefix = ""
-            self.file_prefix = file_prefix
-
-            # Apply Updates
-            for key in self.filename_dict.keys():
-                if key in filename_dict.keys():
-                    self.filename_dict[key] = filename_dict[key]        
-            if self.read_write_if is not None:
-                filename_dict = copy.deepcopy(self.filename_dict)
-                filename_dict['prefix'] = file_prefix
-                self.read_write_if.update_filename_dict(filename_dict)
-            if self.node_if is not None:
-                self.node_if.set_param('filename_dict',self.filename_dict)
-            self.publish_status()
-
-            if cur_prefix != new_prefix:
-                if subfolder != "" and self.save_data_root_directory != None:
-                    full_path = os.path.join(self.save_data_root_directory, subfolder)
+                if new_subfolder != "" and self.save_data_root_directory != None:
+                    full_path = os.path.join(self.save_data_root_directory, new_subfolder)
                 elif self.save_data_root_directory != None:
                     full_path = self.save_data_root_directory
                 else:
                     full_path = ""
-                self.msg_if.pub_debug("DEBUG!!!! Computed full path " + full_path + " and parent path " + parent_path)
-                if self.subfolder != subfolder:
-                    if not os.path.exists(full_path):
-                        self.msg_if.pub_debug("Creating new data subdirectory " + full_path)
-                        try:
-                            os.makedirs(full_path)
-                            os.chown(full_path, self.DATA_UID, self.DATA_GID)
-                            self.save_path = full_path
-                            self.subfolder  = subfolder
-                        except Exception as e:
-                            self.save_path = self.save_data_root_directory # revert to root folder
-                            self.subfolder  = ""
-                            self.msg_if.pub_warn("Could not create save folder " + subfolder + str(e) )
-                    else:
-                        self.save_path = full_path
-                        self.subfolder  = subfolder
-                    self.publish_status()
 
+                if not os.path.exists(full_path):
+                    self.msg_if.pub_debug("Creating new data subdirectory " + full_path)
+                    try:
+                        os.makedirs(full_path)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Could not create save folder " + new_subfolder + str(e) )
+                if os.path.exists(full_path):
+                    try:
+                        os.chown(full_path, self.DATA_UID, self.DATA_GID)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Could not chmod on save folder " + full_path + str(e) )
+                    self.save_path = full_path
+                    filename_dict['subfolder'] = new_subfolder
 
+            # Apply Updates
+            for key in self.filename_dict.keys():
+                if key in filename_dict.keys():
+                    self.filename_dict[key] = filename_dict[key]  
+
+            self.publish_status()
+            if self.read_write_if is not None:
+                self.read_write_if.set_filename_dict(filename_dict)
+            if self.node_if is not None:
+                self.node_if.set_param('filename_dict',self.filename_dict)
+                self.node_if.save_config()
 
     def set_save_rate(self,data_product,save_rate_hz=0):
         save_all = SaveDataRate().ALL_DATA_PRODUCTS
@@ -527,7 +909,9 @@ class SaveDataIF:
         self.save_rate_dict = save_rate_dict     
         #self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
         self.publish_status()
-        self.node_if.set_param('save_rate_dict',save_rate_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('save_rate_dict',save_rate_dict)
+            self.node_if.save_config()
         
     def save_data_enable(self, enabled):
         if enabled == True and self.was_saving == False:
@@ -537,14 +921,15 @@ class SaveDataIF:
         else:
             self.was_saving = False
         self.save_data = enabled
-        self.publish_status()     
-        self.node_if.set_param('save_data', enabled)  
+        self.publish_status()    
+        if self.node_if is not None: 
+            self.node_if.set_param('save_data', enabled)  
+            self.node_if.save_config()
 
-
-    def get_saving_enable(self):
+    def get_saving_enabled(self):
         return self.save_data
 
-    def data_product_saving_enabled(self, data_product):
+    def data_product_save_enabled(self, data_product):
         # If saving is disabled for this node, then no data products are saving
         try:
             save_rate_dict = self.save_rate_dict
@@ -559,6 +944,23 @@ class SaveDataIF:
             return (save_rate > 0.0)
         except:
             return False
+        
+    def data_product_save_rate(self, data_product):
+        # If saving is disabled for this node, then no data products are saving
+        try:
+            save_rate_dict = self.save_rate_dict
+            if self.save_data == False:
+                return False
+
+            if data_product not in save_rate_dict:
+                self.msg_if.pub_warn("Unknown data product " + data_product)
+                return False
+
+            save_rate = save_rate_dict[data_product][0]
+            return save_rate
+        except:
+            return 0.0
+
 
 
     def data_product_should_save(self, data_product):
@@ -655,7 +1057,8 @@ class SaveDataIF:
     def create_filename_msg(self):
         fn_msg = FilenameConfig()
         fn_dict = self.filename_dict
-        fn_msg.prefix = fn_dict['prefix']
+        fn_msg.save_prefix = fn_dict['prefix']
+        fn_msg.save_subfolder = fn_dict['subfolder']
         fn_msg.add_timestamp = fn_dict['add_timestamp']
         fn_msg.use_utc_tz = fn_dict['use_utc_tz']
         fn_msg.add_ms = fn_dict['add_ms']
@@ -677,16 +1080,21 @@ class SaveDataIF:
                 self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
             status_msg = SaveDataStatus()
             status_msg.filename_config = self.create_filename_msg()
-            status_msg.current_data_dir = self.save_path
-            status_msg.current_filename_prefix = self.filename_dict['prefix']
-            status_msg.current_subfolder = self.subfolder
+            status_msg.data_dir = self.save_path
+            status_msg.filename_prefix = self.filename_dict['prefix']
+            status_msg.save_subfolder = self.filename_dict['subfolder']
             status_msg.save_data_utc = self.filename_dict['use_utc_tz']
-            status_msg.current_timezone = self.timezone
+            status_msg.timezone = self.timezone
             status_msg.save_data_rates = save_rates_msg
             status_msg.save_data_enabled = self.save_data
+            log_navpose_enabled = False
+            if 'navpose' in save_rate_dict.keys():
+                if save_rate_dict['navpose'][0] > 0:
+                    log_navpose_enabled = True
+            status_msg.log_navpose_enabled = log_navpose_enabled
 
             if self.save_data_root_directory is not None:
-                status_msg.current_data_dir = self.save_data_root_directory
+                status_msg.data_dir = self.save_data_root_directory
 
             if self.filename_dict['use_utc_tz'] == False:
                 timezone = self.timezone
@@ -709,9 +1117,11 @@ class SaveDataIF:
             self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
             self.update_filename_dict(filename_dict)
+            self.node_if.save_config()
         if do_updates == True:
             pass
         self.publish_status()
+        
 
     def reset(self):
         if self.node_if is not None:
@@ -758,6 +1168,12 @@ class SaveDataIF:
         filename_dict['prefix'] = prefix
         self.update_filename_dict(filename_dict)
 
+    def _setSubfolderCb(self, msg):
+        subfolder = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['subfolder'] = subfolder
+        self.update_filename_dict(filename_dict)
+
     def _setLocalTzCb(self, msg):
         use_utc = msg.data
         filename_dict = copy.deepcopy(self.filename_dict)
@@ -776,6 +1192,16 @@ class SaveDataIF:
         save_rate_hz = msg.save_rate_hz
         self.set_save_rate(data_product,save_rate_hz)
 
+
+    def _losgNavPoseEnableCb(self, msg):
+        self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
+        enabled = msg.data
+        if enabled == True:
+           save_rate_hz = self.save_rate_dict
+        else:
+            save_rate_hz = 0
+        data_product = 'navpose'
+        self.set_save_rate(data_product,save_rate_hz)
 
 
     def _saveEnableCb(self, msg):
@@ -862,7 +1288,7 @@ class Transform3DIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = self.node_namespace
-        namespace = nepi_sdk.create_namespace(namespace,'frame_3d_transform')
+        namespace = nepi_sdk.create_namespace(namespace,'navpose_frame_transform')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.source = source_ref_description
@@ -928,7 +1354,7 @@ class Transform3DIF:
             self.SUBS_DICT = None
         else:
             self.SUBS_DICT = {
-                'clear_frame_3d_transform': {
+                'clear_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'clear_3d_transform',
                     'msg': Empty,
@@ -936,7 +1362,7 @@ class Transform3DIF:
                     'callback': self._clearFrame3dTransformCb, 
                     'callback_args': ()
                 },
-                'set_frame_3d_transform': {
+                'set_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'set_3d_transform',
                     'msg': Frame3DTransform,
@@ -996,6 +1422,9 @@ class Transform3DIF:
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
+    
+    def get_namespace(self):
+        return self.namespace
 
     def get_zero_3d_transform(self):
         return ZERO_TRANSFORM
@@ -1382,6 +1811,9 @@ class SettingsIF:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
 
+    def get_namespace(self):
+        return self.namespace
+
     def publish_status(self):
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
@@ -1628,6 +2060,9 @@ class StatesIF:
         return self.ready  
 
 
+    def get_namespace(self):
+        return self.namespace
+
 
     ###############################
     # Class Private Methods
@@ -1777,6 +2212,9 @@ class TriggersIF:
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
         return self.ready  
+
+    def get_namespace(self):
+        return self.namespace
 
 
     def publish_trigger(self, trigger_dict):

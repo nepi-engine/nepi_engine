@@ -723,6 +723,26 @@ def find_topic(topic_name, exact = False):
           break
   return topic
 
+
+# Function to find a topic
+def find_topics(topic_names_list):
+  #log_msg_warn("msg find: " + str(msg_type_list))
+
+  topic_list = []
+  try:
+    topics=get_topic_list()
+    for topic_entry in topics:
+      topic_str = topic_entry[0]
+      #log_msg_warn("topics check: " + str(topic_str) + " in " + str(topic_names_list))
+      if isinstance(topic_str,str):
+        for topic_name in topic_names_list:
+          if topic_name == topic_str and topic_name not in topic_list:
+            topic_list.append(topic_name)
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_topics failed: " + str(e))
+  return topic_list
+
+
 # Function to find a topic
 def find_topics_by_msg(msg_type):
   #log_msg_warn("msg find: " + str(msg_type))

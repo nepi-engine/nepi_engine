@@ -668,7 +668,7 @@ class ConnectPointcloudIF:
 
 '''
 EXAMPLE_NAVPOSE_DATA_DICT = {
-    'frame_3d': 'ENU',
+    'navpose_frame': 'ENU',
     'frame_altitude': 'WGS84',
 
     'geoid_height_meters': 0,

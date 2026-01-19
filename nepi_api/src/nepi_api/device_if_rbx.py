@@ -53,7 +53,7 @@ from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorContr
 
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
-from nepi_interfaces.msg import NavPose
+from nepi_interfaces.msg import NavPose, NavPoses
 from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF
@@ -170,17 +170,15 @@ class RBXRobotIF:
     rbx_image_source_last = "None"
     init_image_status_overlay = False
 
-    frame_3d = 'nepi_frame'
     tr_source_ref_description = 'system_center'
     tr_end_ref_description = 'nepi_frame'
 
     data_source_description = 'control_system'
     data_ref_description = 'control_system'
-    device_mount_description = 'system_mounted'
-    mount_desc = 'None'
 
     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    sys_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    navpose_frame = 'nepi_frame'
+    sys_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
     ### IF Initialization
     def __init__(self, device_info, capSettings, 
@@ -266,7 +264,6 @@ class RBXRobotIF:
         # Initialize status message
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
-        self.status_msg.device_mount_description = self.get_mount_description() 
 
 
         self.status_msg.process_current = "None"
@@ -469,9 +466,9 @@ class RBXRobotIF:
                 'namespace': self.namespace,
                 'factory_val': False
             },
-            'mount_desc': {
+            'navpose_frame': {
                 'namespace': self.namespace,
-                'factory_val': 'None'
+                'factory_val': self.navpose_frame
             }
 
         }
@@ -511,13 +508,6 @@ class RBXRobotIF:
                 'msg': String,
                 'qsize': 1,
                 'latch': True
-            },
-            'navpose_pub': {
-                'msg': NavPose,
-                'namespace': self.namespace,
-                'topic': 'navpose',
-                'qsize': 1,
-                'latch': False
             }
         }
      
@@ -699,28 +689,20 @@ class RBXRobotIF:
                 'callback': self.setProcessNameCb, 
                 'callback_args': ()
             },
-            'set_mount_desc': {
+            'set_navpose_frame': {
                 'namespace': self.namespace,
-                'topic': 'set_mount_description',
+                'topic': 'set_navpose_frame',
                 'msg': String,
                 'qsize': 1,
-                'callback': self.setMountDescCb, 
+                'callback': self.setNavposeFrameCb, 
                 'callback_args': ()
             },
-            'reset_mount_desc': {
-                'namespace': self.namespace,
-                'topic': 'reset_mount_description',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
-                'callback_args': ()
-            },
-            'sys_navpose_sub': {
+            'sys_navposes_sub': {
                 'namespace': self.base_namespace,
-                'topic': 'navpose',
-                'msg': NavPose,
+                'topic': 'navposes',
+                'msg': NavPoses,
                 'qsize': 1,
-                'callback': self.navposeSysCb, 
+                'callback': self.navposesSysCb, 
                 'callback_args': ()
             }
         }
@@ -893,8 +875,16 @@ class RBXRobotIF:
 
 
 
-    def navposeSysCb(self,msg):
-        self.sys_navpose_dict = nepi_nav.convert_convert_navpose_msg2dict(msg,self.log_name_list)
+    def navposesSysCb(self,msg):
+        navposes_dict = nepi_nav.convert_convert_navposes_msg2dict(msg,self.log_name_list)
+        navpose_frames = list(navposes_dict.keys())
+        if self.sys_navpose_frame in navpose_frames:
+            self.sys_navpose_dict = navposes_dict[self.sys_navpose_frame]
+        elif len(navpose_frames) > 0:
+            self.sys_navpose_dict = navposes_dict[navpose_frames[0]]
+        else:
+           self.sys_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+            
 
     def get_navpose_dict(self):
         np_dict = copy.deepcopy(self.navpose_dict)
@@ -913,12 +903,12 @@ class RBXRobotIF:
         start_time = nepi_utils.get_time()
         navpose_dict = copy.deepcopy(self.sys_navpose_dict)
         if navpose_dict is not None:
-            frame_3d = 'nepi_frame'
+            navpose_frame = 'nepi_frame'
             self.transform_if.set_end_description('nepi_frame')
                 
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            frame_3d = 'sensor_frame'
+            navpose_frame = 'sensor_frame'
             self.transform_if.set_end_description('sensor_frame')
 
         self.end_ref_description = self.transform_if.get_end_description()
@@ -1126,17 +1116,12 @@ class RBXRobotIF:
         self.msg_if.pub_info(set_process_name_msg)
         self.status_msg.process_current = (set_process_name_msg.data)
 
-    def setMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived set mount description message: " + str(msg))
-        self.mount_desc = msg.data
+    def setNavposeFrameCb(self,msg):
+        self.msg_if.pub_info("Recived set navpose_frame message: " + str(msg))
+        self.navpose_frame = msg.data
         self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)
-
-    def resetMountDescCb(self,msg):
-        self.msg_if.pub_info("Recived reset mount description message: " + str(msg))
-        self.mount_desc = 'None'
-        self.publish_status(do_updates=False) # Updated inline here 
-        self.node_if.set_param('mount_desc', self.mount_desc)         
+        self.node_if.set_param('navpose_frame', self.navpose_frame)
+ 
     
 
     ##############################
@@ -1407,11 +1392,6 @@ class RBXRobotIF:
             #self.msg_if.pub_info(self.rbx_info)
             self.node_if.publish_pub('rbx_info_pub',self.rbx_info)
 
-    def get_mount_description(self):
-      desc = self.device_mount_description
-      if self.mount_desc != 'None':
-          desc = self.mount_desc
-      return desc
 
  
 
@@ -1434,7 +1414,7 @@ class RBXRobotIF:
       self.msg_if.pub_info("************************", log_name_list = self.log_name_list)
       self.msg_if.pub_info("Starting Setpoint Attitude Process", log_name_list = self.log_name_list)
       ##############################################
-      # Capture Current NavPose Data
+      # Capture Current NavPoses Data
       ##############################################
       start_orientation_ned_degs=list(self.current_orientation_ned_degs)
       self.msg_if.pub_info("Attitude Current NED Roll, Pitch, Yaw in Degrees", log_name_list = self.log_name_list)
@@ -1919,7 +1899,6 @@ class RBXRobotIF:
 
     def publish_status(self):
         self.status_msg.device_name = self.device_name
-        self.status_msg.device_mount_description = self.get_mount_description()
         if self.getBatteryPercentFunction is not None:
           self.rbx_battery = self.getBatteryPercentFunction()
         else:

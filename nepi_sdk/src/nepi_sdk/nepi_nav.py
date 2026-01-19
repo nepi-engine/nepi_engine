@@ -68,7 +68,7 @@ if os.path.exists(GEOID_DATABASE_FILE):
     ginterpolator = pygeodesy.GeoidKarney(GEOID_DATABASE_FILE)
     file_loaded = True
   except Exception as e:
-    self.msg_if.pub_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
+    logger.log_warn("Geoids database failed to import: " + str(e), throttle_s = 5.0)
 if file_loaded is False:
   def ginterpolator(single_position):
     return FALLBACK_GEOID_HEIGHT_M
@@ -370,7 +370,7 @@ def convert_transform_msg2list(transform_msg):
       transform_list[6] = transform_msg.heading_offset
   return transform_list
 
-def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame', log_name_list = []):
+def transform_navpose_dict(npdata_dict, transform, log_name_list = []):
   success = True
   navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
   if npdata_dict is None:
@@ -387,8 +387,6 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
       yaw = transform[5]
       rotate_vector = [roll, pitch, yaw]
       try:
-
-        navpose_dict['frame_3d'] = output_frame_3d
 
         if npdata_dict['has_location'] == True:
           if x != 0 or y != 0 or z != 0:
@@ -429,7 +427,7 @@ def transform_navpose_dict(npdata_dict, transform, output_frame_3d = 'nepi_frame
 
       except Exception as e:
         success = False
-        self.msg_if.pub_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     if success == True:
       pass
   return navpose_dict
@@ -443,8 +441,7 @@ NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
 NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
 NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
 
-BLANK_NAVPOSE_FRAMES_DICT = {
-        'nepi_frame_desc': 'Undefined',
+BLANK_NAVPOSE_INFO_DICT = {
         'frame_nav': 'ENU',
         'frame_alt': 'WGS84',
         'frame_depth': 'DEPTH'
@@ -501,7 +498,8 @@ BLANK_PAN_TILT_DATA_DICT = {
 
 
 BLANK_NAVPOSE_DICT = {
-    'frame_3d': 'sensor_frame',
+    'navpose_frame': 'None',
+    'navpose_description': 'None',
     'frame_nav': 'ENU',
     'frame_altitude': 'WGS84',
     'frame_depth': 'MSL',
@@ -569,12 +567,11 @@ BLANK_NAVPOSE_TRACK_DICT = {
 }
 
 
-def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new,output_frame_3d = 'nepi_frame'):
+def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
     success = False
     np_dict = copy.deepcopy(npdata_dict_org)
     if npdata_dict_org is not None and npdata_dict_new is not None:
       try:
-        npdata_dict_org['frame_3d'] = output_frame_3d
         if npdata_dict_new['has_location'] == True:
             npdata_dict_org['time_location'] = npdata_dict_new['time_location']
             npdata_dict_org['latitude'] = npdata_dict_new['latitude']
@@ -672,7 +669,8 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg = NavPose()
       np_msg.header.stamp = nepi_sdk.get_msg_stamp()
 
-      np_msg.frame_3d = npdata_dict['frame_3d']
+      np_msg.navpose_frame = npdata_dict['navpose_frame']
+      np_msg.navpose_description = npdata_dict['navpose_description']
       np_msg.frame_nav = npdata_dict['frame_nav']
       np_msg.frame_altitude = npdata_dict['frame_altitude']
       np_msg.frame_depth = npdata_dict['frame_depth']
@@ -714,7 +712,7 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.tilt_deg = npdata_dict['tilt_deg']
     except Exception as e:
       np_msg = None
-      self.msg_if.pub_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
 
 def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
@@ -723,10 +721,19 @@ def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
     npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
     del npdata_dict['header']
   except Exception as e:
-    self.msg_if.pub_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return npdata_dict
 
-
+def convert_navposes_msg2dict(npsdata_msg, log_name_list = []):
+  npsdata_dict = None
+  for npdata_msg in npsdata_msg:
+    try:
+      npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
+      del npdata_dict['header']
+      npsdata_dict[npdata_dict['name']] = npdata_dict
+    except Exception as e:
+      logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+  return npsdata_dict
 
 def get_navpose_orientation_enu_degs(navpose_response):
   # Set current orientation vector (roll, pitch, yaw) in degrees enu frame
