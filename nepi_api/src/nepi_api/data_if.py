@@ -194,8 +194,8 @@ class NavPoseIF:
     data_poduct = 'navpose'
     data_products_list = ['navpose']
 
-    navposes_dict = dict()
-    navpose_info_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
     navpose_frames = ['None']
     navpose_frame = 'None'
 
@@ -682,9 +682,9 @@ class NavPoseIF:
 
             self.navpose_dict  = np_dict
             # Transform navpose data frames to system set frames
-            frame_nav = self.navpose_info_dict['frame_nav']
-            frame_alt = self.navpose_info_dict['frame_alt']
-            frame_depth = self.navpose_info_dict['frame_depth']
+            frame_nav = self.navpose_settings_dict['frame_nav']
+            frame_alt = self.navpose_settings_dict['frame_alt']
+            frame_depth = self.navpose_settings_dict['frame_depth']
             
             if np_dict['frame_nav'] != frame_nav:
                 if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
@@ -825,7 +825,7 @@ class NavPoseIF:
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _updaterCb(self,timer):
-        self.navpose_info_dict = nepi_system.get_navpose_info(log_name_list = self.log_name_list)
+        self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
         self.navpose_frame = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
 
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
@@ -873,7 +873,7 @@ class NavPoseTrackIF:
 
     data_product = 'navpose_track'
 
-    navpose_info_dict = nepi_nav.BLANK_NAVPOSE_INFO_DICT
+    navpose_settings_dict = nepi_nav.BLANK_NAVPOSE_INFO_DICT
 
     def __init__(self, namespace = None,
                 data_source_description = 'navpose_track',
@@ -1265,9 +1265,9 @@ class NavPoseTrackIF:
                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
                         
             # Transform navpose data frames to system set frames
-            frame_nav = self.navpose_info_dict['frame_nav']
-            frame_alt = self.navpose_info_dict['frame_alt']
-            frame_depth = self.navpose_info_dict['frame_depth']
+            frame_nav = self.navpose_settings_dict['frame_nav']
+            frame_alt = self.navpose_settings_dict['frame_alt']
+            frame_depth = self.navpose_settings_dict['frame_depth']
             
             if np_dict['frame_nav'] != frame_nav:
                 if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
@@ -1458,7 +1458,7 @@ class NavPoseTrackIF:
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
 
     def _updaterCb(self,timer):
-        self.navpose_info_dict = nepi_system.get_navpose_info(log_name_list = self.log_name_list)
+        self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
         self.navpose_frame = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
         
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)

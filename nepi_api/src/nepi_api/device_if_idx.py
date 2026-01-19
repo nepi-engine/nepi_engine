@@ -662,11 +662,11 @@ class IDXDeviceIF:
                                     save_data_if = self.save_data_if)
             
         self.status_msg.navpose_topic = self.navpose_if.get_namespace()
-        self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_if))
+        self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
 
         ##################################
         # Start Node Processes
-        nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
 
     
         ####################################
