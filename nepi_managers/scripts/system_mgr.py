@@ -59,7 +59,7 @@ from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, Sys
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import StatesIF, TriggersIF
+from nepi_api.system_if import StatesIF, TriggersIF, SaveDataIF
 
 
 BYTES_PER_MEGABYTE = 2**20
@@ -839,6 +839,35 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(5, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
+
+        ##################################
+        # Setup Save Data IF Class ####################
+        self.msg_if.pub_debug("Starting Save Data IF Initialization")
+        self.data_products_list = ['all_data']
+        factory_data_rates= {}
+        factory_data_rates['all_data'] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+       
+
+        factory_filename_dict = {
+            'prefix': "", 
+            'add_timestamp': True, 
+            'add_ms': True,
+            'add_us': False,
+            'suffix': "idx",
+            'add_node_name': True
+            }
+
+        self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
+        sd_namespace = self.base_namespace + '/save_data'
+        self.save_data_if = SaveDataIF(namespace = sd_namespace,
+                                data_products = self.data_products_list,
+                                factory_rate_dict = factory_data_rates,
+                                factory_filename_dict = factory_filename_dict,
+                                log_name_list = [self.node_name],
+                                msg_if = self.msg_if
+                        )
+
+
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_warn("Initialization Complete")

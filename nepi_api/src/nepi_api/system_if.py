@@ -449,7 +449,8 @@ class SaveDataIF:
 
     ready = None
     namespace = "~"
-
+    navpose_save_namespace = None
+    status_msg = SaveDataStatus
     node_if = None
     read_write_if = None
  
@@ -474,6 +475,9 @@ class SaveDataIF:
     save_rate_dict = dict()
     save_data = False
     use_utc_tz = False
+
+    log_navposes_enabled = False
+    log_navposes_rate = 0.0
 
     file_prefix = ""
     subfolder = ""
@@ -519,6 +523,9 @@ class SaveDataIF:
         
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
         self.timezone = tzd
+
+        if self.navpose_save_namespace != self.namespace:
+            self.navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navposes/save_data')
         ###############################
         # Connect Sys Mgr Services
 
@@ -605,12 +612,15 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
             },
-            'filename_dict': {
+            'log_navposes_enabled': {
                 'namespace': self.namespace,
-                'factory_val': self.filename_dict
+                'factory_val': self.log_navposes_enabled
+            },
+            'log_navposes_rate': {
+                'namespace': self.namespace,
+                'factory_val': self.log_navposes_rate
             }
         }
-
 
 
         # Services Config Dict ####################
@@ -640,6 +650,22 @@ class SaveDataIF:
             }
         }
 
+        if self.navpose_save_namespace is not None:
+            self.PUBS_DICT['set_navpose_enable'] = {
+                'namespace': self.navpose_save_namespace,
+                'msg': Bool,
+                'topic': 'set_navpose_enable',
+                'qsize': 1,
+                'latch': True
+            }
+            self.PUBS_DICT['set_navpose_rate'] = {
+                'namespace': self.navpose_save_namespace,
+                'msg': SaveDataRate,
+                'topic': 'set_navpose_rate',
+                'qsize': 1,
+                'latch': True
+            }
+
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -651,12 +677,20 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
-            'log_navpose_enable': {
+            'log_navposes_enable': {
                 'namespace': self.namespace,
                 'msg': Bool,
-                'topic': 'log_navpose_enable',
+                'topic': 'log_navposes_enable',
                 'qsize': 1,
-                'callback': self._losgNavPoseEnableCb, 
+                'callback': self._logNavPoseEnableCb, 
+                'callback_args': ()
+            }, 
+            'log_navposes_rate': {
+                'namespace': self.namespace,
+                'msg': Float32,
+                'topic': 'log_navposes_rate',
+                'qsize': 1,
+                'callback': self._logNavPoseRateCb, 
                 'callback_args': ()
             }, 
             'prefix': {
@@ -716,23 +750,15 @@ class SaveDataIF:
                 'callback_args': ()
             },
             'save_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': Bool,
                 'topic': 'save_data_enable',
                 'qsize': 1,
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },
-            'log_navpose_enable': {
-                'namespace': self.base_namespace,
-                'msg': Bool,
-                'topic': 'log_navpose_enable',
-                'qsize': 1,
-                'callback': self._losgNavPoseEnableCb, 
-                'callback_args': ()
-            }, 
             'prefix_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': String,
                 'topic': 'save_data_prefix',
                 'qsize': 1,
@@ -740,7 +766,7 @@ class SaveDataIF:
                 'callback_args': ()
             },
             'subfolder_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': String,
                 'topic': 'save_data_subfolder',
                 'qsize': 1,
@@ -748,7 +774,7 @@ class SaveDataIF:
                 'callback_args': ()
             },
             'use_local_tz_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': Bool,
                 'topic': 'save_data_utc',
                 'qsize': 1,
@@ -756,15 +782,15 @@ class SaveDataIF:
                 'callback_args': ()
             },
             'filename_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': FilenameConfig,
                 'topic': 'filename_config',
                 'qsize': 1,
-                'callback': self._setFilenameCb, 
+                'callback': self._setFilenameCb,
                 'callback_args': ()
             },
             'rate_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': SaveDataRate,
                 'topic': 'save_data_rate',
                 'qsize': 1,
@@ -772,15 +798,32 @@ class SaveDataIF:
                 'callback_args': ()
             },  
             'snapshot_all': {
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/save_date',
                 'msg': Empty,
                 'topic': 'snapshot_trigger',
                 'qsize': 1,
                 'callback': self._snapshotCb, 
                 'callback_args': ()
+            },
+            'save_all': {
+                'namespace': self.base_namespace + '/save_date',
+                'msg': Empty,
+                'topic': 'save_config',
+                'qsize': 1,
+                'callback': self._saveConfigCb, 
+                'callback_args': ()
             }
         }
 
+        if self.navpose_save_namespace is not None:
+            self.SUBS_DICT['navpose_save_sub'] = {
+                'namespace': self.navpose_save_namespace,
+                'msg': SaveDataStatus,
+                'topic': 'status',
+                'qsize': 1,
+                'callback': self._logNavPoseStatusCb, 
+                'callback_args': ()
+            }
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -801,11 +844,13 @@ class SaveDataIF:
         self.publish_status()
         
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
         ##############################
         # Complete Initialization
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
+
 
 
     ###############################
@@ -1087,11 +1132,13 @@ class SaveDataIF:
             status_msg.timezone = self.timezone
             status_msg.save_data_rates = save_rates_msg
             status_msg.save_data_enabled = self.save_data
-            log_navpose_enabled = False
-            if 'navpose' in save_rate_dict.keys():
-                if save_rate_dict['navpose'][0] > 0:
-                    log_navpose_enabled = True
-            status_msg.log_navpose_enabled = log_navpose_enabled
+            if self.navpose_save_namespace == self.namespace and 'navposes' in save_rate_dict.keys():
+                status_msg.log_navposes_enabled = self.save_data
+                status_msg.log_navposes_rate = save_rate_dict['navposes'][0]
+            else:
+                status_msg.log_navposes_enabled = self.log_navposes_enabled
+                status_msg.log_navposes_rate = self.log_navposes_rate                
+
 
             if self.save_data_root_directory is not None:
                 status_msg.data_dir = self.save_data_root_directory
@@ -1117,9 +1164,13 @@ class SaveDataIF:
             self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
             self.update_filename_dict(filename_dict)
+            self.log_navposes_enabled = self.node_if.get_param('log_navposes_enabled')
+            self.log_navposes_rate = self.node_if.get_param('log_navposes_rate')
             self.node_if.save_config()
         if do_updates == True:
-            pass
+            if self.navpose_save_namespace is not None:
+                self.logNavPoseEnable(self.log_navposes_enabled)
+                self.logNavPoseRate(self.log_navposes_rate)
         self.publish_status()
         
 
@@ -1139,6 +1190,8 @@ class SaveDataIF:
     # Class Private Methods
     ###############################
     def _initCb(self, do_updates = False):
+        if self.node_if is not None:
+            pass
         self.init(do_updates = do_updates)
 
     def _resetCb(self, do_updates = True):
@@ -1162,52 +1215,81 @@ class SaveDataIF:
         return SaveDataCapabilitiesQueryResponse(return_list)
 
 
-    def _setPrefixCb(self, msg):
-        prefix = msg.data
-        filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['prefix'] = prefix
-        self.update_filename_dict(filename_dict)
-
-    def _setSubfolderCb(self, msg):
-        subfolder = msg.data
-        filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['subfolder'] = subfolder
-        self.update_filename_dict(filename_dict)
-
-    def _setLocalTzCb(self, msg):
-        use_utc = msg.data
-        filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['use_utc_tz'] = use_utc
-        self.update_filename_dict(filename_dict)
-
-    def _setFilenameCb(self, msg):
-        filename_dict = nepi_utils.convert_msg2dict(msg)
-        self.update_filename_dict(filename_dict)
 
 
+
+    def _logNavPoseEnableCb(self, msg):
+        self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
+        enabled = msg.data
+
+    def logNavPoseEnable(self,enabled):
+        self.log_navposes_enabled = enabled
+        self.publish_status()
+        self.node_if.publish_pub('set_navpose_enable',enabled)
+
+    def _logNavPoseRateCb(self, msg):
+        self.msg_if.pub_info("Recieved Log NavPose Rate Update: " + str(msg), log_name_list = self.log_name_list)
+        rate = msg.data
+        self.logNavPoseRate(rate)
+
+
+    def logNavPoseRate(self,rate):
+        self.log_navposes_rate = rate
+        self.publish_status()
+        rate_msg = SaveDataRate()
+        rate_msg.data_product = 'navposes'
+        rate_msg.save_rate_hz = rate
+        self.node_if.publish_pub('set_navpose_rate',rate_msg)
+        self.publish_status()
+
+
+    def _logNavPoseStatusCb(self,msg):
+        data_product_list = msg.data_product_list
+        if 'navposes' in data_product_list:
+            self.log_navposes_enabled = msg.save_data_enabled
+            index = data_product_list.index('navposes')
+            self.log_navposes_rate = msg.save_data_rates[index]
+        self.publish_status()
+
+
+    def _saveEnableCb(self, msg):
+        enabled = msg.data
+        self.save_data_enable(enabled)
+        self.publish_status()
 
     def _saveRateCb(self, msg):
         self.msg_if.pub_info("Recieved Rate Update: " + str(msg), log_name_list = self.log_name_list)
         data_product = msg.data_product
         save_rate_hz = msg.save_rate_hz
         self.set_save_rate(data_product,save_rate_hz)
-
-
-    def _losgNavPoseEnableCb(self, msg):
-        self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
-        enabled = msg.data
-        if enabled == True:
-           save_rate_hz = self.save_rate_dict
-        else:
-            save_rate_hz = 0
-        data_product = 'navpose'
-        self.set_save_rate(data_product,save_rate_hz)
-
-
-    def _saveEnableCb(self, msg):
-        enabled = msg.data
-        self.save_data_enable(enabled)
+        self.publish_status()
         
+    def _setPrefixCb(self, msg):
+        prefix = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['prefix'] = prefix
+        self.update_filename_dict(filename_dict)
+        self.publish_status()
+
+    def _setSubfolderCb(self, msg):
+        subfolder = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['subfolder'] = subfolder
+        self.update_filename_dict(filename_dict)
+        self.publish_status()
+
+    def _setLocalTzCb(self, msg):
+        use_utc = msg.data
+        filename_dict = copy.deepcopy(self.filename_dict)
+        filename_dict['use_utc_tz'] = use_utc
+        self.update_filename_dict(filename_dict)
+        self.publish_status()
+
+    def _setFilenameCb(self, msg):
+        filename_dict = nepi_utils.convert_msg2dict(msg)
+        self.update_filename_dict(filename_dict)
+        self.publish_status()
+
 
     def _snapshotCb(self,msg):
         self.msg_if.pub_info("Recieved Snapshot Trigger", log_name_list = self.log_name_list)
@@ -1218,14 +1300,20 @@ class SaveDataIF:
             if enabled:
                 self.snapshot_dict[data_product] = True
 
+    def _saveConfigCb(self,msg):
+        if self.node_if is not None:
+            self.node_if.save_config()
 
     def _resetCb(self,reset_msg):
         self.reset()
+        self.publish_status()
 
     def _factoryResetCb(self,reset_msg):
         self.factory_reset
+        self.publish_status()
 
-
+    def _publishStatusCb(self, timer):
+        self.publish_status()
 
 #######################################
 # Transform3DIF
@@ -1779,7 +1867,7 @@ class SettingsIF:
         self.init(do_updates = True)
         self.publish_status() 
     
-        nepi_sdk.start_timer_process(1.0, self._publishSettingsCb)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
   
         ##############################
@@ -1912,7 +2000,8 @@ class SettingsIF:
         caps_response = nepi_settings.create_capabilities_response(self.cap_settings, has_cap_updates = self.allow_cap_updates)
         return caps_response
 
-    def _publishSettingsCb(self, timer):
+
+    def _publishStatusCb(self, timer):
         self.publish_status()
 
 
@@ -2029,6 +2118,7 @@ class StatesIF:
                                             )
 
         success = nepi_sdk.wait()
+
 
         ##############################
         # Complete Initialization
