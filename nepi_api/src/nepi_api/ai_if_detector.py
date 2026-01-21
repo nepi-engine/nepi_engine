@@ -709,9 +709,11 @@ class AiDetectorIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
                                             )
-
+        nepi_sdk.sleep(1)
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
         
-        time.sleep(1)
 
 
         ##########################
@@ -1264,6 +1266,7 @@ class AiDetectorIF:
                 img_info_dict = dict()  
                 img_info_dict['namespace'] = pub_namespace
                 img_info_dict['pub_namespaces'] = pub_namespaces    
+                img_info_dict['navpose_topic'] = 'None'
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
                 img_info_dict['navpose_dict'] = dict()
@@ -1456,6 +1459,7 @@ class AiDetectorIF:
     def imageStatusCb(self,status_msg, args):     
         img_topic = args
         if img_topic in self.imgs_info_dict.keys():
+            self.imgs_info_dict[img_topic]['navpose_topic'] = status_msg.navpose_topic
             self.imgs_info_dict[img_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[img_topic]['height_deg'] = status_msg.height_deg
             self.imgs_info_dict[img_topic]['depth_map_topic'] = status_msg.depth_map_topic
@@ -2102,6 +2106,7 @@ class AiDetectorIF:
         self.det_status_msg.image_source_topics = img_source_topics
         self.det_status_msg.image_detector_namespaces = img_det_namespaces
         self.det_status_msg.images_connected = img_connects
+
 
 
         img_selected = len(img_connects) > 0

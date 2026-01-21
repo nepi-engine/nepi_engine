@@ -206,7 +206,7 @@ class AiDetectorImgPub:
         self.overlay_img_name = False
 
         self.selected_img_topics = []
-        self.selected_img_navpose_frames = []
+        self.selected_img_navpose_topics = []
         self.img_det_namespaces = []
         self.img_det_states = []
 
@@ -485,7 +485,6 @@ class AiDetectorImgPub:
                         data_ref_description = 'image',
                         perspective = 'pov',
                         init_overlay_list = [],
-                        navpose_if = 
                         log_name = self.data_product,
                         log_name_list = [],
                         msg_if = self.msg_if
@@ -953,17 +952,9 @@ class AiDetectorImgPub:
         self.overlay_img_name = self.status_msg.overlay_img_name
         last_sel_imgs = copy.deepcopy(self.selected_img_topics)
         self.selected_img_topics = self.status_msg.selected_img_topics
-        self.selected_img_navpose_frames = self.status_msg.selected_img_topics
+        self.selected_img_navpose_topics = self.status_msg.selected_img_topics
         if last_sel_imgs != self.selected_img_topics:
             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_img_topics))
-        for i, img_topic in self.selected_img_topics:
-            if img_topic in self.imgs_info_dict.keys():
-                if len(self.selected_img_navpose_frames) > i:
-                    frame = self.selected_img_navpose_frames[i]
-                else:
-                    frame = 'None'
-                
-                self.imgs_info_dict[img_topic]['navpose_frame'] = frame
         
 
         

@@ -456,13 +456,14 @@ class NavPoseIF:
                 'add_node_name': True
                 }
 
-
-            self.save_data_if = SaveDataIF(namespace = self.namespace,
+            sd_namespace = self.namespace + '/save_data'
+            self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
@@ -958,12 +959,14 @@ class NavPosesIF:
                 }
 
 
-            self.save_data_if = SaveDataIF(namespace = self.namespace,
+            sd_namespace = self.namespace + '/save_data'
+            self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
@@ -2081,6 +2084,7 @@ class BaseImageIF:
                 pubs_dict,
                 subs_dict,
                 navpose_if,
+                navpose_topic,
                 save_data_if,
                 init_overlay_list,
                 log_name,
@@ -2669,13 +2673,14 @@ class BaseImageIF:
                 'add_node_name': True
                 }
 
-
-            self.save_data_if = SaveDataIF(namespace = self.namespace,
+            sd_namespace = self.namespace + '/save_data'
+            self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
@@ -2684,9 +2689,13 @@ class BaseImageIF:
         if navpose_if is not None:
             self.navpose_if = navpose_if
         else:
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting NavPoe IF Initialization")
-            self.navpose_if = NavPoseIF(namespace = self.namespace,
+            # Setup NavPose IF Class 
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace + '/navpose'
+            if navpose_topic is not None:
+                np_namespace = navpose_topic
+            
+            self.navpose_if = NavPoseIF(namespace = np_namespace,
                                         data_product = 'navpose',    
                                         save_data_if = self.save_data_if)
             
@@ -4089,6 +4098,7 @@ class ImageIF(BaseImageIF):
                 perspective = 'pov',
                 init_overlay_list = [],
                 navpose_if = None,
+                navpose_topic = None,
                 save_data_if = None,
                 log_name = None,
                 log_name_list = [],
@@ -4110,6 +4120,7 @@ class ImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 navpose_if,
+                navpose_topic,
                 save_data_if,
                 init_overlay_list,
                 log_name,
@@ -4201,6 +4212,7 @@ class ColorImageIF(BaseImageIF):
                 perspective = 'pov',
                 init_overlay_list = [],
                 navpose_if = None,
+                navpose_topic = None,
                 save_data_if = None,
                 log_name = None,
                 log_name_list = [],
@@ -4222,6 +4234,7 @@ class ColorImageIF(BaseImageIF):
                 self.pubs_dict,
                 self.subs_dict,
                 navpose_if,
+                navpose_topic,
                 save_data_if,
                 init_overlay_list,
                 log_name,
@@ -4430,6 +4443,7 @@ class DepthMapIF:
                 pub_image = True,
                 navpose_if = None,
                 save_data_if = None,
+                navpose_topic = None,
                 init_overlay_list = [],
                 log_name = None,
                 log_name_list = [],
@@ -4590,24 +4604,29 @@ class DepthMapIF:
                 }
 
 
-            self.save_data_if = SaveDataIF(namespace = self.namespace,
+            sd_namespace = self.namespace + '/save_data'
+            self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
         ####################
-        ####################
         if navpose_if is not None:
             self.navpose_if = navpose_if
         else:
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting NavPoe IF Initialization")
-            self.navpose_if = NavPoseIF(namespace = self.namespace,
+            # Setup NavPose IF Class 
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace + '/navpose'
+            if navpose_topic is not None:
+                np_namespace = navpose_topic
+            
+            self.navpose_if = NavPoseIF(namespace = np_namespace,
                                         data_product = 'navpose',    
                                         save_data_if = self.save_data_if)
             
@@ -4626,6 +4645,7 @@ class DepthMapIF:
                         perspective = self.perspective,
                         init_overlay_list = init_overlay_list,
                         navpose_if = self.navpose_if,
+                        navpose_topic = self.status_msg.navpose_topic,
                         save_data_if = self.save_data_if,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -5329,6 +5349,7 @@ class PointcloudIF:
                 perspective = 'POV',
                 pub_image = True,
                 navpose_if = None,
+                navpose_topic = None,
                 save_data_if = None,
                 init_overlay_list = [],
                 log_name = None,
@@ -5489,13 +5510,14 @@ class PointcloudIF:
                 'add_node_name': True
                 }
 
-
-            self.save_data_if = SaveDataIF(namespace = self.namespace,
+            sd_namespace = self.namespace + '/save_data'
+            self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = self.data_products_list,
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
@@ -5504,9 +5526,13 @@ class PointcloudIF:
         if navpose_if is not None:
             self.navpose_if = navpose_if
         else:
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting NavPoe IF Initialization")
-            self.navpose_if = NavPoseIF(namespace = self.namespace,
+            # Setup NavPose IF Class 
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace + '/navpose'
+            if navpose_topic is not None:
+                np_namespace = navpose_topic
+            
+            self.navpose_if = NavPoseIF(namespace = np_namespace,
                                         data_product = 'navpose',    
                                         save_data_if = self.save_data_if)
             
@@ -5523,6 +5549,7 @@ class PointcloudIF:
                         perspective = self.perspective,
                         init_overlay_list = init_overlay_list,
                         navpose_if = self.navpose_if,
+                        navpose_topic = self.status_msg.navpose_topic,
                         save_data_if = self.save_data_if,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if

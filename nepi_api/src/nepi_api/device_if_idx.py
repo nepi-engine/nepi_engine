@@ -580,29 +580,6 @@ class IDXDeviceIF:
             self.caps_report.has_pointcloud = False
         '''
 
-        ############################
-        # Start Data Get Threads
-        self.caps_report.data_products = self.data_products_base_list
-
-        for data_product in self.data_products_base_list:
-            self.last_data_time[data_product] = nepi_utils.get_time()
-            self.current_fps[data_product] = 0
-            self.fps_queue[data_product] = [0 for _ in range(100)]
-
-        # Launch the acquisition and saving threads
-        if self.image_thread is not None:
-            self.image_thread.start()
-
-        if self.depth_map_thread is not None:
-            self.depth_map_thread.start()
-
-        if self.pointcloud_thread is not None:
-            self.pointcloud_thread.start()
-
-        nepi_sdk.sleep(1)
-
-        nepi_sdk.start_timer_process(1, self.publishStatusCb)
-
 
         ###############################
         # Setup Settings IF Class ####################
@@ -645,7 +622,7 @@ class IDXDeviceIF:
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = self.namespace
+        sd_namespace = self.namespace + '/save_data'
         self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
@@ -654,10 +631,16 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                         )
 
+        nepi_sdk.sleep(1)
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        
         ####################
-        # Setup Save Data IF Class 
-        self.msg_if.pub_info("Starting NavPoe IF Initialization")
-        self.navpose_if = NavPoseIF(namespace = self.namespace,
+        # Setup Save Data IF Class
+        self.msg_if.pub_info("Starting NavPose IF Initialization")
+        np_namespace = self.namespace + '/navpose'
+        self.navpose_if = NavPoseIF(namespace = np_namespace,
                                     data_product = 'navpose',    
                                     save_data_if = self.save_data_if)
             
@@ -667,6 +650,30 @@ class IDXDeviceIF:
         ##################################
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
+
+
+        ############################
+        # Start Data Get Threads
+        self.caps_report.data_products = self.data_products_base_list
+
+        for data_product in self.data_products_base_list:
+            self.last_data_time[data_product] = nepi_utils.get_time()
+            self.current_fps[data_product] = 0
+            self.fps_queue[data_product] = [0 for _ in range(100)]
+
+        # Launch the acquisition and saving threads
+        if self.image_thread is not None:
+            self.image_thread.start()
+
+        if self.depth_map_thread is not None:
+            self.depth_map_thread.start()
+
+        if self.pointcloud_thread is not None:
+            self.pointcloud_thread.start()
+
+        nepi_sdk.sleep(1)
+
+        nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
     
         ####################################
