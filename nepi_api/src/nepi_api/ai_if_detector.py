@@ -108,9 +108,8 @@ class AiDetectorIF:
     save_data_if = None
     
 
-    data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
+    data_products = ['bounding_boxes','datection_images']
 
-    det_pub_names = [ 'bounding_boxes']
 
     self_managed = True
     model_name = "None"
@@ -253,6 +252,8 @@ class AiDetectorIF:
         ## Init Status Messages
         self.status_msg = MgrAiDetectorStatus()
         self.det_status_msg = AiDetectorStatus()
+        self.det_status_msg.node_name = self.node_name
+        self.det_status_msg.ai_detector_topic = self.namespace
         self.target_status_msg = TargetingStatus()
 
 
@@ -274,8 +275,6 @@ class AiDetectorIF:
         self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
 
         self.has_sleep = False
-
-        self.img_data_product = self.IMAGE_DATA_PRODUCT
 
         self.selected_classes = self.classes
 
@@ -653,6 +652,10 @@ class AiDetectorIF:
 
         self.initCb(do_updates = True)
 
+
+
+        self.msg_if.pub_warn("Launcing Image Pub Node")
+        self.launch_image_pub_node()
         ###############################
         # Create System IFs
         # Setup States IF
@@ -701,9 +704,8 @@ class AiDetectorIF:
         # Setup Save Data IF
         factory_data_rates= {}
         for d in self.data_products:
-            factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-        if self.img_data_product in self.data_products:
-            factory_data_rates[self.img_data_product] = [1.0, 0.0, 100] 
+            factory_data_rates[d] = [1.0, 0.0, 100] 
+
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,
@@ -755,9 +757,8 @@ class AiDetectorIF:
                 all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
                 self.msg_if.pub_warn("Launching Node: " + node_name)
 
-                # Pre Set Img Pub Params
-                param_ns = nepi_sdk.create_namespace(node_namespace,'data_product')
-                nepi_sdk.set_param(param_ns,self.img_data_product)
+                param_ns = nepi_sdk.create_namespace(node_namespace,'data_products')
+                nepi_sdk.set_param(param_ns,self.data_products)
 
                 param_ns = nepi_sdk.create_namespace(node_namespace,'det_namespace')
                 nepi_sdk.set_param(param_ns,self.node_namespace)
@@ -796,9 +797,6 @@ class AiDetectorIF:
         self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
         if self.node_if is not None:
             self.pub_image_enabled = self.node_if.get_param('pub_image_enabled')
-            self.msg_if.pub_warn("Launcing Image Pub Node")
-            self.launch_image_pub_node()
-
             self.enabled = self.node_if.get_param('enabled')
             self.selected_classes = self.node_if.get_param('selected_classes')
             self.sleep_enabled = self.node_if.get_param('sleep_enabled')
@@ -1174,9 +1172,10 @@ class AiDetectorIF:
 
             ####################
             # Create Pubs and Subs IF Dict 
-
-            img_name = img_topic.replace(self.base_namespace,"")
-            pub_namespace = nepi_sdk.create_namespace(self.node_namespace,img_name)
+            short_name = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
+            short_name = os.path.dirname(short_name).replace('/','_') + '_' + self.IMAGE_DATA_PRODUCT
+            pub_namespace = nepi_sdk.create_namespace(self.node_namespace,short_name)
+            data_product = short_name + '/' + self.IMAGE_DATA_PRODUCT
 
             # Pubs Config Dict 
             img_pubs_dict = {
@@ -1266,6 +1265,8 @@ class AiDetectorIF:
                 img_info_dict = dict()  
                 img_info_dict['namespace'] = pub_namespace
                 img_info_dict['pub_namespaces'] = pub_namespaces    
+                img_info_dict['img_short_name'] = short_name
+                img_info_dict['data_product'] = data_product
                 img_info_dict['navpose_topic'] = 'None'
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
@@ -1332,6 +1333,7 @@ class AiDetectorIF:
                 
 
                 self.imgs_dict[img_topic]=img_dict
+
     
             return True
 

@@ -85,9 +85,8 @@ class ConnectPTXDeviceIF:
         # Initialize Class Variables
 
         if namespace is None:
-            namespace = nepi_sdk.create_namespace(self.base_namespace,APP_NODE_NAME)
-        else:
-            namespace = namespace
+            return
+
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.statusCb = statusCb

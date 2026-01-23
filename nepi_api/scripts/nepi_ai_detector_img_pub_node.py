@@ -179,9 +179,8 @@ class AiDetectorImgPub:
         # Init Class Variables 
 
             
-
-        self.data_product = nepi_sdk.get_param(self.node_namespace + "/data_product",self.IMG_DATA_PRODUCT)
-        self.data_products = [self.data_product]
+        backup_data_products = ['bounding_boxes','datection_images'] 
+        self.data_products = nepi_sdk.get_param(self.node_namespace + "/data_products",backup_data_products)
         self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
         
         backup_det_namespace = self.node_namespace.replace("_img_pub","")
@@ -274,18 +273,7 @@ class AiDetectorImgPub:
         nepi_sdk.wait()
         
 
-        # Create image publisher
-        self.img_if = ColorImageIF(namespace = self.det_namespace + '/all' ,
-                        data_product_name = self.data_product,
-                        data_source_description = 'image',
-                        data_ref_description = 'image',
-                        perspective = 'pov',
-                        init_overlay_list = [],
-                        get_navpose_function = None,
-                        log_name = self.data_product,
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
+
 
         ###############################
         # Create System IFs
@@ -293,13 +281,31 @@ class AiDetectorImgPub:
        
         # Setup Save Data IF
         factory_data_rates= {}
-        factory_data_rates[self.data_product] = [1.0, 0.0, 100] 
-
+        for d in self.data_products:
+            factory_data_rates[d] = [1.0, 0.0, 100] 
+            
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.det_namespace,
                         msg_if = self.msg_if
-                                            )
-
+                        )
         
+        nepi_sdk.sleep(1)
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
+        # Create image publisher
+        self.img_if = ColorImageIF(namespace = self.det_namespace + '/all' ,
+                        data_product_name = self.data_product,
+                        data_source_description = 'image',
+                        data_ref_description = 'image',
+                        perspective = 'pov',
+                        save_data_if = self.save_data_if,
+                        init_overlay_list = [],
+                        log_name = self.data_product,
+                        log_name_list = [],
+                        msg_if = self.msg_if
+                        )
+
         time.sleep(1)
 
 
