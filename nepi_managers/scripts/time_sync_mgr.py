@@ -472,7 +472,8 @@ class time_sync_mgr(object):
         if update_timezone == True:
             self.msg_if.pub_info("Setting timezone to: " + msg.timezone)
             self.set_timezone(msg.timezone)
-            self.node_if.save_config()
+            if self.node_if is not None:
+                self.node_if.save_config()
 
         if self.manages_time == True:
             # Update the hardware clock from this "better" clock source; helps with RTC drift

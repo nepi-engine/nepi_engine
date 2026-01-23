@@ -258,7 +258,7 @@ def get_bounding_box_image(cv2_img, bounding_box_dict):
           ymax = bounding_box_dict['ymax']
           success = True
       except Exception as e:
-          self.msg_if.pub_warn("Failed to get bounding box data: " + str(e))
+          logger.log_warn("Failed to get bounding box data: " + str(e))
           success = False
       if success == True:
         cv2_sub_img = cv2_img[ymin:ymax, xmin:xmax]
@@ -375,6 +375,37 @@ def grayscale_to_rgb(gray_image):
     rgb_image = cv2.cvtColor(gray_image, cv2.COLOR_GRAY2RGB)
     return rgb_image
     
+
+
+def cv2DepthMap_to_cv2ColorImg(cv2_depth_map, min_range = None, max_range = None, min_ratio = 0, max_ratio = 1):
+
+    cv2_img = None
+    try:
+        depth_data = (np.array(cv2_depth_map, dtype=np.float32)) # replace nan values
+        # Get range data
+        if min_range is None:
+            min_range = depth_data.min()
+        if max_range is None:
+            max_range = depth_data.max()
+        delta_range_m = max_range_m - min_range_m
+        # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
+        max_range_m = min_range_m + stop_range_ratio * delta_range_m
+        min_range_m = min_range_m + start_range_ratio * delta_range_m
+        delta_range_m = max_range_m - min_range_m
+        # Filter depth_data in range
+        depth_data[np.isnan(depth_data)] = max_depth 
+        depth_data[depth_data <= min_depth] = max_depth # set to max
+        depth_data[depth_data >= max_depth] = max_depth # set to max
+        # Create colored cv2 depth image
+        depth_data = depth_data - min_depth # Shift down 
+        depth_data = np.abs(depth_data - max_depth) # Reverse for colormap
+        depth_data = np.array(255*depth_data/delta_range,np.uint8) # Scale for bgr colormap
+        cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
+    except Exception as e:
+        logger.log_warn("Failed convert depth map to color img: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+
+    
+    return cv2_img
 ###########################################
 ### Image filter functions    
 
@@ -740,8 +771,12 @@ def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
     thickness = math.ceil(min(w, h) * thickness_scale)
     return font_scale, thickness
     
+def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0)):
+      overlay = cv2_img.copy()
+      cv2.rectangle(overlay, bot_left_px, top_right_px, color, -1)
+      cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
+      return cv2_img
 
-    
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):
     # Add status box overlay
     cv2_img_out = copy.deepcopy(cv2_img)
@@ -816,7 +851,7 @@ def read_image_file(file_path, log_name_list = []):
             cv2_img = cv2.imread(file_path)
             if cv2_img is not None:
                 success = True
-        except:
+        except Exception as e:
             logger.log_warn("Failed to get cv2_img from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
         logger.log_warn("Failed to find image file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
@@ -828,7 +863,7 @@ def write_image_file(cv2_img,file_path, log_name_list = []):
     if os.path.exists(path):
         try:
             success = cv2.imwrite(file_path, cv2_img)
-        except:
+        except Exception as e:
             logger.log_warn("Failed to write image to file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
     else:
         logger.log_warn("Failed to find file path: " + path, log_name_list = log_name_list, throttle_s = 5.0)

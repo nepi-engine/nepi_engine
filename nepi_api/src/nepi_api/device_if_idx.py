@@ -47,7 +47,9 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF
 
 
-from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF, NavPoseIF
+from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF
+from nepi_api.connect_data_if import ConnectNavPosesIF
+
 
 
 
@@ -622,13 +624,13 @@ class IDXDeviceIF:
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = self.namespace + '/save_data'
+        sd_namespace = self.namespace
         self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if
                         )
 
         nepi_sdk.sleep(1)
@@ -639,10 +641,11 @@ class IDXDeviceIF:
         ####################
         # Setup Save Data IF Class
         self.msg_if.pub_info("Starting NavPose IF Initialization")
-        np_namespace = self.namespace + '/navpose'
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                                    data_product = 'navpose',    
-                                    save_data_if = self.save_data_if)
+        np_namespace = self.namespace
+        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
+                                    save_data_if = self.save_data_if,
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if)
             
         self.status_msg.navpose_topic = self.navpose_if.get_namespace()
         self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))

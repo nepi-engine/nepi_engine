@@ -843,9 +843,9 @@ class SystemMgrNode():
         ##################################
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization")
-        self.data_products_list = ['all_data']
+        self.data_products_list = ['All']
         factory_data_rates= {}
-        factory_data_rates['all_data'] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+        factory_data_rates['All'] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
        
 
         factory_filename_dict = {
@@ -858,7 +858,7 @@ class SystemMgrNode():
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = self.base_namespace + '/save_data'
+        sd_namespace = self.base_namespace
         self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                 data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,

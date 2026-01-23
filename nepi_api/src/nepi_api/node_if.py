@@ -378,7 +378,11 @@ class NodeParamsIF:
         for param_name in self.params_dict.keys():
             namespace = self.params_dict[param_name]['namespace']
             if namespace not in ns_params_dict.keys():
-                ns_params_dict[namespace] = nepi_sdk.get_params(namespace)
+                param_dict = nepi_sdk.get_params(namespace)
+                if param_dict is not None:
+                    if isinstance(param_dict, dict):
+                        ns_params_dict[namespace] = param_dict
+        #self.msg_if.pub_warn("Got existing init params" + str(ns_params_dict), log_name_list = self.log_name_list)
         for param_name in self.params_dict.keys():
             param_dict = self.params_dict[param_name]
             namespace = param_dict['namespace']
@@ -459,6 +463,16 @@ class NodeParamsIF:
             param_dict = self.params_dict[param_name]
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
+
+
+    def add_param(self, param_name, namespace, value):
+        if not nepi_sdk.is_shutdown():
+            if param_name is not None and namespace is not None and value is not None:
+                if param_name not in self.params_dict.keys():
+                    self.params_dict[param_name] = {
+                'namespace': namespace,
+                'factory_val': value
+            }
 
     def add_params(self,params_dict):
         self.params_dict.update(params_dict)

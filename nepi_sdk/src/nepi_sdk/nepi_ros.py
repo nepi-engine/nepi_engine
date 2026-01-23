@@ -459,6 +459,7 @@ def has_param(namespace,param_name = None, log_name_list = []):
   return rospy.has_param(namespace)
 
 
+
 def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
   params = None
   param_namespace = get_full_namespace(param_namespace)
