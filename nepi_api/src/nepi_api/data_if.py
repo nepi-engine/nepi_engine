@@ -273,6 +273,9 @@ class NavPoseIF:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
         
+        self.status_msg.node_name = self.node_name
+        self.status_msg.navpose_topic = self.namespace
+
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
         ##############################   
@@ -1320,6 +1323,10 @@ class NavPoseTrackIF:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
         
+        self.status_msg.node_name = self.node_name
+        self.status_msg.navpose_track_topic = self.namespace
+
+
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
         ##############################   
@@ -2200,6 +2207,9 @@ class BaseImageIF:
         if data_ref_description is None:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
+
+        self.status_msg.node_name = self.node_name
+        self.status_msg.image_topic = self.namespace
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -4513,8 +4523,13 @@ class DepthMapIF:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
 
+        self.status_msg.node_name = self.node_name
+        self.status_msg.depth_map_topic = self.namespace
+
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
+
+
 
         self.status_msg.publishing = False
         self.status_msg.encoding = '32FC1'
@@ -5406,10 +5421,13 @@ class PointcloudIF:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
 
+        self.status_msg.node_name = self.node_name
+        self.status_msg.pointcloud_topic = self.namespace
+
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
 
-        self.status_msg.node_namespace = self.node_namespace
+
         self.status_msg.publishing = False
         self.status_msg.has_rgb = False
         self.status_msg.has_intensity = False

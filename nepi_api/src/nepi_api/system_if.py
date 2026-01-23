@@ -1966,7 +1966,8 @@ class SettingsIF:
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
             status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
-        
+            status_msg.node_name = self.node_name
+            status_msg.settings_topic = self.namespace
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub('status_pub', status_msg)
 
