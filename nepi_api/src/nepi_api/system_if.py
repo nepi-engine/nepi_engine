@@ -684,7 +684,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_enable',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
@@ -692,7 +692,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'log_navposes_enable',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._logNavPoseEnableCb, 
                 'callback_args': ()
             }, 
@@ -700,7 +700,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Float32,
                 'topic': 'log_navposes_rate',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._logNavPoseRateCb, 
                 'callback_args': ()
             }, 
@@ -708,7 +708,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setPrefixCb, 
                 'callback_args': ()
             },
@@ -716,7 +716,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_subfolder',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setSubfolderCb, 
                 'callback_args': ()
             },
@@ -724,7 +724,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_utc',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setLocalTzCb, 
                 'callback_args': ()
             },
@@ -732,7 +732,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': FilenameConfig,
                 'topic': 'filename_config',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setFilenameCb, 
                 'callback_args': ()
             },
@@ -740,7 +740,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': SaveDataRate,
                 'topic': 'save_data_rate',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._saveRateCb, 
                 'callback_args': ()
             },          
@@ -748,7 +748,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'snapshot_trigger',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._snapshotCb,  
                 'callback_args': ()
             },
@@ -756,7 +756,7 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'reset_save_data',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetCb,  
                 'callback_args': ()
             },
@@ -769,7 +769,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_enable',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._saveEnableCb, 
                     'callback_args': ()
                 },
@@ -777,7 +777,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_prefix',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._setPrefixCb, 
                     'callback_args': ()
                 },
@@ -785,7 +785,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_subfolder',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._setSubfolderCb, 
                     'callback_args': ()
                 },
@@ -793,7 +793,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_utc',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._setLocalTzCb, 
                     'callback_args': ()
                 },
@@ -801,7 +801,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': FilenameConfig,
                     'topic': 'filename_config',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._setFilenameCb,
                     'callback_args': ()
                 },
@@ -809,7 +809,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': SaveDataRate,
                     'topic': 'save_data_rate',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._saveRateCb, 
                     'callback_args': ()
                 },  
@@ -817,7 +817,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'snapshot_trigger',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._snapshotCb, 
                     'callback_args': ()
                 },
@@ -825,7 +825,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'save_config',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._saveConfigCb, 
                     'callback_args': ()
                 },
@@ -833,7 +833,7 @@ class SaveDataIF:
                     'namespace': self.all_save_namespace,
                     'msg': SaveDataStatus,
                     'topic': 'status',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._saveAllStatusCb, 
                     'callback_args': ()
                 }
@@ -848,7 +848,7 @@ class SaveDataIF:
                 'namespace': self.navpose_save_namespace,
                 'msg': SaveDataStatus,
                 'topic': 'status',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._logNavPoseStatusCb, 
                 'callback_args': ()
             }
@@ -1174,7 +1174,7 @@ class SaveDataIF:
 
             if self.all_save_namespace is None:
                 status_msg.save_all_enabled = self.save_data
-                status_msg.save_all_rate = save_rate_dict['All'].save_rate_hz
+                status_msg.save_all_rate = save_rate_dict['All'][0]
             else:
                 status_msg.save_all_enabled = self.save_all_enabled
                 status_msg.save_all_rate = self.save_all_rate   
@@ -1503,7 +1503,7 @@ class Transform3DIF:
                     'namespace': self.namespace,
                     'topic': 'clear_3d_transform',
                     'msg': Empty,
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._clearFrame3dTransformCb, 
                     'callback_args': ()
                 },
@@ -1511,7 +1511,7 @@ class Transform3DIF:
                     'namespace': self.namespace,
                     'topic': 'set_3d_transform',
                     'msg': Frame3DTransform,
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._setFrame3dTransformCb, 
                     'callback_args': ()
                 }
@@ -1881,7 +1881,7 @@ class SettingsIF:
                 'msg': Setting,
                 'namespace': self.namespace,
                 'topic': 'update_setting',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._updateSettingCb,
                 'callback_args': None
             },
@@ -1889,7 +1889,7 @@ class SettingsIF:
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'reset_settings',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetSettingsCb,
                 'callback_args': None
             }
@@ -1900,7 +1900,7 @@ class SettingsIF:
                     'msg': SettingCap,
                     'namespace': self.namespace,
                     'topic': 'update_cap_setting',
-                    'qsize': 1,
+                    'qsize': 5,
                     'callback': self._updateCapSettingCb,
                     'callback_args': None
                 },            

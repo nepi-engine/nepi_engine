@@ -394,7 +394,7 @@ class NavPoseIF:
                 'namespace': self.namespace,
                 'topic': 'set_navpose_frame',
                 'msg': String,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._navposeFrameCb, 
                 'callback_args': ()
             },
@@ -402,7 +402,7 @@ class NavPoseIF:
                 'namespace': self.base_namespace,
                 'topic': 'navposes',
                 'msg': NavPoses,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._navposesCb, 
                 'callback_args': ()
             },
@@ -410,7 +410,7 @@ class NavPoseIF:
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetCb, 
                 'callback_args': ()
             }
@@ -1384,7 +1384,7 @@ class NavPoseTrackIF:
                 'namespace': self.namespace,
                 'topic': 'set_navpose_frame',
                 'msg': String,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._navposeFrameCb, 
                 'callback_args': ()
             },
@@ -1392,7 +1392,7 @@ class NavPoseTrackIF:
                 'namespace': self.base_namespace,
                 'topic': 'navposes',
                 'msg': NavPoses,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._navposesCb, 
                 'callback_args': ()
             },
@@ -1400,7 +1400,7 @@ class NavPoseTrackIF:
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetCb, 
                 'callback_args': ()
             },
@@ -1408,21 +1408,21 @@ class NavPoseTrackIF:
                 'msg': Int32,
                 'namespace': self.namespace,
                 'topic': 'set_track_length',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setTrackLengthCb
             },
             'set_track_sec': {
                 'msg': Int32,
                 'namespace': self.namespace,
                 'topic': 'set_track_sec',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setTrackSecCb
             },          
             'clear_tracks': {
                 'namespace': self.namespace,
                 'topic': 'clear_tracks',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._clearTracksCb, 
                 'callback_args': ()
             }
@@ -2360,7 +2360,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetControlsCb, 
                 'callback_args': ()
             },
@@ -2368,7 +2368,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'reset_filters',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetFiltersCb, 
                 'callback_args': ()
             },
@@ -2376,7 +2376,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'reset_overalys',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetOverlaysCb, 
                 'callback_args': ()
             },
@@ -2384,7 +2384,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'reset_res_orients',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetResOrientsCb, 
                 'callback_args': ()
             },
@@ -2392,7 +2392,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'reset_renders',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._resetRendersCb, 
                 'callback_args': ()
             },
@@ -2400,7 +2400,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_click',
                 'msg': ImagePixel,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._clickCb, 
                 'callback_args': ()
             },
@@ -2408,7 +2408,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_drag',
                 'msg': ImagePixel,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._dragCb, 
                 'callback_args': ()
             },
@@ -2416,7 +2416,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_window',
                 'msg': ImageWindow,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._windowCb, 
                 'callback_args': ()
             },
@@ -2424,56 +2424,56 @@ class BaseImageIF:
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_size_ratio',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlaySizeCb
             },
             'overlay_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_source_name',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayImgNameCb
             },
             'overlay_date_time': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_date_time',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayDateTimeCb
             },
             'overlay_nav': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_nav',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayNavCb
             },
             'overlay_pose': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_pose',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayPoseCb
             },
             'overlay_text': {
                 'msg': String,
                 'namespace': self.namespace,
                 'topic': 'add_overlay_text',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayTextCb
             },
             'overlay_list': {
                 'msg': StringArray,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_list',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setOverlayListCb
             },
             'overlay_clear': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'clear_overlay_list',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._clearOverlayListCb
             }
         }
@@ -2485,7 +2485,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_resolution_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setResolutionRatioCb, 
                 'callback_args': ()
             }
@@ -2495,7 +2495,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setAutoAdjustCb, 
                 'callback_args': ()
             }
@@ -2503,7 +2503,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setAutoAdjustRatioCb, 
                 'callback_args': ()
             }
@@ -2512,7 +2512,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setBrightnessCb, 
                 'callback_args': ()
             }
@@ -2521,7 +2521,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setContrastCb, 
                 'callback_args': ()
             }
@@ -2530,7 +2530,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setThresholdingCb, 
                 'callback_args': ()
             }
@@ -2539,7 +2539,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'rotate_2d',
                 'msg': Empty,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setRotate2dCb, 
                 'callback_args': ()
             }
@@ -2548,7 +2548,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_flip_horz',
                 'msg': Bool,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setFlipHorzCb, 
                 'callback_args': ()
             }
@@ -2557,7 +2557,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_flip_vert',
                 'msg': Bool,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setFlipVertCb, 
                 'callback_args': ()
             }
@@ -2566,7 +2566,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_range_ratios',
                 'msg': RangeWindow,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setRangeCb, 
                 'callback_args': ()
             }
@@ -2575,7 +2575,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_zoom_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setZoomCb, 
                 'callback_args': ()
             }
@@ -2584,7 +2584,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_pan_x_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setPanXCb, 
                 'callback_args': ()
             }
@@ -2592,7 +2592,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_pan_y_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setPanYCb, 
                 'callback_args': ()
             }
@@ -2602,7 +2602,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_rotate_3d_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setRotateCb, 
                 'callback_args': ()
             }
@@ -2612,7 +2612,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_tilt_3d_ratio',
                 'msg': Float32,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setTiltCb, 
                 'callback_args': ()
             }
@@ -2621,7 +2621,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_filter_enable',
                 'msg': UpdateState,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setFilterEnableCb, 
                 'callback_args': ()
             }
@@ -2629,7 +2629,7 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'topic': 'set_filter_ratio',
                 'msg': UpdateRatio,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setFilterRatioCb, 
                 'callback_args': ()
             }

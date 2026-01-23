@@ -241,7 +241,7 @@ class ConnectNavPosesIF:
                 'namespace': self.namespace,
                 'topic': 'set_navpose_frame',
                 'msg': String,
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._setNavposeFrameCb, 
                 'callback_args': ()
             }
@@ -585,7 +585,7 @@ class ConnectImageIF:
                 'msg': ImageStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._statusCb
             }
         }
@@ -889,7 +889,7 @@ class ConnectPointcloudIF:
                 'msg': PointcloudStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
-                'qsize': 1,
+                'qsize': 5,
                 'callback': self._statusCb
             }
         }
