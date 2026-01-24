@@ -1973,7 +1973,7 @@ class AiDetectorIF:
                     img_source_topics.append(img_topic)
                     img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
         resp.image_source_topics = img_source_topics
-        resp.image_detector_namespaces = img_det_namespaces
+        resp.image_detector_topics = img_det_namespaces
 
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
@@ -2047,6 +2047,9 @@ class AiDetectorIF:
 
     def publish_status(self, do_updates = True):
 
+
+        self.status_msg.node_name = self.node_name
+        self.status_msg.ai_detector_topic = self.namespace
         # Pub Status
         self.status_msg.name = self.model_name
         self.status_msg.has_sleep = self.has_sleep
@@ -2065,7 +2068,8 @@ class AiDetectorIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
         # Pub Detection Status
-
+        self.det_status_msg.node_name = self.node_name
+        self.det_status_msg.ai_detector_topic = self.namespace
         self.det_status_msg.name = self.model_name
         self.det_status_msg.namespace = self.node_namespace
         self.det_status_msg.enabled = self.enabled
@@ -2106,7 +2110,7 @@ class AiDetectorIF:
                     img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
                     img_connects.append(imgs_info_dict[img_topic]['connected'])
         self.det_status_msg.image_source_topics = img_source_topics
-        self.det_status_msg.image_detector_namespaces = img_det_namespaces
+        self.det_status_msg.image_detector_topics = img_det_namespaces
         self.det_status_msg.images_connected = img_connects
 
 

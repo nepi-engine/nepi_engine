@@ -358,9 +358,10 @@ class config_mgr(object):
         # Restore saved param config if exists from first find in order (user,system,factory)
         config_folders = ['user_cfg','system_cfg','factory_cfg']
         success = False
-        for key in config_folders:
-            if key in self.config_folders.keys():
-                restore_path = self.config_folders[key]
+        for folder in config_folders:
+            self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " folder: " + str(folder))
+            if folder in self.config_folders.keys():
+                restore_path = self.config_folders[folder]
                 # Restore config if exits
                 restore_pathname = self.get_config_pathname(restore_path, namespace)
                 self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " params file: " + str(restore_pathname))

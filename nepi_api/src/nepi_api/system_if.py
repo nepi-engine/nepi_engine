@@ -490,10 +490,13 @@ class SaveDataIF:
 
     was_saving = False
 
+    pub_status = False
+
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
                 data_products = [], 
+                pub_status = True,
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
                 log_name = None,
@@ -527,6 +530,8 @@ class SaveDataIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
+        self.pub_status = pub_status
+
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
         self.timezone = tzd
 
@@ -651,15 +656,17 @@ class SaveDataIF:
 
 
         # Publishers Config Dict ####################
-        self.PUBS_DICT = {
-            'status_pub': {
+        self.PUBS_DICT = dict()
+
+        if self.pub_status == True:
+            self.PUBS_DICT['status_pub'] = {
                 'namespace': self.namespace,
                 'msg': SaveDataStatus,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             }
-        }
+        
 
         if self.navpose_save_namespace is not None:
             self.PUBS_DICT['set_navpose_enable'] = {
@@ -1148,7 +1155,7 @@ class SaveDataIF:
 
 
     def publish_status(self):
-        if self.node_if is not None:
+        if self.node_if is not None and self.pub_status == True:
             save_rates_msg = []
             save_rate_dict = self.save_rate_dict
 
