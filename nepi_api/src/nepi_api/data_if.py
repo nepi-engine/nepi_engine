@@ -843,7 +843,10 @@ class NavPosesIF:
 
     def __init__(self, namespace = None,
                  data_product = 'navposes',
+                has_save_data = True,
                 save_data_if = None,
+                has_tranform = False,
+                transform_if = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -933,9 +936,9 @@ class NavPosesIF:
         success = nepi_sdk.wait()
 
 
-        if save_data_if is not None:
+        if save_data_if is not None and has_save_data == True:
             self.save_data_if = save_data_if
-        else:
+        elif has_save_data == True:
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -970,6 +973,44 @@ class NavPosesIF:
                     self.status_msg.save_data_topic.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
+        # if save_data_if is not None and has_save_data == True:
+        #     self.save_data_if = save_data_if
+        # elif has_save_data == True:
+            
+        #     # Setup Save Data IF Class 
+        #     self.msg_if.pub_info("Starting Save Data IF Initialization")
+        #     factory_data_rates= {}
+        #     for d in self.data_products_list:
+        #         factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+        #     self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
+
+        #     factory_filename_dict = {
+        #         'prefix': "", 
+        #         'add_timestamp': True, 
+        #         'add_ms': True,
+        #         'add_us': False,
+        #         'suffix': "",
+        #         'add_node_name': True
+        #         }
+
+
+        #     sd_namespace = self.namespace
+        #     self.save_data_if = SaveDataIF(namespace = sd_namespace,
+        #                             data_products = self.data_products_list,
+        #                             factory_rate_dict = factory_data_rates,
+        #                             factory_filename_dict = factory_filename_dict,
+        #                             log_name_list = self.log_name_list,
+        #                             msg_if = self.msg_if)
+        #     nepi_sdk.sleep(1)
+
+        # if self.save_data_if is not None:
+        #     data_products = self.save_data_if.get_data_products()
+        #     for data_product in self.data_products_list:
+        #         if data_product not in data_products:
+        #             self.status_msg.save_data_topic.register_data_product(data_product)
+        #     self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+        #     self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
        
         ##############################

@@ -208,7 +208,7 @@ def get_data_from_setting(setting):
         elif s_type == "Discrete":
           data = s_value
         elif s_type == "Menu":
-          data = int(s_value.split(":")['name'])
+          data = int(s_value.split(":")[1])
       except Exception as e:
         logger.log_info("Setting conversion failed for setting " + s_str + "with exception" + str(e) )
   return s_name, s_type, data

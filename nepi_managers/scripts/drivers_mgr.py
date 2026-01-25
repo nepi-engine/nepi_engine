@@ -756,6 +756,11 @@ class NepiDriversMgr(object):
         settings = drv_dict['DISCOVERY_DICT']['OPTIONS']
         #self.msg_if.pub_info("Updating Status Cap Settings from settings: " + str(settings))
         settings_status_msg = SettingsStatus()
+
+        settings_status_msg.node_name = self.node_name
+        if driver_name in self.discovery_settings_dict.keys():
+          if 'namespace' in self.discovery_settings_dict[driver_name].keys():
+            settings_status_msg.settings_topic = self.discovery_settings_dict[driver_name]['namespace']
         settings_status_msg.settings_count = len(settings)
 
         setting_msgs_list = []

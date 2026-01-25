@@ -97,11 +97,6 @@ class AIDetectorManager:
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
 
-        # Import ultralytics here so we can message
-        self.msg_if.pub_warn("Importing warm-up imports for torch and ultralytics YOLO packages")
-        import torch
-        from ultralytics import YOLO
-        self.msg_if.pub_warn("IWarm-up imports Complete")
         ##############################
         # Get for System Folders
         self.msg_if.pub_info("Waiting for system folders")

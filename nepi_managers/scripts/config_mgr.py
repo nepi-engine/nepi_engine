@@ -509,10 +509,10 @@ class config_mgr(object):
         if cfg_path == self.FACTORY_CFG_PATH:
             # Delete system config files for factory reset
             self.msg_if.pub_warn("Restoring Factory Config Files")
-            scfg_pathname = self.get_scfg_pathname(self.SYSTEM_CFG_PATH, namespace)
+            scfg_pathname = self.get_config_pathname(self.SYSTEM_CFG_PATH, namespace)
             if os.path.exists(scfg_pathname):
                 nepi_utils.clear_folder(scfg_pathname)
-            factory_pathname = self.get_scfg_pathname(self.FACTORY_CFG_PATH, namespace)
+            factory_pathname = self.get_config_pathname(self.FACTORY_CFG_PATH, namespace)
             if os.path.exists(factory_pathname):
                 shutil.copy2(factory_pathname,scfg_pathname)  # Use copy2 to preserve metadata
         success = self.reset_params(namespace)

@@ -116,9 +116,10 @@ class IDXDeviceIF:
     min_range_m = 0.0
     max_range_m = 1.0
 
-    data_products_base_list = []
+    data_products_list = []
     data_products_save_list = []
 
+    data_product_dict = dict()
 
     update_navpose_interval_sec = float(1)/UPDATE_NAVPOSE_RATE_HZ
     last_gps_timestamp = None
@@ -136,7 +137,7 @@ class IDXDeviceIF:
     width_deg = DEFUALT_IMG_WIDTH_DEG
     height_deg = DEFUALT_IMG_HEIGHT_DEG
 
-    data_product_dict = dict()
+    
 
     npx_if = None
     
@@ -217,8 +218,8 @@ class IDXDeviceIF:
             #self.msg_if.pub_warn("Checking data product: " + str(data_product))
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
-        self.data_products_base_list = data_products_list
-        self.msg_if.pub_warn("Enabled data products: " + str(self.data_products_base_list))
+        self.data_products_list = data_products_list
+        self.msg_if.pub_warn("Enabled data products: " + str(self.data_products_list))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
 
@@ -520,7 +521,7 @@ class IDXDeviceIF:
 
 
         # Start the data producers
-        if (getColorImage is not None and 'color_image' in self.data_products_base_list):
+        if (getColorImage is not None and 'color_image' in self.data_products_list):
             self.getColorImage = getColorImage
             self.stopColorImageAcquisition = stopColorImageAcquisition
             data_product = 'color_image'
@@ -542,7 +543,7 @@ class IDXDeviceIF:
         self.caps_report.has_depth_map = False
         self.caps_report.has_pointcloud = False
 
-        if (getDepthMap is not None and 'depth_map' in self.data_products_base_list):
+        if (getDepthMap is not None and 'depth_map' in self.data_products_list):
             self.getDepthMap = getDepthMap
             self.stopDepthMapAcquisition = stopDepthMapAcquisition
             data_product = 'depth_map'
@@ -562,7 +563,7 @@ class IDXDeviceIF:
             self.caps_report.has_depth_map = False
           
         '''
-        if (getPointcloud is not None and 'pointcloud' in self.data_products_base_list):
+        if (getPointcloud is not None and 'pointcloud' in self.data_products_list):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
             data_product = 'pointcloud'
@@ -657,9 +658,9 @@ class IDXDeviceIF:
 
         ############################
         # Start Data Get Threads
-        self.caps_report.data_products = self.data_products_base_list
 
-        for data_product in self.data_products_base_list:
+
+        for data_product in self.data_products_list:
             self.last_data_time[data_product] = nepi_utils.get_time()
             self.current_fps[data_product] = 0
             self.fps_queue[data_product] = [0 for _ in range(100)]
@@ -807,6 +808,7 @@ class IDXDeviceIF:
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
+        dp_dict['image_topic'] = 'None'
         
 
         dp_dict['get_data'] = start_data_function
@@ -999,7 +1001,7 @@ class IDXDeviceIF:
             #self.msg_if.pub_warn("Recived Framerate update: " + str(status))
 
 
-        for data_product in self.data_products_base_list:
+        for data_product in self.data_products_list:
             self.fps_queue[data_product] = [0 for _ in range(100)]
 
         if self.node_if is not None:
@@ -1065,6 +1067,15 @@ class IDXDeviceIF:
 
 
     def provide_capabilities(self, _):
+        self.caps_report.data_products = self.data_products_list
+        data_product_image_topics = []
+        for data_product in self.data_products_list:
+            image_topic = 'None'
+            if data_product in self.data_product_dict.keys():
+                if 'image_topic' in self.data_product_dict[data_product].keys():
+                    image_topic = self.data_product_dict[data_product]['image_topic']
+            data_product_image_topics.append(image_topic)
+        self.caps_report.data_product_image_topics = data_product_image_topics
         return self.caps_report
     
     def update_fps(self,data_product):
@@ -1119,7 +1130,8 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                             )
                 ready = dp_if.wait_for_ready()
-                
+                self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
+
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
@@ -1215,7 +1227,8 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
-            
+            self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
+
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
@@ -1320,6 +1333,8 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
+            self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
+
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
@@ -1403,11 +1418,20 @@ class IDXDeviceIF:
         self.status_msg.resolution_current = res_str
 
         self.status_msg.max_framerate = self.max_framerate
-        self.status_msg.data_products = self.data_products_base_list
-        # framerates = []
-        # for dp in self.current_fps.keys():
-        #     framerates.append(self.current_fps[dp])
-        # self.status_msg.framerates = framerates
+        self.status_msg.data_products = self.data_products_list
+        data_product_image_topics = []
+        for data_product in self.data_products_list:
+            image_topic = 'None'
+            if data_product in self.data_product_dict.keys():
+                if 'image_topic' in self.data_product_dict[data_product].keys():
+                    image_topic = self.data_product_dict[data_product]['image_topic']
+            data_product_image_topics.append(image_topic)
+        self.status_msg.data_product_image_topics = data_product_image_topics
+
+        framerates = []
+        for dp in self.current_fps.keys():
+            framerates.append(self.current_fps[dp])
+        self.status_msg.framerates = framerates
 
 
         self.status_msg.auto_adjust_enabled = self.auto_adjust_ebabled

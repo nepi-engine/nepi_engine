@@ -836,6 +836,7 @@ class SystemMgrNode():
         # Crate system status pub
         self.msg_if.pub_warn("Starting System Status Messages")
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
+        nepi_sdk.start_timer_process(1, self.updateTopicsCb, oneshot = True)
         nepi_sdk.start_timer_process(5, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
 
@@ -1215,6 +1216,10 @@ class SystemMgrNode():
 
     def updateDockerCb(self, event):
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
+
+    def updateTopicsCb(self, event):
+        self.status_msg.active_topics = nepi_sdk.get_topic_list()
+        nepi_sdk.start_timer_process(1, self.updateTopicsCb, oneshot = True)
         
     def publish_status(self):
         # Populate the rest of the message contents
