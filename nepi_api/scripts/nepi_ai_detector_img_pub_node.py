@@ -162,6 +162,8 @@ class AiDetectorImgPub:
 
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
 
+    connected = False
+
     def __init__(self):
         ####  IF INIT SETUP ####
         nepi_sdk.init_node(name = self.DEFAULT_NODE_NAME)
@@ -460,6 +462,7 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
         pub_namespace = os.path.dirname(img_topic)
+        img_pub_namespace = os.path.join(pub_namespace,self.data_product)
         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + pub_namespace  + self.data_product)
 
 
@@ -474,7 +477,7 @@ class AiDetectorImgPub:
                 return  False    
             self.img_det_lock.acquire()
             if img_topic in self.img_det_dict.keys():
-                self.img_det_dict[img_topic]['img_pub'] = nepi_sdk.create_publisher(pub_namespace + '/' + self.data_product,Image, queue_size = 1, log_name_list = [])
+                self.img_det_dict[img_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_namespace,Image, queue_size = 1, log_name_list = [])
                 nepi_sdk.sleep(1)
                 self.img_det_dict[img_topic]['img_sub'] = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
                 self.img_det_dict[img_topic]['img_if'].register_pubs()
@@ -483,7 +486,7 @@ class AiDetectorImgPub:
             return True
 
 
-        img_pub = nepi_sdk.create_publisher(pub_namespace,Image, queue_size = 1, log_name_list = [])
+        img_pub = nepi_sdk.create_publisher(img_pub_namespace,Image, queue_size = 1, log_name_list = [])
         nepi_sdk.sleep(1)
         img_sub = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
         
@@ -918,6 +921,7 @@ class AiDetectorImgPub:
 
 
     def objectDetectedCb(self,msg):
+        self.connected = True
         #self.msg_if.pub_info("Got Detection Msg: " + str(msg))
         img_stamp = msg.image_timestamp
         img_topic = msg.image_topic
