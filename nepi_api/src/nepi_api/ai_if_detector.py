@@ -91,7 +91,7 @@ GET_IMAGE_TIMEOUT_SEC = 5
 
 class AiDetectorIF:
     
-    IMAGE_DATA_PRODUCT = 'detection_image'
+    IMAGE_DATA_PRODUCT = 'detection_images'
     IMAGE_SUB_MSG = 'Waiting for Source Image'
     IMAGE_PUB_MSG = 'Loading Image Publisher'
 
@@ -108,7 +108,7 @@ class AiDetectorIF:
     save_data_if = None
     
 
-    data_products = ['bounding_boxes','datection_images']
+    data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
 
 
     self_managed = True
@@ -1172,9 +1172,7 @@ class AiDetectorIF:
 
             ####################
             # Create Pubs and Subs IF Dict 
-            short_namespace = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
-            short_name = os.path.dirname(short_namespace).replace('/','_')
-            pub_namespace = nepi_sdk.create_namespace(self.node_namespace,short_name)
+            pub_namespace = os.path.dirname(img_topic)
 
             # Pubs Config Dict 
             img_pubs_dict = {
@@ -1264,7 +1262,6 @@ class AiDetectorIF:
                 img_info_dict = dict()  
                 img_info_dict['namespace'] = pub_namespace
                 img_info_dict['pub_namespaces'] = pub_namespaces    
-                img_info_dict['img_short_name'] = short_name
                 img_info_dict['navpose_topic'] = 'None'
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70

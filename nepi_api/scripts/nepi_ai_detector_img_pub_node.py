@@ -459,10 +459,8 @@ class AiDetectorImgPub:
         det_name = os.path.basename(self.det_namespace)
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
-        short_namespace = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
-        short_name = os.path.dirname(short_namespace).replace('/','_')
-        pub_namespace = nepi_sdk.create_namespace(short_namespace,short_name)
-        self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + pub_namespace + '/detection_images')
+        pub_namespace = os.path.dirname(img_topic)
+        self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + pub_namespace  + self.data_product)
 
 
         if img_topic in self.imgs_info_dict.keys():
@@ -558,14 +556,6 @@ class AiDetectorImgPub:
             if self.imgs_info_dict[img_topic]['active'] == True:
                 self.msg_if.pub_warn('Unsubscribing from image topic: ' + img_topic)
 
-                # Remove img pubs
-                pub_namespace = None
-                try:
-                    pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
-                except:
-                    pass
-                if pub_namespace is not None:
-                    self.img_if.remove_pub_namespace(pub_namespace)
 
                 # Unsubscribe
                 self.img_det_lock.acquire()
