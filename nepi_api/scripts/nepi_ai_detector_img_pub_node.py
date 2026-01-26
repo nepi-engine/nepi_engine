@@ -110,7 +110,7 @@ WATCHDOG_TIMEOUT=10
 
 class AiDetectorImgPub:
 
-    IMG_DATA_PRODUCT = 'detection_image'
+    IMG_DATA_PRODUCT = 'detection_images'
 
     det_sub_names = ['bounding_boxes']
     
@@ -157,7 +157,7 @@ class AiDetectorImgPub:
     
     last_status_time=None
 
-    data_product = 'datection_images'
+    data_product = 'detection_images'
 
 
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
@@ -179,7 +179,7 @@ class AiDetectorImgPub:
         # Init Class Variables 
 
         
-        backup_data_products = ['bounding_boxes','datection_images'] 
+        backup_data_products = ['bounding_boxes','detection_images'] 
         self.data_products = nepi_sdk.get_param(self.node_namespace + "/data_products",backup_data_products)
         self.data_product = self.data_products[-1]
         self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
@@ -243,7 +243,7 @@ class AiDetectorImgPub:
         self.SUBS_DICT = {
             'bounding_boxes': {
                 'msg': AiBoundingBoxes,
-                'namespace': self.det_namespace + '/all',
+                'namespace': self.det_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 10,
                 'callback': self.objectDetectedCb, 
@@ -294,18 +294,6 @@ class AiDetectorImgPub:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
-        # Create image publisher
-        self.img_if = ColorImageIF(namespace = self.det_namespace + '/all' ,
-                        data_product_name = self.data_product,
-                        data_source_description = 'image',
-                        data_ref_description = 'image',
-                        perspective = 'pov',
-                        save_data_if = self.save_data_if,
-                        init_overlay_list = [],
-                        log_name = self.data_product,
-                        log_name_list = [],
-                        msg_if = self.msg_if
-                        )
 
         time.sleep(1)
 
@@ -463,23 +451,59 @@ class AiDetectorImgPub:
         if img_topic == "None" or img_topic == "":
             self.msg_if.pub_warn('Skipping subscribe, Image topic is None: ' + str(img_topic))
             return False
+        
+        # Create Publishers
+        self.msg_if.pub_warn('Subscribing to image topic: ' + img_topic)
+
+        img_source_topic = os.path.dirname(img_topic)
+        det_name = os.path.basename(self.det_namespace)
+        #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
+
+        short_namespace = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
+        short_name = os.path.dirname(short_namespace).replace('/','_')
+        pub_namespace = nepi_sdk.create_namespace(short_namespace,short_name)
+        self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + pub_namespace + '/detection_images')
+
+
         if img_topic in self.imgs_info_dict.keys():
+            num_active = self.getActiveImgTopics()
+            if num_active == 0 and self.img_if is not None:
+                self.img_if.register_pubs(self.PUBS_DICT)
             #self.msg_if.pub_warn('Checking if Image Topic is active: ' + img_topic)
             imgs_info_dict = self.getImgInfoDict()
             if imgs_info_dict[img_topic]['active'] == True:
                 self.msg_if.pub_warn('Skipping subscribe, Image Topic is active: ' + img_topic)
                 return  False    
+            self.img_det_lock.acquire()
+            if img_topic in self.img_det_dict.keys():
+                self.img_det_dict[img_topic]['img_pub'] = nepi_sdk.create_publisher(pub_namespace + '/' + self.data_product,Image, queue_size = 1, log_name_list = [])
+                nepi_sdk.sleep(1)
+                self.img_det_dict[img_topic]['img_sub'] = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
+                self.img_det_dict[img_topic]['img_if'].register_pubs()
+            self.img_det_lock.release()
 
-        # Create Publishers
-        self.msg_if.pub_warn('Subscribing to image topic: ' + img_topic)
+            return True
+
+
+        img_pub = nepi_sdk.create_publisher(pub_namespace,Image, queue_size = 1, log_name_list = [])
+        nepi_sdk.sleep(1)
         img_sub = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
-        img_name = img_topic.replace(self.base_namespace,"")
-        self.msg_if.pub_warn('Creating namespace for image name: ' + img_name)
-
-        pub_namespace = nepi_sdk.create_namespace(self.det_namespace,img_name)
-        self.msg_if.pub_warn('Publishing imgage ' + img_name + ' on namespace: ' + pub_namespace)
-        self.img_if.add_pub_namespace(pub_namespace)
         
+
+        if self.img_if is None:
+            # Create image publisher
+            self.img_if = ColorImageIF(namespace = self.det_namespace,
+                            data_product_name = self.data_product,
+                            data_source_description = 'image',
+                            data_ref_description = 'image',
+                            perspective = 'pov',
+                            save_data_if = self.save_data_if,
+                            init_overlay_list = [],
+                            log_name = self.data_product,
+                            log_name_list = [],
+                            msg_if = self.msg_if
+                            )
+
 
         # Create image publisher
         img_if = ColorImageIF(namespace = pub_namespace ,
@@ -497,6 +521,7 @@ class AiDetectorImgPub:
         self.img_det_lock.acquire()
         self.img_det_dict[img_topic] = {
                                         'img_sub': img_sub,
+                                        'img_pub': img_pub,
                                         'img_if': img_if
                                         }   
         self.img_det_lock.release()
@@ -546,10 +571,12 @@ class AiDetectorImgPub:
                 self.img_det_lock.acquire()
                 if img_topic in self.img_det_dict.keys():
                     self.img_det_dict[img_topic]['img_sub'].unregister()
-                    self.img_det_dict[img_topic]['img_if'].unregister()
+                    self.img_det_dict[img_topic]['img_pub'].unregister()
+                    self.img_det_dict[img_topic]['img_if'].unregister_pubs()
+                    nepi_sdk.sleep(1)
+                    self.img_det_dict[img_topic]['img_sub'] = None
+                    self.img_det_dict[img_topic]['img_pub'] = None
                 self.img_det_lock.release()
-
-                # Purge Dict
 
                 if img_topic in self.imgs_info_dict.keys():
                     self.msg_if.pub_warn('Setting image topic inactive: ' + img_topic)
@@ -559,6 +586,11 @@ class AiDetectorImgPub:
                     #self.msg_if.pub_warn('Unubscribed with images dict: ' + str(self.imgs_info_dict))
 
                 nepi_sdk.sleep(1)
+
+                num_active = self.getActiveImgTopics()
+                if num_active == 0 and self.img_if is not None:
+                    self.img_if.unregister_pubs()
+                    
                 return True
         return False
 
@@ -566,27 +598,29 @@ class AiDetectorImgPub:
         if self.img_if is not None:
             needs_save = False
             if self.save_data_if is not None:
-                needs_save = self.save_data_if.data_product_should_save('detection_image')
+                needs_save = self.save_data_if.data_product_should_save(self.data_product)
 
-                if img_topic in self.img_det_dict.keys():
-                    self.img_det_lock.acquire()
-                    img_if = self.img_det_dict[img_topic]['img_if'].unregister()
-                    img_if_ready = img_if.ready
-                    self.img_det_lock.release()
+
 
             if ( self.img_if.has_subscribers_check() or needs_save ) and self.pub_image_enabled:
                 add_pubs = [self.all_namespace]
                 if img_topic in self.imgs_info_dict.keys():
                     # Publish on self.img_if if img_if not ready yet for fast initial image publishing
-                    if img_if_ready == True:
-                        pub_namespace = self.imgs_info_dict[img_topic]['pub_namespace']
-                        add_pubs.append(pub_namespace)
-                    else:
-                        img_if.publish_cv2_img(cv2_img, 
-                                            encoding = encoding, 
-                                            timestamp = timestamp, 
-                                            add_overlay_list = add_overlay_list
-                                            )
+                    if img_topic in self.img_det_dict.keys():
+                        self.img_det_lock.acquire()
+                        img_if = self.img_det_dict[img_topic]['img_if']
+                        img_pub = self.img_det_dict[img_topic]['img_pub']
+                        self.img_det_lock.release()
+                        img_if_ready = img_if.ready
+                        if img_if_ready == False:
+                            img_msg = nepi_img.cv2img_to_rosimg(cv2_img)
+                            nepi_sdk.publish_pub(img_pub,img_msg)
+                        else:
+                            img_if.publish_cv2_img(cv2_img, 
+                                                encoding = encoding, 
+                                                timestamp = timestamp, 
+                                                add_overlay_list = add_overlay_list
+                                                )
 
                 self.img_if.publish_cv2_img(cv2_img, 
                                         encoding = encoding, 
@@ -596,6 +630,7 @@ class AiDetectorImgPub:
                                         )
 
 
+
                  
 
 
@@ -603,7 +638,7 @@ class AiDetectorImgPub:
         if self.img_if is not None:
             needs_save = False
             if self.save_data_if is not None:
-                needs_save = self.save_data_if.data_product_should_save('detection_image')
+                needs_save = self.save_data_if.data_product_should_save(self.data_product)
 
             if ( self.img_if.has_subscribers_check() or needs_save ) and self.pub_image_enabled:
                 start_time = nepi_sdk.get_time()   
@@ -685,7 +720,7 @@ class AiDetectorImgPub:
         if self.img_if is not None:
             needs_save = False
             if self.save_data_if is not None:
-                needs_save = self.save_data_if.data_product_should_save('detection_image')
+                needs_save = self.save_data_if.data_product_should_save(self.data_product)
 
                
                 max_rate = copy.deepcopy(self.max_rate)

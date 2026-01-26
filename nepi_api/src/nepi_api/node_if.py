@@ -777,12 +777,6 @@ class NodePublishersIF:
                             " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
         return success
 
-    def register_pubs(self,pubs_dict):
-        for pub_name in pubs_dict.keys():
-            pub_dict = pubs_dict[pub_name]
-            self.pubs_dict[pub_name] = pub_dict
-        self._initialize_pubs()
-
     def register_pub(self,pub_name, pub_dict):
         self.pubs_dict[pub_name] = pub_dict
         self._initialize_pubs()
@@ -793,6 +787,9 @@ class NodePublishersIF:
             self.pubs_dict[pub_name] = pub_dict
         self._initialize_pubs()
 
+
+
+ 
     def unregister_pub(self,pub_name):
         self._unregister_pub(pub_name)
 

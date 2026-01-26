@@ -463,7 +463,7 @@ class NavPoseIF:
             data_products = self.save_data_if.get_data_products()
             for data_product in self.data_products_list:
                 if data_product not in data_products:
-                    self.status_msg.save_data_topic.register_data_product(data_product)
+                    self.save_data_if.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
@@ -970,7 +970,7 @@ class NavPosesIF:
             data_products = self.save_data_if.get_data_products()
             for data_product in self.data_products_list:
                 if data_product not in data_products:
-                    self.status_msg.save_data_topic.register_data_product(data_product)
+                    self.save_data_if.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
@@ -1008,7 +1008,7 @@ class NavPosesIF:
         #     data_products = self.save_data_if.get_data_products()
         #     for data_product in self.data_products_list:
         #         if data_product not in data_products:
-        #             self.status_msg.save_data_topic.register_data_product(data_product)
+        #             self.save_data_if.register_data_product(data_product)
         #     self.status_msg.save_data_topic = self.save_data_if.get_namespace()
         #     self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
@@ -2746,7 +2746,7 @@ class BaseImageIF:
             data_products = self.save_data_if.get_data_products()
             for data_product in self.data_products_list:
                 if data_product not in data_products:
-                    self.status_msg.save_data_topic.register_data_product(data_product)
+                    self.save_data_if.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
@@ -3141,6 +3141,15 @@ class BaseImageIF:
         nepi_sdk.wait()
         self.namespace = '~'
         self.status_msg = None
+
+
+    def unregister_pubs(self):
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
+
+    def register_pubs(self):
+        if self.node_if is not None:
+            self.node_if.register_pubs()
 
     ########################
     # Filter Functions
@@ -4683,7 +4692,7 @@ class DepthMapIF:
             data_products = self.save_data_if.get_data_products()
             for data_product in self.data_products_list:
                 if data_product not in data_products:
-                    self.status_msg.save_data_topic.register_data_product(data_product)
+                    self.save_data_if.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
@@ -5584,7 +5593,7 @@ class PointcloudIF:
             data_products = self.save_data_if.get_data_products()
             for data_product in self.data_products_list:
                 if data_product not in data_products:
-                    self.status_msg.save_data_topic.register_data_product(data_product)
+                    self.save_data_if.register_data_product(data_product)
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 

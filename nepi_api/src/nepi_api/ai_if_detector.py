@@ -385,7 +385,7 @@ class AiDetectorIF:
         self.PUBS_DICT = {
             'bounding_boxes': {
                 'msg': AiBoundingBoxes,
-                'namespace': self.node_namespace + '/all',
+                'namespace': self.node_namespace,
                 'topic': 'bounding_boxes',
                 'qsize': 1,
                 'latch': False
@@ -413,7 +413,7 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace  + '/all',
+                'namespace': self.node_namespace,
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
@@ -1172,10 +1172,9 @@ class AiDetectorIF:
 
             ####################
             # Create Pubs and Subs IF Dict 
-            short_name = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
-            short_name = os.path.dirname(short_name).replace('/','_') + '_' + self.IMAGE_DATA_PRODUCT
+            short_namespace = img_topic.replace(self.base_namespace + '/','').replace('/idx','')
+            short_name = os.path.dirname(short_namespace).replace('/','_')
             pub_namespace = nepi_sdk.create_namespace(self.node_namespace,short_name)
-            data_product = short_name + '/' + self.IMAGE_DATA_PRODUCT
 
             # Pubs Config Dict 
             img_pubs_dict = {
@@ -1200,16 +1199,16 @@ class AiDetectorIF:
             pub_namespaces.append(ns)
 
 
-            if self.enable_image_pub == True:
-                img_pubs_dict['image_pub'] = {
-                    'msg': Image,
-                    'namespace': pub_namespace,
-                    'topic': 'detection_image',
-                    'qsize': 1,
-                    'latch': False
-                }
-                ns=os.path.join(pub_namespace,'detection_image')
-                pub_namespaces.append(ns)
+            # if self.enable_image_pub == True:
+            #     img_pubs_dict['image_pub'] = {
+            #         'msg': Image,
+            #         'namespace': pub_namespace,
+            #         'topic': 'detection_image',
+            #         'qsize': 1,
+            #         'latch': False
+            #     }
+            #     ns=os.path.join(pub_namespace,'detection_image')
+            #     pub_namespaces.append(ns)
 
             
 
@@ -1266,7 +1265,6 @@ class AiDetectorIF:
                 img_info_dict['namespace'] = pub_namespace
                 img_info_dict['pub_namespaces'] = pub_namespaces    
                 img_info_dict['img_short_name'] = short_name
-                img_info_dict['data_product'] = data_product
                 img_info_dict['navpose_topic'] = 'None'
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70

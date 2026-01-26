@@ -687,14 +687,28 @@ def publish_pub(publisher, msg, log_name_list = []):
 
 
 # Function to get list of active topics
-def get_topic_list():
-  topic_list = []
+def get_topics_data_list():
+  topics_data_list = []
   try:
     pubs, subs =rostopic.get_topic_list()
-    topic_list = pubs
+    topics_data_list = pubs
   except Exception as e:
-    log_msg_warn("Nepi Sdk get_topic_list failed: " + str(e))
-  return topic_list
+    log_msg_warn("Nepi Sdk get_topics_data_list failed: " + str(e))
+  return topics_data_list
+
+
+def get_topics_active_list():
+  topics_list = []
+  try:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
+      topic_str = topic_entry[0]
+      #log_msg_warn("topics check: " + str(topic_str) + " in " + str(topic_names_list))
+      if isinstance(topic_str,str):
+            topics_list.append(topic_str)
+  except Exception as e:
+    log_msg_warn("Nepi Sdk find_topics failed: " + str(e))
+  return topics_list
 
 def get_published_topics():
   return rospy.get_published_topics()
@@ -702,12 +716,12 @@ def get_published_topics():
 # Function to find a topic
 def find_topic(topic_name, exact = False):
   topic = ""
-  topic_list = []
+  topics_data_list = []
   try:
-    topic_list=get_topic_list()
+    topics_data_list=get_topics_data_list()
   except:
     pass
-  for topic_entry in topic_list:
+  for topic_entry in topics_data_list:
     topic_str = topic_entry[0]
     if isinstance(topic_str,str):
       if topic_str.find(topic_name) != -1 and topic_str.find(topic_name+"_") == -1:
@@ -729,49 +743,49 @@ def find_topic(topic_name, exact = False):
 def find_topics(topic_names_list):
   #log_msg_warn("msg find: " + str(msg_type_list))
 
-  topic_list = []
+  topics_list = []
   try:
-    topics=get_topic_list()
-    for topic_entry in topics:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
       #log_msg_warn("topics check: " + str(topic_str) + " in " + str(topic_names_list))
       if isinstance(topic_str,str):
         for topic_name in topic_names_list:
-          if topic_name == topic_str and topic_name not in topic_list:
-            topic_list.append(topic_name)
+          if topic_name == topic_str and topic_name not in topics_list:
+            topics_list.append(topic_name)
   except Exception as e:
     log_msg_warn("Nepi Sdk find_topics failed: " + str(e))
-  return topic_list
+  return topics_list
 
 
 # Function to find a topic
 def find_topics_by_msg(msg_type):
   #log_msg_warn("msg find: " + str(msg_type))
-  topic_list = []
+  topics_list = []
   try:
-    topics=get_topic_list()
-    for topic_entry in topics:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
       #log_msg_warn("msg check: " + str([msg_type, topic_str, msg_str]))
       if isinstance(topic_str,str) and isinstance(msg_str,str):
         if msg_str.find(msg_type) != -1:
-          topic_list.append(topic_str)
+          topics_list.append(topic_str)
           #log_msg_warn("msg found: " + str([msg_type, topic_str]))
 
   except Exception as e:
     log_msg_warn("Nepi Sdk find_topics_by_msg failed: " + str(e))
-  return topic_list
+  return topics_list
 
 # Function to find a topic
 def find_topics_by_msgs(msg_type_list):
   #log_msg_warn("msg find: " + str(msg_type_list))
 
-  topic_list = []
+  topics_list = []
   msg_list = []
   try:
-    topics=get_topic_list()
-    for topic_entry in topics:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
       #log_msg_warn("msg check: " + str(msg_type_list + [topic_str, msg_str]))
@@ -779,20 +793,20 @@ def find_topics_by_msgs(msg_type_list):
         for msg_type in msg_type_list:
           if msg_str.find(msg_type) != -1:
             #log_msg_warn("msg check: " + str([topic_str, msg_str]))
-            topic_list.append(topic_str)
+            topics_list.append(topic_str)
             msg_list.append(msg_str)
             #log_msg_warn("msgs found: " + str([msg_type, topic_str]))
 
   except Exception as e:
     log_msg_warn("Nepi Sdk find_topics_by_msgs failed: " + str(e))
-  return topic_list,msg_list
+  return topics_list,msg_list
 
 # Function to find a topic
 def find_msg_by_topic(topic):
   msg = None
   try:
-    topics=get_topic_list()
-    for topic_entry in topics:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
       if isinstance(topic_str,str) and isinstance(msg_str,str):
@@ -800,21 +814,21 @@ def find_msg_by_topic(topic):
           msg = msg_str
   except Exception as e:
     log_msg_warn("Nepi Sdk find_msg_by_topic failed: " + str(e))
-  return topic_list
+  return topics_list
 
 # Function to find a topic
 def find_topics_by_name(topic_name):
-  topic_list = []
+  topics_list = []
   try:
-    topics=get_topic_list()
-    for topic_entry in topics:
+    topics_data_list=get_topics_data_list()
+    for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
       msg_str = topic_entry[1]
       if topic_name == os.path.basename(topic_str):
-        topic_list.append(topic_str)
+        topics_list.append(topic_str)
   except Exception as e:
     log_msg_warn("Nepi Sdk find_topics_by_name failed: " + str(e))
-  return topic_list
+  return topics_list
 
 ### Function to check for a topic 
 def check_for_topic(topic_name):

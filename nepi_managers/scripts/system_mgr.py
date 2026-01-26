@@ -1218,8 +1218,10 @@ class SystemMgrNode():
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
 
     def updateTopicsCb(self, event):
-        self.status_msg.active_topics = nepi_sdk.get_topic_list()
-        nepi_sdk.start_timer_process(1, self.updateTopicsCb, oneshot = True)
+        topics_list = nepi_sdk.get_topics_active_list()
+        #self.msg_if.pub_warn("Got Topics List: " + str(topics_list))
+        self.status_msg.active_topics = topics_list
+        nepi_sdk.start_timer_process(5, self.updateTopicsCb, oneshot = True)
         
     def publish_status(self):
         # Populate the rest of the message contents
