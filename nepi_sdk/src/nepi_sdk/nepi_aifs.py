@@ -196,9 +196,16 @@ def getModelsByActive(models_dict):
   return active_dict
 
 def getModelsSortedList(models_dict):
-  models_names = list(models_dict.keys())
-  sorted_names = sorted(models_names)
   sorted_list = []
+  model_names = []
+  for key in models_dict.keys():
+    if 'name' not in models_dict[key].keys():
+      logger.log_warn("Model dict does not have 'name' entry: " + str(models_dict[key].keys))
+      return sorted_list
+    model_name = models_dict[key]['name']
+    model_names.append(model_name)
+  sorted_names = sorted(model_names)
+  
   for name in sorted_names:
     sorted_list.append(str(name))
   return sorted_list
@@ -209,9 +216,12 @@ def getModelsActiveSortedList(models_dict):
   #logger.log_warn("AIFS_MGR: sorted list: " + str(sorted_name_list))
   sorted_active_list =[]
   for model_name in sorted_name_list:
-    active = models_dict[model_name]['active']
-    if active:
-      sorted_active_list.append(model_name)
+    for key in models_dict.keys():
+      name = models_dict[key]['name']
+      if model_name == name:
+        active = models_dict[model_name]['active']
+        if active:
+          sorted_active_list.append(model_name)
   return sorted_active_list
 
 

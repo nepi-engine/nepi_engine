@@ -461,7 +461,7 @@ class AiDetectorImgPub:
         det_name = os.path.basename(self.det_namespace)
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
-        pub_namespace = os.path.join(os.path.dirname(img_topic),det_name)
+        pub_namespace = os.path.join(os.path.dirname(img_topic),det_name).replace('/idx','')
         img_pub_namespace = os.path.join(pub_namespace,self.data_product)
         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + img_pub_namespace)
 
