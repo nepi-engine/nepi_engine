@@ -96,15 +96,15 @@ def printDict(aifs_dict):
     logger.log_warn(str(aifs_dict))
 
 
-def refreshAIFsDict(params_path, api_path, aifs_dict):
-  success = True
-  params_path = nepi_utils.clear_end_slash(params_path)
-  api_path = nepi_utils.clear_end_slash(api_path)
-  get_aifs_dict = getAIFsDict(params_path, api_path)
-  for aif_name in get_aifs_dict.keys():
-    if aif_name in aifs_dict.keys():
-      get_aifs_dict[aif_name]['active'] = aifs_dict[aif_name]['active']
-  return get_aifs_dict
+# def refreshAIFsDict(params_path, api_path, aifs_dict):
+#   success = True
+#   params_path = nepi_utils.clear_end_slash(params_path)
+#   api_path = nepi_utils.clear_end_slash(api_path)
+#   get_aifs_dict = getAIFsDict(params_path, api_path)
+#   for aif_name in get_aifs_dict.keys():
+#     if aif_name in aifs_dict.keys():
+#       get_aifs_dict[aif_name]['active'] = aifs_dict[aif_name]['active']
+#   return get_aifs_dict
 
   
 
@@ -200,7 +200,7 @@ def getModelsSortedList(models_dict):
   model_names = []
   for key in models_dict.keys():
     if 'name' not in models_dict[key].keys():
-      logger.log_warn("Model dict does not have 'name' entry: " + str(models_dict[key].keys))
+      logger.log_warn("Model dict does not have 'name' entry: " + str(models_dict[key].keys()))
       return sorted_list
     model_name = models_dict[key]['name']
     model_names.append(model_name)

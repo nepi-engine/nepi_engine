@@ -330,29 +330,30 @@ class AIDetectorManager:
 
 
         if self.node_if is not None:
-            models_dict = copy.deepcopy(self.models_dict)
+
             ## Find AI Frameworks
             # Get ai framework dict form param server and update
             #self.msg_if.pub_warn("Refreshing latest ais dict " + str(self.aifs_dict))
 
             # Update AI Frameworks Dict
-            aifs_dict = copy.deepcopy(self.aifs_dict)
-            #self.msg_if.pub_warn("Refreshing aifs dict with keys: " + str(self.aifs_dict.keys()))
-            #self.msg_if.pub_warn("Refreshing active aifs list: " + str(self.getActiveAifs())) 
-            last_aifs_keys = aifs_dict.keys()
-            #self.msg_if.pub_warn("Got last aifs " + str(last_aifs_keys))
-            aifs_dict = nepi_aifs.refreshAIFsDict(self.aifs_param_folder,self.aifs_api_folder,aifs_dict)
-            self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
+            orig_aifs_dict = copy.deepcopy(self.aifs_dict)
+            cur_aif_keys = orig_aifs_dict.keys()
+            #self.msg_if.pub_warn("Got last aifs " + str(cur_aif_keuys))
+            aifs_dict = nepi_aifs.getAIFsDict(self.aifs_param_folder, self.aifs_api_folder)
+            #self.msg_if.pub_warn("Refreshed aifs dict with keys: " + str(self.aifs_dict.keys()))
             #self.msg_if.pub_warn("Refreshed active aifs list: " + str(self.getActiveAifs())) 
-            cur_aifs_keys = aifs_dict.keys()
-            #self.msg_if.pub_warn("Got updated aifs " + str(cur_aifs_keys))
-            if last_aifs_keys != cur_aifs_keys:
-                self.msg_if.pub_warn("Got updated ai framework list: " + str(cur_aifs_keys))
+            new_aif_keys = aifs_dict.keys()
+            #self.msg_if.pub_warn("Got updated aifs " + str(new_aif_keys))
+            if cur_aif_keys != new_aif_keys:
+                self.msg_if.pub_warn("Got updated ai framework list: " + str(new_aif_keys))
+
+            orig_models_dict = copy.deepcopy(self.models_dict)
+            models_dict = dict()
 
             # Refresh Frameworks if Needed
-            aif_purge_list = []
             for aif_name in aifs_dict.keys():
                 aif_dict = aifs_dict[aif_name]
+
                 self.msg_if.pub_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + aif_name)
                 self.msg_if.pub_info("Processing ais dict for aif name " + aif_name)
                 success = False
@@ -377,10 +378,8 @@ class AIDetectorManager:
                             success = True
                             time.sleep(1) # Give some time for publishers to set in class init
                         except Exception as e:
-                            aif_purge_list.append(aif_name)
                             self.msg_if.pub_warn("Failed to instantiate ai framework if class " + class_name + " " + str(e))
                     else:
-                        aif_purge_list.append(aif_name)
                         self.msg_if.pub_warn("Failed to Import ai framework if class " + class_name + " " + str(e))
 
                 else:
@@ -393,11 +392,12 @@ class AIDetectorManager:
 
                 # Refresh Models Dict
                 if success == True:
+                    if aif_name in orig_aifs_dict.keys():
+                        aifs_dict[aif_name]['active'] = orig_aifs_dict[aif_name]['active']
                     try:
                         aif_models_dict = aif_if_class_instance.getModelsDict()
-                        #self.msg_if.pub_warn("Got updated models dict for aif: " + aif_name + " " + str(aif_models_dict))
+                        #self.msg_if.pub_warn("Got updated models dict for aif: " + aif_name + " " + str(aif_models_dict.keys()))
                     except Exception as e:
-                        aif_purge_list.append(aif_name)
                         self.msg_if.pub_warn("Failed to Get Model Info for ai framework: " + aif_name + " " + str(e))
                     if (len(aif_models_dict.keys()) < 1):
                         self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
@@ -406,39 +406,41 @@ class AIDetectorManager:
                         pass
                     for model_name in aif_models_dict.keys():
                         try:
-                            model_active = False
-                            if model_name in models_dict.keys():
-                                model_active = models_dict[model_name]['active']
+                            if model_name in orig_models_dict.keys():
+                                aif_models_dict[model_name]['active'] = orig_models_dict[model_name]['active']
+
                             models_dict[model_name] = aif_models_dict[model_name]
-                            models_dict[model_name]['active'] = model_active
-                            #self.msg_if.pub_warn("Updated model dict: " + str( models_dict[model_name]))
+                            #self.msg_if.pub_warn( str(model_name) + ' : ' + str(models_dict[model_name].keys()))
                             success = True
                         except Exception as e:
                             self.msg_if.pub_warn("Failed to get models from class " + class_name + " " + str(e))
-                            aif_purge_list.append(aif_name)
                             continue
                     
-
-            # Purge bad aifs        
-            for aif_name in aif_purge_list:
-                try:
-                    self.msg_if.pub_warn("Purging framework: " + aif_name)
-                    del aifs_dict[aif_name]
-                    del self.aifs_classes_dict[aif_name]
-                except:
-                    pass
-
-            self.aifs_dict = aifs_dict
-            self.models_dict =  models_dict
               
+            # self.msg_if.pub_warn(" ")
+            # self.msg_if.pub_warn(" ")
+            # self.msg_if.pub_warn("Got refreshed models dict with keys: " + str(models_dict.keys()))
+            # for key in models_dict.keys():
+            #     self.msg_if.pub_warn( str(key) + ' : ' + str(models_dict[key].keys()))
+            # self.msg_if.pub_warn("**********************")
+            # self.msg_if.pub_warn(" ")
+            # self.msg_if.pub_warn(" ")
 
-            # refresh active states from stored values
-            #self.msg_if.pub_warn("Refreshing models dict with keys: " + str(models_dict.keys()))
-            #self.msg_if.pub_warn("Refreshing active models list: " + str(self.getActiveModels))
+           
+            self.aifs_dict = aifs_dict
+            self.node_if.set_param('aifs_dict', aifs_dict)
+            self.models_dict = models_dict
+            self.node_if.set_param('models_dict',models_dict)      
 
-            self.node_if.set_param('aifs_dict', self.aifs_dict)
-            self.node_if.set_param('models_dict', self.models_dict)      
 
+            # self.msg_if.pub_warn("Refreshing models dict with keys: " + str(self.models_dict.keys()))
+            # for key in self.models_dict.keys():
+            #     self.msg_if.pub_warn( str(key) + ' : ' + str(self.models_dict[key].keys()))
+            # self.msg_if.pub_warn("**********************")
+            # self.msg_if.pub_warn(" ")
+            # self.msg_if.pub_warn(" ")
+
+            nepi_sdk.sleep(1)
             self.save_config() # Save config
             self.publish_status()
        
@@ -473,9 +475,15 @@ class AIDetectorManager:
         self.models_dict = self.node_if.get_param('models_dict')
         #self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
         #self.msg_if.pub_warn("Init active models list: " + str(self.getActiveModels()))
-        self.refresh()
-        #self.msg_if.pub_warn("Refreshed models dict with keys: " + str(self.models_dict.keys()))
-        #self.msg_if.pub_warn("Refreshed models dicts: " + str(self.models_dict))
+        success = self.refresh()
+        nepi_sdk.sleep(1)
+        # self.msg_if.pub_warn("Init models dict with keys: " + str(self.models_dict.keys()))
+        # for key in self.models_dict.keys():
+        #     self.msg_if.pub_warn("Init model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
+        # self.msg_if.pub_warn("**********************")
+        # self.msg_if.pub_warn(" ")
+        #self.msg_if.pub_warn("Refreshing active models list: " + str(self.getActiveModels))
+
         self.node_if.save_config()
 
       self.publish_status()
@@ -517,6 +525,12 @@ class AIDetectorManager:
 
 
     def updaterCb(self,timer):
+        # self.msg_if.pub_warn("Starting Updater with models dict with keys: " + str(self.models_dict.keys()))
+        # for key in self.models_dict.keys():
+        #     self.msg_if.pub_warn("Starting Updater with g model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
+        # self.msg_if.pub_warn("**********************")
+        # self.msg_if.pub_warn(" ")
+
         active_aifs = self.getActiveAifs()
         #self.msg_if.pub_warn("Update")
         #self.msg_if.pub_warn("Updating aifs dict with keys: " + str(self.aifs_dict.keys()))
@@ -557,18 +571,28 @@ class AIDetectorManager:
                     self.models_dict[model_name]['active'] = False
     
 
-        #self.msg_if.pub_warn("Updated models dict with keys: " + str(self.models_dict.keys()))
+        # self.msg_if.pub_warn("Updated models dict with keys: " + str(self.models_dict.keys()))
+        # for key in self.models_dict.keys():
+        #     self.msg_if.pub_warn("Updated model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
+
         #self.msg_if.pub_warn("Updated active models list: " + str(self.getActiveModels()))
         if len(active_models_list) == 0:
             self.ros_no_models_img.header.stamp = nepi_sdk.get_msg_stamp()
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",self.models_dict)
+
+
+        # self.msg_if.pub_warn("Ending Updater with models dict with keys: " + str(self.models_dict.keys()))
+        # for key in self.models_dict.keys():
+        #     self.msg_if.pub_warn("Ending Updater with g model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
+        # self.msg_if.pub_warn("**********************")
+        # self.msg_if.pub_warn(" ")
+
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
 
     def modelsInfoUpdaterCb(self,timer):
-        #success = self.refresh()
         models_dict = copy.deepcopy(self.models_dict)
         model_names = models_dict.keys()
         #self.msg_if.pub_warn("Calling model info services for models: " + str(model_names))
@@ -603,6 +627,13 @@ class AIDetectorManager:
                 else:
                     self.msg_if.pub_warn("Failed to find model info service: " + model_name + " " + namespace)
         self.detector_info_dict = detector_info_dict
+
+        # self.msg_if.pub_warn("Ending Info Updater with models dict with keys: " + str(self.models_dict.keys()))
+        # for key in self.models_dict.keys():
+        #     self.msg_if.pub_warn("Ending Info Updater with g model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
+        # self.msg_if.pub_warn("**********************")
+        # self.msg_if.pub_warn(" ")
+
         nepi_sdk.start_timer_process(self.MODEL_INFO_INTERVAL, self.modelsInfoUpdaterCb, oneshot = True)
 
 
