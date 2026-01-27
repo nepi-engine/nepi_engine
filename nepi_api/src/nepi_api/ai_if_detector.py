@@ -91,7 +91,7 @@ GET_IMAGE_TIMEOUT_SEC = 5
 
 class AiDetectorIF:
     
-    IMAGE_DATA_PRODUCT = 'detection_images'
+    IMAGE_DATA_PRODUCT = 'detection_image'
     IMAGE_SUB_MSG = 'Waiting for Source Image'
     IMAGE_PUB_MSG = 'Loading Image Publisher'
 
@@ -1174,38 +1174,38 @@ class AiDetectorIF:
             # Create Pubs and Subs IF Dict 
             pub_namespace = os.path.dirname(img_topic)
 
-            # Pubs Config Dict 
-            img_pubs_dict = {
-                'bounding_boxes': {
-                    'msg': AiBoundingBoxes,
-                    'namespace': pub_namespace,
-                    'topic': 'bounding_boxes',
-                    'qsize': 1,
-                    'latch': False
-                },
-                'targets': {
-                    'msg': Targets,
-                    'namespace': pub_namespace,
-                    'topic': 'targets',
-                    'qsize': 1,
-                    'latch': False
-                },
-            }
+            # # Pubs Config Dict 
+            # img_pubs_dict = {
+            #     'bounding_boxes': {
+            #         'msg': AiBoundingBoxes,
+            #         'namespace': pub_namespace,
+            #         'topic': 'bounding_boxes',
+            #         'qsize': 1,
+            #         'latch': False
+            #     },
+            #     'targets': {
+            #         'msg': Targets,
+            #         'namespace': pub_namespace,
+            #         'topic': 'targets',
+            #         'qsize': 1,
+            #         'latch': False
+            #     },
+            # }
 
-            pub_namespaces = []
-            ns=os.path.join(pub_namespace,'bounding_boxes')
-            pub_namespaces.append(ns)
+            # pub_namespaces = []
+            # ns=os.path.join(pub_namespace,'bounding_boxes')
+            # pub_namespaces.append(ns)
 
 
             # if self.enable_image_pub == True:
             #     img_pubs_dict['image_pub'] = {
             #         'msg': Image,
             #         'namespace': pub_namespace,
-            #         'topic': 'detection_image',
+            #         'topic': self.IMAGE_DATA_PRODUCT,
             #         'qsize': 1,
             #         'latch': False
             #     }
-            #     ns=os.path.join(pub_namespace,'detection_image')
+            #     ns=os.path.join(pub_namespace,self.IMAGE_DATA_PRODUCT)
             #     pub_namespaces.append(ns)
 
             
@@ -1217,14 +1217,6 @@ class AiDetectorIF:
                         'topic': '',
                         'qsize': 1,
                         'callback': self.imageCb,
-                        'callback_args': (img_topic)
-                },
-                'navpose': {
-                        'namespace': img_topic,
-                        'msg': NavPose,
-                        'topic': 'navpose',
-                        'qsize': 1,
-                        'callback': self.imageNavPoseCb,
                         'callback_args': (img_topic)
                 },
                 'status': {
@@ -1246,7 +1238,7 @@ class AiDetectorIF:
                     # Try and Reregister subs and pubs
                     self.img_ifs_lock.acquire()
                     self.img_ifs_dict[img_topic]['subs_if'].register_subs(img_subs_dict)
-                    self.img_ifs_dict[img_topic]['pubs_if'].register_pubs(img_pubs_dict)
+                    #self.img_ifs_dict[img_topic]['pubs_if'].register_pubs(img_pubs_dict)
                     self.img_ifs_lock.release()
                     self.msg_if.pub_warn('Registered : ' + img_topic +  ' ' + str(self.img_ifs_dict[img_topic]))
                     # Set back to active
@@ -1262,10 +1254,10 @@ class AiDetectorIF:
                 img_info_dict = dict()  
                 img_info_dict['namespace'] = pub_namespace
                 img_info_dict['pub_namespaces'] = pub_namespaces    
-                img_info_dict['navpose_topic'] = 'None'
+
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
-                img_info_dict['navpose_dict'] = dict()
+                img_info_dict['navpose_topic'] = ''
                 img_info_dict['depth_map_topic'] = ''
                 img_info_dict['pointcloud_topic'] = ''
                 img_info_dict['connected'] = connected 
@@ -1275,11 +1267,11 @@ class AiDetectorIF:
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
 
 
-                img_pubs_if = NodePublishersIF(
-                                pubs_dict = img_pubs_dict,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
-                                            )
+                # img_pubs_if = NodePublishersIF(
+                #                 pubs_dict = img_pubs_dict,
+                #                             log_name_list = self.log_name_list,
+                #                             msg_if = self.msg_if
+                #                             )
             
                 ####################
                 # Subs Config Dict 
@@ -1297,7 +1289,7 @@ class AiDetectorIF:
                 # Add Img Subs and Pubs IFs to Img IFs Dict
                 self.img_ifs_lock.acquire()
                 self.img_ifs_dict[img_topic] = {
-                                                'pubs_if': img_pubs_if,
+                                                #'pubs_if': img_pubs_if,
                                                 'subs_if': img_subs_if
                                                 }   
 
@@ -1307,12 +1299,12 @@ class AiDetectorIF:
                 time.sleep(1)
                 ####################
                 # Publish blank msg to prime topics
-                img_pubs_if.publish_pub('bounding_boxes',AiBoundingBoxes())   
+                #img_pubs_if.publish_pub('bounding_boxes',AiBoundingBoxes())   
 
-                if self.enable_image_pub == True:
-                    cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
-                    ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
-                    img_pubs_if.publish_pub('image_pub',ros_img) 
+                # if self.enable_image_pub == True:
+                #     cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
+                #     ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
+                #     img_pubs_if.publish_pub('image_pub',ros_img) 
 
                 ####################
                 # Create Img Sub Dict
@@ -1462,10 +1454,6 @@ class AiDetectorIF:
             self.imgs_info_dict[img_topic]['depth_map_topic'] = status_msg.depth_map_topic
             self.imgs_info_dict[img_topic]['pointcloud_topic'] = status_msg.pointcloud_topic
 
-    def imageNavPoseCb(self,navpose_msg, args):     
-        img_topic = args
-        if img_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[img_topic]['navpose_dict'] = nepi_nav.convert_navpose_msg2dict(navpose_msg)
 
     def imageCb(self,image_msg, args):     
         img_topic = args
@@ -1839,12 +1827,7 @@ class AiDetectorIF:
                     # Range, Bearing, Nav, and Pose Data ENU Reference Frame
                     target_msg.range_m = -999
                     target_msg.azimuth_deg = target_horz_angle_deg
-                    target_msg.elevation_deg = target_vert_angle_deg
-                    if img_topic in self.imgs_info_dict.keys():
-                        navpose_dict = self.imgs_info_dict[img_topic]['navpose_dict']
-                        if len(navpose_dict.keys()) == 0:
-                            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-                            target_msg.source_nav_pose = navpose_msg       
+                    target_msg.elevation_deg = target_vert_angle_deg   
                     targets_msg_list.append(target_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
@@ -1891,15 +1874,7 @@ class AiDetectorIF:
             targets_msg.has_range_data = True
             targets_msg.has_bearing_data = True
 
-            targets_msg.has_nav_data = True
-            targets_msg.has_pose_data = True
-            try:
-                if len(navpose_dict.keys()) == 0:
-                    targets_msg.has_nav_data = False
-                    targets_msg.has_pose_data = False
-            except:
-                pass
-
+            targets_msg.has_navpose_data = True
 
             targets_msg.has_color_data = False
             targets_msg.has_countour_data = False
@@ -1940,11 +1915,11 @@ class AiDetectorIF:
         self.node_if.publish_pub(pub_name,msg)
         pub_name_all = pub_name + "_all"
         self.node_if.publish_pub(pub_name_all,msg)
-        if img_topic in self.img_ifs_dict.keys():
-            #self.msg_if.pub_warn("Publishing topic: " + str(pub_name))
-            self.img_ifs_lock.acquire()
-            self.img_ifs_dict[img_topic]['pubs_if'].publish_pub(pub_name,msg)
-            self.img_ifs_lock.release()
+        # if img_topic in self.img_ifs_dict.keys():
+        #     #self.msg_if.pub_warn("Publishing topic: " + str(pub_name))
+        #     self.img_ifs_lock.acquire()
+        #     self.img_ifs_dict[img_topic]['pubs_if'].publish_pub(pub_name,msg)
+        #     self.img_ifs_lock.release()
 
     def handleInfoRequest(self,_):
         resp = AiDetectorInfoQueryResponse().detector_info
@@ -1992,15 +1967,15 @@ class AiDetectorIF:
 
         
         # Check if for all topic subscribers
-        filters = ['detection_image']
+        filters = [self.IMAGE_DATA_PRODUCT]
         topic_names = []
         namespace = os.path.join(self.base_namespace, 'bounding_boxes')
         topic_names.append(namespace)
-        namespace = os.path.join(self.base_namespace, 'detection_image')
+        namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
         topic_names.append(namespace)
         namespace = os.path.join(self.base_namespace, 'bounding_boxes')
         topic_names.append(namespace)
-        namespace = os.path.join(self.base_namespace, 'detection_image')
+        namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
         topic_names.append(namespace)
 
         [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
@@ -2025,7 +2000,7 @@ class AiDetectorIF:
                 if img_topic not in active_topics:
                     self.imgs_has_subs_dict[img_topic] = False
                 else:
-                    filters = ['detection_image']
+                    filters = [self.IMAGE_DATA_PRODUCT]
                     topic_names = []      
                     if img_topic in self.imgs_info_dict.keys():
                         topic_names = self.imgs_info_dict[img_topic]['pub_namespaces']
