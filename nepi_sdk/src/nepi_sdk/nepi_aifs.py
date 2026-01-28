@@ -123,7 +123,7 @@ def getAIFsSortedList(aifs_dict):
   sorted_list = []
   for name in sorted_names:
     sorted_list.append(str(name))
-  return sorted_list
+  return sorted_names
 
 
 def getAIFsActiveSortedList(aifs_dict):
@@ -196,33 +196,30 @@ def getModelsByActive(models_dict):
   return active_dict
 
 def getModelsSortedList(models_dict):
-  sorted_list = []
-  model_names = []
-  for key in models_dict.keys():
-    if 'name' not in models_dict[key].keys():
-      logger.log_warn("Model dict does not have 'name' entry: " + str(models_dict[key].keys()))
-      return sorted_list
-    model_name = models_dict[key]['name']
-    model_names.append(model_name)
-  sorted_names = sorted(model_names)
-  
-  for name in sorted_names:
-    sorted_list.append(str(name))
-  return sorted_list
+  sorted_models = sorted(list(models_dict.keys()))
+  sorted_names = []
+  for model in sorted_models:
+    if 'name' in models_dict[model].keys():
+      sorted_names.append(models_dict[model]['name'])
+    else:
+      sorted_names.append(model)
+  return sorted_models,sorted_names
 
 
 def getModelsActiveSortedList(models_dict):
-  sorted_name_list = getModelsSortedList(models_dict)
+  [sorted_models,sorted_names] = getModelsSortedList(models_dict)
   #logger.log_warn("AIFS_MGR: sorted list: " + str(sorted_name_list))
-  sorted_active_list =[]
-  for model_name in sorted_name_list:
+  sorted_active_models = []
+  sorted_active_names =[]
+  for model_name in sorted_models:
     for key in models_dict.keys():
       name = models_dict[key]['name']
-      if model_name == name:
+      if name == model_name:
         active = models_dict[model_name]['active']
         if active:
-          sorted_active_list.append(model_name)
-  return sorted_active_list
+          sorted_active_models.append(key)
+          sorted_active_names.append(model_name)
+  return sorted_active_models, sorted_active_names
 
 
 

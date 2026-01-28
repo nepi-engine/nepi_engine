@@ -1936,14 +1936,17 @@ class AiDetectorIF:
 
         img_source_topics = []
         img_det_namespaces = []
+        img_pub_namespaces = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
                 state = imgs_info_dict[img_topic]['active']
                 if state == True:
                     img_source_topics.append(img_topic)
                     img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
+                    namespace = os.path.dirname(img_topic).replace('/idx','') + '/' + self.IMAGE_DATA_PRODUCT
+                    img_pub_namespaces.append(namespace)
         resp.image_source_topics = img_source_topics
-        resp.image_detector_topics = img_det_namespaces
+        resp.image_pub_topics = img_pub_namespaces
 
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
@@ -2070,21 +2073,21 @@ class AiDetectorIF:
 
         img_source_topics = []
         img_det_namespaces = []
-        img_det_states = []
-        img_connects = []
+        img_pub_namespaces = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
                 state = imgs_info_dict[img_topic]['active']
                 if state == True:
                     img_source_topics.append(img_topic)
                     img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                    img_connects.append(imgs_info_dict[img_topic]['connected'])
+                    namespace = os.path.dirname(img_topic).replace('/idx','') + '/' + self.IMAGE_DATA_PRODUCT
+                    img_pub_namespaces.append(namespace)
         self.det_status_msg.image_source_topics = img_source_topics
-        self.det_status_msg.image_detector_topics = img_det_namespaces
-        self.det_status_msg.images_connected = img_connects
+        self.det_status_msg.image_pub_topics = img_pub_namespaces
 
-
-
+        img_connects = []
+        for img_topic in imgs_info_dict.keys():
+            img_connects.append(imgs_info_dict[img_topic]['connected'])
         img_selected = len(img_connects) > 0
         self.det_status_msg.image_selected = img_selected
         img_connected = True in img_connects
