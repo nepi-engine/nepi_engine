@@ -30,9 +30,6 @@ import numpy as np
 import cv2
 
 
-
-
-
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
@@ -56,7 +53,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 
 
-DEFAULT_FRAMEWORK = 'yolov5'
+DEFAULT_FRAMEWORK = 'yolov8'
 
 
 class AIDetectorManager:   
@@ -96,7 +93,7 @@ class AIDetectorManager:
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
         
-
+        
         ##############################
         # Get for System Folders
         self.msg_if.pub_info("Waiting for system folders")
@@ -118,9 +115,9 @@ class AIDetectorManager:
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
-        self.msg_if.pub_info("Waiting for driver manager to start")
-        active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
-        nepi_sdk.sleep(5) # Some extra time for drivers to load
+        # self.msg_if.pub_info("Waiting for driver manager to start")
+        # active_drivers = nepi_system.get_active_drivers(log_name_list = [self.node_name])
+        # nepi_sdk.sleep(5) # Some extra time for drivers to load
         
        
         ##############################

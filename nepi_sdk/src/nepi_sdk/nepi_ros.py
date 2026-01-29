@@ -507,7 +507,6 @@ def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
     try:
       param = rospy.get_param(param_namespace)
     except:
-      param = None
       param_namespace = get_full_namespace(param_namespace)
 
     time.sleep(1)

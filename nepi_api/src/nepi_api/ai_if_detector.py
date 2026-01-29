@@ -31,7 +31,6 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
-from nepi_interfaces.msg import MgrAiDetectorStatus
 from nepi_interfaces.msg import NavPose, ImageStatus, Localization
 from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, AiBoundingBoxes
 from nepi_interfaces.msg import Target, Targets, TargetFilter, TargetFilters, TargetingStatus
@@ -101,6 +100,8 @@ class AiDetectorIF:
     namespace = '~'
     all_namespace = None
 
+    status_msg = AiDetectorStatus()
+
     states_dict = None
     triggers_dict = dict()
 
@@ -123,7 +124,7 @@ class AiDetectorIF:
 
     has_img_tiling = False
 
-    state = 'Loading'
+    state_str_msg = 'Loading'
 
     cur_img_topic = "None"
 
@@ -231,6 +232,9 @@ class AiDetectorIF:
         # Get for System Folders
         self.msg_if.pub_warn("Waiting for system folders")
         system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        if system_folders is None:
+            system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+
         self.msg_if.pub_warn("Got system folders: " + str(system_folders))
        
         self.api_lib_folder = system_folders['api_lib']
@@ -242,7 +246,6 @@ class AiDetectorIF:
 
         if namespace is None:
             namespace = self.node_namespace
-        namespace = nepi_sdk.create_namespace(namespace,'settings')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         self.enable_image_pub = enable_image_pub
@@ -250,10 +253,8 @@ class AiDetectorIF:
 
         
         ## Init Status Messages
-        self.status_msg = MgrAiDetectorStatus()
-        self.det_status_msg = AiDetectorStatus()
-        self.det_status_msg.node_name = self.node_name
-        self.det_status_msg.ai_detector_topic = self.namespace
+        self.status_msg.node_name = self.node_name
+        self.status_msg.ai_detector_topic = self.namespace
         self.target_status_msg = TargetingStatus()
 
 
@@ -383,6 +384,13 @@ class AiDetectorIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
+            'status_pub': {
+                'msg': AiDetectorStatus,
+                'namespace': self.node_namespace,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
+            },
             'bounding_boxes': {
                 'msg': AiBoundingBoxes,
                 'namespace': self.node_namespace,
@@ -396,20 +404,6 @@ class AiDetectorIF:
                 'topic': 'bounding_boxes',
                 'qsize': 1,
                 'latch': False
-            },
-            'status_pub': {
-                'msg': MgrAiDetectorStatus,
-                'namespace': self.node_namespace,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            },
-            'det_status_pub': {
-                'msg': AiDetectorStatus,
-                'namespace': self.node_namespace,
-                'topic': 'detector_status',
-                'qsize': 1,
-                'latch': True
             },
             'targets': {
                 'msg': Targets,
@@ -728,7 +722,7 @@ class AiDetectorIF:
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
 
-        self.state = 'Loaded'
+        self.state_str_msg = 'Loaded'
         ##########################
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##########################
@@ -1152,15 +1146,15 @@ class AiDetectorIF:
         enabled = self.enabled
         if enabled == True:
             if img_selected == 0:
-                self.state = "Waiting"
+                self.state_str_msg = "Waiting"
             elif img_connected == False:
-                self.state = "Listening"
+                self.state_str_msg = "Listening"
             elif self.sleep_state == True:
-                self.state = "Sleeping"
+                self.state_str_msg = "Sleeping"
             else:
-                self.state = "Running"
+                self.state_str_msg = "Detecting"
         else: # Loaded, but not enabled
-            self.state = "Loaded"
+            self.state_str_msg = "Loaded"
 
         nepi_sdk.start_timer_process((.1), self.updaterCb, oneshot = True)
 
@@ -1172,43 +1166,8 @@ class AiDetectorIF:
 
             ####################
             # Create Pubs and Subs IF Dict 
-            pub_namespace = os.path.dirname(img_topic)
-
-            # # Pubs Config Dict 
-            # img_pubs_dict = {
-            #     'bounding_boxes': {
-            #         'msg': AiBoundingBoxes,
-            #         'namespace': pub_namespace,
-            #         'topic': 'bounding_boxes',
-            #         'qsize': 1,
-            #         'latch': False
-            #     },
-            #     'targets': {
-            #         'msg': Targets,
-            #         'namespace': pub_namespace,
-            #         'topic': 'targets',
-            #         'qsize': 1,
-            #         'latch': False
-            #     },
-            # }
-
-            # pub_namespaces = []
-            # ns=os.path.join(pub_namespace,'bounding_boxes')
-            # pub_namespaces.append(ns)
-
-
-            # if self.enable_image_pub == True:
-            #     img_pubs_dict['image_pub'] = {
-            #         'msg': Image,
-            #         'namespace': pub_namespace,
-            #         'topic': self.IMAGE_DATA_PRODUCT,
-            #         'qsize': 1,
-            #         'latch': False
-            #     }
-            #     ns=os.path.join(pub_namespace,self.IMAGE_DATA_PRODUCT)
-            #     pub_namespaces.append(ns)
-
             
+
 
             img_subs_dict = {
                 'image': {
@@ -1247,13 +1206,14 @@ class AiDetectorIF:
                     
                 # Create register new image topic
                 self.msg_if.pub_warn('Registering to image topic: ' + img_topic)
-                self.msg_if.pub_warn('Publishing on namespace: ' + pub_namespace)
+                img_pub_topic = os.path.dirname(img_topic) + '/' + self.IMAGE_DATA_PRODUCT
+                self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
                 ####################
                 # Create img info dict
                 img_info_dict = dict()  
-                img_info_dict['namespace'] = pub_namespace
-                img_info_dict['pub_namespaces'] = pub_namespaces    
+                img_info_dict['img_source_topic'] = img_topic
+                img_info_dict['img_pub_topic'] = img_pub_topic 
 
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
@@ -1915,42 +1875,7 @@ class AiDetectorIF:
         self.node_if.publish_pub(pub_name,msg)
         pub_name_all = pub_name + "_all"
         self.node_if.publish_pub(pub_name_all,msg)
-        # if img_topic in self.img_ifs_dict.keys():
-        #     #self.msg_if.pub_warn("Publishing topic: " + str(pub_name))
-        #     self.img_ifs_lock.acquire()
-        #     self.img_ifs_dict[img_topic]['pubs_if'].publish_pub(pub_name,msg)
-        #     self.img_ifs_lock.release()
 
-    def handleInfoRequest(self,_):
-        resp = AiDetectorInfoQueryResponse().detector_info
-        resp.name = self.model_name
-        resp.framework = self.model_framework
-        resp.node_name = self.node_name
-        resp.namespace = self.node_namespace
-        resp.type = self.model_type
-        resp.description = self.model_description
-        resp.proc_img_height = self.model_proc_img_height
-        resp.proc_img_width = self.model_proc_img_width
-        resp.classes = self.classes
-        resp.has_img_tiling = self.has_img_tiling
-
-        img_source_topics = []
-        img_det_namespaces = []
-        img_pub_namespaces = []
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        for img_topic in imgs_info_dict.keys():
-                state = imgs_info_dict[img_topic]['active']
-                if state == True:
-                    img_source_topics.append(img_topic)
-                    img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                    namespace = os.path.dirname(img_topic).replace('/idx','') + '/' + self.IMAGE_DATA_PRODUCT
-                    img_pub_namespaces.append(namespace)
-        resp.image_source_topics = img_source_topics
-        resp.image_pub_topics = img_pub_namespaces
-
-        #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
-        return resp
-    
 
     def updateStatesCb(self,timer):
         # Update and clear detection state every second
@@ -2006,192 +1931,136 @@ class AiDetectorIF:
                     filters = [self.IMAGE_DATA_PRODUCT]
                     topic_names = []      
                     if img_topic in self.imgs_info_dict.keys():
-                        topic_names = self.imgs_info_dict[img_topic]['pub_namespaces']
-                        has_subs = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+                        topic_names.append([self.imgs_info_dict[img_topic]['pub_namespace']])
+                    [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
 
-                    self.imgs_has_subs_dict[img_topic] = has_subs
+
+                    if img_topic in self.imgs_info_dict.keys():
+                        if img_topic in has_subs_dict.keys():
+                            self.imgs_has_subs_dict[img_topic] = True
+                        else:
+                            self.imgs_has_subs_dict[img_topic] = False
                
 
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
 
+    def handleInfoRequest(self,_):
+        resp = AiDetectorInfoQueryResponse().detector_info
+        resp.name = self.model_name
+        resp.framework = self.model_framework
+        resp.node_name = self.node_name
+        resp.namespace = self.node_namespace
+        resp.type = self.model_type
+        resp.description = self.model_description
+        resp.proc_img_height = self.model_proc_img_height
+        resp.proc_img_width = self.model_proc_img_width
+        resp.classes = self.classes
+        resp.has_img_tiling = self.has_img_tiling
+
+        img_source_topics = []
+        img_pub_topics = []
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+        for img_topic in imgs_info_dict.keys():
+                state = imgs_info_dict[img_topic]['active']
+                if state == True:
+                    img_source_topics.append(img_topic)
+                    img_pub_topics.append(imgs_info_dict[img_topic]['img_pub_topic'])
+        self.status_msg.image_source_topics = img_source_topics
+        self.status_msg.image_pub_topics = img_pub_topics
+
+        #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
+        return resp
+    
 
     def publishStatusCb(self,timer):
         self.publish_status()
 
     def publish_status(self, do_updates = True):
+        #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-
-        self.status_msg.node_name = self.node_name
-        self.status_msg.ai_detector_topic = self.namespace
-        # Pub Status
         self.status_msg.name = self.model_name
-        self.status_msg.has_sleep = self.has_sleep
+        self.status_msg.node_name = self.node_name
+        self.status_msg.framework = self.model_framework
+        self.status_msg.ai_detector_topic = self.namespace
+        self.status_msg.enabled = self.enabled
 
+        self.status_msg.has_sleep = self.has_sleep
         self.status_msg.sleep_enabled = self.sleep_enabled
         self.status_msg.sleep_suspend_sec = int(self.sleep_suspend_sec)
         self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
         self.status_msg.sleep_state = self.sleep_state
 
-        self.status_msg.img_tiling = self.img_tiling
-
-
-
-        #self.msg_if.pub_warn("Sending Status Msg: " + str(self.det_status_msg), throttle_s = 5.0)
-        if self.node_if is not None:
-            self.node_if.publish_pub('status_pub',self.status_msg)
+        self.status_msg.state_str_msg = self.state_str_msg
 
         # Pub Detection Status
-        self.det_status_msg.node_name = self.node_name
-        self.det_status_msg.ai_detector_topic = self.namespace
-        self.det_status_msg.name = self.model_name
-        self.det_status_msg.namespace = self.node_namespace
-        self.det_status_msg.enabled = self.enabled
-        self.det_status_msg.state = self.state
+
         detection_state = False
         if self.states_dict is not None:
             detection_state = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
-        self.det_status_msg.detection_state = detection_state
+        self.status_msg.detection_state = detection_state
 
-        self.det_status_msg.available_classes = self.classes
+        self.status_msg.available_classes = self.classes
         sel_classes = copy.deepcopy(self.selected_classes)
-        self.det_status_msg.selected_classes = sel_classes
+        self.status_msg.selected_classes = sel_classes
 
 
-        self.det_status_msg.pub_image_enabled = self.pub_image_enabled
-        self.det_status_msg.overlay_labels = self.overlay_labels
-        self.det_status_msg.overlay_range_bearing = self.overlay_range_bearing
-        self.det_status_msg.overlay_clf_name = self.overlay_clf_name
-        self.det_status_msg.overlay_img_name = self.overlay_img_name
+        self.status_msg.pub_image_enabled = self.pub_image_enabled
+        self.status_msg.overlay_labels = self.overlay_labels
+        self.status_msg.overlay_range_bearing = self.overlay_range_bearing
+        self.status_msg.overlay_clf_name = self.overlay_clf_name
+        self.status_msg.overlay_img_name = self.overlay_img_name
 
-        self.det_status_msg.threshold_filter = self.threshold
-        self.det_status_msg.max_proc_rate_hz = self.max_proc_rate_hz
-        self.det_status_msg.max_img_rate_hz = self.max_img_rate_hz
-        self.det_status_msg.use_last_image = self.use_last_image
+        self.status_msg.threshold_filter = self.threshold
+        self.status_msg.max_proc_rate_hz = self.max_proc_rate_hz
+        self.status_msg.max_img_rate_hz = self.max_img_rate_hz
+        self.status_msg.use_last_image = self.use_last_image
 
-        self.det_status_msg.selected_img_topics = self.selected_img_topics
+        self.status_msg.selected_img_topics = self.selected_img_topics
 
 
         img_source_topics = []
         img_det_namespaces = []
-        img_pub_namespaces = []
+        img_pub_topics = []
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
                 state = imgs_info_dict[img_topic]['active']
                 if state == True:
                     img_source_topics.append(img_topic)
-                    img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                    namespace = os.path.dirname(img_topic).replace('/idx','') + '/' + self.IMAGE_DATA_PRODUCT
-                    img_pub_namespaces.append(namespace)
-        self.det_status_msg.image_source_topics = img_source_topics
-        self.det_status_msg.image_pub_topics = img_pub_namespaces
+                    img_pub_topics.append(imgs_info_dict[img_topic]['img_pub_topic'])
+        self.status_msg.image_source_topics = img_source_topics
+        self.status_msg.image_pub_topics = img_pub_topics
 
         img_connects = []
         for img_topic in imgs_info_dict.keys():
             img_connects.append(imgs_info_dict[img_topic]['connected'])
         img_selected = len(img_connects) > 0
-        self.det_status_msg.image_selected = img_selected
+        self.status_msg.image_selected = img_selected
         img_connected = True in img_connects
-        self.det_status_msg.image_connected = img_connected
+        self.status_msg.image_connected = img_connected
 
 
         #################
-        self.det_status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)
+        self.status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)
 
-        self.det_status_msg.avg_image_process_time = sum(self.image_process_times) / len(self.image_process_times)
-        self.det_status_msg.avg_image_process_latency = sum(self.image_process_latencies) / len(self.image_process_latencies)
-        self.det_status_msg.avg_image_process_rate = sum(self.image_process_rates) / len(self.image_process_rates)
+        self.status_msg.avg_image_process_time = sum(self.image_process_times) / len(self.image_process_times)
+        self.status_msg.avg_image_process_latency = sum(self.image_process_latencies) / len(self.image_process_latencies)
+        self.status_msg.avg_image_process_rate = sum(self.image_process_rates) / len(self.image_process_rates)
         
-        self.det_status_msg.avg_detect_process_time = sum(self.detect_process_times) / len(self.detect_process_times)
-        self.det_status_msg.avg_detect_process_latency = sum(self.detect_process_latencies) / len(self.detect_process_latencies)
-        self.det_status_msg.avg_detect_process_rate = sum(self.detect_process_rates) / len(self.detect_process_rates)
+        self.status_msg.avg_detect_process_time = sum(self.detect_process_times) / len(self.detect_process_times)
+        self.status_msg.avg_detect_process_latency = sum(self.detect_process_latencies) / len(self.detect_process_latencies)
+        self.status_msg.avg_detect_process_rate = sum(self.detect_process_rates) / len(self.detect_process_rates)
 
-        if self.det_status_msg.avg_detect_process_time > 0.001:
-            max_detect_rate= 1.0 / self.det_status_msg.avg_detect_process_time
+        if self.status_msg.avg_detect_process_time > 0.001:
+            max_detect_rate= 1.0 / self.status_msg.avg_detect_process_time
         else:
             max_detect_rate= 0
-        self.det_status_msg.max_detect_rate = max_detect_rate
+        self.status_msg.max_detect_rate = max_detect_rate
     
 
         ################
-
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.det_status_msg))
+        #self.msg_if.pub_warn("Ending Detector Status Pub")
+        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg))
         if self.node_if is not None:
-            self.node_if.publish_pub('det_status_pub',self.det_status_msg)
+            self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-
-        # Pub Targeting Status
-
-        self.target_status_msg.name = self.model_name
-        self.target_status_msg.namespace = self.node_namespace
-        self.target_status_msg.enabled = self.enabled
-        self.target_status_msg.state = self.state
-        targeting_state = False
-        if self.states_dict is not None:
-            if 'targeting' in self.states_dict.keys():
-                targeting_state = copy.deepcopy(self.states_dict['targeting']['value']) == 'True'
-        self.target_status_msg.targeting_state = targeting_state
-
-        self.target_status_msg.available_targets = self.classes
-        sel_classes = copy.deepcopy(self.selected_classes)
-        self.target_status_msg.selected_targets = sel_classes
-
-
-        self.target_status_msg.pub_image_enabled = self.pub_image_enabled
-        self.target_status_msg.overlay_labels = self.overlay_labels
-        self.target_status_msg.overlay_range_bearing = self.overlay_range_bearing
-        self.target_status_msg.overlay_clf_name = self.overlay_clf_name
-        self.target_status_msg.overlay_img_name = self.overlay_img_name
-
-        #self.target_status_msg.threshold_filter = self.threshold
-        self.target_status_msg.max_proc_rate_hz = self.max_proc_rate_hz
-        self.target_status_msg.max_img_rate_hz = self.max_img_rate_hz
-        self.target_status_msg.use_last_image = self.use_last_image
-
-        self.target_status_msg.selected_source_topics = self.selected_img_topics
-
-
-        img_source_topics = []
-        img_det_namespaces = []
-        img_connects = []
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        for img_topic in imgs_info_dict.keys():
-                state = imgs_info_dict[img_topic]['active']
-                if state == True:
-                    img_source_topics.append(img_topic)
-                    img_det_namespaces.append(imgs_info_dict[img_topic]['namespace'])
-                    img_connects.append(imgs_info_dict[img_topic]['connected'])
-        self.target_status_msg.available_source_topics = img_source_topics
-        self.target_status_msg.available_source_namespaces = img_det_namespaces
-        self.target_status_msg.selected_sources_connected = img_connects
-
-
-        source_selected = len(img_connects) > 0
-        self.target_status_msg.source_selected = source_selected
-        source_connected = True in img_connects
-        self.target_status_msg.source_connected = source_connected
-
-
-        #################
-        self.target_status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)
-
-        self.target_status_msg.avg_image_process_time = sum(self.image_process_times) / len(self.image_process_times)
-        self.target_status_msg.avg_image_process_latency = sum(self.image_process_latencies) / len(self.image_process_latencies)
-        self.target_status_msg.avg_image_process_rate = sum(self.image_process_rates) / len(self.image_process_rates)
-        
-        self.target_status_msg.avg_targeting_process_time = sum(self.detect_process_times) / len(self.detect_process_times)
-        self.target_status_msg.avg_targeting_process_latency = sum(self.detect_process_latencies) / len(self.detect_process_latencies)
-        self.target_status_msg.avg_targeting_process_rate = sum(self.detect_process_rates) / len(self.detect_process_rates)
-
-        if self.target_status_msg.avg_targeting_process_time > 0.001:
-            max_detect_rate= 1.0 / self.target_status_msg.avg_targeting_process_time
-        else:
-            max_detect_rate= 0
-        self.target_status_msg.max_targeting_rate = max_detect_rate
-    
-
-        ################
-
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.det_status_msg))
-        if self.node_if is not None:
-            self.node_if.publish_pub('det_status_pub',self.det_status_msg)

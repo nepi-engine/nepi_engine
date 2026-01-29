@@ -31,19 +31,29 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
-from nepi_sdk import nepi_states
-from nepi_sdk import nepi_triggers
+
+#####################
+# Software
 from nepi_sdk import nepi_software
 from nepi_sdk import nepi_docker
 
-from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataStatus, StringArray, \
-                                DictString, DictStringEntry
+from nepi_interfaces.msg import MgrSoftwareStatus
 
-                                
-from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse, \
+                           
+from nepi_interfaces.srv import  SoftwareStatusQuery, SoftwareStatusQueryRequest, SoftwareStatusQueryResponse
+                 
+#####################
+# System         
+
+from nepi_sdk import nepi_states
+from nepi_sdk import nepi_triggers
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
+                                DictString, DictStringEntry
+                      
+from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
-                             SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
                              DebugQuery, DebugQueryRequest, DebugQueryResponse, \
                              AdminQuery, AdminQueryRequest, AdminQueryResponse,  \
@@ -156,7 +166,7 @@ class SystemMgrNode():
 
     node_if = None
     status_msg = MgrSystemStatus()
-    system_defs_msg = SystemDefs()
+    sw_status_msg = MgrSoftwareStatus()
 
     storage_subdirs = dict()
     user_folders = dict()
@@ -196,7 +206,10 @@ class SystemMgrNode():
     install_img_version = ''
     install_img_size = ''
 
-    
+    new_img_staging = None
+
+    init_complete = False
+    ready = False
 
     #######################
     ### Node Initialization
@@ -257,28 +270,29 @@ class SystemMgrNode():
 
         nepi_system.set_nepi_config(self.nepi_config)
 
-        self.system_defs_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
+        self.status_msg.serial_number = self.nepi_config['NEPI_DEVICE_SN']
+
+
         self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
 
-        self.system_defs_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
+
         self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
 
-        self.system_defs_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
+
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
 
-        self.system_defs_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
+
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
 
-        self.system_defs_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
+
         self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
 
-        self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
-        self.system_defs_msg.in_container = self.in_container
+
         self.status_msg.in_container = self.in_container
 
 
         self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
-        self.first_rootfs = self.nepi_config['NEPI_AB_FS']
+        self.has_ab_fs = self.nepi_config['NEPI_AB_FS'] == 1
         self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging_removable = False
@@ -300,7 +314,7 @@ class SystemMgrNode():
             self.nepi_image = nepi_software
             self.msg_if.pub_warn("Using first stage boot device: " + str(self.first_rootfs))
 
-        self.system_defs_msg.inactive_rootfs_fw_version = "uknown"
+        self.status_msg.inactive_rootfs_fw_version = "uknown"
         '''
         self.msg_if.pub_warn("Deleting old log files")
         logs_path_subdir = os.path.join(self.storage_folder, 'logs/ros_log')
@@ -311,7 +325,7 @@ class SystemMgrNode():
         # Need to identify the rootfs scheme because it is used in init_msgs()
         self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
         self.msg_if.pub_warn("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
-        self.init_msgs()
+        
 
 
 
@@ -430,8 +444,7 @@ class SystemMgrNode():
         # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
         # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
         if self.rootfs_ab_scheme == 'nepi' or self.in_container == 1 : # The 'jetson' scheme handles this itself
-            status, err_msg = self.nepi_image.resetBootFailCounter(
-                self.first_rootfs)
+            status, err_msg = self.nepi_image.resetBootFailCounter(self.first_rootfs)
             if status is False:
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
@@ -513,16 +526,24 @@ class SystemMgrNode():
             }
         }
 
-    
+
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'system_defs_query': {
+            'software_status_query': {
+                'namespace': self.base_namespace + '/mgr_softaware',
+                'topic': 'system_status_query',
+                'srv': SoftwareStatusQuery,
+                'req': SoftwareStatusQueryRequest(),
+                'resp': SoftwareStatusQueryResponse(),
+                'callback': self.provide_software_status
+            },
+            'system_status_query': {
                 'namespace': self.base_namespace,
-                'topic': 'system_defs_query',
-                'srv': SystemDefsQuery,
-                'req': SystemDefsQueryRequest(),
-                'resp': SystemDefsQueryResponse(),
-                'callback': self.provide_system_defs
+                'topic': 'system_status_query',
+                'srv': SystemStatusQuery,
+                'req': SystemStatusQueryRequest(),
+                'resp': SystemStatusQueryResponse(),
+                'callback': self.provide_system_status
             },
             'op_environment_query': {
                 'namespace': self.base_namespace,
@@ -531,14 +552,6 @@ class SystemMgrNode():
                 'req': OpEnvironmentQueryRequest(),
                 'resp': OpEnvironmentQueryResponse(),
                 'callback': self.provide_op_environment
-            },
-            'sw_update_status_query': {
-                'namespace': self.base_namespace,
-                'topic': 'sw_update_status_query',
-                'srv': SystemSoftwareStatusQuery,
-                'req': SystemSoftwareStatusQueryRequest(),
-                'resp': SystemSoftwareStatusQueryResponse(),
-                'callback': self.provide_sw_update_status
             },
             'debug_query': {
                 'namespace': self.base_namespace,
@@ -570,6 +583,13 @@ class SystemMgrNode():
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
+            'software_status_pub': {
+                'namespace': self.base_namespace + '/mgr_softaware',
+                'topic': 'software_status_pub',
+                'msg': MgrSoftwareStatus,
+                'qsize': 1,
+                'latch': True
+            },
             'status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status',
@@ -808,9 +828,7 @@ class SystemMgrNode():
         ########################
         # Complete Initialization
 
-        # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
-        # established
-        self.provide_sw_update_status(0) # Any argument is fine here as the req. field is unused
+
                
 
         # Create Triggers Status Pub Processes
@@ -870,6 +888,7 @@ class SystemMgrNode():
 
         #########################################################
         ## Initiation Complete
+        self.ready = True
         self.msg_if.pub_warn("Initialization Complete")
         nepi_sdk.spin()
 
@@ -908,6 +927,15 @@ class SystemMgrNode():
             self.sd_card_device = self.node_if.get_param("sd_card_device")
 
             self.ssd_device = self.node_if.get_param("ssd_device")
+
+            self.init_complete = True
+
+            self.init_msgs()
+
+            # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
+            # established
+            self.update_software_status()
+
 
 
 
@@ -1020,12 +1048,6 @@ class SystemMgrNode():
         self.status_msg.info_strings.append(StampedString(
             timestamp=nepi_sdk.get_msg_stamp(), payload=string, priority=level))
 
-    def get_device_sn(self):
-        with open(self.SYS_ENV_PATH, "r") as f:
-            for line in f:
-                if line.startswith("export DEVICE_SN="):
-                    return line.split('=')[1].rstrip()
-        return "undefined"
 
     def get_fw_rev(self):
         if (os.path.exists(self.FW_VERSION_PATH) and (os.path.getsize(self.FW_VERSION_PATH) > 0)):
@@ -1035,12 +1057,7 @@ class SystemMgrNode():
 
         return "UNSPECIFIED"
     
-    def get_device_type(self):
-        with open(self.SYS_ENV_PATH, "r") as f:
-            for line in f:
-                if line.startswith("export DEVICE_TYPE="):
-                    return line.split('=')[1].rstrip()
-        return "undefined"            
+          
 
     def update_temperatures(self):
         # Get the current temperatures
@@ -1053,7 +1070,7 @@ class SystemMgrNode():
         # Check for temperature warnings and do thermal throttling
         throttle_ratio_min = 1.0
         for i, t in enumerate(self.status_msg.temperatures):
-            if (t > self.system_defs_msg.critical_temps[i]):
+            if (t > self.status_msg.critical_temps[i]):
                 # Critical implies high
                 self.status_msg.warnings.flags[WarningFlags.CRITICAL_TEMPERATURE] = True
                 self.status_msg.warnings.flags[WarningFlags.HIGH_TEMPERATURE] = True
@@ -1065,10 +1082,10 @@ class SystemMgrNode():
                 throttle_ratio_min = 0.0
             else:
                 self.status_msg.warnings.flags[WarningFlags.CRITICAL_TEMPERATURE] = False
-                if (t > self.system_defs_msg.warning_temps[i]):
+                if (t > self.status_msg.warning_temps[i]):
                     self.status_msg.warnings.flags[WarningFlags.HIGH_TEMPERATURE] = True
-                    throttle_ratio_i = 1.0 - ((t - self.system_defs_msg.warning_temps[i]) / (
-                        self.system_defs_msg.critical_temps[i] - self.system_defs_msg.warning_temps[i]))
+                    throttle_ratio_i = 1.0 - ((t - self.status_msg.warning_temps[i]) / (
+                        self.status_msg.critical_temps[i] - self.status_msg.warning_temps[i]))
                     throttle_ratio_min = min(
                         throttle_ratio_i, throttle_ratio_min)
                 else:
@@ -1094,7 +1111,7 @@ class SystemMgrNode():
 
         disk_free = float(statvfs.f_frsize) * \
             statvfs.f_bavail / BYTES_PER_MEGABYTE  # In MB
-        self.status_msg.disk_usage = self.system_defs_msg.disk_capacity - disk_free
+        self.status_msg.disk_usage = self.status_msg.disk_capacity - disk_free
 
         self.disk_usage_deque.append(self.status_msg.disk_usage)
         self.status_msg.storage_rate = (
@@ -1111,76 +1128,75 @@ class SystemMgrNode():
         else:
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
-    def provide_sw_update_status(self, req):
-        # self.msg_if.pub_warn("Entering Provide Software Update Status")
-        resp = SystemSoftwareStatusQueryResponse()
-        resp.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
-        resp.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
-        # self.msg_if.pub_warn("Got New Img Staging Name: " + str(resp.new_sys_img_staging))
-        # self.msg_if.pub_warn("Got Partition Free MB: " + str(resp.new_sys_img_staging_free_mb))
-        # Don't query anything if we are in the middle of installing a new image
-        if self.installing_new_image:
-            return resp
+    def update_software_status(self):
+        if self.init_complete == True:
+            # self.msg_if.pub_warn("Entering Provide Software Update Status")
+            self.status_msg.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
+            self.status_msg.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
+            # self.msg_if.pub_warn("Got New Img Staging Name: " + str(self.status_msg.new_sys_img_staging))
+            # self.msg_if.pub_warn("Got Partition Free MB: " + str(self.status_msg.new_sys_img_staging_free_mb))
+            # Don't query anything if we are in the middle of installing a new image
+            if self.installing_new_image:
+                return self.status_msg
+            
         
+            # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
+            self.install_img = ''
+            self.install_img_version = ''
+            self.install_img_size = ''
+            self.status_msg.sys_img_update_status = ""
 
-        
-        # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
-        self.install_img = ''
-        self.install_img_version = ''
-        self.install_img_size = ''
-        self.status_msg.sys_img_update_status = ""
+            if self.in_container==True:
+                self.new_img_staging = self.new_img_folder
 
-        if self.in_container==True:
-            self.new_img_staging = self.new_img_folder
+                self.new_img_staging_removable = False
+            else:
+                self.new_img_staging = self.new_img_staging
 
-            self.new_img_staging_removable = False
-        else:
-            self.new_img_staging = self.new_img_staging
+                self.new_img_staging_removable = self.new_img_staging_removable
 
-            self.new_img_staging_removable = self.new_img_staging_removable
+            (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
+                self.new_img_staging, self.new_img_staging_removable)
+            #self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
+            if status is False:
+                self.msg_if.pub_warn("Unable to update software status: " + err_string)
+                self.status_msg.new_sys_img = 'query failed'
+                self.status_msg.new_sys_img_version = 'query failed'
+                self.status_msg.new_sys_img_size_mb = 0
+                self.status_msg.sys_img_update_status = 'query failed'
+                return self.status_msg
 
-        (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
-            self.new_img_staging, self.new_img_staging_removable)
-        #self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
-        if status is False:
-            self.msg_if.pub_warn("Unable to update software status: " + err_string)
-            resp.new_sys_img = 'query failed'
-            resp.new_sys_img_version = 'query failed'
-            resp.new_sys_img_size_mb = 0
-            self.status_msg.sys_img_update_status = 'query failed'
-            return resp
+            
+            # Update the response
+            success = False
+            selected_new_img="none_detected"
+            sel_new_img = copy.deepcopy(self.selected_new_img)
+            if new_img_files:
+                if len(new_img_files) > 0:
+                    self.status_msg.sys_img_update_options= new_img_files
+                    
+                    if sel_new_img in new_img_files:
+                        sel_new_ind = new_img_files.index(sel_new_img)
+                    else:
+                        sel_new_ind=0
+                        self.selected_new_img=new_img_files[0]
 
-        
-        # Update the response
-        success = False
-        selected_new_img="none_detected"
-        sel_new_img = copy.deepcopy(self.selected_new_img)
-        if new_img_files:
-            if len(new_img_files) > 0:
-                self.status_msg.sys_img_update_options= new_img_files
-                
-                if sel_new_img in new_img_files:
-                    sel_new_ind = new_img_files.index(sel_new_img)
-                else:
-                    sel_new_ind=0
-                    self.selected_new_img=new_img_files[0]
-
-                img_size_gigabytes=int(new_img_filesizes[sel_new_ind]) / (1024**3)
-                resp.new_sys_img = new_img_files[sel_new_ind]
-                resp.new_sys_img_version = new_img_versions[sel_new_ind]
-                resp.new_sys_img_size_mb = img_size_gigabytes
-                self.status_msg.sys_img_update_status = "ready to install"
-                success = True
-        if success == False:
-            self.selected_new_img="none_detected"
-            self.status_msg.sys_img_update_options = ["none_detected"]
-            self.status_msg.sys_img_update_selected = "None"
-            resp.new_sys_img = 'none detected'
-            resp.new_sys_img_version = 'none detected'
-            resp.new_sys_img_size_mb = 0
-            self.status_msg.sys_img_update_status = "no new image available"
-                
-        return resp
+                    img_size_gigabytes=int(new_img_filesizes[sel_new_ind]) / (1024**3)
+                    self.status_msg.new_sys_img = new_img_files[sel_new_ind]
+                    self.status_msg.new_sys_img_version = new_img_versions[sel_new_ind]
+                    self.status_msg.new_sys_img_size_mb = img_size_gigabytes
+                    self.status_msg.sys_img_update_status = "ready to install"
+                    success = True
+            if success == False:
+                self.selected_new_img="none_detected"
+                self.status_msg.sys_img_update_options = ["none_detected"]
+                self.status_msg.sys_img_update_selected = "None"
+                self.status_msg.new_sys_img = 'none detected'
+                self.status_msg.new_sys_img_version = 'none detected'
+                self.status_msg.new_sys_img_size_mb = 0
+                self.status_msg.sys_img_update_status = "no new image available"
+                    
+        return self.status_msg
     
     def provide_system_data_folder(self, req):
         response = SystemStorageFolderQueryResponse()
@@ -1205,14 +1221,6 @@ class SystemMgrNode():
         response.admin_restricted = self.admin_restricted
         return response
 
-    def provide_system_status(self, req):
-        response = SystemStatusQueryResponse()
-        response.system_status = self.status_msg
-        #self.msg_if.pub_warn("Returning status query response: " + str(response))
-        return response
-
-    def publishStatusCb(self, event):
-        self.publish_status()
 
     def updateDockerCb(self, event):
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
@@ -1222,25 +1230,7 @@ class SystemMgrNode():
         #self.msg_if.pub_warn("Got Topics List: " + str(topics_list))
         self.status_msg.active_topics = topics_list
         nepi_sdk.start_timer_process(5, self.updateTopicsCb, oneshot = True)
-        
-    def publish_status(self):
-        # Populate the rest of the message contents
-        # Temperature(s)
-        self.update_temperatures()
-
-        # Disk usage
-        self.update_storage()
-
-        # Update sys status and params if needed
-        self.status_msg.sys_debug_enabled = self.debug_enabled
-        self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.sys_admin_restricted = self.admin_restricted
-        # Now publish it
-        if self.node_if is not None:
-            self.node_if.publish_pub('status_pub', self.status_msg)
-
-        # Always clear info strings after publishing
-        del self.status_msg.info_strings[:]
+ 
 
     def setSaveStatusCb(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
@@ -1526,7 +1516,7 @@ class SystemMgrNode():
 
 
         else:
-            fw_str = self.system_defs_msg.inactive_rootfs_fw_version
+            fw_str = self.status_msg.inactive_rootfs_fw_version
             fw_str = fw_str.replace('.','p')
             fw_str = fw_str.replace(' ','_')
             fw_str = fw_str.replace('/','_')
@@ -1552,8 +1542,6 @@ class SystemMgrNode():
             self.msg_if.pub_info("Finished saving image file")
             self.status_msg.sys_img_archive_status = 'archive complete'
     
-    def provide_system_defs(self, req):
-        return SystemDefsQueryResponse(self.system_defs_msg)
 
     def provide_op_environment(self, req):
         # Just proxy the param server
@@ -1593,72 +1581,69 @@ class SystemMgrNode():
         return friendly_name
 
     def init_msgs(self):
+        if self.init_complete == True:
+            fw_str = self.get_fw_rev()
+            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
+            self.status_msg.firmware_version = fw_str
 
-        fw_str = self.get_fw_rev()
-        self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
-        self.system_defs_msg.firmware_version = fw_str
 
-        self.system_defs_msg.device_sn = self.get_device_sn()
+            # TODO: Determine how many temperature readings we have. On Jetson, for example
+            #      there are 8 "thermal zones" in /sys/class/thermal/
+            self.status_msg.temperature_sensor_names.append('CPU Zone 0')
+            # TODO: Configurable warning/error temperatures
+            self.status_msg.warning_temps.append(60.0)
+            self.status_msg.critical_temps.append(70.0)
 
-        self.system_defs_msg.device_type = self.get_device_type()
+            statvfs = os.statvfs(self.storage_folder)
+            self.status_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
+                BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
 
-        # TODO: Determine how many temperature readings we have. On Jetson, for example
-        #      there are 8 "thermal zones" in /sys/class/thermal/
-        self.system_defs_msg.temperature_sensor_names.append('CPU Zone 0')
-        # TODO: Configurable warning/error temperatures
-        self.system_defs_msg.warning_temps.append(60.0)
-        self.system_defs_msg.critical_temps.append(70.0)
-
-        statvfs = os.statvfs(self.storage_folder)
-        self.system_defs_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
-            BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
-
-        # Gather some info about ROOTFS A/B configuration
-        status = False
-        if self.in_container == True:
-            self.system_defs_msg.first_rootfs = "container"
-            (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus()
-        else:
-            if self.rootfs_ab_scheme == 'nepi':
-                self.system_defs_msg.first_rootfs = self.get_friendly_name(self.first_rootfs)
-                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(self.first_rootfs)
-            elif self.rootfs_ab_scheme == 'jetson':
-                self.system_defs_msg.first_rootfs = 'N/A'
-                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
+            # Gather some info about ROOTFS A/B configuration
+            status = False
+            if self.in_container == True:
+                self.status_msg.first_rootfs = "container"
+                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus()
             else:
-                self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
+                if self.rootfs_ab_scheme == 'nepi':
+                    self.status_msg.first_rootfs = self.get_friendly_name(self.first_rootfs)
+                    (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(self.first_rootfs)
+                elif self.rootfs_ab_scheme == 'jetson':
+                    self.status_msg.first_rootfs = 'N/A'
+                    (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
+                else:
+                    self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
-        if status is True:
-            self.msg_if.pub_warn("Got Rootfs Dict: " + str(ab_fs_dict))
-            self.system_defs_msg.active_rootfs = self.get_friendly_name(ab_fs_dict['active_part_device'])
+            if status is True:
+                self.msg_if.pub_warn("Got Rootfs Dict: " + str(ab_fs_dict))
+                self.status_msg.active_rootfs = self.get_friendly_name(ab_fs_dict['active_part_device'])
 
-            self.system_defs_msg.active_rootfs_size_mb = self.nepi_image.getPartitionByteCount(ab_fs_dict[
-                'active_part_device']) / BYTES_PER_MEGABYTE
-            
-            self.inactive_rootfs = ab_fs_dict[
-                'inactive_part_device']
-            self.system_defs_msg.inactive_rootfs = self.get_friendly_name(self.inactive_rootfs)
+                self.status_msg.active_rootfs_size_mb = self.nepi_image.getPartitionByteCount(ab_fs_dict[
+                    'active_part_device']) / BYTES_PER_MEGABYTE
+                
+                self.inactive_rootfs = ab_fs_dict[
+                    'inactive_part_device']
+                self.status_msg.inactive_rootfs = self.get_friendly_name(self.inactive_rootfs)
 
-            self.system_defs_msg.inactive_rootfs_size_mb = self.nepi_image.getPartitionByteCount(self.inactive_rootfs) / BYTES_PER_MEGABYTE
-            
-            self.system_defs_msg.inactive_rootfs_fw_version = ab_fs_dict[
-                'inactive_part_fw_version']
-            self.system_defs_msg.max_boot_fail_count = ab_fs_dict[
-                'max_boot_fail_count']
-        else:
-            self.msg_if.pub_warn(
-                "Unable to gather ROOTFS A/B system definitions: " + err_msg)
-            self.system_defs_msg.active_rootfs = "Unknown"
-            self.system_defs_msg.inactive_rootfs = "Unknown"
-            self.inactive_rootfs = "Unknown"
-            self.system_defs_msg.inactive_rootfs_fw_version = "Unknown"
-            self.system_defs_msg.max_boot_fail_count = 0
+                self.status_msg.inactive_rootfs_size_mb = self.nepi_image.getPartitionByteCount(self.inactive_rootfs) / BYTES_PER_MEGABYTE
+                
+                self.status_msg.inactive_rootfs_fw_version = ab_fs_dict[
+                    'inactive_part_fw_version']
+                self.status_msg.max_boot_fail_count = ab_fs_dict[
+                    'max_boot_fail_count']
+            else:
+                self.msg_if.pub_warn(
+                    "Unable to gather ROOTFS A/B system definitions: " + err_msg)
+                self.status_msg.active_rootfs = "Unknown"
+                self.status_msg.inactive_rootfs = "Unknown"
+                self.inactive_rootfs = "Unknown"
+                self.status_msg.inactive_rootfs_fw_version = "Unknown"
+                self.status_msg.max_boot_fail_count = 0
 
-        for i in self.system_defs_msg.temperature_sensor_names:
-            self.status_msg.temperatures.append(0.0)
+            for i in self.status_msg.temperature_sensor_names:
+                self.status_msg.temperatures.append(0.0)
 
-	    # TODO: Should this be queried somehow e.g., from the param server
-        self.status_msg.save_all_enabled = False
+            # TODO: Should this be queried somehow e.g., from the param server
+            self.status_msg.save_all_enabled = False
 
     def getNEPIStorageDevice(self):
         if self.in_container == True:
@@ -1682,7 +1667,124 @@ class SystemMgrNode():
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
     
 
+    def provide_software_status(self, req):
+        response = SoftwareStatusQueryResponse()
+        response.software_status = self.status_msg
+        #self.msg_if.pub_warn("Returning status query response: " + str(response))
+        return response
 
+
+       
+    def update_software_status(self):
+        if self.init_complete == True:
+            # self.msg_if.pub_warn("Entering Provide Software Update Status")
+            self.status_msg.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
+            self.status_msg.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
+            # self.msg_if.pub_warn("Got New Img Staging Name: " + str(self.status_msg.new_sys_img_staging))
+            # self.msg_if.pub_warn("Got Partition Free MB: " + str(self.status_msg.new_sys_img_staging_free_mb))
+            # Don't query anything if we are in the middle of installing a new image
+            if self.installing_new_image:
+                return self.status_msg
+            
+        
+            # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
+            self.install_img = ''
+            self.install_img_version = ''
+            self.install_img_size = ''
+            self.status_msg.sys_img_update_status = ""
+
+            if self.in_container==True:
+                self.new_img_staging = self.new_img_folder
+
+                self.new_img_staging_removable = False
+            else:
+                self.new_img_staging = self.new_img_staging
+
+                self.new_img_staging_removable = self.new_img_staging_removable
+
+            (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
+                self.new_img_staging, self.new_img_staging_removable)
+            #self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
+            if status is False:
+                self.msg_if.pub_warn("Unable to update software status: " + err_string)
+                self.status_msg.new_sys_img = 'query failed'
+                self.status_msg.new_sys_img_version = 'query failed'
+                self.status_msg.new_sys_img_size_mb = 0
+                self.status_msg.sys_img_update_status = 'query failed'
+                return self.status_msg
+
+            
+            # Update the response
+            success = False
+            selected_new_img="none_detected"
+            sel_new_img = copy.deepcopy(self.selected_new_img)
+            if new_img_files:
+                if len(new_img_files) > 0:
+                    self.status_msg.sys_img_update_options= new_img_files
+                    
+                    if sel_new_img in new_img_files:
+                        sel_new_ind = new_img_files.index(sel_new_img)
+                    else:
+                        sel_new_ind=0
+                        self.selected_new_img=new_img_files[0]
+
+                    img_size_gigabytes=int(new_img_filesizes[sel_new_ind]) / (1024**3)
+                    self.status_msg.new_sys_img = new_img_files[sel_new_ind]
+                    self.status_msg.new_sys_img_version = new_img_versions[sel_new_ind]
+                    self.status_msg.new_sys_img_size_mb = img_size_gigabytes
+                    self.status_msg.sys_img_update_status = "ready to install"
+                    success = True
+            if success == False:
+                self.selected_new_img="none_detected"
+                self.status_msg.sys_img_update_options = ["none_detected"]
+                self.status_msg.sys_img_update_selected = "None"
+                self.status_msg.new_sys_img = 'none detected'
+                self.status_msg.new_sys_img_version = 'none detected'
+                self.status_msg.new_sys_img_size_mb = 0
+                self.status_msg.sys_img_update_status = "no new image available"
+                
+        return self.status_msg
+
+    def provide_system_status(self, req):
+        response = SystemStatusQueryResponse()
+        response.system_status = self.status_msg
+        #self.msg_if.pub_warn("Returning status query response: " + str(response))
+        return response
+
+    def publishStatusCb(self, event):
+        self.publish_status()
+
+
+
+    def publish_status(self):
+        
+        #########################
+        #### Software
+
+        #ret = self.update_software_status()
+        if self.node_if is not None:
+            self.node_if.publish_pub('software_status_pub', self.status_msg)
+
+        #########################
+        #### System
+        self.update_temperatures()
+        # Populate the rest of the message contents
+        # Temperature(s)
+        self.update_temperatures()
+
+        # Disk usage
+        self.update_storage()
+
+        # Update sys status and params if needed
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        self.status_msg.sys_admin_restricted = self.admin_restricted
+        # Now publish it
+        if self.node_if is not None:
+            self.node_if.publish_pub('status_pub', self.status_msg)
+
+        # Always clear info strings after publishing
+        del self.status_msg.info_strings[:]
 
     
 
