@@ -1206,7 +1206,7 @@ class AiDetectorIF:
                     
                 # Create register new image topic
                 self.msg_if.pub_warn('Registering to image topic: ' + img_topic)
-                img_pub_topic = os.path.dirname(img_topic) + '/' + self.IMAGE_DATA_PRODUCT
+                img_pub_topic = os.path.dirname(img_topic) + '/' + self.node_name + '/' + self.IMAGE_DATA_PRODUCT
                 self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
                 ####################
@@ -1931,7 +1931,7 @@ class AiDetectorIF:
                     filters = [self.IMAGE_DATA_PRODUCT]
                     topic_names = []      
                     if img_topic in self.imgs_info_dict.keys():
-                        topic_names.append([self.imgs_info_dict[img_topic]['pub_namespace']])
+                        topic_names.append([self.imgs_info_dict[img_topic]['img_pub_topic']])
                     [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
 
 

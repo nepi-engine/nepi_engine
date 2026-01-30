@@ -4361,7 +4361,7 @@ class ColorImageIF(BaseImageIF):
             alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
 
             # Draw a filled rectangle on the overlay copy
-            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color)
+            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alph = alpha)
 
         cv2_img = cv2_img[y_min:y_max, x_min:x_max]
 

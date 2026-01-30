@@ -771,7 +771,7 @@ def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
     thickness = math.ceil(min(w, h) * thickness_scale)
     return font_scale, thickness
     
-def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0)):
+def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha = 0.4):
       overlay = cv2_img.copy()
       cv2.rectangle(overlay, bot_left_px, top_right_px, color, -1)
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
