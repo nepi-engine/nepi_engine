@@ -254,7 +254,7 @@ class AiDetectorIF:
         
         ## Init Status Messages
         self.status_msg.node_name = self.node_name
-        self.status_msg.ai_detector_topic = self.namespace
+        self.status_msg.ai_detector_namespace = self.namespace
         self.target_status_msg = TargetingStatus()
 
 
@@ -1981,7 +1981,7 @@ class AiDetectorIF:
         self.status_msg.name = self.model_name
         self.status_msg.node_name = self.node_name
         self.status_msg.framework = self.model_framework
-        self.status_msg.ai_detector_topic = self.namespace
+        self.status_msg.ai_detector_namespace = self.namespace
         self.status_msg.enabled = self.enabled
 
         self.status_msg.has_sleep = self.has_sleep

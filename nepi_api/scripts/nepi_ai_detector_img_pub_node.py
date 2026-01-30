@@ -619,7 +619,7 @@ class AiDetectorImgPub:
                     if has_subs == True:
                         needs_img = True
                 self.img_det_lock.release()
-
+            
             if ( needs_img or needs_save ) and self.pub_image_enabled:
 
                 if img_topic in self.imgs_info_dict.keys():
