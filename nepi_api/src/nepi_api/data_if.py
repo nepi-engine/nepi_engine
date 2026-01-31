@@ -727,6 +727,13 @@ class NavPoseIF:
 
         return np_dict
 
+    def unregister_pubs(self):
+        self.ready = False
+        self.node_if.unregister_pubs()
+       
+    def register_pubs(self):
+        self.ready = False
+        self.node_if.register_pubs(self.PUBS_DICT)
 
     def unsubsribe(self):
         self.ready = False
@@ -1257,6 +1264,21 @@ class NavPosesIF:
         time.sleep(1)
         self.namespace = None
         self.status_msg = NavPosesStatus()
+
+    def unregister_pubs(self):
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
+
+    def register_pubs(self):
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.PUBS_DICT)
+
+    def unregister(self):
+        self.ready = False
+        self.node_if.unregister_class()
+        nepi_sdk.wait()
+        self.namespace = '~'
+        self.status_msg = None
 
     def _updaterCb(self,timer):
         self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
@@ -3149,7 +3171,7 @@ class BaseImageIF:
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs()
+            self.node_if.register_pubs(self.PUBS_DICT)
 
     ########################
     # Filter Functions
@@ -4932,6 +4954,14 @@ class DepthMapIF:
 
         return cv2_depth_map, cv2_depth_map_img
 
+    def unregister_pubs(self):
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
+
+    def register_pubs(self):
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.PUBS_DICT)
+
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
@@ -5839,7 +5869,17 @@ class PointcloudIF:
             self.time_list.append(pub_time_sec)
             
         return o3d_pc
+    
+    def unregister_pubs(self):
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
 
+
+    def register_pubs(self):
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.PUBS_DICT)
+
+        
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()

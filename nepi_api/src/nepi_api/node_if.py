@@ -815,6 +815,12 @@ class NodePublishersIF:
                     pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
                     self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
                     pub = None
+                    if 'qsize' not in pub_dict.keys():
+                        self.pubs_dict[pub_name]['qsize'] = 1
+                        pub_dict['qsize'] = 1
+                    if 'latch' not in pub_dict.keys():
+                        self.pubs_dict[pub_name]['latch'] = False
+                        pub_dict['latch'] = False
                     try:
                         pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'], \
                                 latch = pub_dict['latch'], log_name_list = self.log_name_list)
@@ -1085,6 +1091,7 @@ class NodeClassIF:
     services_if = None
     pubs_if = None
     subs_if = None
+
 
     #######################
     ### IF Initialization

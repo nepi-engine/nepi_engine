@@ -655,7 +655,7 @@ class AiDetectorImgPub:
 
 
             if self.imgs_info_dict[img_topic]['publishing'] == False:
-                self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
+                pass #self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
             
             if ( needs_img or needs_save ) and self.pub_image_enabled:
                 start_time = nepi_sdk.get_time()   
@@ -841,7 +841,7 @@ class AiDetectorImgPub:
             #     self.img_det_lock.release()
             
             if self.imgs_info_dict[img_topic]['publishing'] == False:
-                self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
+                pass #self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
             if ( needs_img or needs_save ) and self.pub_image_enabled:
 
                 if img_topic in self.imgs_info_dict.keys():
