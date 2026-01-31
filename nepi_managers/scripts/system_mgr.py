@@ -530,7 +530,7 @@ class SystemMgrNode():
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'software_status_query': {
-                'namespace': self.base_namespace + '/mgr_softaware',
+                'namespace': self.base_namespace + '/softaware_mgr',
                 'topic': 'system_status_query',
                 'srv': SoftwareStatusQuery,
                 'req': SoftwareStatusQueryRequest(),
@@ -584,7 +584,7 @@ class SystemMgrNode():
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'software_status_pub': {
-                'namespace': self.base_namespace + '/mgr_softaware',
+                'namespace': self.base_namespace + '/softaware_mgr',
                 'topic': 'software_status_pub',
                 'msg': MgrSoftwareStatus,
                 'qsize': 1,
