@@ -361,6 +361,8 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg)
 
     def goto_to_pan_position(self,pan_position):
+        self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position)) 
+
         pub_name = 'goto_to_pan_position'
         msg = pan_position
         self.con_node_if.publish_pub(pub_name,msg)

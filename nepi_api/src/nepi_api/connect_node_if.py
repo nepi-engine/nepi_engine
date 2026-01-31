@@ -95,7 +95,7 @@ class ConnectNodeConfigsIF:
 
         ##############################  
         # Setup Class Publishers for Node Namespace
-        self.msg_if.pub_debug("Creating config publishers on namespace: " + self.namespace)
+        self.msg_if.pub_debug("Creating config publishers on namespace: " + self.namespace, log_name_list = self.log_name_list)
         self.save_pub = nepi_sdk.create_publisher(self.namespace + '/save_config', Empty, queue_size=1) 
         self.reset_pub = nepi_sdk.create_publisher(self.namespace + '/reset_config', Empty, queue_size=1) 
         self.factory_reset_pub = nepi_sdk.create_publisher(self.namespace + '/factory_reset_config', Empty, queue_size=1) 
@@ -141,7 +141,7 @@ class ConnectNodeConfigsIF:
                 self.save_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send update config: " + str(e))
+                self.msg_if.pub_warn("Failed send update config: " + str(e), log_name_list = self.log_name_list)
         return success
 
 
@@ -153,7 +153,7 @@ class ConnectNodeConfigsIF:
                 self.reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
     def factory_reset(self):
@@ -164,7 +164,7 @@ class ConnectNodeConfigsIF:
                 self.factory_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
     def system_user_reset(self):
@@ -176,7 +176,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
     def system_factory_reset(self):
@@ -188,7 +188,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
     def system_software_reset(self):
@@ -200,7 +200,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
     def system_hardware_reset(self):
@@ -212,7 +212,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e))
+                self.msg_if.pub_warn("Failed send config reset: "  + str(e), log_name_list = self.log_name_list)
         return success
 
 
@@ -224,7 +224,7 @@ class ConnectNodeConfigsIF:
             self.msg_if.pub_warn("Save Config IF not running", log_name_list = self.log_name_list)
             success = True
         else:
-            self.msg_if.pub_warn("Killing Save Confg IF for trigger: " + self.namespace)
+            self.msg_if.pub_warn("Killing Save Confg IF for trigger: " + self.namespace, log_name_list = self.log_name_list)
             try:
                 self.save_pub.unregister()
                 self.reset_pub.unregister()
@@ -388,12 +388,12 @@ class ConnectNodeServicesIF:
             if 'service' not in srv_dict.keys():
                 srv_namespace = os.path.join(srv_dict['namespace'],srv_dict['topic'])
                 srv_msg = srv_dict['srv']
-                self.msg_if.pub_debug("Creating service for: " + service_name)
+                self.msg_if.pub_debug("Creating service for: " + service_name, log_name_list = self.log_name_list)
                 service = None
                 try:
                     service = nepi_sdk.connect_service(srv_namespace, srv_msg)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e))  
+                    self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
                 self.srvs_dict[service_name]['service'] = service
 
     def _unregister_service(self, service_name):
@@ -404,7 +404,7 @@ class ConnectNodeServicesIF:
                 try:
                     self.srvs_dict[service_name]['service'].shutdown()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
         if purge == True:
             del self.srvs_dict[service_name]
 
@@ -506,7 +506,7 @@ class ConnectNodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
-                #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs))
+                #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), log_name_list = self.log_name_list)
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -548,12 +548,18 @@ class ConnectNodePublishersIF:
             if 'pub' not in pub_dict.keys():
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
                     pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace )
+                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
                     pub = None
+                    if 'qsize' not in pub_dict.keys():
+                        self.pubs_dict[pub_name]['qsize'] = 1
+                        pub_dict['qsize'] = 1
+                    if 'latch' not in pub_dict.keys():
+                        self.pubs_dict[pub_name]['latch'] = False
+                        pub_dict['latch'] = False
                     try:
                         pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e))  
+                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['pub'] = pub
 
 
@@ -566,7 +572,7 @@ class ConnectNodePublishersIF:
                 try:
                     self.pubs_dict[pub_name]['pub'].unregister()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
         if purge == True:
             del self.pubs_dict[pub_name]
 
@@ -680,10 +686,10 @@ class ConnectNodeSubscribersIF:
     def _initialize_subs(self):
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
-            #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
+            #self.msg_if.pub_warn("Will try to create sub for: " + sub_name, log_name_list = self.log_name_list)
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
                 sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
-                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace)
+                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
@@ -695,9 +701,9 @@ class ConnectNodeSubscribersIF:
                         sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                     self.subs_dict[sub_name]['sub'] = sub
                     success = True
-                    #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace)
+                    #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e))  
+                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)  
                     self.subs_dict[sub_name]['sub'] = None
             
 
@@ -710,7 +716,7 @@ class ConnectNodeSubscribersIF:
                 try:
                     self.subs_dict[sub_name]['sub'].unregister()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e))
+                    self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e), log_name_list = self.log_name_list)
         if purge == True:
             del self.subs_dict[sub_name]
 
