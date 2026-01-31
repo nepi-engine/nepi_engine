@@ -585,7 +585,7 @@ class SystemMgrNode():
         self.PUBS_DICT = {
             'software_status_pub': {
                 'namespace': self.base_namespace + '/softaware_mgr',
-                'topic': 'software_status_pub',
+                'topic': 'status',
                 'msg': MgrSoftwareStatus,
                 'qsize': 1,
                 'latch': True
