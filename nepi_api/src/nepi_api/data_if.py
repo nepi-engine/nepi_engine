@@ -196,7 +196,8 @@ class NavPoseIF:
 
     caps_report = NavPoseCapabilitiesQueryResponse()
 
-
+    pubs_dict = dict()
+    subs_dict = dict()
 
     def __init__(self, namespace = None,
                  data_product = 'navpose',
@@ -238,6 +239,7 @@ class NavPoseIF:
             self.namespace = namespace
         namespace = nepi_sdk.create_namespace(namespace,'navpose')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
+
         
         data_product = nepi_utils.get_clean_name(data_product)
         if data_product is not None:
@@ -418,6 +420,9 @@ class NavPoseIF:
                 'callback_args': ()
             }
         }
+
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -728,12 +733,14 @@ class NavPoseIF:
         return np_dict
 
     def unregister_pubs(self):
-        self.ready = False
-        self.node_if.unregister_pubs()
-       
+        self.pubs_dict = self.PUBS_DICT
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
+
+
     def register_pubs(self):
-        self.ready = False
-        self.node_if.register_pubs(self.PUBS_DICT)
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.pubs_dict)
 
     def unsubsribe(self):
         self.ready = False
@@ -931,6 +938,8 @@ class NavPosesIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = None
 
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -1266,12 +1275,14 @@ class NavPosesIF:
         self.status_msg = NavPosesStatus()
 
     def unregister_pubs(self):
+        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
+
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.PUBS_DICT)
+            self.node_if.register_pubs(self.pubs_dict)
 
     def unregister(self):
         self.ready = False
@@ -1497,6 +1508,9 @@ class NavPoseTrackIF:
                 'callback_args': ()
             }
         }
+
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -2126,9 +2140,6 @@ class BaseImageIF:
     save_config = False
 
 
-
-
-
     x_offset = 0
     y_offset = 0
     x_scaler = 1
@@ -2148,6 +2159,9 @@ class BaseImageIF:
 
     navpose_if = None
     save_data_if = None
+
+    pubs_dict = dict()
+    subs_dict = dict()
 
     def __init__(self, 
                 namespace , 
@@ -2192,7 +2206,6 @@ class BaseImageIF:
 
         ##############################    
         # Initialize Class Variables
-
         
         if data_product_name is not None:
             self.data_product = nepi_utils.get_clean_name(data_product_name)
@@ -2714,7 +2727,8 @@ class BaseImageIF:
         else:
             self.SUBS_DICT = self.SUBS_DICT     
 
-
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -3157,6 +3171,18 @@ class BaseImageIF:
 
     
 
+
+    def unregister_pubs(self):
+        self.pubs_dict = self.PUBS_DICT
+        if self.node_if is not None:
+            self.node_if.unregister_pubs()
+
+
+    def register_pubs(self):
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.pubs_dict)
+
+
     def unregister(self):
         self.ready = False
         self.node_if.unregister_class()
@@ -3165,13 +3191,6 @@ class BaseImageIF:
         self.status_msg = None
 
 
-    def unregister_pubs(self):
-        if self.node_if is not None:
-            self.node_if.unregister_pubs()
-
-    def register_pubs(self):
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.PUBS_DICT)
 
     ########################
     # Filter Functions
@@ -4527,6 +4546,9 @@ class DepthMapIF:
     navpose_if = None
     image_if = None
 
+    pubs_dict = dict()
+    subs_dict = dict()
+
     def __init__(self, namespace = None,
                 data_product_name = 'depth_map',
                 data_source_description = 'depth_map_sensor',
@@ -4652,7 +4674,8 @@ class DepthMapIF:
 
 
 
-
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -5439,6 +5462,9 @@ class PointcloudIF:
     navpose_if = None
     image_if = None
 
+    pubs_dict = dict()
+    subs_dict = dict()
+
     def __init__(self, namespace = None,
                 data_product_name = 'pointcloud',
                 data_source_description = 'sensor',
@@ -5564,7 +5590,8 @@ class PointcloudIF:
 
 
 
-
+        self.pubs_dict = self.PUBS_DICT
+        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -5871,13 +5898,14 @@ class PointcloudIF:
         return o3d_pc
     
     def unregister_pubs(self):
+        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.PUBS_DICT)
+            self.node_if.register_pubs(self.pubs_dict)
 
         
     def unregister(self):

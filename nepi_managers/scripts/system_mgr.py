@@ -50,7 +50,7 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry
+                                DictString, DictStringEntry, UpdateState
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
@@ -121,7 +121,7 @@ class SystemMgrNode():
                             "nepi_src",
                             "tmp"]
 
-    ADMIN_RESTRICT_OPTIONS = {
+    user_restrictions_options = {
         'Sys-Admin': "Desc",
         'Sys-Debug': "Desc",
         'Cfg-Factory': "Desc",
@@ -199,8 +199,8 @@ class SystemMgrNode():
     current_throttle_ratio = 1.0
 
     debug_enabled = False
-    admin_enabled = False
-    admin_restricted = []
+    admin_enabled = True
+    user_restrictions_enabled = []
 
     install_img = ''
     install_img_version = ''
@@ -449,11 +449,11 @@ class SystemMgrNode():
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
         roptions=[]
-        for key in self.ADMIN_RESTRICT_OPTIONS.keys():
+        for key in self.user_restrictions_options.keys():
             ropt=DictStringEntry()
             ropt.key = key
-            ropt.value = self.ADMIN_RESTRICT_OPTIONS[key]
-        self.status_msg.sys_admin_restrict_options = roptions
+            ropt.value = self.user_restrictions_options[key]
+        self.status_msg.user_restrictions_options = roptions
         
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
@@ -520,7 +520,7 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': False
             },
-            'admin_restricted': {
+            'user_restrictions_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': []
             }
@@ -592,7 +592,7 @@ class SystemMgrNode():
             },
             'status_pub': {
                 'namespace': self.base_namespace,
-                'topic': 'system_status',
+                'topic': 'status',
                 'msg': MgrSystemStatus,
                 'qsize': 1,
                 'latch': True
@@ -754,10 +754,10 @@ class SystemMgrNode():
                 'callback': self.enableAdminCb, 
                 'callback_args': ()
             },
-            'set_admin_restricted': {
+            'set_user_restrictions_enabled': {
                 'namespace': self.base_namespace,
-                'topic': 'set_admin_restricted',
-                'msg': StringArray,
+                'topic': 'set_user_restrictions_enabled',
+                'msg': UpdateState,
                 'qsize': None,
                 'callback': self.setAdminRestrictedCb, 
                 'callback_args': ()
@@ -800,8 +800,8 @@ class SystemMgrNode():
         self.status_msg.sys_admin_enabled = self.admin_enabled
         nepi_system.set_admin_mode(self.admin_enabled)
 
-        self.status_msg.sys_admin_restricted = self.admin_restricted
-        nepi_system.set_admin_restricted(self.admin_restricted)
+        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
+        #nepi_system.set_user_restrictions_enabled(self.user_restrictions_enabled)
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -945,7 +945,7 @@ class SystemMgrNode():
         if self.node_if is not None:
             self.debug_enabled = self.node_if.get_param('debug_enabled')
             self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.admin_restricted = self.node_if.get_param('admin_restricted')
+            self.user_restrictions_enabled = self.node_if.get_param('user_restrictions_enabled')
         if do_updates == True:
             pass
         # self.publish_settings() # Make sure to always publish settings updates
@@ -1129,30 +1129,7 @@ class SystemMgrNode():
         else:
             self.status_msg.warnings.flags[WarningFlags.DISK_FULL] = False
 
-    
-    def provide_system_data_folder(self, req):
-        response = SystemStorageFolderQueryResponse()
-        if req.type not in self.storage_subdirs:
-            response.folder_path = ''
-        else:
-            response.folder_path = self.storage_subdirs[req.type]
-        return response
-
-    def provide_driver_folder(self, req):
-        return self.DRIVERS_SHARE_PATH
-
-    def provide_debug_status(self, req):
-        response = DebugQueryResponse()
-        response.degug_enabled = self.debug_enabled
-        return response
-
-    def provide_admin_status(self, req):
-        response = AdminQueryResponse()
-        response.admin_enabled = self.admin_enabled
-        response.admin_restrict_options = self.ADMIN_RESTRICT_OPTIONS
-        response.admin_restricted = self.admin_restricted
-        return response
-
+ 
 
     def updateDockerCb(self, event):
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
@@ -1197,12 +1174,12 @@ class SystemMgrNode():
     def setAdminRestrictedCb(self, msg):
         restricted = []
         for key in msg.data:
-            if key in ADMIN_RESTRICT_OPTIONS:
+            if key in user_restrictions_options:
                 restricted.appen(key)
-        self.admin_restricted = restricted
+        self.user_restrictions_enabled = restricted
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('admin_restricted',restricted)
+            self.node_if.set_param('user_restrictions_enabled',restricted)
             self.node_if.save_config()
 
     def restartNepiCb(self, msg):
@@ -1487,13 +1464,6 @@ class SystemMgrNode():
             self.status_msg.sys_img_archive_status = 'archive complete'
     
 
-    def provide_op_environment(self, req):
-        # Just proxy the param server
-        if self.node_if is not None:
-            return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
-        else:
-            return OpEnvironmentQueryResponse(OpEnvironmentQueryResponse.OP_ENV_AIR)
-    
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data
 
@@ -1686,18 +1656,53 @@ class SystemMgrNode():
                 
         return self.status_msg
 
-
-    def provide_software_status(self, req):
-        response = SoftwareStatusQueryResponse()
-        response.software_status = self.status_msg
-        #self.msg_if.pub_warn("Returning status query response: " + str(response))
+   
+    def provide_system_data_folder(self, req):
+        response = SystemStorageFolderQueryResponse()
+        if req.type not in self.storage_subdirs:
+            response.folder_path = ''
+        else:
+            response.folder_path = self.storage_subdirs[req.type]
         return response
+
+    def provide_driver_folder(self, req):
+        return self.DRIVERS_SHARE_PATH
+
+    def provide_debug_status(self, req):
+        response = DebugQueryResponse()
+        response.degug_enabled = self.debug_enabled
+        return response
+
+    def provide_admin_status(self, req):
+        response = AdminQueryResponse()
+        response.admin_enabled = self.admin_enabled
+        response.user_restrictions_options = self.user_restrictions_options
+        response.user_restrictions_enabled = self.user_restrictions_enabled
+        return response
+
+
+
+    def provide_op_environment(self, req):
+        # Just proxy the param server
+        if self.node_if is not None:
+            return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
+        else:
+            return OpEnvironmentQueryResponse(OpEnvironmentQueryResponse.OP_ENV_AIR)
     
     def provide_system_status(self, req):
         response = SystemStatusQueryResponse()
         response.system_status = self.status_msg
         #self.msg_if.pub_warn("Returning status query response: " + str(response))
         return response
+
+    #########################
+    #### Software
+    def provide_software_status(self, req):
+        response = SoftwareStatusQueryResponse()
+        response.software_status = self.status_msg
+        #self.msg_if.pub_warn("Returning status query response: " + str(response))
+        return response
+
 
     def publishStatusCb(self, event):
         self.publish_status()
@@ -1726,7 +1731,7 @@ class SystemMgrNode():
         # Update sys status and params if needed
         self.status_msg.sys_debug_enabled = self.debug_enabled
         self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.sys_admin_restricted = self.admin_restricted
+        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
