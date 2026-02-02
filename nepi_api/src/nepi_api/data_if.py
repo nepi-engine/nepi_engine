@@ -2054,7 +2054,8 @@ class BaseImageIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
-        click_callback = None,
+        click_pixel_callback = None,
+        click_angle_callback = None,
         drag_callback = None,
         window_callback = None,
         frame_updated_callback = None
@@ -3916,13 +3917,14 @@ class BaseImageIF:
     def _clickCb(self,msg):
         self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
         pixel = [int(msg.x  * self.x_scaler + self.x_offset), int(msg.y  * self.y_scaler + self.y_offset)]
+
         color_bgr = (msg.b,msg.g,msg.r,msg.a)
-        #self.msg_if.pub_info("Checking for click_callback function in mouse overide dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-        if self.callback_dict['click_callback'] is not None:
+        #self.msg_if.pub_info("Checking for click_pixel_callback function in mouse overide dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
+        if self.callback_dict['click_pixel_callback'] is not None:
             try:
-                self.callback_dict['click_callback'](pixel[0],pixel[1],msg.b,msg.g,msg.r,msg.a)
+                self.callback_dict['click_pixel_callback'](pixel[0],pixel[1],msg.b,msg.g,msg.r,msg.a)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse click_callback: " + str(e), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
         else:
                 self.last_click_time = nepi_utils.get_time()
                 nepi_sdk.sleep(0.3)
@@ -3935,6 +3937,21 @@ class BaseImageIF:
                         self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
                         self.reset_renders()
                         self.last_click_time = None
+        if self.callback_dict['click_angle_callback'] is not None:
+                image_width = self.status_msg.image_width
+                image_height = self.status_msg.image_width
+                image_fov_horz = self.status_msg.width_deg
+                image_fov_vert = self.status_msg.height_deg
+                if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
+                    object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
+                    object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
+                    pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+                    pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+                    try:
+                        self.callback_dict['click_angle_callback'](pixel_horz_angle_deg , pixel_vert_angle_deg)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to call mouse click_angle_callback: " + str(e), log_name_list = self.log_name_list)
+
 
  
     def _dragCb(self,msg):
@@ -4505,7 +4522,8 @@ class DepthMapIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
-        click_callback = None,
+        click_pixel_callback = None,
+        click_angle_callback = None,
         drag_callback = None,
         window_callback = None,
         frame_updated_callback = None
@@ -5422,7 +5440,8 @@ class PointcloudIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
-        click_callback = None,
+        click_pixel_callback = None,
+        click_angle_callback = None,
         drag_callback = None,
         window_callback = None,
         voxel_callback = None,
