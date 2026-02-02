@@ -875,7 +875,12 @@ class PTXActuatorIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
-    
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
 
         ####################################
         self.ready = True

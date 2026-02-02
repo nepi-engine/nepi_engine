@@ -62,6 +62,7 @@ from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
+from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
 
@@ -742,16 +743,16 @@ class RBXRobotIF:
         self.publish_status()
 
         # Setup 3D Transform IF Class ####################
-        self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
-        transform_ns = self.namespace
+        # self.msg_if.pub_debug("Starting 3D Transform IF Initialization", log_name_list = self.log_name_list)
+        # transform_ns = self.namespace
 
-        self.transform_if = Transform3DIF(namespace = transform_ns,
-                        source_ref_description = self.tr_source_ref_description,
-                        end_ref_description = self.tr_end_ref_description,
-                        supports_updates = True,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
-                        )
+        # self.transform_if = Transform3DIF(namespace = transform_ns,
+        #                 source_ref_description = self.tr_source_ref_description,
+        #                 end_ref_description = self.tr_end_ref_description,
+        #                 supports_updates = True,
+        #                 log_name_list = self.log_name_list,
+        #                     msg_if = self.msg_if
+        #                 )
 
         # Setup Data IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
@@ -780,7 +781,7 @@ class RBXRobotIF:
                             msg_if = self.msg_if
                         )
 
-
+        
         # Setup Save Data IF Class ####################
         self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         self.data_products_list.append('navpose')
@@ -805,6 +806,44 @@ class RBXRobotIF:
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if
                         )
+
+        ####################
+        # Setup NavPose IF Class
+        self.msg_if.pub_info("Starting NavPose IF Initialization")
+        np_namespace = self.namespace
+        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
+                                    save_data_if = self.save_data_if,
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if)
+        
+
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        if self.navpose_if is not None:            
+            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
+
+
+        
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        if self.navpose_if is not None:            
+            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
 
         self.initCb(do_updates = True)
 
@@ -902,16 +941,16 @@ class RBXRobotIF:
         navpose_dict = None
         start_time = nepi_utils.get_time()
         navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-        if navpose_dict is not None:
-            navpose_frame = 'nepi_frame'
-            self.transform_if.set_end_description('nepi_frame')
+        # if navpose_dict is not None:
+        #     navpose_frame = 'nepi_frame'
+        #     self.transform_if.set_end_description('nepi_frame')
                 
-        if navpose_dict is None:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-            navpose_frame = 'sensor_frame'
-            self.transform_if.set_end_description('sensor_frame')
+        # if navpose_dict is None:
+        #     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        #     navpose_frame = 'sensor_frame'
+        #     self.transform_if.set_end_description('sensor_frame')
 
-        self.end_ref_description = self.transform_if.get_end_description()
+        # self.end_ref_description = self.transform_if.get_end_description()
 
    
         ### Setup a regular background navpose get and update navpose data
@@ -1886,8 +1925,8 @@ class RBXRobotIF:
 
     def get_3d_transform(self):
         transform = nepi_nav.ZERO_TRANSFORM
-        if self.transform_if is not None:
-            transform = self.transform_if.get_3d_transform()
+        # if self.transform_if is not None:
+        #     transform = self.transform_if.get_3d_transform()
         return transform
        
    ### Callback for rbx status publisher

@@ -56,8 +56,7 @@ from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, Sys
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
                              SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
                              DebugQuery, DebugQueryRequest, DebugQueryResponse, \
-                             AdminQuery, AdminQueryRequest, AdminQueryResponse,  \
-                            SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
+                             AdminQuery, AdminQueryRequest, AdminQueryResponse
 
 
 from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus

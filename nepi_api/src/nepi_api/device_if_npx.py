@@ -48,7 +48,7 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, SettingsIF
 
 from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
+
 
 #########################################
 # Node Class
@@ -165,10 +165,6 @@ class NPXDeviceIF:
         self.msg_if.pub_info("Starting NPX Device IF Initialization Processes", log_name_list = self.log_name_list)  
 
 
-        ##############################    
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
 
         ##############################
         # Initialize Class 
@@ -461,6 +457,7 @@ class NPXDeviceIF:
                             )
 
 
+
         # Setup Save Data IF Class ####################
         self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
         factory_data_rates = {}
@@ -488,8 +485,7 @@ class NPXDeviceIF:
                             )
 
 
-
-        # Create a navpose data IF
+        # Create a NavPose IF
         np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                             data_source_description = self.data_source_description,
@@ -508,8 +504,18 @@ class NPXDeviceIF:
                             )
 
 
-        time.sleep(1)
-
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        if self.navpose_if is not None:            
+            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
       
 
         self.initCb(do_updates = True)

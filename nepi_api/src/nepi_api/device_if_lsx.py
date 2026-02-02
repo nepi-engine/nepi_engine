@@ -31,14 +31,12 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
-from nepi_interfaces.msg import Frame3DTransform
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
+from nepi_api.system_if import SettingsIF
 
-from nepi_api.data_if import NavPoseIF
-from nepi_api.connect_mgr_if_navpose import ConnectMgrNavPoseIF
+from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
 class LSXDeviceIF:
@@ -126,9 +124,6 @@ class LSXDeviceIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting LSX Device IF Initialization Processes", log_name_list = self.log_name_list)
 
-        ## Connect NEPI NavPose Manager
-        self.nav_mgr_if = ConnectMgrNavPoseIF()
-        ready = self.nav_mgr_if.wait_for_ready()
 
         ##############################
         # Initialize Class Variables
@@ -461,6 +456,30 @@ class LSXDeviceIF:
                             msg_if = self.msg_if
                         )
         
+    ####################
+        # Setup NavPose IF Class
+        self.msg_if.pub_info("Starting NavPose IF Initialization")
+        np_namespace = self.namespace
+        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
+                                    save_data_if = self.save_data_if,
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if)
+        
+
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
+        # if self.save_data_if is not None:
+        #     self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+        #     self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        if self.navpose_if is not None:            
+            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
+
+
         ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)

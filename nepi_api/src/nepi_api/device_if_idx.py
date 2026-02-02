@@ -605,6 +605,7 @@ class IDXDeviceIF:
 
 
 
+
         ##################################
         # Setup Save Data IF Class ####################
         self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
@@ -634,22 +635,30 @@ class IDXDeviceIF:
                                 msg_if = self.msg_if
                         )
 
-        nepi_sdk.sleep(1)
-        if self.save_data_if is not None:
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
         
         ####################
-        # Setup Save Data IF Class
+        # Setup NavPose IF Class
         self.msg_if.pub_info("Starting NavPose IF Initialization")
         np_namespace = self.namespace
         self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
                                     save_data_if = self.save_data_if,
                                 log_name_list = self.log_name_list,
                                 msg_if = self.msg_if)
-            
-        self.status_msg.navpose_topic = self.navpose_if.get_namespace()
-        self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
+        
+
+        #####################
+        # Update Status Message
+        nepi_sdk.sleep(1)
+        if self.settings_if is not None:
+            self.status_msg.settings_topic = self.settings_if.get_namespace()
+            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
+        if self.save_data_if is not None:
+            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+        if self.navpose_if is not None:            
+            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
+            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
 
         ##################################
         # Start Node Processes
