@@ -760,7 +760,7 @@ class NepiDriversMgr(object):
         settings_status_msg.node_name = self.node_name
         if driver_name in self.discovery_settings_dict.keys():
           if 'namespace' in self.discovery_settings_dict[driver_name].keys():
-            settings_status_msg.settings_topic = self.discovery_settings_dict[driver_name]['namespace']
+            settings_status_msg.settings_topic = self.discovery_settings_dict[driver_name]['namespace'] + '/settings'
         settings_status_msg.settings_count = len(settings)
 
         setting_msgs_list = []
