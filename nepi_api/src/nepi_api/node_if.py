@@ -831,7 +831,7 @@ class NodePublishersIF:
                                 latch = pub_dict['latch'], log_name_list = self.log_name_list)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
-                    self.pubs_dict[pub_name]['namespace'] = pub_namespace
+                    self.pubs_dict[pub_name]['pub_namespace'] = pub_namespace
                     self.pubs_dict[pub_name]['pub'] = pub
                     if print_msg == True:
                         self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
@@ -988,7 +988,7 @@ class NodeSubscribersIF:
                         sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], \
                              callback_args=sub_dict['callback_args'], log_name_list = self.log_name_list)
                     self.subs_dict[sub_name]['sub'] = sub
-                    self.subs_dict[sub_name]['namespace'] = sub_namespace
+                    self.subs_dict[sub_name]['sub_namespace'] = sub_namespace
                     success = True
                     self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list) 
                 except Exception as e:
