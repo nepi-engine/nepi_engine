@@ -757,8 +757,9 @@ class NodePublishersIF:
         if pub_name in self.pubs_dict.keys() and not nepi_sdk.is_shutdown():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
-                has_subs = pub_dict['pub'].get_num_connections() > 0
-                self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), \
+                if pub_dict['pub'] is not None:
+                    has_subs = pub_dict['pub'].get_num_connections() > 0
+                    self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), \
                                         throttle_s = 5.0, log_name_list = self.log_name_list) 
         return has_subs
 
@@ -779,13 +780,12 @@ class NodePublishersIF:
 
     def register_pub(self,pub_name, pub_dict):
         self.pubs_dict[pub_name] = pub_dict
-        self._initialize_pubs()
+        self._initialize_pubs(print_msg = True)
 
-    def register_pubs(self,pubs_dict):
-        for pub_name in pubs_dict.keys():
-            pub_dict = pubs_dict[pub_name]
-            self.pubs_dict[pub_name] = pub_dict
-        self._initialize_pubs()
+    def register_pubs(self,pubs_dict = None):
+        if pubs_dict is not None:
+            self.pubs_dict.update(pubs_dict)
+        self._initialize_pubs(print_msg = True)
 
 
 
@@ -802,15 +802,20 @@ class NodePublishersIF:
         self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
         self.pubs_dict.update(pubs_dict)
         #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
-        self._initialize_pubs()
+        self._initialize_pubs(print_msg = True)
 
     ###############################
     # Class Private Methods
     ###############################
-    def _initialize_pubs(self):
+    def _initialize_pubs(self, print_msg = False):
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
+            add_pub = False
             if 'pub' not in pub_dict.keys():
+                add_pub = True
+            elif pub_dict['pub'] is None:
+                add_pub = True
+            if add_pub == True:  
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
                     pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
                     self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
@@ -828,20 +833,25 @@ class NodePublishersIF:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['namespace'] = pub_namespace
                     self.pubs_dict[pub_name]['pub'] = pub
+                    if print_msg == True:
+                        self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
 
 
     def _unregister_pub(self, pub_name):
-        purge = False
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
             if 'pub' in pub_dict.keys() and not nepi_sdk.is_shutdown():
-                try:
-                    self.pubs_dict[pub_name]['pub'].unregister()
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
-        if purge == True:
-            del self.pubs_dict[pub_name]
+                if pub_dict['pub'] is not None:
+                    try:
+                        self.pubs_dict[pub_name]['pub'].unregister()
+                        self.msg_if.pub_warn("Unregister pub: " + pub_name, log_name_list = self.log_name_list)                    
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
+                    self.pubs_dict[pub_name]['pub'] = None
+
 
 
 ##################################################
@@ -1302,7 +1312,7 @@ class NodeClassIF:
         if self.pubs_if is not None:
             self.pubs_if.register_pub(pub_name, pub_dict)
 
-    def register_pubs(self,pubs_dict):
+    def register_pubs(self,pubs_dict = None):
         if self.pubs_if is not None:
             self.pubs_if.register_pubs(pubs_dict)
 

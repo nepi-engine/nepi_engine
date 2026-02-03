@@ -421,8 +421,7 @@ class NavPoseIF:
             }
         }
 
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
+
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -739,7 +738,7 @@ class NavPoseIF:
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.pubs_dict)
+            self.node_if.register_pubs()
 
     def unsubsribe(self):
         self.ready = False
@@ -937,8 +936,7 @@ class NavPosesIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = None
 
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
+
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -1280,7 +1278,7 @@ class NavPosesIF:
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.pubs_dict)
+            self.node_if.register_pubs()
 
     def unregister(self):
         self.ready = False
@@ -1507,8 +1505,7 @@ class NavPoseTrackIF:
             }
         }
 
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
+
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         params_dict = self.PARAMS_DICT,
@@ -2726,8 +2723,6 @@ class BaseImageIF:
         else:
             self.SUBS_DICT = self.SUBS_DICT     
 
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -3178,7 +3173,7 @@ class BaseImageIF:
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.pubs_dict)
+            self.node_if.register_pubs()
 
 
     def unregister(self):
@@ -4688,9 +4683,6 @@ class DepthMapIF:
         self.SUBS_DICT = None
 
 
-
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -5606,8 +5598,6 @@ class PointcloudIF:
 
 
 
-        self.pubs_dict = self.PUBS_DICT
-        self.subs_dict = self.SUBS_DICT
         # Create Node Class ####################
         self.node_if = NodeClassIF(
                         configs_dict = self.CONFIGS_DICT,
@@ -5920,7 +5910,7 @@ class PointcloudIF:
 
     def register_pubs(self):
         if self.node_if is not None:
-            self.node_if.register_pubs(self.pubs_dict)
+            self.node_if.register_pubs()
 
         
     def unregister(self):
