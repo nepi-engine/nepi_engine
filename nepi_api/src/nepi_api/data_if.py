@@ -733,7 +733,6 @@ class NavPoseIF:
         return np_dict
 
     def unregister_pubs(self):
-        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
@@ -1275,7 +1274,6 @@ class NavPosesIF:
         self.status_msg = NavPosesStatus()
 
     def unregister_pubs(self):
-        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
@@ -3174,7 +3172,6 @@ class BaseImageIF:
 
 
     def unregister_pubs(self):
-        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
@@ -5917,7 +5914,6 @@ class PointcloudIF:
         return o3d_pc
     
     def unregister_pubs(self):
-        self.pubs_dict = self.PUBS_DICT
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 

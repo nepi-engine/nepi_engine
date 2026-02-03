@@ -16,7 +16,8 @@
   <arg name="run_mgr_targets" default="false" />
   <arg name="run_mgr_drivers" default="true" />
   <arg name="run_mgr_apps" default="true" />
-  <arg name="run_mgr_automation" default="true" />
+  <arg name="run_mgr_scripts" default="true" />
+  <arg name="run_mgr_software" default="true" />
 
         
   <!-- Everything lives in the device namespace -->
@@ -92,11 +93,16 @@
 
 
        <!-- MGR: Automation -->
-    <group if="$(arg run_mgr_automation)" >
-      <rosparam command="load" file="$(arg config_file_root)/automation_mgr.yaml" ns="automation_mgr" />
-      <node name="automation_mgr" pkg="nepi_managers" type="automation_mgr.py" respawn="false" output="$(arg output_destination)" />
+    <group if="$(arg run_mgr_scripts)" >
+      <rosparam command="load" file="$(arg config_file_root)/scripts_mgr.yaml" ns="scripts_mgr" />
+      <node name="scripts_mgr" pkg="nepi_managers" type="scripts_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
+    <!-- MGR: Automation -->
+    <group if="$(arg run_mgr_software)" >
+      <rosparam command="load" file="$(arg config_file_root)/software_mgr.yaml" ns="software_mgr" />
+      <node name="software_mgr" pkg="nepi_managers" type="software_mgr.py" respawn="false" output="$(arg output_destination)" />
+    </group>
 
 
   </group>

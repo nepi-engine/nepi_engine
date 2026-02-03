@@ -91,7 +91,7 @@ class SystemMgrNode():
 
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
-                        "automation_scripts", 
+                        "ai_training",
                         "data", 
                         "databases", 
                         "databases/targets", 
@@ -102,8 +102,9 @@ class SystemMgrNode():
                         "license", 
                         "logs", 
                         "logs/ros_log",
-                        "logs/automation_script_logs", 
+                        "logs/nepi_scripts_logs", 
                         "nepi_src",
+                        "nepi_scripts",
                         "user_cfg",
                         "user_cfg/cal",]
 
@@ -116,7 +117,7 @@ class SystemMgrNode():
                             "data",
                             "logs", 
                             "logs/ros_log",
-                            "logs/automation_script_logs", 
+                            "logs/nepi_scripts_logs", 
                             "nepi_src",
                             "tmp"]
 
@@ -393,12 +394,12 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
         if not os.path.ismount(self.storage_folder):
-           self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-           ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
-           if ret is False:
-               self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
-               #return False # Allow it continue on local storage...
-
+            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
+            ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
+            if ret is False:
+                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+                #return False # Allow it continue on local storage...
+                
         # ... as long as there is enough space
         self.update_storage()
         if self.status_msg.warnings.flags[WarningFlags.DISK_FULL] is True:

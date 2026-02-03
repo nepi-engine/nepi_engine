@@ -60,7 +60,7 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF
 
 
-class AutomationManager(object):
+class ScriptsManager(object):
 
     DEFAULT_SCRIPT_STOP_TIMEOUT_S = 10.0
 
@@ -71,9 +71,12 @@ class AutomationManager(object):
     script_counters = {}
     script_configs = {} # Dictionary of dictionaries  
 
+    scripts_folder = '/mnt/nepi_storage/nepi_scripts'
+    scripts_log_folder = '/mnt/nepi_storage/logs/nepi_scripts_logs'
+  
     #######################
     ### Node Initialization
-    DEFAULT_NODE_NAME = "automation_manager" # Can be overwitten by luanch command
+    DEFAULT_NODE_NAME = "scripts_manager" # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
@@ -97,10 +100,12 @@ class AutomationManager(object):
         user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
         #self.msg_if.pub_warn("Got user folders: " + str(user_folders))
 
-        self.scripts_folder = user_folders['automation_scripts']
+        if 'nepi_scripts' in user_folders.keys():
+            self.scripts_folder = user_folders['nepi_scripts']
         self.msg_if.pub_info("Using Scipts Folder: " + str(self.scripts_folder))
 
-        self.scripts_log_folder = self.scripts_folder = user_folders['logs/automation_script_logs']
+        if 'logs/nepi_scripts_logs' in user_folders.keys():
+            self.scripts_log_folder = user_folders['logs/nepi_scripts_logs']
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
         self.msg_if.pub_warn("Waiting for Config Mgr")
@@ -352,7 +357,7 @@ class AutomationManager(object):
         
     def get_scripts(self):
         """
-        Detect and report automation scripts that exist in a particular directory in the filesystem.
+        Detect and report scripts that exist in a particular directory in the filesystem.
         """
         #self.scripts = self.get_scripts()
         scripts = []
@@ -412,7 +417,7 @@ class AutomationManager(object):
 
     def get_file_sizes(self):
         """
-        Get the file sizes of the automation scripts in the specified directory.
+        Get the file sizes of the scripts in the specified directory.
         """
         file_sizes = {}
         for filename in self.scripts:
@@ -434,7 +439,7 @@ class AutomationManager(object):
 
     def handle_launch_script(self, req):
         """
-        Handle a request to launch an automation script.
+        Handle a request to launch anscript.
         """            
         if req.script in self.scripts:
             if req.script not in self.running_scripts:
@@ -471,7 +476,7 @@ class AutomationManager(object):
 
     def handle_stop_script(self, req):
         """
-        Handle a request to stop an automation script.
+        Handle a request to stop anscript.
         """
         if req.script in self.processes:
             process = self.processes[req.script]['process']
@@ -502,7 +507,7 @@ class AutomationManager(object):
     
     def monitor_scripts(self):
         """
-        Monitor the status of all automation scripts.
+        Monitor the status of allscripts.
         """
         while not nepi_sdk.is_shutdown():
             for script in self.scripts:
@@ -586,4 +591,4 @@ class AutomationManager(object):
 
 
 if __name__ == '__main__':
-    AutomationManager()
+    ScriptsManager()

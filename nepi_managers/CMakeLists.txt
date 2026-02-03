@@ -111,7 +111,8 @@ catkin_install_python(PROGRAMS
   scripts/network_mgr.py
   scripts/drivers_mgr.py
   scripts/apps_mgr.py
-  scripts/automation_mgr.py
+  scripts/scripts_mgr.py
+  scripts/software_mgr.py
   scripts/ai_model_mgr.py
   scripts/navpose_mgr.py
   scripts/targets_mgr.py
