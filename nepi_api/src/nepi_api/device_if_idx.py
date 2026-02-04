@@ -48,7 +48,7 @@ from nepi_api.system_if import SettingsIF, SaveDataIF
 
 
 from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF
-from nepi_api.connect_data_if import ConnectNavPosesIF
+#from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
 
@@ -638,13 +638,13 @@ class IDXDeviceIF:
 
         
         ####################
-        # Setup NavPose IF Class
-        self.msg_if.pub_info("Starting NavPose IF Initialization")
-        np_namespace = self.namespace
-        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
-                                    save_data_if = self.save_data_if,
-                                log_name_list = self.log_name_list,
-                                msg_if = self.msg_if)
+        # # Setup NavPose IF Class
+        # self.msg_if.pub_info("Starting NavPose IF Initialization")
+        # np_namespace = self.namespace
+        # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
+        #                             save_data_if = self.save_data_if,
+        #                         log_name_list = self.log_name_list,
+        #                         msg_if = self.msg_if)
         
 
         #####################

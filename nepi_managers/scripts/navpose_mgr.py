@@ -45,7 +45,7 @@ from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
 from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
 
-from nepi_interfaces.msg import NavPose, NavPoses
+from nepi_interfaces.msg import NavPose, NavPoses, NavPosesStatus
 
 
 from nepi_interfaces.srv import MgrNavPoseCapabilitiesQuery, MgrNavPoseCapabilitiesQueryRequest, MgrNavPoseCapabilitiesQueryResponse
@@ -108,7 +108,16 @@ class NavPoseMgr(object):
             'msgs': [],
         }
 
+
+    mgr_namespace = "mgr_navpose"
+
     node_if = None
+
+    status_msg = MgrNavPoseStatus()
+    navposes_status_msg = NavPosesStatus()
+    caps_response = MgrNavPoseCapabilitiesQueryResponse()
+    navposes_topic = ''
+
     save_data_if = None
     data_products_list = ['navposes']
     navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -118,9 +127,25 @@ class NavPoseMgr(object):
     init_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     last_npdata_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
-    mgr_namespace = ""
-    status_msg = MgrNavPoseStatus()
-    caps_response = MgrNavPoseCapabilitiesQueryResponse()
+    navpose_description = 'Undefined'
+    frame_nav = 'ENU'
+    frame_alt = 'WGS84'
+    frame_depth = 'DEPTH'
+
+    navpose_info_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
+
+
+    navpose_frames = ['None','nepi_frame']
+    navpose_frames_info_dict = dict()
+
+
+    # navposes_status_msg
+
+
+    # navpose_frame_topics = ['',''] # Updated later
+    # navpose_pubs_dict = dict()
+    # data_source_description = 'nepi_navpose_solution'
+    # data_ref_description = 'nepi_frame'
 
     set_pub_rate = FACTORY_PUB_RATE_HZ
 
@@ -169,15 +194,7 @@ class NavPoseMgr(object):
     }
 
 
-    navpose_description = 'Undefined'
-    frame_nav = 'ENU'
-    frame_alt = 'WGS84'
-    frame_depth = 'DEPTH'
 
-    navpose_info_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
-    navpose_frames = ['None','nepi_frame']
-    data_source_description = 'nepi_navpose_solution'
-    data_ref_description = 'nepi_frame'
 
 
 
@@ -207,6 +224,13 @@ class NavPoseMgr(object):
         config_folders = nepi_system.get_config_folders()
 
         self.mgr_namespace = nepi_sdk.create_namespace(self.base_namespace, self.MGR_NODE_NAME)
+        self.navposes_topic = self.base_namespace + '/navposes'
+
+
+        for frame in self.navpose_frames:
+            self.navpose_frames_info_dict[frame] = dict()
+            self.navpose_frames_info_dict[frame]['name'] = frame
+            self.navpose_frames_info_dict[frame]['topic'] = self.navposes_topic + '/' + frame + '/navpose'
 
         self.cb_dict = {
             'location': self._locationSubCb,
@@ -219,16 +243,27 @@ class NavPoseMgr(object):
         }
 
 
+
         self.caps_response.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
         self.caps_response.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
         self.caps_response.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
 
+
+    
+        self.status_msg.navposes_topic  = self.navposes_topic
 
         self.status_msg.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
         self.status_msg.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
         self.status_msg.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
         self.status_msg.publishing = False
         self.status_msg.pub_rate = self.set_pub_rate
+
+
+        self.navposes_status_msg.node_name = self.node_name
+        self.navposes_status_msg.navposes_topic = self.base_namespace + '/navposes'
+        self.navposes_status_msg.navpose_frames = []
+        self.navposes_status_msg.navpose_topics = []
+        self.navposes_status_msg.save_data_topic = ''
 
         self.initCb(do_updates = False)
 
@@ -317,6 +352,13 @@ class NavPoseMgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'navposes',
                 'msg': NavPoses,  # This should be the correct message type
+                'qsize': 1,
+                'latch': False
+            },
+            'navposes_status_pub': {
+                'namespace': self.base_namespace + '/navposes',
+                'topic': 'status',
+                'msg': NavPosesStatus,  # This should be the correct message type
                 'qsize': 1,
                 'latch': False
             }
@@ -434,9 +476,10 @@ class NavPoseMgr(object):
             factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
             if d == 'navposes':
                 factory_data_rates[d][0] = float(1.0) / self.FACTORY_PUB_RATE_HZ
-        self.save_data_if = SaveDataIF(data_products = self.data_products_list, factory_rate_dict = factory_data_rates,namespace = self.node_namespace)
+        sd_namespace = self.base_namespace + '/navposes'  
+        self.save_data_if = SaveDataIF(namespace = sd_namespace, data_products = self.data_products_list, factory_rate_dict = factory_data_rates)
 
-
+        self.navposes_status_msg.save_data_topic = sd_namespace + '/save_data'
         ######################
         # initialize variables from param server
 
@@ -510,6 +553,15 @@ class NavPoseMgr(object):
 
     def update_navpose_frames(self):
         nepi_system.set_navpose_frames(self.navpose_frames)
+
+        topics = []
+        for frame in self.navpose_frames:
+            if frame == 'None':
+                topics.append('')
+            else:
+                topics.append(self.base_namespace + '/navposes/' + frame + '/navpose')
+        self.navpose_frame_topics = topics
+        #nepi_system.set_navpose_frame_topics(topics)
         
         self.navpose_info_dict['frame_nav'] = self.frame_nav
         self.navpose_info_dict['frame_alt'] = self.frame_alt
@@ -1005,6 +1057,18 @@ class NavPoseMgr(object):
         #self.msg_if.pub_warn("========publish_status called========")
         #self.msg_if.pub_warn("publish_status self.transforms_dict" + str(self.transforms_dict))
 
+
+        frames_dict = copy.deepcopy(self.navpose_frames_info_dict)
+        frames = []
+        topics = []
+        for frame_name in frames_dict.keys():
+            frames.append(frame_name)
+            topics.append(frames_dict[frame_name]['topic'])
+        
+        self.status_msg.navpose_frames = frames
+        self.status_msg.navpose_frame_topics = topics
+
+
         connect_dict = copy.deepcopy(self.connect_dict)
         avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
 
@@ -1051,6 +1115,14 @@ class NavPoseMgr(object):
         #self.msg_if.pub_warn("will publish status msg: " + str(self.status_msg))
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
+
+
+
+        self.navposes_status_msg.navpose_frames = frames
+        self.navposes_status_msg.navpose_topics = topics
+
+        if self.node_if is not None:
+            self.node_if.publish_pub('navposes_status_pub',self.navposes_status_msg)
 
 
 

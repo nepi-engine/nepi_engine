@@ -67,7 +67,7 @@ from sensor_msgs.msg import PointCloud2
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
-from nepi_api.connect_data_if import ConnectNavPosesIF
+#from nepi_api.connect_data_if import ConnectNavPosesIF
 
 ##################################################
 
@@ -200,7 +200,7 @@ class NavPoseIF:
     subs_dict = dict()
 
     def __init__(self, namespace = None,
-                 data_product = 'navpose',
+                data_product = 'navpose',
                 data_source_description = 'sensor',
                 data_ref_description = 'sensor_center',
                 pub_navpose = True,
@@ -246,6 +246,17 @@ class NavPoseIF:
             self.data_product = data_product
         self.data_products_list = [data_product]
 
+
+        if data_source_description is None:
+            data_source_description = self.data_source_description
+        self.data_source_description = data_source_description
+
+        if data_ref_description is None:
+            data_ref_description = self.data_ref_description
+        self.data_ref_description = data_ref_description
+
+
+
         self.pub_navpose = pub_navpose
         self.pub_location = pub_location
         self.pub_heading = pub_heading
@@ -257,6 +268,7 @@ class NavPoseIF:
 
         # Create Capabilities Report
 
+        self.caps_report.has_navpose_pub = self.pub_navpose
         self.caps_report.has_location_pub = self.pub_location
         self.caps_report.has_heading_pub = self.pub_heading
         self.caps_report.has_position_pub = self.pub_position
@@ -265,21 +277,24 @@ class NavPoseIF:
         self.caps_report.has_pan_tilt = self.pub_pan_tilt
 
 
-
+        #########################
         # Initialize status message
-        if data_source_description is None:
-            data_source_description = self.data_source_description
-        self.data_source_description = data_source_description
-
-        if data_ref_description is None:
-            data_ref_description = self.data_ref_description
-        self.data_ref_description = data_ref_description
-        
         self.status_msg.node_name = self.node_name
-        self.status_msg.navpose_topic = self.namespace
+        self.status_msg.navpose_topic = self.namespace       
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
+
+        self.status_msg.is_navpose_publisher = self.pub_navpose
+
+        self.status_msg.is_navapose_subscriber = False
+        self.status_msg.navpose_frame_options = []
+        self.status_msg.sel_navpose_frame = 'None'
+        self.status_msg.transform_topic = ''
+        self.status_msg.use_pantilt_for_heading = False
+        self.status_msg.connected = False
+
+
         ##############################   
         ## Node Setup
 
@@ -471,7 +486,11 @@ class NavPoseIF:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
-       
+        #########################
+        self.status_msg.transform_topic = ''
+
+
+
         ##############################
         # Update vals from param server
         self.init(do_updates = True)
@@ -694,6 +713,7 @@ class NavPoseIF:
                 if data_msg is not None:
                     try:
                         self.node_if.publish_pub('navpose_pub', data_msg)
+                        self.status_msg.publishing = True
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                         success = False
@@ -816,1136 +836,6 @@ class NavPoseIF:
         return self.caps_report
 
 
-
-class NavPosesIF:
-
-
-    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
-
-    ready = False
-    namespace = '~'
-
-    node_if = None
-    save_data_if = None
-
-    status_msg = NavPosesStatus()
-
-    last_pub_time = None
-
-    has_subs = False
-
-    time_list = [0,0,0,0,0,0,0,0,0,0]
-
-
-    frame_nav = 'ENU'
-    frame_altitude = 'WGS84'
-    frame_depth = 'MSL'
-
-    data_poduct = 'navposes'
-    data_products_list = ['navposes']
-
-    navposes_dict = dict()
-    navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
-    navpose_frames = []
-
-
-
-
-    def __init__(self, namespace = None,
-                 data_product = 'navposes',
-                has_save_data = True,
-                save_data_if = None,
-                has_tranform = False,
-                transform_if = None,
-                log_name = None,
-                log_name_list = [],
-                msg_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-        ##############################    
-        # Initialize Class Variables
-        if namespace is not None:
-            self.namespace = namespace
-        namespace = nepi_sdk.create_namespace(namespace,'navposes')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
-        
-        data_product = nepi_utils.get_clean_name(data_product)
-        if data_product is not None:
-            self.data_product = data_product
-        self.data_products_list = [data_product]
-
-        ##############################   
-        ## Node Setup
-
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-        # Services Config Dict ####################     
-        self.SRVS_DICT = None
-
-        # Params Config Dict ####################
-        self.PARAMS_DICT = None
-
-
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            'status_pub': {
-                    'msg': NavPoseStatus,
-                    'namespace': self.namespace,
-                    'topic': 'status',
-                    'qsize': 1,
-                    'latch': True
-                },
-                'navposes_pub': {
-                    'msg': NavPoses,
-                    'namespace': self.namespace,
-                    'topic': '',
-                    'qsize': 1,
-                    'latch': False
-                }
-        }
-        
-   
-        # Subs Config Dict ####################
-        self.SUBS_DICT = None
-
-
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                        params_dict = self.PARAMS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
-                         msg_if = self.msg_if
-                                            )
-
-        success = nepi_sdk.wait()
-
-
-        if save_data_if is not None and has_save_data == True:
-            self.save_data_if = save_data_if
-        elif has_save_data == True:
-            
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
-            factory_data_rates= {}
-            for d in self.data_products_list:
-                factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-            self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
-
-            factory_filename_dict = {
-                'prefix': "", 
-                'add_timestamp': True, 
-                'add_ms': True,
-                'add_us': False,
-                'suffix': "",
-                'add_node_name': True
-                }
-
-
-            sd_namespace = self.namespace
-            self.save_data_if = SaveDataIF(namespace = sd_namespace,
-                                    data_products = self.data_products_list,
-                                    factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict,
-                                    log_name_list = self.log_name_list,
-                                    msg_if = self.msg_if)
-            nepi_sdk.sleep(1)
-
-        if self.save_data_if is not None:
-            data_products = self.save_data_if.get_data_products()
-            for data_product in self.data_products_list:
-                if data_product not in data_products:
-                    self.save_data_if.register_data_product(data_product)
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-
-        # if save_data_if is not None and has_save_data == True:
-        #     self.save_data_if = save_data_if
-        # elif has_save_data == True:
-            
-        #     # Setup Save Data IF Class 
-        #     self.msg_if.pub_info("Starting Save Data IF Initialization")
-        #     factory_data_rates= {}
-        #     for d in self.data_products_list:
-        #         factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-        #     self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
-
-        #     factory_filename_dict = {
-        #         'prefix': "", 
-        #         'add_timestamp': True, 
-        #         'add_ms': True,
-        #         'add_us': False,
-        #         'suffix': "",
-        #         'add_node_name': True
-        #         }
-
-
-        #     sd_namespace = self.namespace
-        #     self.save_data_if = SaveDataIF(namespace = sd_namespace,
-        #                             data_products = self.data_products_list,
-        #                             factory_rate_dict = factory_data_rates,
-        #                             factory_filename_dict = factory_filename_dict,
-        #                             log_name_list = self.log_name_list,
-        #                             msg_if = self.msg_if)
-        #     nepi_sdk.sleep(1)
-
-        # if self.save_data_if is not None:
-        #     data_products = self.save_data_if.get_data_products()
-        #     for data_product in self.data_products_list:
-        #         if data_product not in data_products:
-        #             self.save_data_if.register_data_product(data_product)
-        #     self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-        #     self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-
-       
-        ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status()
-
-        ##############################
-        # Start Node Processes
-        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
-        ###############################
-
-
-    ###############################
-    # Class Public Methods
-    ###############################
-
-
-    def get_ready_state(self):
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_utils.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
-
-    def get_namespace(self):
-        return self.namespace
-    
-    def get_frame_nav_options(self):
-        return self.NAVPOSE_NAV_FRAME_OPTIONS
-
-    def get_frame_altitude_options(self):
-        return self.NAVPOSE_ALT_FRAME_OPTIONS
-
-    def get_frame_depth_options(self):
-        return self.NAVPOSE_DEPTH_FRAME_OPTIONS
-
-    def get_data_products(self):
-        return [self.data_product]
-
-   
-    def get_navposes_dict(self):
-        navposes_dict =  copy.deepcopy(self.navposes_dict)
-        return navposes_dict
-
-    def get_status_dict(self):
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-
-    def has_subscribers_check(self):
-        has_subs = copy.deepcopy(self.has_subs)
-        # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        return has_subs
-
-    # Update System Status
-    def publish_navposes(self,navposes_dict, 
-                        timestamp = None, 
-                        transforms_dict = None,
-                        ):      
-
-
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        else:
-            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-
-        current_time = nepi_utils.get_time()
-        get_latency = (current_time - timestamp)
-        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        # Start Img Pub Process
-        start_time = nepi_utils.get_time()   
-
-        ############
-
-
-        if navposes_dict is None:
-            return navposes_dict
-        else:
-            nps_dict =  dict()
-            nps_msg = NavPoses()
-            blank_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-            for i, np_name in enumerate(list(navposes_dict.keys())):
-                np_dict = navposes_dict[np_name]
-                # Initialize np_dict here so it's available in both branches
-                for key in blank_dict.keys():
-                    if key not in np_dict.keys():
-                        np_dict[key] = blank_dict[key]
-                
-                # Transform navpose data frames to nepi standard frames
-                if np_dict['frame_nav'] != 'ENU':
-                    if np_dict['frame_nav'] == 'NED':
-                        nepi_nav.convert_navpose_ned2enu(np_dict)
-                if np_dict['frame_altitude'] != 'WGS84':
-                    if np_dict['frame_altitude'] == 'AMSL':
-                        nepi_nav.convert_navpose_amsl2wgs84(np_dict)
-                if np_dict['frame_depth'] != 'MSL':
-                    if np_dict['frame_depth'] == 'DEPTH':
-                        pass # need to add conversions                 
-
-
-
-                # Transform navpose in ENU and WSG84 frames
-                if transforms_dict is not None:
-                    if np_name in transforms_dict.keys():
-                        np_dict = nepi_nav.transform_navpose_dict(np_dict,transforms_dict[np_name])
-
-                nps_dict[np_name] = np_dict
-
-                data_msg = None
-                try:
-                    data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    success = False
-
-                if data_msg is not None:
-
-                    nps_msg.navpose_frame.append(np_name)
-                    nps_msg.navposes.append(data_msg)
-                    
-
-
-            try:
-                self.node_if.publish_pub('navposes_pub', nps_msg)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                success = False
-
-
-            current_time = nepi_utils.get_time()
-            pub_latency = (current_time - timestamp)
-            process_time = (current_time - start_time)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-            # Update Pub Stats
-            if self.last_pub_time is None:
-                pub_time_sec = 1.0
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-
-
-
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
-
-           
-            
-            last_dict = copy.deepcopy(self.navposes_dict)
-            if last_dict != nps_dict:
-                if self.save_data_if is not None:
-                    self.save_data_if.save('navposes',nps_dict,timestamp)
-            # Setup nex update check
-            self.navpose_frames = list(nps_dict.keys())
-            self.navposes_dict = nps_dict
-        return nps_dict
-
-
-
-    def publish_status(self):
-        if self.node_if is not None and self.status_msg is not None:
-
-            self.status_msg.navpose_frames = self.navpose_frames
-            self.status_msg.navpose_frame = 'None'
-
-
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
-           
-            self.node_if.publish_pub('status_pub', self.status_msg)
-
-
-
-    def init(self, do_updates = False):
-        if self.node_if is not None:
-            pass
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def reset(self):
-        if self.node_if is not None:
-            pass
-        self.init()
-
-    def factory_reset(self):
-        if self.node_if is not None:
-            pass
-        self.init()
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-
-    def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('navposes_pub')
-        if has_subs == False and self.status_msg is not None:
-            self.status_msg.publishing = False
-        self.has_subs = has_subs
-        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-
-    def unsubsribe(self):
-        self.ready = False
-        if self.node_if is not None:
-            self.node_if.unregister_class()
-        time.sleep(1)
-        self.namespace = None
-        self.status_msg = NavPosesStatus()
-
-    def unregister_pubs(self):
-        if self.node_if is not None:
-            self.node_if.unregister_pubs()
-
-
-    def register_pubs(self):
-        if self.node_if is not None:
-            self.node_if.register_pubs()
-
-    def unregister(self):
-        self.ready = False
-        self.node_if.unregister_class()
-        nepi_sdk.wait()
-        self.namespace = '~'
-        self.status_msg = None
-
-    def _updaterCb(self,timer):
-        self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
-
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-
-
-    def _publishStatusCb(self,timer):
-        self.publish_status()
-
-    def _provide_capabilities(self, _):
-        return self.caps_report
-
-
-
-class NavPoseTrackIF:
-
-    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
-
-    MIN_MAX_TRACK_LENGTH = [1,100]
-    MIN_MAX_TRACK_SEC = [1,3600]
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    status_msg = NavPoseStatus()
-
-    last_pub_time = None
-
-    has_subs = False
-
-    time_list = [0,0,0,0,0,0,0,0,0,0]
-
-    frame_nav = 'ENU'
-    frame_altitude = 'WGS84'
-    frame_depth = 'MSL'
-
-    caps_report = NavPoseCapabilitiesQueryResponse()
-
-    track_length = 1
-    track_sec = 60
-    track_sec_last = 0.0
-    track_msg_list = []
-
-    data_product = 'navpose_track'
-
-    navpose_settings_dict = nepi_nav.BLANK_NAVPOSE_INFO_DICT
-
-    def __init__(self, namespace = None,
-                data_source_description = 'navpose_track',
-                data_ref_description = 'sensor_center',
-                log_name = None,
-                log_name_list = [],
-                msg_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-        ##############################    
-        # Initialize Class Variables
-        if namespace is not None:
-            self.namespace = namespace
-        namespace = nepi_sdk.create_namespace(namespace,'navpose')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
-        
-        # Create Capabilities Report
-
-        self.caps_report.has_location_pub = self.pub_location
-        self.caps_report.has_heading_pub = self.pub_heading
-        self.caps_report.has_position_pub = self.pub_position
-        self.caps_report.has_orientation_pub = self.pub_orientation
-        self.caps_report.has_depth_pub = self.pub_depth
-
-        self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
-        self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
-
-
-
-        # Initialize status message
-        if data_source_description is None:
-            data_source_description = self.data_source_description
-        self.data_source_description = data_source_description
-
-        if data_ref_description is None:
-            data_ref_description = self.data_ref_description
-        self.data_ref_description = data_ref_description
-        
-        self.status_msg.node_name = self.node_name
-        self.status_msg.navpose_track_topic = self.namespace
-
-
-        self.status_msg.data_source_description = self.data_source_description
-        self.status_msg.data_ref_description = self.data_ref_description
-        ##############################   
-        ## Node Setup
-
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-        # Services Config Dict ####################     
-        self.SRVS_DICT = {
-            'navpose_caps_query': {
-                'namespace': self.namespace,
-                'topic': 'capabilities_query',
-                'srv': NavPoseCapabilitiesQuery,
-                'req': NavPoseCapabilitiesQueryRequest(),
-                'resp': NavPoseCapabilitiesQueryResponse(),
-                'callback': self._provide_capabilities
-            }
-        }
-
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'track_length': {
-                'namespace': self.namespace,
-                'factory_val': self.track_length
-            },
-            'track_sec': {
-                'namespace': self.namespace,
-                'factory_val': self.track_sec
-            }
-        }
-
-
-
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            'navpose_pub': {
-                'msg': NavPoseTrack,
-                'namespace': self.namespace,
-                'topic': '',
-                'qsize': 1,
-                'latch': False
-            },
-            'status_pub': {
-                'msg': NavPoseStatus,
-                'namespace': self.namespace,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            }
-        }
-
-        # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'set_navpose_frame': {
-                'namespace': self.namespace,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 5,
-                'callback': self._navposeFrameCb, 
-                'callback_args': ()
-            },
-            'navposes_sub': {
-                'namespace': self.base_namespace,
-                'topic': 'navposes',
-                'msg': NavPoses,
-                'qsize': 5,
-                'callback': self._navposesCb, 
-                'callback_args': ()
-            },
-            'reset': {
-                'namespace': self.namespace,
-                'topic': 'reset',
-                'msg': Empty,
-                'qsize': 5,
-                'callback': self._resetCb, 
-                'callback_args': ()
-            },
-            'set_track_length': {
-                'msg': Int32,
-                'namespace': self.namespace,
-                'topic': 'set_track_length',
-                'qsize': 5,
-                'callback': self._setTrackLengthCb
-            },
-            'set_track_sec': {
-                'msg': Int32,
-                'namespace': self.namespace,
-                'topic': 'set_track_sec',
-                'qsize': 5,
-                'callback': self._setTrackSecCb
-            },          
-            'clear_tracks': {
-                'namespace': self.namespace,
-                'topic': 'clear_tracks',
-                'msg': Empty,
-                'qsize': 5,
-                'callback': self._clearTracksCb, 
-                'callback_args': ()
-            }
-        }
-
-
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                        params_dict = self.PARAMS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
-                         msg_if = self.msg_if
-                                            )
-
-        success = nepi_sdk.wait()
-
-        ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status()
-
-        ##############################
-        # Start Node Processes
-        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
-        ###############################
-
-
-    ###############################
-    # Class Public Methods
-    ###############################
-
-
-    def get_ready_state(self):
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_utils.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
-
-    def get_namespace(self):
-        return self.namespace
-    
-    
-    def get_navpose_callback_options(self):
-        return list(self.callback_dict.keys())
-    
-    def set_navpose_callback(self,name,function):
-        self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
-            self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-    def clear_navpose_callback(self,name):
-        self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.callback_dict[name] = None   
-
-
-    def get_frame_nav_options(self):
-        return NAVPOSE_NAV_FRAME_OPTIONS
-
-    def get_frame_altitude_options(self):
-        return NAVPOSE_NAV_FRAME_OPTIONS
-
-    def get_frame_depth_options(self):
-        return NAVPOSE_DEPTH_FRAME_OPTIONS
-
-    def get_data_products(self):
-        return [self.data_product]
-
-    def get_blank_navpose_dict(self):
-        blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        return blank_navpose_dict
-
-    def get_status_dict(self):
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_navpose_callback_options(self):
-        return list(self.callback_dict.keys())
-    
-    def set_navpose_callback(self,name,function):
-        self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
-            self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-    def clear_navpose_callback(self,name):
-        self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.callback_dict[name] = None   
-
-    def has_subscribers_check(self):
-        has_subs = copy.deepcopy(self.has_subs)
-        # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        return has_subs
-
-
-    # Update System Status
-    def publish_navpose_track(self,navpose_dict, 
-                        timestamp = None, 
-                        frame_3d_transform = None,
-                        ):      
-        np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        if navpose_dict is None and self.status_msg is not None:
-            return np_dict
-        else:
-            # Initialize np_dict here so it's available in both branches
-            self.status_msg.source_frame_nav = navpose_dict['frame_nav']
-            self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
-            self.status_msg.source_frame_depth = navpose_dict['frame_depth']
-
-            for key in np_dict.keys():
-                if key in navpose_dict.keys():
-                    np_dict[key] = navpose_dict[key]
-            
-            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-            if timestamp == None:
-                timestamp = nepi_utils.get_time()
-            else:
-                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-
-            current_time = nepi_utils.get_time()
-            get_latency = (current_time - timestamp)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-            # Start Img Pub Process
-            start_time = nepi_utils.get_time()   
-
-
-            # Transform navpose data frames to nepi standard frames
-            if np_dict['frame_nav'] != 'ENU':
-                if np_dict['frame_nav'] == 'NED':
-                    nepi_nav.convert_navpose_ned2enu(np_dict)
-            if np_dict['frame_altitude'] != 'WGS84':
-                if np_dict['frame_altitude'] == 'AMSL':
-                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
-            if np_dict['frame_depth'] != 'MSL':
-                if np_dict['frame_depth'] == 'DEPTH':
-                    pass # need to add conversions                 
-
-            self.status_msg.pub_frame_nav = np_dict['frame_nav']
-            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-            self.status_msg.pub_frame_depth = np_dict['frame_depth']
-
-            # Publish nav pose subs
-            if self.pub_location == True:
-                pub_name = 'location_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_location']
-                msg.latitude = np_dict['latitude']
-                msg.longitude = np_dict['longitude']
-                self.node_if.publish_pub(pub_name,msg)
-
-            if self.pub_heading == True:
-                pub_name = 'heading_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_heading']
-                msg.heading_deg = np_dict['heading_deg']
-                self.node_if.publish_pub(pub_name,msg)
-
-            if self.pub_orientation == True:
-                pub_name = 'orientation_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_orientation']
-                msg.roll_deg = np_dict['roll_deg']
-                msg.pitch_deg = np_dict['pitch_deg']
-                msg.yaw_deg = np_dict['yaw_deg']
-                self.node_if.publish_pub(pub_name,msg)
-
-            if self.pub_position == True:
-                pub_name = 'position_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_position']
-                msg.x_m = np_dict['x_m']
-                msg.y_m = np_dict['y_m']
-                msg.z_m = np_dict['z_m']
-                self.node_if.publish_pub(pub_name,msg)
-
-            if self.pub_altitude == True:
-                pub_name = 'altitude_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_altitude']
-                msg.altitude_m = np_dict['altitude_m']
-                self.node_if.publish_pub(pub_name,msg)
-
-            if self.pub_depth == True:
-                pub_name = 'depth_pub'
-                msg = self.PUBS_DICT[pub_name]['msg']()
-                # gps_fix pub
-                msg.timestamp = np_dict['time_depth']
-                msg.depth_m = np_dict['depth_m']
-                self.node_if.publish_pub(pub_name,msg)
-
-
-            # Transform navpose in ENU and WSG84 frames
-            if frame_3d_transform is not None:
-                np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
-                        
-            # Transform navpose data frames to system set frames
-            frame_nav = self.navpose_settings_dict['frame_nav']
-            frame_alt = self.navpose_settings_dict['frame_alt']
-            frame_depth = self.navpose_settings_dict['frame_depth']
-            
-            if np_dict['frame_nav'] != frame_nav:
-                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
-                    nepi_nav.convert_navpose_ned2enu(np_dict)
-                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
-                    nepi_nav.convert_navpose_enu2ned(np_dict)
-            if np_dict['frame_altitude'] != frame_alt:
-                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
-                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
-                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
-                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
-            #if np_dict['frame_depth'] != 'MSL':
-            #    if np_dict['frame_depth'] == 'DEPTH':
-            #        pass # need to add conversions                 
-
-            self.status_msg.pub_frame_nav = np_dict['frame_nav']
-            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-            self.status_msg.pub_frame_depth = np_dict['frame_depth']
-
-
-
-            try:
-                data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                success = False
-            if data_msg is not None:
-                msg = NavPose()
-                try:
-                    self.node_if.publish_pub('navpose_pub', msg)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    success = False
-
-            current_time = nepi_utils.get_time()
-            pub_latency = (current_time - timestamp)
-            process_time = (current_time - start_time)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-            # Update Pub Stats
-            if self.last_pub_time is None:
-                pub_time_sec = 1.0
-                self.last_pub_time = nepi_utils.get_time()
-            else:
-                cur_time = nepi_utils.get_time()
-                pub_time_sec = cur_time - self.last_pub_time
-                self.last_pub_time = cur_time
-
-            self.status_msg.publishing = True
-
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
-
-            # Update tracks if needed 
-            next_sec = self.get_next_track_sec()
-            if next_sec <= 0:
-                try:
-                    track_msg = nepi_nav.get_navpose_track_msg_from_dict(np_dict)
-                    if track_msg is not None:
-                        if len(self.track_msg_list) >= self.track_length:
-                            self.track_msg_list.pop[0]
-                        self.track_msg_list.append(track_msg)
-                        self.track_sec_last = nepi_utils.get_time()
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to convert navpose data to track msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-        return np_dict
-
-
-    def unsubsribe(self):
-        self.ready = False
-        if self.node_if is not None:
-            self.node_if.unregister_class()
-        time.sleep(1)
-        self.namespace = None
-        self.status_msg = NavPoseStatus()
-
-
-
-    def get_track_length(self):
-        return self.track_length
-
-    def set_track_length(self,length):
-        if length < self.MIN_MAX_TRACK_LENGTH[0]:
-            length = self.MIN_MAX_TRACK_LENGTH[0]
-        if length > self.MIN_MAX_TRACK_LENGTH[1]:
-            length = self.MIN_MAX_TRACK_LENGTH[1]
-        self.track_length = length
-        track_msg_list = copy.deepcopy(self.track_msg_list)
-        while len(track_msg_list) > self.track_length:
-            track_msg_list.pop[0]
-        self.track_msg_list = track_msg_list
-        self.node_if.set_param('track_length',length)
-        self.publish_status()
-
-    def get_track_sec(self):
-        return self.track_sec
-
-    def set_track_sec(self,sec):
-        if sec < self.MIN_MAX_TRACK_SEC[0]:
-            sec = self.MIN_MAX_TRACK_SEC[0]
-        if sec > self.MIN_MAX_TRACK_SEC[1]:
-            sec = self.MIN_MAX_TRACK_SEC[1]
-        self.track_sec = sec
-        self.node_if.set_param('track_sec',sec)
-        self.publish_status()
-
-    def get_next_track_sec(self):
-        sec = nepi_utils.get_time() - self.track_sec_last
-        next_sec = self.track_sec - sec
-        if next_sec < 0:
-            next_sec = 0
-        return next_sec
-
-    def get_tracks(self):
-        track_list = []
-        for track_msg in self.track_msg_list:
-            track_list.append(nepi_sdk.convert_msg2dict(track_msg))
-        return track_list
-        
-    def clear_tracks(self):
-        self.track_msg_list = []
-        self.track_sec_last = 0.0
-
-    def publish_status(self):
-        if self.node_if is not None and self.status_msg is not None:
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
-           
-            self.status_msg.track_length = self.track_length
-            self.status_msg.track_sec = self.track_sec
-            self.status_msg.track_next_sec = self.get_next_track_sec()
-            self.status_msg.track_list = self.track_msg_list
-            self.node_if.publish_pub('status_pub', self.status_msg)
-
-        
-    def init(self, do_updates = False):
-        if self.node_if is not None:
-            self.track_length = self.node_if.get_param('track_length')
-            self.track_sec = self.node_if.get_param('track_sec')
-            self.navpose_frame = self.node_if.get_param('navpose_frame')
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def reset(self):
-        if self.node_if is not None:
-            pass
-        self.init()
-
-    def factory_reset(self):
-        if self.node_if is not None:
-            pass
-        self.init()
-
-    def _navposeFrameCb(self,msg):
-        frame = msg.data
-        if frame in self.navpose_frames:
-            self.navpose_frame = frame
-            if 'frame_updated_callback' in self.callback_dict.keys():
-                self.callback_dict['frame_updated_callback'](frame)
-
-    def _navposesCb(self,msg):
-        self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
-
-    ###############################
-    # Class Private Methods
-    ###############################
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-
-    def _subscribersCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
-        if has_subs == False and self.status_msg is not None:
-            self.status_msg.publishing = False
-        self.has_subs = has_subs
-        #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
-        nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-
-    def _updaterCb(self,timer):
-        self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
-        self.navpose_frames = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
-        
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-
-        
-
-    def _publishStatusCb(self,timer):
-        self.publish_status()
-
-    def _provide_capabilities(self, _):
-        return self.caps_report
-
-
-    def _setTrackLengthCb(self,msg):
-        data = msg.data
-        self.set_track_length(data)
-
-    def _setTrackSecCb(self,msg):
-        data = msg.data
-        self.set_track_sec(data)
-    
-    def _clearTracksCb(self,msg):
-        self.clear_tracks()
 
 
 
@@ -2781,24 +1671,24 @@ class BaseImageIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
         ####################
-        if navpose_if is not None:
-            self.navpose_if = navpose_if
-        else:
-            # Setup NavPose IF Class 
-            self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
-            if navpose_namespace is not None:
-                np_namespace = navpose_namespace
+        # if navpose_if is not None:
+        #     self.navpose_if = navpose_if
+        # else:
+        #     # Setup NavPose IF Class 
+        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
+        #     np_namespace = self.namespace
+        #     if navpose_namespace is not None:
+        #         np_namespace = navpose_namespace
             
-            self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-                                        save_data_if = self.save_data_if,
-                                        log_name_list = self.log_name_list,
-                                        msg_if = self.msg_if)
+        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
+        #                                 save_data_if = self.save_data_if,
+        #                                 log_name_list = self.log_name_list,
+        #                                 msg_if = self.msg_if)
             
-        if self.navpose_if is not None:
-            navpose_topic = self.navpose_if.get_namespace()
-            self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        # if self.navpose_if is not None:
+        #     navpose_topic = self.navpose_if.get_namespace()
+        #     self.status_msg.navpose_topic = navpose_topic
+        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
         ##############################
         # Start Node Processes
@@ -4749,24 +3639,24 @@ class DepthMapIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
         ####################
-        if navpose_if is not None:
-            self.navpose_if = navpose_if
-        else:
-            # Setup NavPose IF Class 
-            self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
-            if navpose_namespace is not None:
-                np_namespace = navpose_namespace
+        # if navpose_if is not None:
+        #     self.navpose_if = navpose_if
+        # else:
+        #     # Setup NavPose IF Class 
+        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
+        #     np_namespace = self.namespace
+        #     if navpose_namespace is not None:
+        #         np_namespace = navpose_namespace
             
-            self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-                                        save_data_if = self.save_data_if,
-                                        log_name_list = self.log_name_list,
-                                        msg_if = self.msg_if)
+        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
+        #                                 save_data_if = self.save_data_if,
+        #                                 log_name_list = self.log_name_list,
+        #                                 msg_if = self.msg_if)
             
-        if self.navpose_if is not None:
-            navpose_topic = self.navpose_if.get_namespace()
-            self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        # if self.navpose_if is not None:
+        #     navpose_topic = self.navpose_if.get_namespace()
+        #     self.status_msg.navpose_topic = navpose_topic
+        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
             
 
@@ -5661,24 +4551,24 @@ class PointcloudIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
         ####################
-        if navpose_if is not None:
-            self.navpose_if = navpose_if
-        else:
-            # Setup NavPose IF Class 
-            self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
-            if navpose_namespace is not None:
-                np_namespace = navpose_namespace
+        # if navpose_if is not None:
+        #     self.navpose_if = navpose_if
+        # else:
+        #     # Setup NavPose IF Class 
+        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
+        #     np_namespace = self.namespace
+        #     if navpose_namespace is not None:
+        #         np_namespace = navpose_namespace
             
-            self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-                                        save_data_if = self.save_data_if,
-                                        log_name_list = self.log_name_list,
-                                        msg_if = self.msg_if)
+        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
+        #                                 save_data_if = self.save_data_if,
+        #                                 log_name_list = self.log_name_list,
+        #                                 msg_if = self.msg_if)
             
-        if self.navpose_if is not None:
-            navpose_topic = self.navpose_if.get_namespace()
-            self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        # if self.navpose_if is not None:
+        #     navpose_topic = self.navpose_if.get_namespace()
+        #     self.status_msg.navpose_topic = navpose_topic
+        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
         ####################
         if pub_image == True:
@@ -6053,3 +4943,1139 @@ class PointcloudIF:
           self.max_range_m = max_m  
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
+
+
+
+
+
+# ############################################################
+
+
+# class NavPosesIF:
+
+
+#     NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+#     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+#     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+
+#     ready = False
+#     namespace = '~'
+
+#     node_if = None
+#     save_data_if = None
+
+#     status_msg = NavPosesStatus()
+
+#     last_pub_time = None
+
+#     has_subs = False
+
+#     time_list = [0,0,0,0,0,0,0,0,0,0]
+
+
+#     frame_nav = 'ENU'
+#     frame_altitude = 'WGS84'
+#     frame_depth = 'MSL'
+
+#     data_poduct = 'navposes'
+#     data_products_list = ['navposes']
+
+#     navposes_dict = dict()
+#     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
+#     navpose_frames = []
+
+
+
+
+#     def __init__(self, namespace = None,
+#                  data_product = 'navposes',
+#                 has_save_data = True,
+#                 save_data_if = None,
+#                 has_tranform = False,
+#                 transform_if = None,
+#                 log_name = None,
+#                 log_name_list = [],
+#                 msg_if = None
+#                 ):
+#         ####  IF INIT SETUP ####
+#         self.class_name = type(self).__name__
+#         self.base_namespace = nepi_sdk.get_base_namespace()
+#         self.node_name = nepi_sdk.get_node_name()
+#         self.node_namespace = nepi_sdk.get_node_namespace()
+
+#         ##############################  
+        
+#         # Create Msg Class
+#         if msg_if is not None:
+#             self.msg_if = msg_if
+#         else:
+#             self.msg_if = MsgIF()
+#         self.log_name_list = copy.deepcopy(log_name_list)
+#         self.log_name_list.append(self.class_name)
+#         if log_name is not None:
+#             log_name = nepi_utils.get_clean_name(log_name)
+#             self.log_name_list.append(log_name)
+#         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+#         ##############################    
+#         # Initialize Class Variables
+#         if namespace is not None:
+#             self.namespace = namespace
+#         namespace = nepi_sdk.create_namespace(namespace,'navposes')
+#         self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
+#         data_product = nepi_utils.get_clean_name(data_product)
+#         if data_product is not None:
+#             self.data_product = data_product
+#         self.data_products_list = [data_product]
+
+#         ##############################   
+#         ## Node Setup
+
+#         # Configs Config Dict ####################
+#         self.CONFIGS_DICT = {
+#             'init_callback': self._initCb,
+#             'reset_callback': self._resetCb,
+#             'factory_reset_callback': self._factoryResetCb,
+#             'init_configs': True,
+#             'namespace': self.namespace
+#         }
+
+#         # Services Config Dict ####################     
+#         self.SRVS_DICT = None
+
+#         # Params Config Dict ####################
+#         self.PARAMS_DICT = None
+
+
+#         # Pubs Config Dict ####################
+#         self.PUBS_DICT = {
+#             'status_pub': {
+#                     'msg': NavPoseStatus,
+#                     'namespace': self.namespace,
+#                     'topic': 'status',
+#                     'qsize': 1,
+#                     'latch': True
+#                 },
+#                 'navposes_pub': {
+#                     'msg': NavPoses,
+#                     'namespace': self.namespace,
+#                     'topic': '',
+#                     'qsize': 1,
+#                     'latch': False
+#                 }
+#         }
+        
+   
+#         # Subs Config Dict ####################
+#         self.SUBS_DICT = None
+
+
+#         # Create Node Class ####################
+#         self.node_if = NodeClassIF(
+#                         params_dict = self.PARAMS_DICT,
+#                         pubs_dict = self.PUBS_DICT,
+#                         subs_dict = self.SUBS_DICT,
+#                         log_name_list = self.log_name_list,
+#                          msg_if = self.msg_if
+#                                             )
+
+#         success = nepi_sdk.wait()
+
+
+#         if save_data_if is not None and has_save_data == True:
+#             self.save_data_if = save_data_if
+#         elif has_save_data == True:
+            
+#             # Setup Save Data IF Class 
+#             self.msg_if.pub_info("Starting Save Data IF Initialization")
+#             factory_data_rates= {}
+#             for d in self.data_products_list:
+#                 factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+#             self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
+
+#             factory_filename_dict = {
+#                 'prefix': "", 
+#                 'add_timestamp': True, 
+#                 'add_ms': True,
+#                 'add_us': False,
+#                 'suffix': "",
+#                 'add_node_name': True
+#                 }
+
+
+#             sd_namespace = self.namespace
+#             self.save_data_if = SaveDataIF(namespace = sd_namespace,
+#                                     data_products = self.data_products_list,
+#                                     factory_rate_dict = factory_data_rates,
+#                                     factory_filename_dict = factory_filename_dict,
+#                                     log_name_list = self.log_name_list,
+#                                     msg_if = self.msg_if)
+#             nepi_sdk.sleep(1)
+
+#         if self.save_data_if is not None:
+#             data_products = self.save_data_if.get_data_products()
+#             for data_product in self.data_products_list:
+#                 if data_product not in data_products:
+#                     self.save_data_if.register_data_product(data_product)
+#             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+#             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
+#         # if save_data_if is not None and has_save_data == True:
+#         #     self.save_data_if = save_data_if
+#         # elif has_save_data == True:
+            
+#         #     # Setup Save Data IF Class 
+#         #     self.msg_if.pub_info("Starting Save Data IF Initialization")
+#         #     factory_data_rates= {}
+#         #     for d in self.data_products_list:
+#         #         factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+#         #     self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
+
+#         #     factory_filename_dict = {
+#         #         'prefix': "", 
+#         #         'add_timestamp': True, 
+#         #         'add_ms': True,
+#         #         'add_us': False,
+#         #         'suffix': "",
+#         #         'add_node_name': True
+#         #         }
+
+
+#         #     sd_namespace = self.namespace
+#         #     self.save_data_if = SaveDataIF(namespace = sd_namespace,
+#         #                             data_products = self.data_products_list,
+#         #                             factory_rate_dict = factory_data_rates,
+#         #                             factory_filename_dict = factory_filename_dict,
+#         #                             log_name_list = self.log_name_list,
+#         #                             msg_if = self.msg_if)
+#         #     nepi_sdk.sleep(1)
+
+#         # if self.save_data_if is not None:
+#         #     data_products = self.save_data_if.get_data_products()
+#         #     for data_product in self.data_products_list:
+#         #         if data_product not in data_products:
+#         #             self.save_data_if.register_data_product(data_product)
+#         #     self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+#         #     self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
+       
+#         ##############################
+#         # Update vals from param server
+#         self.init(do_updates = True)
+#         self.publish_status()
+
+#         ##############################
+#         # Start Node Processes
+#         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+#         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+
+#         ##############################
+#         # Complete Initialization
+#         self.ready = True
+#         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+#         ###############################
+
+
+#     ###############################
+#     # Class Public Methods
+#     ###############################
+
+
+#     def get_ready_state(self):
+#         return self.ready
+
+#     def wait_for_ready(self, timeout = float('inf') ):
+#         success = False
+#         if self.ready is not None:
+#             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+#             timer = 0
+#             time_start = nepi_utils.get_time()
+#             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+#                 nepi_sdk.sleep(.1)
+#                 timer = nepi_utils.get_time() - time_start
+#             if self.ready == False:
+#                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+#             else:
+#                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+#         return self.ready  
+
+#     def get_namespace(self):
+#         return self.namespace
+    
+#     def get_frame_nav_options(self):
+#         return self.NAVPOSE_NAV_FRAME_OPTIONS
+
+#     def get_frame_altitude_options(self):
+#         return self.NAVPOSE_ALT_FRAME_OPTIONS
+
+#     def get_frame_depth_options(self):
+#         return self.NAVPOSE_DEPTH_FRAME_OPTIONS
+
+#     def get_data_products(self):
+#         return [self.data_product]
+
+   
+#     def get_navposes_dict(self):
+#         navposes_dict =  copy.deepcopy(self.navposes_dict)
+#         return navposes_dict
+
+#     def get_status_dict(self):
+#         status_dict = None
+#         if self.status_msg is not None:
+#             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+#         return status_dict
+
+
+#     def has_subscribers_check(self):
+#         has_subs = copy.deepcopy(self.has_subs)
+#         # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+#         return has_subs
+
+#     # Update System Status
+#     def publish_navposes(self,navposes_dict, 
+#                         timestamp = None, 
+#                         transforms_dict = None,
+#                         ):      
+
+
+#         if timestamp == None:
+#             timestamp = nepi_utils.get_time()
+#         else:
+#             timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+
+#         current_time = nepi_utils.get_time()
+#         get_latency = (current_time - timestamp)
+#         #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+#         # Start Img Pub Process
+#         start_time = nepi_utils.get_time()   
+
+#         ############
+
+
+#         if navposes_dict is None:
+#             return navposes_dict
+#         else:
+#             nps_dict =  dict()
+#             nps_msg = NavPoses()
+#             blank_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+#             for i, np_name in enumerate(list(navposes_dict.keys())):
+#                 np_dict = navposes_dict[np_name]
+#                 # Initialize np_dict here so it's available in both branches
+#                 for key in blank_dict.keys():
+#                     if key not in np_dict.keys():
+#                         np_dict[key] = blank_dict[key]
+                
+#                 # Transform navpose data frames to nepi standard frames
+#                 if np_dict['frame_nav'] != 'ENU':
+#                     if np_dict['frame_nav'] == 'NED':
+#                         nepi_nav.convert_navpose_ned2enu(np_dict)
+#                 if np_dict['frame_altitude'] != 'WGS84':
+#                     if np_dict['frame_altitude'] == 'AMSL':
+#                         nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+#                 if np_dict['frame_depth'] != 'MSL':
+#                     if np_dict['frame_depth'] == 'DEPTH':
+#                         pass # need to add conversions                 
+
+
+
+#                 # Transform navpose in ENU and WSG84 frames
+#                 if transforms_dict is not None:
+#                     if np_name in transforms_dict.keys():
+#                         np_dict = nepi_nav.transform_navpose_dict(np_dict,transforms_dict[np_name])
+
+#                 nps_dict[np_name] = np_dict
+
+#                 data_msg = None
+#                 try:
+#                     data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+#                 except Exception as e:
+#                     self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+#                     success = False
+
+#                 if data_msg is not None:
+
+#                     nps_msg.navpose_frame.append(np_name)
+#                     nps_msg.navposes.append(data_msg)
+                    
+
+#             try:
+#                 self.node_if.publish_pub('navposes_pub', nps_msg)
+#             except Exception as e:
+#                 self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+#                 success = False
+
+
+#             current_time = nepi_utils.get_time()
+#             pub_latency = (current_time - timestamp)
+#             process_time = (current_time - start_time)
+#             self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+#             # Update Pub Stats
+#             if self.last_pub_time is None:
+#                 pub_time_sec = 1.0
+#                 self.last_pub_time = nepi_utils.get_time()
+#             else:
+#                 cur_time = nepi_utils.get_time()
+#                 pub_time_sec = cur_time - self.last_pub_time
+#                 self.last_pub_time = cur_time
+
+
+
+#             self.time_list.pop(0)
+#             self.time_list.append(pub_time_sec)
+
+           
+            
+#             last_dict = copy.deepcopy(self.navposes_dict)
+#             if last_dict != nps_dict:
+#                 if self.save_data_if is not None:
+#                     self.save_data_if.save('navposes',nps_dict,timestamp)
+#             # Setup nex update check
+#             self.navpose_frames = list(nps_dict.keys())
+#             self.navposes_dict = nps_dict
+#         return nps_dict
+
+
+
+#     def publish_status(self):
+#         if self.node_if is not None and self.status_msg is not None:
+
+#             self.status_msg.navpose_frames = self.navpose_frames
+#             self.status_msg.navpose_frame = 'None'
+
+
+#             avg_rate = 0
+#             if len(self.time_list) > 0:
+#                 avg_time = sum(self.time_list) / len(self.time_list)
+#                 if avg_time > .01:
+#                     avg_rate = float(1) / avg_time
+#             self.status_msg.avg_pub_rate = avg_rate
+           
+#             self.node_if.publish_pub('status_pub', self.status_msg)
+
+
+
+#     def init(self, do_updates = False):
+#         if self.node_if is not None:
+#             pass
+#         if do_updates == True:
+#             pass
+#         self.publish_status()
+
+#     def reset(self):
+#         if self.node_if is not None:
+#             pass
+#         self.init()
+
+#     def factory_reset(self):
+#         if self.node_if is not None:
+#             pass
+#         self.init()
+
+
+#     ###############################
+#     # Class Private Methods
+#     ###############################
+#     def _initCb(self, do_updates = False):
+#         self.init(do_updates = do_updates)
+
+#     def _resetCb(self, do_updates = True):
+#         self.init(do_updates = do_updates)
+
+#     def _factoryResetCb(self, do_updates = True):
+#         self.init(do_updates = do_updates)
+
+
+#     def _subscribersCheckCb(self,timer):
+#         has_subs = self.node_if.pub_has_subscribers('navposes_pub')
+#         if has_subs == False and self.status_msg is not None:
+#             self.status_msg.publishing = False
+#         self.has_subs = has_subs
+#         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+#         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+#     def unsubsribe(self):
+#         self.ready = False
+#         if self.node_if is not None:
+#             self.node_if.unregister_class()
+#         time.sleep(1)
+#         self.namespace = None
+#         self.status_msg = NavPosesStatus()
+
+#     def unregister_pubs(self):
+#         if self.node_if is not None:
+#             self.node_if.unregister_pubs()
+
+
+#     def register_pubs(self):
+#         if self.node_if is not None:
+#             self.node_if.register_pubs()
+
+#     def unregister(self):
+#         self.ready = False
+#         self.node_if.unregister_class()
+#         nepi_sdk.wait()
+#         self.namespace = '~'
+#         self.status_msg = None
+
+#     def _updaterCb(self,timer):
+#         self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
+
+#         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+
+
+#     def _publishStatusCb(self,timer):
+#         self.publish_status()
+
+#     def _provide_capabilities(self, _):
+#         return self.caps_report
+
+
+
+# class NavPoseTrackIF:
+
+#     NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+#     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+#     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
+
+#     MIN_MAX_TRACK_LENGTH = [1,100]
+#     MIN_MAX_TRACK_SEC = [1,3600]
+#     ready = False
+#     namespace = '~'
+
+#     node_if = None
+
+#     status_msg = NavPoseStatus()
+
+#     last_pub_time = None
+
+#     has_subs = False
+
+#     time_list = [0,0,0,0,0,0,0,0,0,0]
+
+#     frame_nav = 'ENU'
+#     frame_altitude = 'WGS84'
+#     frame_depth = 'MSL'
+
+#     caps_report = NavPoseCapabilitiesQueryResponse()
+
+#     track_length = 1
+#     track_sec = 60
+#     track_sec_last = 0.0
+#     track_msg_list = []
+
+#     data_product = 'navpose_track'
+
+#     navpose_settings_dict = nepi_nav.BLANK_NAVPOSE_INFO_DICT
+
+#     def __init__(self, namespace = None,
+#                 data_source_description = 'navpose_track',
+#                 data_ref_description = 'sensor_center',
+#                 log_name = None,
+#                 log_name_list = [],
+#                 msg_if = None
+#                 ):
+#         ####  IF INIT SETUP ####
+#         self.class_name = type(self).__name__
+#         self.base_namespace = nepi_sdk.get_base_namespace()
+#         self.node_name = nepi_sdk.get_node_name()
+#         self.node_namespace = nepi_sdk.get_node_namespace()
+
+#         ##############################  
+        
+#         # Create Msg Class
+#         if msg_if is not None:
+#             self.msg_if = msg_if
+#         else:
+#             self.msg_if = MsgIF()
+#         self.log_name_list = copy.deepcopy(log_name_list)
+#         self.log_name_list.append(self.class_name)
+#         if log_name is not None:
+#             log_name = nepi_utils.get_clean_name(log_name)
+#             self.log_name_list.append(log_name)
+#         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+#         ##############################    
+#         # Initialize Class Variables
+#         if namespace is not None:
+#             self.namespace = namespace
+#         namespace = nepi_sdk.create_namespace(namespace,'navpose')
+#         self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
+#         # Create Capabilities Report
+
+#         self.caps_report.has_location_pub = self.pub_location
+#         self.caps_report.has_heading_pub = self.pub_heading
+#         self.caps_report.has_position_pub = self.pub_position
+#         self.caps_report.has_orientation_pub = self.pub_orientation
+#         self.caps_report.has_depth_pub = self.pub_depth
+
+#         self.caps_report.min_max_track_length = self.MIN_MAX_TRACK_LENGTH
+#         self.caps_report.min_max_track_sec = self.MIN_MAX_TRACK_SEC
+
+
+
+#         # Initialize status message
+#         if data_source_description is None:
+#             data_source_description = self.data_source_description
+#         self.data_source_description = data_source_description
+
+#         if data_ref_description is None:
+#             data_ref_description = self.data_ref_description
+#         self.data_ref_description = data_ref_description
+        
+#         self.status_msg.node_name = self.node_name
+#         self.status_msg.navpose_track_topic = self.namespace
+
+
+#         self.status_msg.data_source_description = self.data_source_description
+#         self.status_msg.data_ref_description = self.data_ref_description
+#         ##############################   
+#         ## Node Setup
+
+#         # Configs Config Dict ####################
+#         self.CONFIGS_DICT = {
+#             'init_callback': self._initCb,
+#             'reset_callback': self._resetCb,
+#             'factory_reset_callback': self._factoryResetCb,
+#             'init_configs': True,
+#             'namespace': self.namespace
+#         }
+
+#         # Services Config Dict ####################     
+#         self.SRVS_DICT = {
+#             'navpose_caps_query': {
+#                 'namespace': self.namespace,
+#                 'topic': 'capabilities_query',
+#                 'srv': NavPoseCapabilitiesQuery,
+#                 'req': NavPoseCapabilitiesQueryRequest(),
+#                 'resp': NavPoseCapabilitiesQueryResponse(),
+#                 'callback': self._provide_capabilities
+#             }
+#         }
+
+#         # Params Config Dict ####################
+#         self.PARAMS_DICT = {
+#             'track_length': {
+#                 'namespace': self.namespace,
+#                 'factory_val': self.track_length
+#             },
+#             'track_sec': {
+#                 'namespace': self.namespace,
+#                 'factory_val': self.track_sec
+#             }
+#         }
+
+
+
+#         # Pubs Config Dict ####################
+#         self.PUBS_DICT = {
+#             'navpose_pub': {
+#                 'msg': NavPoseTrack,
+#                 'namespace': self.namespace,
+#                 'topic': '',
+#                 'qsize': 1,
+#                 'latch': False
+#             },
+#             'status_pub': {
+#                 'msg': NavPoseStatus,
+#                 'namespace': self.namespace,
+#                 'topic': 'status',
+#                 'qsize': 1,
+#                 'latch': True
+#             }
+#         }
+
+#         # Subs Config Dict ####################
+#         self.SUBS_DICT = {
+#             'set_navpose_frame': {
+#                 'namespace': self.namespace,
+#                 'topic': 'set_navpose_frame',
+#                 'msg': String,
+#                 'qsize': 5,
+#                 'callback': self._navposeFrameCb, 
+#                 'callback_args': ()
+#             },
+#             'navposes_sub': {
+#                 'namespace': self.base_namespace,
+#                 'topic': 'navposes',
+#                 'msg': NavPoses,
+#                 'qsize': 5,
+#                 'callback': self._navposesCb, 
+#                 'callback_args': ()
+#             },
+#             'reset': {
+#                 'namespace': self.namespace,
+#                 'topic': 'reset',
+#                 'msg': Empty,
+#                 'qsize': 5,
+#                 'callback': self._resetCb, 
+#                 'callback_args': ()
+#             },
+#             'set_track_length': {
+#                 'msg': Int32,
+#                 'namespace': self.namespace,
+#                 'topic': 'set_track_length',
+#                 'qsize': 5,
+#                 'callback': self._setTrackLengthCb
+#             },
+#             'set_track_sec': {
+#                 'msg': Int32,
+#                 'namespace': self.namespace,
+#                 'topic': 'set_track_sec',
+#                 'qsize': 5,
+#                 'callback': self._setTrackSecCb
+#             },          
+#             'clear_tracks': {
+#                 'namespace': self.namespace,
+#                 'topic': 'clear_tracks',
+#                 'msg': Empty,
+#                 'qsize': 5,
+#                 'callback': self._clearTracksCb, 
+#                 'callback_args': ()
+#             }
+#         }
+
+
+#         # Create Node Class ####################
+#         self.node_if = NodeClassIF(
+#                         params_dict = self.PARAMS_DICT,
+#                         pubs_dict = self.PUBS_DICT,
+#                         subs_dict = self.SUBS_DICT,
+#                         log_name_list = self.log_name_list,
+#                          msg_if = self.msg_if
+#                                             )
+
+#         success = nepi_sdk.wait()
+
+#         ##############################
+#         # Update vals from param server
+#         self.init(do_updates = True)
+#         self.publish_status()
+
+#         ##############################
+#         # Start Node Processes
+#         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+#         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+#         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
+
+#         ##############################
+#         # Complete Initialization
+#         self.ready = True
+#         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+#         ###############################
+
+
+#     ###############################
+#     # Class Public Methods
+#     ###############################
+
+
+#     def get_ready_state(self):
+#         return self.ready
+
+#     def wait_for_ready(self, timeout = float('inf') ):
+#         success = False
+#         if self.ready is not None:
+#             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+#             timer = 0
+#             time_start = nepi_utils.get_time()
+#             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+#                 nepi_sdk.sleep(.1)
+#                 timer = nepi_utils.get_time() - time_start
+#             if self.ready == False:
+#                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+#             else:
+#                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+#         return self.ready  
+
+#     def get_namespace(self):
+#         return self.namespace
+    
+    
+#     def get_navpose_callback_options(self):
+#         return list(self.callback_dict.keys())
+    
+#     def set_navpose_callback(self,name,function):
+#         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
+#         if name in self.callback_dict.keys():
+#             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
+#             self.callback_dict[name] = function
+#         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
+
+#     def clear_navpose_callback(self,name):
+#         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
+#         if name in self.callback_dict.keys():
+#             self.callback_dict[name] = None   
+
+
+#     def get_frame_nav_options(self):
+#         return NAVPOSE_NAV_FRAME_OPTIONS
+
+#     def get_frame_altitude_options(self):
+#         return NAVPOSE_NAV_FRAME_OPTIONS
+
+#     def get_frame_depth_options(self):
+#         return NAVPOSE_DEPTH_FRAME_OPTIONS
+
+#     def get_data_products(self):
+#         return [self.data_product]
+
+#     def get_blank_navpose_dict(self):
+#         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+#         return blank_navpose_dict
+
+#     def get_status_dict(self):
+#         status_dict = None
+#         if self.status_msg is not None:
+#             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+#         return status_dict
+
+#     def get_navpose_callback_options(self):
+#         return list(self.callback_dict.keys())
+    
+#     def set_navpose_callback(self,name,function):
+#         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
+#         if name in self.callback_dict.keys():
+#             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
+#             self.callback_dict[name] = function
+#         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
+
+#     def clear_navpose_callback(self,name):
+#         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
+#         if name in self.callback_dict.keys():
+#             self.callback_dict[name] = None   
+
+#     def has_subscribers_check(self):
+#         has_subs = copy.deepcopy(self.has_subs)
+#         # self.msg_if.pub_debug("Returning: " + self.namespace + " " "has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+#         return has_subs
+
+
+#     # Update System Status
+#     def publish_navpose_track(self,navpose_dict, 
+#                         timestamp = None, 
+#                         frame_3d_transform = None,
+#                         ):      
+#         np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+#         if navpose_dict is None and self.status_msg is not None:
+#             return np_dict
+#         else:
+#             # Initialize np_dict here so it's available in both branches
+#             self.status_msg.source_frame_nav = navpose_dict['frame_nav']
+#             self.status_msg.source_frame_altitude = navpose_dict['frame_altitude']
+#             self.status_msg.source_frame_depth = navpose_dict['frame_depth']
+
+#             for key in np_dict.keys():
+#                 if key in navpose_dict.keys():
+#                     np_dict[key] = navpose_dict[key]
+            
+#             self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+#             if timestamp == None:
+#                 timestamp = nepi_utils.get_time()
+#             else:
+#                 timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+
+#             current_time = nepi_utils.get_time()
+#             get_latency = (current_time - timestamp)
+#             self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+#             # Start Img Pub Process
+#             start_time = nepi_utils.get_time()   
+
+
+#             # Transform navpose data frames to nepi standard frames
+#             if np_dict['frame_nav'] != 'ENU':
+#                 if np_dict['frame_nav'] == 'NED':
+#                     nepi_nav.convert_navpose_ned2enu(np_dict)
+#             if np_dict['frame_altitude'] != 'WGS84':
+#                 if np_dict['frame_altitude'] == 'AMSL':
+#                     nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+#             if np_dict['frame_depth'] != 'MSL':
+#                 if np_dict['frame_depth'] == 'DEPTH':
+#                     pass # need to add conversions                 
+
+#             self.status_msg.pub_frame_nav = np_dict['frame_nav']
+#             self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+#             self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+#             # Publish nav pose subs
+#             if self.pub_location == True:
+#                 pub_name = 'location_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_location']
+#                 msg.latitude = np_dict['latitude']
+#                 msg.longitude = np_dict['longitude']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+#             if self.pub_heading == True:
+#                 pub_name = 'heading_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_heading']
+#                 msg.heading_deg = np_dict['heading_deg']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+#             if self.pub_orientation == True:
+#                 pub_name = 'orientation_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_orientation']
+#                 msg.roll_deg = np_dict['roll_deg']
+#                 msg.pitch_deg = np_dict['pitch_deg']
+#                 msg.yaw_deg = np_dict['yaw_deg']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+#             if self.pub_position == True:
+#                 pub_name = 'position_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_position']
+#                 msg.x_m = np_dict['x_m']
+#                 msg.y_m = np_dict['y_m']
+#                 msg.z_m = np_dict['z_m']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+#             if self.pub_altitude == True:
+#                 pub_name = 'altitude_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_altitude']
+#                 msg.altitude_m = np_dict['altitude_m']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+#             if self.pub_depth == True:
+#                 pub_name = 'depth_pub'
+#                 msg = self.PUBS_DICT[pub_name]['msg']()
+#                 # gps_fix pub
+#                 msg.timestamp = np_dict['time_depth']
+#                 msg.depth_m = np_dict['depth_m']
+#                 self.node_if.publish_pub(pub_name,msg)
+
+
+#             # Transform navpose in ENU and WSG84 frames
+#             if frame_3d_transform is not None:
+#                 np_dict = nepi_nav.transform_navpose_dict(np_dict,frame_3d_transform)
+                        
+#             # Transform navpose data frames to system set frames
+#             frame_nav = self.navpose_settings_dict['frame_nav']
+#             frame_alt = self.navpose_settings_dict['frame_alt']
+#             frame_depth = self.navpose_settings_dict['frame_depth']
+            
+#             if np_dict['frame_nav'] != frame_nav:
+#                 if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+#                     nepi_nav.convert_navpose_ned2enu(np_dict)
+#                 elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+#                     nepi_nav.convert_navpose_enu2ned(np_dict)
+#             if np_dict['frame_altitude'] != frame_alt:
+#                 if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+#                     nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+#                 elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+#                     nepi_nav.convert_navpose_wgs842amsl(np_dict)
+#             #if np_dict['frame_depth'] != 'MSL':
+#             #    if np_dict['frame_depth'] == 'DEPTH':
+#             #        pass # need to add conversions                 
+
+#             self.status_msg.pub_frame_nav = np_dict['frame_nav']
+#             self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
+#             self.status_msg.pub_frame_depth = np_dict['frame_depth']
+
+
+
+#             try:
+#                 data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+#             except Exception as e:
+#                 self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+#                 success = False
+#             if data_msg is not None:
+#                 msg = NavPose()
+#                 try:
+#                     self.node_if.publish_pub('navpose_pub', msg)
+#                 except Exception as e:
+#                     self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+#                     success = False
+
+#             current_time = nepi_utils.get_time()
+#             pub_latency = (current_time - timestamp)
+#             process_time = (current_time - start_time)
+#             self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+#             # Update Pub Stats
+#             if self.last_pub_time is None:
+#                 pub_time_sec = 1.0
+#                 self.last_pub_time = nepi_utils.get_time()
+#             else:
+#                 cur_time = nepi_utils.get_time()
+#                 pub_time_sec = cur_time - self.last_pub_time
+#                 self.last_pub_time = cur_time
+
+#             self.status_msg.publishing = True
+
+#             self.time_list.pop(0)
+#             self.time_list.append(pub_time_sec)
+
+#             # Update tracks if needed 
+#             next_sec = self.get_next_track_sec()
+#             if next_sec <= 0:
+#                 try:
+#                     track_msg = nepi_nav.get_navpose_track_msg_from_dict(np_dict)
+#                     if track_msg is not None:
+#                         if len(self.track_msg_list) >= self.track_length:
+#                             self.track_msg_list.pop[0]
+#                         self.track_msg_list.append(track_msg)
+#                         self.track_sec_last = nepi_utils.get_time()
+#                 except Exception as e:
+#                     self.msg_if.pub_warn("Failed to convert navpose data to track msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+#         return np_dict
+
+
+#     def unsubsribe(self):
+#         self.ready = False
+#         if self.node_if is not None:
+#             self.node_if.unregister_class()
+#         time.sleep(1)
+#         self.namespace = None
+#         self.status_msg = NavPoseStatus()
+
+
+
+#     def get_track_length(self):
+#         return self.track_length
+
+#     def set_track_length(self,length):
+#         if length < self.MIN_MAX_TRACK_LENGTH[0]:
+#             length = self.MIN_MAX_TRACK_LENGTH[0]
+#         if length > self.MIN_MAX_TRACK_LENGTH[1]:
+#             length = self.MIN_MAX_TRACK_LENGTH[1]
+#         self.track_length = length
+#         track_msg_list = copy.deepcopy(self.track_msg_list)
+#         while len(track_msg_list) > self.track_length:
+#             track_msg_list.pop[0]
+#         self.track_msg_list = track_msg_list
+#         self.node_if.set_param('track_length',length)
+#         self.publish_status()
+
+#     def get_track_sec(self):
+#         return self.track_sec
+
+#     def set_track_sec(self,sec):
+#         if sec < self.MIN_MAX_TRACK_SEC[0]:
+#             sec = self.MIN_MAX_TRACK_SEC[0]
+#         if sec > self.MIN_MAX_TRACK_SEC[1]:
+#             sec = self.MIN_MAX_TRACK_SEC[1]
+#         self.track_sec = sec
+#         self.node_if.set_param('track_sec',sec)
+#         self.publish_status()
+
+#     def get_next_track_sec(self):
+#         sec = nepi_utils.get_time() - self.track_sec_last
+#         next_sec = self.track_sec - sec
+#         if next_sec < 0:
+#             next_sec = 0
+#         return next_sec
+
+#     def get_tracks(self):
+#         track_list = []
+#         for track_msg in self.track_msg_list:
+#             track_list.append(nepi_sdk.convert_msg2dict(track_msg))
+#         return track_list
+        
+#     def clear_tracks(self):
+#         self.track_msg_list = []
+#         self.track_sec_last = 0.0
+
+#     def publish_status(self):
+#         if self.node_if is not None and self.status_msg is not None:
+#             avg_rate = 0
+#             if len(self.time_list) > 0:
+#                 avg_time = sum(self.time_list) / len(self.time_list)
+#                 if avg_time > .01:
+#                     avg_rate = float(1) / avg_time
+#             self.status_msg.avg_pub_rate = avg_rate
+           
+#             self.status_msg.track_length = self.track_length
+#             self.status_msg.track_sec = self.track_sec
+#             self.status_msg.track_next_sec = self.get_next_track_sec()
+#             self.status_msg.track_list = self.track_msg_list
+#             self.node_if.publish_pub('status_pub', self.status_msg)
+
+        
+#     def init(self, do_updates = False):
+#         if self.node_if is not None:
+#             self.track_length = self.node_if.get_param('track_length')
+#             self.track_sec = self.node_if.get_param('track_sec')
+#             self.navpose_frame = self.node_if.get_param('navpose_frame')
+#         if do_updates == True:
+#             pass
+#         self.publish_status()
+
+#     def reset(self):
+#         if self.node_if is not None:
+#             pass
+#         self.init()
+
+#     def factory_reset(self):
+#         if self.node_if is not None:
+#             pass
+#         self.init()
+
+#     def _navposeFrameCb(self,msg):
+#         frame = msg.data
+#         if frame in self.navpose_frames:
+#             self.navpose_frame = frame
+#             if 'frame_updated_callback' in self.callback_dict.keys():
+#                 self.callback_dict['frame_updated_callback'](frame)
+
+#     def _navposesCb(self,msg):
+#         self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
+
+#     ###############################
+#     # Class Private Methods
+#     ###############################
+#     def _initCb(self, do_updates = False):
+#         self.init(do_updates = do_updates)
+
+#     def _resetCb(self, do_updates = True):
+#         self.init(do_updates = do_updates)
+
+#     def _factoryResetCb(self, do_updates = True):
+#         self.init(do_updates = do_updates)
+
+
+#     def _subscribersCheckCb(self,timer):
+#         has_subs = self.node_if.pub_has_subscribers('navpose_pub')
+#         if has_subs == False and self.status_msg is not None:
+#             self.status_msg.publishing = False
+#         self.has_subs = has_subs
+#         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
+#         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
+
+#     def _updaterCb(self,timer):
+#         self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
+#         self.navpose_frames = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
+        
+#         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+
+        
+
+#     def _publishStatusCb(self,timer):
+#         self.publish_status()
+
+#     def _provide_capabilities(self, _):
+#         return self.caps_report
+
+
+#     def _setTrackLengthCb(self,msg):
+#         data = msg.data
+#         self.set_track_length(data)
+
+#     def _setTrackSecCb(self,msg):
+#         data = msg.data
+#         self.set_track_sec(data)
+    
+#     def _clearTracksCb(self,msg):
+#         self.clear_tracks()
