@@ -1293,7 +1293,7 @@ class AiDetectorIF:
             self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[img_topic]['subs_if'].unregister_subs()
-            self.img_ifs_dict[img_topic]['pubs_if'].unregister_pubs()
+            #self.img_ifs_dict[img_topic]['pubs_if'].unregister_pubs()
             self.img_ifs_lock.release()
         #Leave img pub running in case it is switched back on
     
