@@ -2798,7 +2798,7 @@ class BaseImageIF:
 
     def _clickCb(self,msg):
         self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
-        pixel = [int(msg.x  * self.x_scaler + self.x_offset), int(msg.y  * self.y_scaler + self.y_offset)]
+        pixel = [int(msg.x   + self.x_offset), int(msg.y   + self.y_offset)]
 
         color_bgr = (msg.b,msg.g,msg.r,msg.a)
         #self.msg_if.pub_info("Checking for click_pixel_callback function in mouse overide dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
@@ -2839,7 +2839,7 @@ class BaseImageIF:
     def _dragCb(self,msg):
         self.msg_if.pub_info("Received set drag mouse message: " + str(msg), log_name_list = self.log_name_list)
         self.last_click_time = None
-        pixel = [int(msg.x  * self.x_scaler + self.x_offset), int(msg.y  * self.y_scaler + self.y_offset)]
+        pixel = [int(msg.x), int(msg.y)]
         color_bgr = (msg.b,msg.g,msg.r,msg.a)
         self.msg_if.pub_info("Using drag pixel: " + str(pixel), log_name_list = self.log_name_list)
         if self.callback_dict['drag_callback'] is not None:
@@ -2860,16 +2860,16 @@ class BaseImageIF:
 
     def _windowCb(self,msg):
         self.msg_if.pub_info("Received set window message: " + str(msg), log_name_list = self.log_name_list)
-        window = [int(msg.x_min  * self.x_scaler + self.x_offset) , 
-                int(msg.x_max  * self.x_scaler + self.x_offset), 
-                int(msg.y_min  * self.y_scaler + self.y_offset), 
-                int(msg.y_max * self.y_scaler + self.y_offset)]
+        window = [int(msg.x_min   + self.x_offset) , 
+                int(msg.x_max   + self.x_offset), 
+                int(msg.y_min   + self.y_offset), 
+                int(msg.y_max  + self.y_offset)]
         if msg.x_min > msg.x_max:
-            window[0] = msg.x_max * self.x_scaler + self.x_offset
-            window[1] = msg.x_min * self.x_scaler + self.x_offset
+            window[0] = msg.x_max  + self.x_offset
+            window[1] = msg.x_min  + self.x_offset
         if msg.y_min > msg.y_max:
-            window[2] = msg.y_max  * self.y_scaler + self.y_offset
-            window[3] = msg.y_min  * self.y_scaler + self.y_offset
+            window[2] = msg.y_max   + self.y_offset
+            window[3] = msg.y_min   + self.y_offset
 
         if self.callback_dict['window_callback'] is not None:
             try:
@@ -3269,86 +3269,18 @@ class ColorImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
-        cv2_shape = cv2_img.shape
-        img_width = cv2_shape[1] 
-        img_height = cv2_shape[0] 
-        ratio = img_width / img_height
-        #self.msg_if.pub_info("Image Raw: " + str(cv2_img.shape), log_name_list = self.log_name_list)
-
-        #####################
-        # Apply render controls 
-        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
-        x_min = int(max(0, img_width * xr_min )) 
-        x_max = int(min(img_width, img_width * xr_max))
-        y_min = int(max(0, img_height * yr_min))
-        y_max = int(min(img_height, img_height * yr_max))
-
-        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
-
-        ##########
-        # Show Drag Box if Needed
-        drag_window = copy.deepcopy(self.drag_window)
-
-        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-        if drag_window is not None:
-            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-            # Define the rectangle parameters
-            x1 = min(drag_window[0], drag_window[1])
-            x2 = max(drag_window[0], drag_window[1])
-            y1 = min(drag_window[2], drag_window[3])
-            y2 = max(drag_window[2], drag_window[3])
-
-
-
-            # if degrees == 90:
-            #     x1_adj = img_height1 - y2
-            #     x2_adj = x1_adj + (y2 - y1)
-            #     y1_adj = x1
-            #     y2_adj = x2
-
-            #     [x1,x2,y1,y2] = [x1_adj,x2_adj,y1_adj,y2_adj]
-
-
-            # elif degrees == 180:
-            #     x1_adj = img_width1 - x2
-            #     x2_adj = x1_adj + (x2 - x1)
-            #     y1_adj = img_height1 - y2
-            #     y2_adj = y1_adj + (y2 - y1)
-
-            #     [x1,x2,y1,y2] = [x1_adj,x2_adj,y1_adj,y2_adj]
-
-            # elif degrees == 270:
-
-            # if fliph == True:
-            #     cv2_img = nepi_img.flip_horz(cv2_img) 
-
-            # if flipv == True:
-            #     cv2_img = nepi_img.flip_vert(cv2_img) 
-
-
-            color = (0, 200, 0) # Green color in BGR
-            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
-
-            # Draw a filled rectangle on the overlay copy
-            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
-
-        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
-
-
-
-        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
-
-
 
 
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
-        cv2_shape = cv2_img.shape
-        img_width1 = cv2_shape[1] 
-        img_height1 = cv2_shape[0] 
+        # cv2_shape = cv2_img.shape
+        # img_width1 = cv2_shape[1] 
+        # img_height1 = cv2_shape[0] 
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
+
 
         ##########
         # Apply Oreantation Controls
@@ -3365,7 +3297,51 @@ class ColorImageIF(BaseImageIF):
         if flipv == True:
             cv2_img = nepi_img.flip_vert(cv2_img) 
 
-        #self.msg_if.pub_info("Image Orient: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+        #####################
+        cv2_shape = cv2_img.shape
+        img_width = cv2_shape[1] 
+        img_height = cv2_shape[0] 
+        ratio = img_width / img_height
+
+        #####################
+        # Apply render controls 
+        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
+        x_min = int(max(0, img_width * xr_min )) 
+        x_max = int(min(img_width, img_width * xr_max))
+        y_min = int(max(0, img_height * yr_min))
+        y_max = int(min(img_height, img_height * yr_max))
+
+        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+        self.x_offset = x_min 
+        self.y_offset = y_min
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
+        ##########
+        # Show Drag Box if Needed
+        drag_window = copy.deepcopy(self.drag_window)
+
+        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+        if drag_window is not None:
+            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+            # Define the rectangle parameters
+            x1 = min(drag_window[0], drag_window[1])
+            x2 = max(drag_window[0], drag_window[1])
+            y1 = min(drag_window[2], drag_window[3])
+            y2 = max(drag_window[2], drag_window[3])
+
+
+            color = (0, 200, 0) # Green color in BGR
+            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
+
+            # Draw a filled rectangle on the overlay copy
+            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
+
+
 
         ###################
         # Apply Filters
@@ -3395,18 +3371,8 @@ class ColorImageIF(BaseImageIF):
 
         #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
 
-    
 
-        ##########
-        # Update last image info
-        cv2_shape = cv2_img.shape
-        img_width2 = cv2_shape[1] 
-        img_height2 = cv2_shape[0] 
 
-        self.x_offset = x_min 
-        self.y_offset = y_min
-        self.x_scaler = img_width1 / img_width2
-        self.y_scaler = img_height1 / img_height2
 
         return cv2_img
 
