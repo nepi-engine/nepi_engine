@@ -3285,7 +3285,61 @@ class ColorImageIF(BaseImageIF):
 
         #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
 
-     
+        ##########
+        # Show Drag Box if Needed
+        drag_window = copy.deepcopy(self.drag_window)
+
+        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+        if drag_window is not None:
+            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+            # Define the rectangle parameters
+            x1 = min(drag_window[0], drag_window[1])
+            x2 = max(drag_window[0], drag_window[1])
+            y1 = min(drag_window[2], drag_window[3])
+            y2 = max(drag_window[2], drag_window[3])
+
+
+
+            # if degrees == 90:
+            #     x1_adj = img_height1 - y2
+            #     x2_adj = x1_adj + (y2 - y1)
+            #     y1_adj = x1
+            #     y2_adj = x2
+
+            #     [x1,x2,y1,y2] = [x1_adj,x2_adj,y1_adj,y2_adj]
+
+
+            # elif degrees == 180:
+            #     x1_adj = img_width1 - x2
+            #     x2_adj = x1_adj + (x2 - x1)
+            #     y1_adj = img_height1 - y2
+            #     y2_adj = y1_adj + (y2 - y1)
+
+            #     [x1,x2,y1,y2] = [x1_adj,x2_adj,y1_adj,y2_adj]
+
+            # elif degrees == 270:
+
+            # if fliph == True:
+            #     cv2_img = nepi_img.flip_horz(cv2_img) 
+
+            # if flipv == True:
+            #     cv2_img = nepi_img.flip_vert(cv2_img) 
+
+
+            color = (0, 200, 0) # Green color in BGR
+            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
+
+            # Draw a filled rectangle on the overlay copy
+            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
+
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+
+
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
 
         ##########
         # Apply Resolution Controls
@@ -3342,26 +3396,6 @@ class ColorImageIF(BaseImageIF):
         #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
 
     
-        ##########
-        # Show Drag Box if Needed
-        drag_window = copy.deepcopy(self.drag_window)
-
-        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-        if drag_window is not None:
-            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-            # Define the rectangle parameters
-            x1 = min(drag_window[0], drag_window[1])
-            x2 = max(drag_window[0], drag_window[1])
-            y1 = min(drag_window[2], drag_window[3])
-            y2 = max(drag_window[2], drag_window[3])
-            color = (0, 200, 0) # Green color in BGR
-            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
-
-            # Draw a filled rectangle on the overlay copy
-            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
-
-        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
-
 
         ##########
         # Update last image info
