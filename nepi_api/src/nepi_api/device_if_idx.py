@@ -887,7 +887,7 @@ class IDXDeviceIF:
         self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
         height = msg.data
         if height > 0:
-            self.width_deg = height     
+            self.height_deg = height     
             self.publish_status(do_updates=False) # Updated inline here   
             self.node_if.set_param('height_deg', height)
             
