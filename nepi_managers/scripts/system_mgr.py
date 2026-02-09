@@ -50,7 +50,7 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateState
+                                DictString, DictStringEntry, UpdateBool
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
@@ -200,7 +200,7 @@ class SystemMgrNode():
 
     debug_enabled = False
     admin_enabled = True
-    user_restrictions_enabled = []
+    user_restrictions = []
 
     install_img = ''
     install_img_version = ''
@@ -520,7 +520,7 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': False
             },
-            'user_restrictions_enabled': {
+            'user_restrictions': {
                 'namespace': self.base_namespace,
                 'factory_val': []
             }
@@ -754,10 +754,10 @@ class SystemMgrNode():
                 'callback': self.enableAdminCb, 
                 'callback_args': ()
             },
-            'set_user_restrictions_enabled': {
+            'set_user_restriction_enabled': {
                 'namespace': self.base_namespace,
-                'topic': 'set_user_restrictions_enabled',
-                'msg': UpdateState,
+                'topic': 'set_user_restriction_enabled',
+                'msg': UpdateBool,
                 'qsize': None,
                 'callback': self.setAdminRestrictedCb, 
                 'callback_args': ()
@@ -800,8 +800,8 @@ class SystemMgrNode():
         self.status_msg.sys_admin_enabled = self.admin_enabled
         nepi_system.set_admin_mode(self.admin_enabled)
 
-        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
-        #nepi_system.set_user_restrictions_enabled(self.user_restrictions_enabled)
+        self.status_msg.user_restrictions_enabled = self.user_restrictions
+        #nepi_system.set_user_restrictions(self.user_restrictions)
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -945,7 +945,7 @@ class SystemMgrNode():
         if self.node_if is not None:
             self.debug_enabled = self.node_if.get_param('debug_enabled')
             self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.user_restrictions_enabled = self.node_if.get_param('user_restrictions_enabled')
+            self.user_restrictions = self.node_if.get_param('user_restrictions')
         if do_updates == True:
             pass
         # self.publish_settings() # Make sure to always publish settings updates
@@ -1172,14 +1172,15 @@ class SystemMgrNode():
 
 
     def setAdminRestrictedCb(self, msg):
-        restricted = []
-        for key in msg.data:
-            if key in user_restrictions_options:
-                restricted.appen(key)
-        self.user_restrictions_enabled = restricted
+        name = msg.name
+        value = msg.value
+        if value == False and name in self.user_restrictions:
+            self.user_restrictions.remove(name)
+        elif value == True and name in self.user_restrictions_options:
+            self.user_restrictions.append(name)
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('user_restrictions_enabled',restricted)
+            self.node_if.set_param('user_restrictions',self.user_restrictions)
             self.node_if.save_config()
 
     def restartNepiCb(self, msg):
@@ -1677,7 +1678,7 @@ class SystemMgrNode():
         response = AdminQueryResponse()
         response.admin_enabled = self.admin_enabled
         response.user_restrictions_options = self.user_restrictions_options
-        response.user_restrictions_enabled = self.user_restrictions_enabled
+        response.user_restrictions = self.user_restrictions
         return response
 
 
@@ -1731,7 +1732,7 @@ class SystemMgrNode():
         # Update sys status and params if needed
         self.status_msg.sys_debug_enabled = self.debug_enabled
         self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
+        self.status_msg.user_restrictions_enabled = self.user_restrictions
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)

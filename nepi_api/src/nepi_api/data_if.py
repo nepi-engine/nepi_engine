@@ -57,7 +57,7 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateState, UpdateRatio, ImageWindow, RangeWindow, ImagePixel
+from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -66,7 +66,7 @@ from sensor_msgs.msg import PointCloud2
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF
+from nepi_api.system_if import SaveDataIF, Transform3DIF
 #from nepi_api.connect_data_if import ConnectNavPosesIF
 
 ##################################################
@@ -191,7 +191,6 @@ class NavPoseIF:
 
     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
-    navpose_frames = ['None']
     navpose_frame = 'None'
 
     caps_report = NavPoseCapabilitiesQueryResponse()
@@ -291,7 +290,6 @@ class NavPoseIF:
         self.status_msg.navpose_frame_options = []
         self.status_msg.sel_navpose_frame = 'None'
         self.status_msg.transform_topic = ''
-        self.status_msg.use_pantilt_for_heading = False
         self.status_msg.connected = False
 
 
@@ -410,22 +408,6 @@ class NavPoseIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'set_navpose_frame': {
-                'namespace': self.namespace,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 5,
-                'callback': self._navposeFrameCb, 
-                'callback_args': ()
-            },
-            'navposes_sub': {
-                'namespace': self.base_namespace,
-                'topic': 'navposes',
-                'msg': NavPoses,
-                'qsize': 5,
-                'callback': self._navposesCb, 
-                'callback_args': ()
-            },
             'reset': {
                 'namespace': self.namespace,
                 'topic': 'reset',
@@ -449,9 +431,9 @@ class NavPoseIF:
         success = nepi_sdk.wait()
 
 
-        if save_data_if is not None:
+        if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-        else:
+        elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -486,8 +468,7 @@ class NavPoseIF:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
-        #########################
-        self.status_msg.transform_topic = ''
+
 
 
 
@@ -500,7 +481,6 @@ class NavPoseIF:
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
         ##############################
         # Complete Initialization
@@ -740,13 +720,9 @@ class NavPoseIF:
             self.time_list.pop(0)
             self.time_list.append(pub_time_sec)
 
-        last_dict = copy.deepcopy(self.navposes_dict)
-        if last_dict != nps_dict:
             if self.save_data_if is not None:
-                self.save_data_if.save('navposes',nps_dict,timestamp)
-        # Setup nex update check
-        self.navpose_frames = list(nps_dict.keys())
-        self.navposes_dict = nps_dict
+                self.save_data_if.save('navpose',np_dict,timestamp)
+
 
 
         return np_dict
@@ -821,12 +797,6 @@ class NavPoseIF:
         self.has_subs = has_subs
         #self.msg_if.pub_warn("Subs Check End: " + self.namespace + " has subscribers: " + str(has_subs), log_name_list = self.log_name_list, throttle_s = 5.0)
         nepi_sdk.start_timer_process(1.0, self._subscribersCheckCb, oneshot = True)
-
-    def _updaterCb(self,timer):
-        self.navpose_settings_dict = nepi_system.get_navpose_settings(log_name_list = self.log_name_list)
-        self.navpose_frames = nepi_system.get_navpose_frames(log_name_list = self.log_name_list)
-
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
 
     def _publishStatusCb(self,timer):
@@ -1592,7 +1562,7 @@ class BaseImageIF:
             self.SUBS_DICT['set_filter_enable'] = {
                 'namespace': self.namespace,
                 'topic': 'set_filter_enable',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 5,
                 'callback': self._setFilterEnableCb, 
                 'callback_args': ()
@@ -1600,7 +1570,7 @@ class BaseImageIF:
             self.SUBS_DICT['set_filter_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_filter_ratio',
-                'msg': UpdateRatio,
+                'msg': UpdateFloat,
                 'qsize': 5,
                 'callback': self._setFilterRatioCb, 
                 'callback_args': ()
@@ -1631,9 +1601,9 @@ class BaseImageIF:
         self.init(do_updates = True)
         self.publish_status()
 
-        if save_data_if is not None:
+        if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-        else:
+        elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -2891,13 +2861,13 @@ class BaseImageIF:
     def _setFilterEnableCb(self, msg):
         self.msg_if.pub_info("Received Enable Enhacement message: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
-        enabled = msg.active_state
+        enabled = msg.value
         self.set_filter_enable(name,enabled) 
 
     def _setFilterRatioCb(self, msg):
         self.msg_if.pub_info("Received Ehnacement Ratio update message: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
-        ratio = msg.ratio
+        ratio = msg.value
         self.set_filter_ratio(name,ratio) 
 
 
@@ -3593,9 +3563,9 @@ class DepthMapIF:
 
 
         ####################
-        if save_data_if is not None:
+        if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-        else:
+        elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -4506,9 +4476,9 @@ class PointcloudIF:
         ##############################
         #Setup Image Pub if needed
 
-        if save_data_if is not None:
+        if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-        else:
+        elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")

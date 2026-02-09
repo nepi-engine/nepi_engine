@@ -42,7 +42,7 @@ from nav_msgs.msg import Odometry
 
 from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
-from nepi_interfaces.msg import UpdateTopic, UpdateNavPoseTopic, UpdateFrame3DTransform
+from nepi_interfaces.msg import UpdateString, UpdateFrame3DTransform
 
 from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -145,7 +145,7 @@ class ConnectMgrNavPoseIF:
             'set_topic': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_topic',
-                'msg': UpdateNavPoseTopic,
+                'msg': UpdateString,
                 'qsize': 1,
                 'latch': False,
             },
@@ -361,9 +361,9 @@ class ConnectMgrNavPoseIF:
 
     def set_navpose_source(self,name,topic,transform_list = None):
         if name in nepi_nav.NAVPOSE_COMPONENTS:
-            msg = UpdateNavPoseTopic()
+            msg = UpdateString()
             msg.name = name
-            msg.topic = topic
+            msg.value = topic
             msg.apply_transform = False
             if transform_list is not None:
                 tr_msg = nepi_nav.convert_transform_list2msg(transform_list)

@@ -40,7 +40,7 @@ from nepi_sdk import nepi_img
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus
 
-from nepi_interfaces.msg import UpdateState, MgrAiModelsStatus
+from nepi_interfaces.msg import UpdateBool, MgrAiModelsStatus
 from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
 from nepi_interfaces.msg import AiBoundingBoxes, ObjectCount
 
@@ -203,7 +203,7 @@ class AIDetectorManager:
             'update_framework_state': {
                 'namespace': self.node_namespace,
                 'topic': 'update_framework_state',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
                 'callback': self.updateFrameworkStateCb, 
                 'callback_args': ()
@@ -227,7 +227,7 @@ class AIDetectorManager:
             'enable_all_models': {
                 'namespace': self.node_namespace,
                 'topic': 'enable_all_models',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
                 'callback': self.enableAllModelsCb, 
                 'callback_args': ()
@@ -235,7 +235,7 @@ class AIDetectorManager:
             'disable_all_models': {
                 'namespace': self.node_namespace,
                 'topic': 'disable_all_models',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
                 'callback': self.disableAllModelsCb, 
                 'callback_args': ()
@@ -243,7 +243,7 @@ class AIDetectorManager:
             'update_model_state': {
                 'namespace': self.node_namespace,
                 'topic': 'update_model_state',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
                 'callback': self.updateModelStateCb, 
                 'callback_args': ()
@@ -689,7 +689,7 @@ class AIDetectorManager:
     def updateFrameworkStateCb(self,msg):
         self.msg_if.pub_warn("Recieved Framework State Update: " + str(msg))
         framework_name = msg.name
-        state = msg.active_state
+        state = msg.value
         active_aifs = self.getActiveAifs()
         aifs_dict = copy.deepcopy(self.aifs_dict)
         if state == True:
@@ -741,7 +741,7 @@ class AIDetectorManager:
     def enableAllModelsCb(self,msg):
         self.msg_if.pub_warn("Recieved Enable All Models msg: " + str(msg))
         aif_name = msg.name
-        state = msg.active_state
+        state = msg.value
         active_aifs = self.getActiveAifs()
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
@@ -761,7 +761,7 @@ class AIDetectorManager:
     def disableAllModelsCb(self,msg):
         self.msg_if.pub_warn("Recieved Disable All Models msg: " + str(msg))
         aif_name = msg.name
-        state = msg.active_state
+        state = msg.value
         active_aifs = self.getActiveAifs()
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
@@ -781,7 +781,7 @@ class AIDetectorManager:
     def updateModelStateCb(self,msg):
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
         model_name = msg.name
-        state = msg.active_state
+        state = msg.value
         models_dict = copy.deepcopy(self.models_dict)
         if model_name in models_dict.keys():
             model_dict = models_dict[model_name]

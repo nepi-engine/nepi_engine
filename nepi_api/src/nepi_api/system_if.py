@@ -928,6 +928,11 @@ class SaveDataIF:
             if self.node_if is not None:
                 self.node_if.set_param('save_rate_dict',save_rate_dict)
 
+    def unregister_data_product(self, data_product):
+        save_rate_dict = self.save_rate_dict
+        if data_product in save_rate_dict.keys():
+            del save_rate_dict[data_product]
+
 
     def update_filename_dict(self,filename_dict):
         if self.filename_dict != filename_dict:

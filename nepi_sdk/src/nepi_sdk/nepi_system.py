@@ -121,33 +121,18 @@ def set_config_folders(value, log_name_list = []):
 
 ##########################
 
-def get_navpose_frames(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navpose_frames')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
-    if data is None:
-        data = ['nepi_frame']
-    return data
+def get_navposes_dict(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navposes_dict')
+    navposes_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    if navposes_dict is None:
+        navposes_dict = dict()
+    return navposes_dict
 
-def set_navpose_frames(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navpose_frames')
-    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+def set_navposes_dict(navposes_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navposes_dict')
+    success = nepi_sdk.set_param(param_namespace, navposes_dict, log_name_list = log_name_list)
     return success
 
-def get_navpose_settings(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navpose_settings')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
-    if data is None:
-        data = {
-        'frame_nav': 'ENU',
-        'frame_alt': 'WGS84',
-        'frame_depth': 'DEPTH'
-    }
-    return data
-
-def set_navpose_settings(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'navpose_settings')
-    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
-    return success
 
 def get_timezone(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'timezone')

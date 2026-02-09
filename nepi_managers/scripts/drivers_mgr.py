@@ -35,7 +35,7 @@ from nepi_sdk import nepi_serial
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nepi_interfaces.msg import MgrSystemStatus
-from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateState, UpdateOrder 
+from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateBool, UpdateOrder 
 from nepi_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
 from nepi_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
@@ -243,9 +243,9 @@ class NepiDriversMgr(object):
             'update_state': {
                 'namespace': self.node_namespace,
                 'topic': 'update_state',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
-                'callback': self.updateStateCb, 
+                'callback': self.updateBoolCb, 
                 'callback_args': ()
             },
             'update_order': {
@@ -831,7 +831,7 @@ class NepiDriversMgr(object):
         service_driver_msg.group_id = drv_dict['group_id']
         service_driver_msg.display_name = drv_dict['display_name']
         service_driver_msg.description = drv_dict['description']
-        service_driver_msg.active_state  = drv_dict['active']
+        service_driver_msg.value  = drv_dict['active']
         service_driver_msg.order  = drv_dict['order']
         service_driver_msg.msg_str = drv_dict['msg']
       except Exception as e:
@@ -943,7 +943,7 @@ class NepiDriversMgr(object):
         status_driver_msg.group_id = drv_dict['group_id']
         status_driver_msg.display_name = drv_dict['display_name']
         status_driver_msg.description = drv_dict['description']
-        status_driver_msg.active_state  = drv_dict['active']
+        status_driver_msg.value  = drv_dict['active']
         running_state = driver_name in self.discovery_node_dict.keys() or driver_name in self.discovery_classes_dict.keys()
         status_driver_msg.running_state = running_state
         status_driver_msg.order  = drv_dict['order']
@@ -990,10 +990,10 @@ class NepiDriversMgr(object):
       self.selected_driver = driver_name
     self.publish_status()
 
-  def updateStateCb(self,msg):
+  def updateBoolCb(self,msg):
     self.msg_if.pub_info("Got update driver state msg: " + str(msg))
     driver_name = msg.name
-    new_active_state = msg.active_state
+    new_active_state = msg.value
     self.update_state(driver_name,new_active_state)
 
   def update_state(self,driver_name,new_active_state):

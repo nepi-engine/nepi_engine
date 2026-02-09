@@ -32,7 +32,7 @@ from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
 from nepi_interfaces.msg import MgrSystemStatus
-from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateState, UpdateOrder
+from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateBool, UpdateOrder
 from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
@@ -212,9 +212,9 @@ class NepiAppsMgr(object):
             'update_state': {
                 'namespace': self.node_namespace,
                 'topic': 'update_state',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
-                'callback': self.updateStateCb, 
+                'callback': self.updateBoolCb, 
                 'callback_args': ()
             },
             'update_order': {
@@ -484,7 +484,7 @@ class NepiAppsMgr(object):
         status_app_msg.rui_main_file = app['RUI_DICT']['rui_main_file']
         status_app_msg.rui_main_class = app['RUI_DICT']['rui_main_class']  
         status_app_msg.rui_menu_name = app['RUI_DICT']['rui_menu_name']
-        status_app_msg.active_state  = app['active']
+        status_app_msg.value  = app['active']
         status_app_msg.order  = app['order']
         status_app_msg.msg_str = app['msg']
         status_app_msg.license_type = app['APP_DICT']['license_type']
@@ -575,7 +575,7 @@ class NepiAppsMgr(object):
         status_app_msg.rui_main_file = app['RUI_DICT']['rui_main_file']
         status_app_msg.rui_main_class = app['RUI_DICT']['rui_main_class']  
         status_app_msg.rui_menu_name = app['RUI_DICT']['rui_menu_name']
-        status_app_msg.active_state  = app['active']
+        status_app_msg.value  = app['active']
         status_app_msg.order  = app['order']
         status_app_msg.msg_str = app['msg']
         status_app_msg.license_type = app['APP_DICT']['license_type']
@@ -617,10 +617,10 @@ class NepiAppsMgr(object):
       self.selected_app = app_name
     self.publish_status()
 
-  def updateStateCb(self,msg):
+  def updateBoolCb(self,msg):
     self.msg_if.pub_info("Got update app state msg: " + str(msg))
     app_name = msg.name
-    state = msg.active_state
+    state = msg.value
     apps_dict = copy.deepcopy(self.apps_dict)
     if app_name in apps_dict.keys():
       app_dict = apps_dict[app_name]
