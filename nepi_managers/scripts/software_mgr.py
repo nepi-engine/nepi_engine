@@ -273,7 +273,7 @@ class SoftwareMgrNode():
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'software_status_query': {
-                'namespace': self.base_namespace + '/softaware_mgr',
+                'namespace': self.node_namespace,
                 'topic': 'system_status_query',
                 'srv': SoftwareStatusQuery,
                 'req': SoftwareStatusQueryRequest(),
@@ -287,7 +287,7 @@ class SoftwareMgrNode():
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
-                'namespace': self.base_namespace + '/softaware_mgr',
+                'namespace': self.node_namespace,
                 'topic': 'status',
                 'msg': MgrSoftwareStatus,
                 'qsize': 1,
@@ -881,6 +881,7 @@ class SoftwareMgrNode():
     def publish_status(self):
         
         if self.node_if is not None:
+            #self.msg_if.pub_warn("Returning status msg: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
     
