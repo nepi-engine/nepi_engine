@@ -293,7 +293,7 @@ class SystemMgrNode():
 
 
                 self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
-                self.has_ab_fs = self.nepi_config['NEPI_AB_FS'] == 1
+                self.has_ab_fs = self.nepi_config['NEPI_FS_AB'] == 1
                 self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
                 self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
                 self.new_img_staging_removable = False
