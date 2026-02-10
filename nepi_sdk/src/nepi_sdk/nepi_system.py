@@ -72,13 +72,33 @@ def set_admin_mode(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_admin_restricted(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_restricted')
+def get_managers_enabled(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_enabled')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
-def set_admin_restricted(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_restricted')
+def set_managers_enabled(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_enabled')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+def get_user_restrictions(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_restrictions')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_user_restrictions(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_restrictions')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+def get_run_mode(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'run_mode')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_run_mode(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'run_mode')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 

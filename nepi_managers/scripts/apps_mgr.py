@@ -484,13 +484,13 @@ class NepiAppsMgr(object):
         status_app_msg.rui_main_file = app['RUI_DICT']['rui_main_file']
         status_app_msg.rui_main_class = app['RUI_DICT']['rui_main_class']  
         status_app_msg.rui_menu_name = app['RUI_DICT']['rui_menu_name']
-        status_app_msg.value  = app['active']
+        status_app_msg.active_state  = app['active']
         status_app_msg.order  = app['order']
         status_app_msg.msg_str = app['msg']
         status_app_msg.license_type = app['APP_DICT']['license_type']
         status_app_msg.license_link = app['APP_DICT']['license_link']
       except Exception as e:
-        self.msg_if.pub_info("Failed to create app status message: " + str(e))
+        self.msg_if.pub_info("Failed to create app service message: " + str(e))
     return status_app_msg
 
         
@@ -575,7 +575,7 @@ class NepiAppsMgr(object):
         status_app_msg.rui_main_file = app['RUI_DICT']['rui_main_file']
         status_app_msg.rui_main_class = app['RUI_DICT']['rui_main_class']  
         status_app_msg.rui_menu_name = app['RUI_DICT']['rui_menu_name']
-        status_app_msg.value  = app['active']
+        status_app_msg.active_state  = app['active']
         status_app_msg.order  = app['order']
         status_app_msg.msg_str = app['msg']
         status_app_msg.license_type = app['APP_DICT']['license_type']

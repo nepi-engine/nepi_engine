@@ -78,6 +78,8 @@ BYTES_PER_MEGABYTE = 2**20
 NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
+
+    RUN_MODES = ['develop','prototype','deploy']
     
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -120,8 +122,12 @@ class SystemMgrNode():
                             "logs/nepi_scripts_logs", 
                             "nepi_src",
                             "tmp"]
+    
 
-    user_restrictions_options = {
+    MANAGERS_OPTIONS = ['APPS MANAGER'
+    ]
+
+    USER_RESTRICTION_OPTIONS = {
         'Sys-Admin': "Desc",
         'Sys-Debug': "Desc",
         'Cfg-Factory': "Desc",
@@ -200,7 +206,9 @@ class SystemMgrNode():
 
     debug_enabled = False
     admin_enabled = True
+    managers_enabled = MANAGERS_OPTIONS
     user_restrictions = []
+    run_mode = 'deploy'
 
     install_img = ''
     install_img_version = ''
@@ -449,11 +457,12 @@ class SystemMgrNode():
                 self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
 
         roptions=[]
-        for key in self.user_restrictions_options.keys():
+        for key in self.USER_RESTRICTION_OPTIONS.keys():
             ropt=DictStringEntry()
             ropt.key = key
-            ropt.value = self.user_restrictions_options[key]
+            ropt.value = self.USER_RESTRICTION_OPTIONS[key]
         self.status_msg.user_restrictions_options = roptions
+        self.status_msg.sys_run_mode_options = self.RUN_MODES
         
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
@@ -472,6 +481,26 @@ class SystemMgrNode():
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
+            'debug_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': self.debug_enabled
+            },
+            'admin_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': self.admin_enabled
+            },
+            'managers_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': self.managers_enabled
+            },
+            'run_mode': {
+                'namespace': self.base_namespace,
+                'factory_val': self.run_mode
+            },
+            'user_restrictions': {
+                'namespace': self.base_namespace,
+                'factory_val': []
+            },
             'op_environment': {
                 'namespace': self.base_namespace,
                 'factory_val': OpEnvironmentQueryResponse.OP_ENV_AIR
@@ -512,18 +541,6 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             },
-            'debug_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': False
-            },
-            'admin_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': False
-            },
-            'user_restrictions': {
-                'namespace': self.base_namespace,
-                'factory_val': []
-            }
         }
 
 
@@ -650,6 +667,38 @@ class SystemMgrNode():
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'enable_debug': {
+                'namespace': self.base_namespace,
+                'topic': 'debug_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableDebugCb, 
+                'callback_args': ()
+            },
+            'enable_admin': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableAdminCb, 
+                'callback_args': ()
+            },
+            'set_run_mode': {
+                'namespace': self.base_namespace,
+                'topic': 'set_run_mode',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setRunModeCb, 
+                'callback_args': ()
+            },
+            'set_user_restriction_enabled': {
+                'namespace': self.base_namespace,
+                'topic': 'set_user_restriction_enabled',
+                'msg': UpdateBool,
+                'qsize': None,
+                'callback': self.setAdminRestrictedCb, 
+                'callback_args': ()
+            },
             'save_data': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
@@ -738,30 +787,6 @@ class SystemMgrNode():
                 'callback': self.systemTriggersCb, 
                 'callback_args': ()
             },
-            'enable_debug': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableDebugCb, 
-                'callback_args': ()
-            },
-            'enable_admin': {
-                'namespace': self.base_namespace,
-                'topic': 'admin_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableAdminCb, 
-                'callback_args': ()
-            },
-            'set_user_restriction_enabled': {
-                'namespace': self.base_namespace,
-                'topic': 'set_user_restriction_enabled',
-                'msg': UpdateBool,
-                'qsize': None,
-                'callback': self.setAdminRestrictedCb, 
-                'callback_args': ()
-            },
             'restart_nepi': {
                 'namespace': self.base_namespace,
                 'topic': 'restart_nepi',
@@ -794,13 +819,14 @@ class SystemMgrNode():
         nepi_sdk.sleep(1)
         self.initCb(do_updates = True)
 
-        self.status_msg.sys_debug_enabled = self.debug_enabled
+
         nepi_system.set_debug_mode(self.debug_enabled)
-
-        self.status_msg.sys_admin_enabled = self.admin_enabled
         nepi_system.set_admin_mode(self.admin_enabled)
+        nepi_system.set_managers_enabled(self.managers_enabled)
+        nepi_system.set_user_restrictions(self.user_restrictions)
+        nepi_system.set_run_mode(self.run_mode)
 
-        self.status_msg.user_restrictions_enabled = self.user_restrictions
+
         #nepi_system.set_user_restrictions(self.user_restrictions)
 
 
@@ -944,8 +970,20 @@ class SystemMgrNode():
     def initCb(self, do_updates = False):
         if self.node_if is not None:
             self.debug_enabled = self.node_if.get_param('debug_enabled')
+            self.status_msg.sys_debug_enabled = self.debug_enabled
+
             self.admin_enabled = self.node_if.get_param('admin_enabled')
+            self.status_msg.sys_admin_enabled = self.admin_enabled
+
+            self.managers_enabled = self.node_if.get_param('managers_enabled')
+            self.status_msg.sys_managers_enabled = self.managers_enabled
+
+            self.run_mode = self.node_if.get_param('run_mode')
+            self.status_msg.sys_run_mode = self.run_mode
+
             self.user_restrictions = self.node_if.get_param('user_restrictions')
+            self.status_msg.user_restrictions = self.user_restrictions
+
         if do_updates == True:
             pass
         # self.publish_settings() # Make sure to always publish settings updates
@@ -1166,9 +1204,20 @@ class SystemMgrNode():
         self.admin_enabled = msg.data
         self.status_msg.sys_admin_enabled = msg.data
         self.publish_status()
-        #if self.node_if is not None:
-        #    self.node_if.set_param('admin_enabled',msg.data)
-        #    self.node_if.save_config()
+        if self.node_if is not None:
+            self.node_if.set_param('admin_enabled',msg.data)
+            self.node_if.save_config()
+
+
+    def setRunModeCb(self, msg):
+        run_mode = msg.data
+        if run_mode in self.RUN_MODES:
+            self.run_mode = msg.data
+            self.status_msg.sys_run_mode = self.run_mode
+            self.publish_status()
+            if self.node_if is not None:
+               self.node_if.set_param('run_mode',msg.data)
+               self.node_if.save_config()
 
 
     def setAdminRestrictedCb(self, msg):
@@ -1176,8 +1225,9 @@ class SystemMgrNode():
         value = msg.value
         if value == False and name in self.user_restrictions:
             self.user_restrictions.remove(name)
-        elif value == True and name in self.user_restrictions_options:
+        elif value == True and name in self.USER_RESTRICTION_OPTIONS:
             self.user_restrictions.append(name)
+        self.status_msg.user_restrictions = self.user_restrictions
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('user_restrictions',self.user_restrictions)
@@ -1676,9 +1726,14 @@ class SystemMgrNode():
 
     def provide_admin_status(self, req):
         response = AdminQueryResponse()
-        response.admin_enabled = self.admin_enabled
-        response.user_restrictions_options = self.user_restrictions_options
+        response.sys_debug_enabled = self.debug_enabled
+        response.sys_admin_enabled = self.admin_enabled
+        response.sys_managers_options = self.MANAGERS_OPTIONS
+        response.sys_managers_enabled = self.managers_enabled
+        response.user_restrictions_options = self.USER_RESTRICTION_OPTIONS
         response.user_restrictions = self.user_restrictions
+        response.sys_run_mode_options = self.RUN_MODES
+        response.sys_run_mode = self.run_mode
         return response
 
 
@@ -1729,10 +1784,6 @@ class SystemMgrNode():
         # Disk usage
         self.update_storage()
 
-        # Update sys status and params if needed
-        self.status_msg.sys_debug_enabled = self.debug_enabled
-        self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.user_restrictions_enabled = self.user_restrictions
         # Now publish it
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub', self.status_msg)
