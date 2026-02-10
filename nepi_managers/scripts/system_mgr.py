@@ -600,13 +600,6 @@ class SystemMgrNode():
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'software_status_pub': {
-                'namespace': self.base_namespace + '/softaware_mgr',
-                'topic': 'status',
-                'msg': MgrSoftwareStatus,
-                'qsize': 1,
-                'latch': True
-            },
             'status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -1767,12 +1760,6 @@ class SystemMgrNode():
 
     def publish_status(self):
         
-        #########################
-        #### Software
-
-        
-        if self.node_if is not None:
-            self.node_if.publish_pub('software_status_pub', self.status_msg)
 
         #########################
         #### System
