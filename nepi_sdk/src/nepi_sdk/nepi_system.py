@@ -52,6 +52,26 @@ def set_nepi_config(value, log_name_list = []):
 
 ##########################
 
+def get_admin_mode(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_admin_mode(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+def get_develop_mode(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'develop_mode')
+    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return data
+
+def set_develop_mode(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'develop_mode')
+    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
 def get_debug_mode(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_mode')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
@@ -62,15 +82,6 @@ def set_debug_mode(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_admin_mode(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
-    return data
-
-def set_admin_mode(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
-    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
-    return success
 
 def get_managers_enabled(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_enabled')

@@ -180,14 +180,6 @@ class config_mgr(object):
                 'callback': self.saveParamsCb, 
                 'callback_args': ()
             },
-            'restore_factory_cfgs': {
-                'namespace': self.base_namespace,
-                'topic': 'restore_factory_cfgs',
-                'msg': Empty,
-                'qsize': None,
-                'callback': self.restoreFactoryCfgsCb, 
-                'callback_args': ()
-            },
             'save_system_cfgs': {
                 'namespace': self.base_namespace,
                 'topic': 'save_system_cfgs',
@@ -202,6 +194,14 @@ class config_mgr(object):
                 'msg': Empty,
                 'qsize': None,
                 'callback': self.restoreSystemCfgsCb, 
+                'callback_args': ()
+            },
+            'restore_factory_cfgs': {
+                'namespace': self.base_namespace,
+                'topic': 'restore_factory_cfgs',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.restoreFactoryCfgsCb, 
                 'callback_args': ()
             }
         }

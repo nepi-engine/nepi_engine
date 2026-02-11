@@ -79,7 +79,7 @@ NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
 
-    RUN_MODES = ['develop','prototype','deploy']
+    RUN_MODES = ['prototype','deploy']
     
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -204,9 +204,15 @@ class SystemMgrNode():
 
     current_throttle_ratio = 1.0
 
+
+    admin_enabled = False
+    admin_password = None
+    admin_password_valid = False
+    admin_mode_set = False
+    admin_mode_updated = True
+    develop_enabled = False
     debug_enabled = False
-    admin_enabled = True
-    managers_enabled = MANAGERS_OPTIONS
+    managers_enabled_dict = dict()
     user_restrictions = []
     run_mode = 'deploy'
 
@@ -256,6 +262,7 @@ class SystemMgrNode():
         # stat_info = os.stat(self.storage_folder)
         # self.folders_uid = stat_info.st_uid
         # self.folders_gid = stat_info.st_gid
+        self.admin_password = self.nepi_config['NEPI_ADMIN_PW']
         self.folders_uid = self.nepi_config['NEPI_USER']
         self.folders_gid = self.nepi_config['NEPI_USER']
 
@@ -279,20 +286,10 @@ class SystemMgrNode():
         nepi_system.set_nepi_config(self.nepi_config)
 
         self.status_msg.serial_number = self.nepi_config['NEPI_DEVICE_SN']
-
-
         self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
-
-
         self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
-
-
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
-
-
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
-
-
         self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
@@ -464,6 +461,10 @@ class SystemMgrNode():
         self.status_msg.user_restrictions_options = roptions
         self.status_msg.sys_run_mode_options = self.RUN_MODES
         
+        for mode in self.RUN_MODES:
+            self.managers_enabled_dict[mode] = self.MANAGERS_OPTIONS
+
+
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -481,17 +482,21 @@ class SystemMgrNode():
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'debug_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': self.debug_enabled
-            },
             'admin_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': self.admin_enabled
             },
-            'managers_enabled': {
+            'develop_enabled': {
                 'namespace': self.base_namespace,
-                'factory_val': self.managers_enabled
+                'factory_val': self.develop_enabled
+            },
+            'debug_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': self.debug_enabled
+            },
+            'managers_enabled_dict': {
+                'namespace': self.base_namespace,
+                'factory_val': self.managers_enabled_dict
             },
             'run_mode': {
                 'namespace': self.base_namespace,
@@ -667,20 +672,28 @@ class SystemMgrNode():
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'enable_debug': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableDebugCb, 
-                'callback_args': ()
-            },
             'enable_admin': {
                 'namespace': self.base_namespace,
                 'topic': 'admin_mode_enable',
                 'msg': Bool,
                 'qsize': None,
                 'callback': self.enableAdminCb, 
+                'callback_args': ()
+            },
+            'set_admin_password': {
+                'namespace': self.base_namespace,
+                'topic': 'set_admin_password',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setAdminPasswordCb, 
+                'callback_args': ()
+            },            
+            'enable_develop': {
+                'namespace': self.base_namespace,
+                'topic': 'develop_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableDevelopCb, 
                 'callback_args': ()
             },
             'set_run_mode': {
@@ -819,13 +832,7 @@ class SystemMgrNode():
         nepi_sdk.sleep(1)
         self.initCb(do_updates = True)
 
-
-        nepi_system.set_debug_mode(self.debug_enabled)
-        nepi_system.set_admin_mode(self.admin_enabled)
-        nepi_system.set_managers_enabled(self.managers_enabled)
-        nepi_system.set_user_restrictions(self.user_restrictions)
-        nepi_system.set_run_mode(self.run_mode)
-
+    
 
         #nepi_system.set_user_restrictions(self.user_restrictions)
 
@@ -969,23 +976,14 @@ class SystemMgrNode():
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.debug_enabled = self.node_if.get_param('debug_enabled')
-            self.status_msg.sys_debug_enabled = self.debug_enabled
-
             self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.status_msg.sys_admin_enabled = self.admin_enabled
-
-            self.managers_enabled = self.node_if.get_param('managers_enabled')
-            self.status_msg.sys_managers_enabled = self.managers_enabled
-
+            self.develop_enabled = self.node_if.get_param('develop_enabled')
+            self.debug_enabled = self.node_if.get_param('debug_enabled')
+            self.managers_enabled_dict = self.node_if.get_param('managers_enabled_dict')
             self.run_mode = self.node_if.get_param('run_mode')
-            self.status_msg.sys_run_mode = self.run_mode
-
             self.user_restrictions = self.node_if.get_param('user_restrictions')
-            self.status_msg.user_restrictions = self.user_restrictions
-
         if do_updates == True:
-            pass
+            self.updateSystemAdminSettings()
         # self.publish_settings() # Make sure to always publish settings updates
 
     def resetCb(self,do_updates = True):
@@ -1100,10 +1098,13 @@ class SystemMgrNode():
 
     def update_temperatures(self):
         # Get the current temperatures
-
+        if len(self.status_msg.temperatures[0]) == 0:
+            return
+        
         # TODO: Should the temperature sensor or the entire subproc. cmd line be configurable?
         temp_string_mdegC = subprocess.check_output(
             ["cat", "/sys/class/thermal/thermal_zone0/temp"])
+       
         self.status_msg.temperatures[0] = float(temp_string_mdegC) / 1000.0
 
         # Check for temperature warnings and do thermal throttling
@@ -1192,29 +1193,70 @@ class SystemMgrNode():
     def setSaveStatusCb(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
 
-    def enableDebugCb(self, msg):
-        self.debug_enabled = msg.data
-        self.status_msg.sys_debug_enabled = msg.data
+    #######################
+    def updateSystemAdminSettings(self):
+        admin_password_valid = (self.admin_password_valid or self.run_mode == 'develop')
+        managers_enabled = self.MANAGERS_OPTIONS
+        if self.run_mode in self.managers_enabled_dict.keys():
+            managers_enabled = self.managers_enabled_dict[self.run_mode]
+
+
+        self.admin_mode_set = self.admin_enabled and admin_password_valid
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        self.status_msg.sys_admin_password_valid = admin_password_valid 
+        self.status_msg.sys_admin_mode_set = self.admin_mode_set
+        self.status_msg.sys_develop_enabled = self.develop_enabled   
+        self.status_msg.sys_debug_enabled = self.debug_enabled    
+
+        self.status_msg.sys_run_mode = self.run_mode
+        self.status_msg.sys_managers_options = self.MANAGERS_OPTIONS
+        managers_enabled = self.MANAGERS_OPTIONS
+        if self.run_mode in self.managers_enabled_dict.keys():
+            managers_enabled = self.managers_enabled_dict[self.run_mode]
+        self.status_msg.sys_managers_enabled = managers_enabled
+
+        self.status_msg.user_restrictions = self.user_restrictions
+
         self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('debug_enabled',msg.data)
-            self.node_if.save_config()
+        nepi_system.set_admin_mode(self.admin_mode_set)
+        nepi_system.set_develop_mode(self.develop_enabled)
+        nepi_system.set_debug_mode(self.debug_enabled)
+        nepi_system.set_managers_enabled(managers_enabled)
+        nepi_system.set_user_restrictions(self.user_restrictions)
+        nepi_system.set_run_mode(self.run_mode)
 
     def enableAdminCb(self, msg):
         self.admin_enabled = msg.data
-        self.status_msg.sys_admin_enabled = msg.data
-        self.publish_status()
+        self.updateSystemAdminSettings()
         if self.node_if is not None:
             self.node_if.set_param('admin_enabled',msg.data)
             self.node_if.save_config()
 
+    def setAdminPasswordCb(self, msg):
+        password = msg.data
+        if password == self.admin_password:
+            self.admin_password_valid = True
+            self.updateSystemAdminSettings()
+
+    def enableDevelopCb(self, msg):
+        self.develop_enabled = msg.data
+        self.updateSystemAdminSettings()
+        if self.node_if is not None:
+            self.node_if.set_param('develop_enabled',msg.data)
+            self.node_if.save_config()
+            
+    def enableDebugCb(self, msg):
+        self.debug_enabled = msg.data
+        self.updateSystemAdminSettings()
+        if self.node_if is not None:
+            self.node_if.set_param('debug_enabled',msg.data)
+            self.node_if.save_config()
 
     def setRunModeCb(self, msg):
         run_mode = msg.data
         if run_mode in self.RUN_MODES:
             self.run_mode = msg.data
-            self.status_msg.sys_run_mode = self.run_mode
-            self.publish_status()
+            self.updateSystemAdminSettings()
             if self.node_if is not None:
                self.node_if.set_param('run_mode',msg.data)
                self.node_if.save_config()
@@ -1227,12 +1269,13 @@ class SystemMgrNode():
             self.user_restrictions.remove(name)
         elif value == True and name in self.USER_RESTRICTION_OPTIONS:
             self.user_restrictions.append(name)
-        self.status_msg.user_restrictions = self.user_restrictions
-        self.publish_status()
+        self.updateSystemAdminSettings()
         if self.node_if is not None:
             self.node_if.set_param('user_restrictions',self.user_restrictions)
             self.node_if.save_config()
 
+
+    ###################
     def restartNepiCb(self, msg):
         if self.in_container == True:
             self.nepi_image.restart()
@@ -1726,10 +1769,16 @@ class SystemMgrNode():
 
     def provide_admin_status(self, req):
         response = AdminQueryResponse()
-        response.sys_debug_enabled = self.debug_enabled
         response.sys_admin_enabled = self.admin_enabled
+        response.sys_admin_password_valid = self.admin_password_valid 
+        response.sys_admin_mode_set = self.admin_mode_set
+        response.sys_develop_enabled = self.develop_enabled
+        response.sys_debug_enabled = self.debug_enabled
         response.sys_managers_options = self.MANAGERS_OPTIONS
-        response.sys_managers_enabled = self.managers_enabled
+        managers_enabled = self.MANAGERS_OPTIONS
+        if self.run_mode in self.managers_enabled_dict.keys():
+            managers_enabled = self.managers_enabled_dict[self.run_mode]
+        response.sys_managers_enabled = managers_enabled
         response.user_restrictions_options = self.USER_RESTRICTION_OPTIONS
         response.user_restrictions = self.user_restrictions
         response.sys_run_mode_options = self.RUN_MODES
