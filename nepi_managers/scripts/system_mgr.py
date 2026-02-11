@@ -172,6 +172,7 @@ class SystemMgrNode():
 
     node_if = None
     status_msg = MgrSystemStatus()
+    status_published = False
     sw_status_msg = MgrSoftwareStatus()
 
     storage_subdirs = dict()
@@ -1098,7 +1099,7 @@ class SystemMgrNode():
 
     def update_temperatures(self):
         # Get the current temperatures
-        if len(self.status_msg.temperatures[0]) == 0:
+        if len(self.status_msg.temperatures) == 0:
             return
         
         # TODO: Should the temperature sensor or the entire subproc. cmd line be configurable?
@@ -1209,10 +1210,8 @@ class SystemMgrNode():
         self.status_msg.sys_debug_enabled = self.debug_enabled    
 
         self.status_msg.sys_run_mode = self.run_mode
+
         self.status_msg.sys_managers_options = self.MANAGERS_OPTIONS
-        managers_enabled = self.MANAGERS_OPTIONS
-        if self.run_mode in self.managers_enabled_dict.keys():
-            managers_enabled = self.managers_enabled_dict[self.run_mode]
         self.status_msg.sys_managers_enabled = managers_enabled
 
         self.status_msg.user_restrictions = self.user_restrictions
@@ -1835,6 +1834,9 @@ class SystemMgrNode():
 
         # Now publish it
         if self.node_if is not None:
+            if self.status_published == False:
+                self.status_published = True
+                #self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
         # Always clear info strings after publishing
