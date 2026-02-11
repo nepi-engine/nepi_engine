@@ -472,9 +472,9 @@ class NetworkMgr:
             managed_ip_addrs = copy.deepcopy(nmanaged_ip_addrs)
             cmanaged_ip_addrs=[]
             self.nepi_config = self.get_nepi_system_config()
-            aliases = self.nepi_config['NEPI_ALIAS_IPS']
+            aliases = self.nepi_config['NEPI_ALIAS_IP_1']
             if aliases != "NONE" and aliases != "None" and aliases not in nmanaged_ip_addrs:
-                managed_ip_addrs.address(aliases)
+                managed_ip_addrs.append(aliases)
             self.managed_ip_addrs = managed_ip_addrs
             if self.managed_ip_addrs != nmanaged_ip_addrs:
                 self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
