@@ -831,7 +831,7 @@ class NepiDriversMgr(object):
         service_driver_msg.group_id = drv_dict['group_id']
         service_driver_msg.display_name = drv_dict['display_name']
         service_driver_msg.description = drv_dict['description']
-        service_driver_msg.value  = drv_dict['active']
+        service_driver_msg.active_state  = drv_dict['active']
         service_driver_msg.order  = drv_dict['order']
         service_driver_msg.msg_str = drv_dict['msg']
       except Exception as e:
@@ -943,7 +943,7 @@ class NepiDriversMgr(object):
         status_driver_msg.group_id = drv_dict['group_id']
         status_driver_msg.display_name = drv_dict['display_name']
         status_driver_msg.description = drv_dict['description']
-        status_driver_msg.value  = drv_dict['active']
+        status_driver_msg.active_state  = drv_dict['active']
         running_state = driver_name in self.discovery_node_dict.keys() or driver_name in self.discovery_classes_dict.keys()
         status_driver_msg.running_state = running_state
         status_driver_msg.order  = drv_dict['order']
