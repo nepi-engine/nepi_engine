@@ -287,7 +287,12 @@ class SystemMgrNode():
         nepi_system.set_nepi_config(self.nepi_config)
 
         self.status_msg.serial_number = self.nepi_config['NEPI_DEVICE_SN']
-        self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
+        hw_type = self.nepi_config['NEPI_HW_TYPE']
+        if hw_type != 'unknown':
+            self.status_msg.hw_type = hw_type
+        hw_model = self.nepi_config['NEPI_HW_MODEL']
+        if hw_model != 'unknown':
+            self.status_msg.hw_model = hw_model
         self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1

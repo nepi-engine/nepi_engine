@@ -408,14 +408,20 @@ class time_sync_mgr(object):
             if status_entry[0] not in self.status_msg.ntp_sources:
                 self.status_msg.ntp_sources.append(status_entry[0])
                 self.status_msg.currently_syncd.append(status_entry[1])
+                if status_entry[1] == True:
+                    self.clock_synced = True
                 self.status_msg.last_ntp_sync.append(status_entry[2])
                 self.status_msg.current_offset.append(status_entry[3])
             else:
                 ind = self.status_msg.ntp_sources.index(status_entry[0])
                 if ind != -1:
                     self.status_msg.currently_syncd[ind] = status_entry[1]
+                    if status_entry[1] == True:
+                        self.clock_synced = True
                     self.status_msg.last_ntp_sync[ind] = status_entry[2]
                     self.status_msg.current_offset[ind] = status_entry[3]
+
+        
 
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
