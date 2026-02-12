@@ -50,7 +50,7 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateBool
+                                DictString, DictStringEntry, UpdateBool, UpdateString
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse, \
                              OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
@@ -222,6 +222,9 @@ class SystemMgrNode():
     install_img_size = ''
 
     new_img_staging = None
+
+
+    node_names_dict = dict()
 
     init_complete = False
     ready = False
@@ -552,6 +555,10 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
             },
+            'node_names_dict': {
+                'namespace': self.base_namespace,
+                'factory_val': self.node_names_dict
+            },
         }
 
 
@@ -806,7 +813,23 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.restartNepiCb, 
                 'callback_args': ()
-            }
+            },
+            'update_node_name': {
+                'namespace': self.base_namespace,
+                'topic': 'update_node_name',
+                'msg': UpdateString,
+                'qsize': None,
+                'callback': self.updateNodeNameCb, 
+                'callback_args': ()
+            },
+            'reset_node_name': {
+                'namespace': self.base_namespace,
+                'topic': 'reset_node_name',
+                'msg': String,
+                'qsize': None,
+                'callback': self.resetNodeNameCb, 
+                'callback_args': ()
+            },
         }
 
         # Create Node Class ####################
@@ -981,8 +1004,10 @@ class SystemMgrNode():
             self.managers_enabled_dict = self.node_if.get_param('managers_enabled_dict')
             self.run_mode = self.node_if.get_param('run_mode')
             self.user_restrictions = self.node_if.get_param('user_restrictions')
+            self.node_names_dict = self.node_if.get_param('node_names_dict')
         if do_updates == True:
             self.updateSystemAdminSettings()
+
         # self.publish_settings() # Make sure to always publish settings updates
 
     def resetCb(self,do_updates = True):
@@ -1214,6 +1239,13 @@ class SystemMgrNode():
 
         self.status_msg.user_restrictions = self.user_restrictions
 
+        
+        node_name_aliases = []
+        for node_name in self.node_names_dict.keys():
+            node_name_aliases.append(self.node_names_dict[node_name])
+        self.status_msg.sys_node_name_keys = list(self.node_names_dict.keys())
+        self.status_msg.sys_node_name_aliases = node_name_aliases
+
         self.publish_status()
         nepi_system.set_admin_mode(self.admin_mode_set)
         nepi_system.set_develop_mode(self.develop_enabled)
@@ -1221,6 +1253,7 @@ class SystemMgrNode():
         nepi_system.set_managers_enabled(managers_enabled)
         nepi_system.set_user_restrictions(self.user_restrictions)
         nepi_system.set_run_mode(self.run_mode)
+        nepi_system.set_node_names_dict(self.node_names_dict)
 
     def enableAdminCb(self, msg):
         self.admin_enabled = msg.data
@@ -1276,6 +1309,58 @@ class SystemMgrNode():
     def restartNepiCb(self, msg):
         if self.in_container == True:
             self.nepi_image.restart()
+
+    def updateNodeNameCb(self, msg):
+        cur_node_name = msg.name
+        new_node_name = nepi_utils.get_clean_name(msg.value)
+        if cur_node_name != '' and new_node_name != '':
+
+            is_valid = False
+            count = 0
+            while is_valid == False:
+                is_valid = True
+                count = count + 1
+                for node_name in self.node_names_dict.keys():
+                    if new_node_name == self.node_names_dict[node_name]:
+                        is_valid = False
+                if is_valid == False:
+                    new_node_name = new_node_name + '_' + str(count)
+
+            
+            needs_update = True
+            for node_name in self.node_names_dict.keys():
+                set_node_name = self.node_names_dict[node_name]
+                if set_node_name == cur_node_name:
+                    self.node_names_dict[node_name] = new_node_name
+                    needs_update = False
+            if needs_update == True:
+                self.node_names_dict[cur_node_name] = new_node_name
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('node_names_dict',self.node_names_dict)
+            self.node_if.save_config()
+
+
+    def resetNodeNameCb(self, msg):
+        clear_node_name = msg.data
+        if clear_node_name != '':
+            purge_name = None
+            needs_update = True
+            for node_name in self.node_names_dict.keys():
+                set_node_name = self.node_names_dict[node_name]
+                if set_node_name == clear_node_name:
+                    purge_name = node_name
+                    needs_update = False
+            if needs_update == True and clear_node_name in self.node_names_dict.keys():
+                purge_name = clear_node_name
+        if purge_name is not None and purge_name in self.node_names_dict.keys():
+            del self.node_names_dict[purge_name]
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('node_names_dict',self.node_names_dict)
+            self.node_if.save_config()
+
+
 
 
     def ensure_reqd_subdirs(self):

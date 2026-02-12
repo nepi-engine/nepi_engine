@@ -180,6 +180,14 @@ class config_mgr(object):
                 'callback': self.saveParamsCb, 
                 'callback_args': ()
             },
+            'save_params_all': {
+                'namespace': self.base_namespace,
+                'topic': 'save_params_all',
+                'msg': String,
+                'qsize': None,
+                'callback': self.saveParamsAllCb, 
+                'callback_args': ()
+            },
             'save_system_cfgs': {
                 'namespace': self.base_namespace,
                 'topic': 'save_system_cfgs',
@@ -256,8 +264,7 @@ class config_mgr(object):
         self.initCb(do_updates = True)
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
-        nepi_system.set_config_folders(self.config_folders)
+
         self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_sdk.spin()
@@ -270,6 +277,8 @@ class config_mgr(object):
       if self.node_if is not None:
         pass
       if do_updates == True:
+        self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
+        nepi_system.set_config_folders(self.config_folders)
         nepi_sdk.set_param('config_folders',self.config_folders)
       self.publish_status()
 
@@ -295,15 +304,18 @@ class config_mgr(object):
 
 ####################################################
 
-    def get_filename_from_namespace(self,namespace):
+    def get_filename_from_namespace(self,namespace, save_all = False):
         if namespace[-1] == '/':
             namespace = namespace[:-1]
         base_namespace = nepi_sdk.get_base_namespace()
+        if save_all == True:
+            node_name = os.path.basename(namespace)
+            all_name = node_name.split('_')[0] + '_ALL'
         namespace = namespace.replace(base_namespace,'')
         if len(namespace) > 0:
             if namespace[0] == '/':
                 namespace = namespace [1:]
-        filename = namespace.replace('/','-')
+        filename = namespace.replace('/','-') + CFG_SUFFIX
         return filename
 
     def update_from_file(self,file_pathname, namespace):
@@ -322,14 +334,14 @@ class config_mgr(object):
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
         return True
 
-    def get_config_pathname(self, cfg_path, namespace):
-        filename = self.get_filename_from_namespace(namespace)
+    def get_config_pathname(self, cfg_path, namespace, save_all = False):
+        filename = self.get_filename_from_namespace(namespace, save_all = save_all)
         
         # Ensure the path we report actually exists
         if not os.path.isdir(cfg_path):
             os.makedirs(cfg_path)
 
-        pathname = os.path.join(cfg_path, filename + CFG_SUFFIX)
+        pathname = os.path.join(cfg_path, filename)
         return pathname
 
 
@@ -339,10 +351,15 @@ class config_mgr(object):
         namespace = msg.data
         #self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + self.USER_CFG_PATH )
         self.save_params(self.USER_CFG_PATH, namespace)
+
+    def saveParamsAllCb(self,msg):
+        namespace = msg.data
+        #self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + self.USER_CFG_PATH )
+        self.save_params(self.USER_CFG_PATH, namespace, save_all = True)
     
-    def save_params(self, cfg_path, namespace):
+    def save_params(self, cfg_path, namespace, save_all = False):
         if os.path.exists(cfg_path):
-            config_pathname = self.get_config_pathname(cfg_path, namespace)
+            config_pathname = self.get_config_pathname(cfg_path, namespace, save_all = save_all)
             #backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
 
             #self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )

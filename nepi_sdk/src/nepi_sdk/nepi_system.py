@@ -140,6 +140,8 @@ def set_system_folders(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
+##########################
+
 def get_config_folders(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'config_folders')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
@@ -149,6 +151,24 @@ def set_config_folders(value, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'config_folders')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
+
+def get_node_names_dict(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'node_names_dict')
+    node_names_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    if node_names_dict is None:
+        node_names_dict = dict()
+    return node_names_dict
+
+def set_node_names_dict(node_names_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'node_names_dict')
+    success = nepi_sdk.set_param(param_namespace, node_names_dict, log_name_list = log_name_list)
+    return success
+
+def check_node_name(node_name):
+    node_name_dict = get_node_names_dict()
+    if node_name in node_name_dict.keys():
+        node_name = node_name_dict[node_name]
+    return node_name
 
 ##########################
 

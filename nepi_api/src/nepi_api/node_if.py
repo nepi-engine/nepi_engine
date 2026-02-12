@@ -141,6 +141,8 @@ class NodeConfigsIF:
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
+        self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
         
         # if wait_cfg_mgr == True:
         #     self.msg_if.pub_warn("Waiting for Config Mgr")
@@ -148,6 +150,7 @@ class NodeConfigsIF:
 
         # Subscribe to save config for node namespace
         nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)
+        nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
         nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb)
         nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb)
         nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb)
@@ -215,6 +218,12 @@ class NodeConfigsIF:
         #if self.initCb is not None and not nepi_sdk.is_shutdown():
         #    self.initCb() # Callback provided by container class to update based on param server, etc.
 
+    def save_config_all(self):
+        self.msg_if.pub_debug("Saving Config All: " + str(self.namespace))
+        self.save_params_all_pub.publish(self.namespace)
+        #if self.initCb is not None and not nepi_sdk.is_shutdown():
+        #    self.initCb() # Callback provided by container class to update based on param server, etc.
+
     def reset_config(self):
         self.msg_if.pub_warn("Reseting Config: " + str(self.request_msg))
         success = False
@@ -254,6 +263,9 @@ class NodeConfigsIF:
 
     def _saveCb(self,msg):
         self.save_config()
+
+    def _saveAllCb(self,msg):
+        self.save_config_all()
 
     def _initCb(self,msg):
         self.init_config(do_updates = True)
@@ -1196,6 +1208,10 @@ class NodeClassIF:
     def save_config(self):
         if self.configs_if is not None:
             self.configs_if.save_config()
+
+    def save_config_all(self):
+        if self.configs_if is not None:
+            self.configs_if.save_config_all()
 
     def reset_config(self):
         if self.configs_if is not None:
