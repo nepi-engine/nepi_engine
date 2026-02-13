@@ -1440,7 +1440,7 @@ class SystemMgrNode():
         if self.node_if is not None:
             if self.status_published == False:
                 self.status_published = True
-                self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
+                #self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
         # Always clear info strings after publishing

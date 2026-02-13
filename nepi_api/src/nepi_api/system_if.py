@@ -1193,10 +1193,16 @@ class SaveDataIF:
 
             if self.navpose_save_namespace == self.namespace and 'navposes' in save_rate_dict.keys():
                 status_msg.log_navposes_enabled = self.save_data
-                status_msg.log_navposes_rate = save_rate_dict['navposes'][0]
+                try: 
+                    status_msg.log_navposes_rate = save_rate_dict['navposes'][0]
+                except:
+                    status_msg.log_navposes_rate = 0
             else:
                 status_msg.log_navposes_enabled = self.log_navposes_enabled
-                status_msg.log_navposes_rate = self.log_navposes_rate                
+                try: 
+                    status_msg.log_navposes_rate = self.log_navposes_rate
+                except:
+                    status_msg.log_navposes_rate = 0             
 
 
             if self.save_data_root_directory is not None:
@@ -1308,7 +1314,12 @@ class SaveDataIF:
         if 'navposes' in data_product_list:
             self.log_navposes_enabled = msg.save_data_enabled
             index = data_product_list.index('navposes')
-            self.log_navposes_rate = msg.save_data_rates[index]
+            try:
+                log_navposes_rate = msg.save_data_rates[index]
+                test = log_navposes_rate / 10
+            except:
+                log_navposes_rate = 0
+            self.log_navposes_rate = log_navposes_rate
 
 
     def _saveAllStatusCb(self,msg):
