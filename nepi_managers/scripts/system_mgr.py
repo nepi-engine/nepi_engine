@@ -51,7 +51,6 @@ from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest,
 
 from nepi_interfaces.msg import SystemState, SystemStatesStatus
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
@@ -266,7 +265,7 @@ class SystemMgrNode():
 
         nepi_system.set_nepi_config(self.nepi_config)
 
-        self.status_msg.serial_number = self.nepi_config['NEPI_DEVICE_SN']
+        self.status_msg.serial_number = str(self.nepi_config['NEPI_DEVICE_SN'])
         hw_type = self.nepi_config['NEPI_HW_TYPE']
         if hw_type != 'unknown':
             self.status_msg.hw_type = hw_type
@@ -369,9 +368,8 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Checking System Folders")
         # Ensure that the user partition is properly laid out
         self.storage_subdirs = {} # Populated in function below
-        if self.ensure_reqd_subdirs() is True:
-            # Now can advertise the system folder query
-            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
+        self.ensure_reqd_subdirs()
+
 
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
@@ -756,7 +754,6 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Starting System Status Messages")
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.updateSoftwareStatusCb, oneshot = True)
         nepi_sdk.start_timer_process(5, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
 
@@ -805,14 +802,6 @@ class SystemMgrNode():
             # nepi_storage has some additional logic
             self.getNEPIStorageDevice()
             
-            if self.in_container==True:
-                self.new_img_staging = self.new_img_folder
-
-                self.new_img_staging_removable = False
-            else:
-                self.new_img_staging = self.new_img_staging
-
-                self.new_img_staging_removable = self.new_img_staging_removable
 
             fw_str = self.get_fw_rev()
             self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
@@ -1052,10 +1041,6 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(5, self.updateTopicsServicesCb, oneshot = True)
  
 
-    def updateSoftwareStatusCb(self, event):
-        self.update_software_status()
-        nepi_sdk.start_timer_process(5, self.updateSoftwareStatusCb, oneshot = True)
-
 
     def setSaveStatusCb(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
@@ -1084,13 +1069,13 @@ class SystemMgrNode():
         user_restricted = []
         if self.develop_enabled == False:
             user_restricted = self.user_restrictions
-        self.status_msg.user_restricted = self.user_restricted
+        self.status_msg.user_restricted = user_restricted
 
         self.status_msg.rui_restrictions = self.rui_restrictions
         rui_restricted = []
         if self.develop_enabled == False:
             rui_restricted = self.rui_restrictions
-        self.status_msg.rui_restricted = self.rui_restricted
+        self.status_msg.rui_restricted = rui_restricted
 
         
         node_name_aliases = []
@@ -1105,7 +1090,6 @@ class SystemMgrNode():
         nepi_system.set_debug_mode(self.debug_enabled)
         nepi_system.set_managers_enabled(managers_enabled)
         nepi_system.set_user_restrictions(user_restricted)
-        nepi_system.set_rui_restrictions(rui_restricted)
         nepi_system.set_run_mode(self.run_mode)
         nepi_system.set_node_names_dict(self.node_names_dict)
 
@@ -1456,7 +1440,7 @@ class SystemMgrNode():
         if self.node_if is not None:
             if self.status_published == False:
                 self.status_published = True
-                #self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
+                self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
         # Always clear info strings after publishing
