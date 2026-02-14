@@ -62,8 +62,6 @@ class config_mgr(object):
     config_folders['factory_cfg']=FACTORY_CFG_PATH
     config_folders['user_cfg']=USER_CFG_PATH
     config_folders['system_cfg']=SYSTEM_CFG_PATH
-    
-    
 
 
     #######################
@@ -386,7 +384,7 @@ class config_mgr(object):
                 pathname_split = restore_pathname.rsplit('.', 1)[0].split('-', 1)
                 #self.msg_if.pub_warn("Got all split namespace parts for namespace: " + namespace + " : " + str(pathname_split))
                 if len(pathname_split[0]) > 1:
-                    restore_pathname_all = pathname_split[0].rsplit('_',1)[0] + '_ALL'
+                    restore_pathname_all = pathname_split[0].rsplit('_',1)[0] + '_ALL' # Split on last
                     if len(pathname_split) > 1:
                         restore_pathname_all = restore_pathname_all + '-' + pathname_split[1]
                     restore_pathname_all = restore_pathname_all + '.yaml'

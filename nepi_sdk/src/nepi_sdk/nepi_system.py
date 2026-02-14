@@ -164,7 +164,7 @@ def set_node_names_dict(node_names_dict, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, node_names_dict, log_name_list = log_name_list)
     return success
 
-def check_node_name(node_name):
+def get_node_name(node_name):
     node_name_dict = get_node_names_dict()
     if node_name in node_name_dict.keys():
         node_name = node_name_dict[node_name]

@@ -58,11 +58,11 @@ from nepi_interfaces.srv import *
 from nepi_interfaces.msg import *
 
 
+
 #######################
 ### Setup some global variables
 BASE_NAMESPACE = None
-
-
+DEFUALT_CFG_FOLDERS = ['/mnt/nepi_storage/user_cfg','/mnt/nepi_config/system_cfg']
 
 #######################
 ### Log Utility Functions
@@ -430,6 +430,55 @@ def load_params_from_file(file_path, namespace = None, prime_key = None, log_nam
     else:
         log_msg_warn("Param file not found: " + file_path, log_name_list = log_name_list)
     return params_dict
+
+def load_node_config(node_name, load_name = None):
+  config_folders = DEFUALT_CFG_FOLDERS
+  param_namespace = create_namespace(get_base_namespace(),'config_folders')
+  sys_config_folders = get_param(param_namespace)
+  if sys_config_folders is not None:
+    config_folders = sys_config_folders
+  success = False
+  config_file = None
+  for config_folder in config_folders:
+
+    if load_name is not None:
+      load_file = os.path.join(config_folder, load_name + ".yaml")
+      if os.path.exists(load_file):
+        config_file = load_file
+      load_name_all = load_name[0].rsplit('_',1)[0] + '_ALL' # Split on last
+      load_file_all = os.path.join(config_folder, load_name_all + ".yaml")
+      if os.path.exists(load_file_all):
+        config_file = load_file_all
+        
+    if config_file is None:
+      node_file = os.path.join(config_folder, node_name + ".yaml")
+      if os.path.exists(node_file):
+        config_file = node_file
+        if load_name is not None:
+          shutil.copy2(config_file, load_file)
+
+      node_name_all = node_name[0].rsplit('_',1)[0] + '_ALL' # Split on last
+      node_file_all = os.path.join(config_folder, node_name_all + ".yaml")
+      if os.path.exists(node_file_all):
+        config_file = node_file_all
+        if load_name is not None:
+          shutil.copy2(node_file_all, load_file_all)
+    if load_name is None:
+      load_name = node_name
+
+    if config_file is None:
+      log_msg_info("No config file found for " + node_name + " in " + config_folder)
+  
+  if config_file is not None:
+    node_namespace = os.path.join(nepi_sdk.get_base_namespace(), load_name)
+    log_msg_warn("Loading parameters from " + config_file + " for " + node_namespace)
+    rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]
+    try:
+      subprocess.run(rosparam_load_cmd)
+      success = False
+    except:
+      logger.log_warn("Failed to load config_file: " + config_file)
+  return success
 
 
 def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):

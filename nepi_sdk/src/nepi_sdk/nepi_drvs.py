@@ -24,6 +24,7 @@ import zipfile
 import getpass
 import importlib
 import subprocess
+import shutil
 
 
 import numpy as np
@@ -43,7 +44,6 @@ logger = Logger(log_name = log_name)
 ### Driver Utility Functions
 
 DRIVERS_FOLDER = '/opt/nepi/nepi_engine/lib/nepi_drivers'
-DRIVERS_CFG_FOLDER = '/mnt/nepi_storage/user_cfg'
 DRIVER_FILE_TYPES = ['Node','Driver', 'Discovery']
 DRIVER_KEYS = ['node','driver','discovery']
 
@@ -97,6 +97,7 @@ def getDriversDict(search_path):
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['type'] = 'None'
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options'] = []
                         new_dict['DISCOVERY_DICT']['OPTIONS']['None']['default'] = 'None'
+
                       options_dict = new_dict['DISCOVERY_DICT']['OPTIONS']
                       # Clean up options
                       for option_name in options_dict.keys():
@@ -105,6 +106,13 @@ def getDriversDict(search_path):
                           new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'] = []
                         default_val = options_dict[option_name]['default']
                         new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = default_val
+
+                      # Make sure they are strings
+                      for option_name in options_dict.keys():
+                        new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
+                        new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'])
+                        for i, option in enumerate(new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options']):
+                          new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options'][i] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i])
 
                       #logger.log_warn("Got driver dict from file: " + str(new_dict))
 
@@ -576,17 +584,6 @@ def unimportDriverClass(module_name):
           success = False
     return success
 
-
-def checkLoadConfigFile(node_name):
-  config_folder = DRIVERS_CFG_FOLDER
-  config_file = os.path.join(config_folder, node_name + ".yaml")
-  node_namespace = os.path.join(nepi_sdk.get_base_namespace(), node_name)
-  if os.path.exists(config_file):
-    print("Loading parameters from " + config_file + " to " + node_namespace)
-    rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]
-    subprocess.run(rosparam_load_cmd)
-  else:
-    print("No config file found for " + node_name + " in " + DRIVERS_CFG_FOLDER)
 
 #######################
 ### Serial Port Utility Functions
