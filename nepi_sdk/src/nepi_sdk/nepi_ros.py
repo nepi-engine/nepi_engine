@@ -344,7 +344,8 @@ def check_node_by_process(sub_process):
     return running
 
 
-def kill_node(node_name, log_name_list = []):
+def kill_node(node_name, sub_process = None, log_name_list = []):
+  success = False
   kill_node = ""
   if check_for_node(node_name):
     nodes = os.popen("rosnode list").readlines()
@@ -354,9 +355,14 @@ def kill_node(node_name, log_name_list = []):
         break
   if kill_node != "":
     os.system("rosnode kill " + kill_node)
+    if sub_process is not None:
+      sleep(2)
+      success = kill_node_process(node_name, sub_process, log_name_list)
+  return success
+
 
 def kill_node_process(node_name, sub_process, log_name_list = []):
-    log_msg_warn("nepi_sdk: Killing app node: " + node_name, log_name_list = log_name_list)
+    log_msg_warn("nepi_sdk: Killing node: " + node_name, log_name_list = log_name_list)
     success = False
     if sub_process.poll() is None:
       sub_process.terminate()
@@ -375,17 +381,20 @@ def kill_node_process(node_name, sub_process, log_name_list = []):
         time.sleep(1)
     if sub_process.poll() is not None:
       success = True
-      log_msg_warn("nepi_sdk: Killed app node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: Killed node: " + node_name, log_name_list = log_name_list)
     else:
-      log_msg_warn("nepi_sdk: failed to app node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: failed to node: " + node_name, log_name_list = log_name_list)
     return success
         
 
 def kill_node_namespace(node_namespace, log_name_list = []):
+  success = False
   try:
     subprocess.call(["rosnode","kill", node_namespace])
+    success = True
   except Exception as e:
     log_msg_debug("nepi_sdk: Failed to kill node_namespace: " + node_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return success
 
 def spin():
   rospy.spin()
@@ -494,7 +503,7 @@ def save_params_to_file(file_path, namespace, save_all = False, log_name_list = 
             params_dict[key] = params[key]
     else:
       params_dict = params
-    #Try and initialize app param values
+    #Try and initialize param values
     try:
       rosparam.dump_params(file_path, namespace)
     except Exception as e:

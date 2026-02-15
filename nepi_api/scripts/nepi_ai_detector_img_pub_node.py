@@ -610,11 +610,6 @@ class AiDetectorImgPub:
             if img_topic not in self.imgs_info_dict.keys():
                 return
 
-            needs_save = False
-            if self.save_data_if is not None:
-                needs_save = self.save_data_if.data_product_should_save(self.data_product)
-            
-            
 
             if self.imgs_info_dict[img_topic]['img_connected'] == False:
                 self.msg_if.pub_warn('Connected to image topic: ' + img_topic)
@@ -622,24 +617,17 @@ class AiDetectorImgPub:
 
 
 
-            needs_img = True
-            # needs_img = False
-            # if img_topic in self.imgs_info_dict.keys():
-            #     self.img_node_lock.acquire()
-            #     if  self.img_node_dict[img_topic]['img_if'] is not None:
-            #         has_subs = self.img_node_dict[img_topic]['img_if'].has_subscribers_check()
-            #         if has_subs == True:
-            #             needs_img = True
-            #     self.img_node_lock.release()
-            # if self.imgs_info_dict[img_topic]['publishing'] == False:
-            #     self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
-            # if ( needs_img or needs_save ) and self.pub_image_enabled:
+            needs_img = False
+            if img_topic in self.imgs_info_dict.keys():
+                self.img_node_lock.acquire()
+                if  self.img_node_dict[img_topic]['img_if'] is not None:
+                    needs_img = self.img_node_dict[img_topic]['img_if'].needs_data_check()
 
 
             if self.imgs_info_dict[img_topic]['publishing'] == False:
-                pass #self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
+                pass 
             
-            if ( needs_img or needs_save ) and self.pub_image_enabled:
+            if ( needs_img ) and self.pub_image_enabled:
                 start_time = nepi_sdk.get_time()   
                 
 
@@ -805,23 +793,10 @@ class AiDetectorImgPub:
 
     def publishImgData(self, img_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_list = []):
 
-            needs_save = False
-            if self.save_data_if is not None:
-                needs_save = self.save_data_if.data_product_should_save(self.data_product)
-
-            needs_img = True
-            # needs_img = False
-            # if img_topic in self.imgs_info_dict.keys():
-            #     self.img_node_lock.acquire()
-            #     if  self.img_node_dict[img_topic]['img_if'] is not None:
-            #         has_subs = self.img_node_dict[img_topic]['img_if'].has_subscribers_check()
-            #         if has_subs == True:
-            #             needs_img = True
-            #     self.img_node_lock.release()
-            
+           
             if self.imgs_info_dict[img_topic]['publishing'] == False:
-                pass #self.msg_if.pub_warn('Subscriber got need_img, need_save, and pub_img checks for image topic: ' + img_topic + ' : ' + str([needs_img, needs_save,self.pub_image_enabled]))
-            if ( needs_img or needs_save ) and self.pub_image_enabled:
+                pass 
+            if self.pub_image_enabled:
 
                 if img_topic in self.imgs_info_dict.keys():
 

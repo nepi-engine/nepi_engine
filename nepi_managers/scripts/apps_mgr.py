@@ -477,7 +477,10 @@ class NepiAppsMgr(object):
         status_app_msg.pkg_name = app['APP_DICT']['pkg_name']
         status_app_msg.group_name = app['APP_DICT']['group_name']
         status_app_msg.description = app['APP_DICT']['description']
-        status_app_msg.node_name = app['APP_DICT']['node_name']
+        node_name = app['APP_DICT']['node_name']
+        status_app_msg.node_name = node_name
+        namespace = nepi_sdk.create_namespace(self.base_namespace,node_name)
+        status_app_msg.namespace = namespace
         status_app_msg.app_file = app['APP_DICT']['app_file']
         status_app_msg.app_path = app['APP_DICT']['app_path']   
         status_app_msg.rui_files_list = app['RUI_DICT']['rui_files']

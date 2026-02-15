@@ -117,7 +117,6 @@ class IDXDeviceIF:
     max_range_m = 1.0
 
     data_products_list = []
-    data_products_save_list = []
 
     data_product_dict = dict()
 
@@ -234,7 +233,7 @@ class IDXDeviceIF:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-        self.msg_if.pub_warn("Using Factory Contrls: " + str(self.factory_controls_dict))
+        self.msg_if.pub_warn("Using Factory Controls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
 
@@ -397,6 +396,7 @@ class IDXDeviceIF:
         }
         
 
+        self.msg_if.pub_warn("Using Factory Controls start_range_ratio: " + str(self.factory_controls_dict['start_range_ratio']))
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -512,7 +512,7 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
 
-        success = nepi_sdk.wait()
+        nepi_sdk.sleep(2)
 
         ##############################
         # Update vals from param server
@@ -608,13 +608,7 @@ class IDXDeviceIF:
 
         ##################################
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
-        factory_data_rates= {}
-        for d in self.data_products_save_list:
-            factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-        if 'color_image' in self.data_products_save_list:
-            factory_data_rates['color_image'] = [1.0, 0.0, 100] 
-        
+        self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)     
 
         factory_filename_dict = {
             'prefix': "", 
@@ -625,10 +619,8 @@ class IDXDeviceIF:
             'add_node_name': True
             }
 
-        self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
         sd_namespace = self.namespace
-        self.save_data_if = SaveDataIF(data_products = self.data_products_save_list,
-                                factory_rate_dict = factory_data_rates,
+        self.save_data_if = SaveDataIF(
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                                 log_name_list = self.log_name_list,
@@ -737,15 +729,20 @@ class IDXDeviceIF:
             self.brightness_ratio = self.node_if.get_param('brightness_ratio')
             self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
             self.threshold_ratio = self.node_if.get_param('threshold_ratio')  
+            self.msg_if.pub_warn("Starting range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
             self.start_range_ratio = self.node_if.get_param('start_range_ratio')
             self.stop_range_ratio = self.node_if.get_param('stop_range_ratio')
+            self.msg_if.pub_warn("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
+
 
             self.pt_mounted = self.node_if.get_param('pt_mounted')
             self.pt_topic = self.node_if.get_param('pt_topic')
+            self.node_if.save_config()
 
-
-      if do_updates == True:
-        self.ApplyConfigUpdates()
+      if do_updates == True and self.node_if is not None:
+        #self.ApplyConfigUpdates()
+        pass
+        
       self.publish_status()
 
     def resetCb(self,do_updates = True):
@@ -806,6 +803,7 @@ class IDXDeviceIF:
             self.msg_if.pub_warn("Apply Config Framerate: " + str(self.max_framerate))
             self.setMaxFramerate(self.max_framerate)
         if (self.setRangeRatio is not None):
+            #self.msg_if.pub_warn("Applying range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
             self.setRangeRatio(self.start_range_ratio, self.stop_range_ratio)
 
 
@@ -823,17 +821,6 @@ class IDXDeviceIF:
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
-        self.data_products_save_list.append(data_product)
-        if data_product == 'color_image':
-            pass
-        elif data_product == 'bw_image':
-            pass
-        elif data_product == 'intensity_map':
-            self.data_products_save_list.append(data_product + '_image')
-        elif data_product == 'depth_map':
-            self.data_products_save_list.append(data_product + '_image')
-        elif data_product == 'pointcloud':
-            self.data_products_save_list.append(data_product + '_image')
         self.data_product_dict[data_product] = dp_dict
 
         # do wait here for all
@@ -1072,21 +1059,7 @@ class IDXDeviceIF:
 
         self.factoryResetCb(do_updates = True)
 
-
-
-
-    def provide_capabilities(self, _):
-        self.caps_report.data_products = self.data_products_list
-        data_product_image_topics = []
-        for data_product in self.data_products_list:
-            image_topic = 'None'
-            if data_product in self.data_product_dict.keys():
-                if 'image_topic' in self.data_product_dict[data_product].keys():
-                    image_topic = self.data_product_dict[data_product]['image_topic']
-            data_product_image_topics.append(image_topic)
-        self.caps_report.data_product_image_topics = data_product_image_topics
-        return self.caps_report
-    
+  
     def update_fps(self,data_product):
         last_data_time = copy.deepcopy(self.last_data_time[data_product])
         self.last_data_time[data_product] = nepi_utils.get_time()
@@ -1110,7 +1083,6 @@ class IDXDeviceIF:
     # Image from img_get_function can be CV2 or ROS image.  Will be converted as needed in the thread
     def image_thread_proccess(self,data_product):
         cv2_img = None
-        ros_img = None
 
         if data_product not in self.data_product_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
@@ -1128,7 +1100,6 @@ class IDXDeviceIF:
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
                 dp_namespace = self.namespace
                 dp_if = ColorImageIF(namespace = dp_namespace, 
-                            data_product_name = data_product, 
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
@@ -1146,17 +1117,13 @@ class IDXDeviceIF:
                 return
 
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
             while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
                 nepi_sdk.sleep(1)
+            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
-                dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = self.save_data_if.data_product_should_save(data_product)
-                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
-
                 # Get data if requried
-                get_data = dp_has_subs or dp_should_save
+                get_data = dp_if.needs_data_check()
                 if get_data == True:
                     acquiring = True
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
@@ -1181,8 +1148,6 @@ class IDXDeviceIF:
                                                         width_deg = self.width_deg,
                                                         height_deg = self.height_deg
                                                         )
-                        if (dp_should_save == True):
-                            self.save_data_if.save(data_product,cv2_img,timestamp = timestamp,save_check=False)
 
 
                         self.update_fps(data_product)
@@ -1206,8 +1171,7 @@ class IDXDeviceIF:
 
 
     def depth_map_thread_proccess(self,data_product):
-        cv2_depth_map = None
-        ros_img = None
+        np_depth_map = None
 
         if data_product not in self.data_product_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
@@ -1243,56 +1207,46 @@ class IDXDeviceIF:
                 return
 
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
             while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
                 nepi_sdk.sleep(1)
+            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
-                dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = self.save_data_if.data_product_should_save(data_product)
-                dp_should_save = dp_should_save or self.save_data_if.data_product_should_save(data_product + '_image')
-                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
-
                 # Get data if requried
-                get_data = dp_has_subs or dp_should_save
+                get_data = dp_if.needs_data_check()
                 if get_data == True:
+                    #self.msg_if.pub_warn("Got Depth Map Needs Data", log_name_list = self.log_name_list)
+
                     acquiring = True
 
-                    status, msg, cv2_depth_map, timestamp, encoding = dp_get_data()
-                    if (status is False or cv2_depth_map is None):
+                    status, msg, np_depth_map, timestamp, encoding = dp_get_data()
+                    #print('IDX Min Max Depths: ' + str([np.nanmin(np_depth_map),np.nanmax(np_depth_map)]) )
+                    if (status is False or np_depth_map is None):
                         #self.msg_if.pub_warn("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
-                    else:
-                        #self.msg_if.pub_warn("Got Data: " + data_product, throttle_s = 5.0)
-                        
+                    else:                       
                         # Get Image Info and Pub Status if Changed
                         cur_width = self.width_px
                         cur_height = self.height_px
-                        cv2_shape = cv2_depth_map.shape
+                        cv2_shape = np_depth_map.shape
                         self.width_px = cv2_shape[1] 
                         self.height_px = cv2_shape[0] 
 
 
-                        if (dp_has_subs == True):
-                            #Publish Ros Image
-                            range_m = self.max_range_m - self.min_range_m
-                            min_range_m = self.min_range_m + self.start_range_ratio * range_m
-                            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                            [cv2_depth_map, cv2_depth_map_img] = dp_if.publish_cv2_depth_map(cv2_depth_map,
-                                                    encoding = encoding,
-                                                    width_deg = self.width_deg,
-                                                    height_deg = self.height_deg,
-                                                    min_range_m = min_range_m,
-                                                    max_range_m = max_range_m,
-                                                    timestamp = timestamp
-                                                    )
-                        if (dp_should_save == True):
-                            self.save_data_if.save(data_product,cv2_depth_map,timestamp = timestamp,save_check=False)
-                            self.save_data_if.save(data_product + '_image',cv2_depth_map_img,timestamp = timestamp,save_check=False)
+                        #Publish Ros Image
+                        range_m = self.max_range_m - self.min_range_m
+                        min_range_m = self.min_range_m + self.start_range_ratio * range_m
+                        max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
+                        np_depth_map = dp_if.publish_np_depth_map(np_depth_map,
+                                                encoding = encoding,
+                                                width_deg = self.width_deg,
+                                                height_deg = self.height_deg,
+                                                min_range_m = min_range_m,
+                                                max_range_m = max_range_m,
+                                                timestamp = timestamp
+                                                )
 
                         self.update_fps(data_product)
-
-                        #self.msg_if.pub_debug("Got cv2_depth_map size: " + str(self.width_px) + ":" + str(self.height_px), log_name_list = self.log_name_list, throttle_s = 5.0)
                         if cur_width != self.width_px or cur_height != self.height_px:
                             self.publish_status()
 
@@ -1316,7 +1270,6 @@ class IDXDeviceIF:
     # Pointcloud from pointcloud_get_function can be open3D or ROS pointcloud.  Will be converted as needed in the thread
     def pointcloud_thread_proccess(self,data_product):
         o3d_pc = None
-        ros_pc = None
 
         if data_product not in self.data_product_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
@@ -1342,7 +1295,6 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
-            self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
@@ -1350,38 +1302,30 @@ class IDXDeviceIF:
 
         
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_warn("Starting thread with data_product dict: " + data_product + " " + str(dp_dict))
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
             while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
                 nepi_sdk.sleep(1)
+            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
- 
-                # Get Data Product Dict and Data_IF
-                dp_has_subs = dp_if.has_subscribers_check()
-                dp_should_save = self.save_data_if.data_product_should_save(data_product)
-                dp_should_save = dp_should_save or self.save_data_if.data_product_should_save(data_product + '_image')
-                dp_should_save = dp_should_save or self.save_data_if.data_product_snapshot_enabled(data_product)
-
                 # Get data if requried
-                get_data = dp_has_subs or dp_should_save
+                get_data = dp_if.needs_data_check()
                 if get_data == True:
                     acquiring = True
                     status, msg, o3d_pc, timestamp, pc_frame = dp_get_data()
-                    if o3d_pc is not None:
-                        if (dp_has_subs == True):
-                            range_m = self.max_range_m - self.min_range_m
-                            min_range_m = self.min_range_m + self.start_range_ratio * range_m
-                            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                            [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(o3d_pc,
-                                                    width_deg = self.width_deg,
-                                                    height_deg = self.height_deg,
-                                                    min_range_m = min_range_m,
-                                                    max_range_m = max_range_m,
-                                                    timestamp = timestamp
-                                                    )
-                        if (dp_should_save == True ):
-                            self.save_data_if.save(data_product,o3d_pc,timestamp = timestamp,save_check=False)
-                            self.save_data_if.save(data_product + '_image',cv2_pc_img,timestamp = timestamp,save_check=False)
+                    if (status is False or o3d_pc is None):
+                        #self.msg_if.pub_warn("No Data Recieved: " + data_product, throttle_s = 5.0)
+                        pass
+                    else:
+                        range_m = self.max_range_m - self.min_range_m
+                        min_range_m = self.min_range_m + self.start_range_ratio * range_m
+                        max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
+                        [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(o3d_pc,
+                                                width_deg = self.width_deg,
+                                                height_deg = self.height_deg,
+                                                min_range_m = min_range_m,
+                                                max_range_m = max_range_m,
+                                                timestamp = timestamp
+                                                )
 
                         self.update_fps(data_product)
 
@@ -1410,6 +1354,11 @@ class IDXDeviceIF:
 
  
 
+
+    def provide_capabilities(self, _):
+        self.caps_report.data_products = self.data_products_list
+        return self.caps_report
+
     # Function to update and publish status message
     def publishStatusCb(self,timer):
         self.publish_status()
@@ -1427,16 +1376,13 @@ class IDXDeviceIF:
         self.status_msg.resolution_current = res_str
 
         self.status_msg.max_framerate = self.max_framerate
-        self.status_msg.data_products = self.data_products_list
-        data_product_image_topics = []
-        for data_product in self.data_products_list:
-            image_topic = 'None'
-            if data_product in self.data_product_dict.keys():
-                if 'image_topic' in self.data_product_dict[data_product].keys():
-                    image_topic = self.data_product_dict[data_product]['image_topic']
-            data_product_image_topics.append(image_topic)
-        self.status_msg.data_product_image_topics = data_product_image_topics
 
+        data_products = []
+        if self.save_data_if is not None:
+            data_products = self.save_data_if.get_data_products()
+        self.status_msg.data_products = data_products
+
+            
         framerates = []
         for dp in self.current_fps.keys():
             framerates.append(self.current_fps[dp])

@@ -374,12 +374,12 @@ class config_mgr(object):
         config_folders = ['user_cfg','system_cfg','factory_cfg']
         success = False
         for folder in config_folders:
-            self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " folder: " + str(folder))
+            #self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " folder: " + str(folder))
             if folder in self.config_folders.keys():
                 restore_path = self.config_folders[folder]
                 # Restore config if exits
                 restore_pathname = self.get_config_pathname(restore_path, namespace)
-                self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
+                #self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
                 restore_pathname_all = None
                 pathname_split = restore_pathname.rsplit('.', 1)[0].split('-', 1)
                 #self.msg_if.pub_warn("Got all split namespace parts for namespace: " + namespace + " : " + str(pathname_split))
@@ -388,7 +388,7 @@ class config_mgr(object):
                     if len(pathname_split) > 1:
                         restore_pathname_all = restore_pathname_all + '-' + pathname_split[1]
                     restore_pathname_all = restore_pathname_all + '.yaml'
-                self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
+                #self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
                 if restore_pathname_all is not None:
                     if os.path.exists(restore_pathname_all):
                         restore_pathname = restore_pathname_all

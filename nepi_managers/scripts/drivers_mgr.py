@@ -451,14 +451,15 @@ class NepiDriversMgr(object):
           if node_name in node_list:
               self.msg_if.pub_warn("Killing driver node " + str(node_name) + " for driver: " + str(driver_name))
               sub_process = self.discovery_node_dict[driver_name]['subprocess']
-              success = nepi_drvs.killDriverNode(node_name,sub_process)
+              success = nepi_sdk.kill_node(node_name,sub_process = sub_process)
               if success:
                 self.msg_if.pub_warn("Killed driver node " + str(node_name) + " for driver: " + str(driver_name))
-                if driver_name in self.discovery_node_dict.keys():
-                  del self.discovery_node_dict[driver_name]
-                  self.msg_if.pub_warn("Deleted driver node " + str(node_name) + " dict entry for driver: " + str(driver_name))
               else:
                 self.msg_if.pub_warn("Failed to kill driver node " + str(node_name) + " for driver: " + str(driver_name))
+              if driver_name in self.discovery_node_dict.keys():
+                del self.discovery_node_dict[driver_name]
+                self.msg_if.pub_warn("Deleted driver node " + str(node_name) + " dict entry for driver: " + str(driver_name))
+
       if process == "CALL":
         if driver_name in self.discovery_classes_dict.keys():
           self.msg_if.pub_warn("Disabling driver: " + str(driver_name))
@@ -606,9 +607,10 @@ class NepiDriversMgr(object):
         self.publishDiscoverySettingsStatus(driver_name) 
     # Publish Status
     self.publish_status()
-    # And now that we are finished, start a timer for the drvt runDiscovery()
+    # And now that( we are finished, start a timer for the drvt runDiscovery()
     nepi_sdk.sleep(self.UPDATE_CHECK_INTERVAL,100)
-    nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+    if nepi_sdk.is_shutdown() == False:
+      nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
     drvs_dict = copy.deepcopy(self.drvs_dict)

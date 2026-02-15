@@ -377,35 +377,48 @@ def grayscale_to_rgb(gray_image):
     
 
 
-def cv2DepthMap_to_cv2ColorImg(cv2_depth_map, min_range = None, max_range = None, min_ratio = 0, max_ratio = 1):
+def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = None, min_ratio = 0, max_ratio = 1):
 
     cv2_img = None
+    cv2_img_min_range_m = 0
+    cv2_img_max_range_m = 0
     try:
-        depth_data = (np.array(cv2_depth_map, dtype=np.float32)) # replace nan values
+        depth_data = (np.array(np_depth_map, dtype=np.float32)) # replace nan values
+
         # Get range data
-        if min_range is None:
-            min_range = depth_data.min()
-        if max_range is None:
-            max_range = depth_data.max()
-        delta_range_m = max_range_m - min_range_m
-        # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
-        max_range_m = min_range_m + stop_range_ratio * delta_range_m
-        min_range_m = min_range_m + start_range_ratio * delta_range_m
-        delta_range_m = max_range_m - min_range_m
+        if min_range_m is None:
+            min_depth = np.nanmin(depth_data)
+        else:
+           min_depth = min_range_m / 1000
+
+        if max_range_m is None:
+            max_depth = np.nanmax(depth_data)
+        else:
+           max_depth = max_range_m / 1000
+
+        delta_depth = max_depth - min_depth
+        # Adjust range based on user inputs
+        max_depth_adj = min_depth + max_ratio * delta_depth
+        min_depth_adj = min_depth + min_ratio * delta_depth
+        delta_depth_adj = max_depth_adj - min_depth_adj
+
         # Filter depth_data in range
-        depth_data[np.isnan(depth_data)] = max_depth 
-        depth_data[depth_data <= min_depth] = max_depth # set to max
-        depth_data[depth_data >= max_depth] = max_depth # set to max
+        depth_data[np.isnan(depth_data)] = max_depth_adj 
+        depth_data[depth_data <= min_depth_adj] = max_depth_adj # set to max
+        depth_data[depth_data >= max_depth_adj] = max_depth_adj # set to max
+
+
         # Create colored cv2 depth image
-        depth_data = depth_data - min_depth # Shift down 
-        depth_data = np.abs(depth_data - max_depth) # Reverse for colormap
-        depth_data = np.array(255*depth_data/delta_range,np.uint8) # Scale for bgr colormap
+        depth_data = depth_data - min_depth_adj # Shift down 
+        depth_data = np.abs(depth_data - max_depth_adj) # Reverse for colormap
+        depth_data = np.array(255*depth_data/delta_depth_adj,np.uint8) # Scale for bgr colormap
         cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
+        cv2_img_min_range_m = min_depth_adj * 1000
+        cv2_img_max_range_m = max_depth_adj * 1000
     except Exception as e:
         logger.log_warn("Failed convert depth map to color img: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    return [cv2_img,cv2_img_min_range_m,cv2_img_max_range_m]
 
-    
-    return cv2_img
 ###########################################
 ### Image filter functions    
 

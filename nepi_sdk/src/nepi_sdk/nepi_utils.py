@@ -814,3 +814,42 @@ def check_ratio(ratio):
     if ratio > 1:
        ratio = 1
     return ratio
+
+
+####################
+## Class Util Funtions
+
+
+def importClass(file_name,file_path,module_name,class_name):
+      module_class = None
+      success = False
+      msg = "failed"
+      file_list = os.listdir(file_path)
+      #logger.log_warn("Looking for class file: " + str(file_name) + " : " + str(file_list))
+      if file_name in file_list:
+        sys.path.append(file_path)
+        try:
+          module = importlib.import_module(module_name)
+          try:
+            module_class = getattr(module, class_name)
+            success = True
+            msg = 'success'
+          except Exception as e:
+            logger.log_warn("Failed to import class from module with exception: " + class_name +" "+ module_name +" "+ str(e))
+        except Exception as e:
+            logger.log_warn("Failed to import module with exception: " + module_name +" "+ str(e))
+      else:
+        logger.log_warn("Failed to find file in path: " + file_name +" "+ file_path)
+      return success, msg, module_class
+
+
+def unimportClass(module_name):
+    success = True
+    if module_name in sys.modules:
+        try:
+           sys.modules.pop(module_name)
+        except:
+            logger.log_info("Failed to clordered_unimport module: " + module_name)
+        if module_name in sys.modules:
+          success = False
+    return success
