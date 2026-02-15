@@ -111,8 +111,8 @@ def getDriversDict(search_path):
                       for option_name in options_dict.keys():
                         new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
                         new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'])
-                        for i, option in enumerate(new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options']):
-                          new_dict['DISCOVERY_DICT']['OPTIONS']['None']['options'][i] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i])
+                        for i, option in enumerate(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options']):
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i])
 
                       #logger.log_warn("Got driver dict from file: " + str(new_dict))
 

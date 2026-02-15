@@ -759,7 +759,7 @@ class NepiDriversMgr(object):
           setting_msgs_list.append(setting_msg)
         
         settings_status_msg.settings_list = setting_msgs_list
-        self.msg_if.pub_info("Updated Settings List Msg: " + str(setting_msgs_list))
+        #self.msg_if.pub_info("Updated Settings List Msg: " + str(setting_msgs_list))
         caps_msgs_list = []
         for setting_name in settings.keys():
           cap_setting = settings[setting_name]
@@ -880,18 +880,7 @@ class NepiDriversMgr(object):
 
   def moveDriverNone(self,driver_name,drvs_dict):
     return drvs_dict
-    
-  def updateMsgCb(self,msg):
-    self.msg_if.pub_info("Got Update driver message msg: " + str(msg))
-    driver_name = msg.name
-    msg_data = msg.data
-    drvs_dict = copy.deepcopy(self.drvs_dict)
-    if driver_name in drvs_dict.keys() and driver_name != 'None':
-      drvs_dict[driver_name]['msg'] = msg_data
-      self.drvs_dict = drvs_dict
-      self.publish_status()
-      if self.node_if is not None:
-        self.node_if.set_param("drvs_dict",self.drvs_dict)
+
 
  
   def enableRetryCb(self,msg):
