@@ -73,6 +73,8 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     stop_range_ratio = 1.0,
     min_range_m = 0.0,
     max_range_m = 1.0,
+    width_deg = 110,
+    height_deg = 70,    
     zoom_ratio = 0.5, 
     rotate_ratio = 0.5,
     )
@@ -118,7 +120,7 @@ class IDXDeviceIF:
 
     data_products_list = []
 
-    data_product_dict = dict()
+    data_products_dict = dict()
 
     update_navpose_interval_sec = float(1)/UPDATE_NAVPOSE_RATE_HZ
     last_gps_timestamp = None
@@ -236,7 +238,10 @@ class IDXDeviceIF:
         self.msg_if.pub_warn("Using Factory Controls: " + str(self.factory_controls_dict))
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
-
+        self.msg_if.pub_warn("Set Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
+        self.width_deg = self.factory_controls_dict['width_deg']
+        self.height_deg = self.factory_controls_dict['height_deg']
+        
         # Set up standard IDX parameters with ROS param and subscriptions
         # Defer actually setting these on the camera via the parent callbacks... the parent may need to do some 
         # additional setup/calculation first. Parent can then get these all applied by calling ApplyConfigUpdates()
@@ -490,7 +495,7 @@ class IDXDeviceIF:
             },
             'reset_controls': {
                 'namespace': self.namespace,
-                'topic': 'reset',
+                'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 1,
                 'callback': self.resetControlsCb, 
@@ -646,6 +651,7 @@ class IDXDeviceIF:
             self.status_msg.settings_topic = self.settings_if.get_namespace()
             self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
         if self.save_data_if is not None:
+            ready = self.save_data_if.wait_for_ready()
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
         if self.navpose_if is not None:            
@@ -821,7 +827,7 @@ class IDXDeviceIF:
         dp_dict['get_data'] = start_data_function
         dp_dict['stop_data'] = stop_data_function
 
-        self.data_product_dict[data_product] = dp_dict
+        self.data_products_dict[data_product] = dp_dict
 
         # do wait here for all
         success = True
@@ -833,7 +839,7 @@ class IDXDeviceIF:
 
 
     def updateDeviceNameCb(self, msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
+        #self.msg_if.pub_info("Recived update message: " + str(msg))
         new_device_name = msg.data
         self.updateDeviceName(new_device_name)
 
@@ -852,7 +858,7 @@ class IDXDeviceIF:
 
 
     def resetDeviceNameCb(self,msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
+        #self.msg_if.pub_info("Recived update message: " + str(msg))
         self.resetDeviceName()
 
     def resetDeviceName(self):
@@ -863,7 +869,7 @@ class IDXDeviceIF:
 
 
     def setWidthDegCb(self, msg):
-        self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
         width = msg.data
         if width > 0:
             self.width_deg = width     
@@ -871,7 +877,7 @@ class IDXDeviceIF:
             self.node_if.set_param('width_deg', width)
  
     def setHeightDegCb(self, msg):
-        self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
         height = msg.data
         if height > 0:
             self.height_deg = height     
@@ -879,7 +885,7 @@ class IDXDeviceIF:
             self.node_if.set_param('height_deg', height)
             
     def setAutoAdjustEnableCb(self, msg):
-        self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
         enabled = msg.data
         if self.setAutoAdjustRatio is not None:
             # Call the parent's method and update ROS param as necessary
@@ -900,7 +906,7 @@ class IDXDeviceIF:
 
 
     def setBrightnessRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         ratio = msg.data
  
         if ratio < 0.1:
@@ -957,7 +963,7 @@ class IDXDeviceIF:
         
 
     def setResolutionRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
         ratio = msg.data
  
         if ratio < 0.1:
@@ -978,7 +984,7 @@ class IDXDeviceIF:
 
         
     def setMaxFramerateCb(self, msg):
-        self.msg_if.pub_info("Recived Max Framerate update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Max Framerate update message: " + str(msg))
         rate = msg.data
  
         if rate < 1:
@@ -1006,8 +1012,8 @@ class IDXDeviceIF:
 
  
     def setRangeRatioCb(self, msg):
-        self.msg_if.pub_info("Recived Range update message: " + str(msg))
-        self.msg_if.pub_info("Recived update message: " + str(msg))
+        #self.msg_if.pub_info("Recived Range update message: " + str(msg))
+        #self.msg_if.pub_info("Recived update message: " + str(msg))
         new_start_range_ratio = msg.start_range
         new_stop_range_ratio = msg.stop_range
         if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
@@ -1030,7 +1036,7 @@ class IDXDeviceIF:
   
 
     def resetControlsCb(self, msg):
-        self.msg_if.pub_info("Recived reset controls message: " + str(msg))
+        #self.msg_if.pub_info("Recived reset controls message: " + str(msg))
         self.node_if.reset_param('device_name')
         self.node_if.reset_param('controls_enable')
         self.node_if.reset_param('auto_adjust_ebabled')       
@@ -1041,23 +1047,9 @@ class IDXDeviceIF:
         self.node_if.reset_param('max_framerate')
         self.node_if.reset_param('start_range_ratio')
         self.node_if.reset_param('stop_range_ratio')
-        self.resetCb(do_updates = True)
+        self.ApplyConfigUpdates()
 
 
-    def factoryResetControlsCb(self, msg):
-        self.msg_if.pub_info("Recived factory reset controls message: " + str(msg))
-        self.node_if.factory_reset_param('device_name')
-        self.node_if.factory_reset_param('controls_enable')
-        self.node_if.factory_reset_param('auto_adjust_ebabled')       
-        self.node_if.factory_reset_param('brightness_ratio')
-        self.node_if.factory_reset_param('contrast_ratio')        
-        self.node_if.factory_reset_param('threshold_ratio')
-        self.node_if.factory_reset_param('resolution_ratio')   
-        self.node_if.factory_reset_param('max_framerate')
-        self.node_if.factory_reset_param('start_range_ratio')
-        self.node_if.factory_reset_param('stop_range_ratio')
-
-        self.factoryResetCb(do_updates = True)
 
   
     def update_fps(self,data_product):
@@ -1084,13 +1076,17 @@ class IDXDeviceIF:
     def image_thread_proccess(self,data_product):
         cv2_img = None
 
-        if data_product not in self.data_product_dict.keys():
+        if data_product not in self.data_products_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
             acquiring = False
 
-            dp_dict = self.data_product_dict[data_product]
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
+
+            dp_dict = self.data_products_dict[data_product]
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
@@ -1110,16 +1106,14 @@ class IDXDeviceIF:
                             msg_if = self.msg_if
                             )
                 ready = dp_if.wait_for_ready()
-                self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
+                self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
 
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
-            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
-                nepi_sdk.sleep(1)
+
             self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
@@ -1173,20 +1167,21 @@ class IDXDeviceIF:
     def depth_map_thread_proccess(self,data_product):
         np_depth_map = None
 
-        if data_product not in self.data_product_dict.keys():
+        if data_product not in self.data_products_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
             acquiring = False
 
-            dp_dict = self.data_product_dict[data_product]
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
+
+            dp_dict = self.data_products_dict[data_product]
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
 
-            range_m = self.max_range_m - self.min_range_m
-            min_range_m = self.min_range_m + self.start_range_ratio * range_m
-            max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
             dp_namespace = self.namespace
             dp_if = DepthMapIF(namespace = dp_namespace, 
                         data_source_description = self.data_source_description,
@@ -1200,16 +1195,14 @@ class IDXDeviceIF:
                         msg_if = self.msg_if
                         )
             ready = dp_if.wait_for_ready()
-            self.data_product_dict[data_product]['image_topic'] = dp_if.get_namespace()
+            self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
             if dp_if is None:
                 self.msg_if.pub_debug("Failed to create data IF class for: " + data_product + " ** Ending thread")
                 return
 
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
-            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
-                nepi_sdk.sleep(1)
+
             self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
@@ -1234,9 +1227,11 @@ class IDXDeviceIF:
 
 
                         #Publish Ros Image
+                        #self.msg_if.pub_warn("Got Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
                         range_m = self.max_range_m - self.min_range_m
                         min_range_m = self.min_range_m + self.start_range_ratio * range_m
                         max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
+                        #self.msg_if.pub_warn("Using Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
                         np_depth_map = dp_if.publish_np_depth_map(np_depth_map,
                                                 encoding = encoding,
                                                 width_deg = self.width_deg,
@@ -1271,13 +1266,18 @@ class IDXDeviceIF:
     def pointcloud_thread_proccess(self,data_product):
         o3d_pc = None
 
-        if data_product not in self.data_product_dict.keys():
+        if data_product not in self.data_products_dict.keys():
             self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
             acquiring = False
 
-            dp_dict = self.data_product_dict[data_product]
+            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
+            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
+                nepi_sdk.sleep(1)
+
+
+            dp_dict = self.data_products_dict[data_product]
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
@@ -1302,9 +1302,7 @@ class IDXDeviceIF:
 
         
             # Get Data Product Dict and Data_IF
-            self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
-            while (not nepi_sdk.is_shutdown() and self.save_data_if is None):
-                nepi_sdk.sleep(1)
+
             self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
@@ -1377,15 +1375,14 @@ class IDXDeviceIF:
 
         self.status_msg.max_framerate = self.max_framerate
 
-        data_products = []
-        if self.save_data_if is not None:
-            data_products = self.save_data_if.get_data_products()
-        self.status_msg.data_products = data_products
-
-            
+        data_products = self.data_products_list
         framerates = []
-        for dp in self.current_fps.keys():
-            framerates.append(self.current_fps[dp])
+        for dp in data_products:
+            if dp in self.current_fps.keys():
+                framerates.append(self.current_fps[dp])
+            else:
+                framerates.append(0.0)
+        self.status_msg.data_products = data_products
         self.status_msg.framerates = framerates
 
 
@@ -1400,6 +1397,10 @@ class IDXDeviceIF:
 
         self.status_msg.min_range_m = self.min_range_m
         self.status_msg.max_range_m = self.max_range_m
+
+        delta_range = self.max_range_m - self.min_range_m
+        self.status_msg.min_range_m_adj = self.min_range_m + delta_range * self.start_range_ratio
+        self.status_msg.max_range_m_adj = self.min_range_m + delta_range * self.stop_range_ratio
 
 
         if do_updates == True:

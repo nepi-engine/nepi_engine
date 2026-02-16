@@ -377,7 +377,7 @@ def grayscale_to_rgb(gray_image):
     
 
 
-def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = None, min_ratio = 0, max_ratio = 1):
+def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = None, min_ratio = 0, max_ratio = 1, scaler=1e3, flip_color_map = True):
 
     cv2_img = None
     cv2_img_min_range_m = 0
@@ -389,12 +389,15 @@ def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = No
         if min_range_m is None:
             min_depth = np.nanmin(depth_data)
         else:
-           min_depth = min_range_m / 1000
+           min_depth = min_range_m * scaler
 
         if max_range_m is None:
             max_depth = np.nanmax(depth_data)
         else:
-           max_depth = max_range_m / 1000
+           max_depth = max_range_m * scaler
+
+        #logger.log_warn("Depth Map has ranges: " + str([np.nanmin(depth_data),np.nanmax(depth_data)]))
+        #logger.log_warn("Depth Map using ranges: " + str([min_depth,max_depth]))
 
         delta_depth = max_depth - min_depth
         # Adjust range based on user inputs
@@ -404,20 +407,22 @@ def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = No
 
         # Filter depth_data in range
         depth_data[np.isnan(depth_data)] = max_depth_adj 
+        depth_data[np.isinf(depth_data)] = max_depth_adj 
         depth_data[depth_data <= min_depth_adj] = max_depth_adj # set to max
         depth_data[depth_data >= max_depth_adj] = max_depth_adj # set to max
 
 
         # Create colored cv2 depth image
         depth_data = depth_data - min_depth_adj # Shift down 
-        depth_data = np.abs(depth_data - max_depth_adj) # Reverse for colormap
+        if flip_color_map == True:
+           depth_data = np.abs(depth_data - max_depth_adj) # Reverse for colormap
         depth_data = np.array(255*depth_data/delta_depth_adj,np.uint8) # Scale for bgr colormap
         cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
-        cv2_img_min_range_m = min_depth_adj * 1000
-        cv2_img_max_range_m = max_depth_adj * 1000
+        cv2_img_min_range_m = min_depth_adj / scaler
+        cv2_img_max_range_m = max_depth_adj / scaler
     except Exception as e:
-        logger.log_warn("Failed convert depth map to color img: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
-    return [cv2_img,cv2_img_min_range_m,cv2_img_max_range_m]
+        logger.log_warn("Failed convert depth map to color img: " + str(e), throttle_s = 5.0)
+    return cv2_img
 
 ###########################################
 ### Image filter functions    

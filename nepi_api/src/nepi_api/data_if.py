@@ -428,14 +428,18 @@ class NavPoseIF:
 
         success = nepi_sdk.wait()
 
-
+        ####################
+        self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-            self.save_data_if.register_data_product(self.data_product)
+            data_products = self.save_data_if.get_data_products()
+            if self.data_product not in data_products:
+                self.save_data_if.register_data_product(self.data_product)
         elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates= dict()
             factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
@@ -459,7 +463,7 @@ class NavPoseIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
 
@@ -1028,9 +1032,9 @@ class BaseImageIF:
                 services_dict,
                 pubs_dict,
                 subs_dict,
+                save_data_if,
                 navpose_if,
                 navpose_namespace,
-                save_data_if,
                 init_overlay_list,
                 log_name,
                 log_name_list,
@@ -1597,16 +1601,25 @@ class BaseImageIF:
         self.init(do_updates = True)
         self.publish_status()
 
+        ####################
+        self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-            self.save_data_if.register_data_product(self.data_product)
+            data_products = self.save_data_if.get_data_products()
+            if self.data_product not in data_products:
+                self.save_data_if.register_data_product(self.data_product)
+                if self.data_product == 'color_image':
+                    self.save_data_if.set_save_rate(self.data_product,1)
+            
         elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates= dict()
-            factory_data_rates[self.data_product] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-
+            factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+            if self.data_product == 'color_image':
+                factory_data_rates[self.data_product] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
             factory_filename_dict = {
                 'prefix': "", 
                 'add_timestamp': True, 
@@ -1627,7 +1640,7 @@ class BaseImageIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
         ####################
@@ -1818,8 +1831,8 @@ class BaseImageIF:
                         timestamp = None, 
                         width_deg = 100,
                         height_deg = 70,
-                        min_range_m = None,
-                        max_range_m = None,
+                        min_range_m = 0,
+                        max_range_m = 0,
                         add_overlay_list = [],
                         process_data = True,
                         pub_twice = False,
@@ -1878,6 +1891,13 @@ class BaseImageIF:
                 else:
                     self.status_msg.min_range_m = 0
                     self.status_msg.max_range_m = 1
+
+                start_range_ratio = self.controls_dict['start_range_ratio']
+                stop_range_ratio = self.controls_dict['stop_range_ratio']
+
+                delta_range = self.max_range_m - self.min_range_m
+                self.status_msg.min_range_m_adj = self.min_range_m + delta_range * start_range_ratio
+                self.status_msg.max_range_m_adj = self.min_range_m + delta_range * stop_range_ratio
 
                 [height,width] = cv2_img.shape[0:2]
                 [self.raw_height,self.raw_width] = [height,width]
@@ -3086,6 +3106,9 @@ class ImageIF(BaseImageIF):
             data_product = nepi_utils.get_clean_name(data_product)
             if data_product is not None:
                 self.data_product = data_product
+    
+        self.save_data_if = save_data_if
+        self.navpose_if = navpose_if
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -3099,9 +3122,9 @@ class ImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
-                navpose_if,
+                self.save_data_if,
+                self.navpose_if,
                 navpose_namespace,
-                save_data_if,
                 init_overlay_list,
                 log_name,
                 log_name_list,
@@ -3203,6 +3226,8 @@ class ColorImageIF(BaseImageIF):
             data_product = nepi_utils.get_clean_name(data_product)
             if data_product is not None:
                 self.data_product = data_product
+        self.save_data_if = save_data_if
+        self.navpose_if = navpose_if
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -3216,9 +3241,9 @@ class ColorImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
-                navpose_if,
+                self.save_data_if,
+                self.navpose_if,
                 navpose_namespace,
-                save_data_if,
                 init_overlay_list,
                 log_name,
                 log_name_list,
@@ -3412,6 +3437,8 @@ class DepthMapIF:
     pubs_dict = dict()
     subs_dict = dict()
 
+    publishing = False
+
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'depth_map_sensor',
@@ -3560,13 +3587,17 @@ class DepthMapIF:
 
 
         ####################
+        self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-            self.save_data_if.register_data_product(self.data_product)
+            data_products = self.save_data_if.get_data_products()
+            if self.data_product not in data_products:
+                self.save_data_if.register_data_product(self.data_product)
         elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates= dict()
             factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
@@ -3590,7 +3621,7 @@ class DepthMapIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+            self.msg_if.pub_warn("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
         ####################
@@ -3734,8 +3765,8 @@ class DepthMapIF:
                             encoding = '32FC1',
                             width_deg = 100,
                             height_deg = 70,
-                             min_range_m = None, 
-                             max_range_m = None,
+                             min_range_m = 0, 
+                             max_range_m = 100,
                              timestamp = None,
                              pub_twice = False
                             ):
@@ -3748,80 +3779,91 @@ class DepthMapIF:
         #print('Pub Min Max Depths: ' + str([np.nanmin(np_depth_map),np.nanmax(np_depth_map)]) )
         success = False
 
+        if self.publishing == False:
+            self.publishing = True
+
+            if np_depth_map is None and self.status_msg is not None:
+                self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
+                return np_depth_map
 
 
-        if np_depth_map is None and self.status_msg is not None:
-            self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
-            return False
+            self.status_msg.encoding = encoding
+
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
 
-        self.status_msg.encoding = encoding
+            current_time = nepi_utils.get_time()
+            latency = (current_time - timestamp)
+            self.status_msg.get_latency_time = latency
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        else:
-            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
 
+            # Publish and Save Raw Image Data if Required  
+            [height,width] = np_depth_map.shape[0:2]
+            last_width = self.status_msg.width_px
+            last_height = self.status_msg.height_px
+            self.status_msg.width_px = width
+            self.status_msg.height_px = height
 
-        current_time = nepi_utils.get_time()
-        latency = (current_time - timestamp)
-        self.status_msg.get_latency_time = latency
-        self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.status_msg.width_deg = width_deg
+            self.status_msg.height_deg = height_deg
+            #self.msg_if.pub_info('Pub Depth Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
+            if (min_range_m is not None and max_range_m is not None):
+                self._updateRangesM(min_range_m,max_range_m)
+            else:
+                self._updateRangesM(0,1)
+            #self.msg_if.pub_info('Pub Depth Adj Min Max Depths: ' + str([self.min_range_m, self.max_range_m]) )
 
-        # Start Img Pub Process
-        start_time = nepi_utils.get_time()   
+            self.status_msg.publishing = True
 
-        # Publish and Save Raw Image Data if Required  
-        [height,width] = np_depth_map.shape[0:2]
-        last_width = self.status_msg.width_px
-        last_height = self.status_msg.height_px
-        self.status_msg.width_px = width
-        self.status_msg.height_px = height
+            # if self.node_if is not None and self.needs_data == True:
+            #     #Convert to ros Image message
+            #     ros_img = nepi_img.cv2img_to_rosimg(np_depth_map, encoding=encoding)
+            #     sec = nepi_sdk.sec_from_timestamp(timestamp)
+            #     ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
+            #     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+            #     self.node_if.publish_pub('data_pub', ros_img)
 
-        self.status_msg.width_deg = width_deg
-        self.status_msg.height_deg = height_deg
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time - timestamp)
+            self.status_msg.pub_latency_time = latency
 
-        if (min_range_m is not None and max_range_m is not None):
-            self._updateRangesM(min_range_m,max_range_m)
-        else:
-            self._updateRangesM(0,1)
+            
+            
+            if self.image_if is not None:
+                needs_img = self.image_if.needs_data_check()
+                if needs_img == True:
+                    self.image_if.publish_depth_map_img(np_depth_map,
+                                        min_range_m = self.min_range_m, 
+                                        max_range_m = self.max_range_m,
+                                        width_deg = width_deg,
+                                        height_deg = height_deg,
+                                        timestamp = timestamp,
+                                        pub_twice = pub_twice
+                                    )
 
+            # Save Data
+            if self.save_data_if is not None:
+                self.save_data_if.save(self.data_product,np_depth_map,timestamp)
 
-        self.status_msg.publishing = True
+            if self.last_pub_time is None:
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+                self.status_msg.last_pub_sec = pub_time_sec
 
-        # if self.node_if is not None and self.needs_data == True:
-        #     #Convert to ros Image message
-        #     ros_img = nepi_img.cv2img_to_rosimg(np_depth_map, encoding=encoding)
-        #     sec = nepi_sdk.sec_from_timestamp(timestamp)
-        #     ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
-        #     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-        #     self.node_if.publish_pub('data_pub', ros_img)
-
-        process_time = round( (nepi_utils.get_time() - start_time) , 3)
-        self.status_msg.process_time = process_time
-        latency = (current_time - timestamp)
-        self.status_msg.pub_latency_time = latency
-
-        cv2_depth_map_img = None
-        if self.image_if is not None:
-            cv2_depth_map_img = self.image_if.publish_depth_map_img(np_depth_map,
-                                width_deg = width_deg,
-                                height_deg = height_deg,
-                                timestamp = timestamp,
-                                pub_twice = pub_twice
-                            )
-
-
-        if self.last_pub_time is None:
-            self.last_pub_time = nepi_utils.get_time()
-        else:
-            cur_time = nepi_utils.get_time()
-            pub_time_sec = cur_time - self.last_pub_time
-            self.last_pub_time = cur_time
-            self.status_msg.last_pub_sec = pub_time_sec
-
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+            
+            self.publishing = False
 
         return np_depth_map
 
@@ -4017,6 +4059,9 @@ class DepthMapImageIF(BaseImageIF):
                 self.data_product = data_product
         if log_name is not None:
             log_name = nepi_utils.get_clean_name(log_name)
+
+        self.save_data_if = save_data_if
+        self.navpose_if = navpose_if
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -4030,8 +4075,8 @@ class DepthMapImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
-                save_data_if,
-                navpose_if,
+                self.save_data_if,
+                self.navpose_if,
                 navpose_namespace,
                 init_overlay_list,
                 log_name,
@@ -4051,6 +4096,8 @@ class DepthMapImageIF(BaseImageIF):
     ###############################
 
     def publish_depth_map_img(self,np_depth_map,
+                            min_range_m = 0, 
+                            max_range_m = 100,
                             width_deg = 100,
                             height_deg = 70,
                             timestamp = None,
@@ -4066,10 +4113,10 @@ class DepthMapImageIF(BaseImageIF):
         if np_depth_map is not None:
             start_range_ratio = self.controls_dict['start_range_ratio']
             stop_range_ratio = self.controls_dict['stop_range_ratio']
-            #print('Pub Img Min Max Depths: ' + str([np.nanmin(np_depth_map),np.nanmax(np_depth_map)]) )
-            [cv2_img, min_range_m, max_range_m] = nepi_img.npDepthMap_to_cv2ColorImg(np_depth_map,min_ratio = start_range_ratio, max_ratio = stop_range_ratio)
+
+            #self.msg_if.pub_info('Pub Img Got Min Max Depths: ' + str([min_range_m, max_range_m]), log_name_list = self.log_name_list)
+            cv2_img = nepi_img.npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = min_range_m, max_range_m = max_range_m,min_ratio = start_range_ratio, max_ratio = stop_range_ratio)      
             if cv2_img is not None:
-                #self.msg_if.pub_info("Got Depth Map Image Ranges: " + str( [min_range_m, max_range_m]), log_name_list = self.log_name_list)
                 self.publish_cv2_img(cv2_img,
                                     encoding = 'bgr8',
                                     width_deg = width_deg,
@@ -4174,6 +4221,8 @@ class PointcloudIF:
 
     pubs_dict = dict()
     subs_dict = dict()
+
+    publishing = False
 
     def __init__(self, namespace = None,
                 data_product = None,
@@ -4319,16 +4368,19 @@ class PointcloudIF:
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
-        ##############################
-        #Setup Image Pub if needed
 
+        ####################
+        self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-            self.save_data_if.register_data_product(self.data_product)
+            data_products = self.save_data_if.get_data_products()
+            if self.data_product not in data_products:
+                self.save_data_if.register_data_product(self.data_product)
         elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
+            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates= dict()
             factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
@@ -4352,8 +4404,7 @@ class PointcloudIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
         ####################
         self.navpose_if = navpose_if
@@ -4379,6 +4430,7 @@ class PointcloudIF:
 
         ####################
         if pub_image == True:
+
             self.image_if = PointcloudImageIF(namespace = self.namespace, 
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
@@ -4508,6 +4560,7 @@ class PointcloudIF:
                         max_range_m = None,               
                         process_data = True,
                         pub_twice = False,
+                        frame_id = 'sensor',
                         add_pubs = []):
         
 
@@ -4516,80 +4569,89 @@ class PointcloudIF:
         else:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
-        if o3d_pc is None:
-            self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
-            return False
+        if self.publishing == False:
+            self.publishing = True
 
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        else:
-            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+            if o3d_pc is None:
+                self.msg_if.pub_info("Can't publish None image", log_name_list = self.log_name_list)
+                return False
 
-        self.status_msg.has_rgb = o3d_pc.has_colors()
-        self.status_msg.has_intensity = False # Need to add
-        #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
+            else:
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
-        self.status_msg.width_deg = width_deg
-        self.status_msg.height_deg = height_deg
+            self.status_msg.has_rgb = o3d_pc.has_colors()
+            self.status_msg.has_intensity = False # Need to add
+            #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-        if (min_range_m is not None and max_range_m is not None):
-            self._updateRangesM(min_range_m,max_range_m)
-            self.status_msg.min_range_m = self.min_range_m
-            self.status_msg.max_range_m = self.max_range_m
-        else:
-            self.status_msg.min_range_m = 0
-            self.status_msg.max_range_m = 1
+            self.status_msg.width_deg = width_deg
+            self.status_msg.height_deg = height_deg
 
-        current_time = nepi_utils.get_time()
-        latency = (current_time - timestamp)
-        self.status_msg.get_latency_time = latency
-        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
+            if (min_range_m is not None and max_range_m is not None):
+                self._updateRangesM(min_range_m,max_range_m)
+                self.status_msg.min_range_m = self.min_range_m
+                self.status_msg.max_range_m = self.max_range_m
+            else:
+                self.status_msg.min_range_m = 0
+                self.status_msg.max_range_m = 1
 
-        # Start Pub Process
-        start_time = nepi_utils.get_time()   
+            current_time = nepi_utils.get_time()
+            latency = (current_time - timestamp)
+            self.status_msg.get_latency_time = latency
+            #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-        self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
+            # Start Pub Process
+            start_time = nepi_utils.get_time()   
 
-
-        if self.node_if is not None and self.needs_data == True:
-            #Convert to ros Image message
-            ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc,navpose_frame = 'None')
-            sec = nepi_sdk.sec_from_timestamp(timestamp)
-            ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_frame)
-            #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('data_pub', ros_img)
-
-        process_time = round( (nepi_utils.get_time() - start_time) , 3)
-        self.status_msg.process_time = process_time
-        latency = (current_time - timestamp)
-        self.status_msg.pub_latency_time = latency
-
-        cv2_pointcloud_img = None
-        if self.image_if is not None:
-            #self.msg_if.pub_warn("Publishing Image with width_deg: " + str(width_deg), log_name_list = self.log_name_list)
-            cv2_pointcloud_img = self.image_if.publish_pointcloud_img(o3d_pc,
-                                width_deg = width_deg,
-                                height_deg = height_deg,
-                                timestamp = timestamp,
-                                pub_twice = pub_twice
-                            )
-
-        process_time = round( (nepi_utils.get_time() - start_time) , 3)
-        self.status_msg.process_time = process_time
-        latency = (current_time - timestamp)
-        self.status_msg.pub_latency_time = latency
+            self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
 
-        if self.last_pub_time is None:
-            self.last_pub_time = nepi_utils.get_time()
-        else:
-            cur_time = nepi_utils.get_time()
-            pub_time_sec = cur_time - self.last_pub_time
-            self.last_pub_time = cur_time
-            self.status_msg.last_pub_sec = pub_time_sec
+            if self.node_if is not None and self.needs_data == True:
+                #Convert to ros Image message
+                ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc,navpose_frame = 'None')
+                sec = nepi_sdk.sec_from_timestamp(timestamp)
+                ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'sensor')
+                #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+                self.node_if.publish_pub('data_pub', os_pc)
 
-            self.time_list.pop(0)
-            self.time_list.append(pub_time_sec)
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time - timestamp)
+            self.status_msg.pub_latency_time = latency
+
+            if self.image_if is not None:
+                needs_img = self.image_if.needs_data_check()
+                if needs_img == True:
+                    self.image_if.publish_pointcloud_img(o3d_pc,
+                                    width_deg = width_deg,
+                                    height_deg = height_deg,
+                                    timestamp = timestamp,
+                                    pub_twice = pub_twice
+                                )
+
+            process_time = round( (nepi_utils.get_time() - start_time) , 3)
+            self.status_msg.process_time = process_time
+            latency = (current_time - timestamp)
+            self.status_msg.pub_latency_time = latency
+
+            # Save Data
+            if self.save_data_if is not None:
+                self.save_data_if.save(self.data_product,o3d_pc,timestamp)
+
+
+            if self.last_pub_time is None:
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
+                self.status_msg.last_pub_sec = pub_time_sec
+
+                self.time_list.pop(0)
+                self.time_list.append(pub_time_sec)
+
+            self.publishing = False
             
         return o3d_pc
     
@@ -4821,6 +4883,8 @@ class PointcloudImageIF(BaseImageIF):
                 self.data_product = data_product
         if log_name is not None:
             log_name = nepi_utils.get_clean_name(log_name)
+        self.save_data_if = save_data_if
+        self.navpose_if = navpose_if
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -4834,8 +4898,8 @@ class PointcloudImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
-                save_data_if,
-                navpose_if,
+                self.save_data_if,
+                self.navpose_if,
                 navpose_namespace,
                 init_overlay_list,
                 log_name,

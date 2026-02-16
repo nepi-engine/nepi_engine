@@ -497,7 +497,7 @@ class AiDetectorImgPub:
 
         # Create image publisher
         img_if = ColorImageIF(namespace = pub_namespace ,
-                        data_product_name = self.data_product,
+                        data_product = self.data_product,
                         data_source_description = 'image',
                         data_ref_description = 'image',
                         perspective = 'pov',
