@@ -116,10 +116,21 @@ class AiDetectorIF:
     model_name = "None"
 
     last_detect_time = nepi_sdk.get_time()
+
     img_ifs_dict = dict()
     img_ifs_lock = threading.Lock()
     imgs_info_dict = dict()
     imgs_img_proc_dict = dict()
+
+
+    navpose_dict = dict()
+    navpose_dict_lock = threading.Lock()
+
+    depth_map_dict = dict()
+    depth_map_dict_lock = threading.Lock()
+
+    pointcloud_dict = dict()
+    pointcloud_dict_lock = threading.Lock()
 
 
     has_img_tiling = False
@@ -1138,7 +1149,7 @@ class AiDetectorIF:
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         img_connects = []
         for img_topic in imgs_info_dict.keys():
-            img_connects.append(imgs_info_dict[img_topic]['connected'])
+            img_connects.append(imgs_info_dict[img_topic]['img_connected'])
         img_selected = len(img_connects) > 0
         img_connected = True in img_connects
        
@@ -1155,6 +1166,43 @@ class AiDetectorIF:
                 self.state_str_msg = "Detecting"
         else: # Loaded, but not enabled
             self.state_str_msg = "Loaded"
+
+
+
+        ### Check on image topic data subs
+        for img_topic in imgs_info_dict.keys(): 
+            info_dict = imgs_info_dict[img_topic] 
+            active = info_dict['active']
+            depth_map_topic = info_dict['depth_map_topic']
+
+            data_subs_dict = dict()
+            ## Check on depth map
+            dm_update_state = None
+            #self.msg_if.pub_warn("Checking on depth map topic: " + str(depth_map_topic) + " with active state: " + str(active))
+            if depth_map_topic != '':
+                if active and (info_dict['depth_map_connected'] == False and info_dict['depth_map_connecting'] == False):
+                    self.msg_if.pub_warn("Subscribing to depth map topic: " + str(depth_map_topic))
+                    data_subs_dict.update( {
+                        'np_depth_map': {
+                                'namespace': depth_map_topic,
+                                'msg': Image,
+                                'topic': '',
+                                'qsize': 1,
+                                'callback': self.depthMapCb,
+                                'callback_args': (img_topic)
+                            }
+                        }
+                    )
+                self.imgs_info_dict[img_topic]['depth_map_connected'] = False
+                self.imgs_info_dict[img_topic]['depth_map_connecteing'] = True
+                
+
+            if len(list(data_subs_dict.keys())) > 0:
+                    self.img_ifs_lock.acquire()
+                    self.img_ifs_dict[img_topic]['subs_if'].add_subs(data_subs_dict)
+                    self.img_ifs_lock.release()
+
+
 
         nepi_sdk.start_timer_process((.1), self.updaterCb, oneshot = True)
 
@@ -1214,18 +1262,45 @@ class AiDetectorIF:
                 img_info_dict = dict()  
                 img_info_dict['img_source_topic'] = img_topic
                 img_info_dict['img_pub_topic'] = img_pub_topic 
-
+                img_info_dict['img_connected'] = connected 
+                img_info_dict['active'] = True
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
-                img_info_dict['navpose_topic'] = ''
+
+                img_info_dict['napose_topic'] = ''
+                img_info_dict['napose_connecting'] = False
+                img_info_dict['napose_connected'] = False
+                img_info_dict['napose_last_connection'] = 0
+
                 img_info_dict['depth_map_topic'] = ''
+                img_info_dict['depth_map_connecting'] = False
+                img_info_dict['depth_map_connected'] = False
+                img_info_dict['depth_map_last_connection'] = 0
+
                 img_info_dict['pointcloud_topic'] = ''
-                img_info_dict['connected'] = connected 
-                img_info_dict['active'] = True
+                img_info_dict['pointcloud_connecting'] = False
+                img_info_dict['pointcloud_connected'] = False
+                img_info_dict['pointcloud_last_connection'] = 0
+                
+
                 self.imgs_info_dict[img_topic] = img_info_dict
 
                 self.msg_if.pub_info('Subsribing to image topic: ' + img_topic)
 
+
+                #####################
+                ## Initialized Data Dictionaries
+                self.navpose_dict_lock.acquire()
+                self.navpose_dict[img_topic] = None
+                self.navpose_dict_lock.release()
+
+                self.depth_map_dict_lock.acquire()
+                self.depth_map_dict[img_topic] = None
+                self.depth_map_dict_lock.release()
+
+                self.pointcloud_dict_lock.acquire()
+                self.pointcloud_dict[img_topic] = None
+                self.pointcloud_dict_lock.release()
 
                 # img_pubs_if = NodePublishersIF(
                 #                 pubs_dict = img_pubs_dict,
@@ -1290,7 +1365,7 @@ class AiDetectorIF:
 
         # Unsubsribe from Pubs and Subs
         if img_topic in self.img_ifs_dict.keys():
-            self.msg_if.pub_warn('Unregistering image topic: ' + img_topic)
+            self.msg_if.pub_warn('Unregistering image topic subs for: ' + img_topic)
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[img_topic]['subs_if'].unregister_subs()
             #self.img_ifs_dict[img_topic]['pubs_if'].unregister_pubs()
@@ -1300,11 +1375,26 @@ class AiDetectorIF:
         # Clear info dict
         if img_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[img_topic]['active'] = False
-            self.imgs_info_dict[img_topic]['connected'] = False 
+            self.imgs_info_dict[img_topic]['img_connected'] = False 
             self.imgs_info_dict[img_topic]['image_latency_time'] = 0
             self.imgs_info_dict[img_topic]['detect_latency_time'] = 0
             self.imgs_info_dict[img_topic]['image_time'] = 0 
             self.imgs_info_dict[img_topic]['detect_time'] = 0 
+
+            self.imgs_info_dict[img_topic]['napose_topic'] = ''
+            self.imgs_info_dict[img_topic]['napose_connecting'] = False
+            self.imgs_info_dict[img_topic]['napose_connected'] = False
+            self.imgs_info_dict[img_topic]['napose_last_connection'] = 0
+
+            self.imgs_info_dict[img_topic]['depth_map_topic'] = ''
+            self.imgs_info_dict[img_topic]['depth_map_connecting'] = False
+            self.imgs_info_dict[img_topic]['depth_map_connected'] = False
+            self.imgs_info_dict[img_topic]['depth_map_last_connection'] = 0
+
+            self.imgs_info_dict[img_topic]['pointcloud_topic'] = ''
+            self.imgs_info_dict[img_topic]['pointcloud_connecting'] = False
+            self.imgs_info_dict[img_topic]['pointcloud_connected'] = False
+            self.imgs_info_dict[img_topic]['pointcloud_last_connection'] = 0
 
         # Clear Img Dict
         nepi_sdk.sleep(1)
@@ -1314,6 +1404,20 @@ class AiDetectorIF:
         img_dict['msg_header'] = 'None'
         img_dict['timestamp'] = nepi_utils.get_time()
         self.imgs_dict[img_topic] = img_dict
+
+        #####################
+        ## Clear Data Dictionaries
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict[img_topic] = None
+        self.navpose_dict_lock.release()
+
+        self.depth_map_dict_lock.acquire()
+        self.depth_map_dict[img_topic] = None
+        self.depth_map_dict_lock.release()
+
+        self.pointcloud_dict_lock.acquire()
+        self.pointcloud_dict[img_topic] = None
+        self.pointcloud_dict_lock.release()
 
 
         # Clear Img Subs Dict
@@ -1333,7 +1437,7 @@ class AiDetectorIF:
             connected_list = []
             for topic in img_topics:
                 if topic in imgs_info_dict.keys():
-                    if imgs_info_dict[topic]['connected'] == True:
+                    if imgs_info_dict[topic]['img_connected'] == True:
                         connected_list.append(topic)
             if len(connected_list) == 0:
                 #self.msg_if.pub_warn("No Connected Image Topics")
@@ -1384,7 +1488,7 @@ class AiDetectorIF:
                 if self.got_img_topic is None and timer > (delay_time + GET_IMAGE_TIMEOUT_SEC):
                     #self.msg_if.pub_warn("Topic " + cur_img_topic + " timed out. Setting next topic to: " +  self.next_image_topic)
                     if cur_img_topic is not None and cur_img_topic in imgs_info_dict.keys():
-                        imgs_info_dict[cur_img_topic]['connected'] = False
+                        imgs_info_dict[cur_img_topic]['img_connected'] = False
                     self.cur_img_topic = self.next_image_topic
                     #self.last_detect_time = nepi_sdk.get_time()
 
@@ -1406,15 +1510,25 @@ class AiDetectorIF:
 
 
     def depthMapCb(self,image_msg, args):     
-        depth_map_topic = args
+        img_topic = args
         
-        #self.msg_if.pub_warn("Recieved Image Topic : " + img_topic)
+        if self.depth_map_dict[img_topic] is None:
+             self.msg_if.pub_warn("Depth Map Connected Image Topic : " + img_topic)
         #self.msg_if.pub_warn("Get Image Topic set to: " + self.get_img_topic)
 
-        self.imgs_info_dict[img_topic]['connected'] = True
+        self.imgs_info_dict[img_topic]['img_connected'] = True
         
-        stamp = image_msg.header.stamp
-        timestamp = copy.deepcopy(float(stamp.to_sec()))
+        # stamp = image_msg.header.stamp
+        # timestamp = copy.deepcopy(float(stamp.to_sec()))
+        np_depth_map = nepi_img.rosimg_to_cv2img(image_msg)
+        self.depth_map_dict_lock.acquire()
+        self.depth_map_dict[img_topic] = np_depth_map
+        self.depth_map_dict_lock.release()
+
+        self.imgs_info_dict[img_topic]['depth_map_last_connection'] = nepi_utils.get_time()
+        self.imgs_info_dict[img_topic]['depth_map_connecting'] = False
+        self.imgs_info_dict[img_topic]['depth_map_connected'] = True
+
 
 
 
@@ -1422,9 +1536,10 @@ class AiDetectorIF:
     def imageStatusCb(self,status_msg, args):     
         img_topic = args
         if img_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[img_topic]['navpose_topic'] = status_msg.navpose_topic
+
             self.imgs_info_dict[img_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[img_topic]['height_deg'] = status_msg.height_deg
+            self.imgs_info_dict[img_topic]['navpose_topic'] = status_msg.navpose_topic
             self.imgs_info_dict[img_topic]['depth_map_topic'] = status_msg.depth_map_topic
             self.imgs_info_dict[img_topic]['pointcloud_topic'] = status_msg.pointcloud_topic
 
@@ -1435,7 +1550,7 @@ class AiDetectorIF:
         #self.msg_if.pub_warn("Recieved Image Topic : " + img_topic)
         #self.msg_if.pub_warn("Get Image Topic set to: " + self.get_img_topic)
 
-        self.imgs_info_dict[img_topic]['connected'] = True
+        self.imgs_info_dict[img_topic]['img_connected'] = True
         
         stamp = image_msg.header.stamp
         timestamp = copy.deepcopy(float(stamp.to_sec()))
@@ -1544,12 +1659,23 @@ class AiDetectorIF:
             # self.msg_if.pub_warn("Image_Process Times: " + str(self.image_process_latencies))
 
             #####################################
+            # Update Depth Map Data if available
+            np_depth_map = None
+            if img_topic in self.imgs_info_dict.keys():
+                depth_map_connected = self.imgs_info_dict[img_topic]['depth_map_connected']
+                depth_map_last_connection = self.imgs_info_dict[img_topic]['depth_map_last_connection']
+                depth_map_age = start_time - depth_map_last_connection
+                if depth_map_connected == True and depth_map_age < 1:
+                    self.depth_map_dict_lock.acquire()
+                    np_depth_map = copy.deepcopy(self.depth_map_dict[img_topic])
+                    self.depth_map_dict_lock.release()
+
+
+
 
 
             ##############################
             # Process Detections
-           
-
             detect_dict_list = []
             detect_dicts = []
             threshold = self.threshold
@@ -1589,7 +1715,7 @@ class AiDetectorIF:
             #####################################
 
             ##################################
-            self.publishDetectionData(img_topic, img_dict, detect_dict_list)
+            self.publishDetectionData(img_topic, img_dict, detect_dict_list, np_depth_map = np_depth_map)
             ##################################
 
             ###############################
@@ -1677,7 +1803,7 @@ class AiDetectorIF:
             
 
 
-    def publishDetectionData(self, img_topic, img_dict, detect_dict_list):
+    def publishDetectionData(self, img_topic, img_dict, detect_dict_list, np_depth_map = None):
         detect_dict_list = self.cleanBoxes(detect_dict_list)
         #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
         det_count = len(detect_dict_list)
@@ -1687,11 +1813,6 @@ class AiDetectorIF:
 
             ###############################
             # Calculate Localization Data
-
-
-
-
-
 
             bb_msg_list = []
             l_msg_list = []
@@ -1712,6 +1833,17 @@ class AiDetectorIF:
                 object_loc_x_ratio_from_center = float(object_loc_x_pix - img_dict['image_width']/2) / float(img_dict['image_width']/2)
                 target_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
                 target_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+
+
+                target_range_m = -999
+                if np_depth_map is not None:
+                    try:
+                        target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get target depth from np_depth_map: " + str(e))
+
+
+
                 ### Print the range and bearings for each detected object
                 #self.msg_if.pub_warn("")
                 #self.msg_if.pub_warn(target_label)
@@ -1750,7 +1882,7 @@ class AiDetectorIF:
                     l_msg.uid = detect_dict['uid']
                     l_msg.probability = detect_dict['prob']
                     # Ranl Bearing, Nav, and Pose Data ENU Reference Frame
-                    l_msg.range_m = -999
+                    l_msg.range_m = target_range_m
                     l_msg.azimuth_deg = target_horz_angle_deg
                     l_msg.elevation_deg = target_vert_angle_deg
                     l_msg_list.append(l_msg)
@@ -1799,7 +1931,7 @@ class AiDetectorIF:
                     #target_msg.center_xyz_meters = detect_dict['center_xyz_meters']
 
                     # Range, Bearing, Nav, and Pose Data ENU Reference Frame
-                    target_msg.range_m = -999
+                    target_msg.range_m = target_range_m
                     target_msg.azimuth_deg = target_horz_angle_deg
                     target_msg.elevation_deg = target_vert_angle_deg   
                     targets_msg_list.append(target_msg)
@@ -1937,7 +2069,7 @@ class AiDetectorIF:
                     self.imgs_has_subs_dict[img_topic] = True
             self.img_ifs_lock.release()
         else:           
-            # Check if for image topic subscribers
+            # Check image topic subscribers
             for img_topic in img_topics:
                 if img_topic not in active_topics:
                     self.imgs_has_subs_dict[img_topic] = False
@@ -1954,6 +2086,9 @@ class AiDetectorIF:
                             self.imgs_has_subs_dict[img_topic] = True
                         else:
                             self.imgs_has_subs_dict[img_topic] = False
+
+
+
                
 
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
@@ -2046,7 +2181,8 @@ class AiDetectorIF:
 
         img_connects = []
         for img_topic in imgs_info_dict.keys():
-            img_connects.append(imgs_info_dict[img_topic]['connected'])
+            img_connects.append(imgs_info_dict[img_topic]['img_connected'])
+        self.status_msg.images_connected = img_connects
         img_selected = len(img_connects) > 0
         self.status_msg.image_selected = img_selected
         img_connected = True in img_connects

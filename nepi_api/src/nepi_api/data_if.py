@@ -1141,7 +1141,6 @@ class BaseImageIF:
         self.data_ref_description = data_ref_description
 
         self.status_msg.node_name = self.node_name
-        self.status_msg.image_topic = self.namespace
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -2254,40 +2253,40 @@ class BaseImageIF:
         self.drag_pixel = None
         self.drag_window = None
 
-    
-        # Update Ratios
-        xr_ratio = pixel[0] / self.raw_width
-        yr_ratio = pixel[1] / self.raw_height
-        wrs = copy.deepcopy(self.controls_dict['window_ratios'])
+        if self.raw_width > 10 and self.raw_height > 10:
+            # Update Ratios
+            xr_ratio = pixel[0] / self.raw_width
+            yr_ratio = pixel[1] / self.raw_height
+            wrs = copy.deepcopy(self.controls_dict['window_ratios'])
 
-        xr_len = wrs[1] - wrs[0]
-        xr_min = xr_ratio - xr_len / 2
-        xr_max = xr_ratio + xr_len / 2
-        if xr_min < 0:
-            xr_min = 0
-            xr_max = xr_len
-        if xr_max > 1:
-            xr_min = 1 - xr_len
-            xr_max = 1
-    
-        yr_len = wrs[3] - wrs[2]
-        yr_min = yr_ratio - yr_len / 2
-        yr_max = yr_ratio + yr_len / 2
-        if yr_min < 0:
-            yr_min = 0
-            yr_max = yr_len
-        if yr_max > 1:
-            yr_min = 1 - yr_len
-            yr_max = 1
+            xr_len = wrs[1] - wrs[0]
+            xr_min = xr_ratio - xr_len / 2
+            xr_max = xr_ratio + xr_len / 2
+            if xr_min < 0:
+                xr_min = 0
+                xr_max = xr_len
+            if xr_max > 1:
+                xr_min = 1 - xr_len
+                xr_max = 1
+        
+            yr_len = wrs[3] - wrs[2]
+            yr_min = yr_ratio - yr_len / 2
+            yr_max = yr_ratio + yr_len / 2
+            if yr_min < 0:
+                yr_min = 0
+                yr_max = yr_len
+            if yr_max > 1:
+                yr_min = 1 - yr_len
+                yr_max = 1
 
-        self.msg_if.pub_info("Pixel Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
-        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
-        self.x_ratio = xr_min + (xr_max - xr_min) / 2
-        self.y_ratio = yr_min + (yr_max - yr_min) / 2
-        self.zoom_ratio = 1 - max(xr_len, yr_len)
+            self.msg_if.pub_info("Pixel Image Window: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+            self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+            self.x_ratio = xr_min + (xr_max - xr_min) / 2
+            self.y_ratio = yr_min + (yr_max - yr_min) / 2
+            self.zoom_ratio = 1 - max(xr_len, yr_len)
 
-        self.publish_status()  
-        self.needs_update()    
+            self.publish_status()  
+            self.needs_update()    
 
 
 
@@ -2381,43 +2380,44 @@ class BaseImageIF:
         self.drag_pixel = None
         self.drag_window = None
  
-        # Update Ratios
-        xr_len = (window[1] - window[0]) / self.raw_width
-        yr_len = (window[3] - window[2]) / self.raw_height
-        xr_ratio = window[0] / self.raw_width + (xr_len / 2) 
-        yr_ratio = window[2] / self.raw_height + (yr_len / 2)
+        if self.raw_width > 10 and self.raw_height > 10:
+            # Update Ratios
+            xr_len = (window[1] - window[0]) / self.raw_width
+            yr_len = (window[3] - window[2]) / self.raw_height
+            xr_ratio = window[0] / self.raw_width + (xr_len / 2) 
+            yr_ratio = window[2] / self.raw_height + (yr_len / 2)
 
-        r_len_max = max(xr_len, yr_len)
+            r_len_max = max(xr_len, yr_len)
 
-        xr_min = xr_ratio - r_len_max / 2
-        xr_max = xr_ratio + r_len_max / 2
-        if xr_min < 0:
-            xr_min = 0
-            xr_max = r_len_max
-        if xr_max > 1:
-            xr_min = 1 - r_len_max
-            xr_max = 1
-    
+            xr_min = xr_ratio - r_len_max / 2
+            xr_max = xr_ratio + r_len_max / 2
+            if xr_min < 0:
+                xr_min = 0
+                xr_max = r_len_max
+            if xr_max > 1:
+                xr_min = 1 - r_len_max
+                xr_max = 1
+        
 
-        yr_min = yr_ratio - r_len_max / 2
-        yr_max = yr_ratio + r_len_max / 2
-        if yr_min < 0:
-            yr_min = 0
-            yr_max = r_len_max
-        if yr_max > 1:
-            yr_min = 1 - r_len_max
-            yr_max = 1
+            yr_min = yr_ratio - r_len_max / 2
+            yr_max = yr_ratio + r_len_max / 2
+            if yr_min < 0:
+                yr_min = 0
+                yr_max = r_len_max
+            if yr_max > 1:
+                yr_min = 1 - r_len_max
+                yr_max = 1
 
-        self.msg_if.pub_warn("Window Image Window set to: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
-        self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
-        self.x_ratio = xr_min + (xr_max - xr_min) / 2
-        self.y_ratio = yr_min + (yr_max - yr_min) / 2
-        self.zoom_ratio = 1 - r_len_max 
+            self.msg_if.pub_warn("Window Image Window set to: " + str([xr_min, xr_max, yr_min, yr_max]), log_name_list = self.log_name_list)
+            self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
+            self.x_ratio = xr_min + (xr_max - xr_min) / 2
+            self.y_ratio = yr_min + (yr_max - yr_min) / 2
+            self.zoom_ratio = 1 - r_len_max 
 
-        self.publish_status()  
-        self.needs_update()    
-        self.publish_status()  
-        self.needs_update()
+            self.publish_status()  
+            self.needs_update()    
+            self.publish_status()  
+            self.needs_update()
 
 
 
@@ -2635,12 +2635,6 @@ class BaseImageIF:
             self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
 
 
-            self.status_msg.depth_map_topic = self.depth_map_topic
-            self.status_msg.pointcloud_topic = self.pointcloud_topic
-
-
-
-
             self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
             self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
@@ -2728,19 +2722,19 @@ class BaseImageIF:
     def _updaterCb(self, timer):
         
         # Check for other topics
+        image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        other_topics = [depth_map_ns,pointcloud_ns]
+        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
         found_topics = nepi_sdk.find_topics(other_topics)
-        if depth_map_ns in found_topics:
-            self.status_msg.depth_map_topic = depth_map_ns
-        else:
-            self.status_msg.depth_map_topic = ''
-        if pointcloud_ns in found_topics:
-            self.status_msg.pointcloud_topic = pointcloud_ns
-        else:
-            self.status_msg.pointcloud_topic = ''
-
+        for topic in found_topics:
+            if image_ns == topic:
+                self.status_msg.image_topic = image_ns
+                #self.msg_if.pub_warn("Found depth map topic: " + str(topic), log_name_list = self.log_name_list, throttle_s = 5)
+            if depth_map_ns == topic:
+                self.status_msg.depth_map_topic = depth_map_ns
+            if pointcloud_ns == topic:
+                self.status_msg.pointcloud_topic = pointcloud_ns
        
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
         
@@ -3507,7 +3501,6 @@ class DepthMapIF:
         self.data_ref_description = data_ref_description
 
         self.status_msg.node_name = self.node_name
-        self.status_msg.depth_map_topic = self.namespace
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -3937,18 +3930,18 @@ class DepthMapIF:
         
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
+        depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        other_topics = [image_ns,pointcloud_ns]
+        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
         found_topics = nepi_sdk.find_topics(other_topics)
-        if image_ns in found_topics:
-            self.status_msg.image_topic = image_ns
-        else:
-            self.status_msg.image_topic = ''
-        if pointcloud_ns in found_topics:
-            self.status_msg.pointcloud_topic = pointcloud_ns
-        else:
-            self.status_msg.pointcloud_topic = ''
-
+        for topic in found_topics:
+            if image_ns == topic:
+                self.status_msg.image_topic = image_ns
+                #self.msg_if.pub_warn("Found depth map topic: " + str(topic), log_name_list = self.log_name_list, throttle_s = 5)
+            if depth_map_ns == topic:
+                self.status_msg.depth_map_topic = depth_map_ns
+            if pointcloud_ns == topic:
+                self.status_msg.pointcloud_topic = pointcloud_ns
         
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
@@ -4396,7 +4389,6 @@ class PointcloudIF:
         self.data_ref_description = data_ref_description
 
         self.status_msg.node_name = self.node_name
-        self.status_msg.pointcloud_topic = self.namespace
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -4870,17 +4862,19 @@ class PointcloudIF:
         
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
-        pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'image')
-        other_topics = [image_ns,pointcloud_ns]
+        depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
+        pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
+        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
         found_topics = nepi_sdk.find_topics(other_topics)
-        if image_ns in found_topics:
-            self.status_msg.image_topic = image_ns
-        else:
-            self.status_msg.image_topic = ''
-        if pointcloud_ns in found_topics:
-            self.status_msg.pointcloud_topic = pointcloud_ns
-        else:
-            self.status_msg.pointcloud_topic = ''
+        for topic in found_topics:
+            if image_ns == topic:
+                self.status_msg.image_topic = image_ns
+                #self.msg_if.pub_warn("Found depth map topic: " + str(topic), log_name_list = self.log_name_list, throttle_s = 5)
+            if depth_map_ns == topic:
+                self.status_msg.depth_map_topic = depth_map_ns
+            if pointcloud_ns == topic:
+                self.status_msg.pointcloud_topic = pointcloud_ns
+
         
         
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)

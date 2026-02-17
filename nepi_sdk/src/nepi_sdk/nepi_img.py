@@ -423,6 +423,121 @@ def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = No
         logger.log_warn("Failed convert depth map to color img: " + str(e), throttle_s = 5.0)
     return cv2_img
 
+
+def get_range_from_npDepthMap(np_depth_map,target_box,target_box_percent = 100, target_min_points = 10, target_depth_m = None):
+    target_range_m = float(-999)
+    if np_depth_map is not None:
+
+        # reduce target box based on user settings
+        y_len = (target_box['ymax'] - target_box['ymin'])
+        x_len = (target_box['xmax'] - target_box['xmin'])
+        #logger.log_warn("Got y x box lengths: " + str([y_len,x_len]))
+        if target_depth_m is None:
+            target_depth_m = max(x_len,y_len) / 2
+
+
+        adj_ratio = float(target_box_percent )/3.5
+        if target_box_percent == 100: 
+            delta_y = 0
+            delta_x = 0
+        else:
+            adj = float(target_box_percent )/3.5
+            delta_y = int(y_len / 2 * (adj_ratio-1))
+            delta_x = int(x_len / 2 * (adj_ratio-1))
+        ymin_adj=target_box['ymin'] - delta_y
+        ymax_adj=target_box['ymax'] + delta_y
+        xmin_adj=target_box['xmin'] - delta_x
+        xmax_adj=target_box['xmax'] + delta_x
+        #logger.log_warn("Got adjusted box sizes yx: " + str([ymin_adj,ymax_adj,xmin_adj,xmax_adj]))
+
+        # Calculate target range        
+        # Get target range from cropped and filtered depth data
+        depth_box_adj= np_depth_map[ymin_adj:ymax_adj,xmin_adj:xmax_adj]
+        depth_array=depth_box_adj.flatten()
+        depth_array = depth_array[~np.isinf(depth_array)] # remove inf entries
+        depth_array = depth_array[~np.isnan(depth_array)] # remove nan entries
+        depth_array = depth_array[depth_array>0] # remove zero entries
+        depth_val=np.mean(depth_array) # Initialize fallback value.  maybe updated
+        #logger.log_warn("got depth value " + str( depth_val))
+        # Try histogram calculation
+        try:
+            min_range = np.min(depth_array)
+            max_range = np.max(depth_array)
+        except:
+            min_range = 0
+            max_range = 0
+        delta_range = max_range - min_range
+        if delta_range > target_depth_m/2:
+            bins_per_target = 10
+            bin_step = target_depth_m / bins_per_target
+            num_bins = 1
+            #logger.log_warn('delta_range: ' + str(delta_range))
+            #logger.log_warn('bin_step: ' + str(bin_step))
+            if bin_step > 0.001 and math.isinf(delta_range) == False :
+                num_bins = int(delta_range / bin_step)
+                # Get histogram
+                hist, hbins = np.histogram(depth_array, bins = num_bins, range = (min_range,max_range))
+                bins = hbins[1:] + (hbins[1:] - hbins[:-1]) / 2
+                peak_dist = int(bins_per_target / 2)
+                #max_hist_inds,ret_dict = find_peaks(hist, distance=peak_dist)
+                #max_hist_inds = list(max_hist_inds)
+                #max_hist_ind = max_hist_inds[0]
+                max_hist_val = hist[0]
+                max_hist_ind = 0
+                for ih, val in enumerate(hist):
+                    if val > max_hist_val:
+                        max_hist_val = val
+                        max_hist_ind = ih
+                    elif val < max_hist_val:
+                        break 
+                #logger.log_warn(max_hist_ind)
+                hist_len = len(hist)
+                bins_len = len(bins)
+                # Hanning window on targets
+                win_len = bins_per_target
+                if hist_len > win_len:
+                    win_len_half = int(bins_per_target/2)
+                    win = np.hanning(win_len)
+                    han_win = np.zeros(hist_len)
+                    han_win[:win_len] = win
+                    win_center = int(win_len/2)
+                    win_roll = max_hist_ind - win_center
+                    front_pad = 0
+                    back_pad = -0
+                    if win_roll < 0 and max_hist_ind < win_len:
+                        back_pad = win_len - max_hist_ind
+                    elif win_roll > 0 and max_hist_ind > (hist_len - win_len + 1):
+                        front_pad = max_hist_ind - (hist_len - win_len + 1)             
+                    han_win = np.roll(han_win,win_roll)
+                    han_win[:front_pad] = 0
+                    han_win[back_pad:] = 0
+                    han_win_len = len(han_win)
+                    
+                    #logger.log_warn([min_range,max_range])
+                    #logger.log_warn(bins)
+                    #logger.log_warn(han_win)
+                    if np.sum(han_win) > .1:
+                        depth_val=np.average(bins,weights = han_win)
+                    
+
+
+            min_filter=depth_val-target_depth_m/2
+            max_filter=depth_val+target_depth_m/2
+            depth_array=depth_array[depth_array > min_filter]
+            depth_array=depth_array[depth_array < max_filter]
+            depth_len=len(depth_array)
+            #logger.log_warn("")
+            #logger.log_warn("Got depth_length: " + str(depth_len))
+            #logger.log_warn(depth_len)
+            if depth_len > target_min_points:
+                target_range_m=depth_val / 1000
+            else:
+                target_range_m= -999
+            #logger.log_warn("Got Range in meters: " + str(target_range_m))
+    return target_range_m
+
+
+
 ###########################################
 ### Image filter functions    
 

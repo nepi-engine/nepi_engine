@@ -619,7 +619,6 @@ class AiDetectorImgPub:
 
             needs_img = False
             if img_topic in self.imgs_info_dict.keys():
-                self.img_node_lock.acquire()
                 if  self.img_node_dict[img_topic]['img_if'] is not None:
                     needs_img = self.img_node_dict[img_topic]['img_if'].needs_data_check()
 
