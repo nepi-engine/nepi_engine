@@ -383,20 +383,19 @@ def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = No
     cv2_img_min_range_m = 0
     cv2_img_max_range_m = 0
     try:
-        depth_data = (np.array(np_depth_map, dtype=np.float32)) # replace nan values
 
         # Get range data
         if min_range_m is None:
-            min_depth = np.nanmin(depth_data)
+            min_depth = np.nanmin(np_depth_map)
         else:
            min_depth = min_range_m * scaler
 
         if max_range_m is None:
-            max_depth = np.nanmax(depth_data)
+            max_depth = np.nanmax(np_depth_map)
         else:
            max_depth = max_range_m * scaler
 
-        #logger.log_warn("Depth Map has ranges: " + str([np.nanmin(depth_data),np.nanmax(depth_data)]))
+        #logger.log_warn("Depth Map has ranges: " + str([np.nanmin(np_depth_map),np.nanmax(np_depth_map)]))
         #logger.log_warn("Depth Map using ranges: " + str([min_depth,max_depth]))
 
         delta_depth = max_depth - min_depth
@@ -405,19 +404,19 @@ def npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = None, max_range_m = No
         min_depth_adj = min_depth + min_ratio * delta_depth
         delta_depth_adj = max_depth_adj - min_depth_adj
 
-        # Filter depth_data in range
-        depth_data[np.isnan(depth_data)] = max_depth_adj 
-        depth_data[np.isinf(depth_data)] = max_depth_adj 
-        depth_data[depth_data <= min_depth_adj] = max_depth_adj # set to max
-        depth_data[depth_data >= max_depth_adj] = max_depth_adj # set to max
+        # Filter np_depth_map in range
+        np_depth_map[np.isnan(np_depth_map)] = max_depth_adj 
+        np_depth_map[np.isinf(np_depth_map)] = max_depth_adj 
+        np_depth_map[np_depth_map <= min_depth_adj] = max_depth_adj # set to max
+        np_depth_map[np_depth_map >= max_depth_adj] = max_depth_adj # set to max
 
 
         # Create colored cv2 depth image
-        depth_data = depth_data - min_depth_adj # Shift down 
+        np_depth_map = np_depth_map - min_depth_adj # Shift down 
         if flip_color_map == True:
-           depth_data = np.abs(depth_data - max_depth_adj) # Reverse for colormap
-        depth_data = np.array(255*depth_data/delta_depth_adj,np.uint8) # Scale for bgr colormap
-        cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
+           np_depth_map = np.abs(np_depth_map - max_depth_adj) # Reverse for colormap
+        np_depth_map = np.array(255*np_depth_map/delta_depth_adj,np.uint8) # Scale for bgr colormap
+        cv2_img = cv2.applyColorMap(np_depth_map, cv2.COLORMAP_JET)
         cv2_img_min_range_m = min_depth_adj / scaler
         cv2_img_max_range_m = max_depth_adj / scaler
     except Exception as e:
@@ -875,7 +874,7 @@ def read_image_file(file_path, log_name_list = []):
         logger.log_warn("Failed to find image file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
     return cv2_img
 
-def write_image_file(cv2_img,file_path, log_name_list = []):
+def write_image_file(file_path,cv2_img, log_name_list = []):
     success = False
     path = os.path.dirname(file_path)
     if os.path.exists(path):

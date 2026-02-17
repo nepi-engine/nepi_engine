@@ -1322,12 +1322,12 @@ class BaseImageIF:
                 'callback': self._resetOverlaysCb, 
                 'callback_args': ()
             },
-            'reset_res_orients': {
+            'reset_settings': {
                 'namespace': self.namespace,
-                'topic': 'reset_res_orients',
+                'topic': 'reset_settings',
                 'msg': Empty,
                 'qsize': 5,
-                'callback': self._resetResOrientsCb, 
+                'callback': self._resetSettingsCb, 
                 'callback_args': ()
             },
             'reset_renders': {
@@ -2542,7 +2542,7 @@ class BaseImageIF:
         self.needs_update()
 
 
-    def reset_res_orients(self):
+    def reset_settings(self):
         
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
@@ -3018,7 +3018,7 @@ class BaseImageIF:
     def _resetControlsCb(self,msg):
         self.reset_filters()
         self.reset_overlays()
-        self.reset_res_orients()
+        self.reset_settings()
         self.reset_renders()
 
     def _resetFiltersCb(self,msg):
@@ -3027,8 +3027,8 @@ class BaseImageIF:
     def _resetOverlaysCb(self,msg):
         self.reset_overlays()
 
-    def _resetResOrientsCb(self,msg):
-        self.reset_res_orients()
+    def _resetSettingsCb(self,msg):
+        self.reset_settings()
     
     def _resetRendersCb(self,msg):
         self.msg_if.pub_warn("Received reset renders message", log_name_list = self.log_name_list)
@@ -3821,13 +3821,16 @@ class DepthMapIF:
 
             self.status_msg.publishing = True
 
-            # if self.node_if is not None and self.needs_data == True:
-            #     #Convert to ros Image message
-            #     ros_img = nepi_img.cv2img_to_rosimg(np_depth_map, encoding=encoding)
-            #     sec = nepi_sdk.sec_from_timestamp(timestamp)
-            #     ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
-            #     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-            #     self.node_if.publish_pub('data_pub', ros_img)
+            if self.node_if is not None and self.needs_data == True:
+                #Convert to ros Image message
+                try:
+                    ros_img = nepi_img.cv2img_to_rosimg(np_depth_map, encoding=encoding)
+                    sec = nepi_sdk.sec_from_timestamp(timestamp)
+                    ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
+                    #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.node_if.publish_pub('data_pub', ros_img)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish Depth Map: " + str(e) , throttle = 5)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
@@ -4004,7 +4007,7 @@ class DepthMapImageIF(BaseImageIF):
         has_flip_horz = True,
         has_flip_vert = True,
         has_range = True,
-        has_zoom = False,
+        has_zoom = True,
         has_pan = False,
         has_window = False,
         has_rotate_3d = False,
@@ -4136,6 +4139,113 @@ class DepthMapImageIF(BaseImageIF):
 
 
 
+    def process_cv2_img(self, cv2_img):
+
+
+        ##########
+        # Apply Resolution Controls
+        res_ratio = self.controls_dict['resolution_ratio']
+        # cv2_shape = cv2_img.shape
+        # img_width1 = cv2_shape[1] 
+        # img_height1 = cv2_shape[0] 
+        if res_ratio < 0.9:
+            [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
+
+
+        ##########
+        # Apply Oreantation Controls
+        degrees = self.controls_dict['rotate_2d_deg']
+        fliph = self.controls_dict['flip_horz']
+        flipv = self.controls_dict['flip_vert']
+
+        if degrees != 0:
+           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees) 
+
+        if fliph == True:
+            cv2_img = nepi_img.flip_horz(cv2_img) 
+
+        if flipv == True:
+            cv2_img = nepi_img.flip_vert(cv2_img) 
+
+
+        #####################
+        cv2_shape = cv2_img.shape
+        img_width = cv2_shape[1] 
+        img_height = cv2_shape[0] 
+        ratio = img_width / img_height
+
+        #####################
+        # Apply render controls 
+        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
+        x_min = int(max(0, img_width * xr_min )) 
+        x_max = int(min(img_width, img_width * xr_max))
+        y_min = int(max(0, img_height * yr_min))
+        y_max = int(min(img_height, img_height * yr_max))
+
+        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+        self.x_offset = x_min 
+        self.y_offset = y_min
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
+        ##########
+        # Show Drag Box if Needed
+        drag_window = copy.deepcopy(self.drag_window)
+
+        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+        if drag_window is not None:
+            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+            # Define the rectangle parameters
+            x1 = min(drag_window[0], drag_window[1])
+            x2 = max(drag_window[0], drag_window[1])
+            y1 = min(drag_window[2], drag_window[3])
+            y2 = max(drag_window[2], drag_window[3])
+
+
+            color = (0, 200, 0) # Green color in BGR
+            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
+
+            # Draw a filled rectangle on the overlay copy
+            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
+
+
+
+        ###################
+        # Apply Filters
+        for filter_name in self.filter_dict.keys():
+            enabled = self.filter_dict[filter_name]['enabled']
+            if enabled == True:
+                ratio = self.filter_dict[filter_name]['ratio']
+                if ratio > 0.05:
+                    function = self.filter_dict[filter_name]['function']
+                    cv2_img = function(cv2_img,ratio)
+
+
+        ##########
+        # Apply Adjustment Controls
+        auto = self.controls_dict['auto_adjust_enabled']
+        auto_ratio = self.controls_dict['auto_adjust_ratio']
+        brightness = self.controls_dict['contrast_ratio']
+        contrast = self.controls_dict['brightness_ratio']
+        threshold = self.controls_dict['threshold_ratio']
+
+        if auto is False:
+            cv2_img = nepi_img.adjust_brightness(cv2_img, brightness)
+            cv2_img = nepi_img.adjust_contrast(cv2_img, contrast)
+            cv2_img = nepi_img.adjust_sharpness(cv2_img, threshold)
+        else:
+            cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
+
+        #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
+
+        return cv2_img
 
 
 

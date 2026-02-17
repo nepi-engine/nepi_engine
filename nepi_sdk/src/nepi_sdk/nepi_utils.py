@@ -449,7 +449,7 @@ def read_list_from_file(file_path):
         lines = [line.rstrip() for line in f] 
     return lines
 
-def write_list_to_file(data_list, file_path):
+def write_list_to_file(file_path,data_list):
     success = True
     try:
         with open(file_path, 'w') as file:
@@ -576,7 +576,7 @@ def read_yaml_2_dict(file_path):
     return dict_from_file
 
 
-def write_dict_2_yaml(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=False):
+def write_dict_2_yaml(file_path,dict_2_save, defaultFlowStyle=False,sortKeys=False):
     success = False
     try:
         with open(file_path, "w") as f:

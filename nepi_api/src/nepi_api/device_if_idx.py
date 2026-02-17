@@ -620,7 +620,7 @@ class IDXDeviceIF:
             'add_timestamp': True, 
             'add_ms': True,
             'add_us': False,
-            'suffix': "idx",
+            'suffix': "",
             'add_node_name': True
             }
 

@@ -128,6 +128,12 @@ class ReadWriteIF:
                 'read_function': self.read_dict_file,
                 'write_function': self.write_dict_file
             },
+            'array': {
+                'data_type': np.ndarray,
+                'file_types': ['npy','csv','txt'],
+                'read_function': self.read_array_file,
+                'write_function': self.write_array_file 
+            },
             'image': {
                 'data_type': np.ndarray,
                 'file_types': ['png','PNG','jpg','jpeg','JPG'],
@@ -175,8 +181,8 @@ class ReadWriteIF:
     def get_namespace(self):
         return self.namespace
 
-    def get_supported_data_dict(self):
-        return self.data_dict
+    def get_supported_data_types(self):
+        return list(self.data_dict.keys())
 
 
     def get_filename_prefix(self):
@@ -239,14 +245,37 @@ class ReadWriteIF:
         return file_time
 
 
+    def get_data_type(self,data):
+        dtype = type(data)
+
+        if dtype == dict:
+            return 'dict'
+        if dtype == o3d.geometry.PointCloud:
+            return 'pointcloud'
+        if dtype == np.ndarray:
+            # Check for valid image dtypes (uint8 or float32 are common)
+            image_dtypes = [np.uint8]
+            if data.dtype not in image_dtypes:
+                return 'array'
+            elif data.ndim == 2 or data.ndim == 3 :
+                if data.dtype == np.uint8:
+                    return 'image'
+                else:
+                    return 'array'
+            else:
+                return 'array'
+        else:
+            return 'Uknown'
+            
+
+
+
 
 
     def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
-        data_type = type(data)
-        found_type = False
-        for data_key in self.data_dict:
-            if data_type == self.data_dict[data_key]['data_type']:
-                save_function = self.data_dict[data_key]['write_function']
+        data_type = self.get_data_type(data) 
+        if data_type in self.data_dict.keys():
+                save_function = self.data_dict[data_type]['write_function']
                 self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
                 save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
                 found_type = True
@@ -263,11 +292,10 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_utils.read_yaml_2_dict(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
@@ -286,7 +314,57 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_utils.write_dict_2_yaml(data, file_path)
+                    try:
+                        success = nepi_utils.write_dict_2_yaml(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+        return success
+
+
+    def read_array_file(self, filepath, filename):
+        data_key = 'array'
+        data = None
+        ext_str = os.path.splitext(filename)[1]
+        file_types = self.data_dict[data_key]['file_types']
+        if ext_str not in file_types:
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+        else:
+            file_path = os.path.join(filepath,filename)
+            try:
+                if ext_str == 'npy':
+                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
+                else:
+                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
+        return data
+
+    def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy'):
+        data_key = 'array'
+        success = False
+        data_type = self.data_dict[data_key]['data_type']
+        if isinstance(data,data_type) == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)), log_name_list = self.log_name_list)
+        else:
+            file_types = self.data_dict[data_key]['file_types']
+            if ext_str not in file_types:
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            else:
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                file_path = os.path.join(filepath,filename)
+                if os.path.exists(file_path) == True:
+                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                else:
+                    try:
+                        if ext_str == 'npy':
+                            file_path = file_path.replace('.' + ext_str, '')
+                            success = np.save(file_path, data)
+                        else:
+                            success = np.savetxt(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+
         return success
 
 
@@ -299,11 +377,11 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_img.read_image_file(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
         return data
 
     def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
@@ -322,7 +400,10 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_img.write_image_file(data, file_path)
+                    try:
+                        success = nepi_img.write_image_file(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
         return success
 
 
@@ -335,11 +416,11 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_pc.read_pointcloud_file(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
         return data
 
     def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
@@ -358,7 +439,11 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_pc.write_pointcloud_file(file_path)
+                    try:
+                        success = nepi_pc.write_pointcloud_file(file_path,data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                    
         return success
 
 

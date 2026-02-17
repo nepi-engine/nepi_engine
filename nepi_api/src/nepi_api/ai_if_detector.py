@@ -1405,6 +1405,20 @@ class AiDetectorIF:
         nepi_sdk.start_timer_process((0.01), self.updateDetectCb, oneshot = True)
 
 
+    def depthMapCb(self,image_msg, args):     
+        depth_map_topic = args
+        
+        #self.msg_if.pub_warn("Recieved Image Topic : " + img_topic)
+        #self.msg_if.pub_warn("Get Image Topic set to: " + self.get_img_topic)
+
+        self.imgs_info_dict[img_topic]['connected'] = True
+        
+        stamp = image_msg.header.stamp
+        timestamp = copy.deepcopy(float(stamp.to_sec()))
+
+
+
+
     def imageStatusCb(self,status_msg, args):     
         img_topic = args
         if img_topic in self.imgs_info_dict.keys():

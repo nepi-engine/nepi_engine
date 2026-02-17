@@ -571,7 +571,7 @@ def render_img(img_renderer,center,eye,up,post_proccessing=False):
 ###########################################
 ### Pointcloud saving functions
 
-def write_pointcloud_file(o3d_pc,filename):
+def write_pointcloud_file(filename,o3d_pc):
     ''' Save a Open3D PointCloud to a File
         Args:
         o3d_pc (o3d.geometry.PointCloud): Open3D PointCloud
@@ -582,7 +582,7 @@ def write_pointcloud_file(o3d_pc,filename):
     ret = o3d.io.write_point_cloud(filename, o3d_pc)
     return ret
 
-def write_pointcloud_image_file(open3d_image,filename):
+def write_pointcloud_image_file(filename,open3d_image):
     ''' Save a Open3D PointCloud Image to a File
         Args:
         open3d_image: Image to be Saved
