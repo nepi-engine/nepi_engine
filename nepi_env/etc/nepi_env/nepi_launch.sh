@@ -15,6 +15,9 @@ ETC_FOLDER=/opt/nepi/etc
 NEPI_ETC_SCRIPTS=${ETC_FOLDER}/scripts
 SYS_BASH_FILE=/opt/nepi/etc/sys_env.bash
 
+BASHRC=/home/nepi/.bashrc
+echo "Sourcing NEPI Bashrc: ${BASHRC}"
+source $BASHRC
 
 nepi_count=$(process_count "nepi_engine")
 if [[ "$nepi_count" -gt 1 ]]; then

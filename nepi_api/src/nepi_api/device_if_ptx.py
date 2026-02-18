@@ -624,7 +624,7 @@ class PTXActuatorIF:
                 'topic': 'set_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.setSpeedRatioHandler, 
+                'callback': self.setSpeedRatioCb, 
                 'callback_args': ()
             },
             'stop_moving': {
@@ -632,7 +632,7 @@ class PTXActuatorIF:
                 'topic': 'stop_moving',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self.stopMovingHandler, 
+                'callback': self.stopMovingCb, 
                 'callback_args': ()
             },
             'goto_to_position': {
@@ -640,7 +640,7 @@ class PTXActuatorIF:
                 'topic': 'goto_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
-                'callback': self.gotoPositionHandler, 
+                'callback': self.gotoPositionCb, 
                 'callback_args': ()
             },
             'goto_to_pan_position': {
@@ -648,7 +648,7 @@ class PTXActuatorIF:
                 'topic': 'goto_pan_position',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.gotoPanPositionHandler, 
+                'callback': self.gotoPanPositionCb, 
                 'callback_args': ()
             },
             'goto_to_tilt_position': {
@@ -656,7 +656,7 @@ class PTXActuatorIF:
                 'topic': 'goto_tilt_position',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.gotoTiltPositionHandler, 
+                'callback': self.gotoTiltPositionCb, 
                 'callback_args': ()
             },
             'goto_pan_ratio': {
@@ -664,7 +664,7 @@ class PTXActuatorIF:
                 'topic': 'goto_pan_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.gotoToPanRatioHandler, 
+                'callback': self.gotoToPanRatioCb, 
                 'callback_args': ()
             },
             'goto_tilt_ratio': {
@@ -672,7 +672,7 @@ class PTXActuatorIF:
                 'topic': 'goto_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self.gotoToTiltRatioHandler, 
+                'callback': self.gotoToTiltRatioCb, 
                 'callback_args': ()
             },
             'jog_timed_pan': {
@@ -680,7 +680,7 @@ class PTXActuatorIF:
                 'topic': 'jog_timed_pan',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
-                'callback': self.jogTimedPanHandler, 
+                'callback': self.jogTimedPanCb, 
                 'callback_args': ()
             },
             'jog_timed_tilt': {
@@ -688,7 +688,7 @@ class PTXActuatorIF:
                 'topic': 'jog_timed_tilt',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
-                'callback': self.jogTimedTiltHandler, 
+                'callback': self.jogTimedTiltCb, 
                 'callback_args': ()
             },
             'reverse_pan_enabled': {
@@ -712,7 +712,7 @@ class PTXActuatorIF:
                 'topic': 'set_soft_limits',
                 'msg': PanTiltLimits,
                 'qsize': 1,
-                'callback': self.setSoftstopHandler, 
+                'callback': self.setSoftstopCb, 
                 'callback_args': ()
             },
             'go_home': {
@@ -720,7 +720,7 @@ class PTXActuatorIF:
                 'topic': 'go_home',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self.goHomeHandler, 
+                'callback': self.goHomeCb, 
                 'callback_args': ()
             },
             'set_home_position': {
@@ -728,7 +728,7 @@ class PTXActuatorIF:
                 'topic': 'set_home_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
-                'callback': self.setHomePositionHandler, 
+                'callback': self.setHomePositionCb, 
                 'callback_args': ()
             },
             'set_home_position_here': {
@@ -736,7 +736,7 @@ class PTXActuatorIF:
                 'topic': 'set_home_position_here',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self.setHomePositionHereHandler, 
+                'callback': self.setHomePositionHereCb, 
                 'callback_args': ()
             },
             'set_track_pan': {
@@ -744,7 +744,7 @@ class PTXActuatorIF:
                 'topic': 'set_track_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setTrackPanHandler, 
+                'callback': self.setTrackPanCb, 
                 'callback_args': ()
             },
             'set_auto_pan': {
@@ -752,7 +752,7 @@ class PTXActuatorIF:
                 'topic': 'set_auto_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setAutoPanHandler, 
+                'callback': self.setAutoPanCb, 
                 'callback_args': ()
             },
             'set_auto_pan_window': {
@@ -760,7 +760,7 @@ class PTXActuatorIF:
                 'topic': 'set_auto_pan_window',
                 'msg': RangeWindow,
                 'qsize': 1,
-                'callback': self.setAutoPanWindowHandler, 
+                'callback': self.setAutoPanWindowCb, 
                 'callback_args': ()
             },
             '''
@@ -769,7 +769,7 @@ class PTXActuatorIF:
                 'topic': 'set_auto_pan_sin_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setSinPanHandler, 
+                'callback': self.setSinPanCb, 
                 'callback_args': ()
             },
             '''
@@ -778,7 +778,7 @@ class PTXActuatorIF:
                 'topic': 'set_track_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setTrackTiltHandler, 
+                'callback': self.setTrackTiltCb, 
                 'callback_args': ()
             },
             'set_auto_tilt': {
@@ -786,7 +786,7 @@ class PTXActuatorIF:
                 'topic': 'set_auto_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
-                'callback': self.setAutoTiltHandler, 
+                'callback': self.setAutoTiltCb, 
                 'callback_args': ()
             },
             'set_auto_tilt_window': {
@@ -794,7 +794,7 @@ class PTXActuatorIF:
                 'topic': 'set_auto_tilt_window',
                 'msg': RangeWindow,
                 'qsize': 1,
-                'callback': self.setAutoTiltWindowHandler, 
+                'callback': self.setAutoTiltWindowCb, 
                 'callback_args': ()
             }
             
@@ -1293,7 +1293,7 @@ class PTXActuatorIF:
 
 
  
-    def setSoftstopHandler(self, msg):
+    def setSoftstopCb(self, msg):
         min_pan = msg.min_pan_deg
         max_pan = msg.max_pan_deg
         min_tilt = msg.min_tilt_deg
@@ -1358,7 +1358,7 @@ class PTXActuatorIF:
         self.node_if.set_param('device_name', self.device_name)
 
   
-    def setSpeedRatioHandler(self, msg):
+    def setSpeedRatioCb(self, msg):
         if self.capabilities_report.has_adjustable_speed == True:
             speed_cur = self.getSpeedRatioCb()
             speed_ratio = msg.data
@@ -1375,7 +1375,7 @@ class PTXActuatorIF:
                 self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
         
 
-    def setHomePositionHandler(self, msg):
+    def setHomePositionCb(self, msg):
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
         if not self.positionWithinSoftLimits(pan_deg_adj, tilt_deg_adj):
             self.msg_if.pub_warn("Requested home position is invalid... ignoring", log_name_list = self.log_name_list)
@@ -1395,7 +1395,7 @@ class PTXActuatorIF:
         
             
 
-    def goHomeHandler(self, _):
+    def goHomeCb(self, _):
         self.stopPanControls()
         self.stopTiltControls()
         self.goHome()
@@ -1410,7 +1410,7 @@ class PTXActuatorIF:
             self.goHomeCb()
         
 
-    def gotoPositionHandler(self, msg):
+    def gotoPositionCb(self, msg):
         self.stopPanControls()
         self.stopTiltControls()
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg,msg.tilt_deg)
@@ -1426,7 +1426,7 @@ class PTXActuatorIF:
             self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
             self.publish_status()
 
-    def gotoPanPositionHandler(self, msg):
+    def gotoPanPositionCb(self, msg):
         self.stopPanControls()
         pan_deg_adj = self.getPanAdj(msg.data)
         self.gotoPanPosition(pan_deg_adj)
@@ -1446,7 +1446,7 @@ class PTXActuatorIF:
             self.publish_status()
                  
 
-    def gotoTiltPositionHandler(self, msg):
+    def gotoTiltPositionCb(self, msg):
         self.stopTiltControls()
         tilt_deg_adj = self.getTiltAdj(msg.data)
         self.gotoTiltPosition(tilt_deg_adj)
@@ -1466,7 +1466,7 @@ class PTXActuatorIF:
             self.publish_status()
     
 
-    def gotoToPanRatioHandler(self, msg):
+    def gotoToPanRatioCb(self, msg):
         self.stopPanControls()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
@@ -1484,7 +1484,7 @@ class PTXActuatorIF:
         self.publish_status()
         
 
-    def gotoToTiltRatioHandler(self, msg):
+    def gotoToTiltRatioCb(self, msg):
         self.stopTiltControls()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
@@ -1514,23 +1514,30 @@ class PTXActuatorIF:
         self.setAutoTilt(False)
         self.setNavLockTilt(False)
 
-    def stopMovingHandler(self, _):
+    def stopMovingCb(self, _):
         self.stopMoving()
 
-    def stopMoving(self):
+    def stopMoving(self,axis = 'All'):
         self.stopPanControls()
         self.stopTiltControls()
-        pan_cur_deg = self.status_msg.pan_now_deg * self.rpi
-        tilt_cur_deg = self.status_msg.tilt_now_deg * self.rti
+        if axis == 'pan' or axis == 'All':
+            pan_stop_deg = self.status_msg.pan_now_deg * self.rpi
+        else:
+            pan_stop_deg = self.status_msg.pan_goal_deg * self.rpi
+        if axis == 'tilt' or axis == 'All':
+            pan_stop_deg = self.status_msg.tilt_now_deg * self.rpi
+        else:
+            pan_stop_deg = self.status_msg.tilt_goal_deg * self.rpi
+
         self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
         if self.stopMovingCb is not None:
             self.stopMovingCb()
         elif self.gotoPositionCb is not None:
-            self.gotoPositionCb(pan_cur_deg,tilt_cur_deg)
+            self.gotoPositionCb(pan_stop_deg,tilt_stop_deg)
         self.publish_status()
         
 
-    def jogTimedPanHandler(self, msg):
+    def jogTimedPanCb(self, msg):
         self.stopPanControls()
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
@@ -1541,7 +1548,7 @@ class PTXActuatorIF:
         self.publish_status()
         
 
-    def jogTimedTiltHandler(self, msg):
+    def jogTimedTiltCb(self, msg):
         self.stopTiltControls()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
@@ -1572,7 +1579,7 @@ class PTXActuatorIF:
         self.publish_status()
         
 
-    def setHomePositionHereHandler(self, _):
+    def setHomePositionHereCb(self, _):
         self.home_pan_deg = self.status_msg.pan_now_deg * self.rpi
         self.home_tilt_deg = self.status_msg.tilt_now_deg * self.rti
         self.msg_if.pub_info("Home positon set to: " + "%.2f" % self.home_pan_deg * self.rpi + " " + "%.2f" % self.home_tilt_deg * self.rti)
@@ -1581,21 +1588,25 @@ class PTXActuatorIF:
             self.setHomePositionHereCb()
           
 
-    def setAutoPanHandler(self, msg):
+    def setAutoPanCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting auto pan: " + str(enabled))
         self.setAutoPan(enabled)
 
 
     def setAutoPan(self,enabled):
-        self.track_pan_enabled = False
-        self.nav_lock_pan_enabled = False
+        was_enabled = copy.deepcopy(self.auto_pan_enabled)
+        if enabled == True:
+            self.track_pan_enabled = False
+            self.nav_lock_pan_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('pan')
         self.auto_pan_enabled = enabled
         self.publish_status()
         self.node_if.set_param('auto_pan_enabled', enabled)
 
 
-    def setAutoPanWindowHandler(self, msg):
+    def setAutoPanWindowCb(self, msg):
         if self.reverse_pan_enabled == True:
             adj_min_deg = msg.stop_range * self.rpi
             adj_max_deg = msg.start_range * self.rpi
@@ -1622,27 +1633,35 @@ class PTXActuatorIF:
 
 
 
-    def setTrackPanHandler(self, msg):
+    def setTrackPanCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting track pan: " + str(enabled))
         self.setTrackPan(enabled)
 
 
     def setTrackPan(self,enabled):
-        self.auto_pan_enabled = False
-        self.nav_lock_pan_enabled = False
+        was_enabled = copy.deepcopy(self.track_pan_enabled)
+        if enabled == True:
+            self.auto_pan_enabled = False
+            self.nav_lock_pan_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('pan')
         self.track_pan_enabled = enabled
         self.publish_status()
         self.node_if.set_param('track_pan_enabled', self.track_pan_enabled)
 
-    def setNavLockPanHandler(self, msg):
+    def setNavLockPanCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting nav lock pan: " + str(enabled))
         self.setTrackPan(enabled)
 
     def setNavLockPan(self,enabled):
-        self.auto_pan_enabled = False
-        self.track_pan_enabled = False
+        was_enabled = copy.deepcopy(self.nav_lock_pan_enabled)
+        if enabled == True:
+            self.auto_pan_enabled = False
+            self.track_pan_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('pan')
         self.nav_lock_pan_enabled = enabled
         self.publish_status()
         self.node_if.set_param('nav_lock_pan_enabled', self.nav_lock_pan_enabled)
@@ -1651,7 +1670,7 @@ class PTXActuatorIF:
         
 
     '''
-    def setSinPanHandler(self, msg):
+    def setSinPanCb(self, msg):
         enabled = msg.data
         self.auto_pan_last_time = nepi_utils.get_time()
         self.msg_if.pub_info("Setting Sin pan: " + str(enabled))
@@ -1670,21 +1689,25 @@ class PTXActuatorIF:
 
 
 
-    def setAutoTiltHandler(self, msg):
+    def setAutoTiltCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting auto tilt: " + str(enabled))
         self.setAutoTilt(enabled)
 
 
     def setAutoTilt(self,enabled):
-        self.track_tilt_enabled = False
-        self.nav_lock_tilt_enabled = False
+        was_enabled = copy.deepcopy(self.auto_tilt_enabled)
+        if enabled == True:
+            self.track_tilt_enabled = False
+            self.nav_lock_tilt_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('tilt')
         self.auto_tilt_enabled = enabled
         self.publish_status()
         self.node_if.set_param('auto_tilt_enabled', self.auto_tilt_enabled)
 
 
-    def setAutoTiltWindowHandler(self, msg):
+    def setAutoTiltWindowCb(self, msg):
         if self.reverse_tilt_enabled == True:
             adj_min_deg = msg.stop_range * self.rti
             adj_max_deg = msg.start_range * self.rti
@@ -1709,32 +1732,40 @@ class PTXActuatorIF:
             self.node_if.set_param('max_tilt_softstop_deg', max_deg)
 
 
-    def setTrackTiltHandler(self, msg):
+    def setTrackTiltCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting track tilt: " + str(enabled))
         self.setTrackTilt(enabled)
 
     def setTrackTilt(self,enabled):
-        self.auto_tilt_enabled = False
-        self.nav_lock_tilt_enabled = False
+        was_enabled = copy.deepcopy(self.track_tilt_enabled)
+        if enabled == True:
+            self.auto_tilt_enabled = False
+            self.nav_lock_tilt_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('tilt')
         self.track_tilt_enabled = enabled
         self.publish_status()
         self.node_if.set_param('track_tilt_enabled', self.track_tilt_enabled)
 
-    def setNavLockTiltHandler(self, msg):
+    def setNavLockTiltCb(self, msg):
         enabled = msg.data
         self.msg_if.pub_info("Setting nav lock tilt: " + str(enabled))
         self.setTrackTilt(enabled)
 
     def setNavLockTilt(self,enabled):
-        self.auto_tilt_enabled = False
-        self.track_tilt_enabled = False
+        was_enabled = copy.deepcopy(self.nav_lock_tilt_enabled)
+        if enabled == True:
+            self.auto_tilt_enabled = False
+            self.track_tilt_enabled = False
+        if (was_enabled == True and enabled == False):
+            self.stopMoving('tilt')
         self.nav_lock_tilt_enabled = enabled
         self.publish_status()
         self.node_if.set_param('nav_lock_tilt_enabled', self.nav_lock_tilt_enabled)
 
     '''
-    def setSinTiltHandler(self, msg):
+    def setSinTiltCb(self, msg):
         enabled = msg.data
         self.auto_tilt_last_time = nepi_utils.get_time()
         self.msg_if.pub_info("Setting Sin tilt: " + str(enabled))

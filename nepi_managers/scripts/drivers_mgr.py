@@ -683,6 +683,7 @@ class NepiDriversMgr(object):
         caps_report.setting_caps_list = cap_list
         caps_report.has_cap_updates = False
         break
+    #self.msg_if.pub_info("Returning Settings Caps Response: " + str(caps_report))
     return caps_report
 
    
@@ -733,7 +734,6 @@ class NepiDriversMgr(object):
             self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " with e " + str(e))
         else:
           self.msg_if.pub_warn("Failed to update option " + str(setting) + " for driver: " + driver_name + " NOT VALID")
-        
       self.publishDiscoverySettingsStatus(driver_name)   
 
 
@@ -757,7 +757,7 @@ class NepiDriversMgr(object):
           setting_msg = Setting()
           setting_msg.name_str = setting_name
           setting_msg.type_str = setting['type']
-          setting_msg.value_str = setting['value']
+          setting_msg.value_str = str(setting['value'])
           setting_msgs_list.append(setting_msg)
         
         settings_status_msg.settings_list = setting_msgs_list
@@ -794,8 +794,12 @@ class NepiDriversMgr(object):
 
         settings_status_msg.has_cap_updates = False
         if driver_name in self.discovery_settings_dict.keys():
+          #self.msg_if.pub_info("Sending Settings Msg: " + str(settings_status_msg))
           settings_pub = self.discovery_settings_dict[driver_name]['settings_pub']
-          settings_pub.publish(settings_status_msg)
+          try:
+            settings_pub.publish(settings_status_msg)
+          except:
+            pass
 
 
   
