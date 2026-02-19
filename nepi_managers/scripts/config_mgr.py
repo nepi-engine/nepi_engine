@@ -302,14 +302,24 @@ class config_mgr(object):
 
 ####################################################
 
-    def get_filename_from_namespace(self,namespace, save_all = False):
+    def get_filename_from_namespace(self,namespace, all_config = False):
+        base_namespace = nepi_sdk.get_base_namespace()
+        namespace = namespace.replace(base_namespace + '/','')
         if namespace[-1] == '/':
             namespace = namespace[:-1]
-        base_namespace = nepi_sdk.get_base_namespace()
-        if save_all == True:
-            node_name = os.path.basename(namespace)
-            all_name = node_name.split('_')[0] + '_ALL'
-        namespace = namespace.replace(base_namespace,'')
+        if all_config == True:
+            namespace_parts = namespace.split('/',1)
+            clean_namespace_parts = [x for x in namespace_parts if x]
+
+            node_name = clean_namespace_parts[0]
+            node_name_all = node_name.rsplit('_',1)[0] + '_ALL'
+            #self.msg_if.pub_warn("Got clean all node_name for namespace: " + namespace + " : " + str(node_name_all))
+            clean_namespace_parts[0] = node_name_all
+
+            all_namespace = '/'.join(clean_namespace_parts)
+            #self.msg_if.pub_warn("Got clean all node_name namespace for namespace: " + namespace + " : " + str(all_namespace))
+            namespace = all_namespace
+            
         if len(namespace) > 0:
             if namespace[0] == '/':
                 namespace = namespace [1:]
@@ -332,8 +342,8 @@ class config_mgr(object):
             self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
         return True
 
-    def get_config_pathname(self, cfg_path, namespace, save_all = False):
-        filename = self.get_filename_from_namespace(namespace, save_all = save_all)
+    def get_config_pathname(self, cfg_path, namespace, all_config = False):
+        filename = self.get_filename_from_namespace(namespace, all_config = all_config)
         
         # Ensure the path we report actually exists
         if not os.path.isdir(cfg_path):
@@ -347,17 +357,17 @@ class config_mgr(object):
 
     def saveParamsCb(self,msg):
         namespace = msg.data
-        #self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + self.USER_CFG_PATH )
+        #self.msg_if.pub_info("Got Save Params for namespace: " + namespace )
         self.save_params(self.USER_CFG_PATH, namespace)
 
     def saveParamsAllCb(self,msg):
         namespace = msg.data
-        #self.msg_if.pub_info("Got Save Params for namespace: " + namespace  + " in Folder " + self.USER_CFG_PATH )
+        self.msg_if.pub_info("Got Save Params All for namespace: " + namespace )
         self.save_params(self.USER_CFG_PATH, namespace, save_all = True)
     
     def save_params(self, cfg_path, namespace, save_all = False):
         if os.path.exists(cfg_path):
-            config_pathname = self.get_config_pathname(cfg_path, namespace, save_all = save_all)
+            config_pathname = self.get_config_pathname(cfg_path, namespace, all_config = save_all)
             #backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
 
             #self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
@@ -369,6 +379,9 @@ class config_mgr(object):
         return success
 
  
+
+        
+
     def reset_params(self,namespace):
         # Restore saved param config if exists from first find in order (user,system,factory)
         config_folders = ['user_cfg','system_cfg','factory_cfg']
@@ -380,18 +393,12 @@ class config_mgr(object):
                 # Restore config if exits
                 restore_pathname = self.get_config_pathname(restore_path, namespace)
                 #self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
-                restore_pathname_all = None
-                pathname_split = restore_pathname.rsplit('.', 1)[0].split('-', 1)
-                #self.msg_if.pub_warn("Got all split namespace parts for namespace: " + namespace + " : " + str(pathname_split))
-                if len(pathname_split[0]) > 1:
-                    restore_pathname_all = pathname_split[0].rsplit('_',1)[0] + '_ALL' # Split on last
-                    if len(pathname_split) > 1:
-                        restore_pathname_all = restore_pathname_all + '-' + pathname_split[1]
-                    restore_pathname_all = restore_pathname_all + '.yaml'
-                #self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
-                if restore_pathname_all is not None:
-                    if os.path.exists(restore_pathname_all):
-                        restore_pathname = restore_pathname_all
+                if nepi_system.supports_all_config(namespace) == True:
+                    restore_pathname_all = self.get_config_pathname(restore_path, namespace, all_config = True)
+                    #self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
+                    if restore_pathname_all is not None:
+                        if os.path.exists(restore_pathname_all):
+                            restore_pathname = restore_pathname_all
                 #self.msg_if.pub_warn("Checking for saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
                 success = False
                 if os.path.exists(restore_pathname):

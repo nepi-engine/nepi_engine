@@ -36,6 +36,7 @@ SYSTEM_CONFIG_FILE = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
 NEPI_DOCKER_CONFIG_FILE = '/opt/nepi/docker_cfg/nepi_docker_config.yaml'
 DOCKER_CONFIG_FILE = '/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
 
+NEPI_ALL_CONFIG_IDS = ['idx','ptx','lsx','npx','rbx']
 
 #######################
 ## Get System Data Functions
@@ -170,6 +171,14 @@ def get_node_name(node_name):
         node_name = node_name_dict[node_name]
     return node_name
 
+def supports_all_config(namespace):
+    supports_all = False
+    for id in NEPI_ALL_CONFIG_IDS:
+        check_str = '/' + id
+        if check_str in namespace:
+            supports_all = True
+            break
+    return supports_all
 ##########################
 
 def get_navposes_dict(timeout = 1000, log_name_list = []):

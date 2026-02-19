@@ -107,7 +107,7 @@ catkin_package(
 catkin_install_python(PROGRAMS
   scripts/system_mgr.py
   scripts/config_mgr.py
-  scripts/time_sync_mgr.py
+  scripts/time_mgr.py
   scripts/network_mgr.py
   scripts/drivers_mgr.py
   scripts/apps_mgr.py

@@ -158,7 +158,10 @@ class SystemMgrNode():
         'Msg-Controls': "Desc",
         'Dat': "Desc",
         'Dat-Controls': "Desc",
-        'Dat-Viwew': "Desc"
+        'Dat-View': "Desc",
+        'Sav-View': "Desc",
+        'Sav-Controls': "Desc",
+        'Sav-All': "Desc",
     }
 
 

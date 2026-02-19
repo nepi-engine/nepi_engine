@@ -64,6 +64,10 @@ class ConnectPTXDeviceIF:
     statusCb = None
     navposeCb = None
     panTiltCb = None
+    
+    
+    stopPanCb = None
+    stopTiltCb = None
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -71,6 +75,8 @@ class ConnectPTXDeviceIF:
                 statusCb = None,
                 panTiltCb = None,
                 navposeCb = None,
+                stopPanCb = None,
+                stopTiltCb = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -99,6 +105,10 @@ class ConnectPTXDeviceIF:
         self.statusCb = statusCb
         self.navposeCb = navposeCb
         self.panTiltCb = panTiltCb
+
+
+        self.stopPanCb = stopPanCb
+        self.stopTiltCb = stopTiltCb
 
 
         ##############################   
@@ -226,6 +236,22 @@ class ConnectPTXDeviceIF:
                 'qsize': 1,
                 'callback': self._panTiltCb, 
                 'callback_args': ()
+            },
+            'stop_pan_callback': {
+                'topic': 'stop_pan_callback',
+                'msg': Empty,
+                'namespace': self.namespace,
+                'qsize': 5,
+                'callback': self._stopPanCb, 
+                'callback_args': ()
+            },
+            'stop_tilt_callback': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'stop_tilt_callback',
+                'qsize': 5,
+                'callback': self._stopTiltCb, 
+                'callback_args': ()
             }
         }
 
@@ -320,11 +346,11 @@ class ConnectPTXDeviceIF:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
-    def get_navpose_dict(self):
-        navpose_dict = None
-        if self.navpose_msg is not None:
-            navpose_dict = nepi_nav.convert_navpose_msg2dict(self.navpose_msg)
-        return navpose_dict
+    # def get_navpose_dict(self):
+    #     navpose_dict = None
+    #     if self.navpose_msg is not None:
+    #         navpose_dict = nepi_nav.convert_navpose_msg2dict(self.navpose_msg)
+    #     return navpose_dict
     
     def get_pan_tilt_hard_limits(self):
         if self.status_msg is not None:
@@ -361,7 +387,7 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg)
 
     def goto_to_pan_position(self,pan_position):
-        self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position)) 
+        #self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position)) 
 
         pub_name = 'goto_to_pan_position'
         msg = pan_position
@@ -507,3 +533,10 @@ class ConnectPTXDeviceIF:
             self.panTiltCb(self.pan_tilt_position[0], self.pan_tilt_position[1])
     
 
+    def _stopPanCb(self,msg):    
+        if self.stopPanCb is not None:
+            self.stopPanCb()
+
+    def _stopTiltCb(self,msg):    
+        if self.stopTiltCb is not None:
+            self.stopTiltCb()

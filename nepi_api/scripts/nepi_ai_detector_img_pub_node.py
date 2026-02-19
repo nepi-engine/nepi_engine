@@ -353,11 +353,10 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn("Updating active topics: " +  str(img_topics))
         active_img_topics = []
         for img_topic in img_topics:
-            if img_topic in imgs_info_dict.keys():
-                if 'active' in imgs_info_dict[img_topic].keys():
-                    if imgs_info_dict[img_topic]['active'] == True:
-                        #self.msg_if.pub_warn("Found active topic: " +  str(img_topic))
-                        active_img_topics.append(img_topic)
+            if 'active' in imgs_info_dict[img_topic].keys():
+                if imgs_info_dict[img_topic]['active'] == True:
+                    #self.msg_if.pub_warn("Found active topic: " +  str(img_topic))
+                    active_img_topics.append(img_topic)
         return active_img_topics
 
 
@@ -479,6 +478,7 @@ class AiDetectorImgPub:
                 return  False    
             self.img_node_lock.acquire()
             if img_topic in self.img_node_dict.keys():
+                imgs_info_dict[img_topic]['active'] = True
                 self.img_node_dict[img_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
                 nepi_sdk.sleep(1)
                 self.img_node_dict[img_topic]['img_sub'] = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
@@ -639,16 +639,16 @@ class AiDetectorImgPub:
                     self.imgs_info_dict[img_topic]['connected'] = True
                     if self.enabled == True and self.state_str_msg == 'Detecting':
 
-                        if self.imgs_info_dict[img_topic]['publishing'] == False:
-                            self.msg_if.pub_warn("Processing image topic: " + str(img_topic))
+                        # if self.imgs_info_dict[img_topic]['publishing'] == False:
+                        #     self.msg_if.pub_warn("Processing image topic: " + str(img_topic))
 
                         # Check if time to publish
                         delay_time = float(1) / max_rate 
                         last_img_time = self.imgs_info_dict[img_topic]['last_img_time']
                         current_time = nepi_utils.get_time()
                         timer = round((current_time - last_img_time), 3)
-                        if self.imgs_info_dict[img_topic]['publishing'] == False:   
-                            self.msg_if.pub_warn("Process Delay and Timer: " + str(delay_time) + " " + str(timer))
+                        # if self.imgs_info_dict[img_topic]['publishing'] == False:   
+                        #     self.msg_if.pub_warn("Process Delay and Timer: " + str(delay_time) + " " + str(timer))
                         if timer > delay_time: 
                             self.imgs_info_dict[img_topic]['last_img_time'] = current_time
 
@@ -684,8 +684,8 @@ class AiDetectorImgPub:
                                 self.cv2_img_lock.release()
                                 #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
                             if use_cv2_img is not None:
-                                if self.imgs_info_dict[img_topic]['publishing'] == False:   
-                                    self.msg_if.pub_warn("Will process img with shape: " + str(use_cv2_img.shape) )
+                                # if self.imgs_info_dict[img_topic]['publishing'] == False:   
+                                #     self.msg_if.pub_warn("Will process img with shape: " + str(use_cv2_img.shape) )
                                 success = self.processDetImage(img_topic, 
                                                             use_cv2_img, 
                                                             det_dict_list, 
@@ -799,8 +799,8 @@ class AiDetectorImgPub:
 
                 if img_topic in self.imgs_info_dict.keys():
 
-                    if self.imgs_info_dict[img_topic]['publishing'] == False:
-                        self.msg_if.pub_warn("Publishing image topic: " + str(img_topic))
+                    # if self.imgs_info_dict[img_topic]['publishing'] == False:
+                    #     self.msg_if.pub_warn("Publishing image topic: " + str(img_topic))
                     self.imgs_info_dict[img_topic]['publishing'] = True
                         
                        

@@ -10,7 +10,7 @@
   <arg name="run_web_utils" default="true" />
 
   <arg name="run_mgr_network" default="true" />
-  <arg name="run_mgr_time_sync" default="true" />
+  <arg name="run_mgr_time" default="true" />
   <arg name="run_mgr_navpose" default="true" />
   <arg name="run_mgr_ai_models" default="true" />
   <arg name="run_mgr_targets" default="false" />
@@ -55,9 +55,9 @@
     </group> 
 
     <!-- MGR:  Time Sync -->
-    <group if="$(arg run_mgr_time_sync)" >
-    <rosparam command="load" file="$(arg config_file_root)/time_sync_mgr.yaml" ns="time_sync_mgr" />
-    <node name="time_sync_mgr" pkg="nepi_managers" type="time_sync_mgr.py" respawn="false" output="$(arg output_destination)" />
+    <group if="$(arg run_mgr_time)" >
+    <rosparam command="load" file="$(arg config_file_root)/time_mgr.yaml" ns="time_mgr" />
+    <node name="time_mgr" pkg="nepi_managers" type="time_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group> 
 
     <!-- MGR:  NavPose -->

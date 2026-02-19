@@ -141,6 +141,7 @@ class NodeConfigsIF:
         self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
         self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
         
@@ -150,7 +151,7 @@ class NodeConfigsIF:
 
         # Subscribe to save config for node namespace
         nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)
-        nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
+
         nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb)
         nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb)
         nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb)
@@ -162,6 +163,9 @@ class NodeConfigsIF:
         nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb)
         nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
         nepi_sdk.create_subscriber('system_reset', Reset, self._systemResetCb)
+
+        if nepi_system.supports_all_config(self.namespace) == True:
+            nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
 
         self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
         self.reset_config()
@@ -243,15 +247,19 @@ class NodeConfigsIF:
         return success
 
     def software_reset_config(self):
+        success = False
         if self.softwareResetCb:
             self.softwareResetCb() # Callback provided by container class to update based on param server, etc.
+            success = True
         else:
             self.msg_if.pub_warn("Does not have software reset support", log_name_list = self.log_name_list, throttle_s = 5.0)  
         return success
 
     def hardware_reset_config(self):
+        success = False
         if self.hardwareResetCb:
             self.hardwareResetCb() # Callback provided by container class to update based on param server, etc.
+            success = True
         else:
             self.msg_if.pub_warn("Does not have hardware reset support", log_name_list = self.log_name_list, throttle_s = 5.0)  
         return success
@@ -265,6 +273,7 @@ class NodeConfigsIF:
         self.save_config()
 
     def _saveAllCb(self,msg):
+        self.msg_if.pub_warn("Got Save Params All Msg", log_name_list = self.log_name_list)
         self.save_config_all()
 
     def _initCb(self,msg):
