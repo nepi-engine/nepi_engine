@@ -96,7 +96,7 @@ class SystemMgrNode():
                         "nepi_src",
                         "nepi_scripts",
                         "user_cfg",
-                        "user_cfg/cal",]
+                        "user_cfg/cals",]
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
