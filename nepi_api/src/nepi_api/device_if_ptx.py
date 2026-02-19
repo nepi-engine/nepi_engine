@@ -164,22 +164,6 @@ class PTXActuatorIF:
     delay = False
 
 
-    
-    track_ordered_list = TRACK_DEFAULT_TARGETS
-    track_max_update_rate = TRACK_MAX_UPDATE_RATE
-    track_filter = TRACK_DEFAULT_FILTER
-    track_min_error_deg = TRACK_MIN_ERROR_DEG
-    track_source_topic = TRACK_DEFAULT_SOURCE
-    track_source_connected_namespace = "None"
-    track_source_connected = False
-    track_source_connecting = False
-
-    track_exit_process = TRACK_EXIT_FUNCTION
-    track_source_namespace = 'None'
-    track_last_namespace = 'None'
-    track_if = None
-    track_dict = None
-
     num_errors = 1
     pan_errors = []
     tilt_errors = []
@@ -203,7 +187,6 @@ class PTXActuatorIF:
                  getSoftLimitsCb=None,
                  setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
                  getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
-                 supportsSinScan=False,
                  getPositionCb=None,
                  gotoPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
                  gotoPanPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
@@ -244,7 +227,6 @@ class PTXActuatorIF:
         ############################## 
         # Initialize Class Variables
 
-        self.track_source_namespace = os.path.join(self.base_namespace,self.track_source_topic)
 
         self.device_id = device_info["device_name"]
         self.identifier = device_info["identifier"]
@@ -1142,6 +1124,8 @@ class PTXActuatorIF:
 
     def _gotoToPanRatioCb(self, msg):
         self.stopPanCb()
+        if self.has_seperate_pan_tilt_control == False:
+            self.stopTiltCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid pan position ratio " + "%.2f" % ratio)
@@ -1160,6 +1144,8 @@ class PTXActuatorIF:
 
     def _gotoToTiltRatioCb(self, msg):
         self.stopTiltCb()
+        if self.has_seperate_pan_tilt_control == False:
+            self.stopPanCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid tilt position ratio " + "%.2f" % ratio)
@@ -1179,6 +1165,8 @@ class PTXActuatorIF:
 
     def _jogTimedPanCb(self, msg):
         self.stopPanCb()
+        if self.has_seperate_pan_tilt_control == False:
+            self.stopTiltCb()
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             direction = msg.direction * self.rpi
@@ -1190,6 +1178,8 @@ class PTXActuatorIF:
 
     def _jogTimedTiltCb(self, msg):
         self.stopTiltCb()
+        if self.has_seperate_pan_tilt_control == False:
+            self.stopPanCb()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             direction = msg.direction * self.rti
