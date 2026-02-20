@@ -47,7 +47,7 @@ from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF
 
 
-from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF
+from nepi_api.data_if import NavPoseIF, ColorImageIF, DepthMapIF, PointcloudIF
 #from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
@@ -414,7 +414,7 @@ class IDXDeviceIF:
                 'latch': True
             }
         }
-        
+                            
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -699,6 +699,13 @@ class IDXDeviceIF:
 
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
+        if self.getNavPoseCb is not None:
+            # self.navpose_if = NavPoseIF(
+
+            # )
+            navpose_pub_delay = float(1)/self.navpose_update_rate
+            nepi_sdk.start_timer_process(navpose_pub_delay, self.publishNavPoseCb)
+
     
         ####################################
         self.ready = True
@@ -706,7 +713,12 @@ class IDXDeviceIF:
         ####################################
 
         
-    
+    def publishNavPoseCb(self,timer):
+        if self.navpose_if is not None and self.getNavPoseCb is not None:
+            if self.navpose_if.ready == True:
+                navpose_dict = self.getNavPoseCb()
+                self.navpose_if.publish_navpose(navpose_dict)
+
 
     ###############################
     # Class Methods
