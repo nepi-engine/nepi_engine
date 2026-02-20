@@ -395,7 +395,7 @@ class config_mgr(object):
                 #self.msg_if.pub_warn("Checking for Saved config for namespace: " + namespace + " params file: " + str(restore_pathname))
                 if nepi_system.supports_all_config(namespace) == True:
                     restore_pathname_all = self.get_config_pathname(restore_path, namespace, all_config = True)
-                    #self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
+                    self.msg_if.pub_warn("Checking for ALL config for namespace: " + namespace + " params file: " + str(restore_pathname_all))
                     if restore_pathname_all is not None:
                         if os.path.exists(restore_pathname_all):
                             restore_pathname = restore_pathname_all
