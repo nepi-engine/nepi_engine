@@ -105,6 +105,8 @@ class IDXDeviceIF:
 
     device_name = ''
 
+    factory_controls_dict = copy.deepcopy(DEFAULT_CONTROLS_DICT)
+
     auto_adjust_controls = []
     auto_adjust_ebabled = False
     brightness_ratio = 0.5
@@ -226,9 +228,10 @@ class IDXDeviceIF:
 
         self.caps_report = IDXCapabilitiesQueryResponse()
 
+
+
         # Create and update factory controls dictionary
         self.msg_if.pub_warn("Got Factory Contrls: " + str(factoryControls))
-        self.factory_controls_dict = DEFAULT_CONTROLS_DICT
         if factoryControls is not None:
             controls = list(factoryControls.keys())
             for control in controls:
@@ -236,11 +239,23 @@ class IDXDeviceIF:
                     self.factory_controls_dict[control] = factoryControls[control]
         
         self.msg_if.pub_warn("Using Factory Controls: " + str(self.factory_controls_dict))
+        self.auto_adjust_ebabled = self.factory_controls_dict['auto_adjust_ebabled']
+        self.brightness_ratio = self.factory_controls_dict['brightness_ratio']
+        self.contrast_ratio = self.factory_controls_dict['contrast_ratio']
+        self.threshold_ratio = self.factory_controls_dict['threshold_ratio']
+        self.resolution_ratio = self.factory_controls_dict['resolution_ratio']
+        self.max_framerate = self.factory_controls_dict['max_framerate']
+
+
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
         self.msg_if.pub_warn("Set Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
         self.width_deg = self.factory_controls_dict['width_deg']
         self.height_deg = self.factory_controls_dict['height_deg']
+
+        self.start_range_ratio = self.factory_controls_dict['start_range_ratio']
+        self.stop_range_ratio = self.factory_controls_dict['stop_range_ratio']
+
         
         # Set up standard IDX parameters with ROS param and subscriptions
         # Defer actually setting these on the camera via the parent callbacks... the parent may need to do some 
@@ -339,35 +354,35 @@ class IDXDeviceIF:
             },
             'auto_adjust_ebabled': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["auto_adjust_ebabled"]
+                'factory_val': self.auto_adjust_ebabled
             },
             'brightness_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["brightness_ratio"]
+                'factory_val': self.brightness_ratio
             },
             'contrast_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["contrast_ratio"]
+                'factory_val': self.contrast_ratio
             },
             'threshold_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["threshold_ratio"]
+                'factory_val': self.threshold_ratio
             },
             'resolution_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["resolution_ratio"]
+                'factory_val': self.resolution_ratio
             },
             'max_framerate': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["max_framerate"]
+                'factory_val': self.max_framerate
             },
             'start_range_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["start_range_ratio"]
+                'factory_val': self.start_range_ratio
             },
             'stop_range_ratio': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict["stop_range_ratio"]
+                'factory_val': self.stop_range_ratio
             }
 
 
@@ -400,8 +415,6 @@ class IDXDeviceIF:
             }
         }
         
-
-        self.msg_if.pub_warn("Using Factory Controls start_range_ratio: " + str(self.factory_controls_dict['start_range_ratio']))
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -736,8 +749,14 @@ class IDXDeviceIF:
             self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
             self.threshold_ratio = self.node_if.get_param('threshold_ratio')  
             self.msg_if.pub_warn("Starting range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
-            self.start_range_ratio = self.node_if.get_param('start_range_ratio')
-            self.stop_range_ratio = self.node_if.get_param('stop_range_ratio')
+            start_range_ratio = self.node_if.get_param('start_range_ratio')
+            stop_range_ratio = self.node_if.get_param('stop_range_ratio')
+            if start_range_ratio is not None and stop_range_ratio is not None:
+                self.start_range_ratio = start_range_ratio
+                self.stop_range_ratio = stop_range_ratio
+            else:
+                self.node_if.set_param('start_range_ratio',0)
+                stop_range_ratio = self.node_if.get_param('stop_range_ratio',1)
             self.msg_if.pub_warn("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
 
 
