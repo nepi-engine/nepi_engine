@@ -1169,6 +1169,7 @@ class PTXActuatorIF:
             self.stopTiltCb()
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
+            self.pan_goal_deg = -999
             direction = msg.direction * self.rpi
             time_s = msg.duration_s
             self.movePanCb(direction,  time_s)
@@ -1182,6 +1183,7 @@ class PTXActuatorIF:
             self.stopPanCb()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
+            self.tilt_goal_deg = -999
             direction = msg.direction * self.rti
             time_s = msg.duration_s
             self.moveTiltCb(direction, time_s)
@@ -1395,13 +1397,23 @@ class PTXActuatorIF:
 
             pan_now_deg_adj = self.getPanAdj(pan_deg)
             self.status_msg.pan_now_deg = pan_now_deg_adj
-            pan_goal_deg_adj = self.getPanAdj(self.pan_goal_deg)
+
+            if self.pan_goal_deg == -999:
+                pan_goal = pan_now_deg_adj
+            else:
+                pan_goal = self.getPanAdj(self.pan_goal_deg)
+            pan_goal_deg_adj = pan_goal
             self.status_msg.pan_goal_deg = pan_goal_deg_adj
             self.status_msg.pan_home_pos_deg = self.getPanAdj(self.home_pan_deg)
 
             tilt_now_deg_adj = self.getTiltAdj(tilt_deg)
             self.status_msg.tilt_now_deg = tilt_now_deg_adj
-            tilt_goal_deg_adj = self.getTiltAdj(self.tilt_goal_deg)
+
+            if self.tilt_goal_deg == -999:
+                tilt_goal = tilt_now_deg_adj
+            else:
+                tilt_goal = self.getTiltAdj(self.tilt_goal_deg)
+            tilt_goal_deg_adj = tilt_goal
             self.status_msg.tilt_goal_deg = tilt_goal_deg_adj
             self.status_msg.tilt_home_pos_deg = self.getTiltAdj(self.home_tilt_deg)
 
