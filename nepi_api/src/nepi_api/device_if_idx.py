@@ -45,9 +45,9 @@ from nepi_interfaces.msg import ImageStatus, PointcloudStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF, SaveDataIF
+from nepi_api.device_if_npx import NPXDeviceIF
 
-
-from nepi_api.data_if import NavPoseIF, ColorImageIF, DepthMapIF, PointcloudIF
+from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF
 #from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
@@ -100,7 +100,13 @@ class IDXDeviceIF:
     settings_if = None
     navpose_if = None
     save_data_if = None
+
+    namespace_npx = ''
     npx_if = None
+    device_info_dict = dict()
+    navpose_update_rate = 10
+    max_navpose_update_rate = 10
+
 
 
     device_name = ''
@@ -203,6 +209,7 @@ class IDXDeviceIF:
 
         ############################# 
         # Initialize Class Variables
+        self.device_info_dict = device_info
         self.device_id = device_info["device_name"]
         self.identifier = device_info["identifier"]
         self.serial_num = device_info["serial_number"]
@@ -272,11 +279,14 @@ class IDXDeviceIF:
         self.get_rtsp_url = get_rtsp_url
 
         self.getNavPoseCb = getNavPoseCb
-        if navpose_update_rate < 1:
-           navpose_update_rate = 1
-        if navpose_update_rate > 10:
-            navpose_update_rate = 10
-        self.navpose_update_rate = navpose_update_rate
+        if navpose_update_rate is not None:
+            self.max_navpose_update_rate  = copy.deepcopy(navpose_update_rate) 
+            if navpose_update_rate < 1:
+                navpose_update_rate = 1
+            if navpose_update_rate > 10:
+                navpose_update_rate = 10
+            self.navpose_update_rate = navpose_update_rate
+            
 
         ## Set None Capabilities Variables
 
@@ -700,11 +710,21 @@ class IDXDeviceIF:
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
         if self.getNavPoseCb is not None:
-            # self.navpose_if = NavPoseIF(
+            ###############################
+            # Create a NPX Device IF
+            self.msg_if.pub_warn("Starting NPX Class Initialization")
 
-            # )
-            navpose_pub_delay = float(1)/self.navpose_update_rate
-            nepi_sdk.start_timer_process(navpose_pub_delay, self.publishNavPoseCb)
+            if self.getNavPoseCb is not None:
+                self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+                self.npx_if = NPXDeviceIF(device_info = self.device_info_dict, 
+                    node_namespace = self.node_namespace,
+                    data_source_description = self.data_source_description,
+                    data_ref_description = self.data_ref_description,
+                    getNavPoseCb = self.getNavPoseCb,
+                    max_navpose_update_rate = self.navpose_update_rate,
+                    msg_if = self.msg_if
+                    )
+
 
     
         ####################################
@@ -713,11 +733,7 @@ class IDXDeviceIF:
         ####################################
 
         
-    def publishNavPoseCb(self,timer):
-        if self.navpose_if is not None and self.getNavPoseCb is not None:
-            if self.navpose_if.ready == True:
-                navpose_dict = self.getNavPoseCb()
-                self.navpose_if.publish_navpose(navpose_dict)
+
 
 
     ###############################

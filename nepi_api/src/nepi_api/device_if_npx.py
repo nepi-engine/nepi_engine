@@ -134,6 +134,7 @@ class NPXDeviceIF:
   ### IF Initialization
   def __init__(self, 
                 device_info,
+                node_namespace = None,
                 capSettings=None, factorySettings=None, 
                 settingUpdateFunction=None, getSettingsFunction=None,
                 data_source_description = 'navpose_sensor',
@@ -151,7 +152,10 @@ class NPXDeviceIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
+        if node_namespace is not None:
+            self.namespace = nepi_sdk.create_namespace(node_namespace,'npx')
+        else:
+            self.namespace = nepi_sdk.create_namespace(self.node_namespace,'npx')
         ##############################  
         # Create Msg Class
         if msg_if is not None:
