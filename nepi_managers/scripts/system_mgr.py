@@ -200,6 +200,11 @@ class SystemMgrNode():
     managers_enabled_dict = dict()
     deploy_nodes_dict = dict()
     user_restrictions = []
+
+    rui_login_enabled = False
+    rui_login_password = None
+    rui_login_password_valid = False
+
     rui_restricted = []
     run_mode = 'deploy'
 
@@ -245,6 +250,7 @@ class SystemMgrNode():
         # stat_info = os.stat(self.storage_folder)
         # self.folders_uid = stat_info.st_uid
         # self.folders_gid = stat_info.st_gid
+        self.rui_login_password = self.nepi_config['NEPI_USER_PW']
         self.admin_password = self.nepi_config['NEPI_ADMIN_PW']
         self.folders_uid = self.nepi_config['NEPI_USER']
         self.folders_gid = self.nepi_config['NEPI_USER']
@@ -457,6 +463,10 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': []
             },
+            'rui_login_enabled': {
+                'namespace': self.base_namespace,
+                'factory_val': self.rui_login_enabled
+            },
             'rui_restrictions': {
                 'namespace': self.base_namespace,
                 'factory_val': []
@@ -597,6 +607,22 @@ class SystemMgrNode():
                 'callback': self.removeUserRestrictionCb, 
                 'callback_args': ()
             },
+            'enable_rui_login': {
+                'namespace': self.base_namespace,
+                'topic': 'rui_login_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableRuiLoginCb, 
+                'callback_args': ()
+            },
+            'set_rui_login_password': {
+                'namespace': self.base_namespace,
+                'topic': 'set_rui_login_password',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setRuiLoginPasswordCb, 
+                'callback_args': ()
+            },  
             'add_rui_restriction': {
                 'namespace': self.base_namespace,
                 'topic': 'add_rui_restriction',
@@ -838,6 +864,7 @@ class SystemMgrNode():
             self.deploy_nodes_dict = self.node_if.get_param('deploy_nodes_dict')
             self.run_mode = self.node_if.get_param('run_mode')
             self.user_restrictions = self.node_if.get_param('user_restrictions')
+            self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
             self.rui_restrictions = self.node_if.get_param('rui_restrictions')
             self.node_names_dict = self.node_if.get_param('node_names_dict')
         if do_updates == True:
@@ -1050,12 +1077,12 @@ class SystemMgrNode():
 
     #######################
     def updateSystemAdminSettings(self):
-        admin_password_valid = (self.admin_password_valid or self.run_mode == 'develop')
+       
         managers_enabled = self.MANAGERS_OPTIONS
         if self.run_mode in self.managers_enabled_dict.keys():
             managers_enabled = self.managers_enabled_dict[self.run_mode]
 
-
+        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.run_mode == 'develop')
         self.admin_mode_set = self.admin_enabled and admin_password_valid
         self.status_msg.sys_admin_enabled = self.admin_enabled
         self.status_msg.sys_admin_password_valid = admin_password_valid 
@@ -1073,6 +1100,11 @@ class SystemMgrNode():
         if self.develop_enabled == False:
             user_restricted = self.user_restrictions
         self.status_msg.user_restricted = user_restricted
+
+        self.rui_login_mode_set = self.rui_login_enabled and self.rui_login_password_valid
+        self.status_msg.rui_login_enabled = self.rui_login_enabled
+        self.status_msg.rui_login_password_valid = self.rui_login_password_valid 
+
 
         self.status_msg.rui_restrictions = self.rui_restrictions
         rui_restricted = []
@@ -1152,6 +1184,19 @@ class SystemMgrNode():
         if self.node_if is not None:
             self.node_if.set_param('user_restrictions',self.user_restrictions)
             self.node_if.save_config()
+
+    def enableRuiLoginCb(self, msg):
+        self.rui_login_enabled = msg.data
+        self.updateSystemAdminSettings()
+        if self.node_if is not None:
+            self.node_if.set_param('rui_login_enabled',msg.data)
+            self.node_if.save_config()
+
+    def setRuiLoginPasswordCb(self, msg):
+        password = msg.data
+        if password == self.rui_login_password:
+            self.rui_login_password_valid = True
+            self.updateSystemAdminSettings()
 
 
     def addRuiRestrictionCb(self, msg):
