@@ -252,7 +252,6 @@ class NepiAppsMgr(object):
           
         ###########################
         # Start Node Processes
-        nepi_sdk.start_timer_process(0.5, self.statusPublishCb)
 
         # Setup a app folder timed check
         nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
@@ -433,20 +432,30 @@ class NepiAppsMgr(object):
           self.msg_if.pub_info("Launching application node: " + app_node_name)
           [success, msg, sub_process] = nepi_sdk.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success:
-            apps_dict[app_name]['msg'] = "Discovery process lanched"
+            apps_dict[app_name]['running_state'] = False
+            apps_dict[app_name]['msg'] = "Application started"
             self.apps_active_dict[app_name]=dict()
             self.apps_active_dict[app_name]['node_name'] = app_node_name
             namespace = nepi_sdk.create_namespace(self.base_namespace,app_node_name)
             self.apps_active_dict[app_name]['node_namespace'] = namespace
             self.apps_active_dict[app_name]['subprocess'] = sub_process
           else:
+            apps_dict[app_name]['running_state'] = False
+            apps_dict[app_name]['msg'] = "Application failed to start"
             if restart == False:
-              self.msg_if.pub_warn("Node not started: " + node_name  + " - Will not restart")
+              self.msg_if.pub_warn("Node not started: " + app_node_name  + " - Will not restart")
               self.failed_app_list.append(app_name)
             else:
-              self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
+              self.msg_if.pub_warn("Node not running: " + app_node_name  + " - Will attempt restart")
+      elif app_name in apps_active_list and app_name in self.apps_active_dict.keys():
+        app_dict = apps_dict[app_name]
+        app_node_name = app_dict['APP_DICT']['node_name']
+        running = nepi_sdk.check_node_by_name(app_node_name)  
+        if running == True:
+          apps_dict[app_name]['running_state'] = True
+          apps_dict[app_name]['msg'] = "Application running"
 
-              
+    self.apps_dict = apps_dict        
 
 
     #self.msg_if.pub_warn("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
@@ -488,6 +497,10 @@ class NepiAppsMgr(object):
         status_app_msg.rui_main_class = app['RUI_DICT']['rui_main_class']  
         status_app_msg.rui_menu_name = app['RUI_DICT']['rui_menu_name']
         status_app_msg.active_state  = app['active']
+        running_state = False
+        if 'running_state' in app.keys():
+          running_state = app['active'] #app['running_state']
+        status_app_msg.running_state = running_state        
         status_app_msg.order  = app['order']
         status_app_msg.msg_str = app['msg']
         status_app_msg.license_type = app['APP_DICT']['license_type']

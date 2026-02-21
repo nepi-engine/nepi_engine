@@ -478,7 +478,7 @@ class AiDetectorImgPub:
                 return  False    
             self.img_node_lock.acquire()
             if img_topic in self.img_node_dict.keys():
-                imgs_info_dict[img_topic]['active'] = True
+                self.imgs_info_dict[img_topic]['active'] = True
                 self.img_node_dict[img_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
                 nepi_sdk.sleep(1)
                 self.img_node_dict[img_topic]['img_sub'] = nepi_sdk.create_subscriber(img_topic,Image, self.imageCb, queue_size = 1, callback_args= (img_topic), log_name_list = [])
