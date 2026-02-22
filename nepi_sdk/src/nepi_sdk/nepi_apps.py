@@ -52,17 +52,23 @@ def getAppsDict(search_path):
               file_path = os.path.join(search_path,f)
               #logger.log_warn("Loading app dict from file: " + str(file_path))
               try:
-                new_dict = nepi_utils.read_yaml_2_dict(file_path)
-                #logger.log_warn("Got app dict: " + str(new_dict))
+                new_apps_dict = nepi_utils.read_yaml_2_dict(file_path)
+                new_dict = new_apps_dict['APP_DICT']
+                if 'RUI_DICT' in new_apps_dict.keys():
+                  new_dict['RUI_DICT'] = new_apps_dict['RUI_DICT']
+                logger.log_warn("Got app dict: " + str(new_dict))
+                app_name = new_dict['pkg_name']
                 new_dict['order'] = -1
                 new_dict['subprocess'] = ""
                 new_dict['active'] = False
+                new_dict['running'] = False
                 new_dict['msg'] = ""
-                if 'license_type' not in new_dict['APP_DICT'].keys():
-                  new_dict['APP_DICT']['license_type'] = "Not Provided"
-                if 'license_link' not in new_dict['APP_DICT'].keys():
-                  new_dict['APP_DICT']['license_link'] = ""
-                app_name = new_dict['APP_DICT']['pkg_name']
+                if 'display_name' not in new_dict.keys():
+                  new_dict['display_name'] = app_name
+                if 'license_type' not in new_dict.keys():
+                  new_dict['license_type'] = "Not Provided"
+                if 'license_link' not in new_dict.keys():
+                  new_dict['license_link'] = ""
                 #logger.log_warn("Adding dict: " + str(new_dict) + " with app_name: " + str(app_name))
                 apps_dict[app_name] = new_dict   
               except Exception as e:
@@ -73,14 +79,18 @@ def getAppsDict(search_path):
 
     purge_list = []
     for app_name in apps_dict.keys():
-      pkg_name = apps_dict[app_name]['APP_DICT']['pkg_name']
-      app_file = apps_dict[app_name]['APP_DICT']['app_file']
-      app_file_path = os.path.join(NEPI_PKG_FOLDER ,pkg_name, app_file)
-      if os.path.exists(app_file_path) == False:
-        logger.log_warn("Could not find app file: " + app_file_path)
+      try:
+        pkg_name = apps_dict[app_name]['pkg_name']
+        app_file = apps_dict[app_name]['app_file']
+        app_file_path = os.path.join(NEPI_PKG_FOLDER ,pkg_name, app_file)
+        if os.path.exists(app_file_path) == False:
+          logger.log_warn("Could not find app file: " + app_file_path)
+          purge_list.append(app_name)
+        else:
+          apps_dict[app_name]['app_path'] = NEPI_PKG_FOLDER + pkg_name
+      except Exception as e:
         purge_list.append(app_name)
-      else:
-        apps_dict[app_name]['APP_DICT']['app_path'] = NEPI_PKG_FOLDER + pkg_name
+        logger.log_warn("Failed to import param file: " + file_path + " " + str(e))
     for app_name in purge_list:
       del apps_dict[app_name]
     apps_dict = setFactoryAppOrder(apps_dict)
@@ -91,8 +101,8 @@ def getAppsDict(search_path):
 def printDict(apps_dict):
   logger.log_warn('')
   logger.log_warn('*******************')
-  if line_num is not None:
-    logger.log_warn('' + str(line_num))
+  # if line_num is not None:
+  #   logger.log_warn('' + str(line_num))
   logger.log_warn('Printing Nex App Dictionary')
 
   for app_name in apps_dict.keys():
@@ -218,37 +228,32 @@ def getAppsOrderedList(apps_dict):
   for i,index in enumerate(indexes):
     ordered_name_list[index] = name_list[i]
   return ordered_name_list
-  
-def getAppsGroupList(apps_dict):
-  group_list = []
-  for app_name in apps_dict.keys():
-    try:
-      group_list.append(apps_dict[app_name]['APP_DICT']['group_name'])
-    except Exception as e:
-      logger.log_warn("Failed to get group name from app dict: " + app_name + " " + str(e))
-  return group_list
+ 
 
-def getAppsActiveOrderedList(apps_dict):
+def getAppsActiveList(apps_dict):
   ordered_name_list = getAppsOrderedList(apps_dict)
   #logger.log_warn("ordered list: " + str(ordered_name_list))
-  ordered_active_list =[]
+  active_list =[]
   for app_name in ordered_name_list:
     active = apps_dict[app_name]['active']
     if active:
-      ordered_active_list.append(app_name)
-  return ordered_active_list
+      active_list.append(app_name)
+  return active_list
 
-def getAppsRuiActiveList(apps_dict):
-  ordered_name_list = getAppsOrderedList(apps_dict)
-  rui_active_list =[]
-  for app_name in ordered_name_list:
-    active = apps_dict[app_name]['active']
-    if 'rui_menu_name' in apps_dict[app_name]['RUI_DICT'].keys():
-      rui_name = apps_dict[app_name]['RUI_DICT']['rui_menu_name']
-    else:
-      rui_name = "None"
-    rui_active_list.append(rui_name)
-  return rui_active_list
+
+
+def getAppsRunningList(apps_dict):
+  running_list = []
+  for app_name in apps_dict.keys():
+    app_dict = apps_dict[app_name]
+    running = False
+    if 'running' in app_dict.keys():
+      running = app_dict['running']
+    if running:
+      running_list.append(app_name)
+  return running_list
+
+
 
 
 

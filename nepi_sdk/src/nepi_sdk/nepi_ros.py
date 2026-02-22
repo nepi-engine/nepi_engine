@@ -745,6 +745,9 @@ def publish_pub(publisher, msg, log_name_list = []):
 
 # Function to get list of active topics
 def get_topics_data_list():
+  topics_list = []
+  types_list = []
+
   topics_data_list = []
   try:
     pubs, subs =rostopic.get_topic_list()
@@ -753,8 +756,7 @@ def get_topics_data_list():
     log_msg_warn("Nepi Sdk rostopic.get_topic_list failed: " + str(e))
     return topics_list,types_list
   
-  topics_list = []
-  types_list = []
+
   try:
     for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
@@ -782,6 +784,7 @@ def get_published_topics():
 # Function to find a topic
 def find_topic(topic_name, exact = False):
   find_topic = ""
+  topics_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
   except:
@@ -807,6 +810,8 @@ def find_topics(topic_names_list):
   #log_msg_warn("msg find: " + str(msg_type_list))
 
   find_topics = []
+  topics_list = []
+
   try:
     [topics_list,types_list]=get_topics_data_list()
     for topic in topics_list:
@@ -842,6 +847,8 @@ def find_topics_by_msgs(msg_type_list):
 
   find_topics = []
   find_msgs = []
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for i, topic in enumerate(topics_list):
@@ -862,6 +869,8 @@ def find_topics_by_msgs(msg_type_list):
 # Function to find a topic
 def find_msg_by_topic(topic):
   find_msg = ''
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for i, topic in enumerate(topics_list):
@@ -877,6 +886,8 @@ def find_msg_by_topic(topic):
 def find_topics_by_name(topic_name):
 
   find_topics = []
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for topic in topics_list:
