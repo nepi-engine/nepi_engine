@@ -94,6 +94,7 @@ def getAppsDict(search_path):
     for app_name in purge_list:
       del apps_dict[app_name]
     apps_dict = setFactoryAppOrder(apps_dict)
+    #logger.log_warn("Returning imported apps dict: " + str(apps_dict))
     return apps_dict
 
 

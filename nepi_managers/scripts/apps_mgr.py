@@ -636,7 +636,7 @@ class NepiAppsMgr(object):
         status_app_msg.enabled  = app_dict['active']
         running = False
         if 'running' in app_dict.keys():
-          running = app_dict['active'] #app_dict['running']
+          running = app_dict['running']
         status_app_msg.running = running        
         status_app_msg.order  = app_dict['order']
         status_app_msg.msg_str = app_dict['msg']
@@ -676,7 +676,7 @@ class NepiAppsMgr(object):
     status_list = []
     for app_name in apps_ordered_list:      
       name_list.append(apps_dict[app_name]['display_name'])
-      group_list.append(apps_dict[app_name]['group'])
+      group_list.append(apps_dict[app_name]['group_name'])
       status_list.append(self.getAppStatusMsg(app_name))
     status_msg.apps_ordered_name_list = name_list
     status_msg.apps_ordered_group_list =group_list
@@ -692,10 +692,9 @@ class NepiAppsMgr(object):
     status_msg.apps_running_list = running_apps_list
     name_list = []
     group_list = []
-    status_list = []
     for app_name in running_apps_list:      
       name_list.append(apps_dict[app_name]['display_name'])
-      group_list.append(apps_dict[app_name]['group'])
+      group_list.append(apps_dict[app_name]['group_name'])
     status_msg.apps_running_name_list = name_list
     status_msg.apps_running_group_list =group_list
 
@@ -707,7 +706,7 @@ class NepiAppsMgr(object):
     if self.node_if is not None:
       if self.status_published == False:
         self.status_published = True
-        self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg))
+        #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg))
 
       self.node_if.publish_pub('status_pub', self.status_msg)
       if last_status_msg != self.status_msg:
