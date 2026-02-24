@@ -69,8 +69,8 @@
  
  <!-- MGR: AI Model Mgr -->
     <group if="$(arg run_mgr_ai_models)" >
-      <rosparam command="load" file="$(arg config_file_root)/ai_model_mgr.yaml" ns="ai_model_mgr" />
-      <node name="ai_model_mgr" pkg="nepi_managers" type="ai_model_mgr.py" respawn="false" output="$(arg output_destination)" />
+      <rosparam command="load" file="$(arg config_file_root)/ai_models_mgr.yaml" ns="ai_models_mgr" />
+      <node name="ai_models_mgr" pkg="nepi_managers" type="ai_models_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
  <!-- MGR: Targets Mgr -->

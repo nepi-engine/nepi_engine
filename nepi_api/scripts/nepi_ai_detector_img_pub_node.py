@@ -41,7 +41,6 @@ from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import ImageStatus, AiBoundingBoxes
 from nepi_interfaces.msg import AiDetectorStatus
-#from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
 
 
 

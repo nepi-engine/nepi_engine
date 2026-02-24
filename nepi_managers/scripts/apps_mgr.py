@@ -454,23 +454,18 @@ class NepiAppsMgr(object):
       app_node_name = app_dict['node_name']
 
       running = nepi_sdk.check_node_by_name(app_node_name)  
+      self.apps_dict[app_name]['running'] = running
       if running == True:
-        self.apps_dict[app_name]['running'] = running
         self.apps_dict[app_name]['msg'] = "Application running"
         if was_running == False:
           self.msg_if.pub_warn("App Running: " + app_node_name)
       elif running == False:
-        self.apps_dict[app_name]['running'] = running
-        if was_running == False:
+        if was_running == True and app_name in self.apps_active_dict.keys(): 
+          self.apps_dict[app_name]['msg'] = "Application stopped running"
+          self.apps_dict[app_name]['active'] = False
+        else :
           self.apps_dict[app_name]['msg'] = "Application not running"
-
-        # do_check = (cur_time - launch_time) > self.NODE_LAUNCH_TIME_SEC
-        # if was_running == True and do_check == True:
-        #   self.apps_dict[app_name]['msg'] = "Application stopped running"
-        #   self.apps_dict[app_name]['active'] = False
-        #   self.msg_if.pub_warn("App Stopped Running: " + app_node_name)
-          
-
+        
     
 
 

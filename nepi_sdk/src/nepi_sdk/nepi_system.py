@@ -237,6 +237,19 @@ def get_active_auto_scrips(timeout = 1000, log_name_list = []):
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 '''
+##########################
+
+def get_ai_models_dict(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'ai_models_dict')
+    ai_models_dict = None
+    ai_models_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    return ai_models_dict
+
+def set_ai_models_dict(ai_models_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'ai_models_dict')
+    success = nepi_sdk.set_param(param_namespace, ai_models_dict, log_name_list = log_name_list)
+    return success
+
 
 ########################
 def load_nepi_system_config():

@@ -32,11 +32,10 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import NavPose, ImageStatus, Localization
-from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, AiBoundingBoxes
-from nepi_interfaces.msg import Target, Targets, TargetFilter, TargetFilters, TargetingStatus
-from nepi_interfaces.msg import AiDetectorInfo, AiDetectorStatus
-from nepi_interfaces.srv import SystemStorageFolderQuery
-from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+from nepi_interfaces.msg import StringArray, BoundingBox, AiBoundingBoxes
+from nepi_interfaces.msg import Target, Targets, TargetingStatus
+from nepi_interfaces.msg import AiDetectorStatus
+from nepi_interfaces.srv import AiDetectorStatusQuery, AiDetectorStatusQueryRequest, AiDetectorStatusQueryResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -243,8 +242,9 @@ class AiDetectorIF:
         # Get for System Folders
         self.msg_if.pub_warn("Waiting for system folders")
         system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
-        if system_folders is None:
+        while system_folders is None and nepi_sdk.is_shutdown() == False:
             system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+            nepi_sdk.sleep(1)
 
         self.msg_if.pub_warn("Got system folders: " + str(system_folders))
        
@@ -382,13 +382,13 @@ class AiDetectorIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'info_query': {
+            'detector_status_query': {
                 'namespace': self.node_namespace,
-                'topic': 'detector_info_query',
-                'srv': AiDetectorInfoQuery,
-                'req': AiDetectorInfoQueryRequest(),
-                'resp': AiDetectorInfoQueryResponse(),
-                'callback': self.handleInfoRequest
+                'topic': 'detector_status_query',
+                'srv': AiDetectorStatusQuery,
+                'req': AiDetectorStatusQueryRequest(),
+                'resp': AiDetectorStatusQueryResponse(),
+                'callback': self.handleStatusRequest
             }
         }
 
@@ -2093,9 +2093,10 @@ class AiDetectorIF:
 
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
 
-    def handleInfoRequest(self,_):
-        resp = AiDetectorInfoQueryResponse().detector_info
-        resp.name = self.model_name
+    def handleStatusRequest(self,_):
+        resp = AiDetectorStatusQueryResponse().detector_info
+        resp.detector_name = self.model_name
+        resp.display_name = self.node_name
         resp.framework = self.model_framework
         resp.node_name = self.node_name
         resp.namespace = self.node_namespace
@@ -2103,7 +2104,10 @@ class AiDetectorIF:
         resp.description = self.model_description
         resp.proc_img_height = self.model_proc_img_height
         resp.proc_img_width = self.model_proc_img_width
-        resp.classes = self.classes
+        resp.available_classes = self.classes
+        sel_classes = copy.deepcopy(self.selected_classes)
+        resp.selected_classes = sel_classes
+
         resp.has_img_tiling = self.has_img_tiling
 
         img_source_topics = []
@@ -2114,8 +2118,8 @@ class AiDetectorIF:
                 if state == True:
                     img_source_topics.append(img_topic)
                     img_pub_topics.append(imgs_info_dict[img_topic]['img_pub_topic'])
-        self.status_msg.image_source_topics = img_source_topics
-        self.status_msg.image_pub_topics = img_pub_topics
+        resp.image_source_topics = img_source_topics
+        resp.image_pub_topics = img_pub_topics
 
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp

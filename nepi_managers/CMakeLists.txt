@@ -113,7 +113,7 @@ catkin_install_python(PROGRAMS
   scripts/apps_mgr.py
   scripts/scripts_mgr.py
   scripts/software_mgr.py
-  scripts/ai_model_mgr.py
+  scripts/ai_models_mgr.py
   scripts/navpose_mgr.py
   scripts/targets_mgr.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
