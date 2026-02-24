@@ -910,7 +910,7 @@ class AIDetectorManager:
         if self.node_if is not None:
             if self.status_published == False:
                 self.status_published = True
-                self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg))
+                #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg))
 
             self.node_if.publish_pub('status_pub', self.status_msg)
             if last_status_msg != self.status_msg:

@@ -291,11 +291,13 @@ class ScriptsManager(object):
     def update_script_configs(self):
         #self.msg_if.pub_warn("Ready to run update_script_configs!!!")
         script_configs = {} # Dictionary of dictionaries
+
         try:
-            script_configs = self.node_if.get_param('script_configs')
+            if self.node_if is not None:
+                script_configs = self.node_if.get_param('script_configs')
         except KeyError:
             #self.msg_if.pub_warn("Parameter ~script_configs does not exist")
-            script_configs = {}
+            pass
 
         for script_name in script_configs:
             if script_name not in self.scripts:
@@ -337,20 +339,16 @@ class ScriptsManager(object):
 
         
     def resetCb(self,do_updates = True):
-        self.node_if.set_param('script_configs', self.script_configs)
-        self.node_if.set_param('script_stop_timeout_s', self.script_stop_timeout_s)
         if self.node_if is not None:
-            pass
+            self.node_if.reset_params()
         if do_updates == True:
             pass
         self.initCb(do_updates = do_updates)
 
 
     def factoryResetCb(self,do_updates = True):
-        self.aifs_classes_dict = dict()
-        self.aif_classes_dict = dict()
         if self.node_if is not None:
-            pass
+            self.node_if.factory_reset_params()
         if do_updates == True:
             pass
         self.initCb(do_updates = do_updates)

@@ -640,7 +640,7 @@ class SaveDataIF:
         if all_save_namespace != self.namespace:
             self.all_save_namespace = all_save_namespace
 
-        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navposes/save_data')
+        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navpose=/save_data')
         if navpose_save_namespace != self.namespace:
             self.navpose_save_namespace = navpose_save_namespace
         ###############################
@@ -866,7 +866,7 @@ class SaveDataIF:
                 'msg': Empty,
                 'topic': 'reset_save_data',
                 'qsize': 5,
-                'callback': self._resetCb,  
+                'callback': self._resetSaveDataCb,  
                 'callback_args': ()
             },
 
@@ -1393,7 +1393,8 @@ class SaveDataIF:
     def logNavPoseEnable(self,enabled):
         self.log_navposes_enabled = enabled
         self.publish_status()
-        self.node_if.publish_pub('set_navpose_enable',enabled)
+        if self.node_if is not None:
+            self.node_if.publish_pub('set_navpose_enable',enabled)
 
     def _logNavPoseRateCb(self, msg):
         self.msg_if.pub_info("Recieved Log NavPose Rate Update: " + str(msg), log_name_list = self.log_name_list)
@@ -1407,7 +1408,8 @@ class SaveDataIF:
         rate_msg = SaveDataRate()
         rate_msg.data_product = 'navposes'
         rate_msg.save_rate_hz = rate
-        self.node_if.publish_pub('set_navpose_rate',rate_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('set_navpose_rate',rate_msg)
         self.publish_status()
 
 
@@ -1486,13 +1488,8 @@ class SaveDataIF:
         if self.node_if is not None:
             self.node_if.save_config()
 
-    def _resetCb(self,reset_msg):
+    def _resetSaveDataCb(self,msg):
         self.reset()
-
-
-    def _factoryResetCb(self,reset_msg):
-        self.factory_reset
-
 
     def _publishStatusCb(self, timer):
         self.publish_status()
@@ -1719,13 +1716,15 @@ class Transform3DIF:
             if len(transform_list) == 7:
                 self.transform = transform_list
                 self.publish_transform()
-                self.node_if.set_param('transform',transform_list)
+                if self.node_if is not None:
+                    self.node_if.set_param('transform',transform_list)
 
     def clear_3d_transform(self):
         if self.supports_updates == True:
             self.transform = ZERO_TRANSFORM
             self.publish_transform()
-            self.node_if.set_param('transform',transform_list)
+            if self.node_if is not None:
+                self.node_if.set_param('transform',transform_list)
 
     def set_has_transform(self,has_transform):
         self.has_trasform = has_transform
@@ -1740,7 +1739,8 @@ class Transform3DIF:
     def set_source_description(self,source):
         self.source = source
         self.publish_transform()
-        self.node_if.set_param('source',source)
+        if self.node_if is not None:
+            self.node_if.set_param('source',source)
 
     def get_end_description(self):
         return self.end
@@ -1748,7 +1748,8 @@ class Transform3DIF:
     def set_end_description(self,end):
         self.end = end
         self.publish_transform()
-        self.node_if.set_param('end',end)
+        if self.node_if is not None:
+            self.node_if.set_param('end',end)
 
 
     def publish_transform(self):
@@ -2128,7 +2129,8 @@ class SettingsIF:
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting
-                        self.node_if.set_param('settings', updated_settings)
+                        if self.node_if is not None:
+                            self.node_if.set_param('settings', updated_settings)
                     if do_updates:
                         self.publish_status() 
         else:
@@ -2492,7 +2494,8 @@ class TriggersIF:
 
     def publish_trigger(self, trigger_dict):
         trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
-        self.node_if.publish_pub('trigger_pub',trig_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('trigger_pub',trig_msg)
  
 
     ###############################

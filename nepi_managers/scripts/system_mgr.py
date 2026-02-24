@@ -199,13 +199,14 @@ class SystemMgrNode():
     debug_enabled = False
     managers_enabled_dict = dict()
     deploy_nodes_dict = dict()
+    
     user_restrictions = []
 
     rui_login_enabled = False
     rui_login_password = None
     rui_login_password_valid = False
 
-    rui_restricted = []
+    rui_restrictions = []
     run_mode = 'deploy'
 
     node_names_dict = dict()
