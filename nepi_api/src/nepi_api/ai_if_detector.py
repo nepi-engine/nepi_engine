@@ -106,6 +106,7 @@ class AiDetectorIF:
 
     node_if = None
     save_data_if = None
+    save_data_namespace = 'None'
     
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
@@ -134,7 +135,7 @@ class AiDetectorIF:
 
     has_img_tiling = False
 
-    state_str_msg = 'Loading'
+    msg_str = 'Loading'
 
     cur_img_topic = "None"
 
@@ -150,7 +151,7 @@ class AiDetectorIF:
 
     first_detect_complete = False
 
-    detection_state = False
+    detecting = False
 
     targeting_state = False
 
@@ -265,7 +266,7 @@ class AiDetectorIF:
         
         ## Init Status Messages
         self.status_msg.node_name = self.node_name
-        self.status_msg.ai_detector_namespace = self.namespace
+        self.status_msg.namespace = self.namespace
         self.target_status_msg = TargetingStatus()
 
 
@@ -711,7 +712,7 @@ class AiDetectorIF:
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100] 
 
-
+        self.save_data_namespace = self.node_namespace + '/save_data'
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if
@@ -733,7 +734,7 @@ class AiDetectorIF:
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
 
-        self.state_str_msg = 'Loaded'
+        self.msg_str = 'Loaded'
         ##########################
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##########################
@@ -1157,15 +1158,15 @@ class AiDetectorIF:
         enabled = self.enabled
         if enabled == True:
             if img_selected == 0:
-                self.state_str_msg = "Waiting"
+                self.msg_str = "Waiting"
             elif img_connected == False:
-                self.state_str_msg = "Listening"
+                self.msg_str = "Listening"
             elif self.sleep_state == True:
-                self.state_str_msg = "Sleeping"
+                self.msg_str = "Sleeping"
             else:
-                self.state_str_msg = "Detecting"
+                self.msg_str = "Detecting"
         else: # Loaded, but not enabled
-            self.state_str_msg = "Loaded"
+            self.msg_str = "Loaded"
 
 
 
@@ -1959,7 +1960,7 @@ class AiDetectorIF:
                     trigger_dict['time']=nepi_utils.get_time()
                     self.triggers_if.publish_trigger(trigger_dict)
 
-                self.detection_state = True
+                self.detecting = True
 
 
 
@@ -2008,13 +2009,7 @@ class AiDetectorIF:
                 bbs_dict = nepi_ais.get_boxes_info_from_msg(bbs_msg)
                 bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
                 bbs_dict['bounding_boxes']=bb_dict_list
-                self.save_data_if.save(data_product,'bounding_boxes',detect_timestamp)
-
-                # data_product = 'targets'
-                # bbs_dict = nepi_ais.get_boxes_info_from_msg(targets_msg)
-                # bb_dict_list = nepi_ais.get_boxes_list_from_msg(bbs_msg)
-                # bbs_dict['bounding_boxes']=bb_dict_list
-                # self.save_data_if.save(data_product,'bounding_boxes',detect_timestamp)
+                self.save_data_if.save(data_product,bbs_dict,timestamp = detect_timestamp)
 
     def publishDetMsg(self,img_topic, pub_name, msg):
         #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
@@ -2025,8 +2020,8 @@ class AiDetectorIF:
 
     def updateStatesCb(self,timer):
         # Update and clear detection state every second
-        self.states_dict['detection']['value'] = str(self.detection_state)
-        self.detection_state = False
+        self.states_dict['detection']['value'] = str(self.detecting)
+        self.detecting = False
         
     def updateImgSubsCb(self,timer):
         # Check for data subscribers every second
@@ -2094,33 +2089,7 @@ class AiDetectorIF:
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
 
     def handleStatusRequest(self,_):
-        resp = AiDetectorStatusQueryResponse().detector_info
-        resp.detector_name = self.model_name
-        resp.display_name = self.node_name
-        resp.framework = self.model_framework
-        resp.node_name = self.node_name
-        resp.namespace = self.node_namespace
-        resp.type = self.model_type
-        resp.description = self.model_description
-        resp.proc_img_height = self.model_proc_img_height
-        resp.proc_img_width = self.model_proc_img_width
-        resp.available_classes = self.classes
-        sel_classes = copy.deepcopy(self.selected_classes)
-        resp.selected_classes = sel_classes
-
-        resp.has_img_tiling = self.has_img_tiling
-
-        img_source_topics = []
-        img_pub_topics = []
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        for img_topic in imgs_info_dict.keys():
-                state = imgs_info_dict[img_topic]['active']
-                if state == True:
-                    img_source_topics.append(img_topic)
-                    img_pub_topics.append(imgs_info_dict[img_topic]['img_pub_topic'])
-        resp.image_source_topics = img_source_topics
-        resp.image_pub_topics = img_pub_topics
-
+        resp = self.status_msg
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
     
@@ -2131,11 +2100,19 @@ class AiDetectorIF:
     def publish_status(self, do_updates = True):
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-        self.status_msg.name = self.model_name
-        self.status_msg.node_name = self.node_name
+        self.status_msg.ai_detector_name = self.model_name
+        self.status_msg.display_name = self.node_name
+        self.status_msg.description = self.model_description
         self.status_msg.framework = self.model_framework
-        self.status_msg.ai_detector_namespace = self.namespace
-        self.status_msg.enabled = self.enabled
+
+        self.status_msg.node_name = self.node_name
+        self.status_msg.namespace = self.namespace
+
+        self.status_msg.save_data_topic = self.save_data_namespace
+
+        self.status_msg.available_classes = self.classes
+        sel_classes = copy.deepcopy(self.selected_classes)
+        self.status_msg.selected_classes = sel_classes
 
         self.status_msg.has_sleep = self.has_sleep
         self.status_msg.sleep_enabled = self.sleep_enabled
@@ -2143,20 +2120,9 @@ class AiDetectorIF:
         self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
         self.status_msg.sleep_state = self.sleep_state
 
-        self.status_msg.state_str_msg = self.state_str_msg
 
+        #################
         # Pub Detection Status
-
-        detection_state = False
-        if self.states_dict is not None:
-            detection_state = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
-        self.status_msg.detection_state = detection_state
-
-        self.status_msg.available_classes = self.classes
-        sel_classes = copy.deepcopy(self.selected_classes)
-        self.status_msg.selected_classes = sel_classes
-
-
         self.status_msg.pub_image_enabled = self.pub_image_enabled
         self.status_msg.overlay_labels = self.overlay_labels
         self.status_msg.overlay_range_bearing = self.overlay_range_bearing
@@ -2192,6 +2158,17 @@ class AiDetectorIF:
         img_connected = True in img_connects
         self.status_msg.image_connected = img_connected
 
+
+
+        #################
+
+        self.status_msg.enabled = self.enabled
+        self.status_msg.running = self.enabled and img_selected and img_connected and self.sleep_state == False
+        detecting = False
+        if self.states_dict is not None:
+            detecting = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
+        self.status_msg.detecting = detecting
+        self.status_msg.msg_str = self.msg_str
 
         #################
         self.status_msg.avg_image_receive_rate = sum(self.image_receive_rates) / len(self.image_receive_rates)

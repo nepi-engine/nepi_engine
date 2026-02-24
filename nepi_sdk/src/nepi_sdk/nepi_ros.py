@@ -928,24 +928,29 @@ def find_subscribers(topic_names,filters=[], log_name_list = []):
     """
     Checks if topics have any active subscribers.
     """
+    topic_names = list(topic_names)
     has_subs = False
     has_subs_dict = dict()
     if len(topic_names) > 0:
-      for topic in topic_names:
-        has_subs_dict[topic] = []
+
       try:
+          #log_msg_warn("nepi_sdk: Checking subscribers for: " + str(topic_names), log_name_list = log_name_list)
+          
+          for topic in topic_names:
+            has_subs_dict[topic] = []
           master = rosgraph.Master('/rospy_info')  # Create a Master proxy
           publishers, subscribers = master.getSystemState()[0], master.getSystemState()[1]
 
           # Check if the topic exists in the list of published topics
           for pub_topic, _ in publishers:
-              if pub_topic in topic_names:
-                  # If the topic is published, check if it has any subscribers
-                  for sub_topic, _ in subscribers:
-                      #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
-                      if sub_topic not in filters:
-                          has_subs = True
-                          has_subs_dict[pub_topic].append(sub_topic)  # Found subscribers for this 
+              for topic in topic_names:
+                if pub_topic == topic:
+                    # If the topic is published, check if it has any subscribers
+                    for sub_topic, _ in subscribers:
+                        #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
+                        if sub_topic not in filters:
+                            has_subs = True
+                            has_subs_dict[topic].append(sub_topic)  # Found subscribers for this 
 
       except rospy.ROSException as e:
           rospy.logerr(f"Error connecting to ROS Master: {e}")

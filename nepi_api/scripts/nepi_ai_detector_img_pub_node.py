@@ -194,7 +194,7 @@ class AiDetectorImgPub:
 
 
         self.status_msg = AiDetectorStatus()
-        self.model_name = os.path.basename(self.det_namespace)
+        self.model_name = 'None'
         self.enabled = False
         self.state_str_msg = "Unknown"
         self.max_rate = 1.0
@@ -999,9 +999,9 @@ class AiDetectorImgPub:
 
         self.status_msg = msg
 
-        self.model_name = self.status_msg.name
+        self.model_name = self.status_msg.display_name
         self.enabled = self.status_msg.enabled
-        self.state_str_msg = self.status_msg.state_str_msg
+        self.state_str_msg = self.status_msg.msg_str
         self.max_rate = self.status_msg.max_img_rate_hz
         self.use_last_image = self.status_msg.use_last_image
 

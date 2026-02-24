@@ -70,7 +70,7 @@ from nepi_api.node_if import  NodeClassIF
 class ReadWriteIF:
 
     ready = False
-    
+    node_name = ''
     # Save data variables
     filename_dict = {
         'prefix': "",
@@ -90,6 +90,7 @@ class ReadWriteIF:
     ### IF Initialization
     def __init__(self,
                 filename_dict = None,
+                node_name = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -102,6 +103,10 @@ class ReadWriteIF:
 
         ##############################  
         
+
+
+
+
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -114,8 +119,15 @@ class ReadWriteIF:
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
         
 
+
+
         #############################
         # Initialize Class Variables
+
+        if node_name is not None:
+            self.node_name = node_name.replace(' ','-')
+        self.msg_if.pub_info("Using node_name: " + self.node_name, log_name_list = self.log_name_list)
+
         if filename_dict is not None:
             for key in self.filename_dict.keys():
                 if key in filename_dict.keys():
@@ -250,9 +262,9 @@ class ReadWriteIF:
 
         if dtype == dict:
             return 'dict'
-        if dtype == o3d.geometry.PointCloud:
+        elif dtype == o3d.geometry.PointCloud:
             return 'pointcloud'
-        if dtype == np.ndarray:
+        elif dtype == np.ndarray:
             # Check for valid image dtypes (uint8 or float32 are common)
             image_dtypes = [np.uint8]
             if data.dtype not in image_dtypes:
@@ -265,7 +277,7 @@ class ReadWriteIF:
             else:
                 return 'array'
         else:
-            return 'Uknown'
+            return str(dtype)
             
 
 
@@ -274,13 +286,14 @@ class ReadWriteIF:
 
     def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
         data_type = self.get_data_type(data) 
+        found_type = False
         if data_type in self.data_dict.keys():
                 save_function = self.data_dict[data_type]['write_function']
-                self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
+                #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
                 save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
                 found_type = True
         if found_type == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type) , log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data), log_name_list = self.log_name_list, throttle_s = 5.0)
 
 
     def read_dict_file(self, filepath, filename):
@@ -612,8 +625,10 @@ class SaveDataIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = self.node_namespace
+        self.node_name = os.path.basename(namespace)
         namespace = nepi_sdk.create_namespace(namespace,'save_data')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
         self.pub_status = pub_status
@@ -659,7 +674,8 @@ class SaveDataIF:
         # Setup System IF Classes
         # Initialize with empty dict, then call update function
         self.read_write_if = ReadWriteIF(
-                            filename_dict = dict()
+                            filename_dict = dict(),
+                            node_name = self.node_name
                             )
         if factory_filename_dict is not None:
             self.update_filename_dict(factory_filename_dict)

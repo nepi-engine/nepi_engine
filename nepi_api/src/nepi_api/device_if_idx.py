@@ -647,7 +647,7 @@ class IDXDeviceIF:
             'add_node_name': True
             }
 
-        sd_namespace = self.namespace
+        sd_namespace = self.node_namespace
         self.save_data_if = SaveDataIF(
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
@@ -660,7 +660,7 @@ class IDXDeviceIF:
         ####################
         # # Setup NavPose IF Class
         # self.msg_if.pub_info("Starting NavPose IF Initialization")
-        # np_namespace = self.namespace
+        # np_namespace = self.node_namespace
         # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
         #                             save_data_if = self.save_data_if,
         #                         log_name_list = self.log_name_list,
