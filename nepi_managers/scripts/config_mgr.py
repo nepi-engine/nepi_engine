@@ -115,7 +115,17 @@ class config_mgr(object):
 
 
         # Services Config Dict ####################
+        self.SRVS_DICT = None
+
         self.SRVS_DICT = {
+            'user_reset': {
+                'namespace': self.base_namespace,
+                'topic': 'user_reset',
+                'srv': ParamsReset,
+                'req': ParamsResetRequest(),
+                'resp': ParamsResetResponse(),
+                'callback': self.userResetHandler
+            },
             'factory_reset': {
                 'namespace': self.base_namespace,
                 'topic': 'factory_reset',
@@ -131,15 +141,8 @@ class config_mgr(object):
                 'req': ParamsResetRequest(),
                 'resp': ParamsResetResponse(),
                 'callback': self.systemResetHandler
-            },
-            'user_reset': {
-                'namespace': self.base_namespace,
-                'topic': 'user_reset',
-                'srv': ParamsReset,
-                'req': ParamsResetRequest(),
-                'resp': ParamsResetResponse(),
-                'callback': self.userResetHandler
             }
+
         }
 
         # Publishers Config Dict ####################

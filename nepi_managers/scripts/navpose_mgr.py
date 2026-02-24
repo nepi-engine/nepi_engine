@@ -620,7 +620,8 @@ class NavPoseMgr(object):
             
 
                 connect_dict = navposes_info_dict[frame_name]['connect_dict']
-                times_dict = navposes_times_dict[frame_name]
+
+
                 comp_names = list(connect_dict.keys())
 
                 
@@ -648,15 +649,16 @@ class NavPoseMgr(object):
                         comp_info_msg.connecting = (comp_info_msg.topic in self.navpose_subs_connecting)
                         comp_info_msg.connected =  (comp_info_msg.topic in self.navpose_subs_connected)
 
-
-                    times = times_dict[comp_name]['times']
-                    avg_times = sum(times)/len(times)
-                    if avg_times > .01:
-                        avg_rate = float(1.0) / avg_times
-                    else:
-                        avg_rate = 0
-                    comp_info_msg.avg_rate = round( avg_rate, 3)
-                    comp_info_msg.last_time = round( nepi_utils.get_time() - times_dict[comp_name]['last_time'], 3)
+                    if frame_name in navposes_times_dict.keys():
+                        times_dict = navposes_times_dict[frame_name]
+                        times = times_dict[comp_name]['times']
+                        avg_times = sum(times)/len(times)
+                        if avg_times > .01:
+                            avg_rate = float(1.0) / avg_times
+                        else:
+                            avg_rate = 0
+                        comp_info_msg.avg_rate = round( avg_rate, 3)
+                        comp_info_msg.last_time = round( nepi_utils.get_time() - times_dict[comp_name]['last_time'], 3)
 
                     transform = connect_dict[comp_name]['transform']
                     comp_info_msg.transform = nepi_nav.convert_transform_list2msg(transform, source_ref_description = comp_info_msg.topic, end_ref_description = frame_name)
@@ -822,42 +824,42 @@ class NavPoseMgr(object):
                 self.data_products_list.append(info_dict_entry['data_product'])
        
  
-        ###################
-        # Add to times_dict 
-        self.navpose_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
+            ###################
+            # Add to times_dict 
+            self.navpose_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
 
-        ###################
-        # Add to navposes_node_dict             
-        if frame_name not in self.navposes_node_dict.keys():
-            self.msg_if.pub_info("Creating navpose node entries for: " + str(frame_name))
-            navpose_if = NavPoseIF(namespace = namespace,
-                                data_product = 'navpose',
-                                data_source_description =  frame_name + ' frame',
-                                data_ref_description = info_dict_entry['description'],
-                                pub_navpose = True,
-                                pub_location = False, pub_heading = False,
-                                pub_orientation = False, pub_position = False,
-                                pub_altitude = False, pub_depth = False,
-                                pub_pan_tilt = False,
-                                save_data_if = self.save_data_if,
-                                msg_if = self.msg_if
-                                )
-            # Add a local pub to start publishing before navpose_if is ready
-            navpose_pub = nepi_sdk.create_publisher(namespace + '/navpose',NavPose, queue_size = 1, log_name_list = [])
+            ###################
+            # Add to navposes_node_dict             
+            if frame_name not in self.navposes_node_dict.keys():
+                self.msg_if.pub_info("Creating navpose node entries for: " + str(frame_name))
+                navpose_if = NavPoseIF(namespace = namespace,
+                                    data_product = 'navpose',
+                                    data_source_description =  frame_name + ' frame',
+                                    data_ref_description = info_dict_entry['description'],
+                                    pub_navpose = True,
+                                    pub_location = False, pub_heading = False,
+                                    pub_orientation = False, pub_position = False,
+                                    pub_altitude = False, pub_depth = False,
+                                    pub_pan_tilt = False,
+                                    save_data_if = self.save_data_if,
+                                    msg_if = self.msg_if
+                                    )
+                # Add a local pub to start publishing before navpose_if is ready
+                navpose_pub = nepi_sdk.create_publisher(namespace + '/navpose',NavPose, queue_size = 1, log_name_list = [])
 
 
-            node_dict_entry = dict()
-            node_dict_entry['navpose_if'] = navpose_if
-            node_dict_entry['navpose_pub'] = navpose_pub
+                node_dict_entry = dict()
+                node_dict_entry['navpose_if'] = navpose_if
+                node_dict_entry['navpose_pub'] = navpose_pub
 
-            self.navposes_node_dict_lock.acquire()
-            self.navposes_node_dict[frame_name] = node_dict_entry
-            self.navposes_node_dict_lock.release()
+                self.navposes_node_dict_lock.acquire()
+                self.navposes_node_dict[frame_name] = node_dict_entry
+                self.navposes_node_dict_lock.release()
 
-        #######################
-        # Initialize NavPose Solution Dict
-        self.navposes_pub_times_dict[frame_name] = nepi_utils.get_time()
-        self.navposes_solution_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                #######################
+                # Initialize NavPose Solution Dict
+                self.navposes_pub_times_dict[frame_name] = nepi_utils.get_time()
+                self.navposes_solution_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
         self.updateNavposesData()
 

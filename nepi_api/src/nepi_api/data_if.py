@@ -233,15 +233,18 @@ class NavPoseIF:
 
         ##############################    
         # Initialize Class Variables
-        if namespace is not None:
-            self.namespace = namespace
-        namespace = nepi_sdk.create_namespace(namespace,'navpose')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
+
 
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
             if data_product is not None:
                 self.data_product = data_product
+
+        if namespace is not None:
+            self.namespace = namespace
+        if os.path.basename(namespace) != self.data_product:
+            namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
 
         if data_source_description is None:
@@ -1068,11 +1071,11 @@ class BaseImageIF:
             if data_product is not None:
                 self.data_product = data_product
 
-        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
-        if namespace is None:
-            namespace = copy.deepcopy(self.namespace)
-        namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        if namespace is not None:
+            self.namespace = namespace
+        if os.path.basename(namespace) != self.data_product:
+            namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
           
         if perspective is not None:
@@ -3474,15 +3477,11 @@ class DepthMapIF:
             if data_product is not None:
                 self.data_product = data_product
 
-        self.perspective = perspective
-        self.pub_image = pub_image
-            
-
-        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
-        if namespace is None:
-            namespace = self.namespace
-        namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        if namespace is not None:
+            self.namespace = namespace
+        if os.path.basename(namespace) != self.data_product:
+            namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
         '''
                 default_min_meters = 0.0,
@@ -4367,17 +4366,15 @@ class PointcloudIF:
             data_product = nepi_utils.get_clean_name(data_product)
             if data_product is not None:
                 self.data_product = data_product
-        self.perspective = perspective
-        self.pub_image = pub_image
 
+        if namespace is not None:
+            self.namespace = namespace
+        if os.path.basename(namespace) != self.data_product:
+            namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        self.namespace = nepi_sdk.get_full_namespace(namespace)
  
         self.init_overlay_list = init_overlay_list
 
-        self.msg_if.pub_warn("Got namespace: " + str(namespace), log_name_list = self.log_name_list)
-        if namespace is None:
-            namespace = self.namespace
-        namespace = nepi_sdk.get_full_namespace(namespace)
-        self.namespace = nepi_sdk.create_namespace(namespace,self.data_product)
 
         # Initialize Status Msg.  Updated on each publish
         if data_source_description is None:
@@ -5145,16 +5142,16 @@ class PointcloudImageIF(BaseImageIF):
 
 #         ##############################    
 #         # Initialize Class Variables
-#         if namespace is not None:
-#             self.namespace = namespace
-#         namespace = nepi_sdk.create_namespace(namespace,'navpose')
-#         self.namespace = nepi_sdk.get_full_namespace(namespace)
-
-
         # if data_product is not None:
         #     data_product = nepi_utils.get_clean_name(data_product)
         #     if data_product is not None:
         #         self.data_product = data_product
+
+        # if namespace is not None:
+        #     self.namespace = namespace
+        # if os.path.basename(namespace) != self.data_product:
+        #     namespace = nepi_sdk.create_namespace(namespace,self.data_product)
+        # self.namespace = nepi_sdk.get_full_namespace(namespace)
         
 #         # Create Capabilities Report
 

@@ -640,7 +640,7 @@ class SaveDataIF:
         if all_save_namespace != self.namespace:
             self.all_save_namespace = all_save_namespace
 
-        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navpose=/save_data')
+        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navpose/save_data')
         if navpose_save_namespace != self.namespace:
             self.navpose_save_namespace = navpose_save_namespace
         ###############################
