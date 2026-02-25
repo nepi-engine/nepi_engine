@@ -1031,9 +1031,11 @@ class SaveDataIF:
                 self.node_if.set_param('save_rate_dict',save_rate_dict)
 
     def unregister_data_product(self, data_product):
-        save_rate_dict = self.save_rate_dict
-        if data_product in save_rate_dict.keys():
-            del save_rate_dict[data_product]
+        purge = False
+        if data_product in self.save_rate_dict.keys():
+            purge = True
+        if purge == True:
+            del self.save_rate_dict[data_product]
 
 
     def update_filename_dict(self,filename_dict):
@@ -1324,10 +1326,11 @@ class SaveDataIF:
         #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
         if self.node_if is not None:
             save_rate_dict = self.node_if.get_param('save_rate_dict')
-            for data_product in self.save_rate_dict.keys():
-                if data_product in save_rate_dict.keys():
-                    self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
-                self.save_rate_dict[data_product][1] = 0.0 # Reset timer
+            if save_rate_dict is not None:
+                for data_product in self.save_rate_dict.keys():
+                    if data_product in save_rate_dict.keys():
+                        self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
+                    self.save_rate_dict[data_product][1] = 0.0 # Reset timer
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
             self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
@@ -1974,7 +1977,7 @@ class SettingsIF:
         self.PARAMS_DICT = {
             'settings': {
                 'namespace': self.namespace,
-                'factory_val': dict()
+                'factory_val': self.factory_settings
             }
         }
 

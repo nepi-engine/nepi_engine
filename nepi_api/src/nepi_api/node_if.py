@@ -208,23 +208,23 @@ class NodeConfigsIF:
         return self.ready
 
     def reset_params(self, do_updates = True):
-        self.msg_if.pub_warn("Reseting Params: " + str(self.request_msg))
+        self.msg_if.pub_warn("User Reseting Params: " + str(self.request_msg))
         nepi_sdk.call_service(self.user_reset_service,self.request_msg)
         if do_updates == True:
             nepi_sdk.sleep(1)
-            self.init_config(do_updates =  do_updates)
+            self.reset_config(do_updates =  do_updates)
 
     def system_reset_params(self):
         self.msg_if.pub_warn("System Reseting Params: " + str(self.request_msg))
         nepi_sdk.call_service(self.system_reset_service,self.request_msg)
         nepi_sdk.sleep(1)
-        self.init_config()       
+        self.reset_config()       
 
     def factory_reset_params(self):
         self.msg_if.pub_warn("Factory Reseting Params: " + str(self.request_msg))
         nepi_sdk.call_service(self.factory_reset_service,self.request_msg)
         nepi_sdk.sleep(1)
-        self.init_config()       
+        self.reset_config()       
 
 
 
@@ -385,6 +385,7 @@ class NodeParamsIF:
         self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
 
     def initialize_params(self):
+        self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
         ns_params_dict = dict()
         for param_name in self.params_dict.keys():
             namespace = self.params_dict[param_name]['namespace']
@@ -410,11 +411,13 @@ class NodeParamsIF:
 
 
     def reset_params(self):
+        self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         for param_name in self.params_dict.keys():
             init_val = self.params_dict[param_name]['init_val']
             self.set_param(param_name, init_val)
 
     def factory_reset_params(self):
+        self.msg_if.pub_warn("Factory reetting params", log_name_list = self.log_name_list)
         for param_name in self.params_dict.keys():
             factory_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, factory_val)

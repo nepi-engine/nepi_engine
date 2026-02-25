@@ -525,7 +525,7 @@ class NavPoseMgr(object):
                     navpose_info_dict = navposes_info_dict[frame]
                 else:
                     navpose_info_dict = None
-                self.addNavpose(frame,navpose_info_dict)
+                self.addNavpose(frame,init_dict_entry = navpose_info_dict)
                 
             if self.node_if is not None:
                 self.node_if.save_config()
@@ -622,7 +622,7 @@ class NavPoseMgr(object):
                 connect_dict = navposes_info_dict[frame_name]['connect_dict']
 
 
-                comp_names = list(connect_dict.keys())
+                comp_names = list(self.BLANK_CONNECT_DICT.keys())
 
                 
                 comp_infos_msg = []
@@ -764,42 +764,41 @@ class NavPoseMgr(object):
 
 
 
-    def addNavpose(self, frame_name, description = None, info_dict_entry = None, reset = False):
-        self.msg_if.pub_warn("Adding navpose: " + str(frame_name))
+    def addNavpose(self, frame_name, description = None, init_dict_entry = None, reset = False):
+        self.msg_if.pub_warn("Adding navpose frame: " + str(frame_name))
 
-        ################
-        # Add to navposes_dict
-        if frame_name not in self.navposes_dict.keys() or (reset == True and frame_name in self.navposes_dict.keys()):
-            self.msg_if.pub_info("Initializing navpose data for: " + str(frame_name))
-            self.navposes_dict_lock.acquire()
-            self.navposes_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-            self.navposes_dict_lock.release()
+        if description is None:
+            description = frame_name
 
-        ###################
-        # update or create navposes_info_dict
+        # Reset frame data
+        self.msg_if.pub_info("Initializing navpose data for: " + str(frame_name))
+        self.navposes_dict_lock.acquire()
+        self.navposes_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        self.navposes_dict_lock.release()
+
+           
+
         if frame_name not in self.navposes_info_dict.keys() or (reset == True and frame_name in self.navposes_info_dict.keys()):
             self.msg_if.pub_info("Updating navpose entry for: " + str(frame_name))
-            if info_dict_entry is None or reset == True:
+            if init_dict_entry is None or reset == True:
                 info_dict_entry = dict()
                 info_dict_entry['frame_name'] = frame_name
-                info_dict_entry['data_product'] = frame_name + 'navpose'
-                info_dict_entry['description'] = frame_name
+                info_dict_entry['data_product'] = 'navpose-' + frame_name
+                info_dict_entry['description'] = description
                 info_dict_entry['pub_rate'] = self.FACTORY_PUB_RATE_HZ
                 info_dict_entry['fixed_navpose'] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                 info_dict_entry['connect_dict'] = copy.deepcopy(self.BLANK_CONNECT_DICT)
                 info_dict_entry['transforms_dict'] = copy.deepcopy(self.BLANK_TRANSFORMS_DICT)
                 info_dict_entry['pan_tilt_adjusted'] = False
-            else:
+
+            elif init_dict_entry is not None:
+                info_dict_entry = init_dict_entry
                 info_dict_entry['frame_name'] = frame_name
-                info_dict_entry['data_product'] = frame_name + '-navpose'
-                info_dict_entry['connect_dict']['connected'] = False
-                info_dict_entry['connect_dict']['avg_rate'] = 0
+                info_dict_entry['data_product'] = 'navpose-' + frame_name
                 info_dict_entry['description'] = frame_name
-            
 
 
-            if description is not None:
-                info_dict_entry['description'] = description
+            data_product = info_dict_entry['data_product']
 
             clean_name = nepi_utils.get_clean_name(frame_name)
             namespace = self.base_namespace + '/navposes/' +  clean_name 
@@ -811,30 +810,36 @@ class NavPoseMgr(object):
             self.navposes_info_dict[frame_name] = info_dict_entry
             self.navposes_info_dict_lock.release()
 
-            # Register frame topics if set
-            for comp_name in info_dict_entry['connect_dict'].keys():
-                topic = info_dict_entry['connect_dict'][comp_name]['topic']
-                self.registerCompTopic(frame_name, comp_name, topic)
 
 
-            ###################
-            # Add to Save Data IF
-            if self.save_data_if is not None:
-                self.save_data_if.register_data_product(info_dict_entry['data_product'])
-                self.data_products_list.append(info_dict_entry['data_product'])
-       
- 
-            ###################
-            # Add to times_dict 
-            self.navpose_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
+        ###################
+        # Update other navpose frame required components
+        if frame_name in self.navposes_info_dict.keys():
+
+            self.navposes_info_dict_lock.acquire()
+            info_dict_entry = copy.deepcopy(self.navposes_info_dict[frame_name])
+            self.navposes_info_dict_lock.release()
+
+
+            self.msg_if.pub_warn("Updating navpose components for: " + str(frame_name) ) #+ ' : ' + str(info_dict_entry))
+            data_product = 'navpose-' + frame_name
+            self.navposes_info_dict[frame_name]['data_product'] = 'navpose-' + frame_name
+            self.navposes_info_dict[frame_name]['connect_dict']['connected'] = False
+            self.navposes_info_dict[frame_name]['connect_dict']['avg_rate'] = 0
+
+            if description is not None:
+                self.navposes_info_dict[frame_name]['description'] = description
+
+            
 
             ###################
-            # Add to navposes_node_dict             
+            # Add to navposes_node_dict      
+            namespace = info_dict_entry['namespace']       
             if frame_name not in self.navposes_node_dict.keys():
-                self.msg_if.pub_info("Creating navpose node entries for: " + str(frame_name))
+                self.msg_if.pub_info("Creating navpose node entries for: " + str(frame_name) + ' : ' + str(data_product))
                 navpose_if = NavPoseIF(namespace = namespace,
-                                    data_product = 'navpose',
-                                    data_source_description =  frame_name + ' frame',
+                                    data_product = data_product,
+                                    data_source_description =  frame_name,
                                     data_ref_description = info_dict_entry['description'],
                                     pub_navpose = True,
                                     pub_location = False, pub_heading = False,
@@ -856,12 +861,39 @@ class NavPoseMgr(object):
                 self.navposes_node_dict[frame_name] = node_dict_entry
                 self.navposes_node_dict_lock.release()
 
-                #######################
-                # Initialize NavPose Solution Dict
-                self.navposes_pub_times_dict[frame_name] = nepi_utils.get_time()
-                self.navposes_solution_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
-        self.updateNavposesData()
+            #######################
+            # Initialize NavPose Solution Dict
+            self.navposes_pub_times_dict[frame_name] = nepi_utils.get_time()
+            self.navposes_solution_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        
+            ###################
+            # Register frame topics if set
+            for comp_name in self.BLANK_CONNECT_DICT.keys():
+                try:
+                    info_dict_entry['connect_dict'][comp_name]['connected'] = False
+                    info_dict_entry['connect_dict'][comp_name]['avg_rate'] = 0
+                    topic = info_dict_entry['connect_dict'][comp_name]['topic']
+                    self.registerCompTopic(frame_name, comp_name, topic)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to register topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
+
+
+
+            ###################
+            # Add to Save Data IF
+            
+            if self.save_data_if is not None:
+                self.msg_if.pub_info("Registering new save data product for: " + str(frame_name) + ' : ' + str(data_product))
+                self.save_data_if.register_data_product(data_product)
+                self.data_products_list.append(data_product)
+        
+
+            ###################
+            # Add to times_dict 
+            self.navpose_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
+
+            self.updateNavposesData()
 
 
 
@@ -921,9 +953,12 @@ class NavPoseMgr(object):
 
             # Unregister Register frame topics if set
             topics = list(self.navpose_subs_dict.keys())
-            for comp_name in self.self.navposes_info_dict[frame_name].keys():
+            for comp_name in self.BLANK_CONNECT_DICT.keys():
                 for topic in topics:
-                    self.unregisterCompTopic(frame_name, comp_name, topic)
+                    try:
+                        self.unregisterCompTopic(frame_name, comp_name, topic)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to unregister topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
 
             self.msg_if.pub_info("Removing navpose: " + str(frame_name))
             if self.save_data_if is not None:
@@ -1249,7 +1284,7 @@ class NavPoseMgr(object):
         self.navposes_info_dict_lock.release()
         if source in navposes_info_dict.keys():
             info_dict_entry = navposes_info_dict[source]
-            self.addNavpose(frame_name, info_dict_entry)
+            self.addNavpose(frame_name, init_dict_entry = info_dict_entry)
 
 
     def _deleteFrameCb(self,msg):
@@ -1366,11 +1401,14 @@ class NavPoseMgr(object):
                 navpose_dict = navposes_dict[frame_name]
 
             fixed_navpose_dict = navpose_info_dict['fixed_navpose']
-            for comp_name in navpose_info_dict['connect_dict'].keys():
-                fixed = navpose_info_dict['connect_dict'][comp_name]['fixed']
-                has_key = 'has_' + comp_name
-                if has_key in fixed_navpose_dict.keys():
-                    fixed_navpose_dict[has_key] = fixed
+            for comp_name in self.BLANK_CONNECT_DICT.keys():
+                try:
+                    fixed = navpose_info_dict['connect_dict'][comp_name]['fixed']
+                    has_key = 'has_' + comp_name
+                    if has_key in fixed_navpose_dict.keys():
+                        fixed_navpose_dict[has_key] = fixed
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to set fixed navpose for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(e))
             navpose_dict = nepi_nav.update_navpose_dict_from_dict(navpose_dict,fixed_navpose_dict)
 
             # has_pan_tilt = navpose_dict['has_pan_tilt']
