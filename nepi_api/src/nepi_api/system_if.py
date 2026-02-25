@@ -1353,7 +1353,7 @@ class SaveDataIF:
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -1787,7 +1787,7 @@ class Transform3DIF:
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -1961,6 +1961,7 @@ class SettingsIF:
             self.getSettingsFunction = getSettingsFunction
         #Reset Settings and Update Param Server
 
+        self.init_settings = self.getSettingsFunction()
 
         ##############################  
         # Create NodeClassIF Class  
@@ -1977,7 +1978,7 @@ class SettingsIF:
         self.PARAMS_DICT = {
             'settings': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_settings
+                'factory_val': self.init_settings
             }
         }
 
@@ -2091,7 +2092,6 @@ class SettingsIF:
     def publish_status(self):
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
-            self.node_if.set_param('settings', current_settings)
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
             status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
@@ -2121,19 +2121,26 @@ class SettingsIF:
         success = False
         current_settings = self.getSettingsFunction()
         updated_settings = copy.deepcopy(current_settings)
-        self.msg_if.pub_debug("New Setting:" + str(setting), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Update Setting:" + str(setting), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Updated With current settings dict: " + str(updated_settings), log_name_list = self.log_name_list)
         s_name = setting['name']
+        msg = ''
         if self.setSettingFunction != None:
-            [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
-            if value_match == False: # name_match would be True for value_match to be True
+            value_match = False
+            try:
+                [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to Compare Setting: " + str(setting) + " : " +  str(e), log_name_list = self.log_name_list)
+            if True: #value_match == False: # name_match would be True for value_match to be True
                 self.msg_if.pub_debug("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
                 [success,msg] = nepi_settings.try_to_update_setting(setting,current_settings,self.cap_settings,self.setSettingFunction)
-                self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting
                         if self.node_if is not None:
                             self.node_if.set_param('settings', updated_settings)
+                            #self.msg_if.pub_warn("Updated settings dict: " + str(updated_settings), log_name_list = self.log_name_list)
                     if do_updates:
                         self.publish_status() 
         else:
@@ -2142,29 +2149,32 @@ class SettingsIF:
 
 
     def init(self, do_updates = True):
-        current_settings = self.getSettingsFunction()
         if self.node_if is not None:
-            self.init_settings = self.node_if.get_param('settings')
-        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+            init_settings = self.node_if.get_param('settings')
+            if type(init_settings) != dict:
+                init_settings = self.getSettingsFunction()
+                self.node_if.set_param('settings', init_settings)
+            self.init_settings = init_settings
+
+        #self.msg_if.pub_warn("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
         if do_updates:
             self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
-            self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
+            #self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
             if self.init_settings is not None:
-                for setting_name in self.init_settings:
-                    setting = self.init_settings[setting_name]
-                    self.update_setting(setting, do_updates = False, update_param = False)
+                if type(self.init_settings) == dict:
+                    for setting_name in self.init_settings:
+                        setting = self.init_settings[setting_name]
+                        self.update_setting(setting, do_updates = False, update_param = False)
         self.publish_status()
 
 
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -2176,10 +2186,10 @@ class SettingsIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+        self.reset()
 
     def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+        self.factory_reset()
 
     def _resetSettingsCb(self, msg):
         self.reset()
@@ -2351,7 +2361,7 @@ class StatesIF:
         try:
             states_dict = self.get_states_dict_function()
             resp = nepi_states.create_query_resp(states_dict)
-        except:
+        except Exception as e:
             self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
         return resp
 

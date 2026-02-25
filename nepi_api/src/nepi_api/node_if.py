@@ -169,15 +169,15 @@ class NodeConfigsIF:
         self.reset_params(do_updates = False)
         nepi_sdk.sleep(1)
 
-        params_dict = nepi_sdk.get_param(self.namespace, dict())
-        #self.msg_if.pub_warn("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
+        # params_dict = nepi_sdk.get_param(self.namespace, dict())
+        # self.msg_if.pub_warn("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
 
         if 'init_configs' in configs_dict.keys():
             
             init_configs = configs_dict['init_configs']
             if init_configs == True:
-                self.msg_if.pub_debug("Calling parent init function", log_name_list = self.log_name_list)
-                self.init_config(do_updates = False)
+                self.msg_if.pub_warn("Calling parent reset function", log_name_list = self.log_name_list)
+                self.reset_config()
 
         ##############################  
         # Complete Initialization Process
@@ -251,13 +251,13 @@ class NodeConfigsIF:
 
 
     def reset_config(self):
-        self.msg_if.pub_debug("Resetting Config: " + str(self.namespace))
+        self.msg_if.pub_warn("Resetting Config: " + str(self.namespace))
         if self.resetCb is not None and not nepi_sdk.is_shutdown():
            self.resetCb() # Callback provided by container class to update based on param server, etc.
 
 
     def factory_reset_config(self):
-        self.msg_if.pub_debug("Factory Resetting Config: " + str(self.namespace))
+        self.msg_if.pub_warn("Factory Resetting Config: " + str(self.namespace))
         if self.factoryResetCb is not None and not nepi_sdk.is_shutdown():
             self.factoryResetCb() # Callback provided by container class to update based on param server, etc.
   
@@ -413,11 +413,15 @@ class NodeParamsIF:
     def reset_params(self):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         for param_name in self.params_dict.keys():
-            init_val = self.params_dict[param_name]['init_val']
+            init_val = None
+            if 'init_val' in self.params_dict[param_name].keys():
+                init_val = self.params_dict[param_name]['init_val']
+            if init_val is None:
+                init_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, init_val)
 
     def factory_reset_params(self):
-        self.msg_if.pub_warn("Factory reetting params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
         for param_name in self.params_dict.keys():
             factory_val = self.params_dict[param_name]['factory_val']
             self.set_param(param_name, factory_val)
@@ -1153,7 +1157,9 @@ class NodeClassIF:
            
         ##############################  
         # Create Config Class After Params
-        if configs_dict is not None:
+        if configs_dict is None:
+            self.configs_dict = configs_dict
+        else:
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
             configs_dict = {
@@ -1163,7 +1169,9 @@ class NodeClassIF:
                     'init_configs': True,
                     'namespace': configs_dict['namespace']
             }
-            self.configs_if = NodeConfigsIF(configs_dict = configs_dict, 
+
+        if self.configs_dict is not None:
+            self.configs_if = NodeConfigsIF(configs_dict = self.configs_dict, 
                                             wait_cfg_mgr = wait_cfg_mgr, 
                                             msg_if = self.msg_if, 
                                             log_name_list = self.log_name_list)

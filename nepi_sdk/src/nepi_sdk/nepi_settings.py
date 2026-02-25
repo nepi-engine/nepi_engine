@@ -187,11 +187,21 @@ def get_setting_from_settings(setting_name,settings):
 
 
 def get_data_from_setting(setting):
-  s_str = str(setting)
-  s_name = setting['name']
-  s_type = setting['type']
-  status = None
+
+  s_name = 'Missing'
+  s_type = 'Missing'
+  s_value = 'Missing'
   data = None
+
+  setting_str = str(setting)
+  try:
+    s_name = setting['name']
+    s_type = setting['type']
+    s_value = setting['value']
+  except Exception as e:
+    logger.log_warn("Failed to check setting: " + setting_str + " with exception: " + str(e) )
+    return s_name, s_type, data
+
   if len(setting) == 3:
     if setting['type'] != None and setting['value'] != None:
 
@@ -215,12 +225,19 @@ def get_data_from_setting(setting):
 
 
 def compare_setting_in_settings(setting,settings):
-  s_name = setting['name']
-  s_type = setting['type']
-  s_value = setting['value']
+
   name_match = False
   type_match = False
   value_match = False
+
+  setting_str = str(setting)
+  try:
+    s_name = setting['name']
+    s_type = setting['type']
+    s_value = setting['value']
+  except Exception as e:
+    logger.log_warn("Failed to check setting: " + setting_str + " with exception: " + str(e) )
+    return name_match, type_match, value_match
   for setting_name in settings.keys():
     check_setting = settings[setting_name]
     if check_setting['name'] == s_name:
@@ -235,9 +252,14 @@ def compare_setting_in_settings(setting,settings):
 
 def check_valid_setting(setting,cap_settings):
   valid= False
-  s_name = setting['name']
-  s_type = setting['type']
-  s_value = setting['value']
+  setting_str = str(setting)
+  try:
+    s_name = setting['name']
+    s_type = setting['type']
+    s_value = setting['value']
+  except Exception as e:
+    logger.log_warn("Failed to check setting: " + setting_str + " with exception: " + str(e) )
+    return False
   if s_name in cap_settings.keys():
       cap_setting = cap_settings[s_name]
       c_type = cap_setting['type']
@@ -291,7 +313,7 @@ def check_valid_setting(setting,cap_settings):
 
 
 def try_to_update_setting(setting_to_update,settings,cap_settings,update_settings_function):
-  s_str = str(setting_to_update)
+  settings_str = str(setting_to_update)
   s_name = setting_to_update['name']
   updated_settings = copy.deepcopy(settings)
   success = False
@@ -302,13 +324,13 @@ def try_to_update_setting(setting_to_update,settings,cap_settings,update_setting
         try:
           [success, msg] = update_settings_function(setting_to_update)
           if success:
-            msg = ("Updated setting: " + s_str )
+            msg = ("Updated setting: " + settings_str )
         except Exception as e:
-          msg = ("Failed to update setting: " + s_str + " with exception: " + str(e) )
+          msg = ("Failed to update setting: " + settings_str + " with exception: " + str(e) )
       else:
-        msg = ("Failed to update setting: " + s_str + " Invalid setting name or value with cap settings: " + str(cap_settings))
+        msg = ("Failed to update setting: " + settings_str + " Invalid setting name or value with cap settings: " + str(cap_settings))
     else:
-      msg = ("Failed to update setting: " + s_str + " No update function provided")
+      msg = ("Failed to update setting: " + settings_str + " No update function provided")
   else:
     success = True
   return success, msg
