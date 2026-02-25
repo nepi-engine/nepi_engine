@@ -2131,10 +2131,10 @@ class SettingsIF:
                 [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
             except Exception as e:
                 self.msg_if.pub_warn("Failed to Compare Setting: " + str(setting) + " : " +  str(e), log_name_list = self.log_name_list)
-            if True: #value_match == False: # name_match would be True for value_match to be True
-                self.msg_if.pub_debug("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
+            if value_match == False: # name_match would be True for value_match to be True
+                self.msg_if.pub_warn("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
                 [success,msg] = nepi_settings.try_to_update_setting(setting,current_settings,self.cap_settings,self.setSettingFunction)
-                #self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Update function returned: " + str(success) + " : " + str(msg), log_name_list = self.log_name_list)
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting

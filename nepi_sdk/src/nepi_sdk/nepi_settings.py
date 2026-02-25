@@ -324,7 +324,9 @@ def try_to_update_setting(setting_to_update,settings,cap_settings,update_setting
         try:
           [success, msg] = update_settings_function(setting_to_update)
           if success:
-            msg = ("Updated setting: " + settings_str )
+            msg = ("Updated setting: " + settings_str + " : " + str(msg))
+          else:
+            msg = ("Failed to update setting: " + settings_str + " : " + str(msg))
         except Exception as e:
           msg = ("Failed to update setting: " + settings_str + " with exception: " + str(e) )
       else:
