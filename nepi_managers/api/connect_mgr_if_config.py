@@ -22,7 +22,6 @@ import time
 import copy
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_sdk import nepi_sdk
 
@@ -88,23 +87,7 @@ class ConnectMgrConfigIF:
 
 
         # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'user_reset': {
-                'namespace': self.mgr_namespace,
-                'topic': 'user_reset',
-                'srv': ParamsReset,
-                'req': ParamsResetRequest(),
-                'resp': ParamsResetResponse(),
-            },
-            'factory_reset': {
-                'namespace': self.mgr_namespace,
-                'topic': 'factory_reset',
-                'srv': ParamsReset,
-                'req': ParamsResetRequest(),
-                'resp': ParamsResetResponse(),
-            }
-        }
-
+        self.SRVS_DICT = None
 
         ##################################
         ### Create Publishers Topic 
@@ -112,34 +95,42 @@ class ConnectMgrConfigIF:
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'save_all_config': {
+            'save_params': {
                 'namespace': self.base_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 10,
-                'latch': False
-            },
-            'saveParamsCb': {
-                'namespace': self.base_namespace,
-                'topic': 'saveParamsCb',
+                'topic': 'save_params',
                 'msg': String,
-                'qsize': 10,
-                'latch': False
+                'qsize': None,
             },
-            'full_user_reset': {
+            'reset_params': {
                 'namespace': self.base_namespace,
-                'topic': 'full_user_restore',
-                'msg': Empty,
-                'qsize': 10,
-                'latch': False
+                'topic': 'reset_params',
+                'msg': String,
+                'qsize': None,
             },
-            'full_factory_reset': {
+            'save_params_all': {
                 'namespace': self.base_namespace,
-                'topic': 'factory_restore',
-                'msg': Empty,
-                'qsize': 10,
-                'latch': False
+                'topic': 'save_params_all',
+                'msg': String,
+                'qsize': None,
             },
+            'factory_save': {
+                'namespace': self.base_namespace,
+                'topic': 'factory_save',
+                'msg': Empty,
+                'qsize': None,
+            },
+            'factory_reset': {
+                'namespace': self.base_namespace,
+                'topic': 'factory_reset',
+                'msg': Empty,
+                'qsize': None,
+            },
+            'factory_clear': {
+                'namespace': self.base_namespace,
+                'topic': 'factory_clear',
+                'msg': Empty,
+                'qsize': None,
+            }
         }
 
         # Subscribers Config Dict ####################

@@ -616,7 +616,7 @@ def clear_folder(folder_path):
         for d in dirs:
             shutil.rmtree(os.path.join(root, d))
 
-def delete_files_in_folder(folder_path):
+def delete_files_in_folder(folder_path, ext = None):
     """
     Deletes all files within a specified folder, leaving subdirectories intact.
 
@@ -631,8 +631,14 @@ def delete_files_in_folder(folder_path):
         item_path = os.path.join(folder_path, item_name)
         if os.path.isfile(item_path):
             try:
-                os.remove(item_path)
-                print(f"Deleted file: {item_path}")
+                delete = True
+                if ext is not None:
+                    root, extension = os.path.splitext(item_path)
+                    if ext != extension and ext != extension.replace('.',''):
+                       delete = False
+                if delete == True:
+                    os.remove(item_path)
+                    print(f"Deleted file: {item_path}")
             except OSError as e:
                 print(f"Error deleting file {item_path}: {e}")
 
@@ -648,23 +654,28 @@ def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders =
        doption="--delete"
 
     if source_folder == destitation_folder or destitation_folder.find(source_folder) != -1:
+        logger.log_warn("Can't sync same folders: " + source_folder + " : " + destitation_folder)
         return success
-    if os.path.basename(source_folder) == os.path.basename(destitation_folder):
-        try: 
+    # if os.path.basename(source_folder) == os.path.basename(destitation_folder):
+    #     destitation_folder = os.path.dirname(destitation_folder)
+    
+    # Basic rsync command with common options
+    if folders == False:
+        command = ["rsync", options, foptions, source_folder + "/", destitation_folder]
+    else:
+        command = ["rsync", options, source_folder + "/", destitation_folder]
+    logger.log_warn("Sync folders with run command: " + str(command))    
 
-            destitation_folder = os.path.dirname(destitation_folder)
-            # Basic rsync command with common options
-            command = ["rsync", options, foptions, source_folder + "/*", destitation_folder + "/", doption]
-            
-            # Execute the command
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
-            success = True
-            #print(result.stdout)
-            
-        except subprocess.CalledProcessError as e:
-            
-            print(f"Rsync failed with error code {e.returncode}:")
-            print(e.stderr)
+    try: 
+
+        # Execute the command
+        subprocess.run(command, text=True, check=True)
+        success = True
+        #print(result.stdout)
+        
+    except subprocess.CalledProcessError as e:
+        logger.log_warn("Can't sync folders: " + source_folder + " : " + destitation_folder + " : " + str(e.stderr) + " : " + str(e.returncode))
+
     return success
 
 

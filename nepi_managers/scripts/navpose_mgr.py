@@ -770,6 +770,8 @@ class NavPoseMgr(object):
         if description is None:
             description = frame_name
 
+        data_product = nepi_utils.get_clean_name(frame_name)
+
         # Reset frame data
         self.msg_if.pub_info("Initializing navpose data for: " + str(frame_name))
         self.navposes_dict_lock.acquire()
@@ -777,13 +779,13 @@ class NavPoseMgr(object):
         self.navposes_dict_lock.release()
 
            
-
+        
         if frame_name not in self.navposes_info_dict.keys() or (reset == True and frame_name in self.navposes_info_dict.keys()):
             self.msg_if.pub_info("Updating navpose entry for: " + str(frame_name))
             if init_dict_entry is None or reset == True:
                 info_dict_entry = dict()
                 info_dict_entry['frame_name'] = frame_name
-                info_dict_entry['data_product'] = 'navpose-' + frame_name
+                info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = description
                 info_dict_entry['pub_rate'] = self.FACTORY_PUB_RATE_HZ
                 info_dict_entry['fixed_navpose'] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -794,11 +796,10 @@ class NavPoseMgr(object):
             elif init_dict_entry is not None:
                 info_dict_entry = init_dict_entry
                 info_dict_entry['frame_name'] = frame_name
-                info_dict_entry['data_product'] = 'navpose-' + frame_name
+                info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = frame_name
 
 
-            data_product = info_dict_entry['data_product']
 
             clean_name = nepi_utils.get_clean_name(frame_name)
             namespace = self.base_namespace + '/navposes/' +  clean_name 
@@ -822,8 +823,7 @@ class NavPoseMgr(object):
 
 
             self.msg_if.pub_warn("Updating navpose components for: " + str(frame_name) ) #+ ' : ' + str(info_dict_entry))
-            data_product = 'navpose-' + frame_name
-            self.navposes_info_dict[frame_name]['data_product'] = 'navpose-' + frame_name
+            self.navposes_info_dict[frame_name]['data_product'] = data_product
             self.navposes_info_dict[frame_name]['connect_dict']['connected'] = False
             self.navposes_info_dict[frame_name]['connect_dict']['avg_rate'] = 0
 

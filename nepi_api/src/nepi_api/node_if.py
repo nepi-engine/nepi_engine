@@ -33,8 +33,6 @@ from std_srvs.srv import Empty as EmptySrv
 from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
-# from nepi_interfaces.msg import
-from nepi_interfaces.srv import ParamsReset, ParamsResetRequest, ParamsResetResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -60,11 +58,6 @@ class NodeConfigsIF:
     ready = False
     configs_dict = None
     namespace = '~'
-
-    reset_sub = None
-    request_msg = ParamsResetRequest()
-    response_msg = ParamsResetResponse()
-
 
     initCb = None
     sysResetCb = None
@@ -123,48 +116,39 @@ class NodeConfigsIF:
         #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
         
-        # Create reset serivces
-        
+        ###############
+        # Create Config Publishers
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
         self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
         self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'reset_params')
+        self.reset_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
 
-        self.request_msg.namespace = self.namespace
-        ns = nepi_sdk.create_namespace(self.namespace,'user_reset')
-        self.user_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        ns = nepi_sdk.create_namespace(self.namespace,'system_reset')
-        self.system_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        ns = nepi_sdk.create_namespace(self.namespace,'factory_reset')
-        self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        
-        ns = nepi_sdk.create_namespace(self.base_namespace,'user_reset')
-        self.user_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'system_reset')
-        self.system_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'factory_reset')
-        self.factory_reset_service = nepi_sdk.connect_service(ns, ParamsReset)
-        
+
         nepi_sdk.sleep(1)
 
+        ###############
+        # Create Config Subscribers
         # Subscribe to save config for node namespace
-        nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb)
+        nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb, queue_size=5)
 
-        nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb)
-        nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb)
-        nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb)
-        #nepi_sdk.create_subscriber(self.namespace + '/system_reset_config', Reset, self._systemResetCb)
+        nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb, queue_size=5)
+        nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb, queue_size=5)
+        nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
+
 
         # Global Topic Subscribers
-        nepi_sdk.create_subscriber('save_config', Empty, self._saveCb)
-        nepi_sdk.create_subscriber('init_config', Empty, self._initCb)
-        nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb)
-        nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb)
-        #nepi_sdk.create_subscriber('system_reset_config', Reset, self._systemResetCb)
+        nepi_sdk.create_subscriber('save_config', Empty, self._saveCb, queue_size=5)
+        nepi_sdk.create_subscriber('init_config', Empty, self._initCb, queue_size=5)
+        nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb, queue_size=5)
+        nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
 
         if nepi_system.supports_all_config(self.namespace) == True:
             nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
 
+
+        ################
         self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
         self.reset_params(do_updates = False)
         nepi_sdk.sleep(1)
@@ -208,23 +192,8 @@ class NodeConfigsIF:
         return self.ready
 
     def reset_params(self, do_updates = True):
-        self.msg_if.pub_warn("User Reseting Params: " + str(self.request_msg))
-        nepi_sdk.call_service(self.user_reset_service,self.request_msg)
-        if do_updates == True:
-            nepi_sdk.sleep(1)
-            self.reset_config(do_updates =  do_updates)
-
-    def system_reset_params(self):
-        self.msg_if.pub_warn("System Reseting Params: " + str(self.request_msg))
-        nepi_sdk.call_service(self.system_reset_service,self.request_msg)
-        nepi_sdk.sleep(1)
-        self.reset_config()       
-
-    def factory_reset_params(self):
-        self.msg_if.pub_warn("Factory Reseting Params: " + str(self.request_msg))
-        nepi_sdk.call_service(self.factory_reset_service,self.request_msg)
-        nepi_sdk.sleep(1)
-        self.reset_config()       
+        self.msg_if.pub_warn("Reseting Params: " + str(self.namespace))
+        self.reset_params_pub.publish(self.namespace)
 
 
 
@@ -407,11 +376,13 @@ class NodeParamsIF:
                 init_val = self.get_param(param_name)
                 self.set_param(param_name, init_val)
             self.params_dict[param_name]['init_val'] = init_val
+        return True
             
 
 
     def reset_params(self):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
+        success = self.initialize_params()
         for param_name in self.params_dict.keys():
             init_val = None
             if 'init_val' in self.params_dict[param_name].keys():
