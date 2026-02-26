@@ -514,13 +514,18 @@ class NepiDriversMgr(object):
         # Check Node processes
         if discovery_process == "LAUNCH":  
             remove_from_dict = False
+
+            # Update drv dict param
+            dict_param_name = os.path.join(discovery_node_name, "drv_dict")
+            #self.msg_if.pub_warn("Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
+            nepi_sdk.set_param(dict_param_name,drv_dict)
+
+
+
             if driver_name not in self.discovery_node_dict.keys():
               
               if driver_name not in self.failed_class_import_list: # Check for not retry on non-running nodes
-                #Setup required param server drv_dict for discovery node
-                dict_param_name = os.path.join(discovery_node_name, "drv_dict")
-                #self.msg_if.pub_warn("Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
-                nepi_sdk.set_param(dict_param_name,drv_dict)
+
                 #Try and launch node
                 self.msg_if.pub_info("")
                 self.msg_if.pub_info("Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))

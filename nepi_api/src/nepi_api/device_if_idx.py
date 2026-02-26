@@ -783,8 +783,10 @@ class IDXDeviceIF:
                 self.start_range_ratio = start_range_ratio
                 self.stop_range_ratio = stop_range_ratio
             else:
-                self.node_if.set_param('start_range_ratio',0)
-                stop_range_ratio = self.node_if.get_param('stop_range_ratio',1)
+                self.start_range_ratio = 0
+                self.stop_range_ratio = 1
+                self.node_if.set_param('start_range_ratio',self.start_range_ratio)
+                stop_range_ratio = self.node_if.set_param('stop_range_ratio',self.stop_range_ratio)
             self.msg_if.pub_warn("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
 
 

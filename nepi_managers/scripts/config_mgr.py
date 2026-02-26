@@ -138,7 +138,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'save_params',
                 'msg': String,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.saveParamsCb, 
                 'callback_args': ()
             },
@@ -146,7 +146,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'reset_params',
                 'msg': String,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.resetParamsCb, 
                 'callback_args': ()
             },
@@ -154,7 +154,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'save_params_all',
                 'msg': String,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.saveParamsAllCb, 
                 'callback_args': ()
             },
@@ -162,7 +162,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'factory_save',
                 'msg': Empty,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.saveFactoryCb, 
                 'callback_args': ()
             },
@@ -170,7 +170,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'factory_reset',
                 'msg': Empty,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.resetFactoryCb, 
                 'callback_args': ()
             },
@@ -178,7 +178,7 @@ class config_mgr(object):
                 'namespace': self.base_namespace,
                 'topic': 'factory_clear',
                 'msg': Empty,
-                'qsize': None,
+                'qsize': 5,
                 'callback': self.clearFactoryCb, 
                 'callback_args': ()
             }
