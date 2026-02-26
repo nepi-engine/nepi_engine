@@ -1927,7 +1927,7 @@ class SettingsIF:
         else:
             try:
                 capSettings = settings_dict['capSettings']
-                factorySettings = settings_dict['capSettings']
+                factorySettings = settings_dict['factorySettings']
                 setSettingFunction = settings_dict['setSettingFunction']
                 getSettingsFunction = settings_dict['getSettingsFunction']
             except Exception as e:
@@ -1944,11 +1944,7 @@ class SettingsIF:
         caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
         self.msg_if.pub_debug("Cap Settings: " + str(caps_response), log_name_list = self.log_name_list)
 
-        if factorySettings is None:
-            self.factory_settings = nepi_settings.NONE_SETTINGS
-        else:
-            self.factory_settings = factorySettings
-        self.msg_if.pub_debug(str(self.factory_settings), log_name_list = self.log_name_list)
+
 
         if setSettingFunction is None:
             self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
@@ -1961,7 +1957,17 @@ class SettingsIF:
             self.getSettingsFunction = getSettingsFunction
         #Reset Settings and Update Param Server
 
-        self.init_settings = self.getSettingsFunction()
+
+        if factorySettings is None:
+            if self.getSettingsFunction is not None:
+                self.factory_settings = self.getSettingsFunction()
+            else:
+                self.factory_settings = nepi_settings.NONE_SETTINGS
+        else:
+            self.factory_settings = factorySettings
+        self.msg_if.pub_warn("Got factory settings: " + str(self.factory_settings), log_name_list = self.log_name_list)
+
+        self.init_settings = self.factory_settings
 
         ##############################  
         # Create NodeClassIF Class  
@@ -2132,9 +2138,12 @@ class SettingsIF:
             except Exception as e:
                 self.msg_if.pub_warn("Failed to Compare Setting: " + str(setting) + " : " +  str(e), log_name_list = self.log_name_list)
             if value_match == False: # name_match would be True for value_match to be True
-                self.msg_if.pub_warn("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
+                
                 [success,msg] = nepi_settings.try_to_update_setting(setting,current_settings,self.cap_settings,self.setSettingFunction)
-                self.msg_if.pub_warn("Update function returned: " + str(success) + " : " + str(msg), log_name_list = self.log_name_list)
+                if success == True:
+                    self.msg_if.pub_warn("Setting Updated" + str(setting), log_name_list = self.log_name_list)
+                else:
+                    self.msg_if.pub_warn("Setting update failed: "+ str(setting) + " : " + str(msg), log_name_list = self.log_name_list)
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting

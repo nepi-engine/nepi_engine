@@ -18,15 +18,6 @@
 #
 
 
-# NEPI ros utility functions include
-# 1) ROS Node utility functions
-# 2) ROS Topic utility functions
-# 3) NEPI ROS Script utility functions
-# 4) NEPI Settings utility functions
-# 5) Misc helper functions
-
-import rospy
-
 import os
 import copy
 

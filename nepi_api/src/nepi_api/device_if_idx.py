@@ -238,7 +238,7 @@ class IDXDeviceIF:
 
 
         # Create and update factory controls dictionary
-        self.msg_if.pub_warn("Got Factory Contrls: " + str(factoryControls))
+        self.msg_if.pub_warn("Got Factory Controls: " + str(factoryControls))
         if factoryControls is not None:
             controls = list(factoryControls.keys())
             for control in controls:
