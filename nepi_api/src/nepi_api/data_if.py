@@ -3425,6 +3425,7 @@ class DepthMapIF:
     data_source_description = 'depth_map_sensor'
     data_ref_description = 'sensor'
 
+    perspective = 'pov'
     data_product = 'depth_map'
 
     save_data_if = None
@@ -3440,7 +3441,7 @@ class DepthMapIF:
                 data_product = None,
                 data_source_description = 'depth_map_sensor',
                 data_ref_description = 'sensor',
-                perspective = 'POV',
+                perspective = 'pov',
                 pub_image = True,
                 save_data_if = None,
                 navpose_if = None,
@@ -3490,6 +3491,8 @@ class DepthMapIF:
         '''
 
         # Initialize Status Msg.  Updated on each publish
+        self.perspective = perspective
+
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -4311,7 +4314,7 @@ class PointcloudIF:
 
     data_source_description = 'pointcloud_sensor'
     data_ref_description = 'sensor'
-
+    perspective = 'pov'
     data_product = 'pointcloud'
 
 
@@ -4330,7 +4333,7 @@ class PointcloudIF:
                 data_product = None,
                 data_source_description = 'sensor',
                 data_ref_description = 'sensor',
-                perspective = 'POV',
+                perspective = 'pov',
                 pub_image = True,
                 save_data_if = None,
                 navpose_if = None,
@@ -4384,6 +4387,9 @@ class PointcloudIF:
         if data_ref_description is None:
             data_ref_description = self.data_ref_description
         self.data_ref_description = data_ref_description
+
+
+        self.perspective = perspective
 
         self.status_msg.node_name = self.node_name
 

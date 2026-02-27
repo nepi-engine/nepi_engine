@@ -265,8 +265,6 @@ class NPXDeviceIF:
 
         self.status_msg.navpose_frame = self.navpose_frame
 
-        self.status_msg.supports_updates = self.supports_updates
-
         self.status_msg.source_frame_nav = self.frame_nav
         self.status_msg.source_frame_altitude = self.frame_altitude
         self.status_msg.source_frame_depth = self.frame_depth
