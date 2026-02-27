@@ -413,8 +413,7 @@ class NepiDriversMgr(object):
     #self.msg_if.pub_warn("Update start drvs: " + str(drvs_dict))
     drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
     drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
-    nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
-    nepi_sdk.set_param('active_drivers', drvs_active_list)
+    #self.msg_if.pub_warn("Updater got active drivers list: " + str(drvs_active_list))
     
     ## Next process active driver processes
 
@@ -589,7 +588,7 @@ class NepiDriversMgr(object):
               self.msg_if.pub_info("Failed to call discovery function for driver: " + driver_name + " : " + str(e))
               self.msg_if.pub_info("Disabling driver: " + driver_name)
               if driver_name in self.drvs_dict.keys():
-                self.drvs_dict[driver_name]['active'] = False
+                self.drvs_dict[driver_name]['pov'] = False
                 self.publish_status()
               self.msg_if.pub_info("Deleting driver discovery class for : " + driver_name)
               del self.discovery_classes_dict[driver_name]
@@ -646,13 +645,16 @@ class NepiDriversMgr(object):
         #   else:
         #     self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
         #   drvs_dict[driver_name]['msg'] = "Application stopped running"
-        #   self.drvs_dict[driver_name]['active'] = False
+        #   self.drvs_dict[driver_name]['pov'] = False
       
       if driver_name in self.discovery_settings_dict.keys():
         self.publishDiscoverySettingsStatus(driver_name) 
         
     # Publish Status
     self.drvs_dict = drvs_dict
+    drvs_active_list = nepi_drvs.getDriversActiveOrderedList(drvs_dict)
+    nepi_system.set_active_drivers(drvs_active_list, log_name_list = [self.node_name])
+    nepi_sdk.set_param('active_drivers', drvs_active_list)
     #self.publish_status()
     # And now that( we are finished, start a timer for the drvt runDiscovery()
     if nepi_sdk.is_shutdown() == False:
@@ -863,7 +865,7 @@ class NepiDriversMgr(object):
     self.msg_if.pub_info("Got enable all msg: " + str(msg))
     drvs_names = list(self.drvs_dict.keys())
     for driver_name in drvs_names:
-      self.drvs_dict[driver_name]['active'] = True
+      self.drvs_dict[driver_name]['pov'] = True
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
@@ -873,7 +875,7 @@ class NepiDriversMgr(object):
     self.msg_if.pub_info("Got disable all msg: " + str(msg))
     drvs_names = list(self.drvs_dict.keys())
     for driver_name in drvs_names:
-      self.drvs_dict[driver_name]['active'] = False
+      self.drvs_dict[driver_name]['pov'] = False
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
