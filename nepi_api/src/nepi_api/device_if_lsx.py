@@ -77,7 +77,7 @@ class LSXDeviceIF:
 
     node_if = None
     settings_if = None
-
+    save_data_if = None
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 

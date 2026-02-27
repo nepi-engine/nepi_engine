@@ -81,6 +81,7 @@ class PTXActuatorIF:
 
     node_if = None
     settings_if = None
+    save_data_if = None
 
     status_msg = DevicePTXStatus()
 
