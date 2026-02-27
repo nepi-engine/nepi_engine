@@ -457,9 +457,9 @@ class NepiDriversMgr(object):
                 self.msg_if.pub_warn("Killed driver node " + str(node_name) + " for driver: " + str(driver_name))
               else:
                 self.msg_if.pub_warn("Failed to kill driver node " + str(node_name) + " for driver: " + str(driver_name))
-              if driver_name in self.discovery_node_dict.keys():
-                del self.discovery_node_dict[driver_name]
-                self.msg_if.pub_warn("Deleted driver node " + str(node_name) + " dict entry for driver: " + str(driver_name))
+          if driver_name in self.discovery_node_dict.keys():
+            del self.discovery_node_dict[driver_name]
+            self.msg_if.pub_warn("Deleted driver node " + str(node_name) + " dict entry for driver: " + str(driver_name))
 
       if process == "CALL":
         if driver_name in self.discovery_classes_dict.keys():

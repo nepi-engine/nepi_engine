@@ -329,6 +329,7 @@ class config_mgr(object):
         self.save_params(namespace, save_all = True)
     
     def save_params(self, namespace, save_all = False):
+        success = False
         cfg_path = self.USER_CFG_PATH
         if os.path.exists(cfg_path) and self.save_disabled == False:
             config_pathname = self.get_config_pathname(cfg_path, namespace, all_config = save_all)
