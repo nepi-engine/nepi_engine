@@ -31,14 +31,13 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
-from nepi_interfaces.msg import MgrSystemStatus
+
 from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateBool, UpdateOrder
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import StatesIF
+
 
 
 

@@ -48,9 +48,6 @@ from nepi_interfaces.srv import (
     GetSystemStatsQuery,
     GetSystemStatsQueryRequest,
     GetSystemStatsQueryResponse,
-    SystemStorageFolderQuery,
-    SystemStorageFolderQueryRequest,
-    SystemStorageFolderQueryResponse
 )
 
 from nepi_interfaces.msg import AutoStartEnabled

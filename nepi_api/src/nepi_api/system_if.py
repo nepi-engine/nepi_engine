@@ -46,14 +46,13 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
+
 
 from nepi_interfaces.msg import Frame3DTransform, Frame3DTransformStatus
 
-from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_interfaces.msg import SystemState
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 from nepi_interfaces.msg import SystemTrigger
