@@ -24,8 +24,8 @@
 import os
 import sys
 import importlib
-import subprocess
-import time
+import glob
+import yaml
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -35,7 +35,12 @@ log_name = "nepi_aifs"
 logger = Logger(log_name = log_name)
  
 #***************************
-# NEPI AIs utility functions
+# NEPI AI Framework Utility Functions
+#***************************
+
+##################
+# Framework Functions
+##################
 
 def getAIFsDict(params_path, api_path):
     aifs_dict = dict()
@@ -81,41 +86,10 @@ def getAIFsDict(params_path, api_path):
       del aifs_dict[aif_name]
     return aifs_dict
 
-# ln = sys._getframe().f_lineno ; self.printND(aifs_dict,ln)
-def printDict(aifs_dict):
-  logger.log_warn('')
-  logger.log_warn('*******************')
-  if line_num is not None:
-    logger.log_warn(str(line_num))
-  logger.log_warn('Printing Nex AIF Dictionary')
-
-  for aif_name in aifs_dict.keys():
-    aifs_dict = aifs_dict[aif_name]
-    logger.log_warn('')
-    logger.log_warn(aif_name)
-    logger.log_warn(str(aifs_dict))
 
 
-# def refreshAIFsDict(params_path, api_path, aifs_dict):
-#   success = True
-#   params_path = nepi_utils.clear_end_slash(params_path)
-#   api_path = nepi_utils.clear_end_slash(api_path)
-#   get_aifs_dict = getAIFsDict(params_path, api_path)
-#   for aif_name in get_aifs_dict.keys():
-#     if aif_name in aifs_dict.keys():
-#       get_aifs_dict[aif_name]['active'] = aifs_dict[aif_name]['active']
-#   return get_aifs_dict
 
   
-
-def getAIFsByActive(aifs_dict):
-  active_dict = dict()
-  for aif_name in aifs_dict.keys():
-    aif_dict = aifs_dict[aif_name]
-    aif_active = aif_dict['active']
-    if aif_active == True:
-      active_dict[aif_name] = aif_dict
-  return active_dict
 
 def getAIFsSortedList(aifs_dict):
   aifs_names = list(aifs_dict.keys())
@@ -126,74 +100,6 @@ def getAIFsSortedList(aifs_dict):
   return sorted_names
 
 
-def getAIFsActiveSortedList(aifs_dict):
-  sorted_name_list = getAIFsSortedList(aifs_dict)
-  #logger.log_warn("AIFS_MGR: sorted list: " + str(sorted_name_list))
-  sorted_active_list =[]
-  for aif_name in sorted_name_list:
-    active = aifs_dict[aif_name]['active']
-    if active:
-      sorted_active_list.append(aif_name)
-  return sorted_active_list
-
-
-
-def getAIFInfoFilesList(aifs_path):
-  aifs_list = []
-  if aifs_path != '':
-    if os.path.exists(aifs_path):
-      [file_list, num_files] = nepi_utils.get_file_list(aifs_path,"py")
-      for f in file_list:
-        aifs_list.append(f.split(".")[0])
-  return aifs_list
-
-  
-def getAIFPackagesList(install_path):
-  pkg_list = []
-  if install_path != '':
-    if os.path.exists(install_path):
-      [file_list, num_files] = nepi_utils.get_file_list(install_path,"zip")
-      for pkg in file_list:
-        pkg_list.append(os.path.basename(pkg))
-  return pkg_list
-
-
- 
-def activateAllFws(aifs_dict):
-  success = True
-  for aif_name in aifs_dict.keys():
-    aifs_dict = activateAIF(aif_name,aifs_dict)
-  return aifs_dict
-
-def disableAllFws(aifs_dict):
-  success = True
-  for aif_name in aifs_dict.keys():
-    aifs_dict = disableAIF(aif_name,aifs_dict)
-  return aifs_dict
-
-def activateFw(aif_name,aifs_dict):
-    if aif_name not in aifs_dict.keys():
-      logger.log_warn("AIF for activate request does not exist: " + aif_name)
-      return aifs_dict
-    aifs_dict[aif_name]['active'] = True
-    return aifs_dict
-
-def disableFw(aif_name,aifs_dict):
-    if aif_name not in aifs_dict.keys():
-      logger.log_warn("AIF for removal request does not exist: " + aif_name)
-      return aifs_dict
-    aifs_dict[aif_name]['active'] = False
-    return aifs_dict
-
-
-def getModelsByActive(models_dict):
-  active_dict = dict()
-  for model_name in models_dict.keys():
-    model_dict = models_dict[model_name]
-    model_active = models_dict['active']
-    if model_active == True:
-      active_dict[model_name] = model_dict
-  return active_dict
 
 def getModelsSortedList(models_dict):
   sorted_models = []
@@ -213,18 +119,6 @@ def getModelsSortedList(models_dict):
         break
 
   return sorted_models
-
-
-
-def activateAllModels(models_dict):
-    for model_name in models_dict.keys():
-      models_dict[model_name]['active'] = True
-    return models_dict
-
-def disableAllModels(models_dict):
-    for model_name in models_dict.keys():
-      models_dict[model_name]['active'] = False
-    return models_dict
 
 
 def importAIFClass(file_name,file_path,module_name,class_name):
@@ -261,73 +155,181 @@ def unimportAIFClass(module_name):
           success = False
     return success
 
-def launchClassifierNode(pkg_name, file_name, ros_node_name, device_path = None):
-  sub_process = None
-  msg = 'Success'
-  success = False
-  if device_path is None:
-    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name]
-  else:
-    device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '_device_path:=' + device_path]
-  try:
-    sub_process = subprocess.Popen(device_node_run_cmd)
-    success = True
-  except Exception as e:
-    msg = str("Failed to launch node with exception: " + ros_node_name + " " + str(e))
-    logger.log_warn(msg)
-  if success: 
-    if sub_process.poll() is not None:
-      msg = ("Failed to start " + device_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
-      logger.log_err(msg)
-      sub_process = None
-      success = False
-  return success, msg, sub_process
-  
-
-def killClassifierNode(node_namespace,sub_process):
-    success = True
-    node_name = node_namespace.split("/")[-1]
-    node_namespace_list = nepi_sdk.get_node_list()
-    node_list = []
-    for i in range(len(node_namespace_list)):
-      node_list.append(node_namespace_list[i].split("/")[-1])
-    logger.log_warn( str(node_list))
-    logger.log_warn( node_name)
-    if node_name in node_list:
-      logger.log_warn("Killing node: " + node_name)
-      [kill_list,fail_list] = nepi_sdk.kill_node(node_name)
-      time.sleep(2)    
-      # Next check running processes
-      if sub_process.poll() is not None: 
-        sub_process.terminate()
-        terminate_timeout = 3
-        while (terminate_timeout > 0):
-          time.sleep(1)
-          if sub_process.poll() is not None:
-            terminate_timeout -= 1
-            success = False
-          else:
-            success = True
-            break
-        if success == False:
-          # Escalate it
-          sub_process.kill()
-          time.sleep(1)
-        if sub_process.poll() is not None:
-          success = False
-        else:
-          success = True
-    if success:
-      cleanup_proc = subprocess.Popen(['rosnode', 'cleanup'], stdin=subprocess.PIPE)
-      try:
-        cleanup_proc.communicate(input=bytes("y\r\n", 'utf-8'), timeout=10)
-        cleanup_proc.wait(timeout=10) 
-      except Exception as e:
-        logger.log_warn("rosnode cleanup failed: " + str(e))
-      logger.log_warn("Killed node: " + node_name)
-    else:
-       logger.log_warn("Failed to kill node: " + node_name)
-    return success
         
+##################
+# Framework Model Functions
+##################
 
 
+def loadModelsDict(framework_name, pkg_name, models_folder_path):
+    models_dict = dict()
+    if os.path.exists(models_folder_path) == False:
+        logger.log_warn("Failed to find models folder: " + models_folder_path)
+        return models_dict
+    else:
+        cfg_files = glob.glob(os.path.join(models_folder_path,'*.yaml'))
+
+        # Remove the ros.yaml file -- that one doesn't represent a selectable trained neural net
+        for f in cfg_files:
+            cfg_dict = dict()
+            success = False
+            try:
+                logger.log_warn("Opening yaml file: " + f) 
+                yaml_stream = open(f, 'r')
+                success = True
+                  #logger.log_warn("Opened yaml file: " + f) 
+            except Exception as e:
+                logger.log_warn("Failed to open yaml file: " + str(e))
+            if success:
+                try:
+                    # Validate that it is a proper config file and gather weights file size info for load-time estimates
+                    logger.log_warn("Loading yaml data from file: " + f) 
+                    cfg_dict = yaml.load(yaml_stream, Loader=yaml.FullLoader)
+                    model_keys = list(cfg_dict.keys())
+                    model_key = model_keys[0]
+                      #logger.log_warn("Loaded yaml data from file: " + f) 
+                except Exception as e:
+                    logger.log_warn("Failed load yaml data: " + str(e)) 
+                    success = False 
+            try: 
+                  #logger.log_warn("Closing yaml data stream for file: " + f) 
+                yaml_stream.close()
+            except Exception as e:
+                logger.log_warn("Failed close yaml file: " + str(e))
+            
+            if success == False:
+                logger.log_warn("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
+                continue
+              #logger.log_warn("Import success: " + str(success) + " with cfg_dict " + str(cfg_dict))
+            cfg_dict_keys = cfg_dict[model_key].keys()
+            logger.log_warn("Imported model key names: " + str(cfg_dict_keys))
+            if ("framework" not in cfg_dict_keys):
+                logger.log_warn("Framework does not specified in model yaml file: " + f + "... not adding this model")
+                continue
+            if ("weight_file" not in cfg_dict_keys):
+                logger.log_warn("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
+                continue
+            if ("image_size" not in cfg_dict_keys):
+                logger.log_warn("File does not specify a image size: " + f + "... not adding this model")
+                continue
+            if ("classes" not in cfg_dict_keys):
+                logger.log_warn("File does not specify a classes: " + f + "... not adding this model")
+                continue
+
+            param_file = os.path.basename(f)
+            framework = cfg_dict[model_key]["framework"]["name"]
+            model_name = os.path.splitext(param_file)[0]
+
+            if framework != framework_name:
+                logger.log_warn("Model " + model_name + " not a MODEL_FRAMEWORK model" + framework + "... not adding this model")
+                continue
+
+
+            weight_file = cfg_dict[model_key]["weight_file"]["name"]
+            weight_file_path = os.path.join(models_folder_path,weight_file)
+            logger.log_warn("Checking that model weights file exists: " + weight_file_path + " for model name " + model_name)
+            if not os.path.exists(weight_file_path):
+                logger.log_warn("Model " + model_name + " specifies non-existent weights file " + weight_file_path + "... not adding this model")
+                continue
+            model_type = cfg_dict[model_key]['type']['name']
+
+            model_size_mb = float(os.path.getsize(weight_file_path) / 1000000)
+
+            display_name = model_name
+            if 'display_name' in cfg_dict_keys:
+                display_name = cfg_dict[model_key]['display_name']['name']
+
+            node_name = display_name
+            if 'node_name' in cfg_dict_keys:
+                node_name = cfg_dict[model_key]['node_name']['name']
+
+
+            model_dict = dict()
+            model_dict['model_name'] = model_name
+            model_dict['node_name'] = node_name
+            model_dict['param_file'] = param_file
+            model_dict['framework'] = framework
+            model_dict['display_name'] = display_name
+            model_dict['path'] = models_folder_path
+            model_dict['type'] = model_type
+            model_dict['description'] = cfg_dict[model_key]['description']['name']
+            model_dict['pkg_name'] = pkg_name
+            model_dict['img_height'] = cfg_dict[model_key]['image_size']['image_height']['value']
+            model_dict['img_width'] = cfg_dict[model_key]['image_size']['image_width']['value']
+            model_dict['classes'] = cfg_dict[model_key]['classes']['names']
+            model_dict['weight_file']= weight_file
+            model_dict['size'] = model_size_mb
+            logger.log_info("Model dict created for model : " + model_name)
+            models_dict[model_name] = model_dict
+    return models_dict
+      
+   
+
+def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
+        success = False
+        node_namespace = None
+        try:
+            model_name = model_dict['model_name']
+            model_type = model_dict['type']
+
+            if model_type not in node_file_dict.keys():
+                logger.log_warn("Model " + str(model_name) + " specifies non-supported model type " + str(model_type) + "... not adding this model")
+                return success, node_namespace, node_dict
+            else:
+                node_file_name = node_file_dict[model_type]
+            logger.log_warn("Starting launch process for model " + str(model_name) + " type: " + str(model_type) + " node_file: " + str(node_file_name))
+
+            node_name = model_dict['node_name']
+            node_namespace = os.path.join(launch_namespace,node_name)
+            pkg_name = model_dict['pkg_name']
+            node_file_folder = os.path.join("/opt/nepi/nepi_engine/lib",pkg_name)
+            
+            param_file_path = os.path.join(model_dict['path'],model_dict['param_file'])
+            weight_file_path = os.path.join(model_dict['path'],model_dict['weight_file'])
+
+            logger.log_warn("Launching Model Node with with settings " + str([pkg_name, node_file_name, node_name]))
+            ###############################
+            # Launch Node
+            node_file_path = os.path.join(node_file_folder,node_file_name)
+            if node_name in node_dict.keys():
+                logger.log_info("Node Already Launched: " + str(node_name))
+            elif os.path.exists(node_file_path) == False:
+                logger.log_info("Could not find Node File at: " + str(node_file_path))
+            else: 
+
+                # Pre Set Node Params
+                logger.log_warn("Updating model param file path param to " + str(param_file_path))
+                param_ns = nepi_sdk.create_namespace(node_namespace,'param_file_path')
+                nepi_sdk.set_param(param_ns,param_file_path)
+
+
+                logger.log_warn("Updating model weight file path param to " + str(param_file_path))
+                param_ns = nepi_sdk.create_namespace(node_namespace,'weight_file_path')
+                nepi_sdk.set_param(param_ns,weight_file_path)
+                    
+                #Try and launch node
+                
+                [success, msg, node_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
+                if success == True:
+                    node_dict[model_name] = {'node_name': node_name, 'namesapce':node_namespace, 'process':node_process}
+                else:
+                    logger.log_info("Node launch failed with msg: " + str(msg))
+        except Exception as e:
+            logger.log_info("Node launch failed with exception: " + str(e))
+        
+        return success, node_namespace, node_dict
+
+
+def killModelNode(model_name, node_dict):       
+    success = False 
+    if model_name in node_dict.keys():
+        node_name = node_dict[model_name]['node_name']
+        node_namespace = node_dict[model_name]['node_namespace']
+        node_process = node_dict[model_name]['process']
+        logger.log_info("Killing model node: " + node_name)
+        if not (None == node_process):
+            success = nepi_sdk.kill_node_process(node_namespace,node_process)
+        if success == True:
+            logger.log_info("Killed model node: " + node_name)
+        del node_dict[model_name]
+    return success, node_dict

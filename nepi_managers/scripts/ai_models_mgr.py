@@ -418,7 +418,6 @@ class AIDetectorManager:
                         aifs_dict[aif_name]['active'] = False
                     try:
                         aif_models_dict = aif_if_class_instance.getModelsDict()
-                    
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to Get Model Info for ai framework: " + aif_name + " " + str(e))
                     if (len(aif_models_dict.keys()) < 1):
@@ -534,13 +533,14 @@ class AIDetectorManager:
         for model_name in active_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in self.models_namespace_dict.keys() and model_aif in active_aifs:
-                self.msg_if.pub_warn("Launching Node for Model: " + model_name)
+                #self.msg_if.pub_warn("Launching Node for Model: " + model_name)
                 model_dict = models_dict[model_name]
                 node_namespace = self.loadModel(model_name, model_dict)
-                self.msg_if.pub_warn("Got Launch Namespace for Model: " + model_name + " : " + str(node_namespace))
+                
                 self.models_dict[model_name]['running'] = False
 
                 if node_namespace is not None:
+                    self.msg_if.pub_warn("Got Launch Namespace for Model: " + model_name + " : " + str(node_namespace))
                     self.models_dict[model_name]['msg'] = "Model launched"
                     self.models_namespace_dict[model_name] = node_namespace
                     self.publish_status()
@@ -548,7 +548,8 @@ class AIDetectorManager:
                     self.msg_if.pub_warn("Model failed to launch: " + model_name)
                     self.msg_if.pub_warn("Setting model to disabled: " + model_name)
                     self.models_dict[model_name]['msg'] = "Model failed to launch"
-                    self.models_namespace_dict[model_name] = node_namespace
+                    if model_name in list(self.models_namespace_dict.keys()):
+                        del self.models_namespace_dict[model_name]
                     self.models_dict[model_name]['active'] = False
 
 
@@ -577,8 +578,7 @@ class AIDetectorManager:
                         self.models_dict[model_name]['msg'] = "Model not running"
             else:
                 self.models_dict[model_name]['running'] = False
-        else:
-            self.models_dict[model_name]['running'] = False
+
                 
     
 
@@ -613,9 +613,12 @@ class AIDetectorManager:
             else:
                 try:
                     aif_class = self.aifs_classes_dict[aif_name]
-                    self.msg_if.pub_warn("Launching Node for Model " + model_name)
+                    self.msg_if.pub_warn("Launching Node for Model: " + model_name)
                     [success,node_namespace] = aif_class.launchModel(model_dict)
-                    self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
+                    if success == True:
+                        self.msg_if.pub_warn("Model Node Launched with namespace: " + node_namespace)
+                    else:
+                        self.msg_if.pub_warn("Model Failed to Launch: " + model_name)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to Launch Node for model: " + model_name + " : " + str(e))
 
@@ -639,7 +642,7 @@ class AIDetectorManager:
                         del self.models_namespace_dict[model_name]
                         aif_class.killModel(model_name)
                         # Kill Img Pub Node if running
-                        nepi_sdk.kill_node(model_name + '/img_pub')
+                        nepi_sdk.kill_node(model_name + '_img_pub')
   
     def save_config(self):
         # Save framework and model dictionaries
