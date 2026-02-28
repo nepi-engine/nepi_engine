@@ -104,16 +104,6 @@ def set_user_restrictions(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_run_mode(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'run_mode')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
-    return data
-
-def set_run_mode(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'run_mode')
-    success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
-    return success
-
 ##########################
 
 

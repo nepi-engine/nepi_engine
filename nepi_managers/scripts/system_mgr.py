@@ -78,7 +78,7 @@ class SystemMgrNode():
 
     STATES_DICT = dict()
 
-    RUN_MODES = ['prototype','deploy']
+    RUI_MODES = ['prototype','deploy']
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                         "ai_training",
@@ -195,7 +195,6 @@ class SystemMgrNode():
     admin_password_valid = False
     admin_mode_set = False
     admin_mode_updated = True
-    develop_enabled = False
     debug_enabled = False
     managers_enabled_dict = dict()
     deploy_nodes_dict = dict()
@@ -207,7 +206,7 @@ class SystemMgrNode():
     rui_login_password_valid = False
 
     rui_restrictions = []
-    run_mode = 'deploy'
+    rui_mode = 'deploy'
 
     node_names_dict = dict()
 
@@ -413,9 +412,9 @@ class SystemMgrNode():
             descriptions.append(self.USER_RESTRICTION_OPTIONS[key])
         self.status_msg.user_restrictions_descriptions = descriptions
 
-        self.status_msg.sys_run_mode_options = self.RUN_MODES
+        self.status_msg.rui_mode_options = self.RUI_MODES
         
-        for mode in self.RUN_MODES:
+        for mode in self.RUI_MODES:
             self.managers_enabled_dict[mode] = self.MANAGERS_OPTIONS
 
 
@@ -440,10 +439,6 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.admin_enabled
             },
-            'develop_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': self.develop_enabled
-            },
             'debug_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': self.debug_enabled
@@ -456,9 +451,9 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.deploy_nodes_dict
             },
-            'run_mode': {
+            'rui_mode': {
                 'namespace': self.base_namespace,
-                'factory_val': self.run_mode
+                'factory_val': self.rui_mode
             },
             'user_restrictions': {
                 'namespace': self.base_namespace,
@@ -568,14 +563,6 @@ class SystemMgrNode():
                 'callback': self.setAdminPasswordCb, 
                 'callback_args': ()
             },            
-            'enable_develop': {
-                'namespace': self.base_namespace,
-                'topic': 'develop_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableDevelopCb, 
-                'callback_args': ()
-            },
             'enable_debug': {
                 'namespace': self.base_namespace,
                 'topic': 'debug_mode_enable',
@@ -584,12 +571,12 @@ class SystemMgrNode():
                 'callback': self.enableDebugCb, 
                 'callback_args': ()
             },
-            'set_run_mode': {
+            'set_rui_mode': {
                 'namespace': self.base_namespace,
-                'topic': 'set_run_mode',
+                'topic': 'set_rui_mode',
                 'msg': String,
                 'qsize': None,
-                'callback': self.setRunModeCb, 
+                'callback': self.setRuiModeCb, 
                 'callback_args': ()
             },
             'add_user_restriction': {
@@ -859,11 +846,10 @@ class SystemMgrNode():
     def initCb(self, do_updates = False):
         if self.node_if is not None:
             self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.develop_enabled = self.node_if.get_param('develop_enabled')
             self.debug_enabled = self.node_if.get_param('debug_enabled')
             self.managers_enabled_dict = self.node_if.get_param('managers_enabled_dict')
             self.deploy_nodes_dict = self.node_if.get_param('deploy_nodes_dict')
-            self.run_mode = self.node_if.get_param('run_mode')
+            self.rui_mode = self.node_if.get_param('rui_mode')
             self.user_restrictions = self.node_if.get_param('user_restrictions')
             self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
             self.rui_restrictions = self.node_if.get_param('rui_restrictions')
@@ -1080,27 +1066,26 @@ class SystemMgrNode():
     def updateSystemAdminSettings(self):
        
         managers_enabled = self.MANAGERS_OPTIONS
-        if self.run_mode in self.managers_enabled_dict.keys():
-            managers_enabled = self.managers_enabled_dict[self.run_mode]
+        if self.rui_mode in self.managers_enabled_dict.keys():
+            managers_enabled = self.managers_enabled_dict[self.rui_mode]
 
-        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.run_mode == 'develop')
+        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.rui_mode == 'develop')
         self.admin_mode_set = self.admin_enabled and admin_password_valid
         self.status_msg.sys_admin_enabled = self.admin_enabled
         self.status_msg.sys_admin_password_valid = admin_password_valid 
         self.status_msg.sys_admin_mode_set = self.admin_mode_set
-        self.status_msg.sys_develop_enabled = self.develop_enabled   
         self.status_msg.sys_debug_enabled = self.debug_enabled    
-
-        self.status_msg.sys_run_mode = self.run_mode
 
         self.status_msg.sys_managers_options = self.MANAGERS_OPTIONS
         self.status_msg.sys_managers_enabled = managers_enabled
 
         self.status_msg.user_restrictions = self.user_restrictions
         user_restricted = []
-        if self.develop_enabled == False:
+        if self.admin_mode_set == False:
             user_restricted = self.user_restrictions
         self.status_msg.user_restricted = user_restricted
+
+        self.status_msg.rui_mode = self.rui_mode
 
         self.rui_login_mode_set = self.rui_login_enabled and self.rui_login_password_valid
         self.status_msg.rui_login_enabled = self.rui_login_enabled
@@ -1109,7 +1094,7 @@ class SystemMgrNode():
 
         self.status_msg.rui_restrictions = self.rui_restrictions
         rui_restricted = []
-        if self.develop_enabled == False:
+        if self.rui_mode != 'develop':
             rui_restricted = self.rui_restrictions
         self.status_msg.rui_restricted = rui_restricted
 
@@ -1122,11 +1107,9 @@ class SystemMgrNode():
 
         self.publish_status()
         nepi_system.set_admin_mode(self.admin_mode_set)
-        nepi_system.set_develop_mode(self.develop_enabled)
         nepi_system.set_debug_mode(self.debug_enabled)
         nepi_system.set_managers_enabled(managers_enabled)
         nepi_system.set_user_restrictions(user_restricted)
-        nepi_system.set_run_mode(self.run_mode)
         nepi_system.set_node_names_dict(self.node_names_dict)
 
     def enableAdminCb(self, msg):
@@ -1142,12 +1125,6 @@ class SystemMgrNode():
             self.admin_password_valid = True
             self.updateSystemAdminSettings()
 
-    def enableDevelopCb(self, msg):
-        self.develop_enabled = msg.data
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('develop_enabled',msg.data)
-            self.node_if.save_config()
             
     def enableDebugCb(self, msg):
         self.debug_enabled = msg.data
@@ -1156,13 +1133,13 @@ class SystemMgrNode():
             self.node_if.set_param('debug_enabled',msg.data)
             self.node_if.save_config()
 
-    def setRunModeCb(self, msg):
-        run_mode = msg.data
-        if run_mode in self.RUN_MODES:
-            self.run_mode = msg.data
+    def setRuiModeCb(self, msg):
+        rui_mode = msg.data
+        if rui_mode in self.RUI_MODES:
+            self.rui_mode = msg.data
             self.updateSystemAdminSettings()
             if self.node_if is not None:
-               self.node_if.set_param('run_mode',msg.data)
+               self.node_if.set_param('rui_mode',msg.data)
                self.node_if.save_config()
 
 

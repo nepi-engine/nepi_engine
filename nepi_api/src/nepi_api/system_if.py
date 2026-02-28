@@ -550,7 +550,6 @@ class SaveDataIF:
     ready = None
     namespace = "~"
     all_save_namespace = None
-    navpose_save_namespace = None
     status_msg = SaveDataStatus
     node_if = None
     read_write_if = None
@@ -580,8 +579,6 @@ class SaveDataIF:
     save_all_enabled = False
     save_all_rate = 0.0
 
-    log_navposes_enabled = False
-    log_navposes_rate = 0.0
 
     file_prefix = ""
     subfolder = ""
@@ -639,9 +636,6 @@ class SaveDataIF:
         if all_save_namespace != self.namespace:
             self.all_save_namespace = all_save_namespace
 
-        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navpose/save_data')
-        if navpose_save_namespace != self.namespace:
-            self.navpose_save_namespace = navpose_save_namespace
         ###############################
         # Connect Sys Mgr Services
 
@@ -728,14 +722,6 @@ class SaveDataIF:
             'filename_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
-            },
-            'log_navposes_enabled': {
-                'namespace': self.namespace,
-                'factory_val': self.log_navposes_enabled
-            },
-            'log_navposes_rate': {
-                'namespace': self.namespace,
-                'factory_val': self.log_navposes_rate
             }
         }
 
@@ -769,22 +755,6 @@ class SaveDataIF:
             }
         
 
-        if self.navpose_save_namespace is not None:
-            self.PUBS_DICT['set_navpose_enable'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': Bool,
-                'topic': 'set_navpose_enable',
-                'qsize': 1,
-                'latch': True
-            }
-            self.PUBS_DICT['set_navpose_rate'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': SaveDataRate,
-                'topic': 'set_navpose_rate',
-                'qsize': 1,
-                'latch': True
-            }
-
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -796,22 +766,6 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
-            'log_navposes_enable': {
-                'namespace': self.namespace,
-                'msg': Bool,
-                'topic': 'log_navposes_enable',
-                'qsize': 5,
-                'callback': self._logNavPoseEnableCb, 
-                'callback_args': ()
-            }, 
-            'log_navposes_rate': {
-                'namespace': self.namespace,
-                'msg': Float32,
-                'topic': 'log_navposes_rate',
-                'qsize': 5,
-                'callback': self._logNavPoseRateCb, 
-                'callback_args': ()
-            }, 
             'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
@@ -950,16 +904,6 @@ class SaveDataIF:
             self.SUBS_DICT.update(ALL_SUBS_DICT)
         
 
-
-        if self.navpose_save_namespace is not None:
-            self.SUBS_DICT['navpose_save_sub'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': SaveDataStatus,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._logNavPoseStatusCb, 
-                'callback_args': ()
-            }
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -1294,19 +1238,6 @@ class SaveDataIF:
                 status_msg.save_all_enabled = self.save_all_enabled
                 status_msg.save_all_rate = self.save_all_rate   
 
-            if self.navpose_save_namespace == self.namespace and 'navposes' in save_rate_dict.keys():
-                status_msg.log_navposes_enabled = self.save_data
-                try: 
-                    status_msg.log_navposes_rate = save_rate_dict['navposes'][0]
-                except:
-                    status_msg.log_navposes_rate = 0
-            else:
-                status_msg.log_navposes_enabled = self.log_navposes_enabled
-                try: 
-                    status_msg.log_navposes_rate = self.log_navposes_rate
-                except:
-                    status_msg.log_navposes_rate = 0             
-
 
             if self.save_data_root_directory is not None:
                 status_msg.data_dir = self.save_data_root_directory
@@ -1333,14 +1264,6 @@ class SaveDataIF:
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
             self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
-            self.update_filename_dict(filename_dict)
-            self.log_navposes_enabled = self.node_if.get_param('log_navposes_enabled')
-            self.log_navposes_rate = self.node_if.get_param('log_navposes_rate')
-            self.node_if.save_config()
-        if do_updates == True:
-            if self.navpose_save_namespace is not None:
-                self.logNavPoseEnable(self.log_navposes_enabled)
-                self.logNavPoseRate(self.log_navposes_rate)
         self.publish_status()
         
 
@@ -1392,40 +1315,6 @@ class SaveDataIF:
         self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
 
-    def logNavPoseEnable(self,enabled):
-        self.log_navposes_enabled = enabled
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.publish_pub('set_navpose_enable',enabled)
-
-    def _logNavPoseRateCb(self, msg):
-        self.msg_if.pub_info("Recieved Log NavPose Rate Update: " + str(msg), log_name_list = self.log_name_list)
-        rate = msg.data
-        self.logNavPoseRate(rate)
-
-
-    def logNavPoseRate(self,rate):
-        self.log_navposes_rate = rate
-        self.publish_status()
-        rate_msg = SaveDataRate()
-        rate_msg.data_product = 'navposes'
-        rate_msg.save_rate_hz = rate
-        if self.node_if is not None:
-            self.node_if.publish_pub('set_navpose_rate',rate_msg)
-        self.publish_status()
-
-
-    def _logNavPoseStatusCb(self,msg):
-        data_product_list = msg.data_products
-        if 'navposes' in data_product_list:
-            self.log_navposes_enabled = msg.save_data_enabled
-            index = data_product_list.index('navposes')
-            try:
-                log_navposes_rate = msg.save_data_rates[index]
-                test = log_navposes_rate / 10
-            except:
-                log_navposes_rate = 0
-            self.log_navposes_rate = log_navposes_rate
 
 
     def _saveAllStatusCb(self,msg):
