@@ -131,10 +131,10 @@ def printDict(drvs_dict):
   logger.log_warn('')
   logger.log_warn('*******************')
   logger.log_warn('Printing Drv Driver Dictionary')
-  for drv_name in drvs_dict.keys():
-    drv_dict = drvs_dict[drv_name]
+  for driver_name in drvs_dict.keys():
+    drv_dict = drvs_dict[driver_name]
     logger.log_warn('')
-    logger.log_warn(drv_name)
+    logger.log_warn(driver_name)
     logger.log_warn(str(drv_dict))
 
 
@@ -145,58 +145,41 @@ def refreshDriversDict(drivers_path,drvs_dict):
   get_drvs_dict = getDriversDict(drivers_path)
   #logger.log_warn('Updating Drvs Dict: ' + str(drvs_dict))
   #logger.log_warn('From Get Dict: ' + str(get_drvs_dict))
-  for drv_name in get_drvs_dict.keys():
-    if drv_name not in drvs_dict.keys():
-      get_drvs_dict[drv_name]['active'] = False
+  for driver_name in get_drvs_dict.keys():
+    if driver_name not in drvs_dict.keys():
+      logger.log_warn("Refresh setting drv : " + str(driver_name) + " to active state: " + str(False))
+      get_drvs_dict[driver_name]['active'] = False
     else:
       #.log_warn('')
-      #logger.log_warn('Updating drv: ' + drv_name)
-      #logger.log_warn('Updating drv: ' + str(drvs_dict[drv_name]))
-      get_drvs_dict[drv_name]['active'] = drvs_dict[drv_name]['active']
-      get_drvs_dict[drv_name]['order'] = drvs_dict[drv_name]['order']
-      drv_dict = drvs_dict[drv_name]
+      #logger.log_warn('Updating drv: ' + driver_name)
+      #logger.log_warn('Updating drv: ' + str(drvs_dict[driver_name]))
+      active = drvs_dict[driver_name]['active']
+      logger.log_warn("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
+      get_drvs_dict[driver_name]['active'] = active
+      get_drvs_dict[driver_name]['order'] = drvs_dict[driver_name]['order']
+      drv_dict = drvs_dict[driver_name]
       if 'DISCOVERY_DICT' in drv_dict.keys():
         if 'OPTIONS' in drv_dict['DISCOVERY_DICT'].keys():
-          options_dict = drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
-          get_options_dict = get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS']
+          options_dict = drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']
+          get_options_dict = get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']
           for get_option_name in get_options_dict.keys():
             if get_option_name in options_dict.keys():
               cur_value = options_dict[get_option_name]['value']
-              #logger.log_warn('Using current drv option value: ' + str(drv_name) +":"+ str(get_option_name) +":"+ str(cur_value))
-              get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name]['value'] = cur_value
-          #logger.log_warn('Refreshed options ' + str(drv_name) +" : "+ str( get_drvs_dict[drv_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] ))
+              #logger.log_warn('Using current drv option value: ' + str(driver_name) +":"+ str(get_option_name) +":"+ str(cur_value))
+              get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name]['value'] = cur_value
+          #logger.log_warn('Refreshed options ' + str(driver_name) +" : "+ str( get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] ))
 
 
   #logger.log_warn('Updated to: ' + str(get_drvs_dict))
   return get_drvs_dict
 
-def initDriversActive(active_list,drvs_dict):
-  rvs_list = list(reversed(active_list))  
-  # First set all to inactive
-  for name in drvs_dict.keys():
-    drvs_dict[name]['active'] = False
-  for name in active_list:
-    if name in drvs_dict.keys():
-      drvs_dict[name]['active'] = True
-  return drvs_dict
-
-def getDriversByActive(drvs_dict):
-  active_dict = dict()
-  for drv_name in drvs_dict.keys():
-    drv_dict = drvs_dict[drv_name]
-    driver_active = drv_dict['active']
-    if driver_active == True:
-      active_dict[drv_name] = drv_dict
-  return active_dict
-
-
 def getDriversByType(type,drvs_dict):
   type_dict = dict()
-  for drv_name in drvs_dict.keys():
-    drv_dict = drvs_dict[drv_name]
+  for driver_name in drvs_dict.keys():
+    drv_dict = drvs_dict[driver_name]
     driver_type = drv_dict['type']
     if driver_type == type:
-      type_dict[drv_name] = drv_dict
+      type_dict[driver_name] = drv_dict
   return type_dict
 
 
@@ -209,10 +192,10 @@ def setFactoryDriverOrder(drvs_dict):
   launch_ind = run_ind * 1000
   catch_ind = launch_ind * 1000
   order = catch_ind
-  for drv_name in drvs_dict.keys():
-    drv_dict = drvs_dict[drv_name]
+  for driver_name in drvs_dict.keys():
+    drv_dict = drvs_dict[driver_name]
     if 'DISCOVERY_DICT' in drv_dict.keys():
-      if drvs_dict[drv_name]['DISCOVERY_DICT']["file_name"] != "None":
+      if drvs_dict[driver_name]['DISCOVERY_DICT']["file_name"] != "None":
         discovery_proc = drv_dict['DISCOVERY_DICT']['process']
         if discovery_proc == 'CALL':
           order = call_ind
@@ -228,60 +211,60 @@ def setFactoryDriverOrder(drvs_dict):
   sorted_indexes = list(np.sort(indexes))
   for i in range(len(indexes)):
      factory_indexes[i] = sorted_indexes.index(indexes[i])
-  for i, drv_name in enumerate(drvs_dict.keys()):
-    drvs_dict[drv_name]['order'] = factory_indexes[i]
+  for i, driver_name in enumerate(drvs_dict.keys()):
+    drvs_dict[driver_name]['order'] = factory_indexes[i]
   return drvs_dict
 
 
-def moveDriverTop(drv_name,drvs_dict):
-  if drv_name in drvs_dict.keys():
+def moveDriverTop(driver_name,drvs_dict):
+  if driver_name in drvs_dict.keys():
     current_ordered_list = getDriversOrderedList(drvs_dict)
-    current_order = current_ordered_list.index(drv_name)
+    current_order = current_ordered_list.index(driver_name)
     if current_order > 0:
       new_order = 0
-      drvs_dict = setDriverOrder(drv_name,new_order,drvs_dict)
+      drvs_dict = setDriverOrder(driver_name,new_order,drvs_dict)
   return drvs_dict
 
-def moveDriverBottom(drv_name,drvs_dict):
-  if drv_name in drvs_dict.keys():
+def moveDriverBottom(driver_name,drvs_dict):
+  if driver_name in drvs_dict.keys():
     current_ordered_list = getDriversOrderedList(drvs_dict)
-    current_order = current_ordered_list.index(drv_name)
+    current_order = current_ordered_list.index(driver_name)
     if current_order < (len(current_ordered_list)-1):
       new_order = len(current_ordered_list) - 1
-      drvs_dict = setDriverOrder(drv_name,new_order,drvs_dict)
+      drvs_dict = setDriverOrder(driver_name,new_order,drvs_dict)
   return drvs_dict
 
-def moveDriverUp(drv_name,drvs_dict):
-  if drv_name in drvs_dict.keys():
+def moveDriverUp(driver_name,drvs_dict):
+  if driver_name in drvs_dict.keys():
     current_ordered_list = getDriversOrderedList(drvs_dict)
-    current_order = current_ordered_list.index(drv_name)
+    current_order = current_ordered_list.index(driver_name)
     if current_order > 0:
       new_order = current_order -1
-      drvs_dict = setDriverOrder(drv_name,new_order,drvs_dict)
+      drvs_dict = setDriverOrder(driver_name,new_order,drvs_dict)
   return drvs_dict
 
-def moveDriverDown(drv_name,drvs_dict):
-  if drv_name in drvs_dict.keys():
+def moveDriverDown(driver_name,drvs_dict):
+  if driver_name in drvs_dict.keys():
     current_ordered_list = getDriversOrderedList(drvs_dict)
-    current_order = current_ordered_list.index(drv_name)
+    current_order = current_ordered_list.index(driver_name)
     if current_order < (len(current_ordered_list)-1):
       new_order = current_order + 1
-      drvs_dict = setDriverOrder(drv_name,new_order,drvs_dict)
+      drvs_dict = setDriverOrder(driver_name,new_order,drvs_dict)
   return drvs_dict
 
-def setDriverOrder(drv_name,new_order,drvs_dict):
-  if drv_name in drvs_dict.keys():
+def setDriverOrder(driver_name,new_order,drvs_dict):
+  if driver_name in drvs_dict.keys():
     ordered_list = getDriversOrderedList(drvs_dict)
-    current_order = ordered_list.index(drv_name)
+    current_order = ordered_list.index(driver_name)
     driver_entry = ordered_list.pop(current_order)
     ordered_list.insert(new_order,driver_entry)
-    for drv_name in drvs_dict.keys():
-      drvs_dict[drv_name]['order'] = ordered_list.index(drv_name)
+    for driver_name in drvs_dict.keys():
+      drvs_dict[driver_name]['order'] = ordered_list.index(driver_name)
   return drvs_dict
 
-def setDriverMsg(drv_name,msg,drvs_dict):
-  if drv_name in drvs_dict.keys():
-    drvs_dict[drv_name]['msg'] = str(msg)
+def setDriverMsg(driver_name,msg,drvs_dict):
+  if driver_name in drvs_dict.keys():
+    drvs_dict[driver_name]['msg'] = str(msg)
   return drvs_dict
 
     
@@ -290,9 +273,9 @@ def getDriversOrderedList(drvs_dict):
   name_list = []
   order_list = []
   ordered_name_list = []
-  for drv_name in drvs_dict.keys():
-    name_list.append(drv_name)
-    drv_dict = drvs_dict[drv_name]
+  for driver_name in drvs_dict.keys():
+    name_list.append(driver_name)
+    drv_dict = drvs_dict[driver_name]
     order = drv_dict['order']
     if order == -1:
       order = 1000
@@ -306,20 +289,6 @@ def getDriversOrderedList(drvs_dict):
   for i,index in enumerate(indexes):
     ordered_name_list[index] = name_list[i]
   return ordered_name_list
-
-def getDriversActiveOrderedList(drvs_dict):
-  ordered_name_list = getDriversOrderedList(drvs_dict)
-  #logger.log_warn("Drivers Ordered List: " + str(ordered_name_list))
-  ordered_active_list =[]
-  for drv_name in ordered_name_list:
-    #logger.log_warn("Drivers Drv Entry: " + str(drvs_dict[drv_name]))
-    active = drvs_dict[drv_name]['active']
-    if active:
-      ordered_active_list.append(drv_name)
-  return ordered_active_list
-
-
-
 
 
 
@@ -344,32 +313,6 @@ def getDriverPackagesList(install_path):
   return pkg_list
 
 
- 
-def activateAllDrivers(drvs_dict):
-  success = True
-  for drv_name in drvs_dict.keys():
-    drvs_dict = activateDriver(drv_name,drvs_dict)
-  return drvs_dict
-
-def activateDriver(drv_name,drvs_dict):
-    if drv_name not in drvs_dict.keys():
-      logger.log_warn("Driver for removal request does not exist: " + drv_name)
-      return drvs_dict
-    drvs_dict[drv_name]['active'] = True
-    return drvs_dict
-
-def disableAllDrivers(drvs_dict):
-  success = True
-  for drv_name in drvs_dict.keys():
-    drvs_dict = disableDriver(drv_name,drvs_dict)
-  return drvs_dict
-
-def disableDriver(drv_name,drvs_dict):
-    if drv_name not in drvs_dict.keys():
-      logger.log_warn("Driver for removal request does not exist: " + drv_name)
-      return drvs_dict
-    drvs_dict[drv_name]['active'] = False
-    return drvs_dict
 
 def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
     success = True
@@ -437,12 +380,12 @@ def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
 
 
 
-def removeDriver(drv_name,drvs_dict,drivers_path,backup_path = None):
+def removeDriver(driver_name,drvs_dict,drivers_path,backup_path = None):
     success = True   
-    if drv_name not in drvs_dict.keys():
-      logger.log_warn("Driver for removal request does not exist: " + drv_name)
+    if driver_name not in drvs_dict.keys():
+      logger.log_warn("Driver for removal request does not exist: " + driver_name)
       return False, drvs_dict
-    drv_dict = drvs_dict[drv_name]
+    drv_dict = drvs_dict[driver_name]
 
     param_file = os.path.join(drivers_path,drv_dict['param_file_name'])
     node_file = os.path.join(drivers_path,drv_dict['NODE_DICT']['file_name'])
@@ -470,7 +413,7 @@ def removeDriver(drv_name,drvs_dict,drivers_path,backup_path = None):
         backup_path = None
       else:
         os.system('chown -R ' + 'nepi:nepi' + ' ' + backup_path)
-        zip_file = backup_path + "/" + drv_name + ".zip"
+        zip_file = backup_path + "/" + driver_name + ".zip"
         logger.log_info("Backing up removed file to: " + zip_file)
         try:
           zip = zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED)
@@ -494,7 +437,7 @@ def removeDriver(drv_name,drvs_dict,drivers_path,backup_path = None):
               logger.log_warn("Failed to remove driver file: " + file + " " + str(e))
 
     if success:
-      del drvs_dict[drv_name]
+      del drvs_dict[driver_name]
     return success, drvs_dict
 
 
