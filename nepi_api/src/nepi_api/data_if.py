@@ -5688,7 +5688,7 @@ class PointcloudImageIF(BaseImageIF):
 #                 self.callback_dict['frame_updated_callback'](frame)
 
 #     def _navposesCb(self,msg):
-#         self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
+#          = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
 
 #     ###############################
 #     # Class Private Methods

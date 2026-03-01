@@ -594,6 +594,7 @@ class SaveDataIF:
                 pub_status = True,
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
+                ignore_global_rate_updates = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -714,10 +715,6 @@ class SaveDataIF:
             'save_rate_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.save_rate_dict
-            },
-            'save_data': {
-                'namespace': self.namespace,
-                'factory_val': False
             },
             'filename_dict': {
                 'namespace': self.namespace,
@@ -867,14 +864,6 @@ class SaveDataIF:
                     'callback': self._setFilenameCb,
                     'callback_args': ()
                 },
-                'rate_all': {
-                    'namespace': self.all_save_namespace,
-                    'msg': SaveDataRate,
-                    'topic': 'save_data_rate',
-                    'qsize': 5,
-                    'callback': self._saveRateCb, 
-                    'callback_args': ()
-                },  
                 'snapshot_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
@@ -900,6 +889,15 @@ class SaveDataIF:
                     'callback_args': ()
                 }
             }
+            if ignore_global_rate_updates == False:
+                ALL_SUBS_DICT['rate_all'] = {
+                        'namespace': self.all_save_namespace,
+                        'msg': SaveDataRate,
+                        'topic': 'save_data_rate',
+                        'qsize': 5,
+                        'callback': self._saveRateCb, 
+                        'callback_args': ()
+                    } 
 
             self.SUBS_DICT.update(ALL_SUBS_DICT)
         
@@ -1061,9 +1059,7 @@ class SaveDataIF:
         self.msg_if.pub_warn("Setting Save Enable to: " + str(enabled))  
         self.save_data = enabled
         self.publish_status()    
-        if self.node_if is not None: 
-            self.node_if.set_param('save_data', enabled)  
-            #self.node_if.save_config()
+
 
     def get_saving_enabled(self):
         return self.save_data
@@ -1262,7 +1258,6 @@ class SaveDataIF:
                         self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
                     self.save_rate_dict[data_product][1] = 0.0 # Reset timer
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
-            self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
         self.publish_status()
         
