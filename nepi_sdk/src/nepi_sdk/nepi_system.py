@@ -84,13 +84,13 @@ def set_debug_mode(value, log_name_list = []):
     return success
 
 
-def get_managers_enabled(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_enabled')
+def get_managers_running(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_running')
     data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
     return data
 
-def set_managers_enabled(value, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_enabled')
+def set_managers_running(value, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_running')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 

@@ -431,11 +431,15 @@ def load_params_from_file(file_path, namespace = None, prime_key = None, log_nam
             params_dict = get_params_dict[prime_key]
         else:
           params_dict = get_params_dict
-        for key in params_dict.keys():
-          ns = create_namespace(namespace,key)
-          value = params_dict[key]
-          set_param(ns,value)
-        log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
+        if params_dict is None:
+          params_dict = dict()
+          log_msg_warn("Failed to load params for " + str(namespace) +  " from file: " + str(file_path), log_name_list = log_name_list)
+        else:
+          for key in params_dict.keys():
+            ns = create_namespace(namespace,key)
+            value = params_dict[key]
+            set_param(ns,value)
+          log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
     else:
         log_msg_warn("Param file not found: " + file_path, log_name_list = log_name_list)
     return params_dict

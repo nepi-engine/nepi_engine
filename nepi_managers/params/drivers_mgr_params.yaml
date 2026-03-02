@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-DRIVERS
+  description: Manager for NEPI drivers
+  type: MANAGER
+  node_file: drivers_mgr.py
+  etc_file: drivers_mgr.yaml
+  node_name: drivers_mgr
+

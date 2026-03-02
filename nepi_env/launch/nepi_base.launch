@@ -9,15 +9,7 @@
   <arg name="run_robot_state_publisher" default="false" />
   <arg name="run_web_utils" default="true" />
 
-  <arg name="run_mgr_network" default="true" />
-  <arg name="run_mgr_time" default="true" />
-  <arg name="run_mgr_navpose" default="true" />
-  <arg name="run_mgr_ai_models" default="true" />
-  <arg name="run_mgr_targets" default="false" />
-  <arg name="run_mgr_drivers" default="true" />
-  <arg name="run_mgr_apps" default="true" />
-  <arg name="run_mgr_scripts" default="true" />
-  <arg name="run_mgr_software" default="true" />
+
 
         
   <!-- Everything lives in the device namespace -->
@@ -46,62 +38,6 @@
       <node name="web_video_server" pkg="web_video_server" type="web_video_server" output="$(arg output_destination)">
         <param name="port" value="9091"/>
       </node>
-    </group>
-
-    <!-- MGR:  Network -->
-    <group if="$(arg run_mgr_network)" >
-    <rosparam command="load" file="$(arg config_file_root)/network_mgr.yaml" ns="network_mgr" />
-    <node name="network_mgr" pkg="nepi_managers" type="network_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group> 
-
-    <!-- MGR:  Time Sync -->
-    <group if="$(arg run_mgr_time)" >
-    <rosparam command="load" file="$(arg config_file_root)/time_mgr.yaml" ns="time_mgr" />
-    <node name="time_mgr" pkg="nepi_managers" type="time_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group> 
-
-    <!-- MGR:  NavPose -->
-    <group if="$(arg run_mgr_navpose)" >
-      <!-- Nav/Pose Mgr -->
-      <rosparam command="load" file="$(arg config_file_root)/navpose_mgr.yaml" ns="navpose_mgr" />
-      <node name="navpose_mgr" pkg="nepi_managers" type="navpose_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>      
- 
- <!-- MGR: AI Model Mgr -->
-    <group if="$(arg run_mgr_ai_models)" >
-      <rosparam command="load" file="$(arg config_file_root)/ai_models_mgr.yaml" ns="ai_models_mgr" />
-      <node name="ai_models_mgr" pkg="nepi_managers" type="ai_models_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>
-
- <!-- MGR: Targets Mgr -->
-    <group if="$(arg run_mgr_targets)" >
-      <rosparam command="load" file="$(arg config_file_root)/targets_mgr.yaml" ns="targets_mgr" />
-      <node name="targets_mgr" pkg="nepi_managers" type="targets_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>
-
-   <!-- MGR: Drivers -->
-    <group if="$(arg run_mgr_drivers)" >
-      <rosparam command="load" file="$(arg config_file_root)/drivers_mgr.yaml" ns="drivers_mgr" />
-      <node name="drivers_mgr" pkg="nepi_managers" type="drivers_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>
-    
-   <!-- MGR: Apps -->
-    <group if="$(arg run_mgr_apps)" >
-      <rosparam command="load" file="$(arg config_file_root)/apps_mgr.yaml" ns="apps_mgr" />
-      <node name="apps_mgr" pkg="nepi_managers" type="apps_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>
-
-
-       <!-- MGR: Automation -->
-    <group if="$(arg run_mgr_scripts)" >
-      <rosparam command="load" file="$(arg config_file_root)/scripts_mgr.yaml" ns="scripts_mgr" />
-      <node name="scripts_mgr" pkg="nepi_managers" type="scripts_mgr.py" respawn="false" output="$(arg output_destination)" />
-    </group>
-
-    <!-- MGR: Automation -->
-    <group if="$(arg run_mgr_software)" >
-      <rosparam command="load" file="$(arg config_file_root)/software_mgr.yaml" ns="software_mgr" />
-      <node name="software_mgr" pkg="nepi_managers" type="software_mgr.py" respawn="false" output="$(arg output_destination)" />
     </group>
 
 

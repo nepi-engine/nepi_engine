@@ -1028,11 +1028,12 @@ class NepiDriversMgr(object):
 
   def driverStatusService(self,request):
     driver_name = request.driver_name
-    response = self.getDriverStatusMsg(driver_name)
+    drvs_dict = copy.deepcopy(self.drvs_dict)
+    response = self.getDriverStatusMsg(driver_name,drvs_dict)
     return response
 
-  def getDriverStatusMsg(self,driver_name):
-    drvs_dict = copy.deepcopy(self.drvs_dict)
+  def getDriverStatusMsg(self,driver_name,drvs_dict):
+
     driver_status_msg = DriverStatus()
     driver_status_msg.driver_name = driver_name
     #self.msg_if.pub_warn("################")
@@ -1107,7 +1108,7 @@ class NepiDriversMgr(object):
       name_list.append(drvs_dict[driver_name]['display_name'])
       type_list.append(drvs_dict[driver_name]['type'])
       group_id_list.append(drvs_dict[driver_name]['group_id'])
-      status_list.append(self.getDriverStatusMsg(driver_name))
+      status_list.append(self.getDriverStatusMsg(driver_name,drvs_dict))
     status_msg.drivers_ordered_name_list = name_list
     status_msg.drivers_ordered_type_list = type_list
     status_msg.drivers_ordered_group_id_list = group_id_list

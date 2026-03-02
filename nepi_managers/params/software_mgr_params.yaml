@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-SOFTWARE
+  description: Manager for NEPI software
+  type: MANAGER
+  node_file: software_mgr.py
+  etc_file: software_mgr.yaml
+  node_name: software_mgr
+

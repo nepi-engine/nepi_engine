@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-TIME
+  description: Manager for NEPI time
+  type: MANAGER
+  node_file: time_mgr.py
+  etc_file: time_mgr.yaml
+  node_name: time_mgr
+

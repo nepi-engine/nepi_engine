@@ -442,23 +442,23 @@ def removeDriver(driver_name,drvs_dict,drivers_path,backup_path = None):
 
 
 
-def launchDriverNode(file_name, ros_node_name, device_path = None):
+def launchDriverNode(file_name, driver_node_name, device_path = None):
   sub_process = None
   msg = 'Success'
   success = False
   if device_path is None:
-    device_node_run_cmd = ['rosrun', 'nepi_drivers', file_name, '__name:=' + ros_node_name]
+    device_node_run_cmd = ['rosrun', 'nepi_drivers', file_name, '__name:=' + driver_node_name]
   else:
-    device_node_run_cmd = ['rosrun', 'nepi_drivers', file_name, '__name:=' + ros_node_name, '_device_path:=' + device_path]
+    device_node_run_cmd = ['rosrun', 'nepi_drivers', file_name, '__name:=' + driver_node_name, '_device_path:=' + device_path]
   try:
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
-    msg = str("Failed to launch node with exception: " + ros_node_name + " " + str(e))
+    msg = str("Failed to launch node with exception: " + driver_node_name + " " + str(e))
     logger.log_warn(msg)
   if success: 
     if sub_process.poll() is not None:
-      msg = ("Failed to start " + device_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
+      msg = ("Failed to start " + driver_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
       logger.log_error(msg)
       sub_process = None
       success = False

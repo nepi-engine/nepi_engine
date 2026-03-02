@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-APPS
+  description: Manager for NEPI applications
+  type: MANAGER
+  node_file: apps_mgr.py
+  etc_file: apps_mgr.yaml
+  node_name: apps_mgr
+

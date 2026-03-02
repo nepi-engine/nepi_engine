@@ -159,6 +159,16 @@ install(DIRECTORY etc/
   USE_SOURCE_PERMISSIONS
 )
 
+## Install NEPI Engine App Files
+set( NEPI_MANAGERS_PARAMS_FOLDER 
+  # Must hard-coded 
+  ${NEPI_ENGINE}/share/nepi_managers/params
+)
+
+install(DIRECTORY params/
+  DESTINATION ${NEPI_MANAGERS_PARAMS_FOLDER} 
+)
+
 
 set( NEPI_API_FOLDER 
   # Must hard-coded 
