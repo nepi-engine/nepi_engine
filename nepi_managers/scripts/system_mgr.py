@@ -78,7 +78,7 @@ class SystemMgrNode():
 
     STATES_DICT = dict()
 
-    RUI_MODES = ['prototype','deploy']
+    RUN_MODES = ['develop','debug','deploy']
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                         "ai_training",
@@ -112,57 +112,14 @@ class SystemMgrNode():
                             "tmp"]
     
 
-    MANAGERS_OPTIONS = ['NETWORK MANAGER',
-                        'TIME MANAGER',
-                        'SOFTWERE MANAGER',
-                        'DEVICE MANAGER',
-                        'APPS MANAGER',
-                        'AI MODEL MANAGER']
+    MANAGERS_OPTIONS = ['MANAGER-NETWORK','MANAGER-TIME','MANAGER-SOFTWARE','MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS']
 
-    USER_RESTRICTION_OPTIONS = {
-        'Sys-Admin': "Desc",
-        'Sys-Debug': "Desc",
-        'Cfg-Factory': "Desc",
-        'Cfg-System': "Desc",
-        'Cfg-User': "Desc",
-        'Mgr-Device': "Desc",        
-        'Mgr-Device-License': "Desc",
-        'Mgr-Time': "Desc",
-        'Mgr-Time_NTP': "Desc",
-        'Mgr-Time_Sync_Clocks': "Desc",
-        'Mgr-Network': "Desc",
-        'Mgr-Network-Wired': "Desc",
-        'Mgr-Network-DHCP': "Desc",
-        'Mgr-Network-WiFi': "Desc",
-        'Mgr-Network-Access Point': "Desc", 
-        'Mgr-Software Manager': "Desc",
-        'Mgr-NavPose Manager': "Desc",
-        'Mgr-Driver Manager': "Desc",
-        'Mgr-AI Manager': "Desc",
-        'Mgr-Apps Manager': "Desc",
-        'Dvc': "Desc",
-        'Dvc-Controls': "Desc",
-        'Dvc-Settings': "Desc",
-        'Dvc-Config': "Desc",
-        'Set-View': "Desc",
-        'Set-Controls': "Desc",
-        'Tfm-View': "Desc",
-        'Tfm-Controls': "Desc",
-        'Trig-View': "Desc",
-        'Tri-Controls': "Desc",
-        'Sta-View': "Desc",
-        'Sta-Controls': "Desc",
-        'Img-Stats': "Desc",
-        'Img-Controls': "Desc",
-        'Msg-View': "Desc",
-        'Msg-Controls': "Desc",
-        'Dat': "Desc",
-        'Dat-Controls': "Desc",
-        'Dat-View': "Desc",
-        'Sav-View': "Desc",
-        'Sav-Controls': "Desc",
-        'Sav-All': "Desc",
-    }
+    RUI_RESTRICTION_OPTIONS =  \
+        ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
+        'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
+        ['SYSTEM-MESSAGES','SYSTEM-DATA','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES',] + \
+        ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX','DEVICE-RBX-CONTROLS']
+
 
 
     node_if = None
@@ -195,18 +152,21 @@ class SystemMgrNode():
     admin_password_valid = False
     admin_mode_set = False
     admin_mode_updated = True
-    debug_enabled = False
-    managers_enabled_dict = dict()
-    deploy_nodes_dict = dict()
+
+    managers_enabled = MANAGERS_OPTIONS
     
+    run_mode = 'deploy'
+
+    rui_restriction_options = RUI_RESTRICTION_OPTIONS
     user_restrictions = []
+    rui_restrictions = []
 
     rui_login_enabled = False
     rui_login_password = None
     rui_login_password_valid = False
 
-    rui_restrictions = []
-    rui_mode = 'deploy'
+
+
 
     node_names_dict = dict()
 
@@ -406,18 +366,10 @@ class SystemMgrNode():
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT",0)
 
 
-        self.status_msg.user_restrictions_options = list(self.USER_RESTRICTION_OPTIONS.keys())
-        descriptions = []
-        for key in self.USER_RESTRICTION_OPTIONS.keys():
-            descriptions.append(self.USER_RESTRICTION_OPTIONS[key])
-        self.status_msg.user_restrictions_descriptions = descriptions
-
-        self.status_msg.rui_mode_options = self.RUI_MODES
+        self.status_msg.sys_run_mode_options = self.RUN_MODES
+        self.status_msg.rui_restriction_options = self.RUI_RESTRICTION_OPTIONS
+        self.status_msg.sys_manager_options = self.MANAGERS_OPTIONS
         
-        for mode in self.RUI_MODES:
-            self.managers_enabled_dict[mode] = self.MANAGERS_OPTIONS
-
-
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -439,33 +391,25 @@ class SystemMgrNode():
                 'namespace': self.base_namespace,
                 'factory_val': self.admin_enabled
             },
-            'debug_enabled': {
+            'managers_enabled': {
                 'namespace': self.base_namespace,
-                'factory_val': self.debug_enabled
+                'factory_val': self.managers_enabled
             },
-            'managers_enabled_dict': {
+            'run_mode': {
                 'namespace': self.base_namespace,
-                'factory_val': self.managers_enabled_dict
-            },
-            'deploy_nodes_dict': {
-                'namespace': self.base_namespace,
-                'factory_val': self.deploy_nodes_dict
-            },
-            'rui_mode': {
-                'namespace': self.base_namespace,
-                'factory_val': self.rui_mode
+                'factory_val': self.run_mode
             },
             'user_restrictions': {
+                'namespace': self.base_namespace,
+                'factory_val': []
+            },
+            'rui_restrictions': {
                 'namespace': self.base_namespace,
                 'factory_val': []
             },
             'rui_login_enabled': {
                 'namespace': self.base_namespace,
                 'factory_val': self.rui_login_enabled
-            },
-            'rui_restrictions': {
-                'namespace': self.base_namespace,
-                'factory_val': []
             },
             'node_names_dict': {
                 'namespace': self.base_namespace,
@@ -563,36 +507,28 @@ class SystemMgrNode():
                 'callback': self.setAdminPasswordCb, 
                 'callback_args': ()
             },            
-            'enable_debug': {
+            'set_run_mode': {
                 'namespace': self.base_namespace,
-                'topic': 'debug_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableDebugCb, 
-                'callback_args': ()
-            },
-            'set_rui_mode': {
-                'namespace': self.base_namespace,
-                'topic': 'set_rui_mode',
+                'topic': 'set_run_mode',
                 'msg': String,
                 'qsize': None,
                 'callback': self.setRuiModeCb, 
                 'callback_args': ()
             },
-            'add_user_restriction': {
+            'add_rui_restriction': {
                 'namespace': self.base_namespace,
-                'topic': 'add_user_restriction',
+                'topic': 'add_rui_restriction',
                 'msg': String,
                 'qsize': None,
-                'callback': self.addUserRestrictionCb, 
+                'callback': self.addRuiRestrictionCb, 
                 'callback_args': ()
             },
-            'remove_user_restriction': {
+            'remove_rui_restriction': {
                 'namespace': self.base_namespace,
-                'topic': 'remove_user_restriction',
+                'topic': 'remove_rui_restriction',
                 'msg': String,
                 'qsize': None,
-                'callback': self.removeUserRestrictionCb, 
+                'callback': self.removeRuiRestrictionCb, 
                 'callback_args': ()
             },
             'enable_rui_login': {
@@ -611,22 +547,7 @@ class SystemMgrNode():
                 'callback': self.setRuiLoginPasswordCb, 
                 'callback_args': ()
             },  
-            'add_rui_restriction': {
-                'namespace': self.base_namespace,
-                'topic': 'add_rui_restriction',
-                'msg': String,
-                'qsize': None,
-                'callback': self.addRuiRestrictionCb, 
-                'callback_args': ()
-            },
-            'remove_rui_restriction': {
-                'namespace': self.base_namespace,
-                'topic': 'remove_rui_restriction',
-                'msg': String,
-                'qsize': None,
-                'callback': self.removeRuiRestrictionCb, 
-                'callback_args': ()
-            },
+
             'update_node_name': {
                 'namespace': self.base_namespace,
                 'topic': 'update_node_name',
@@ -846,13 +767,11 @@ class SystemMgrNode():
     def initCb(self, do_updates = False):
         if self.node_if is not None:
             self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.debug_enabled = self.node_if.get_param('debug_enabled')
-            self.managers_enabled_dict = self.node_if.get_param('managers_enabled_dict')
-            self.deploy_nodes_dict = self.node_if.get_param('deploy_nodes_dict')
-            self.rui_mode = self.node_if.get_param('rui_mode')
+            self.managers_enabled = self.node_if.get_param('managers_enabled')
+            self.run_mode = self.node_if.get_param('run_mode')
             self.user_restrictions = self.node_if.get_param('user_restrictions')
-            self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
             self.rui_restrictions = self.node_if.get_param('rui_restrictions')
+            self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
             self.node_names_dict = self.node_if.get_param('node_names_dict')
         if do_updates == True:
             self.updateSystemAdminSettings()
@@ -1065,40 +984,28 @@ class SystemMgrNode():
     #######################
     def updateSystemAdminSettings(self):
        
-        managers_enabled = self.MANAGERS_OPTIONS
-        if self.rui_mode in self.managers_enabled_dict.keys():
-            managers_enabled = self.managers_enabled_dict[self.rui_mode]
-
-        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.rui_mode == 'develop')
+        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.run_mode == 'develop')
         self.admin_mode_set = self.admin_enabled and admin_password_valid
         self.status_msg.sys_admin_enabled = self.admin_enabled
         self.status_msg.sys_admin_password_valid = admin_password_valid 
-        self.status_msg.sys_admin_mode_set = self.admin_mode_set
-        self.status_msg.sys_debug_enabled = self.debug_enabled    
+        self.status_msg.sys_admin_mode_set = self.admin_mode_set   
 
-        self.status_msg.sys_managers_options = self.MANAGERS_OPTIONS
-        self.status_msg.sys_managers_enabled = managers_enabled
+        self.status_msg.sys_run_mode = self.run_mode
+        self.status_msg.sys_debug_enabled = (self.run_mode == 'debug')
 
-        self.status_msg.user_restrictions = self.user_restrictions
-        user_restricted = []
-        if self.admin_mode_set == False:
-            user_restricted = self.user_restrictions
-        self.status_msg.user_restricted = user_restricted
+        self.status_msg.sys_managers_enabled = self.managers_enabled
 
-        self.status_msg.rui_mode = self.rui_mode
+        self.status_msg.rui_restrictions = self.rui_restrictions
+        rui_restricted = []
+        if self.run_mode == 'deploy':
+            rui_restricted = self.rui_restrictions
+        self.status_msg.rui_restricted = rui_restricted
 
         self.rui_login_mode_set = self.rui_login_enabled and self.rui_login_password_valid
         self.status_msg.rui_login_enabled = self.rui_login_enabled
         self.status_msg.rui_login_password_valid = self.rui_login_password_valid 
 
-
-        self.status_msg.rui_restrictions = self.rui_restrictions
-        rui_restricted = []
-        if self.rui_mode != 'develop':
-            rui_restricted = self.rui_restrictions
-        self.status_msg.rui_restricted = rui_restricted
-
-        
+       
         node_name_aliases = []
         for node_name in self.node_names_dict.keys():
             node_name_aliases.append(self.node_names_dict[node_name])
@@ -1107,13 +1014,14 @@ class SystemMgrNode():
 
         self.publish_status()
         nepi_system.set_admin_mode(self.admin_mode_set)
-        nepi_system.set_debug_mode(self.debug_enabled)
-        nepi_system.set_managers_enabled(managers_enabled)
-        nepi_system.set_user_restrictions(user_restricted)
+        nepi_system.set_debug_mode(self.run_mode == 'debug')
+        nepi_system.set_managers_enabled(self.managers_enabled)
         nepi_system.set_node_names_dict(self.node_names_dict)
 
     def enableAdminCb(self, msg):
         self.admin_enabled = msg.data
+        if self.admin_enabled == False:
+            self.admin_password_valid = False
         self.updateSystemAdminSettings()
         if self.node_if is not None:
             self.node_if.set_param('admin_enabled',msg.data)
@@ -1127,129 +1035,120 @@ class SystemMgrNode():
 
             
     def enableDebugCb(self, msg):
-        self.debug_enabled = msg.data
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('debug_enabled',msg.data)
-            self.node_if.save_config()
-
-    def setRuiModeCb(self, msg):
-        rui_mode = msg.data
-        if rui_mode in self.RUI_MODES:
-            self.rui_mode = msg.data
+        if self.admin_mode_set == True:
+            self.debug_enabled = msg.data
             self.updateSystemAdminSettings()
             if self.node_if is not None:
-               self.node_if.set_param('rui_mode',msg.data)
-               self.node_if.save_config()
+                self.node_if.set_param('debug_enabled',msg.data)
+                self.node_if.save_config()
 
+    def setRuiModeCb(self, msg):
+        if self.admin_mode_set == True:
+            run_mode = msg.data
+            if run_mode in self.RUN_MODES:
+                self.run_mode = msg.data
+                self.updateSystemAdminSettings()
+                if self.node_if is not None and run_mode != 'debug':
+                    self.node_if.set_param('run_mode',msg.data)
+                    self.node_if.save_config()
 
-    def addUserRestrictionCb(self, msg):
-        name = msg.data
-        if name in self.USER_RESTRICTION_OPTIONS.keys():
-            if name not in self.user_restrictions:  
-                self.user_restrictions.append(name)
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('user_restrictions',self.user_restrictions)
-            self.node_if.save_config()
-
-
-    def removeUserRestrictionCb(self, msg):
-        name = msg.data
-        if name in self.user_restrictions:  
-            self.user_restrictions.remove(name)
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('user_restrictions',self.user_restrictions)
-            self.node_if.save_config()
 
     def enableRuiLoginCb(self, msg):
-        self.rui_login_enabled = msg.data
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('rui_login_enabled',msg.data)
-            self.node_if.save_config()
+        if self.admin_mode_set == True:
+            self.rui_login_enabled = msg.data
+            self.updateSystemAdminSettings()
+            if self.node_if is not None:
+                self.node_if.set_param('rui_login_enabled',msg.data)
+                self.node_if.save_config()
 
     def setRuiLoginPasswordCb(self, msg):
-        password = msg.data
-        if password == self.rui_login_password:
-            self.rui_login_password_valid = True
-            self.updateSystemAdminSettings()
+        if self.admin_mode_set == True:
+            password = msg.data
+            if password == self.rui_login_password:
+                self.rui_login_password_valid = True
+                self.updateSystemAdminSettings()
 
 
     def addRuiRestrictionCb(self, msg):
-        name = msg.data
-        if name not in self.rui_restrictions:  
-            self.rui_restrictions.append(name)
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('rui_restrictions',self.rui_restrictions)
-            self.node_if.save_config()
+        if self.admin_mode_set == True:
+            name = msg.data
+            if name not in self.rui_restrictions:
+                self.rui_restrictions.append(name)
+                self.updateSystemAdminSettings()
+                if self.node_if is not None:
+                    self.node_if.set_param('rui_restrictions',self.rui_restrictions)
+                    self.node_if.save_config()
 
 
     def removeRuiRestrictionCb(self, msg):
-        name = msg.data
-        if name in self.rui_restrictions:  
-            self.rui_restrictions.remove(name)
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('rui_restrictions',self.rui_restrictions)
-            self.node_if.save_config()
+        if self.admin_mode_set == True:
+            name = msg.data
+            if name in self.rui_restrictions:  
+                self.rui_restrictions.remove(name)
+                self.updateSystemAdminSettings()
+                if self.node_if is not None:
+                    self.node_if.set_param('rui_restrictions',self.rui_restrictions)
+                    self.node_if.save_config()
+
+    def updateNodeNameCb(self, msg):
+        if self.admin_mode_set == True:
+            cur_node_name = msg.name
+            new_node_name = nepi_utils.get_clean_name(msg.value)
+            if cur_node_name != '' and new_node_name != '':
+
+                is_valid = False
+                count = 0
+                while is_valid == False:
+                    is_valid = True
+                    count = count + 1
+                    for node_name in self.node_names_dict.keys():
+                        if new_node_name == self.node_names_dict[node_name]:
+                            is_valid = False
+                    if is_valid == False:
+                        new_node_name = new_node_name + '_' + str(count)
+
+                
+                needs_update = True
+                for node_name in self.node_names_dict.keys():
+                    set_node_name = self.node_names_dict[node_name]
+                    if set_node_name == cur_node_name:
+                        self.node_names_dict[node_name] = new_node_name
+                        needs_update = False
+                if needs_update == True:
+                    self.node_names_dict[cur_node_name] = new_node_name
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param('node_names_dict',self.node_names_dict)
+                self.node_if.save_config()
+
+
+    def resetNodeNameCb(self, msg):
+        if self.admin_mode_set == True:
+            clear_node_name = msg.data
+            if clear_node_name != '':
+                purge_name = None
+                needs_update = True
+                for node_name in self.node_names_dict.keys():
+                    set_node_name = self.node_names_dict[node_name]
+                    if set_node_name == clear_node_name:
+                        purge_name = node_name
+                        needs_update = False
+                if needs_update == True and clear_node_name in self.node_names_dict.keys():
+                    purge_name = clear_node_name
+            if purge_name is not None and purge_name in self.node_names_dict.keys():
+                del self.node_names_dict[purge_name]
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param('node_names_dict',self.node_names_dict)
+                self.node_if.save_config()
+
+
+
 
     ###################
     def restartNepiCb(self, msg):
         if self.in_container == True:
             self.nepi_image.restart()
-
-    def updateNodeNameCb(self, msg):
-        cur_node_name = msg.name
-        new_node_name = nepi_utils.get_clean_name(msg.value)
-        if cur_node_name != '' and new_node_name != '':
-
-            is_valid = False
-            count = 0
-            while is_valid == False:
-                is_valid = True
-                count = count + 1
-                for node_name in self.node_names_dict.keys():
-                    if new_node_name == self.node_names_dict[node_name]:
-                        is_valid = False
-                if is_valid == False:
-                    new_node_name = new_node_name + '_' + str(count)
-
-            
-            needs_update = True
-            for node_name in self.node_names_dict.keys():
-                set_node_name = self.node_names_dict[node_name]
-                if set_node_name == cur_node_name:
-                    self.node_names_dict[node_name] = new_node_name
-                    needs_update = False
-            if needs_update == True:
-                self.node_names_dict[cur_node_name] = new_node_name
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('node_names_dict',self.node_names_dict)
-            self.node_if.save_config()
-
-
-    def resetNodeNameCb(self, msg):
-        clear_node_name = msg.data
-        if clear_node_name != '':
-            purge_name = None
-            needs_update = True
-            for node_name in self.node_names_dict.keys():
-                set_node_name = self.node_names_dict[node_name]
-                if set_node_name == clear_node_name:
-                    purge_name = node_name
-                    needs_update = False
-            if needs_update == True and clear_node_name in self.node_names_dict.keys():
-                purge_name = clear_node_name
-        if purge_name is not None and purge_name in self.node_names_dict.keys():
-            del self.node_names_dict[purge_name]
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('node_names_dict',self.node_names_dict)
-            self.node_if.save_config()
 
 
 
