@@ -178,6 +178,7 @@ class SystemMgrNode():
     init_complete = False
     ready = False
 
+    config_mgr_ready = False
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -397,31 +398,31 @@ class SystemMgrNode():
         # Params Config Dict ####################
         self.PARAMS_DICT = {
             'admin_enabled': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.admin_enabled
             },
             'managers_dict': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.managers_dict
             },
             'run_mode': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.run_mode
             },
             'rui_restrictions': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': []
             },
             'rui_login_enabled': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.rui_login_enabled
             },
             'node_names_dict': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.node_names_dict
             },
             'storage_folder': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.storage_folder
             },
         }
@@ -687,7 +688,7 @@ class SystemMgrNode():
         #######################
         # Setup NEPI Managers Updater Process
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
-        nepi_sdk.start_timer_process(1, self.updaterManagersCb, oneshot = True)
+        nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
 
         #######################
@@ -833,8 +834,9 @@ class SystemMgrNode():
             managers_dict = copy.deepcopy(self.managers_dict) 
             self.msg_if.pub_warn("Got Init Managers Dict: " + str(managers_dict))
             if self.node_if is not None:
+                self.msg_if.pub_warn("Saving Managers Dict to Params Server")
                 self.node_if.set_param('managers_dict', self.managers_dict)
-                self.node_if.save_config()
+
 
 
         # self.publish_settings() # Make sure to always publish settings updates
@@ -1044,11 +1046,11 @@ class SystemMgrNode():
 
     #######################
 
-    def updaterManagersCb(self,timer):
+    def updaterCb(self,timer):
         needs_update = False
         managers_dict = copy.deepcopy(self.managers_dict)
         managers_ordered_list = nepi_mgrs.getManagersOrderedList(managers_dict)
-        managers_active_list = nepi_mgrs.getManagersOrderedList(managers_dict)
+        managers_active_list = nepi_mgrs.getManagersActiveList(managers_dict)
         
 
 
@@ -1056,14 +1058,18 @@ class SystemMgrNode():
         # Running process check
         managers_running_list = []
         for manager_name in self.managers_process_dict.keys():
-            node_namespace = managers_dict[manager_name]['node_namespace']
-            subprocess = self.managers_process_dict[manager_name]
-            running = nepi_mgrs.checkManagerNode(node_namespace,subprocess)
+            node_name = managers_dict[manager_name]['node_name']
+            running = nepi_sdk.check_node_by_name(node_name)
             if running == True:
                 managers_running_list.append(manager_name)
-                needs_update = True
-        self.managers_running_list = managers_running_list
-
+                #self.msg_if.pub_warn("Manager RUNNING: " + str(manager_name) + " node_name: " + str(node_name))
+            else:
+                #self.msg_if.pub_warn("Manager NOT running: " + str(manager_name) + " node_name: " + str(node_name))
+                pass
+        if self.managers_running_list != managers_running_list:
+            self.managers_running_list = copy.deepcopy(managers_running_list)
+            #self.msg_if.pub_warn("Got updated Manager Running List: " + str(self.managers_running_list))
+            needs_update = True
 
         # ####################
         # # Run purge process check
@@ -1082,7 +1088,6 @@ class SystemMgrNode():
 
         ####################
         # Launch process check
-        managers_running_list = []
         for manager_name in managers_active_list:
             if manager_name not in self.managers_process_dict.keys() and manager_name not in self.managers_failed_list:
                 file_name = managers_dict[manager_name]['node_file']
@@ -1095,13 +1100,22 @@ class SystemMgrNode():
                 else:
                     self.msg_if.pub_warn("Manager Failed to Launch. Will not retry: " + str(manager_name))
                     self.managers_failed_list.append(manager_name)
-                needs_update = True
-
+                
 
         if needs_update == True:
+            self.updateSystemAdminSettings()
             self.publish_status()
 
-        nepi_sdk.start_timer_process(1, self.updaterManagersCb, oneshot = True)
+
+        if self.config_mgr_ready == False and self.node_if is not None:
+            config_folders = nepi_system.get_config_folders()
+            if len(list(config_folders.keys())) != 0:
+                self.config_mgr_ready = True
+                self.node_if.set_param('managers_dict', self.managers_dict)
+                #self.msg_if.pub_warn("Config Mgr Ready. Saving System Config with managers dict: " + str(self.managers_dict))
+                self.node_if.save_config()
+
+        nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
 
 
@@ -1144,6 +1158,8 @@ class SystemMgrNode():
         nepi_system.set_debug_mode(self.debug_mode_enabled)
         nepi_system.set_managers_running(self.managers_running_list)
         nepi_system.set_node_names_dict(self.node_names_dict)
+
+
 
     def enableAdminCb(self, msg):
         self.admin_enabled = msg.data
@@ -1562,6 +1578,8 @@ class SystemMgrNode():
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
+
+
 
     
 

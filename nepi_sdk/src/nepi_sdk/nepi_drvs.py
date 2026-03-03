@@ -463,12 +463,6 @@ def launchDriverNode(file_name, driver_node_name, device_path = None):
       sub_process = None
       success = False
   return success, msg, sub_process
-  
-def checkDriverNode(node_namespace,sub_process):
-    running = True
-    if sub_process.poll() is None:
-      running = False
-    return running
 
 
 def killDriverNode(node_namespace,sub_process):

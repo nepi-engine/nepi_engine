@@ -111,8 +111,8 @@ def refreshManagersDict(search_path,mgrs_dict):
   #logger.log_warn('From Get Dict: ' + str(get_mgrs_dict))
   for manager_name in get_mgrs_dict.keys():
     if manager_name not in mgrs_dict.keys():
-      logger.log_warn("Refresh setting mgr : " + str(manager_name) + " to active state: " + str(False))
-      get_mgrs_dict[manager_name]['active'] = False
+      logger.log_warn("Refresh initializing mgr : " + str(manager_name) + " to active state: " + str(True))
+      get_mgrs_dict[manager_name]['active'] = True
     else:
       #.log_warn('')
       #logger.log_warn('Updating mgr: ' + manager_name)
@@ -401,13 +401,7 @@ def launchManagerNode(file_name, manager_node_name, etc_file = None):
       sub_process = None
       success = False
   return success, msg, sub_process
-  
-def checkManagerNode(node_namespace,sub_process):
-    running = True
-    if sub_process.poll() is None:
-      running = False
-    return running
-
+ 
 
 def killManagerNode(node_namespace,sub_process):
     success = False
