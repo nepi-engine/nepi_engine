@@ -116,6 +116,9 @@ class PTXActuatorIF:
     home_pan_deg = 0.0
     home_tilt_deg = 0.0
 
+    has_calibration : False
+
+
     reverse_pan_enabled = False
     rpi = 1
     reverse_tilt_enabled = False
@@ -203,6 +206,7 @@ class PTXActuatorIF:
                  getNavPoseCb=None,
                  navpose_update_rate = 10,
                  deviceResetCb = None,
+                 calibrateCenterCB = None,
                  log_name = None,
                  log_name_list = [],
                  msg_if = None
@@ -336,18 +340,23 @@ class PTXActuatorIF:
             self.has_homing = True
         if self.setHomePositionHereCb is not None:
             self.has_set_home = True
-       
+               
+        # Calibration  #############
+        self.calibrateCenterCB = calibrateCenterCB
+        if self.calibrateCenterCB is not None:
+            self.has_calibration = True
 
         # Create Capabilities Report
-        self.caps_report.has_absolute_positioning = self.has_absolute_positioning
-        self.caps_report.has_timed_positioning = self.has_timed_positioning
-        self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
-        self.caps_report.has_position_feedback = self.has_position_feedback
-        self.caps_report.has_adjustable_speed = self.has_adjustable_speed
-        self.caps_report.has_limit_controls = self.has_limit_controls
-        self.caps_report.has_homing = self.has_homing
-        self.caps_report.has_set_home = self.has_set_home
-
+        self.capabilities_report = PTXCapabilitiesQueryResponse()
+        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
+        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
+        self.capabilities_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
+        self.capabilities_report.has_position_feedback = self.has_position_feedback
+        self.capabilities_report.has_adjustable_speed = self.has_adjustable_speed
+        self.capabilities_report.has_limit_controls = self.has_limit_controls
+        self.capabilities_report.has_homing = self.has_homing
+        self.capabilities_report.has_set_home = self.has_set_home
+        self.capabilities_report.has_calibration = self.has_calibration
 
 
         #######################################
@@ -396,6 +405,8 @@ class PTXActuatorIF:
 
         self.status_msg.has_homing = self.has_homing
         self.status_msg.has_set_home = self.has_set_home
+        self.status_msg.has_calibration = self.has_calibration
+
 
         ##################################################
         ### Node Class Setup
@@ -650,6 +661,14 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'callback': self._setHomePositionHereCb, 
                 'callback_args': ()
+            },
+            'calibrate_center': {
+                'namespace': self.namespace,
+                'topic': 'calibrate_center',
+                'msg': Empty,
+                'qsize': 1,
+                'callback': self._calibrateCenterCB, 
+                'callback_args': ()
             }
             
         }
@@ -721,6 +740,106 @@ class PTXActuatorIF:
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
 
+
+
+  
+
+    def initCb(self, do_updates = False):
+        if do_updates == True and self.node_if is not None:
+            # This one comes from the parent
+            if self.getSoftLimitsCb is not None:
+                    [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
+                    if min_pan != -999:
+                        self.min_pan_softstop_deg = min_pan
+                        self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
+                    if max_pan != -999:
+                        self.max_pan_softstop_deg = max_pan
+                        self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
+
+                    if min_tilt != -999:
+                        self.min_tilt_softstop_deg = min_tilt
+                        self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
+                    if max_tilt != -999:
+                        self.max_tilt_softstop_deg = max_tilt
+                        self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
+
+            if self.getSpeedRatioCb is not None:
+                self.speed_ratio = self.getSpeedRatioCb()
+                self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
+                self.node_if.set_param('speed_ratio', self.speed_ratio)      
+
+
+        if self.node_if is not None:
+            self.device_name = self.node_if.get_param('device_name')
+            self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
+            self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
+
+            self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
+            self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
+
+            if None not in [self.min_pan_softstop_deg,self.max_pan_softstop_deg,self.min_tilt_softstop_deg,self.max_tilt_softstop_deg]:
+                if self.setSoftLimitsCb is not None:
+                    self.setSoftLimitsCb(self.min_pan_softstop_deg,
+                                        self.max_pan_softstop_deg,
+                                        self.min_tilt_softstop_deg,
+                                        self.max_tilt_softstop_deg)
+
+            if self.has_adjustable_speed == False:
+                if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
+                    speed_ratio = self.node_if.get_param('speed_ratio')
+                    self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
+                    self.msg_if.pub_info("-2")
+                    self.setSpeedRatioCb(speed_ratio)
+                    nepi_sdk.sleep(1)
+                    self.speed_ratio = self.getSpeedRatioCb()
+                    self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
+
+                    
+            self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
+            self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
+
+            # self.goHome()
+
+        
+    
+            # Set reverse int values
+            rpi = 1
+            if self.reverse_pan_enabled:
+                rpi = -1
+            self.rpi = rpi
+            rti = 1
+            if self.reverse_tilt_enabled:
+                rti = -1
+            self.rti = rti
+
+            # Setup Joint Info
+            self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
+            self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
+        if do_updates == True:
+            pass
+        self.publish_status()
+
+    def resetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass # self.node_if.reset_params()
+        if self.save_data_if is not None:
+            self.save_data_if.reset()
+        if self.settings_if is not None:
+            self.settings_if.reset()
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = True)
+
+    def factoryResetCb(self,do_updates = True):
+        if self.node_if is not None:
+            pass # self.node_if.factory_reset_params()
+        if self.save_data_if is not None:
+            self.save_data_if.factory_reset()
+        if self.settings_if is not None:
+            self.settings_if.factory_reset()
+        if do_updates == True:
+            pass
+        self.initCb(do_updates = True)
 
 
 
@@ -825,34 +944,34 @@ class PTXActuatorIF:
         return x,y,z
 
 
-    def getNpPositionAdjustedCb(self):
-        pos_dict = dict()
-        pos_dict['time_position'] = nepi_utils.get_time()
-        pos_dict['x_m'] = 0.0
-        pos_dict['y_m'] = 0.0     
-        pos_dict['z_m'] = 0.0
+    # def getNpPositionAdjustedCb(self):
+    #     pos_dict = dict()
+    #     pos_dict['time_position'] = nepi_utils.get_time()
+    #     pos_dict['x_m'] = 0.0
+    #     pos_dict['y_m'] = 0.0     
+    #     pos_dict['z_m'] = 0.0
 
-        if self.getNpPositionCb is not None:
-            [x,y,z] = self.getPtPosition(orien_dict)
-            pos_dict['x_m'] = round(x,5)
-            pos_dict['y_m'] = round(y,5)   
-            pos_dict['z_m'] = round(z,5)
-            self.msg_if.pub_debug("Calculate navpose x,y,z: " + str([x,y,z]), log_name_list = self.log_name_list, throttle_s = 3.0)
-        return pos_dict
+    #     if self.getNpPositionCb is not None:
+    #         [x,y,z] = self.getPtPosition(orien_dict)
+    #         pos_dict['x_m'] = round(x,5)
+    #         pos_dict['y_m'] = round(y,5)   
+    #         pos_dict['z_m'] = round(z,5)
+    #         self.msg_if.pub_debug("Calculate navpose x,y,z: " + str([x,y,z]), log_name_list = self.log_name_list, throttle_s = 3.0)
+    #     return pos_dict
 
-    def getNpOrientationAdjustedCb(self):
-        orien_dict = dict()
-        orien_dict['time_orientation'] = nepi_utils.get_time()
-        orien_dict['yaw_deg'] = self.current_position[0]
-        orien_dict['pitch_deg'] = self.current_position[1]      
+    # def getNpOrientationAdjustedCb(self):
+    #     orien_dict = dict()
+    #     orien_dict['time_orientation'] = nepi_utils.get_time()
+    #     orien_dict['yaw_deg'] = self.current_position[0]
+    #     orien_dict['pitch_deg'] = self.current_position[1]      
 
-        if self.getNpOrientationCb is not None:
-            orien_dict = self.getNpOrientationCb()
-            pan_deg = orien_dict['yaw_deg']
-            orien_dict['yaw_deg'] = self.getPanAdj(pan_deg)
-            tilt_deg = orien_dict['pitch_deg']
-            orien_dict['pitch_deg'] = self.getTiltAdj(tilt_deg)
-        return orien_dict
+    #     if self.getNpOrientationCb is not None:
+    #         orien_dict = self.getNpOrientationCb()
+    #         pan_deg = orien_dict['yaw_deg']
+    #         orien_dict['yaw_deg'] = self.getPanAdj(pan_deg)
+    #         tilt_deg = orien_dict['pitch_deg']
+    #         orien_dict['pitch_deg'] = self.getTiltAdj(tilt_deg)
+    #     return orien_dict
            
 
     def check_ready(self):
@@ -1193,7 +1312,9 @@ class PTXActuatorIF:
         if self.setHomePositionHereCb is not None:
             self.setHomePositionHereCb()
           
-
+    def _calibrateCenterCB(self,msg):
+        if self.calibrateCenterCB is not None:
+            self.calibrateCenterCB()
 
     def stopPanCb(self):
         if self.node_if is not None:
@@ -1212,106 +1333,7 @@ class PTXActuatorIF:
     def capabilities_query_callback(self, _):
         return self.caps_report
     
-    
-    def initConfig(self):
-        self.initCb()
-
-    def initCb(self, do_updates = False):
-        if do_updates == True and self.node_if is not None:
-            # This one comes from the parent
-            if self.getSoftLimitsCb is not None:
-                    [min_pan,max_pan,min_tilt,max_tilt] = self.getSoftLimitsCb()
-                    if min_pan != -999:
-                        self.min_pan_softstop_deg = min_pan
-                        self.node_if.set_param('min_pan_softstop_deg', self.min_pan_softstop_deg)
-                    if max_pan != -999:
-                        self.max_pan_softstop_deg = max_pan
-                        self.node_if.set_param('max_pan_softstop_deg',self.max_pan_softstop_deg)
-
-                    if min_tilt != -999:
-                        self.min_tilt_softstop_deg = min_tilt
-                        self.node_if.set_param('min_tilt_softstop_deg', self.min_tilt_softstop_deg)
-                    if max_tilt != -999:
-                        self.max_tilt_softstop_deg = max_tilt
-                        self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
-
-            if self.getSpeedRatioCb is not None:
-                self.speed_ratio = self.getSpeedRatioCb()
-                self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
-                self.node_if.set_param('speed_ratio', self.speed_ratio)      
-
-
-        if self.node_if is not None:
-            self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
-            self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
-
-            self.min_tilt_softstop_deg = self.node_if.get_param('min_tilt_softstop_deg')
-            self.max_tilt_softstop_deg = self.node_if.get_param('max_tilt_softstop_deg')
-
-            if None not in [self.min_pan_softstop_deg,self.max_pan_softstop_deg,self.min_tilt_softstop_deg,self.max_tilt_softstop_deg]:
-                if self.setSoftLimitsCb is not None:
-                    self.setSoftLimitsCb(self.min_pan_softstop_deg,
-                                        self.max_pan_softstop_deg,
-                                        self.min_tilt_softstop_deg,
-                                        self.max_tilt_softstop_deg)
-
-            if self.has_adjustable_speed == False:
-                if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                    speed_ratio = self.node_if.get_param('speed_ratio')
-                    self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
-                    self.msg_if.pub_info("-2")
-                    self.setSpeedRatioCb(speed_ratio)
-                    nepi_sdk.sleep(1)
-                    self.speed_ratio = self.getSpeedRatioCb()
-                    self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
-
-                    
-            self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
-            self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
-
-            self.goHome()
-
-        
-    
-            # Set reverse int values
-            rpi = 1
-            if self.reverse_pan_enabled:
-                rpi = -1
-            self.rpi = rpi
-            rti = 1
-            if self.reverse_tilt_enabled:
-                rti = -1
-            self.rti = rti
-
-            # Setup Joint Info
-            self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
-            self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def resetCb(self,do_updates = True):
-        if self.node_if is not None:
-            pass # self.node_if.reset_params()
-        if self.save_data_if is not None:
-            self.save_data_if.reset()
-        if self.settings_if is not None:
-            self.settings_if.reset()
-        if do_updates == True:
-            pass
-        self.initCb(do_updates = True)
-
-    def factoryResetCb(self,do_updates = True):
-        if self.node_if is not None:
-            pass # self.node_if.factory_reset_params()
-        if self.save_data_if is not None:
-            self.save_data_if.factory_reset()
-        if self.settings_if is not None:
-            self.settings_if.factory_reset()
-        if do_updates == True:
-            pass
-        self.initCb(do_updates = True)
-
+  
 
     def _publishStatusCb(self,timer):
         self.msg_if.pub_warn("will call publisher status msg ", throttle_s = 5.0)
