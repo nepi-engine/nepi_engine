@@ -143,23 +143,7 @@ def set_config_folders(value, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
     return success
 
-def get_node_names_dict(timeout = 1000, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'node_names_dict')
-    node_names_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
-    if node_names_dict is None:
-        node_names_dict = dict()
-    return node_names_dict
 
-def set_node_names_dict(node_names_dict, log_name_list = []):
-    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'node_names_dict')
-    success = nepi_sdk.set_param(param_namespace, node_names_dict, log_name_list = log_name_list)
-    return success
-
-def get_node_name(node_name):
-    node_name_dict = get_node_names_dict()
-    if node_name in node_name_dict.keys():
-        node_name = node_name_dict[node_name]
-    return node_name
 
 def supports_all_config(namespace):
     supports_all = False
@@ -169,6 +153,31 @@ def supports_all_config(namespace):
             supports_all = True
             break
     return supports_all
+
+
+##########################
+
+def get_devices_alias_dict(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'devices_alias_dict')
+    devices_alias_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    if devices_alias_dict is None:
+        devices_alias_dict = dict()
+    return devices_alias_dict
+
+def set_devices_alias_dict(devices_alias_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'devices_alias_dict')
+    success = nepi_sdk.set_param(param_namespace, devices_alias_dict, log_name_list = log_name_list)
+    return success
+
+def get_device_alias(device_name):
+    alias_name = device_name
+    devices_alias_dict = get_devices_alias_dict()
+    if devices_alias_dict is not None:
+        if device_name in devices_alias_dict.keys():
+            alias_name = devices_alias_dict[device_name]
+    return alias_name
+
+
 ##########################
 
 def get_navposes_dict(timeout = 1000, log_name_list = []):

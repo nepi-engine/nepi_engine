@@ -621,20 +621,6 @@ def find_service(service_name, exact = False):
       break
   return found_service
 
-# Function to find a service
-def find_services_by_msg(msg_type):
-  service_list = []
-  try:
-    services=get_service_list()
-    for service_entry in services:
-      service_str = service_entry[0]
-      msg_str = service_entry[1]
-      if isinstance(service_str,str) and isinstance(msg_str,str):
-        if msg_str.find(msg_type) != -1:
-          service_list.append(service_str)
-  except:
-    pass
-  return service_list
 
 # Function to find a service
 def find_services_by_name(service_name):
@@ -642,10 +628,8 @@ def find_services_by_name(service_name):
   try:
     services=get_service_list()
     for service_entry in services:
-      service_str = service_entry[0]
-      msg_str = service_entry[1]
-      if service_name == os.path.basename(service_str):
-        service_list.append(service_str)
+      if service_name == os.path.basename(service_entry):
+        service_list.append(service_entry)
   except:
     pass
   return service_list

@@ -43,6 +43,7 @@ logger = Logger(log_name = log_name)
 ### Manager Utility Functions
 MANAGERS_NODE_FOLDER = '/opt/nepi/nepi_engine/lib/nepi_managers'
 MANAGERS_ETC_FOLDER = '/opt/nepi/nepi_engine/etc'
+BASE_MANAGERS = ['MANAGER-SYSTEM','MANAGER-CONFIG']
 
 def getManagersDict(search_path):
     mgrs_dict = dict()
@@ -425,82 +426,3 @@ def killManagerNode(node_namespace,sub_process):
     return success
         
 
-def importManagerClass(file_name,file_path,module_name,class_name):
-      module_class = None
-      success = False
-      msg = "failed"
-      file_list = os.listdir(file_path)
-      #logger.log_warn("Looking for manager file: " + str(file_name) + " : " + str(file_list))
-      if file_name in file_list:
-        sys.path.append(file_path)
-        try:
-          module = importlib.import_module(module_name)
-          try:
-            module_class = getattr(module, class_name)
-            success = True
-            msg = 'success'
-          except Exception as e:
-            logger.log_warn("Failed to import class from module with exception: " + class_name +" "+ module_name +" "+ str(e))
-        except Exception as e:
-            logger.log_warn("Failed to import module with exception: " + module_name +" "+ str(e))
-      else:
-        logger.log_warn("Failed to find file in path: " + file_name +" "+ file_path)
-      return success, msg, module_class
-
-
-def unimportManagerClass(module_name):
-    success = True
-    if module_name in sys.modules:
-        try:
-           sys.modules.pop(module_name)
-        except:
-            logger.log_info("Failed to clordered_unimport module: " + module_name)
-        if module_name in sys.modules:
-          success = False
-    return success
-
-
-#######################
-### Serial Port Utility Functions
-
-STANDARD_BUAD_RATES = [110, 150, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
-
-SERIAL_PORT_DICT_ENTRY = dict(    vendor_id = 0,
-                        product_id = 0,
-                        manf_str = "None",
-                        buad_rates = []
-                   )
-                  
-
-def getSerialPortDict():
-  port_dict = dict()
-
-  devs = usb.core.find(find_all=True)
-  port = list_ports.comports()
-  product_id = 0
-  for port in sorted(port):
-    entry = copy.deepcopy(SERIAL_PORT_DICT_ENTRY)
-    entry["vender_id"] = port.vid
-    for dev in devs:
-      if dev.idVendor == port.vid:
-        product_id = dev.idProduct
-        break
-    entry["product_id"] = product_id
-    entry["manf_str"] = port.manufacturer
-    port_dict[port.manager] = entry
-  return port_dict
-
-### Function for checking if port is available
-def checkSerialPorts(port_str):
-    success = False
-    port = list_ports.comports()
-    for loc, desc, hwid in sorted(port):
-      if loc == port_str:
-        success = True
-    return success
-
-
-
-
-
-  

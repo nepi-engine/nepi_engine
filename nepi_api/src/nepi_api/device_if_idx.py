@@ -38,6 +38,9 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import Image, PointCloud2
 
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
+
+from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
+
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
 from nepi_interfaces.msg import ImageStatus, PointcloudStatus
 
@@ -95,6 +98,8 @@ class IDXDeviceIF:
     ready = False
 
     status_msg = DeviceIDXStatus()
+    info_report = DeviceInfoQueryResponse()
+    caps_report = IDXCapabilitiesQueryResponse()
 
     node_if = None
     settings_if = None
@@ -209,14 +214,31 @@ class IDXDeviceIF:
 
         ############################# 
         # Initialize Class Variables
-        self.device_info_dict = device_info
-        self.device_id = device_info["device_name"]
-        self.identifier = device_info["identifier"]
+        self.device_name = device_info["device_name"]
+        self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+        
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
-        self.device_name = self.device_id + "_" + self.identifier
+        self.info_report.device_name = self.device_name
+        self.info_report.device_path = self.path
+        self.info_report.node_name = self.node_name
+        self.info_report.node_namespace = self.node_namespace
+        self.info_report.serial_num = self.serial_num
+        self.info_report.hw_version = self.hw_version
+        self.info_report.sw_version = self.sw_version
+        self.info_report.type = 'IDX'
+
+        self.caps_report.device_name = self.device_name
+        self.caps_report.device_path = self.path
+        self.caps_report.device_node_name = self.node_name
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -232,9 +254,6 @@ class IDXDeviceIF:
         self.msg_if.pub_warn("Enabled data products: " + str(self.data_products_list))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
-
-        self.caps_report = IDXCapabilitiesQueryResponse()
-
 
 
         # Create and update factory controls dictionary
@@ -323,37 +342,29 @@ class IDXDeviceIF:
             self.caps_report.has_resolution = True
 
 
-        # Initialize status message
-
-        self.status_msg.device_id = self.device_id
-        self.status_msg.identifier = self.identifier
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
-
      
 
         ##################################################
         ### Node Class Setup
 
         self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        alt_namespace = None
+        if self.device_name != self.node_name:
+            alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
         # Configs Config Dict ####################
         self.CONFIGS_DICT = {
                 'init_callback': self.initCb,
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.namespace
+                'namespace':  self.namespace,
+                'alt_namespace': alt_namespace
         }
 
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'device_name': {
-                'namespace': self.namespace,
-                'factory_val': self.device_name
-            },
             'width_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.width_deg
@@ -404,13 +415,21 @@ class IDXDeviceIF:
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
+            'device_info_query': {
+                'namespace': self.namespace,
+                'topic': 'device_info_query',
+                'srv': DeviceInfoQuery,
+                'req': DeviceInfoQueryRequest(),
+                'resp': DeviceInfoQueryResponse(),
+                'callback': self.info_query_callback
+            },
             'capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': IDXCapabilitiesQuery,
                 'req': IDXCapabilitiesQueryRequest(),
                 'resp': IDXCapabilitiesQueryResponse(),
-                'callback': self.provide_capabilities
+                'callback': self.capabilities_query_callback
             }
         }
 
@@ -428,22 +447,6 @@ class IDXDeviceIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_device_name': {
-                'namespace': self.namespace,
-                'topic': 'set_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.namespace,
-                'topic': 'reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'set_width_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_width_deg',
@@ -765,7 +768,6 @@ class IDXDeviceIF:
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
-            self.device_name = self.node_if.get_param('device_name')
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
             self.resolution_ratio = self.node_if.get_param('resolution_ratio')
@@ -885,35 +887,6 @@ class IDXDeviceIF:
 
 
 
-
-
-    def updateDeviceNameCb(self, msg):
-        #self.msg_if.pub_info("Recived update message: " + str(msg))
-        new_device_name = msg.data
-        self.updateDeviceName(new_device_name)
-
-    def updateDeviceName(self, new_device_name):
-        valid_name = True
-        for char in self.BAD_NAME_CHAR_LIST:
-            if new_device_name.find(char) != -1:
-                valid_name = False
-        if valid_name is False:
-            self.msg_if.pub_info("Received invalid device name update: " + new_device_name)
-        else:
-            self.status_msg.device_name = new_device_name
-            self.publish_status(do_updates=False) # Updated inline here 
-            self.node_if.set_param('device_name', new_device_name)
-
-
-
-    def resetDeviceNameCb(self,msg):
-        #self.msg_if.pub_info("Recived update message: " + str(msg))
-        self.resetDeviceName()
-
-    def resetDeviceName(self):
-        self.status_msg.device_name = self.device_name
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('device_name', self.device_name)
 
 
 
@@ -1086,7 +1059,6 @@ class IDXDeviceIF:
 
     def resetControlsCb(self, msg):
         #self.msg_if.pub_info("Recived reset controls message: " + str(msg))
-        self.node_if.reset_param('device_name')
         self.node_if.reset_param('controls_enable')
         self.node_if.reset_param('auto_adjust_ebabled')       
         self.node_if.reset_param('brightness_ratio')
@@ -1400,9 +1372,11 @@ class IDXDeviceIF:
         self.pointcloud_thread_proccess('pointcloud')
 
  
+    ### Info callback
+    def info_query_callback(self, _):
+        return self.info_report
 
-
-    def provide_capabilities(self, _):
+    def capabilities_query_callback(self, _):
         self.caps_report.data_products = self.data_products_list
         return self.caps_report
 

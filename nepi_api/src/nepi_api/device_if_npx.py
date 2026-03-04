@@ -33,6 +33,8 @@ from geographic_msgs.msg import GeoPoint
 
 from geometry_msgs.msg import Vector3
 
+from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
+
 from nepi_interfaces.msg import DeviceNPXStatus
 from nepi_interfaces.srv import  NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
@@ -78,6 +80,8 @@ class NPXDeviceIF:
   navpose_if = None
 
   status_msg = DeviceNPXStatus()
+  info_report = DeviceInfoQueryResponse()
+  caps_report = NPXCapabilitiesQueryResponse()
   
   update_rate = DEFAULT_UPDATE_RATE
   navpose_frame = DEFAULT_3D_FRAME
@@ -172,14 +176,31 @@ class NPXDeviceIF:
 
         ##############################
         # Initialize Class 
-   
-        self.device_id = device_info["device_name"]
-        self.identifier = device_info["identifier"]
+        self.device_name = device_info["device_name"]
+        self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+        
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
-        self.device_name = self.device_id + "_" + self.identifier
+        self.info_report.device_name = self.device_name
+        self.info_report.device_path = self.path
+        self.info_report.node_name = self.node_name
+        self.info_report.node_namespace = self.node_namespace
+        self.info_report.serial_num = self.serial_num
+        self.info_report.hw_version = self.hw_version
+        self.info_report.sw_version = self.sw_version
+        self.info_report.type = 'NPX'
+
+        self.caps_report.device_name = self.device_name
+        self.caps_report.device_path = self.path
+        self.caps_report.device_node_name = self.node_name
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -221,7 +242,6 @@ class NPXDeviceIF:
         
 
         # Create capabilities report
-        self.caps_report = NPXCapabilitiesQueryResponse()
         self.caps_report.has_heading = self.has_heading
         self.caps_report.has_position = self.has_position
         self.caps_report.has_orientation = self.has_orientation
@@ -243,13 +263,6 @@ class NPXDeviceIF:
         self.navpose_dict['frame_nav'] = self.frame_nav
         self.navpose_dict['frame_altitude'] = self.frame_altitude
         self.navpose_dict['frame_depth'] = self.frame_depth
-
-        # Initialize status message
-        self.status_msg.device_id = self.device_id
-        self.status_msg.identifier = self.identifier
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -274,14 +287,18 @@ class NPXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        alt_namespace = None
+        if self.device_name != self.node_name:
+            alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
         # Configs Config Dict ####################
         self.CONFIGS_DICT = {
                 'init_callback': self.initCb,
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.namespace
+                'namespace':  self.namespace,
+                'alt_namespace': alt_namespace
         }
 
 
@@ -289,10 +306,6 @@ class NPXDeviceIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'device_name': {
-                'namespace': self.namespace,
-                'factory_val': self.device_name
-            },
             'update_rate': {
                 'namespace': self.namespace,
                 'factory_val': self.update_rate
@@ -307,13 +320,21 @@ class NPXDeviceIF:
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
+            'device_info_query': {
+                'namespace': self.namespace,
+                'topic': 'device_info_query',
+                'srv': DeviceInfoQuery,
+                'req': DeviceInfoQueryRequest(),
+                'resp': DeviceInfoQueryResponse(),
+                'callback': self.info_query_callback
+            },
             'navpose_capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': NPXCapabilitiesQuery,
                 'req': NPXCapabilitiesQueryRequest(),
                 'resp': NPXCapabilitiesQueryResponse(),
-                'callback': self._navposeCapabilitiesHandler
+                'callback': self.capabilities_query_callback
             }
         }
 
@@ -330,22 +351,6 @@ class NPXDeviceIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_device_name': {
-                'namespace': self.namespace,
-                'topic': 'rbx/set_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.namespace,
-                'topic': 'rbx/reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'set_update_rate': {
                 'namespace': self.namespace,
                 'topic': 'set_update_rate',
@@ -563,34 +568,6 @@ class NPXDeviceIF:
 
 
 
-  def updateDeviceNameCb(self, msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        new_device_name = msg.data
-        self.updateDeviceName(new_device_name)
-
-  def updateDeviceName(self, new_device_name):
-        valid_name = True
-        for char in self.BAD_NAME_CHAR_LIST:
-            if new_device_name.find(char) != -1:
-                valid_name = False
-        if valid_name is False:
-            self.msg_if.pub_info("Received invalid device name update: " + new_device_name)
-        else:
-            self.status_msg.device_name = new_device_name
-            self.publish_status(do_updates=False) # Updated inline here 
-            self.node_if.set_param('device_name', new_device_name)
-
-  def resetDeviceNameCb(self,msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        self.resetDeviceName()
-
-  def resetDeviceName(self):
-        self.status_msg.device_name = self.device_name
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('device_name', self.device_name)
-
-
-
   def _setUpdateRateCb(self,msg):
     rate = msg.data
     min = self.NAVPOSE_UPDATE_RATE_OPTIONS[0]
@@ -686,7 +663,6 @@ class NPXDeviceIF:
   def initCb(self,do_updates = False):
       #self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
       if self.node_if is not None:
-        self.device_name = self.node_if.get_param('device_name')
         self.update_rate = self.node_if.get_param('update_rate')
         self.navpose_frame = self.node_if.get_param('navpose_frame')
       if do_updates == True:
@@ -719,9 +695,11 @@ class NPXDeviceIF:
         pass
       self.initCb(do_updates = True)
 
+  ### Info callback
+  def info_query_callback(self, _):
+    return self.info_report
 
-
-  def _navposeCapabilitiesHandler(self, _):
+  def capabilities_query_callback(self, _):
     return self.caps_report    
 
 

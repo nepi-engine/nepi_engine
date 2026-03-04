@@ -35,7 +35,7 @@ from nepi_sdk import nepi_serial
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 
-from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateBool, UpdateOrder 
+from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateBool, UpdateOrder, UpdateString 
 from nepi_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
 from nepi_interfaces.msg import Setting, SettingCap, SettingsStatus
@@ -93,6 +93,12 @@ class NepiDriversMgr(object):
   active_drivers = []
 
   settings_dict = dict()
+
+
+  devices_alias_dict = dict()
+  devices_alias_dict_session = dict()
+  devices_running_name_list = []
+  devices_running_type_list = []
 
   #######################
   ### Node Initialization
@@ -165,7 +171,11 @@ class NepiDriversMgr(object):
             'active_drivers': {
                 'namespace': self.node_namespace,
                 'factory_val': []
-            }
+            },
+            'devices_alias_dict': {
+                'namespace': self.node_namespace,
+                'factory_val': self.devices_alias_dict
+            },
         }
 
 
@@ -187,6 +197,20 @@ class NepiDriversMgr(object):
                 'namespace': self.node_namespace,
                 'topic': 'status',
                 'msg': MgrDriversStatus,
+                'qsize': 1,
+                'latch': True
+            },
+            'delete_configs': {
+                'namespace': self.base_namespace,
+                'topic': 'delete_configs',
+                'msg': UpdateString,
+                'qsize': 1,
+                'latch': True
+            },
+            'copy_configs': {
+                'namespace': self.base_namespace,
+                'topic': 'copy_configs',
+                'msg': String,
                 'qsize': 1,
                 'latch': True
             }
@@ -248,6 +272,22 @@ class NepiDriversMgr(object):
                 'qsize': 10,
                 'callback': self.enableRetryCb, 
                 'callback_args': ()
+            },
+            'update_device_alias': {
+                'namespace': self.base_namespace,
+                'topic': 'update_device_alias',
+                'msg': UpdateString,
+                'qsize': None,
+                'callback': self.updateDeviceAliasCb, 
+                'callback_args': ()
+            },
+            'clear_device_alias': {
+                'namespace': self.base_namespace,
+                'topic': 'clear_device_alias',
+                'msg': String,
+                'qsize': None,
+                'callback': self.resetDeviceAliasCb, 
+                'callback_args': ()
             }
 
         }
@@ -292,7 +332,8 @@ class NepiDriversMgr(object):
         ###########################
         # Start node processes
         nepi_sdk.start_timer_process(0.5, self.publishStatusCb)
-        nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+        nepi_sdk.start_timer_process(1.0, self.updaterDriversCb, oneshot=True)
+        nepi_sdk.start_timer_process(1.0, self.updaterDevicesCb, oneshot=True)
 
 
         #########################################################
@@ -303,6 +344,11 @@ class NepiDriversMgr(object):
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
+
+
+
+
+
 
 
   #######################
@@ -342,10 +388,22 @@ class NepiDriversMgr(object):
         #   self.msg_if.pub_warn("Refresh drv dict for drv " + print_drv + " : " + str(drvs_dict[print_drv]))
 
         self.drvs_dict = drvs_dict
+
+        ###############
+        # Update device names
+        devices_alias_dict = self.node_if.get_param('devices_alias_dict')
+        if devices_alias_dict is not None:
+          self.devices_alias_dict = copy.deepcopy(devices_alias_dict)
+          self.devices_alias_dict_session = copy.deepcopy(devices_alias_dict)
+
+
       if do_updates == True:
         self.refresh()
         nepi_system.set_active_drivers(drivers_active_list, log_name_list = [self.node_name])
         nepi_sdk.set_param('active_drivers', drivers_active_list)
+        nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+        if self.node_if is not None:
+          self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
       self.publish_status(do_updates = do_updates)
         
 
@@ -406,7 +464,7 @@ class NepiDriversMgr(object):
 
 
 
-  def checkAndUpdateCb(self,_):
+  def updaterDriversCb(self,_):
     drivers_active_list = self.getActiveDrivers()
     #self.msg_if.pub_warn("Starting Update with active drivers: " + str(drivers_active_list))
 
@@ -670,7 +728,7 @@ class NepiDriversMgr(object):
     #self.publish_status()
     # And now that( we are finished, start a timer for the drvt runDiscovery()
     if nepi_sdk.is_shutdown() == False:
-      nepi_sdk.start_timer_process(1.0, self.checkAndUpdateCb, oneshot=True)
+      nepi_sdk.start_timer_process(1.0, self.updaterDriversCb, oneshot=True)
 
   def createDriverOptionsIf(self,driver_name, drvs_dict):
     drvs_dict = copy.deepcopy(self.drvs_dict)
@@ -701,6 +759,9 @@ class NepiDriversMgr(object):
     return True
           
 
+
+  ##################################
+  #### Driver Settings
   def provide_capabilities(self, req):
     drvs_dict = copy.deepcopy(self.drvs_dict)
     #self.msg_if.pub_info("Got capabilities req: " + str(req))
@@ -953,6 +1014,107 @@ class NepiDriversMgr(object):
       self.node_if.save_config() # Save config on options change
     
 
+
+  ################################
+  ## Device Update Functions
+
+
+  def updaterDevicesCb(self,_):
+    running_service_namespaces = nepi_sdk.find_services_by_name('device_info_query')
+    devices_running_name_list = []
+    devices_running_type_list = []
+    for service_namespace in running_service_namespaces:
+        service_base_namespace = os.path.dirname(service_namespace)
+
+        device_type = os.path.basename(service_base_namespace).upper()
+        devices_running_type_list.append(device_type)
+
+        device_namespace = os.path.dirname(service_base_namespace)
+        device_name = os.path.basename(device_namespace)
+        devices_running_name_list.append(device_name)
+        
+
+    
+    self.devices_running_name_list = devices_running_name_list
+    self.devices_running_type_list = devices_running_type_list
+    if nepi_sdk.is_shutdown() == False:
+      nepi_sdk.start_timer_process(1.0, self.updaterDevicesCb, oneshot=True)
+
+
+
+
+  def updateDeviceAliasCb(self, msg):
+      self.msg_if.pub_info("Got Update Device Alias msg: " + str(msg))
+      if True: #self.admin_mode_set == True:
+          device_name = msg.name
+          device_alias = nepi_utils.get_clean_name(msg.value)
+          if device_name != '' and device_alias != '':
+              is_valid = False
+              count = 0
+              while is_valid == False:
+                  is_valid = True
+                  for node_name in self.devices_alias_dict.keys():
+                      if device_alias == self.devices_alias_dict[node_name]:
+                          is_valid = False
+                  if is_valid == False:
+                      count = count + 1
+                      device_alias = device_alias + '_' + str(count)
+              self.msg_if.pub_info("Updating Device " + device_name + " with alias: " + str(device_alias))
+              self.devices_alias_dict[device_name] = device_alias
+              self.devices_alias_dict_session[device_name] = device_alias
+
+          self.publish_status()
+          if self.node_if is not None:
+              self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
+              self.node_if.save_config()
+              nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+          if self.node_if is not None:
+              msg = UpdateString()
+              msg.name = os.path.join(self.base_namespace,device_name)
+              msg.value = os.path.join(self.base_namespace,device_alias)
+              self.node_if.publish_pub('copy_configs', msg)
+
+
+  def resetDeviceAliasCb(self, msg):
+      self.msg_if.pub_info("Got Clear Device Alias msg: " + str(msg))
+      if True: #self.admin_mode_set == True:
+          purge_device = None
+          purge_alias = None
+          reset_device_name = msg.data
+          for device_name in self.devices_alias_dict.keys():
+                  if reset_device_name == device_name or reset_device_name == self.devices_alias_dict[device_name]:
+                    purge_device = device_name
+                    purge_alias = self.devices_alias_dict[device_name]
+          if purge_device is not None:
+              success = False
+              self.msg_if.pub_info("Clearing Alias for Device " + purge_device)
+              try:
+                
+                del self.devices_alias_dict[purge_device]
+                ### ONLY DELETE FROM BASE DICT, NOT SESSION DICTIONARY.
+                self.devices_alias_dict_session[purge_device] = purge_device
+                self.publish_status()
+                success = True
+              except Exception as e:
+                self.msg_if.pub_info("Failed to Clear Device Alias: " + str(e))
+              if success == True and self.node_if is not None and purge_alias is not None:
+                  msg = UpdateString()
+                  msg.name = os.path.join(self.base_namespace,purge_alias)
+                  msg.value = os.path.join(self.base_namespace,purge_device)
+                  self.node_if.publish_pub('copy_configs', msg)
+                  nepi_sdk.sleep(1)
+                  self.node_if.publish_pub('delete_configs', msg.name)
+
+          self.publish_status()
+          if self.node_if is not None:
+              self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
+              self.node_if.save_config()
+              nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+
+
+
+  ########################
+
   def installDriverPkgCb(self,msg):
     self.msg_if.pub_info(str(msg))
     pkg_name = msg.data
@@ -1133,6 +1295,29 @@ class NepiDriversMgr(object):
     status_msg.drivers_running_list = running_list
 
     status_msg.retry_enabled = self.retry_enabled
+
+
+    #########################
+    ## Devices Info
+    devices_alias_dict = copy.deepcopy(self.devices_alias_dict_session)
+    devices_name_list = []
+    devices_alias_list = []
+    for device_name in devices_alias_dict.keys():
+      devices_name_list.append(device_name)
+      devices_alias_list.append(devices_alias_dict[device_name])
+
+    devices_running_name_list = copy.deepcopy(self.devices_running_name_list)
+    for device_name in devices_running_name_list:
+      if device_name not in devices_name_list and device_name not in devices_alias_list:
+        devices_name_list.append(device_name)
+        devices_alias_list.append(device_name)
+
+
+    status_msg.devices_name_list = devices_name_list
+    status_msg.devices_alias_list = devices_alias_list
+    status_msg.devices_running_name_list = self.devices_running_name_list
+    status_msg.devices_running_type_list = self.devices_running_type_list
+
 
     self.status_msg = status_msg
     if self.node_if is not None:

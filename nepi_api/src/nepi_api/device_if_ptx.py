@@ -33,6 +33,9 @@ from nepi_sdk import nepi_targets
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow, Target, Targets, TargetFilter, TargetFilters, TargetingStatus
+
+from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
+
 from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 from nepi_interfaces.msg import NavPosePanTilt
@@ -84,6 +87,8 @@ class PTXActuatorIF:
     save_data_if = None
 
     status_msg = DevicePTXStatus()
+    info_report = DeviceInfoQueryResponse()
+    caps_report = PTXCapabilitiesQueryResponse()
 
     has_position_feedback = False
     has_absolute_positioning = False
@@ -227,15 +232,31 @@ class PTXActuatorIF:
 
         ############################## 
         # Initialize Class Variables
-
-
-        self.device_id = device_info["device_name"]
-        self.identifier = device_info["identifier"]
+        self.device_name = device_info["device_name"]
+        self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+        
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
-        self.device_name = self.device_id + "_" + self.identifier
+        self.info_report.device_name = self.device_name
+        self.info_report.device_path = self.path
+        self.info_report.node_name = self.node_name
+        self.info_report.node_namespace = self.node_namespace
+        self.info_report.serial_num = self.serial_num
+        self.info_report.hw_version = self.hw_version
+        self.info_report.sw_version = self.sw_version
+        self.info_report.type = 'PTX'
+
+        self.caps_report.device_name = self.device_name
+        self.caps_report.device_path = self.path
+        self.caps_report.device_node_name = self.node_name
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -249,7 +270,6 @@ class PTXActuatorIF:
                     self.factory_controls_dict[control] = factoryControls[control]
 
         self.deviceResetCb = deviceResetCb
-        self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
 
        # Configure PTX Capabilities
@@ -319,15 +339,14 @@ class PTXActuatorIF:
        
 
         # Create Capabilities Report
-        self.capabilities_report = PTXCapabilitiesQueryResponse()
-        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
-        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
-        self.capabilities_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
-        self.capabilities_report.has_position_feedback = self.has_position_feedback
-        self.capabilities_report.has_adjustable_speed = self.has_adjustable_speed
-        self.capabilities_report.has_limit_controls = self.has_limit_controls
-        self.capabilities_report.has_homing = self.has_homing
-        self.capabilities_report.has_set_home = self.has_set_home
+        self.caps_report.has_absolute_positioning = self.has_absolute_positioning
+        self.caps_report.has_timed_positioning = self.has_timed_positioning
+        self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
+        self.caps_report.has_position_feedback = self.has_position_feedback
+        self.caps_report.has_adjustable_speed = self.has_adjustable_speed
+        self.caps_report.has_limit_controls = self.has_limit_controls
+        self.caps_report.has_homing = self.has_homing
+        self.caps_report.has_set_home = self.has_set_home
 
 
 
@@ -364,17 +383,7 @@ class PTXActuatorIF:
         self.max_tilt_softstop_deg = self.factoryLimits['max_tilt_softstop_deg']
 
 
-
-
-
         ########################       
-        # Set up status message static values
-        self.status_msg.device_id = self.device_id
-        self.status_msg.identifier = self.identifier
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
-
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
 
@@ -391,24 +400,24 @@ class PTXActuatorIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        alt_namespace = None
+        if self.device_name != self.node_name:
+            alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
         # Configs Config Dict ####################
         self.CONFIGS_DICT = {
-            'init_callback': self.initCb,
-            'reset_callback': self.resetCb,
-            'factory_reset_callback': self.factoryResetCb,
-            'init_configs': True,
-            'namespace':  self.namespace
+                'init_callback': self.initCb,
+                'reset_callback': self.resetCb,
+                'factory_reset_callback': self.factoryResetCb,
+                'init_configs': True,
+                'namespace':  self.namespace,
+                'alt_namespace': alt_namespace
         }
 
 
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'device_name': {
-                'namespace': self.namespace,
-                'factory_val': self.device_name
-            },
             'speed_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
@@ -451,13 +460,21 @@ class PTXActuatorIF:
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
+            'device_info_query': {
+                'namespace': self.namespace,
+                'topic': 'device_info_query',
+                'srv': DeviceInfoQuery,
+                'req': DeviceInfoQueryRequest(),
+                'resp': DeviceInfoQueryResponse(),
+                'callback': self.info_query_callback
+            },
             'capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': PTXCapabilitiesQuery,
                 'req': PTXCapabilitiesQueryRequest(),
                 'resp': PTXCapabilitiesQueryResponse(),
-                'callback': self.provideCapabilities
+                'callback': self.capabilities_query_callback
             }
         }
 
@@ -498,22 +515,6 @@ class PTXActuatorIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_device_name': {
-                'namespace': self.namespace,
-                'topic': 'set_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self._updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.namespace,
-                'topic': 'reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'speed_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_speed_ratio',
@@ -957,34 +958,6 @@ class PTXActuatorIF:
             self.msg_if.pub_warn("Invalid softstop requested " + str(msg))
         
 
-
-    def _updateDeviceNameCb(self, msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        new_device_name = msg.data
-        self.updateDeviceName(new_device_name)
-
-    def updateDeviceName(self, new_device_name):
-        valid_name = True
-        for char in self.BAD_NAME_CHAR_LIST:
-            if new_device_name.find(char) != -1:
-                valid_name = False
-        if valid_name is False:
-            self.msg_if.pub_info("Received invalid device name update: " + new_device_name)
-        else:
-            self.status_msg.device_name = new_device_name
-            self.publish_status(do_updates=False) # Updated inline here 
-            self.node_if.set_param('device_name', new_device_name)
-   
- 
-    def _resetDeviceNameCb(self,msg):
-        self.msg_if.pub_info("Recived update message: " + str(msg))
-        self.resetDeviceName()
-
-    def resetDeviceName(self):
-        self.status_msg.device_name = self.device_name
-        self.publish_status(do_updates=False) # Updated inline here
-        self.node_if.set_param('device_name', self.device_name)
-
   
     def _stopMovingCb(self, _):
         self.stopPanTilt('All')
@@ -1016,7 +989,7 @@ class PTXActuatorIF:
 
 
     def _setSpeedRatioCb(self, msg):
-        if self.capabilities_report.has_adjustable_speed == True:
+        if self.caps_report.has_adjustable_speed == True:
             speed_cur = self.getSpeedRatioCb()
             speed_ratio = msg.data
             self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)     
@@ -1231,10 +1204,13 @@ class PTXActuatorIF:
         if self.node_if is not None:
             self.node_if.publish_pub('stop_tilt_callback_pub',Empty())
 
+    ### Info callback
+    def info_query_callback(self, _):
+        return self.info_report
         
 
-    def provideCapabilities(self, _):
-        return self.capabilities_report
+    def capabilities_query_callback(self, _):
+        return self.caps_report
     
     
     def initConfig(self):
@@ -1266,7 +1242,6 @@ class PTXActuatorIF:
 
 
         if self.node_if is not None:
-            self.device_name = self.node_if.get_param('device_name')
             self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
             self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
 

@@ -507,7 +507,9 @@ class NavPoseMgr(object):
     def initCb(self,do_updates = False):
         if self.node_if is not None:
             self.navposes_pub_rate = self.node_if.get_param('navposes_pub_rate')
-            self.navposes_info_dict = self.node_if.get_param('navposes_info_dict')
+            navposes_info_dict = self.node_if.get_param('navposes_info_dict')
+            if navposes_info_dict is not None:
+                self.navposes_info_dict = navposes_info_dict
 
 
             self.frame_nav = self.node_if.get_param('frame_nav')

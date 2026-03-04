@@ -26,7 +26,7 @@ from nepi_sdk import nepi_system
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_interfaces.msg import Reset
+from nepi_interfaces.msg import UpdateString
 
 from std_msgs.msg import Empty as EmptyMsg
 from std_srvs.srv import Empty as EmptySrv
@@ -42,11 +42,11 @@ from nepi_api.messages_if import MsgIF
 
 '''
 EXAMPLE_CONFIGS_DICT = {
+        'namespace': None,
+        'alt_namespace': None,
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
-        'software_reset_callback': None,
-        'hardware_reset_callback': None,
         'init_configs': True
 }
 '''
@@ -58,6 +58,7 @@ class NodeConfigsIF:
     ready = False
     configs_dict = None
     namespace = '~'
+    alt_namespace = None
 
     initCb = None
     sysResetCb = None
@@ -109,10 +110,16 @@ class NodeConfigsIF:
         if 'hardware_reset_callback' in configs_dict.keys(): 
             self.hardwareResetCb = configs_dict['hardware_reset_callback']
         
+
+        if 'namespace' not in configs_dict.keys():
+            configs_dict['namespace'] = None
         namespace = configs_dict['namespace']
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.get_full_namespace(namespace)
+
+        if 'alt_namespace' in configs_dict.keys():
+            self.alt_namespace = configs_dict['alt_namespace']
         #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
         
@@ -123,7 +130,9 @@ class NodeConfigsIF:
         ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
         self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
         ns = nepi_sdk.create_namespace(self.base_namespace,'reset_params')
-        self.reset_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+        self.reset_params_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
+        ns = nepi_sdk.create_namespace(self.base_namespace,'delete_configs')
+        self.delete_configs_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
 
 
         nepi_sdk.sleep(1)
@@ -146,6 +155,7 @@ class NodeConfigsIF:
 
         if nepi_system.supports_all_config(self.namespace) == True:
             nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
+        nepi_sdk.create_subscriber(self.namespace + '/delete_configs', Empty, self._deleteConfigsCb)
 
 
         ################
@@ -192,8 +202,14 @@ class NodeConfigsIF:
         return self.ready
 
     def reset_params(self, do_updates = True):
-        self.msg_if.pub_warn("Reseting Params: " + str(self.namespace))
-        self.reset_params_pub.publish(self.namespace)
+        msg = UpdateString()
+        msg.name = self.namespace
+        if self.alt_namespace is not None:
+            msg.name2 = self.alt_namespace
+            self.msg_if.pub_warn("Reseting Params: " + str(self.namespace) + " including alt namespace" + str(self.alt_namespace))
+        else:
+            self.msg_if.pub_warn("Reseting Params: " + str(self.namespace))
+        self.reset_params_pub.publish(msg)
 
 
 
@@ -209,14 +225,22 @@ class NodeConfigsIF:
     def save_config(self):
         self.msg_if.pub_debug("Saving Config: " + str(self.namespace))
         self.save_params_pub.publish(self.namespace)
-        #if self.initCb is not None and not nepi_sdk.is_shutdown():
-        #    self.initCb() # Callback provided by container class to update based on param server, etc.
+
 
     def save_config_all(self):
         self.msg_if.pub_debug("Saving Config All: " + str(self.namespace))
         self.save_params_all_pub.publish(self.namespace)
-        #if self.initCb is not None and not nepi_sdk.is_shutdown():
-        #    self.initCb() # Callback provided by container class to update based on param server, etc.
+
+
+    def delete_config_all(self):
+        self.msg_if.pub_debug("Deleting Config All: " + str(self.namespace))
+        msg = UpdateString()
+        msg.name = self.namespace
+        msg.name2 = self.namespace
+        if self.alt_namespace is not None:
+            msg.name2 = self.alt_namespace
+        self.delete_configs_pub.publish(msg)
+
 
 
     def reset_config(self):
@@ -241,8 +265,12 @@ class NodeConfigsIF:
         self.save_config()
 
     def _saveAllCb(self,msg):
-        self.msg_if.pub_warn("Got Save Params All Msg", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Save Config All Msg", log_name_list = self.log_name_list)
         self.save_config_all()
+
+    def _deleteConfigsCb(self,msg):
+        self.msg_if.pub_warn("Got Delete Config All Msg", log_name_list = self.log_name_list)
+        self.delete_config_all()
 
     def _initCb(self,msg):
         self.init_config(do_updates = True)

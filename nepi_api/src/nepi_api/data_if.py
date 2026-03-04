@@ -1087,6 +1087,8 @@ class BaseImageIF:
             self.filter_options = list(self.filter_dict.keys())
             if len(self.filter_options) > 0:
                 self.has_filters = True
+        else:
+            self.filter_dict = dict()
 
 
         # Create and update capabilities dictionary
@@ -2122,31 +2124,33 @@ class BaseImageIF:
 
 
     def set_filter_enable(self,name, enabled):
-        if name in self.filter_dict.keys():
-            was_enabled = self.filter_dict[name]['enabled']
-            if was_enabled != enabled:
-                if enabled == True:
-                    self.msg_if.pub_info("Enabling Filter: " + name, log_name_list = self.log_name_list)
-                else:
-                    self.msg_if.pub_info("Disabling Filter: " + name, log_name_list = self.log_name_list)
-                self.filter_dict[name]['enabled'] = enabled
-                self.publish_status()  
-                self.needs_update()
-                if self.node_if is not None:
-                    self.node_if.set_param('filter_dict', self.filter_dict)
+        if self.filter_dict is not None:
+            if name in self.filter_dict.keys():
+                was_enabled = self.filter_dict[name]['enabled']
+                if was_enabled != enabled:
+                    if enabled == True:
+                        self.msg_if.pub_info("Enabling Filter: " + name, log_name_list = self.log_name_list)
+                    else:
+                        self.msg_if.pub_info("Disabling Filter: " + name, log_name_list = self.log_name_list)
+                    self.filter_dict[name]['enabled'] = enabled
+                    self.publish_status()  
+                    self.needs_update()
+                    if self.node_if is not None:
+                        self.node_if.set_param('filter_dict', self.filter_dict)
 
 
     def set_filter_ratio(self,name, ratio):
-        if ratio < 0:
-            ratio = 0
-        if ratio > 1.0:
-            ratio = 1.0
-        if name in self.filter_dict.keys():
-            self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
-            self.filter_dict[name]['ratio'] = ratio
-            self.publish_status() 
-            self.needs_update()
-            self.node_if.set_param('filter_dict', self.filter_dict)
+        if self.filter_dict is not None:
+            if ratio < 0:
+                ratio = 0
+            if ratio > 1.0:
+                ratio = 1.0
+            if name in self.filter_dict.keys():
+                self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
+                self.filter_dict[name]['ratio'] = ratio
+                self.publish_status() 
+                self.needs_update()
+                self.node_if.set_param('filter_dict', self.filter_dict)
 
     ########################
     # Res and Orientation Functions
@@ -2521,7 +2525,9 @@ class BaseImageIF:
         self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
         self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
         self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
-        self.filter_dict = self.node_if.get_param('filter_dict')
+        filter_dict = self.node_if.get_param('filter_dict')
+        if filter_dict is not None:
+            self.filter_dict = filter_dict
 
         self.publish_status()  
         self.needs_update()
@@ -2561,7 +2567,9 @@ class BaseImageIF:
         self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
         self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
 
-        self.filter_dict = self.node_if.get_param('filter_dict')
+        filter_dict = self.node_if.get_param('filter_dict')
+        if filter_dict is not None:
+            self.filter_dict = filter_dict
 
         self.publish_status()  
         self.needs_update()
@@ -2609,11 +2617,12 @@ class BaseImageIF:
             filter_options = []
             filter_states = []
             filter_ratios = []
-            for name in self.filter_dict.keys():
-                filter_dict = self.filter_dict[name]
-                filter_options.append(name)
-                filter_states.append(filter_dict['enabled'])
-                filter_ratios.append(filter_dict['ratio'])
+            if self.filter_dict is not None:
+                for name in self.filter_dict.keys():
+                    filter_dict = self.filter_dict[name]
+                    filter_options.append(name)
+                    filter_states.append(filter_dict['enabled'])
+                    filter_ratios.append(filter_dict['ratio'])
             self.status_msg.filter_options = filter_options
             self.status_msg.filter_states = filter_states
             self.status_msg.filter_ratios = filter_ratios
@@ -2677,7 +2686,11 @@ class BaseImageIF:
             self.controls_dict['stop_range_ratio'] = 1
 
 
-            self.filter_dict = self.node_if.get_param('filter_dict')
+            filter_dict = self.node_if.get_param('filter_dict')
+            if filter_dict is not None:
+                self.filter_dict = filter_dict
+            else:
+                self.filter_dict = dict()
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
             self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
             self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
@@ -3334,13 +3347,14 @@ class ColorImageIF(BaseImageIF):
 
         ###################
         # Apply Filters
-        for filter_name in self.filter_dict.keys():
-            enabled = self.filter_dict[filter_name]['enabled']
-            if enabled == True:
-                ratio = self.filter_dict[filter_name]['ratio']
-                if ratio > 0.05:
-                    function = self.filter_dict[filter_name]['function']
-                    cv2_img = function(cv2_img,ratio)
+        if self.filter_dict is not None:
+            for filter_name in self.filter_dict.keys():
+                enabled = self.filter_dict[filter_name]['enabled']
+                if enabled == True:
+                    ratio = self.filter_dict[filter_name]['ratio']
+                    if ratio > 0.05:
+                        function = self.filter_dict[filter_name]['function']
+                        cv2_img = function(cv2_img,ratio)
 
 
         ##########
@@ -4211,13 +4225,14 @@ class DepthMapImageIF(BaseImageIF):
 
         ###################
         # Apply Filters
-        for filter_name in self.filter_dict.keys():
-            enabled = self.filter_dict[filter_name]['enabled']
-            if enabled == True:
-                ratio = self.filter_dict[filter_name]['ratio']
-                if ratio > 0.05:
-                    function = self.filter_dict[filter_name]['function']
-                    cv2_img = function(cv2_img,ratio)
+        if self.filter_dict is not None:
+            for filter_name in self.filter_dict.keys():
+                enabled = self.filter_dict[filter_name]['enabled']
+                if enabled == True:
+                    ratio = self.filter_dict[filter_name]['ratio']
+                    if ratio > 0.05:
+                        function = self.filter_dict[filter_name]['function']
+                        cv2_img = function(cv2_img,ratio)
 
 
         ##########

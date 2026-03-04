@@ -147,14 +147,14 @@ def refreshDriversDict(drivers_path,drvs_dict):
   #logger.log_warn('From Get Dict: ' + str(get_drvs_dict))
   for driver_name in get_drvs_dict.keys():
     if driver_name not in drvs_dict.keys():
-      logger.log_warn("Refresh setting drv : " + str(driver_name) + " to active state: " + str(False))
+      #logger.log_warn("Refresh setting drv : " + str(driver_name) + " to active state: " + str(False))
       get_drvs_dict[driver_name]['active'] = False
     else:
       #.log_warn('')
       #logger.log_warn('Updating drv: ' + driver_name)
       #logger.log_warn('Updating drv: ' + str(drvs_dict[driver_name]))
       active = drvs_dict[driver_name]['active']
-      logger.log_warn("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
+      #logger.log_warn("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
       get_drvs_dict[driver_name]['active'] = active
       get_drvs_dict[driver_name]['order'] = drvs_dict[driver_name]['order']
       drv_dict = drvs_dict[driver_name]
