@@ -770,7 +770,6 @@ class PTXActuatorIF:
 
 
         if self.node_if is not None:
-            self.device_name = self.node_if.get_param('device_name')
             self.min_pan_softstop_deg =  self.node_if.get_param('min_pan_softstop_deg')
             self.max_pan_softstop_deg = self.node_if.get_param('max_pan_softstop_deg')
 
@@ -1335,8 +1334,8 @@ class PTXActuatorIF:
     
   
 
+
     def _publishStatusCb(self,timer):
-        self.msg_if.pub_warn("will call publisher status msg ", throttle_s = 5.0)
         self.publish_status()
 
 
@@ -1344,7 +1343,6 @@ class PTXActuatorIF:
     def publish_status(self, do_updates = False):
         #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
-        self.status_msg.device_name = self.device_name
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             
@@ -1459,9 +1457,10 @@ class PTXActuatorIF:
         self.status_msg.speed_ratio = self.speed_ratio
 
         
-        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
-        #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
+
         if self.node_if is not None:
+            #self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
+            #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
             self.node_if.publish_pub('status_pub',self.status_msg)
             pan_tilt_msg = NavPosePanTilt()
             pan_tilt_msg.timestamp = nepi_utils.get_time()
@@ -1477,8 +1476,6 @@ class PTXActuatorIF:
         return 0
 
 
-    def _publishStatusCb(self,timer):
-        self.publish_status()
 
 
     def passFunction(self):
