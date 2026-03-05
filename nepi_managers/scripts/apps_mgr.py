@@ -172,14 +172,7 @@ class NepiAppsMgr(object):
                 'msg': MgrAppsStatus,
                 'qsize': 1,
                 'latch': True
-            },
-            'status_app': {
-                'namespace': self.node_namespace,
-                'topic': 'status_app',
-                'msg': AppStatus,
-                'qsize': 1,
-                'latch': True
-            },
+            }
         }  
 
         # Subscribers Config Dict ####################
