@@ -1296,11 +1296,11 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            # if subdir not in self.STORAGE_CHECK_SKIP_LIST:
-            #     self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
-            #     os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
-            #     #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
-            #     os.system('chmod -R 0775 ' + full_path_subdir)
+            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
+                self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
+                os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
+                os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
 
@@ -1313,11 +1313,11 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            # if subdir not in self.STORAGE_CHECK_SKIP_LIST:
-            #     self.msg_if.pub_warn("Checking nepi storage folder permissions: " + subdir)
-            #     os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
-            #     #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
-            #     os.system('chmod -R 0775 ' + full_path_subdir)
+            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
+                self.msg_if.pub_warn("Checking nepi storage folder permissions: " + subdir)
+                os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
+                os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
 
@@ -1328,8 +1328,8 @@ class SystemMgrNode():
         if not os.path.isdir(self.SYS_ETC_PATH):
                 self.msg_if.pub_warn("Folder " + self.SYS_ETC_PATH + " not present... will create")
                 os.makedirs(self.SYS_ETC_PATH)
-        # os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
-        # os.system('chmod -R 0775 ' + self.SYS_ETC_PATH)
+        os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chmod -R 0775 ' + self.SYS_ETC_PATH)
         self.storage_subdirs['config'] = self.SYS_ETC_PATH
 
 
@@ -1343,8 +1343,8 @@ class SystemMgrNode():
                             self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
                             os.makedirs(path_entry)
                     
-                    # os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
-                    # os.system('chmod -R 0775 ' + path_entry)
+                    os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
+                    os.system('chmod -R 0775 ' + path_entry)
                     #nepi_utils.remove_pycache_folders(path_entry)
                 self.storage_subdirs[key] = path_entry
                 self.system_folders[key] = path_entry

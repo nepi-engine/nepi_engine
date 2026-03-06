@@ -122,9 +122,9 @@ def log_msg_error(msg, throttle_s = None, log_name_list = []):
   if len(log_name_list) > 0:
       msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
-    log_msg_warn(msg_str)
+     rospy.logerror(msg_str)
   else:
-    log_msg_warn_throttle(throttle_s,msg_str)
+    rospy.logerror_throttle(throttle_s,msg_str)
 
 def log_msg_fatal(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
@@ -555,6 +555,15 @@ def set_param(param_namespace,param_val, log_name_list = []):
     success = True
   except Exception as e:
     log_msg_warn("Failed to set param for: " + str(param_namespace) + " "  + str(param_val) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return success
+
+
+def delete_params(params_namespace, log_name_list = []):
+  success = False
+  if rospy.has_param(params_namespace):
+      rospy.delete_param(params_namespace)
+      rospy.loginfo("Deleted all parameters in namespace: " + str(params_namespace))  
+      success = True
   return success
 
 # Function to wait for a param

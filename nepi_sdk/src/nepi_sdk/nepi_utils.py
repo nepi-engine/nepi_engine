@@ -34,6 +34,8 @@ import inspect
 import numpy as np
 import string
 import math
+import pwd
+import grp
 
 import pytz
 import datetime
@@ -233,10 +235,10 @@ def check_partition_busy_lsof(mount_point):
                     current_pid = line[1:]
                 elif line.startswith('n') and current_pid:
                     file_path = line[1:]
-                    #print(f"  PID: {current_pid}, File: {file_path}")
+                    #logger.log_warn(f"  PID: {current_pid}, File: {file_path}")
             return True
         else:
-            print(f"No processes found using {mount_point}.")
+            logger.log_warn(f"No processes found using {mount_point}.")
             return False
     except subprocess.CalledProcessError as e:
         #logger.log_warn("Error running lsof: " + str(e))
@@ -246,7 +248,7 @@ def check_partition_busy_lsof(mount_point):
 
 def fix_folder_permissions(folder_path, user, group):
     success = True
-    print("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
+    logger.log_warn("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
     if os.path.exists(folder_path) == True:
         try:
             os.system('chown -R ' + user + ':' + group + ' ' + folder_path) # Use os.system instead of os.chown to have a recursive option
@@ -254,7 +256,7 @@ def fix_folder_permissions(folder_path, user, group):
             os.system('chmod -R 0775 ' + folder_path)
         except Exception as e:
             success = False
-            print("Failed to update folder permissions: " + folder_path + " " + str(e))
+            logger.log_warn("Failed to update folder permissions: " + folder_path + " " + str(e))
     return success
 
 def read_sh_variables(filepath):
@@ -352,7 +354,7 @@ def get_symlink_target(symlink_path):
 def check_for_sudo():
     # Check if the effective user ID is not 0 (root)
     if os.geteuid() != 0:
-        print("Error: This script must be run with sudo or as root.")
+        logger.log_warn("Error: This script must be run with sudo or as root.")
         sys.exit(1) # Exit with a non-zero status code to indicate an error
     else:
         return True
@@ -366,7 +368,7 @@ def get_user_id(folder = CURRENT_FOLDER):
 
     user = pwd.getpwuid(uid)[0]
     group = grp.getgrgid(gid)[0]
-    #print([self.user, self.group])
+    #logger.log_warn([self.user, self.group])
     return user,group
 
 def make_folder(folder_path, user = None, group = None):
@@ -376,7 +378,7 @@ def make_folder(folder_path, user = None, group = None):
         fix_folder_permissions(folder_path, user = user, group = user)
         success = True
     except Exception as e:
-        print("Failed to make folder: " + folder_path + " " + str(e))
+        logger.log_warn("Failed to make folder: " + folder_path + " " + str(e))
     return success
 
 def fix_folder_permissions(folder_path, user = None, group = None):
@@ -386,7 +388,7 @@ def fix_folder_permissions(folder_path, user = None, group = None):
         user = fuser
     if group is None:
         group = fgroup
-    print("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
+    logger.log_warn("setting permissions for folder: " + folder_path + " to " + user + ":"  + group)
     if os.path.exists(folder_path) == True:
         try:
             os.system('chown -R ' + user + ':' + group + ' ' + folder_path) # Use os.system instead of os.chown to have a recursive option
@@ -394,7 +396,7 @@ def fix_folder_permissions(folder_path, user = None, group = None):
             os.system('chmod -R 0775 ' + folder_path)
         except Exception as e:
             success = False
-            print("Failed to update folder permissions: " + folder_path + " " + str(e))
+            logger.log_warn("Failed to update folder permissions: " + folder_path + " " + str(e))
     return success
 
 
@@ -403,15 +405,15 @@ def get_folder_list(folder_path):
   folder_list=[]
   if os.path.exists(folder_path):
     filelist=os.listdir(folder_path + '/')
-    #print('')
-    #print('Files and Folders in Path:')
-    #print(folder_path)
-    #print(filelist)
+    #logger.log_warn('')
+    #logger.log_warn('Files and Folders in Path:')
+    #logger.log_warn(folder_path)
+    #logger.log_warn(filelist)
     for i, file in enumerate(filelist):
-        #print(file)
+        #logger.log_warn(file)
         foldername = (folder_path + '/' + file)
-        #print('Checking file: ')
-        #print(foldername)
+        #logger.log_warn('Checking file: ')
+        #logger.log_warn(foldername)
         if os.path.isdir(foldername): # file is a folder
             folder_list.append(foldername)
   return folder_list
@@ -420,7 +422,7 @@ def get_folder_list(folder_path):
 def get_folder_files(folder_path):
     files_dict = dict()
     if os.path.exists(folder_path) == False:
-        print('Get stats folder not found: ' + folder_path)
+        logger.log_warn('Get stats folder not found: ' + folder_path)
     else:
         path, dirs, files = next(os.walk(folder_path))
         for file in files:
@@ -434,12 +436,12 @@ def get_folder_files(folder_path):
 
 
 def open_new_file(file_path):
-  print('')
+  logger.log_warn('')
   if os.path.isfile(file_path):
-    print('Deleting existing file:')
-    print(file_path)
+    logger.log_warn('Deleting existing file:')
+    logger.log_warn(file_path)
     os.remove(file_path)
-  print('Creating new file: ' + file_path)
+  logger.log_warn('Creating new file: ' + file_path)
   fnew = open(file_path, 'w')
   return fnew
 
@@ -456,7 +458,7 @@ def write_list_to_file(file_path,data_list):
             for data in data_list:
                 file.write(data + '\n')
     except Exception as e:
-        print("Failed to write list to file " + file_path + " " + str(e))
+        logger.log_warn("Failed to write list to file " + file_path + " " + str(e))
         success = False
     return success
 
@@ -469,9 +471,9 @@ def read_dict_from_file(file_path):
             with open(file_path) as f:
                 dict_from_file = yaml.load(f, Loader=yaml.FullLoader)
         except Exception as e:
-            print("Failed to get dict from file: " + file_path + " " + str(e))
+            logger.log_warn("Failed to get dict from file: " + file_path + " " + str(e))
     else:
-        print("Failed to find dict file: " + file_path)
+        logger.log_warn("Failed to find dict file: " + file_path)
     return dict_from_file
 
 
@@ -482,23 +484,23 @@ def write_dict_to_file(dict_2_save,file_path,defaultFlowStyle=False,sortKeys=Fal
             yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
         success = True
     except Exception as e:
-        print("Failed to write dict: "  + " to file: " + file_path + " " + str(e))
+        logger.log_warn("Failed to write dict: "  + " to file: " + file_path + " " + str(e))
     return success
 
 
 def copy_file(file_path, destination_path):
     success = False
     output_path = destination_path.replace(" ","_")
-    #print("Checking on file copy: " + file_path + " to: " + output_path)
+    #logger.log_warn("Checking on file copy: " + file_path + " to: " + output_path)
     if os.path.exists(output_path) == False:
         try:
             shutil.copy(file_path, output_path)
-            #print("File: " + file_path + " Copied to: " + output_path)
+            #logger.log_warn("File: " + file_path + " Copied to: " + output_path)
             success = True
         except FileNotFoundError:
-            print("Error file " + file_path + "not found") 
+            logger.log_warn("Error file " + file_path + "not found") 
         except Exception as e:
-            print("Excepton: " + str(e))
+            logger.log_warn("Excepton: " + str(e))
     return success 
 
 
@@ -624,7 +626,7 @@ def delete_files_in_folder(folder_path, ext = None):
         folder_path (str): The path to the folder to clean.
     """
     if not os.path.isdir(folder_path):
-        print(f"Error: '{folder_path}' is not a valid directory.")
+        logger.log_warn(f"Error: '{folder_path}' is not a valid directory.")
         return
 
     for item_name in os.listdir(folder_path):
@@ -638,9 +640,9 @@ def delete_files_in_folder(folder_path, ext = None):
                        delete = False
                 if delete == True:
                     os.remove(item_path)
-                    print(f"Deleted file: {item_path}")
+                    logger.log_warn(f"Deleted file: {item_path}")
             except OSError as e:
-                print(f"Error deleting file {item_path}: {e}")
+                logger.log_warn(f"Error deleting file {item_path}: {e}")
 
 def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders = True, delete = False):    
     success = False
@@ -671,7 +673,7 @@ def rsync_folders(source_folder,destitation_folder, options = "-avrh", folders =
         # Execute the command
         subprocess.run(command, text=True, check=True)
         success = True
-        #print(result.stdout)
+        #logger.log_warn(result.stdout)
         
     except subprocess.CalledProcessError as e:
         logger.log_warn("Can't sync folders: " + source_folder + " : " + destitation_folder + " : " + str(e.stderr) + " : " + str(e.returncode))
@@ -689,8 +691,99 @@ def remove_pycache_folders(directory):
     for root, dirs, files in os.walk(directory):
         if '__pycache__' in dirs:
             pycache_path = os.path.join(root, '__pycache__')
-            print(f"Removing: {pycache_path}")
+            logger.log_info(f"Removing: {pycache_path}")
             shutil.rmtree(pycache_path)
+
+def chmod(path, mode):
+    success = True
+    mode = oct(mode)
+    try:
+        os.chmod(path, mode)
+    except OSError as e:
+        success = False
+        logger.log_warn(f"Error changing directory permissions for {path}: {e}")    
+    return success
+    
+
+def chmod_recursive(path, dir_mode = 775, file_mode = 775):
+    success = True
+    dir_mode = oct(dir_mode)
+    file_mode = oct(file_mode)
+    for root, dirs, files in os.walk(path):
+        # Change permissions for the current root directory
+        try:
+            os.chmod(root, dir_mode)
+        except OSError as e:
+            success = False
+            logger.log_warn(f"Error changing directory permissions for {root}: {e}")
+
+        # Change permissions for subdirectories
+        for d in dirs:
+            dir_path = os.path.join(root, d)
+            try:
+                os.chmod(dir_path, dir_mode)
+            except OSError as e:
+                success = False
+                logger.log_warn(f"Error changing directory permissions for {dir_path}: {e}")
+
+        # Change permissions for files
+        for f in files:
+            file_path = os.path.join(root, f)
+            try:
+                os.chmod(file_path, file_mode)
+            except OSError as e:
+                success = False
+                logger.log_warn(f"Error changing file permissions for {file_path}: {e}")
+    return success
+
+def chown(path, user = 'nepi', group  = 'nepi'):
+    success = True
+    # Get the numeric UID and GID from names (necessary for os.chown)
+    try:
+        uid = pwd.getpwnam(user).pw_uid
+        gid = grp.getgrnam(group).gr_gid
+        
+        # Change the owner and group
+        os.chown(path, uid, gid)
+        logger.log_warn(f"Ownership of {path} changed to UID {uid}, GID {gid}")
+
+    except KeyError as e:
+        success = False
+        logger.log_warn(f"Error: User or group name not found - {e}")
+    except OSError as e:
+        success = False
+        logger.log_warn(f"Error changing ownership: {e}")
+    return success
+
+def chown_recursive(path, user = 'nepi', group  = 'nepi'):
+    success = True
+    try:
+        uid = pwd.getpwnam(user).pw_uid
+        gid = grp.getgrnam(group).gr_gid
+    except KeyError as e:
+        success = False
+        logger.log_warn(f"Error: User or group not found - {e}")
+        return
+
+    # Walk through the directory tree
+    for root, dirs, files in os.walk(path):
+        # Change ownership of the current root directory
+        try:
+            os.chown(root, uid, gid)
+        except OSError as e:
+            success = False
+            logger.log_warn(f"Failed to chown directory {root}: {e}")
+
+        # Change ownership of files in the current directory
+        for file in files:
+            filepath = os.path.join(root, file)
+            try:
+                # Use follow_symlinks=False if you don't want to change the target of symlinks
+                os.chown(filepath, uid, gid)
+            except OSError as e:
+                success = False
+                logger.log_warn(f"Failed to chown file {filepath}: {e}")
+    return success
 
 
 #########################

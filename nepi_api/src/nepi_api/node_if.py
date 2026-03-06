@@ -93,6 +93,9 @@ class NodeConfigsIF:
         self.msg_if.pub_debug("Starting Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
 
         ##############################    
+
+
+
         self.msg_if.pub_debug("Got Config Dict: " + str(configs_dict), log_name_list = self.log_name_list)
 
         if 'init_callback' in configs_dict.keys():  
@@ -103,12 +106,6 @@ class NodeConfigsIF:
 
         if 'factory_reset_callback' in configs_dict.keys():
             self.factoryResetCb = configs_dict['factory_reset_callback']
-
-        if 'software_reset_callback' in configs_dict.keys(): 
-            self.softwareResetCb = configs_dict['software_reset_callback']
-
-        if 'hardware_reset_callback' in configs_dict.keys(): 
-            self.hardwareResetCb = configs_dict['hardware_reset_callback']
         
 
         if 'namespace' not in configs_dict.keys():
@@ -122,6 +119,9 @@ class NodeConfigsIF:
             self.alt_namespace = configs_dict['alt_namespace']
         #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
+
+        self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+        nepi_sdk.delete_params(self.namespace)
         
         ###############
         # Create Config Publishers
