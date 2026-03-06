@@ -346,17 +346,20 @@ class PTXActuatorIF:
         if self.calibrateCenterCB is not None:
             self.has_calibration = True
 
+
+
+
         # Create Capabilities Report
-        self.capabilities_report = PTXCapabilitiesQueryResponse()
-        self.capabilities_report.has_absolute_positioning = self.has_absolute_positioning
-        self.capabilities_report.has_timed_positioning = self.has_timed_positioning
-        self.capabilities_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
-        self.capabilities_report.has_position_feedback = self.has_position_feedback
-        self.capabilities_report.has_adjustable_speed = self.has_adjustable_speed
-        self.capabilities_report.has_limit_controls = self.has_limit_controls
-        self.capabilities_report.has_homing = self.has_homing
-        self.capabilities_report.has_set_home = self.has_set_home
-        self.capabilities_report.has_calibration = self.has_calibration
+        self.caps_report = PTXCapabilitiesQueryResponse()
+        self.caps_report.has_absolute_positioning = self.has_absolute_positioning
+        self.caps_report.has_timed_positioning = self.has_timed_positioning
+        self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
+        self.caps_report.has_position_feedback = self.has_position_feedback
+        self.caps_report.has_adjustable_speed = self.has_adjustable_speed
+        self.caps_report.has_limit_controls = self.has_limit_controls
+        self.caps_report.has_homing = self.has_homing
+        self.caps_report.has_set_home = self.has_set_home
+        self.caps_report.has_calibration = self.has_calibration
 
 
         #######################################

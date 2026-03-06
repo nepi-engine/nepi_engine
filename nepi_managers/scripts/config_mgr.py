@@ -392,6 +392,7 @@ class config_mgr(object):
                 if os.path.exists(source_pathname):
                     try:
                         os.remove(source_pathname)
+                        self.save_disabled = True
                         success = True
                     except Exception as e:
                         print(f"An error occurred: {e}")
@@ -517,13 +518,35 @@ class config_mgr(object):
 
     def resetFactoryCb(self,msg):
         self.save_disabled = True
+        
         clear_folder = self.USER_CFG_PATH
-        nepi_utils.delete_files_in_folder(clear_folder,ext = CFG_SUFFIX)
+        if os.path.exists(clear_folder) == False:
+            os.makedirs(clear_folder)    
+        else:    
+            nepi_utils.delete_files_in_folder(clear_folder,ext = CFG_SUFFIX)
+
+        restore_folder = self.SYSTEM_CFG_PATH
+        if os.path.exists(restore_folder) == False:
+            os.makedirs(restore_folder)   
+        if os.path.exists(clear_folder) == True and os.path.exists(restore_folder) == True:
+            self.msg_if.pub_warn("Syncing source to target config paths: " + restore_folder + " : " + clear_folder )
+            success = nepi_utils.rsync_folders(restore_folder,clear_folder, folders = False)
+            if success == True:
+                self.msg_if.pub_warn("Synced source to target config paths: " + restore_folder + " : " + clear_folder )
 
 
     def clearFactoryCb(self,msg):
+        self.save_disabled = True
         clear_folder = self.SYSTEM_CFG_PATH
-        nepi_utils.delete_files_in_folder(clear_folder,ext = CFG_SUFFIX)
+        if os.path.exists(clear_folder) == False:
+            os.makedirs(clear_folder)    
+        else:    
+            nepi_utils.delete_files_in_folder(clear_folder,ext = CFG_SUFFIX)
+        clear_folder = self.USER_CFG_PATH
+        if os.path.exists(clear_folder) == False:
+            os.makedirs(clear_folder)    
+        else:    
+            nepi_utils.delete_files_in_folder(clear_folder,ext = CFG_SUFFIX)
         
 
 
