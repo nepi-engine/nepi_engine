@@ -313,7 +313,7 @@ class SystemMgrNode():
             'apps_install': '/mnt/nepi_storage/install/apps'
             }
 
-        self.SYSTEM_CHECK_SKIP_LIST = ['rui']
+        self.SYSTEM_CHECK_SKIP_LIST = ['rui','etc']
         self.SYSTEM_PATH_DICT = {
             'sdk': self.SDK_PATH_DICT,
             'api': self.API_PATH_DICT,
@@ -1309,9 +1309,9 @@ class SystemMgrNode():
                 # TODO: Different owner:group for different folders?
             if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
-                os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                os.system('chown  ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
-                os.system('chmod -R 0775 ' + full_path_subdir)
+                os.system('chmod  0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
 

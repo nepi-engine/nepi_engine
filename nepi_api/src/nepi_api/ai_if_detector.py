@@ -311,7 +311,7 @@ class AiDetectorIF:
         self.PARAMS_DICT = {
             'enabled': {
                 'namespace': self.node_namespace,
-                'factory_val': False
+                'factory_val': self.enabled
             },
             'selected_img_topics': {
                 'namespace': self.node_namespace,
@@ -850,7 +850,7 @@ class AiDetectorIF:
         if self.node_if is not None:
             self.node_if.set_param('enabled',self.enabled)
             self.node_if.save_config()
-        if msg.data == False and not nepi_sdk.is_shutdown():
+        if enabled == False and not nepi_sdk.is_shutdown():
             self.next_image_topic = "None"
 
     def addAllClassesCb(self,msg):
@@ -1255,7 +1255,8 @@ class AiDetectorIF:
                     
                 # Create register new image topic
                 self.msg_if.pub_warn('Registering to image topic: ' + img_topic)
-                img_pub_topic = os.path.dirname(img_topic) + '/' + self.node_name + '/' + self.IMAGE_DATA_PRODUCT
+                img_bass_namespace = os.path.dirname(img_topic) 
+                img_pub_topic = os.path.join(img_bass_namespace,self.IMAGE_DATA_PRODUCT)
                 self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
                 ####################
@@ -2072,7 +2073,7 @@ class AiDetectorIF:
                     filters = [self.IMAGE_DATA_PRODUCT]
                     topic_names = []      
                     if img_topic in self.imgs_info_dict.keys():
-                        topic_names.append([self.imgs_info_dict[img_topic]['img_pub_topic']])
+                        topic_names.append(self.imgs_info_dict[img_topic]['img_pub_topic'])
                     [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
 
 
