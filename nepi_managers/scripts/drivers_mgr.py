@@ -604,6 +604,7 @@ class NepiDriversMgr(object):
                   self.discovery_node_dict[driver_name]['node_name'] = discovery_node_name
                   self.discovery_node_dict[driver_name]['subprocess'] = sub_process
                   self.discovery_node_dict[driver_name]['launch_time'] =  nepi_sdk.get_time()  
+                  self.discovery_node_dict[driver_name]['retry_enabled'] =  self.retry_enabled
                   self.drvs_dict[driver_name]['running'] = False
                   self.drvs_dict[driver_name]['msg'] = "Discovery process started"
                 else:

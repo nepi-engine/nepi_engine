@@ -47,7 +47,8 @@ EXAMPLE_CONFIGS_DICT = {
         'init_callback': None,
         'reset_callback': None,
         'factory_reset_callback': None,
-        'init_configs': True
+        'init_configs': True,
+        'clear_params': True
 }
 '''
 
@@ -64,6 +65,7 @@ class NodeConfigsIF:
     sysResetCb = None
     resetCb = None
     factoryResetCb = None
+
 
     ### IF Initialization
     def __init__(self, 
@@ -120,8 +122,12 @@ class NodeConfigsIF:
         #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
 
-        self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-        nepi_sdk.delete_params(self.namespace)
+        clear_params = True
+        if 'clear_params' in configs_dict.keys():
+            clear_params = configs_dict['clear_params']
+        if clear_params == True:
+            self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            nepi_sdk.delete_params(self.namespace)
         
         ###############
         # Create Config Publishers

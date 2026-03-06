@@ -387,6 +387,21 @@ class SystemMgrNode():
         self.status_msg.rui_restriction_options = self.rui_restriction_options
         #self.status_msg.sys_managers_base_list = self.managers_base_list
         
+        ### Load System Manager Params
+        self.msg_if.pub_warn("Updating From Param Server")
+
+        user_cfg_file = self.node_name + '.yaml'
+        user_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['user_cfg'],user_cfg_file)
+        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
+        if len(list(params_dict.keys())) > 0:
+            self.msg_if.pub_warn("Loaded System Manager Params from: " + str(user_cfg_path) + " : " + str(params_dict))
+        else:
+            system_cfg_file = self.node_name + '.yaml'
+            system_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['system_cfg'],system_cfg_file)
+            params_dict = nepi_sdk.load_params_from_file(system_cfg_path,self.node_namespace)
+            if len(list(params_dict.keys())) > 0:
+                self.msg_if.pub_warn("Loaded System Manager Params from: " + str(system_cfg_path) + " : " + str(params_dict))
+        nepi_sdk.sleep(1)
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -398,6 +413,7 @@ class SystemMgrNode():
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
+            'clear_params': False,
             'namespace': self.node_namespace
         }
 
@@ -657,11 +673,8 @@ class SystemMgrNode():
         nepi_sdk.wait()
 
         # Config mgr not running yet, so have to load saved configs ourselfs
-        user_cfg_file = self.node_name + '.yaml'
-        user_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['user_cfg'],user_cfg_file)
-        self.msg_if.pub_warn("Updating From Param Server")
-        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
-        nepi_sdk.sleep(1)
+
+
         self.initCb(do_updates = True)
 
         #######################
