@@ -111,6 +111,7 @@ class AiDetectorIF:
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
 
+    api_lib_folder = '/opt/nepi/nepi_engine/lib/nepi_api'
 
     self_managed = True
     model_name = "None"
@@ -249,7 +250,8 @@ class AiDetectorIF:
 
         self.msg_if.pub_warn("Got system folders: " + str(system_folders))
        
-        self.api_lib_folder = system_folders['api_lib']
+        if system_folders is not None:
+            self.api_lib_folder = system_folders['api_lib']
         self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
  
 
@@ -1447,7 +1449,7 @@ class AiDetectorIF:
                 self.next_image_topic = "None"
             else:
                 # check timer
-                max_rate = self.max_proc_rate_hz
+                max_rate = self.max_proc_rate_hz * 2 # Double until double buffering enabled
                 delay_time = float(1) / max_rate 
                 start_time = nepi_sdk.get_time()
                 timer = round((start_time - self.last_detect_time), 3)

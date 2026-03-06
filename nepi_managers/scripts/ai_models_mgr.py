@@ -516,7 +516,8 @@ class AIDetectorManager:
 
         for model_name in purge_list:
             try:
-                self.msg_if.pub_warn("Killing model: " + model_name)
+                node_name = models_dict[model_name]['node_name']
+                self.msg_if.pub_warn("Killing model: " + node_name)
                 models_dict[model_name]['active'] = False
                 del self.models_namespace_dict[model_name]
                 self.killModel(model_name)
@@ -524,7 +525,7 @@ class AIDetectorManager:
                 self.models_dict[model_name]['msg'] = "Model killed"
                 nepi_sdk.wait()
             except Exception as e:
-                self.msg_if.pub_warn("Failed to Kill model: " + model_name + " : " + str(e))
+                self.msg_if.pub_warn("Failed to Kill model: " + node_name + " : " + str(e))
 
         ######## Launch Models
         active_models_list = self.getActiveModels()
@@ -639,6 +640,7 @@ class AIDetectorManager:
                     aif_class = self.aifs_classes_dict[aif_name]
                     self.msg_if.pub_info("Killing model " + model_name)
                     if model_name in list(self.models_namespace_dict.keys()):
+                        node_name = os.path.basename(self.models_namespace_dict[model_name])
                         del self.models_namespace_dict[model_name]
                         aif_class.killModel(model_name)
                         # Kill Img Pub Node if running
