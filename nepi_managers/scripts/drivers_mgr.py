@@ -558,6 +558,8 @@ class NepiDriversMgr(object):
     #self.msg_if.pub_warn( "Checking on driver discovery for list: " + str(drvs_ordered_list))
     
     retry = self.retry_enabled
+    if retry == True:
+      self.failed_class_import_list = []
     for driver_name in drvs_ordered_list:
       was_running = False
       if 'running' in self.drvs_dict[driver_name].keys():
@@ -649,7 +651,7 @@ class NepiDriversMgr(object):
             
             try:
               #self.msg_if.pub_info("Start discovery function with active paths: " + str(self.active_paths_list))
-              self.active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict)
+              self.active_paths_list = discovery_class.discoveryFunction(available_paths_list, self.active_paths_list, self.base_namespace, drv_dict, retry)
               self.drvs_dict[driver_name]['running'] = True
               self.drvs_dict[driver_name]['msg'] = "Discovery process running"
               #self.msg_if.pub_info("End discovery function with active paths: " + str(self.active_paths_list))
@@ -1007,8 +1009,6 @@ class NepiDriversMgr(object):
   def enableRetryCb(self,msg):
     self.msg_if.pub_info(str(msg))
     self.retry_enabled = msg.data
-    if self.retry_enabled == True:
-      self.failed_class_import_list = []
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("retry_enabled",self.retry_enabled)
