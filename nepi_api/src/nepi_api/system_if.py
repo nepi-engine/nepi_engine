@@ -1120,7 +1120,7 @@ class SaveDataIF:
         #self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
         snapshot = self.snapshot_dict[data_product]
         if (elapsed >= save_period or snapshot):
-            self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
             self.save_rate_dict = save_rate_dict
             return True
         return False
@@ -1656,10 +1656,10 @@ class Transform3DIF:
             self.transform = self.node_if.get_param('transform')
             self.source = self.node_if.get_param('source')
             self.end = self.node_if.get_param('end')
-        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
-        if do_updates:
-            pass
-        self.publish_status()
+            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+            if do_updates:
+                pass
+            self.publish_status()
 
 
     def reset(self):

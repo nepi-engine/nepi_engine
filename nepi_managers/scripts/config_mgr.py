@@ -252,12 +252,12 @@ class config_mgr(object):
 
     def initCb(self, do_updates = False):
       if self.node_if is not None:
-        pass
-      if do_updates == True:
-        self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
-        nepi_system.set_config_folders(self.config_folders)
-        nepi_sdk.set_param('config_folders',self.config_folders)
-      self.publish_status()
+
+        if do_updates == True:
+            self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
+            nepi_system.set_config_folders(self.config_folders)
+            nepi_sdk.set_param('config_folders',self.config_folders)
+        self.publish_status()
 
 
 

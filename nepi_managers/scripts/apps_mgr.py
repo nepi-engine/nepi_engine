@@ -300,13 +300,14 @@ class NepiAppsMgr(object):
           self.apps_dict = self.node_if.get_param("apps_dict")
           self.backup_enabled = self.node_if.get_param("backup_enabled")
           self.restart_enabled = self.node_if.get_param("restart_enabled")   
-      if do_updates == True:
-        pass
-      self.refresh()
-      
-      self.msg_if.pub_warn("Init apps dict keys: " + str(self.apps_dict.keys()))
-      self.msg_if.pub_info("Init active apps: " + str(self.getActiveApps()))
-      self.publish_status()
+          
+          if do_updates == True:
+            pass
+          self.refresh()
+          
+          self.msg_if.pub_warn("Init apps dict keys: " + str(self.apps_dict.keys()))
+          self.msg_if.pub_info("Init active apps: " + str(self.getActiveApps()))
+          self.publish_status()
 
   def resetCb(self,do_updates = True):
       if self.node_if is not None:

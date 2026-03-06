@@ -221,13 +221,7 @@ class SoftwareMgrNode():
         ### Setup Node
 
         # Configs Config Dict ####################
-        # self.CFGS_DICT = {
-        #     'reset_callback': self.resetCb,
-        #     'factory_reset_callback': self.factoryResetCb,
-        #     'init_configs': True,
-        #     'namespace': self.node_namespace
-        # }
-
+        self.CFGS_DICT = None
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -341,7 +335,7 @@ class SoftwareMgrNode():
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
-                        # configs_dict = self.CFGS_DICT,
+                        configs_dict = self.CFGS_DICT,
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -454,83 +448,6 @@ class SoftwareMgrNode():
             # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
             # established
             self.update_software_status()
-
-
-    # def getStatesDictCb(self):
-    #     return self.STATES_DICT
-
-    # def systemTriggersCb(self,msg):
-    #     trigger_name = msg.name
-    #     if trigger_name not in self.triggers_list:
-    #         self.triggers_list.append(trigger_name)
-
-    # def triggersStatusPubCb(self,timer):
-    #     triggers_name_list = []
-    #     has_triggered_list = []
-    #     msg = SystemTriggersStatus()
-    #     namespaces = nepi_triggers.get_triggers_publisher_namespaces()
-    #     if namespaces is not None:
-    #         for namespace in namespaces:
-    #             topic = os.path.join(namespace,'system_triggers_query')
-    #             if topic not in self.service_dict.keys():
-    #                 service = nepi_sdk.create_service(topic,SystemTrigger)
-    #                 if service is not None:
-    #                     self.service_dict[topic] = service
-    #                     time.sleep(1)
-    #             if topic in self.service_dict.keys():
-    #                 service = self.service_dict[topic]
-    #                 req = SystemTriggersQueryRequest()
-    #                 try:
-    #                     resp = nepi_sdk.call_service(service, req)
-    #                     triggers_list = resp.triggers_list
-    #                     for trigger in triggers_list:
-    #                         trigger_name = trigger.name
-    #                         if trigger_name not in triggers_name_list:
-    #                             triggers_name_list.append(trigger_name) 
-    #                 except:
-    #                     self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
-
-    #         for trigger_name in triggers_name_list:
-    #             has_triggered = trigger_name in self.triggers_list
-    #             has_triggered_list.append(has_triggered)
-    #         self.triggers_list = [] # Clear List
-    #         msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
-    #         if self.node_if is not None:
-    #             self.node_if.publish_pub('triggers_status_pub', msg)
-    #     nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
-
-
-
-    # def statesStatusPubCb(self,timer):
-    #     states_list = []
-    #     msg = SystemStatesStatus()
-    #     namespaces = nepi_states.get_states_publisher_namespaces()
-    #     if namespaces is not None:
-    #         for namespace in namespaces:
-    #             topic = os.path.join(namespace,'system_states_query')
-    #             if topic not in self.service_dict.keys():
-    #                 service = nepi_sdk.create_service(topic,SystemState)
-    #                 if service is not None:
-    #                     self.service_dict[topic] = service
-    #                     time.sleep(1)
-    #             if topic in self.service_dict.keys():
-    #                 service = self.service_dict[topic]
-    #                 req = SystemStatesQueryRequest()
-    #                 try:
-    #                     resp = nepi_sdk.call_service(service, req)
-    #                     for state in resp.states_list:
-    #                         states_list.append(state)
-    #                 except:
-    #                     self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
-
-    #         try:
-    #             msg = nepi_states.create_states_status_msg(states_list)
-    #         except Exception as e:
-    #             self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-    #         if self.node_if is not None:
-    #             self.node_if.publish_pub('states_status_pub', msg)
-    #     nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
-
 
 
     def get_fw_rev(self):

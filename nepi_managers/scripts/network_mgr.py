@@ -610,12 +610,13 @@ class NetworkMgr:
 
             
 
-        if do_updates == True:
-            pass
-    
-        #self.msg_if.pub_warn("Ending Init with Managed addrs: " + str(self.managed_ip_addrs))
-        #self.msg_if.pub_warn("Ending Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
-        #self.msg_if.pub_warn("Ending Init with Wifi Client password: " + str(self.wifi_client_passphrase))
+            if do_updates == True:
+                pass
+        
+            #self.msg_if.pub_warn("Ending Init with Managed addrs: " + str(self.managed_ip_addrs))
+            #self.msg_if.pub_warn("Ending Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
+            #self.msg_if.pub_warn("Ending Init with Wifi Client password: " + str(self.wifi_client_passphrase))
+            self.publish_status()
 
         
 

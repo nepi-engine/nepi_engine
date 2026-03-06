@@ -814,23 +814,21 @@ class SystemMgrNode():
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.admin_enabled = self.node_if.get_param('admin_enabled')
+            #self.admin_enabled = self.node_if.get_param('admin_enabled')
             self.managers_active_list = self.node_if.get_param('managers_active_list')
-            self.run_mode = self.node_if.get_param('run_mode')
+            #self.run_mode = self.node_if.get_param('run_mode')
             self.rui_restrictions = self.node_if.get_param('rui_restrictions')
             self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
-        if do_updates == True:
-            self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
-            self.updateSystemAdminSettings()
-            managers_dict = copy.deepcopy(self.managers_dict) 
-            self.managers_active_list = nepi_mgrs.getManagersActiveList(managers_dict)
-            self.msg_if.pub_warn("Got Init Managers Dict: " + str(managers_dict))
-            if self.node_if is not None:
-                self.node_if.set_param('managers_active_list', self.managers_active_list)
 
-
-
-        # self.publish_settings() # Make sure to always publish settings updates
+            if do_updates == True:
+                self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+                self.updateSystemAdminSettings()
+                managers_dict = copy.deepcopy(self.managers_dict) 
+                self.managers_active_list = nepi_mgrs.getManagersActiveList(managers_dict)
+                self.msg_if.pub_warn("Got Init Managers Dict: " + str(managers_dict))
+                if self.node_if is not None:
+                    self.node_if.set_param('managers_active_list', self.managers_active_list)
+            self.publish_status() 
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:

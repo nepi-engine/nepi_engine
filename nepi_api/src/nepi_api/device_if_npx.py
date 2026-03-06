@@ -497,7 +497,7 @@ class NPXDeviceIF:
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
-                            pub_navpose = True,
+                            pub_navpose = False,
                             pub_location = self.has_location,
                             pub_heading = self.has_heading,
                             pub_orientation =  self.has_orientation,
@@ -505,6 +505,7 @@ class NPXDeviceIF:
                             pub_altitude = self.has_altitude,
                             pub_depth = self.has_depth,
                             pub_pan_tilt = self.has_pan_tilt,
+                            save_data_enabled = False,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if

@@ -397,14 +397,14 @@ class NepiDriversMgr(object):
           self.devices_alias_dict_session = copy.deepcopy(devices_alias_dict)
 
 
-      if do_updates == True:
-        self.refresh()
-        nepi_system.set_active_drivers(drivers_active_list, log_name_list = [self.node_name])
-        nepi_sdk.set_param('active_drivers', drivers_active_list)
-        nepi_system.set_devices_alias_dict(self.devices_alias_dict)
-        if self.node_if is not None:
-          self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
-      self.publish_status(do_updates = do_updates)
+        if do_updates == True:
+          self.refresh()
+          nepi_system.set_active_drivers(drivers_active_list, log_name_list = [self.node_name])
+          nepi_sdk.set_param('active_drivers', drivers_active_list)
+          nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+          if self.node_if is not None:
+            self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
+        self.publish_status()
         
 
   def resetCb(self,do_updates = True):
@@ -587,6 +587,7 @@ class NepiDriversMgr(object):
             # Update drv dict param
             dict_param_name = os.path.join(discovery_node_name, "drv_dict")
             #self.msg_if.pub_warn("Passing param name: " + dict_param_name + " drv_dict: " + str(drv_dict))
+            drv_dict['retry_enabled'] =  self.retry_enabled
             nepi_sdk.set_param(dict_param_name,drv_dict)
 
 
@@ -606,7 +607,6 @@ class NepiDriversMgr(object):
                   self.discovery_node_dict[driver_name]['node_name'] = discovery_node_name
                   self.discovery_node_dict[driver_name]['subprocess'] = sub_process
                   self.discovery_node_dict[driver_name]['launch_time'] =  nepi_sdk.get_time()  
-                  self.discovery_node_dict[driver_name]['retry_enabled'] =  self.retry_enabled
                   self.drvs_dict[driver_name]['running'] = False
                   self.drvs_dict[driver_name]['msg'] = "Discovery process started"
                 else:
@@ -942,6 +942,7 @@ class NepiDriversMgr(object):
     drvs_names = list(self.drvs_dict.keys())
     for driver_name in drvs_names:
       self.drvs_dict[driver_name]['active'] = True
+    self.failed_class_import_list = []
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
@@ -952,6 +953,7 @@ class NepiDriversMgr(object):
     drvs_names = list(self.drvs_dict.keys())
     for driver_name in drvs_names:
       self.drvs_dict[driver_name]['active'] = False
+    self.failed_class_import_list = []
     self.publish_status()
     if self.node_if is not None:
       self.node_if.set_param("drvs_dict",self.drvs_dict)
@@ -965,6 +967,8 @@ class NepiDriversMgr(object):
     drvs_names = list(self.drvs_dict.keys())
     if driver_name in drvs_names:
       self.drvs_dict[driver_name]['active'] = new_enabled
+      if driver_name in self.failed_class_import_list:
+        self.failed_class_import_list.remove(driver_name)
       self.msg_if.pub_warn("State Update setting drv : " + str(driver_name) + " to active state: " + str(new_enabled))
     self.publish_status()
     if self.node_if is not None:

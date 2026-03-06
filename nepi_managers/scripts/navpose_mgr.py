@@ -173,6 +173,7 @@ class NavPoseMgr(object):
 
 
     navposes_dict = dict()
+    navposes_save_dict = dict()
     navposes_dict_lock = threading.Lock()
 
     navposes_info_dict = dict()
@@ -517,22 +518,22 @@ class NavPoseMgr(object):
             self.frame_depth = self.node_if.get_param('frame_depth')
  
 
-        if do_updates == True:
-            navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
-            navpose_frames = self.navposes_init_frames
-            if len(list(navposes_info_dict.keys())) > 0:
-                navpose_frames = list(navposes_info_dict.keys())
-            for frame in navpose_frames:
-                if frame in navposes_info_dict.keys():
-                    navpose_info_dict = navposes_info_dict[frame]
-                else:
-                    navpose_info_dict = None
-                self.addNavpose(frame,init_dict_entry = navpose_info_dict)
-                
-            if self.node_if is not None:
-                self.node_if.save_config()
+            if do_updates == True:
+                navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
+                navpose_frames = self.navposes_init_frames
+                if len(list(navposes_info_dict.keys())) > 0:
+                    navpose_frames = list(navposes_info_dict.keys())
+                for frame in navpose_frames:
+                    if frame in navposes_info_dict.keys():
+                        navpose_info_dict = navposes_info_dict[frame]
+                    else:
+                        navpose_info_dict = None
+                    self.addNavpose(frame,init_dict_entry = navpose_info_dict)
+                    
+                if self.node_if is not None:
+                    self.node_if.save_config()
 
-        self.publish_status()
+            self.publish_status()
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
@@ -848,7 +849,7 @@ class NavPoseMgr(object):
                                     pub_orientation = False, pub_position = False,
                                     pub_altitude = False, pub_depth = False,
                                     pub_pan_tilt = False,
-                                    save_data_if = self.save_data_if,
+                                    save_data_enabled = False,
                                     msg_if = self.msg_if
                                     )
                 # Add a local pub to start publishing before navpose_if is ready
@@ -881,15 +882,6 @@ class NavPoseMgr(object):
                     self.msg_if.pub_warn("Failed to register topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
 
 
-
-            ###################
-            # Add to Save Data IF
-            
-            if self.save_data_if is not None:
-                self.msg_if.pub_info("Registering new save data product for: " + str(frame_name) + ' : ' + str(data_product))
-                self.save_data_if.register_data_product(data_product)
-                self.data_products_list.append(data_product)
-        
 
             ###################
             # Add to times_dict 
@@ -962,11 +954,6 @@ class NavPoseMgr(object):
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to unregister topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
 
-            self.msg_if.pub_info("Removing navpose: " + str(frame_name))
-            if self.save_data_if is not None:
-                self.data_products_list.remove(self.navposes_info_dict[frame_name]['data_product'])
-                self.save_data_if.unregister_data_product(self.navposes_info_dict[frame_name]['data_product'])
-                
 
             # Remove from info dict
             self.navposes_info_dict_lock.acquire()
@@ -1396,6 +1383,11 @@ class NavPoseMgr(object):
         navposes_msg = NavPoses()
         navposes_msg.navpose_frames = []
         navposes_msg.navposes = []
+
+
+
+
+
         for frame_name in navposes_dict.keys():
             navpose_info_dict = copy.deepcopy(self.navposes_info_dict[frame_name])
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -1456,14 +1448,6 @@ class NavPoseMgr(object):
 
                 self.navposes_pub_times_dict[frame_name] = nepi_utils.get_time()
 
-
-            # Save Data if Needed
-            if self.save_data_if is not None:
-                data_product = navpose_info_dict['data_product']
-                self.save_data_if.save(data_product,navpose_dict)
-
-
-
         ####################
         # Publish NavPoses
         cur_time = nepi_utils.get_time()
@@ -1476,9 +1460,22 @@ class NavPoseMgr(object):
             self.node_if.publish_pub('navposes_pub',navposes_msg)
             self.last_navposes_pub_time = nepi_utils.get_time()
 
-        if self.save_data_if is not None:
-            self.save_data_if.save('navposes',self.navposes_solution_dict)
+        ##### Save Data if Needed
+        save_enabled = self.save_data_if.data_product_save_enabled('navposes') == True
+        should_save = self.save_data_if.data_product_should_save('navposes') == True
+        snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navposes') == True
+        add_navpose = save_enabled or snapshot_enabled
+        save_navpose = should_save or snapshot_enabled
+        if add_navpose:
+            time_ns = nepi_utils.get_time()
+            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = True, add_us = True, add_tz = True, timezone = True)
+            self.navposes_save_dict[data_time_str] = self.navposes_solution_dict
 
+        if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
+                self.save_data_if.save('navposes',self.navposes_save_dict)
+                self.navposes_save_dict = dict()
+                
+            
 
         delay = 0.1
         nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)

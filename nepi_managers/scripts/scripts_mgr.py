@@ -328,10 +328,12 @@ class ScriptsManager(object):
 
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            pass
-        if do_updates == True:
-            # Read the script_configs parameter from the ROS parameter server
-            self.update_script_configs()
+    
+            if do_updates == True:
+                # Read the script_configs parameter from the ROS parameter server
+                self.update_script_configs()
+            #self.publish_status()
+        
         
 
         

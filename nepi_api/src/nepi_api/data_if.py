@@ -172,6 +172,7 @@ class NavPoseIF:
 
     node_if = None
     save_data_if = None
+    save_data_enabled = True
 
     status_msg = NavPoseStatus()
 
@@ -207,6 +208,7 @@ class NavPoseIF:
                 pub_altitude = False, pub_depth = False,
                 pub_pan_tilt = False,
                 save_data_if = None,
+                save_data_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -324,18 +326,19 @@ class NavPoseIF:
 
 
         # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            'status_pub': {
+        self.PUBS_DICT = dict()
+
+        
+        if self.pub_navpose == True:
+        
+            self.PUBS_DICT['status_pub'] = {
                     'msg': NavPoseStatus,
                     'namespace': self.namespace,
                     'topic': 'status',
                     'qsize': 1,
                     'latch': True
                 }
-        }
-        
-        if self.pub_navpose == True:
-            self.PUBS_DICT['data_pub'] = {
+            self.PUBS_DICT['navpose_pub'] = {
                     'msg': NavPose,
                     'namespace': self.namespace,
                     'topic': '',
@@ -432,41 +435,44 @@ class NavPoseIF:
         success = nepi_sdk.wait()
 
         ####################
-        self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
-        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
-        if save_data_if is not None and save_data_if != 'None':
-            self.save_data_if = save_data_if
-            data_products = self.save_data_if.get_data_products()
-            if self.data_product not in data_products:
-                self.save_data_if.register_data_product(self.data_product)
-        elif save_data_if != 'None':
-            
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
-            factory_data_rates= dict()
-            factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+        self.save_data_enabled = save_data_enabled
 
-            factory_filename_dict = {
-                'prefix': "", 
-                'add_timestamp': True, 
-                'add_ms': True,
-                'add_us': False,
-                'suffix': "",
-                'add_node_name': True
-                }
+        if self.save_data_enabled == True:
+            self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
+            if save_data_if is not None and save_data_if != 'None':
+                self.save_data_if = save_data_if
+                data_products = self.save_data_if.get_data_products()
+                if self.data_product not in data_products:
+                    self.save_data_if.register_data_product(self.data_product)
+            elif save_data_if != 'None':
+                
+                # Setup Save Data IF Class 
+                self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+                factory_data_rates= dict()
+                factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
-            sd_namespace = self.namespace
-            self.save_data_if = SaveDataIF(namespace = sd_namespace,
-                                    data_products = [self.data_product],
-                                    factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict,
-                                    log_name_list = self.log_name_list,
-                                    msg_if = self.msg_if)
-            nepi_sdk.sleep(1)
+                factory_filename_dict = {
+                    'prefix': "", 
+                    'add_timestamp': True, 
+                    'add_ms': True,
+                    'add_us': False,
+                    'suffix': "",
+                    'add_node_name': True
+                    }
 
-        if self.save_data_if is not None:
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
+                sd_namespace = self.namespace
+                self.save_data_if = SaveDataIF(namespace = sd_namespace,
+                                        data_products = [self.data_product],
+                                        factory_rate_dict = factory_data_rates,
+                                        factory_filename_dict = factory_filename_dict,
+                                        log_name_list = self.log_name_list,
+                                        msg_if = self.msg_if)
+                nepi_sdk.sleep(1)
+
+            if self.save_data_if is not None:
+                self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
 
@@ -692,7 +698,7 @@ class NavPoseIF:
 
                 if data_msg is not None:
                     try:
-                        self.node_if.publish_pub('data_pub', data_msg)
+                        self.node_if.publish_pub('navpose_pub', data_msg)
                         self.status_msg.publishing = True
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -791,11 +797,13 @@ class NavPoseIF:
 
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
         if self.save_data_if is not None:
             needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
             needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)
-        needs_data = has_subs or needs_save or needs_snapshot
+            needs_data = has_subs or needs_save or needs_snapshot
+        else:
+            needs_data = has_subs
         if needs_data == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.needs_data = needs_data
