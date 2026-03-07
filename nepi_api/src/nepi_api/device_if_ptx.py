@@ -98,6 +98,8 @@ class PTXActuatorIF:
     has_adjustable_speed = False
     has_homing = False
     has_set_home = False
+    has_limit_controls = False
+    has_calibration = False
     
 
 
