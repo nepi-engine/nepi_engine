@@ -36,6 +36,7 @@ import string
 import math
 import pwd
 import grp
+import glob
 
 import pytz
 import datetime
@@ -786,6 +787,38 @@ def chown_recursive(path, user = 'nepi', group  = 'nepi'):
     return success
 
 
+def check_path_space(path, required_percent):
+    space_good = False
+    if os.path.exists(path) == True:
+        usage = shutil.disk_usage(path)
+        percent_used = (usage.used / usage.total) * 100
+        check_percent = 100 - required_percent
+        if percent_used <= check_percent:
+            space_good = True
+    return space_good
+
+def free_path_space(path, required_percent=10):
+    """Deletes oldest files if disk usage exceeds to keep threshold free space percent."""
+    if os.path.exists(path) == True:
+        if required_percent < 5:
+            required_percent = 5
+        if required_percent > 50:
+            required_percent = 50
+        check_percent = 100 - required_percent
+        usage = shutil.disk_usage(path)
+        percent_used = (usage.used / usage.total) * 100
+        if percent_used <= check_percent:
+            return
+        # Get files sorted by modification time (oldest first)
+        files = sorted(glob.glob(os.path.join(path, '*')), key=os.path.getmtime)
+        
+        for file in files:
+            if shutil.disk_usage(path).percent <= required_percent:
+                break
+            if os.path.isfile(file):
+                os.remove(file)
+    success = check_path_space(path, required_percent)
+    return success
 #########################
 ### List Helper Functions
 

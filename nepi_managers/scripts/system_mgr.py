@@ -139,7 +139,8 @@ class SystemMgrNode():
 
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
-
+    disk_required_percent = 10
+    disk_clean_percent = 10
 
     in_container = False
 
@@ -1108,6 +1109,19 @@ class SystemMgrNode():
                 self.node_if.set_param('managers_active_list', self.managers_active_list)
                 self.msg_if.pub_warn("Config Mgr Ready. Saving System Config with managers dict: " + str(self.managers_dict))
                 self.node_if.save_config()
+
+
+        ###############
+        # Check free disk space
+        data_path = os.path.join(self.storage_folder, 'data')
+        space_good = nepi_utils.check_path_space(data_path,self.disk_required_percent)
+        if space_good == False:
+            self.msg_if.pub_warn("Data folder minimum free space percent limit reached: " + str(self.disk_required_percent))
+            free_space = self.disk_required_percent + self.disk_clean_percent
+            self.msg_if.pub_warn("Deleting old data files to free up space in folder: " + str(data_path))
+            nepi_utils.free_path_space(data_path,free_space)
+        
+            
 
         nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
