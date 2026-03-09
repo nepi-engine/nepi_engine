@@ -568,7 +568,7 @@ class NepiDriversMgr(object):
       drv_dict = self.drvs_dict[driver_name]
       drv_dict['user_cfg_path'] = self.user_cfg_folder
       #self.msg_if.pub_warn( "Checking on driver discovery for: " + driver_name)
-      if drv_dict['DISCOVERY_DICT']['file_name'] != "None":
+      if True: #drv_dict['DISCOVERY_DICT']['file_name'] != "None":
         discovery_path = drv_dict['path']
         discovery_file = drv_dict['DISCOVERY_DICT']['file_name']
         discovery_class_name = drv_dict['DISCOVERY_DICT']['class_name']
@@ -679,45 +679,45 @@ class NepiDriversMgr(object):
             self.msg_if.pub_info("Instantiated discovery settings IF class " + discovery_node_name + " for driver " + driver_name)
 
 
-      ####################
-      ## Check Driver Node Status
-      if discovery_process == "LAUNCH": 
-        if driver_name in self.discovery_node_dict.keys():
-          node_name = self.discovery_node_dict[driver_name]['node_name']
-          running = nepi_sdk.check_node_by_name(node_name)  
-          self.drvs_dict[driver_name]['running'] = running
-          if running == True:
-            self.drvs_dict[driver_name]['msg'] = "Application running"
-            if was_running == False:
-              self.msg_if.pub_warn("Driver Running: " + node_name)
-              self.publish_status()
-          elif running == False:
-            if was_running == True:
-              self.drvs_dict[driver_name]['msg'] = "Application stopped running"
-              self.publish_status()
-        else:
-          self.drvs_dict[driver_name]['running'] = False
-          self.drvs_dict[driver_name]['msg'] = "Application not running"
+        ####################
+        ## Check Driver Node Status
+        if discovery_process == "LAUNCH": 
+          if driver_name in self.discovery_node_dict.keys():
+            node_name = self.discovery_node_dict[driver_name]['node_name']
+            running = nepi_sdk.check_node_by_name(node_name)  
+            self.drvs_dict[driver_name]['running'] = running
+            if running == True:
+              self.drvs_dict[driver_name]['msg'] = "Application running"
+              if was_running == False:
+                self.msg_if.pub_warn("Driver Running: " + node_name)
+                self.publish_status()
+            elif running == False:
+              if was_running == True:
+                self.drvs_dict[driver_name]['msg'] = "Application stopped running"
+                self.publish_status()
+          else:
+            self.drvs_dict[driver_name]['running'] = False
+            self.drvs_dict[driver_name]['msg'] = "Application not running"
 
-        # do_check = False
-        # if driver_name in self.discovery_node_dict.keys():
-        #   # Check if still running
-        #   launch_time = self.discovery_node_dict[driver_name]['launch_time']
-        #   cur_time = nepi_sdk.get_time()
-        #   do_check = (cur_time - launch_time) > self.NODE_LAUNCH_TIME_SEC
+          # do_check = False
+          # if driver_name in self.discovery_node_dict.keys():
+          #   # Check if still running
+          #   launch_time = self.discovery_node_dict[driver_name]['launch_time']
+          #   cur_time = nepi_sdk.get_time()
+          #   do_check = (cur_time - launch_time) > self.NODE_LAUNCH_TIME_SEC
 
-        # if was_running == True and do_check == True:
-          
-        #   self.msg_if.pub_warn("Driver Stopped Running: " + node_name)
-        #   remove_from_dict = True
-        #   if retry == False:
-        #     self.msg_if.pub_warn("Node not running: " + node_name  + " - Will not restart")
-        #     self.failed_class_import_list.append(driver_name)
-        #   else:
-        #     self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
-        #   drvs_dict[driver_name]['msg'] = "Application stopped running"
-        #   self.drvs_dict[driver_name]['active'] = False
-      
+          # if was_running == True and do_check == True:
+            
+          #   self.msg_if.pub_warn("Driver Stopped Running: " + node_name)
+          #   remove_from_dict = True
+          #   if retry == False:
+          #     self.msg_if.pub_warn("Node not running: " + node_name  + " - Will not restart")
+          #     self.failed_class_import_list.append(driver_name)
+          #   else:
+          #     self.msg_if.pub_warn("Node not running: " + node_name  + " - Will attempt restart")
+          #   drvs_dict[driver_name]['msg'] = "Application stopped running"
+          #   self.drvs_dict[driver_name]['active'] = False
+        
       if driver_name in self.discovery_settings_dict.keys():
         self.publishDiscoverySettingsStatus(driver_name) 
         

@@ -290,7 +290,14 @@ def getDriversOrderedList(drvs_dict):
     ordered_name_list[index] = name_list[i]
   return ordered_name_list
 
-
+def getDriversByActive(drvs_dict):
+  active_dict = dict()
+  for drv_name in drvs_dict.keys():
+    drv_dict = drvs_dict[drv_name]
+    driver_active = drv_dict['active']
+    if driver_active == True:
+      active_dict[drv_name] = drv_dict
+  return active_dict
 
 def getDriverFilesList(drivers_path):
   drivers_list = []
