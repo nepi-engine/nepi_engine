@@ -1107,7 +1107,7 @@ class SystemMgrNode():
             if len(list(config_folders.keys())) != 0:
                 self.config_saved = True
                 self.node_if.set_param('managers_active_list', self.managers_active_list)
-                self.msg_if.pub_warn("Config Mgr Ready. Saving System Config with managers dict: " + str(self.managers_dict))
+                #self.msg_if.pub_warn("Config Mgr Ready. Saving System Config with managers dict: " + str(self.managers_dict))
                 self.node_if.save_config()
 
 
