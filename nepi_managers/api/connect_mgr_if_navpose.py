@@ -51,8 +51,7 @@ from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
-from nepi_interfaces.msg import Transform, Transforms
-from nepi_interfaces.srv import TransformsQuery, TransformsQueryRequest, TransformsQueryResponse
+from nepi_interfaces.msg import Transform
 
 from nepi_interfaces.msg import SaveDataRate
 
