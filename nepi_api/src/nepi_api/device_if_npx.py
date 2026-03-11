@@ -497,7 +497,7 @@ class NPXDeviceIF:
         self.navpose_if = NavPoseIF(namespace = np_namespace,
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
-                            pub_navpose = False,
+                            pub_navpose = True,
                             pub_location = self.has_location,
                             pub_heading = self.has_heading,
                             pub_orientation =  self.has_orientation,
