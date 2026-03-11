@@ -52,7 +52,7 @@ from nepi_interfaces.srv import MgrNavPoseCapabilitiesQuery, MgrNavPoseCapabilit
 from nepi_interfaces.srv import NavPosesQuery, NavPosesQueryRequest, NavPosesQueryResponse
 
 
-from nepi_interfaces.msg import Transform, Transforms
+from nepi_interfaces.msg import Transform
 #from nepi_interfaces.srv import TransformsRegister, TransformsRegisterRequest, TransformsRegisterResponse
 #from nepi_interfaces.srv import TransformsDelete, TransformsDeleteRequest, TransformsDeleteResponse
 
