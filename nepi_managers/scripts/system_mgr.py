@@ -116,7 +116,7 @@ class SystemMgrNode():
                             "system_cfg"]
     
 
-    RUI_RESTRICTION_OPTIONS =  \
+    USER_RESTRICTION_OPTIONS =  \
         ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
         'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
         ['SYSTEM-ADMIN','SYSTEM-MESSAGES','SYSTEM-SAVE','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES','SYSTEM-TRANSFORMS',] + \
@@ -164,18 +164,19 @@ class SystemMgrNode():
     managers_base_list = nepi_mgrs.BASE_MANAGERS
     managers_failed_list = []
     managers_active_list = []
+    managers_active_list_last = []
     managers_running_list = []
     managers_param_folder = '/opt/nepi/nepi_engine/share/nepi_managers/params'
     
     run_mode = 'deploy'
     debug_mode_enabled = False
 
-    rui_restriction_options = RUI_RESTRICTION_OPTIONS
-    rui_restrictions = []
+    user_restriction_options = USER_RESTRICTION_OPTIONS
+    user_restrictions = []
 
-    rui_login_enabled = False
-    rui_login_password = None
-    rui_login_password_valid = False
+    user_login_enabled = False
+    user_login_password = None
+    user_login_password_valid = False
 
 
 
@@ -223,7 +224,7 @@ class SystemMgrNode():
         # stat_info = os.stat(self.storage_folder)
         # self.folders_uid = stat_info.st_uid
         # self.folders_gid = stat_info.st_gid
-        self.rui_login_password = self.nepi_config['NEPI_USER_PW']
+        self.user_login_password = self.nepi_config['NEPI_USER_PW']
         self.admin_password = self.nepi_config['NEPI_ADMIN_PW']
         self.folders_uid = self.nepi_config['NEPI_USER']
         self.folders_gid = self.nepi_config['NEPI_USER']
@@ -385,7 +386,7 @@ class SystemMgrNode():
 
 
         self.status_msg.sys_run_mode_options = self.RUN_MODES
-        self.status_msg.rui_restriction_options = self.rui_restriction_options
+        self.status_msg.user_restriction_options = self.user_restriction_options
         #self.status_msg.sys_managers_base_list = self.managers_base_list
         
         ### Load System Manager Params
@@ -402,6 +403,11 @@ class SystemMgrNode():
             params_dict = nepi_sdk.load_params_from_file(system_cfg_path,self.node_namespace)
             if len(list(params_dict.keys())) > 0:
                 self.msg_if.pub_warn("Loaded System Manager Params from: " + str(system_cfg_path) + " : " + str(params_dict))
+        # system_cfg_file = self.node_name + '.yaml'
+        # system_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['system_cfg'],system_cfg_file)
+        # params_dict = nepi_sdk.load_params_from_file(system_cfg_path,self.node_namespace)
+        # if len(list(params_dict.keys())) > 0:
+        #     self.msg_if.pub_warn("Loaded System Manager Params from: " + str(system_cfg_path) + " : " + str(params_dict))
         nepi_sdk.sleep(1)
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
@@ -433,13 +439,17 @@ class SystemMgrNode():
                 'namespace': self.node_namespace,
                 'factory_val': self.run_mode
             },
-            'rui_restrictions': {
+            'user_restriction_options': {
                 'namespace': self.node_namespace,
-                'factory_val': []
+                'factory_val': self.user_restriction_options
             },
-            'rui_login_enabled': {
+            'user_restrictions': {
                 'namespace': self.node_namespace,
-                'factory_val': self.rui_login_enabled
+                'factory_val': self.user_restrictions
+            },
+            'user_login_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.user_login_enabled
             },
             'storage_folder': {
                 'namespace': self.node_namespace,
@@ -575,36 +585,36 @@ class SystemMgrNode():
                 'callback': self.enableDebugCb, 
                 'callback_args': ()
             },
-            'add_rui_restriction': {
+            'add_user_restriction': {
                 'namespace': self.base_namespace,
-                'topic': 'add_rui_restriction',
+                'topic': 'add_user_restriction',
                 'msg': String,
                 'qsize': None,
-                'callback': self.addRuiRestrictionCb, 
+                'callback': self.addUserRestrictionCb, 
                 'callback_args': ()
             },
-            'remove_rui_restriction': {
+            'remove_user_restriction': {
                 'namespace': self.base_namespace,
-                'topic': 'remove_rui_restriction',
+                'topic': 'remove_user_restriction',
                 'msg': String,
                 'qsize': None,
-                'callback': self.removeRuiRestrictionCb, 
+                'callback': self.removeUserRestrictionCb, 
                 'callback_args': ()
             },
-            'enable_rui_login': {
+            'enable_user_login': {
                 'namespace': self.base_namespace,
-                'topic': 'rui_login_mode_enable',
+                'topic': 'user_login_mode_enable',
                 'msg': Bool,
                 'qsize': None,
-                'callback': self.enableRuiLoginCb, 
+                'callback': self.enableUserLoginCb, 
                 'callback_args': ()
             },
-            'set_rui_login_password': {
+            'set_user_login_password': {
                 'namespace': self.base_namespace,
-                'topic': 'set_rui_login_password',
+                'topic': 'set_user_login_password',
                 'msg': String,
                 'qsize': None,
-                'callback': self.setRuiLoginPasswordCb, 
+                'callback': self.setUserLoginPasswordCb, 
                 'callback_args': ()
             },  
             'save_data': {
@@ -818,15 +828,15 @@ class SystemMgrNode():
             #self.admin_enabled = self.node_if.get_param('admin_enabled')
             self.managers_active_list = self.node_if.get_param('managers_active_list')
             #self.run_mode = self.node_if.get_param('run_mode')
-            self.rui_restrictions = self.node_if.get_param('rui_restrictions')
-            self.rui_login_enabled = self.node_if.get_param('rui_login_enabled')
+            self.user_restriction_options = self.node_if.get_param('user_restriction_options')
+            self.user_restrictions = self.node_if.get_param('user_restrictions')
+            self.user_login_enabled = self.node_if.get_param('user_login_enabled')
 
             if do_updates == True:
                 self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+                for manager_name in self.managers_dict:
+                    self.managers_dict[manager_name]['active'] = manager_name in self.managers_active_list
                 self.updateSystemAdminSettings()
-                managers_dict = copy.deepcopy(self.managers_dict) 
-                self.managers_active_list = nepi_mgrs.getManagersActiveList(managers_dict)
-                self.msg_if.pub_warn("Got Init Managers Dict: " + str(managers_dict))
                 if self.node_if is not None:
                     self.node_if.set_param('managers_active_list', self.managers_active_list)
             self.publish_status() 
@@ -1040,9 +1050,13 @@ class SystemMgrNode():
         needs_update = False
         managers_dict = copy.deepcopy(self.managers_dict)
         managers_ordered_list = nepi_mgrs.getManagersOrderedList(managers_dict)
-        managers_active_list = nepi_mgrs.getManagersActiveList(managers_dict)
-        needs_update = (managers_active_list != self.managers_active_list)
-
+        managers_active_list_last = self.managers_active_list_last
+        managers_active_list = self.managers_active_list
+        if (managers_active_list != managers_active_list_last):
+            needs_update = True
+            for manager_name in self.managers_dict:
+                self.managers_dict[manager_name]['active'] = manager_name in managers_active_list
+        self.managers_active_list_last = copy.deepcopy(self.managers_active_list)
 
         ####################
         # Running process check
@@ -1059,25 +1073,25 @@ class SystemMgrNode():
         if self.managers_running_list != managers_running_list:
             needs_update = True
 
-        # ####################
-        # # Run purge process check
-        # purge_list = []
-        # for manager_name in self.managers_process_dict.keys():
-        #     if manager_name not in managers_active_list:
-        #         purge_list.append(manager_name)
-        # for manager_name in purge_list:
-        #     node_namespace = managers_dict[manager_name]['node_namespace']
-        #     subprocess = self.managers_process_dict[manager_name]
-        #     self.msg_if.pub_warn("Killing Deactivated Manager: " + str(manager_name))
-        #     success = nepi_mgrs.killManagerNode(node_namespace,subprocess)
-        #     del self.managers_process_dict[manager_name]
-        #     needs_update = True
+        ####################
+        # Run purge process check
+        purge_list = []
+        for manager_name in self.managers_process_dict.keys():
+            if manager_name not in managers_active_list:
+                purge_list.append(manager_name)
+        for manager_name in purge_list:
+            node_namespace = managers_dict[manager_name]['node_namespace']
+            subprocess = self.managers_process_dict[manager_name]
+            self.msg_if.pub_warn("Killing Deactivated Manager: " + str(manager_name))
+            success = nepi_mgrs.killManagerNode(node_namespace,subprocess)
+            del self.managers_process_dict[manager_name]
+            needs_update = True
 
 
         ####################
         # Launch process check
-        for manager_name in managers_active_list:
-            if manager_name not in self.managers_process_dict.keys() and manager_name not in self.managers_failed_list:
+        for manager_name in managers_ordered_list:
+            if  manager_name in managers_active_list and manager_name not in self.managers_process_dict.keys() and manager_name not in self.managers_failed_list:
                 file_name = managers_dict[manager_name]['node_file']
                 node_name = managers_dict[manager_name]['node_name']
                 etc_file = managers_dict[manager_name]['etc_file']
@@ -1139,15 +1153,15 @@ class SystemMgrNode():
         self.status_msg.sys_debug_enabled = self.debug_mode_enabled
 
 
-        self.status_msg.rui_restrictions = self.rui_restrictions
-        rui_restricted = []
+        self.status_msg.user_restrictions = self.user_restrictions
+        user_restricted = []
         if self.run_mode == 'deploy':
-            rui_restricted = self.rui_restrictions
-        self.status_msg.rui_restricted = rui_restricted
+            user_restricted = self.user_restrictions
+        self.status_msg.user_restricted = user_restricted
 
-        self.rui_login_mode_set = self.rui_login_enabled and self.rui_login_password_valid
-        self.status_msg.rui_login_enabled = self.rui_login_enabled
-        self.status_msg.rui_login_password_valid = self.rui_login_password_valid 
+        self.user_login_mode_set = self.user_login_enabled and self.user_login_password_valid
+        self.status_msg.user_login_enabled = self.user_login_enabled
+        self.status_msg.user_login_password_valid = self.user_login_password_valid 
 
 
 
@@ -1190,41 +1204,44 @@ class SystemMgrNode():
         self.updateSystemAdminSettings()
 
 
-    def enableRuiLoginCb(self, msg):
+    def enableUserLoginCb(self, msg):
         if self.admin_mode_set == True:
-            self.rui_login_enabled = msg.data
+            self.user_login_enabled = msg.data
             self.updateSystemAdminSettings()
             if self.node_if is not None:
-                self.node_if.set_param('rui_login_enabled',msg.data)
+                self.node_if.set_param('user_login_enabled',msg.data)
                 self.node_if.save_config()
 
-    def setRuiLoginPasswordCb(self, msg):
+    def setUserLoginPasswordCb(self, msg):
         if self.admin_mode_set == True:
             password = msg.data
-            if password == self.rui_login_password:
-                self.rui_login_password_valid = True
+            if password == self.user_login_password:
+                self.user_login_password_valid = True
                 self.updateSystemAdminSettings()
 
 
-    def addRuiRestrictionCb(self, msg):
+    def addUserRestrictionCb(self, msg):
         if self.admin_mode_set == True:
             name = msg.data
-            if name not in self.rui_restrictions:
-                self.rui_restrictions.append(name)
+            if name not in self.user_restriction_options:
+                self.user_restriction_options.append(name)
+
+            if name not in self.user_restrictions:
+                self.user_restrictions.append(name)
                 self.updateSystemAdminSettings()
-                if self.node_if is not None:
-                    self.node_if.set_param('rui_restrictions',self.rui_restrictions)
-                    self.node_if.save_config()
+        if self.node_if is not None:
+            self.node_if.set_param('user_restrictions',self.user_restrictions)
+            self.node_if.save_config()
 
 
-    def removeRuiRestrictionCb(self, msg):
+    def removeUserRestrictionCb(self, msg):
         if self.admin_mode_set == True:
             name = msg.data
-            if name in self.rui_restrictions:  
-                self.rui_restrictions.remove(name)
+            if name in self.user_restrictions:  
+                self.user_restrictions.remove(name)
                 self.updateSystemAdminSettings()
                 if self.node_if is not None:
-                    self.node_if.set_param('rui_restrictions',self.rui_restrictions)
+                    self.node_if.set_param('user_restrictions',self.user_restrictions)
                     self.node_if.save_config()
 
 
@@ -1235,8 +1252,8 @@ class SystemMgrNode():
         self.msg_if.pub_info("Got enable all msg: " + str(msg))
         mgrs_names = list(self.managers_dict.keys())
         for manager_name in mgrs_names and manager_name not in self.managers_base_list:
-            self.managers_dict[manager_name]['active'] = True
-            self.managers_active_list = nepi_mgrs.getManagersActiveList(self.managers_dict)
+            if manager_name not in self.managers_active_list:
+                self.managers_active_list.append(manager_name)
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("managers_active_list",self.managers_active_list)
@@ -1246,8 +1263,8 @@ class SystemMgrNode():
         self.msg_if.pub_info("Got disable all msg: " + str(msg))
         mgrs_names = list(self.managers_dict.keys())
         for manager_name in mgrs_names and manager_name not in self.managers_base_list:
-            self.managers_dict[manager_name]['active'] = False
-            self.managers_active_list = nepi_mgrs.getManagersActiveList(self.managers_dict)
+            if manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("managers_active_list",self.managers_active_list)
@@ -1257,12 +1274,14 @@ class SystemMgrNode():
     def updateStateCb(self,msg):
         self.msg_if.pub_info("Got update manager state msg: " + str(msg))
         manager_name = msg.name
-        new_enabled = msg.value
+        enabled = msg.value
         mgrs_names = list(self.managers_dict.keys())
         if manager_name in mgrs_names and manager_name not in self.managers_base_list:
-            self.managers_dict[manager_name]['active'] = new_enabled
-            self.msg_if.pub_warn("State Update setting drv : " + str(manager_name) + " to active state: " + str(new_enabled))
-            self.managers_active_list = nepi_mgrs.getManagersActiveList(self.managers_dict)
+
+            if enabled == True and manager_name not in self.managers_active_list:
+                self.managers_active_list.append(manager_name)
+            elif enabled == False and manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("managers_active_list",self.managers_active_list)
@@ -1277,9 +1296,8 @@ class SystemMgrNode():
         moveFunction = self.getOrderUpdateFunction(move_cmd)
         managers_dict = copy.deepcopy(self.managers_dict)
         if manager_name in managers_dict.keys() and manager_name not in self.managers_base_list:
-            managers_dict = moveFunction(manager_name,managers_dict)
-            self.managers_dict = managers_dict
-            self.managers_active_list = nepi_mgrs.getManagersActiveList(self.managers_dict)
+            if manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("managers_active_list",self.managers_active_list)

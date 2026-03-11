@@ -9,6 +9,6 @@ managers_active_list:
 - MANAGER-DRIVERS
 op_environment: air
 rui_login_enabled: false
-rui_restrictions: []
+user_restrictions: []
 run_mode: deploy
 storage_folder: /mnt/nepi_storage

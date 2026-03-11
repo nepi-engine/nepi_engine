@@ -254,6 +254,9 @@ class NodeConfigsIF:
         if self.resetCb is not None and not nepi_sdk.is_shutdown():
            self.resetCb() # Callback provided by container class to update based on param server, etc.
 
+    def factory_save_config(self):
+        self.msg_if.pub_warn("Factory Saving Config: " + str(self.namespace))
+
 
     def factory_reset_config(self):
         self.msg_if.pub_warn("Factory Resetting Config: " + str(self.namespace))
@@ -283,6 +286,9 @@ class NodeConfigsIF:
 
     def _resetCb(self,msg):
         self.reset_config() 
+
+    def _factorySaveCb(self,msg):
+        self.factory_save_config()
 
     def _factoryResetCb(self,msg):
         self.factory_reset_config()

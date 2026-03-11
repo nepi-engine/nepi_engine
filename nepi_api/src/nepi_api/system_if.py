@@ -48,7 +48,7 @@ from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
 
 
-from nepi_interfaces.msg import Frame3DTransform, Frame3DTransformStatus
+from nepi_interfaces.msg import Transform, TransformStatus
 
 from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
@@ -1404,7 +1404,7 @@ class Transform3DIF:
     has_transform = True
     supports_updates = True
 
-    status_msg = Frame3DTransformStatus()
+    status_msg = TransformStatus()
     
     #######################
     ### IF Initialization
@@ -1487,14 +1487,14 @@ class Transform3DIF:
         self.PUBS_DICT = {
             'status_pub': {
                 'namespace': self.namespace,
-                'msg': Frame3DTransformStatus,
+                'msg': TransformStatus,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'transform_pub': {
                 'namespace': self.namespace,
-                'msg': Frame3DTransform,
+                'msg': Transform,
                 'topic': '',
                 'qsize': 1,
                 'latch': True
@@ -1518,7 +1518,7 @@ class Transform3DIF:
                 'set_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'set_3d_transform',
-                    'msg': Frame3DTransform,
+                    'msg': Transform,
                     'qsize': 5,
                     'callback': self._setFrame3dTransformCb, 
                     'callback_args': ()

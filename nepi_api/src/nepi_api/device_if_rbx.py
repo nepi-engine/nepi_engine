@@ -56,7 +56,7 @@ from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, Device
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
 from nepi_interfaces.msg import NavPose, NavPoses
-from nepi_interfaces.msg import Frame3DTransform
+from nepi_interfaces.msg import Transform
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF

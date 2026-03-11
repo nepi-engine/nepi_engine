@@ -43,8 +43,8 @@ from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
 from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 from nepi_interfaces.msg import NavPosePanTilt
 
-from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_interfaces.msg import Transform, Transforms
+from nepi_interfaces.srv import TransformsQuery, TransformsQueryRequest, TransformsQueryResponse
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
 from nepi_sdk import nepi_sdk
@@ -129,6 +129,135 @@ def get_navpose_comp_publisher_namespaces(name):
       msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
       [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list)
     return topic_list,msg_list
+
+
+
+
+def update_navpose_offsets_dict_from_updates(np_offsets_dict, npdata_dict_org, npdata_update_new, npdata_update_last, comp_name, update_on_crossing = False, update_crossing = 0):
+    success = False
+    np_dict = copy.deepcopy(np_offsets_dict)
+    if npdata_dict_org is not None and npdata_update_new is not None  and npdata_update_last is not None:
+      try:
+        if npdata_update_new['has_location'] == True and comp_name == 'location':
+            if update_on_crossing == False:
+              np_offsets_dict['time_location'] = npdata_update_new['time_location']
+              np_offsets_dict['latitude'] = npdata_update_new['latitude']
+              np_offsets_dict['longitude'] = npdata_update_new['longitude']
+            elif npdata_update_last['has_location'] == True:
+              np_offsets_dict['time_location'] = npdata_update_new['time_location']
+              np_offsets_dict['latitude'] = npdata_update_new['latitude'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['latitude'], npdata_update_last['latitude']) else np_offsets_dict['latitude']
+              np_offsets_dict['longitude'] = npdata_update_new['longitude'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['longitude'], npdata_update_last['longitude']) else np_offsets_dict['longitude']
+            
+        if npdata_update_new['has_heading'] == True and comp_name == 'heading':
+            if update_on_crossing == False:
+              np_offsets_dict['time_heading'] = npdata_update_new['time_heading']
+              np_offsets_dict['heading'] = npdata_dict_org['heading'] - npdata_update_new['heading']
+            elif npdata_update_last['has_heading'] == True:
+              np_offsets_dict['time_heading'] = npdata_update_new['time_heading']
+              np_offsets_dict['heading'] = npdata_dict_org['heading'] - npdata_update_new['heading'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['heading'], npdata_update_last['heading']) else np_offsets_dict['heading']
+
+        if npdata_update_new['has_orientation'] == True and comp_name == 'orientation':
+            if update_on_crossing == False:
+              np_offsets_dict['time_orientation'] = npdata_update_new['time_orientation']
+              np_offsets_dict['roll_deg'] = npdata_dict_org['roll_deg'] - npdata_update_new['roll_deg']
+              np_offsets_dict['pitch_deg'] = npdata_dict_org['pitch_deg'] - npdata_update_new['pitch_deg']
+              np_offsets_dict['yaw_deg'] = npdata_dict_org['yaw_deg'] - npdata_update_new['yaw_deg']
+            elif npdata_update_last['has_orientation'] == True:
+              np_offsets_dict['time_orientation'] = npdata_update_new['time_orientation']
+              np_offsets_dict['roll_deg'] = npdata_dict_org['roll_deg'] - npdata_update_new['roll_deg'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['roll_deg'], npdata_update_last['roll_deg']) else np_offsets_dict['roll_deg']
+              np_offsets_dict['pitch_deg'] = npdata_dict_org['pitch_deg'] - npdata_update_new['pitch_deg'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['pitch_deg'], npdata_update_last['pitch_deg']) else np_offsets_dict['pitch_deg']
+              np_offsets_dict['yaw_deg'] = npdata_dict_org['yaw_deg'] - npdata_update_new['yaw_deg'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['yaw_deg'], npdata_update_last['yaw_deg']) else np_offsets_dict['yaw_deg']
+
+        if npdata_update_new['has_position'] == True and comp_name == 'position':
+            if update_on_crossing == False:
+              np_offsets_dict['time_position'] = npdata_update_new['time_position']
+              np_offsets_dict['x_m'] = npdata_dict_org['x_m'] - npdata_update_new['x_m']
+              np_offsets_dict['y_m'] = npdata_dict_org['y_m'] - npdata_update_new['y_m']
+              np_offsets_dict['z_m'] = npdata_dict_org['z_m'] - npdata_update_new['z_m']
+            elif npdata_update_last['has_position'] == True:
+              np_offsets_dict['time_position'] = npdata_update_new['time_location']
+              np_offsets_dict['x_m'] = npdata_dict_org['x_m'] - npdata_update_new['x_m'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['x_m'], npdata_update_last['x_m']) else np_offsets_dict['x_m']
+              np_offsets_dict['y_m'] = npdata_dict_org['y_m'] - npdata_update_new['y_m'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['y_m'], npdata_update_last['y_m']) else np_offsets_dict['y_m']
+              np_offsets_dict['z_m'] = npdata_dict_org['z_m'] - npdata_update_new['z_m'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['z_m'], npdata_update_last['z_m']) else np_offsets_dict['z_m']
+
+        if npdata_update_new['has_altitude'] == True and comp_name == 'altitude':
+            if update_on_crossing == False:
+              np_offsets_dict['time_altitude'] = npdata_update_new['time_altitude']
+              np_offsets_dict['altitude_m'] = npdata_dict_org['altitude_m'] - npdata_update_new['altitude_m']
+            elif npdata_update_last['has_altitude'] == True:
+              np_offsets_dict['time_altitude'] = npdata_update_new['time_altitude']
+              np_offsets_dict['altitude_m'] = npdata_dict_org['altitude_m'] - npdata_update_new['altitude_m'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['altitude_m'], npdata_update_last['altitude_m']) else np_offsets_dict['altitude_m']
+
+        if npdata_update_new['has_depth'] == True and comp_name == 'depth':
+            if update_on_crossing == False:
+              np_offsets_dict['time_detph'] = npdata_update_new['time_depth']
+              np_offsets_dict['depth_m'] = npdata_dict_org['depth_m'] - npdata_update_new['depth_m']
+            elif npdata_update_last['has_depth'] == True:
+              np_offsets_dict['time_detph'] = npdata_update_new['time_detph']
+              np_offsets_dict['depth_m'] = npdata_dict_org['depth_m'] - npdata_update_new['depth_m'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['depth_m'], npdata_update_last['depth_m']) else np_offsets_dict['depth_m']
+
+        if npdata_update_new['has_pan_tilt'] == True and comp_name == 'pan_tilt':
+            if update_on_crossing == False:
+              np_offsets_dict['time_pan_tilt'] = npdata_update_new['time_pan_tilt']
+              np_offsets_dict['pan_deg'] = npdata_dict_org['pan_deg'] - npdata_update_new['pan_deg']
+              np_offsets_dict['tilt_deg'] = npdata_dict_org['tilt_deg'] - npdata_update_new['tilt_deg']
+            elif npdata_update_last['has_pan_tilt'] == True:
+              np_offsets_dict['time_pan_tilt'] = npdata_update_new['time_pan_tilt']
+              np_offsets_dict['pan_deg'] = npdata_dict_org['pan_deg'] - npdata_update_new['pan_deg'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['pan_deg'], npdata_update_last['pan_deg']) else np_offsets_dict['pan_deg']
+              np_offsets_dict['tilt_deg'] = npdata_dict_org['tilt_deg'] - npdata_update_new['tilt_deg'] if nepi_utils.value_is_between(update_crossing, npdata_update_new['tilt_deg'], npdata_update_last['tilt_deg']) else np_offsets_dict['tilt_deg']
+        np_dict = np_offsets_dict
+      except:
+        pass
+    return np_dict
+
+
+def update_navpose_dict_from_offsets(npdata_dict_org, np_offsets_dict):
+    success = False
+    np_dict = copy.deepcopy(npdata_dict_org)
+    if npdata_dict_org is not None and np_offsets_dict is not None:
+      try:
+        if np_offsets_dict['has_location'] == True:
+              npdata_dict_org['time_location'] = np_offsets_dict['time_location']
+              npdata_dict_org['latitude'] = np_offsets_dict['latitude']
+              npdata_dict_org['longitude'] = np_offsets_dict['longitude']
+           
+            
+        if np_offsets_dict['has_heading'] == True:
+              npdata_dict_org['time_heading'] = np_offsets_dict['time_heading']
+              npdata_dict_org['heading'] = npdata_dict_org['heading'] + np_offsets_dict['heading']
+      
+
+        if np_offsets_dict['has_orientation'] == True:
+              npdata_dict_org['time_orientation'] = np_offsets_dict['time_orientation']
+              npdata_dict_org['roll_deg'] = npdata_dict_org['roll_deg'] + np_offsets_dict['roll_deg']
+              npdata_dict_org['pitch_deg'] = npdata_dict_org['pitch_deg'] + np_offsets_dict['pitch_deg']
+              npdata_dict_org['yaw_deg'] = npdata_dict_org['yaw_deg'] + np_offsets_dict['yaw_deg']
+
+
+        if np_offsets_dict['has_position'] == True:
+              npdata_dict_org['time_position'] = np_offsets_dict['time_position']
+              npdata_dict_org['x_m'] = npdata_dict_org['_'] + np_offsets_dict['x_m']
+              npdata_dict_org['y_m'] = npdata_dict_org['y_m'] + np_offsets_dict['y_m']
+              npdata_dict_org['z_m'] = npdata_dict_org['z_m'] + np_offsets_dict['z_m']
+
+
+        if np_offsets_dict['has_altitude'] == True:
+              npdata_dict_org['time_altitude'] = np_offsets_dict['time_altitude']
+              npdata_dict_org['altitude_m'] = npdata_dict_org['altitude_m'] + np_offsets_dict['altitude_m']
+        
+        if np_offsets_dict['has_depth'] == True:
+              npdata_dict_org['time_detph'] = np_offsets_dict['time_depth']
+              npdata_dict_org['depth_m'] = npdata_dict_org['depth_m'] + np_offsets_dict['depth_m']
+         
+
+        if np_offsets_dict['has_pan_tilt'] == True:
+              npdata_dict_org['time_pan_tilt'] = np_offsets_dict['time_pan_tilt']
+              npdata_dict_org['pan_deg'] = npdata_dict_org['pan_deg'] + np_offsets_dict['pan_deg']
+              npdata_dict_org['tilt_deg'] = npdata_dict_org['tilt_deg'] + np_offsets_dict['tilt_deg']
+        np_dict = npdata_dict_org
+      except:
+        pass
+    return np_dict
 
 
 def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
@@ -345,7 +474,7 @@ ZERO_TRANSFORM = [0,0,0,0,0,0,0]
 
 
 def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = ''):
-  transform_msg = Frame3DTransform()
+  transform_msg = Transform()
   transform_msg.source_ref_description = source_ref_description
   transform_msg.end_ref_description = end_ref_description
   if len(transform_list) == 7:
@@ -678,38 +807,38 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
 
       np_msg.has_heading = npdata_dict['has_heading']
-      np_msg.time_heading = npdata_dict['time_heading']
-      np_msg.heading_deg = npdata_dict['heading_deg']
+      np_msg.time_heading = npdata_dict['time_heading'] if np_msg.has_heading else 0.0
+      np_msg.heading_deg = npdata_dict['heading_deg'] if np_msg.has_heading else -999
 
       np_msg.has_orientation = npdata_dict['has_orientation']
-      np_msg.time_orientation = npdata_dict['time_orientation']
-      np_msg.roll_deg = npdata_dict['roll_deg']
-      np_msg.pitch_deg = npdata_dict['pitch_deg']
-      np_msg.yaw_deg = npdata_dict['yaw_deg']
+      np_msg.time_orientation = npdata_dict['time_orientation'] if np_msg.has_orientation else 0.0
+      np_msg.roll_deg = npdata_dict['roll_deg'] if np_msg.has_orientation else -999
+      np_msg.pitch_deg = npdata_dict['pitch_deg'] if np_msg.has_orientation else -999
+      np_msg.yaw_deg = npdata_dict['yaw_deg'] if np_msg.has_orientation else -999
 
       np_msg.has_position = npdata_dict['has_position']
-      np_msg.time_position = npdata_dict['time_position']
-      np_msg.x_m = npdata_dict['x_m']
-      np_msg.y_m = npdata_dict['y_m']
-      np_msg.z_m = npdata_dict['z_m']
+      np_msg.time_position = npdata_dict['time_position'] if np_msg.has_position else 0.0
+      np_msg.x_m = npdata_dict['x_m'] if np_msg.has_position else -999
+      np_msg.y_m = npdata_dict['y_m'] if np_msg.has_position else -999
+      np_msg.z_m = npdata_dict['z_m'] if np_msg.has_position else -999
 
       np_msg.has_location = npdata_dict['has_location']
-      np_msg.time_location = npdata_dict['time_location']
-      np_msg.latitude = npdata_dict['latitude']
-      np_msg.longitude = npdata_dict['longitude']
+      np_msg.time_location = npdata_dict['time_location'] if np_msg.has_location else 0.0
+      np_msg.latitude = npdata_dict['latitude'] if np_msg.has_location else -999
+      np_msg.longitude = npdata_dict['longitude'] if np_msg.has_location else -999
 
       np_msg.has_altitude = npdata_dict['has_altitude']
-      np_msg.time_altitude = npdata_dict['time_altitude']
-      np_msg.altitude_m = npdata_dict['altitude_m']
+      np_msg.time_altitude = npdata_dict['time_altitude'] if np_msg.has_altitude else 0.0
+      np_msg.altitude_m = npdata_dict['altitude_m'] if np_msg.has_altitude else -999
 
       np_msg.has_depth = npdata_dict['has_depth']
-      np_msg.time_depth = npdata_dict['time_depth']
-      np_msg.depth_m = npdata_dict['depth_m']
+      np_msg.time_depth = npdata_dict['time_depth'] if np_msg.has_depth else 0.0
+      np_msg.depth_m = npdata_dict['depth_m'] if np_msg.has_depth else -999
 
       np_msg.has_pan_tilt = npdata_dict['has_pan_tilt']
-      np_msg.time_pan_tilt = npdata_dict['time_pan_tilt']
-      np_msg.pan_deg = npdata_dict['pan_deg']
-      np_msg.tilt_deg = npdata_dict['tilt_deg']
+      np_msg.time_pan_tilt = npdata_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_deg = npdata_dict['pan_deg'] if np_msg.has_pan_tilt else -999
+      np_msg.tilt_deg = npdata_dict['tilt_deg'] if np_msg.has_pan_tilt else -999
     except Exception as e:
       np_msg = None
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)

@@ -42,7 +42,7 @@ from nav_msgs.msg import Odometry
 
 from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
 
-from nepi_interfaces.msg import UpdateString, UpdateFrame3DTransform
+from nepi_interfaces.msg import UpdateString, UpdateTransform
 
 from nepi_interfaces.msg import NavPose
 from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
@@ -51,8 +51,8 @@ from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
 
 from nepi_interfaces.srv import NavPoseQuery, NavPoseQueryRequest, NavPoseQueryResponse
 
-from nepi_interfaces.msg import Frame3DTransform, Frame3DTransforms
-from nepi_interfaces.srv import Frame3DTransformsQuery, Frame3DTransformsQueryRequest, Frame3DTransformsQueryResponse
+from nepi_interfaces.msg import Transform, Transforms
+from nepi_interfaces.srv import TransformsQuery, TransformsQueryRequest, TransformsQueryResponse
 
 from nepi_interfaces.msg import SaveDataRate
 
@@ -159,7 +159,7 @@ class ConnectMgrNavPoseIF:
             'set_transform': {
                 'namespace': self.mgr_namespace,
                 'topic': 'set_transform',
-                'msg': UpdateFrame3DTransform,
+                'msg': UpdateTransform,
                 'qsize': 1,
                 'latch': False,
             },

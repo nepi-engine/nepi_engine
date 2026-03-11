@@ -75,7 +75,7 @@ def getManagersDict(search_path):
                       new_dict['node_namespace'] = os.path.join(base_namespace,new_dict['node_name'])
                       new_dict['param_file_name'] = os.path.basename(f)
                       new_dict['order'] = -1
-                      new_dict['active'] = True
+                      new_dict['active'] = False
                       new_dict['msg'] = ""
                       #logger.log_warn("Got mgrs dict: " + str(new_dict))
 
@@ -113,7 +113,7 @@ def refreshManagersDict(search_path,mgrs_dict):
   for manager_name in get_mgrs_dict.keys():
     if manager_name not in mgrs_dict.keys():
       logger.log_warn("Refresh initializing mgr : " + str(manager_name) + " to active state: " + str(True))
-      get_mgrs_dict[manager_name]['active'] = True
+      get_mgrs_dict[manager_name]['active'] = False
     else:
       #.log_warn('')
       #logger.log_warn('Updating mgr: ' + manager_name)
@@ -237,12 +237,12 @@ def getManagersOrderedList(mgrs_dict):
 
 
 
-def getManagersActiveList(mgrs_dict):
-  active_list = []
-  for manager_name in mgrs_dict.keys():
-    if mgrs_dict[manager_name]['active'] == True:
-      active_list.append(manager_name)
-  return active_list
+# def getManagersActiveList(mgrs_dict):
+#   active_list = []
+#   for manager_name in mgrs_dict.keys():
+#     if mgrs_dict[manager_name]['active'] == True:
+#       active_list.append(manager_name)
+#   return active_list
  
 
 

@@ -904,6 +904,13 @@ def check_ratio(ratio):
         ratio = 1.0
     return ratio
 
+
+def value_is_between(value, bound1, bound2):
+    lower_bound = min(bound1, bound2)
+    upper_bound = max(bound1, bound2)
+    # Python allows chained comparisons
+    return lower_bound <= value <= upper_bound
+
 ##################
 ## Misc String Functions
 
