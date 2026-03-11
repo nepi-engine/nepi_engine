@@ -7,8 +7,135 @@ managers_active_list:
 - MANAGER-NAVPOSE
 - MANAGER-APPS
 - MANAGER-DRIVERS
+managers_dict:
+  MANAGER-AI-MODELS:
+    active: true
+    description: Manager for NEPI AI frameworks and models
+    display_name: MANAGER-AI-MODELS
+    etc_file: ai_models_mgr.yaml
+    msg: ''
+    node_file: ai_models_mgr.py
+    node_name: ai_models_mgr
+    node_namespace: /nepi/device1/ai_models_mgr
+    order: 1
+    param_file_name: ai_models_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-APPS:
+    active: true
+    description: Manager for NEPI applications
+    display_name: MANAGER-APPS
+    etc_file: apps_mgr.yaml
+    msg: ''
+    node_file: apps_mgr.py
+    node_name: apps_mgr
+    node_namespace: /nepi/device1/apps_mgr
+    order: 5
+    param_file_name: apps_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-DRIVERS:
+    active: true
+    description: Manager for NEPI drivers
+    display_name: MANAGER-DRIVERS
+    etc_file: drivers_mgr.yaml
+    msg: ''
+    node_file: drivers_mgr.py
+    node_name: drivers_mgr
+    node_namespace: /nepi/device1/drivers_mgr
+    order: 6
+    param_file_name: drivers_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-NAVPOSE:
+    active: true
+    description: Manager for NEPI navpose
+    display_name: MANAGER-NAVPOSE
+    etc_file: navpose_mgr.yaml
+    msg: ''
+    node_file: navpose_mgr.py
+    node_name: navpose_mgr
+    node_namespace: /nepi/device1/navpose_mgr
+    order: 4
+    param_file_name: navpose_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-NETWORK:
+    active: true
+    description: Manager for NEPI network
+    display_name: MANAGER-NETWORK
+    etc_file: network_mgr.yaml
+    msg: ''
+    node_file: network_mgr.py
+    node_name: network_mgr
+    node_namespace: /nepi/device1/network_mgr
+    order: 2
+    param_file_name: network_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-SOFTWARE:
+    active: true
+    description: Manager for NEPI software
+    display_name: MANAGER-SOFTWARE
+    etc_file: software_mgr.yaml
+    msg: ''
+    node_file: software_mgr.py
+    node_name: software_mgr
+    node_namespace: /nepi/device1/software_mgr
+    order: 3
+    param_file_name: software_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+  MANAGER-TIME:
+    active: true
+    description: Manager for NEPI time
+    display_name: MANAGER-TIME
+    etc_file: time_mgr.yaml
+    msg: ''
+    node_file: time_mgr.py
+    node_name: time_mgr
+    node_namespace: /nepi/device1/time_mgr
+    order: 0
+    param_file_name: time_mgr_params.yaml
+    pkg_name: nepi_managers
+    type: MANAGER
+node_names_dict: {}
 op_environment: air
-rui_login_enabled: false
-user_restrictions: []
-run_mode: deploy
+run_mode: develop
 storage_folder: /mnt/nepi_storage
+storage_mountpoint: /mnt/nepi_storage
+user_login_enabled: false
+user_restriction_options:
+- MANAGER-DEVICE
+- MANAGER-ADMIN
+- MANAGER-NETWORK
+- MANAGER-TIME
+- MANAGER-DATA
+- MANAGER-SOFTWARE
+- NEPI_LICENSE
+- MANAGER-NAVPOSE
+- MANAGER-DRIVERS
+- MANAGER-APPS
+- MANAGER-AI-MODELS
+- MANAGER-AI-DETECTORS
+- MANAGER-SCRIPTS
+- SYSTEM-ADMIN
+- SYSTEM-MESSAGES
+- SYSTEM-SAVE
+- SYSTEM-CONFIG
+- SYSTEM-SETTINGS
+- SYSTEM-TRIGGERS
+- SYSTEM-STATES
+- SYSTEM-TRANSFORMS
+- DATA-IMAGE
+- DATA-IMAGE-RENDER
+- DATA-IMAGE-INFO
+- DATA-IMAGE-NAVPOSE
+- DATA-IMAGE-CONFIG
+- DATA-NAVPOSE
+- DEVICE-IDX
+- DEVICE-PTX
+- DEVICE-LSX
+- DEVICE-NPX
+- DEVICE-RBX
+user_restrictions: []
