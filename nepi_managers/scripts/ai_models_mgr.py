@@ -24,6 +24,7 @@ import copy
 import errno
 import glob
 import subprocess
+import threading
 import yaml
 import time
 import numpy as np
@@ -63,6 +64,7 @@ class AIDetectorManager:
     aifs_classes_dict = dict()
     aifs_dict = dict() 
     models_dict = dict()
+    models_dict_lock = threading.Lock()
     models_namespace_dict = dict()
 
     
@@ -329,7 +331,6 @@ class AIDetectorManager:
         self.cfg_status = True
         
 
-
     #######################
     ### Mgr Config Functions
 
@@ -340,8 +341,9 @@ class AIDetectorManager:
         success = False
         #self.msg_if.pub_warn("Starting Refresh with models dict with keys: " + str(self.models_dict.keys()))
         self.msg_if.pub_warn("Stopping all running models")
-        for model_name in self.models_dict.keys():
-                if self.models_dict[model_name]['active'] == True:
+        models_dict = self.copyModelsDict()
+        for model_name in models_dict.keys():
+                if models_dict[model_name]['active'] == True:
                   self.killModel(model_name)
         time.sleep(1)
         aif_classes = list(self.aifs_classes_dict.keys())
@@ -367,7 +369,7 @@ class AIDetectorManager:
             if cur_aif_keys != new_aif_keys:
                 self.msg_if.pub_warn("Got updated ai framework list: " + str(new_aif_keys))
 
-            orig_models_dict = copy.deepcopy(self.models_dict)
+            orig_models_dict = self.copyModelsDict()
             models_dict = dict()
 
             # Refresh Frameworks if Needed
@@ -446,13 +448,23 @@ class AIDetectorManager:
            
             self.aifs_dict = aifs_dict
             self.node_if.set_param('aifs_dict', aifs_dict)
-            self.models_dict = models_dict
+            self.updateModelsDict(models_dict)
             self.node_if.set_param('models_dict',models_dict)      
 
 
         return success
         
+    def updateModelsDict(self, models_dict):
+        self.models_dict_lock.acquire()
+        self.models_dict = models_dict
+        self.models_dict_lock.release()
+        return models_dict
 
+    def copyModelsDict(self):
+        self.models_dict_lock.acquire()
+        models_dict = copy.deepcopy(self.models_dict)
+        self.models_dict_lock.release()
+        return models_dict
         
 
     def printModelsDict(self,models_dict):
@@ -482,7 +494,7 @@ class AIDetectorManager:
 
     def getActiveModels(self):
         active_models = []
-        models_dict = copy.deepcopy(self.models_dict)
+        models_dict = self.copyModelsDict()
         for model_name in models_dict.keys():
             if 'active' in models_dict[model_name].keys():
                 if models_dict[model_name]['active'] == True:
@@ -501,7 +513,7 @@ class AIDetectorManager:
         #self.msg_if.pub_warn("Update")
         #self.msg_if.pub_warn("Updating aifs dict with keys: " + str(self.aifs_dict.keys()))
         #self.msg_if.pub_warn("Updating active aifs list: " + str(self.getActiveAifs()))        
-        models_dict = copy.deepcopy(self.models_dict)
+        models_dict = self.copyModelsDict()
 
 
         active_models_list = self.getActiveModels()
@@ -521,8 +533,10 @@ class AIDetectorManager:
                 models_dict[model_name]['active'] = False
                 del self.models_namespace_dict[model_name]
                 self.killModel(model_name)
+                self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = False
                 self.models_dict[model_name]['msg'] = "Model killed"
+                self.models_dict_lock.release()
                 nepi_sdk.wait()
             except Exception as e:
                 self.msg_if.pub_warn("Failed to Kill model: " + node_name + " : " + str(e))
@@ -537,7 +551,8 @@ class AIDetectorManager:
                 #self.msg_if.pub_warn("Launching Node for Model: " + model_name)
                 model_dict = models_dict[model_name]
                 node_namespace = self.loadModel(model_name, model_dict)
-                
+
+                self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = False
 
                 if node_namespace is not None:
@@ -552,7 +567,7 @@ class AIDetectorManager:
                     if model_name in list(self.models_namespace_dict.keys()):
                         del self.models_namespace_dict[model_name]
                     self.models_dict[model_name]['active'] = False
-
+                self.models_dict_lock.release()
 
         ######## Check Running Models
         active_models_list = self.getActiveModels()
@@ -566,6 +581,7 @@ class AIDetectorManager:
                     was_running =  model_dict['running']
                 model_node_name = model_dict['node_name']
                 running = nepi_sdk.check_node_by_name(model_node_name)  
+                self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = running
                 if running == True:
                     self.models_dict[model_name]['msg'] = "Model running"
@@ -577,8 +593,11 @@ class AIDetectorManager:
                         self.models_dict[model_name]['active'] = False
                     else:
                         self.models_dict[model_name]['msg'] = "Model not running"
+                self.models_dict_lock.release()
             else:
+                self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = False
+                self.models_dict_lock.release()
 
                 
     
@@ -628,7 +647,7 @@ class AIDetectorManager:
         
     def killModel(self, model_name):
         if model_name != "None": 
-            models_dict = copy.deepcopy(self.models_dict)
+            models_dict = self.copyModelsDict()
             if model_name not in models_dict.keys():
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
             else:
@@ -709,12 +728,12 @@ class AIDetectorManager:
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = copy.deepcopy(self.models_dict)
+            models_dict = self.copyModelsDict()
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
                     models_dict[model_name]['active'] = True
-        self.models_dict = models_dict
+        self.updateModelsDict(models_dict)
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",models_dict)
@@ -729,13 +748,13 @@ class AIDetectorManager:
         if aif_name not in active_aifs:
             self.msg_if.pub_warn("Ignoring request. AI Framework: " + str(aif_name) + " not enabled")
         else:
-            models_dict = copy.deepcopy(self.models_dict)
+            models_dict = self.copyModelsDict()
             for model_name in models_dict.keys():
                 model_dict = models_dict[model_name]
                 if model_dict['framework'] == aif_name:
                     models_dict[model_name]['active'] = False
                 
-        self.models_dict = models_dict
+        self.updateModelsDict(models_dict)
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param("models_dict",models_dict)
@@ -745,7 +764,7 @@ class AIDetectorManager:
         self.msg_if.pub_warn("Recieved Model State Update: " + str(msg))
         model_name = msg.name
         state = msg.value
-        models_dict = copy.deepcopy(self.models_dict)
+        models_dict = self.copyModelsDict()
         if model_name in models_dict.keys():
             model_dict = models_dict[model_name]
             model_aif = model_dict['framework']
@@ -762,7 +781,7 @@ class AIDetectorManager:
                         self.msg_if.pub_warn("Changing Model State to: False")
                         models_dict[model_name]['active'] = False
         if self.models_dict != models_dict:
-            self.models_dict = models_dict
+            self.updateModelsDict(models_dict)
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param("models_dict",models_dict)
@@ -770,7 +789,7 @@ class AIDetectorManager:
 
 
     def getModelStatus(self, model_name):
-        models_dict = copy.deepcopy(self.models_dict)
+        models_dict = self.copyModelsDict()
         model_status_msg = AiModelStatus()
         if model_name in self.models_dict.keys():
             model_dict = models_dict[model_name]
@@ -833,7 +852,7 @@ class AIDetectorManager:
 
         last_status_msg = copy.deepcopy(self.status_msg)
         aifs_dict = copy.deepcopy(self.aifs_dict)
-        models_dict = copy.deepcopy(self.models_dict)
+        models_dict = self.copyModelsDict()
 
         #self.msg_if.pub_warn("Status Using AIFs Dict: " + str(aifs_dict.keys()))
         # self.msg_if.pub_warn("Status Using Models Dict: " + str(models_dict.keys()))
