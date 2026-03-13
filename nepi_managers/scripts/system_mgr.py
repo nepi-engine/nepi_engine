@@ -263,22 +263,6 @@ class SystemMgrNode():
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
         self.status_msg.in_container = self.in_container
 
-<<<<<<< HEAD
-
-        self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
-        self.has_ab_fs = self.nepi_config['NEPI_FS_AB'] == 1
-        self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
-        self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
-        self.new_img_staging_removable = False
-        self.new_img_folder = self.nepi_config['NEPI_IMPORT_PATH']
-
-        self.usb_device = "/dev/sda" 
-        self.sd_card_device = "/dev/mmcblk1p"
-        self.emmc_device = "/dev/mmcblk0p"
-        self.ssd_device = "/dev/nvme0n1p"
-
-=======
->>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
         self.config_folder = self.nepi_config['NEPI_CONFIG']
         self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
@@ -1529,10 +1513,6 @@ class SystemMgrNode():
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
     
 
-<<<<<<< HEAD
-=======
-
->>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
    
     def provide_system_status(self, req):
         response = SystemStatusQueryResponse()
@@ -1547,12 +1527,7 @@ class SystemMgrNode():
 
 
     def publish_status(self):
-<<<<<<< HEAD
-        #########################
-        #### System
-=======
         
->>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
         self.update_temperatures()
         # Populate the rest of the message contents
         # Temperature(s)
