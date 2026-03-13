@@ -292,7 +292,7 @@ class SystemMgrNode():
 
 
         self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
-        self.has_ab_fs = self.nepi_config['NEPI_AB_FS'] == 1
+        self.has_ab_fs = self.nepi_config['NEPI_FS_AB'] == 1
         self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
         self.new_img_staging_removable = False
@@ -1582,80 +1582,6 @@ class SystemMgrNode():
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
     
 
-
-
-
-       
-    def update_software_status(self):
-        if self.init_complete == True:
-            # self.msg_if.pub_warn("Entering Provide Software Update Status")
-            self.status_msg.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
-            self.status_msg.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
-            # self.msg_if.pub_warn("Got New Img Staging Name: " + str(self.status_msg.new_sys_img_staging))
-            # self.msg_if.pub_warn("Got Partition Free MB: " + str(self.status_msg.new_sys_img_staging_free_mb))
-            # Don't query anything if we are in the middle of installing a new image
-            if self.installing_new_image:
-                return self.status_msg
-            
-        
-            # At this point, not currently installing, so clear any previous query failed message so the status update logic below will work
-            self.install_img = ''
-            self.install_img_version = ''
-            self.install_img_size = ''
-            self.status_msg.sys_img_update_status = ""
-
-            if self.in_container==True:
-                self.new_img_staging = self.new_img_folder
-
-                self.new_img_staging_removable = False
-            else:
-                self.new_img_staging = self.new_img_staging
-
-                self.new_img_staging_removable = self.new_img_staging_removable
-
-            (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
-                self.new_img_staging, self.new_img_staging_removable)
-            #self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
-            if status is False:
-                self.msg_if.pub_warn("Unable to update software status: " + err_string)
-                self.status_msg.new_sys_img = 'query failed'
-                self.status_msg.new_sys_img_version = 'query failed'
-                self.status_msg.new_sys_img_size_mb = 0
-                self.status_msg.sys_img_update_status = 'query failed'
-                return self.status_msg
-
-            
-            # Update the response
-            success = False
-            selected_new_img="none_detected"
-            sel_new_img = copy.deepcopy(self.selected_new_img)
-            if new_img_files:
-                if len(new_img_files) > 0:
-                    self.status_msg.sys_img_update_options= new_img_files
-                    
-                    if sel_new_img in new_img_files:
-                        sel_new_ind = new_img_files.index(sel_new_img)
-                    else:
-                        sel_new_ind=0
-                        self.selected_new_img=new_img_files[0]
-
-                    img_size_gigabytes=int(new_img_filesizes[sel_new_ind]) / (1024**3)
-                    self.status_msg.new_sys_img = new_img_files[sel_new_ind]
-                    self.status_msg.new_sys_img_version = new_img_versions[sel_new_ind]
-                    self.status_msg.new_sys_img_size_mb = img_size_gigabytes
-                    self.status_msg.sys_img_update_status = "ready to install"
-                    success = True
-            if success == False:
-                self.selected_new_img="none_detected"
-                self.status_msg.sys_img_update_options = ["none_detected"]
-                self.status_msg.sys_img_update_selected = "None"
-                self.status_msg.new_sys_img = 'none detected'
-                self.status_msg.new_sys_img_version = 'none detected'
-                self.status_msg.new_sys_img_size_mb = 0
-                self.status_msg.sys_img_update_status = "no new image available"
-                
-        return self.status_msg
-
    
     def provide_system_data_folder(self, req):
         response = SystemStorageFolderQueryResponse()
@@ -1695,14 +1621,6 @@ class SystemMgrNode():
         #self.msg_if.pub_warn("Returning status query response: " + str(response))
         return response
 
-    #########################
-    #### Software
-    def provide_software_status(self, req):
-        response = SoftwareStatusQueryResponse()
-        response.software_status = self.status_msg
-        #self.msg_if.pub_warn("Returning status query response: " + str(response))
-        return response
-
 
     def publishStatusCb(self, event):
         self.publish_status()
@@ -1710,14 +1628,6 @@ class SystemMgrNode():
 
 
     def publish_status(self):
-        
-        #########################
-        #### Software
-
-        
-        if self.node_if is not None:
-            self.node_if.publish_pub('software_status_pub', self.status_msg)
-
         #########################
         #### System
         self.update_temperatures()

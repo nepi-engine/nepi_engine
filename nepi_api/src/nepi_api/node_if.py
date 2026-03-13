@@ -1371,18 +1371,21 @@ class NodeClassIF:
     def _initConfigCb(self, do_updates = False):
         self.initialize_params()
         if self.configs_dict is not None:
-            if self.configs_dict['init_callback'] is not None:
-                self.configs_dict['init_callback'](do_updates = do_updates)
+            if 'init_callback' in self.configs_dict.keys():
+                if self.configs_dict['init_callback'] is not None:
+                    self.configs_dict['init_callback'](do_updates = do_updates)
             
 
     def _resetConfigCb(self):
         self.reset_params()
         if self.configs_dict is not None:
-            if self.configs_dict['reset_callback'] is not None:
-                self.configs_dict['reset_callback']()
+            if 'reset_callback' in self.configs_dict.keys():
+                if self.configs_dict['reset_callback'] is not None:
+                    self.configs_dict['reset_callback']()
 
     def _factoryResetConfigCb(self):
         self.factory_reset_params()
         if self.configs_dict is not None:
-            if self.configs_dict['factory_reset_callback'] is not None:
-                self.configs_dict['factory_reset_callback']()
+            if 'factory_reset_callback' in self.configs_dict.keys():
+                if self.configs_dict['factory_reset_callback'] is not None:
+                    self.configs_dict['factory_reset_callback']()
