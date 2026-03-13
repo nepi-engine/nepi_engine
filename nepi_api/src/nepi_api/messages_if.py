@@ -21,11 +21,11 @@ import inspect
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_system
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import Message
-from nepi_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 
 
 class MsgIF:
@@ -54,7 +54,7 @@ class MsgIF:
             self.ln_str = str(log_name) + ": "
         self._logSelfMsg("Starting IF Initialization Processes", )
         ##############################   
-        nepi_sdk.create_subscriber('debug_mode', Bool, self._debugCb, queue_size = 10)
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
         self._createMsgPublishers()
         ##############################
@@ -64,8 +64,15 @@ class MsgIF:
     ###############################
     # Class Public Methods
     
-    def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None, uid = None):
+    def updaterCb(self,timer):
+        self.debug_mode = nepi_system.get_debug_mode()
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
+
+
+
+    def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None, uid = None):
+        msg = str(msg)
         if throttle_s is not None:
             ct = nepi_utils.get_time()
             if uid is not None:
@@ -90,6 +97,7 @@ class MsgIF:
             self.msg_pub_sys.publish(msg_str)
     
     def pub_info(self, msg, throttle_s = None, log_name_list = []):
+        msg = str(msg)
         uid = None
         if throttle_s is not None:
             stack = inspect.stack()
@@ -101,6 +109,7 @@ class MsgIF:
         self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_warn(self, msg, throttle_s = None, log_name_list = []):
+        msg = str(msg)
         uid = None
         if throttle_s is not None:
             stack = inspect.stack()
@@ -112,6 +121,7 @@ class MsgIF:
         self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_debug(self, msg, throttle_s = None, log_name_list = []):
+        msg = str(msg)
         uid = None
         if throttle_s is not None:
             stack = inspect.stack()
@@ -123,6 +133,7 @@ class MsgIF:
         self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_error(self, msg, throttle_s = None, log_name_list = []):
+        msg = str(msg)
         uid = None
         if throttle_s is not None:
             stack = inspect.stack()
@@ -134,6 +145,7 @@ class MsgIF:
         self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_fatal(self, msg, throttle_s = None, log_name_list = []):
+        msg = str(msg)
         uid = None
         if throttle_s is not None:
             stack = inspect.stack()
@@ -155,12 +167,14 @@ class MsgIF:
         self.msg_pub_sys = nepi_sdk.create_publisher("messages", Message, queue_size=1)
 
 
-    def _logSelfMsg(self,msg, log_name_list = []):
+    def _logSelfMsg(self, msg, log_name_list = []):
+        msg = str(msg)
         ln_str = self._createLogNameStr(log_name_list)
         msg_str = self.ns_str + ln_str + self.ln_str + self.cn_str + str(msg)
         nepi_sdk.log_msg_info(msg_str)
 
     def _createMsgString(self,msg, log_name_list = []):
+        msg = str(msg)
         ln_str = self._createLogNameStr(log_name_list)
         msg_str = self.ns_str + ln_str + self.ln_str + str(msg)
         return msg_str
@@ -171,9 +185,5 @@ class MsgIF:
             ln_str = ln_str + log_name + ": "
         return ln_str
 
-    def _debugCb(self,msg):
-        enabled = msg.data
-        if self.debug_mode != enabled:
-            nepi_sdk.set_debug_log(enabled)
-        self.debug_mode = enabled
+
 

@@ -46,14 +46,13 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_interfaces.msg import Frame3DTransform, Frame3DTransformStatus
 
-from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+from nepi_interfaces.msg import Transform, TransformStatus
+
+from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_interfaces.msg import SystemState
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 from nepi_interfaces.msg import SystemTrigger
@@ -70,7 +69,7 @@ from nepi_api.node_if import  NodeClassIF
 class ReadWriteIF:
 
     ready = False
-    
+    node_name = ''
     # Save data variables
     filename_dict = {
         'prefix': "",
@@ -90,6 +89,7 @@ class ReadWriteIF:
     ### IF Initialization
     def __init__(self,
                 filename_dict = None,
+                node_name = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -102,6 +102,10 @@ class ReadWriteIF:
 
         ##############################  
         
+
+
+
+
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -114,8 +118,15 @@ class ReadWriteIF:
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
         
 
+
+
         #############################
         # Initialize Class Variables
+
+        if node_name is not None:
+            self.node_name = node_name.replace(' ','-')
+        self.msg_if.pub_info("Using node_name: " + self.node_name, log_name_list = self.log_name_list)
+
         if filename_dict is not None:
             for key in self.filename_dict.keys():
                 if key in filename_dict.keys():
@@ -127,6 +138,12 @@ class ReadWriteIF:
                 'file_types': ['yaml'],
                 'read_function': self.read_dict_file,
                 'write_function': self.write_dict_file
+            },
+            'array': {
+                'data_type': np.ndarray,
+                'file_types': ['npy','csv','txt'],
+                'read_function': self.read_array_file,
+                'write_function': self.write_array_file 
             },
             'image': {
                 'data_type': np.ndarray,
@@ -175,8 +192,8 @@ class ReadWriteIF:
     def get_namespace(self):
         return self.namespace
 
-    def get_supported_data_dict(self):
-        return self.data_dict
+    def get_supported_data_types(self):
+        return list(self.data_dict.keys())
 
 
     def get_filename_prefix(self):
@@ -239,18 +256,43 @@ class ReadWriteIF:
         return file_time
 
 
+    def get_data_type(self,data):
+        dtype = type(data)
+
+        if dtype == dict:
+            return 'dict'
+        elif dtype == o3d.geometry.PointCloud:
+            return 'pointcloud'
+        elif dtype == np.ndarray:
+            # Check for valid image dtypes (uint8 or float32 are common)
+            image_dtypes = [np.uint8]
+            if data.dtype not in image_dtypes:
+                return 'array'
+            elif data.ndim == 2 or data.ndim == 3 :
+                if data.dtype == np.uint8:
+                    return 'image'
+                else:
+                    return 'array'
+            else:
+                return 'array'
+        else:
+            return str(dtype)
+            
+
+
+
+
 
     def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
-        data_type = type(data)
+        data_type = self.get_data_type(data) 
         found_type = False
-        for data_key in self.data_dict:
-            if data_type == self.data_dict[data_key]['data_type']:
-                save_function = self.data_dict[data_key]['write_function']
-                self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
+        if data_type in self.data_dict.keys():
+                save_function = self.data_dict[data_type]['write_function']
+                #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
                 save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
                 found_type = True
         if found_type == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type) , log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data), log_name_list = self.log_name_list, throttle_s = 5.0)
 
 
     def read_dict_file(self, filepath, filename):
@@ -262,11 +304,10 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_utils.read_yaml_2_dict(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
@@ -285,7 +326,57 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_utils.write_dict_2_yaml(data, file_path)
+                    try:
+                        success = nepi_utils.write_dict_2_yaml(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+        return success
+
+
+    def read_array_file(self, filepath, filename):
+        data_key = 'array'
+        data = None
+        ext_str = os.path.splitext(filename)[1]
+        file_types = self.data_dict[data_key]['file_types']
+        if ext_str not in file_types:
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+        else:
+            file_path = os.path.join(filepath,filename)
+            try:
+                if ext_str == 'npy':
+                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
+                else:
+                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
+        return data
+
+    def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy'):
+        data_key = 'array'
+        success = False
+        data_type = self.data_dict[data_key]['data_type']
+        if isinstance(data,data_type) == False:
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)), log_name_list = self.log_name_list)
+        else:
+            file_types = self.data_dict[data_key]['file_types']
+            if ext_str not in file_types:
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            else:
+                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                file_path = os.path.join(filepath,filename)
+                if os.path.exists(file_path) == True:
+                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                else:
+                    try:
+                        if ext_str == 'npy':
+                            file_path = file_path.replace('.' + ext_str, '')
+                            success = np.save(file_path, data)
+                        else:
+                            success = np.savetxt(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+
         return success
 
 
@@ -298,11 +389,11 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_img.read_image_file(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
         return data
 
     def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
@@ -321,7 +412,10 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_img.write_image_file(data, file_path)
+                    try:
+                        success = nepi_img.write_image_file(file_path, data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
         return success
 
 
@@ -334,11 +428,11 @@ class ReadWriteIF:
             self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
         else:
             file_path = os.path.join(filepath,filename)
-            data_type = self.data_dict[data_key]['data_type']
-            if isinstance(read_data,data_type) == False:
-                self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
-            else:
+            try:
                 data = nepi_pc.read_pointcloud_file(file_path)
+            except:
+                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                
         return data
 
     def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
@@ -357,7 +451,11 @@ class ReadWriteIF:
                 if os.path.exists(file_path) == True:
                     self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
                 else:
-                    success = nepi_pc.write_pointcloud_file(file_path)
+                    try:
+                        success = nepi_pc.write_pointcloud_file(file_path,data)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                    
         return success
 
 
@@ -452,7 +550,6 @@ class SaveDataIF:
     ready = None
     namespace = "~"
     all_save_namespace = None
-    navpose_save_namespace = None
     status_msg = SaveDataStatus
     node_if = None
     read_write_if = None
@@ -482,8 +579,6 @@ class SaveDataIF:
     save_all_enabled = False
     save_all_rate = 0.0
 
-    log_navposes_enabled = False
-    log_navposes_rate = 0.0
 
     file_prefix = ""
     subfolder = ""
@@ -499,6 +594,7 @@ class SaveDataIF:
                 pub_status = True,
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
+                ignore_global_rate_updates = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -526,8 +622,10 @@ class SaveDataIF:
         # Initialize Class Variables
         if namespace is None:
             namespace = self.node_namespace
+        self.node_name = os.path.basename(namespace)
         namespace = nepi_sdk.create_namespace(namespace,'save_data')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
+        
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
         self.pub_status = pub_status
@@ -539,9 +637,6 @@ class SaveDataIF:
         if all_save_namespace != self.namespace:
             self.all_save_namespace = all_save_namespace
 
-        navpose_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'navposes/save_data')
-        if navpose_save_namespace != self.namespace:
-            self.navpose_save_namespace = navpose_save_namespace
         ###############################
         # Connect Sys Mgr Services
 
@@ -573,7 +668,8 @@ class SaveDataIF:
         # Setup System IF Classes
         # Initialize with empty dict, then call update function
         self.read_write_if = ReadWriteIF(
-                            filename_dict = dict()
+                            filename_dict = dict(),
+                            node_name = self.node_name
                             )
         if factory_filename_dict is not None:
             self.update_filename_dict(factory_filename_dict)
@@ -620,21 +716,9 @@ class SaveDataIF:
                 'namespace': self.namespace,
                 'factory_val': self.save_rate_dict
             },
-            'save_data': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
             'filename_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
-            },
-            'log_navposes_enabled': {
-                'namespace': self.namespace,
-                'factory_val': self.log_navposes_enabled
-            },
-            'log_navposes_rate': {
-                'namespace': self.namespace,
-                'factory_val': self.log_navposes_rate
             }
         }
 
@@ -668,22 +752,6 @@ class SaveDataIF:
             }
         
 
-        if self.navpose_save_namespace is not None:
-            self.PUBS_DICT['set_navpose_enable'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': Bool,
-                'topic': 'set_navpose_enable',
-                'qsize': 1,
-                'latch': True
-            }
-            self.PUBS_DICT['set_navpose_rate'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': SaveDataRate,
-                'topic': 'set_navpose_rate',
-                'qsize': 1,
-                'latch': True
-            }
-
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
@@ -695,22 +763,6 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
-            'log_navposes_enable': {
-                'namespace': self.namespace,
-                'msg': Bool,
-                'topic': 'log_navposes_enable',
-                'qsize': 5,
-                'callback': self._logNavPoseEnableCb, 
-                'callback_args': ()
-            }, 
-            'log_navposes_rate': {
-                'namespace': self.namespace,
-                'msg': Float32,
-                'topic': 'log_navposes_rate',
-                'qsize': 5,
-                'callback': self._logNavPoseRateCb, 
-                'callback_args': ()
-            }, 
             'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
@@ -764,7 +816,7 @@ class SaveDataIF:
                 'msg': Empty,
                 'topic': 'reset_save_data',
                 'qsize': 5,
-                'callback': self._resetCb,  
+                'callback': self._resetSaveDataCb,  
                 'callback_args': ()
             },
 
@@ -812,14 +864,6 @@ class SaveDataIF:
                     'callback': self._setFilenameCb,
                     'callback_args': ()
                 },
-                'rate_all': {
-                    'namespace': self.all_save_namespace,
-                    'msg': SaveDataRate,
-                    'topic': 'save_data_rate',
-                    'qsize': 5,
-                    'callback': self._saveRateCb, 
-                    'callback_args': ()
-                },  
                 'snapshot_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
@@ -845,20 +889,19 @@ class SaveDataIF:
                     'callback_args': ()
                 }
             }
+            if ignore_global_rate_updates == False:
+                ALL_SUBS_DICT['rate_all'] = {
+                        'namespace': self.all_save_namespace,
+                        'msg': SaveDataRate,
+                        'topic': 'save_data_rate',
+                        'qsize': 5,
+                        'callback': self._saveRateCb, 
+                        'callback_args': ()
+                    } 
 
             self.SUBS_DICT.update(ALL_SUBS_DICT)
         
 
-
-        if self.navpose_save_namespace is not None:
-            self.SUBS_DICT['navpose_save_sub'] = {
-                'namespace': self.navpose_save_namespace,
-                'msg': SaveDataStatus,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._logNavPoseStatusCb, 
-                'callback_args': ()
-            }
 
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -927,6 +970,13 @@ class SaveDataIF:
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param('save_rate_dict',save_rate_dict)
+
+    def unregister_data_product(self, data_product):
+        purge = False
+        if data_product in self.save_rate_dict.keys():
+            purge = True
+        if purge == True:
+            del self.save_rate_dict[data_product]
 
 
     def update_filename_dict(self,filename_dict):
@@ -1009,9 +1059,7 @@ class SaveDataIF:
         self.msg_if.pub_warn("Setting Save Enable to: " + str(enabled))  
         self.save_data = enabled
         self.publish_status()    
-        if self.node_if is not None: 
-            self.node_if.set_param('save_data', enabled)  
-            #self.node_if.save_config()
+
 
     def get_saving_enabled(self):
         return self.save_data
@@ -1072,7 +1120,7 @@ class SaveDataIF:
         #self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
         snapshot = self.snapshot_dict[data_product]
         if (elapsed >= save_period or snapshot):
-            self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
             self.save_rate_dict = save_rate_dict
             return True
         return False
@@ -1186,13 +1234,6 @@ class SaveDataIF:
                 status_msg.save_all_enabled = self.save_all_enabled
                 status_msg.save_all_rate = self.save_all_rate   
 
-            if self.navpose_save_namespace == self.namespace and 'navposes' in save_rate_dict.keys():
-                status_msg.log_navposes_enabled = self.save_data
-                status_msg.log_navposes_rate = save_rate_dict['navposes'][0]
-            else:
-                status_msg.log_navposes_enabled = self.log_navposes_enabled
-                status_msg.log_navposes_rate = self.log_navposes_rate                
-
 
             if self.save_data_root_directory is not None:
                 status_msg.data_dir = self.save_data_root_directory
@@ -1211,21 +1252,13 @@ class SaveDataIF:
         #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
         if self.node_if is not None:
             save_rate_dict = self.node_if.get_param('save_rate_dict')
-            for data_product in self.save_rate_dict.keys():
-                if data_product in save_rate_dict.keys():
-                    self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
-                self.save_rate_dict[data_product][1] = 0.0 # Reset timer
+            if save_rate_dict is not None:
+                for data_product in self.save_rate_dict.keys():
+                    if data_product in save_rate_dict.keys():
+                        self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
+                    self.save_rate_dict[data_product][1] = 0.0 # Reset timer
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
-            self.save_data = self.node_if.get_param('save_data')
             filename_dict =  self.node_if.get_param('filename_dict')
-            self.update_filename_dict(filename_dict)
-            self.log_navposes_enabled = self.node_if.get_param('log_navposes_enabled')
-            self.log_navposes_rate = self.node_if.get_param('log_navposes_rate')
-            self.node_if.save_config()
-        if do_updates == True:
-            if self.navpose_save_namespace is not None:
-                self.logNavPoseEnable(self.log_navposes_enabled)
-                self.logNavPoseRate(self.log_navposes_rate)
         self.publish_status()
         
 
@@ -1237,7 +1270,7 @@ class SaveDataIF:
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -1277,33 +1310,6 @@ class SaveDataIF:
         self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
 
-    def logNavPoseEnable(self,enabled):
-        self.log_navposes_enabled = enabled
-        self.publish_status()
-        self.node_if.publish_pub('set_navpose_enable',enabled)
-
-    def _logNavPoseRateCb(self, msg):
-        self.msg_if.pub_info("Recieved Log NavPose Rate Update: " + str(msg), log_name_list = self.log_name_list)
-        rate = msg.data
-        self.logNavPoseRate(rate)
-
-
-    def logNavPoseRate(self,rate):
-        self.log_navposes_rate = rate
-        self.publish_status()
-        rate_msg = SaveDataRate()
-        rate_msg.data_product = 'navposes'
-        rate_msg.save_rate_hz = rate
-        self.node_if.publish_pub('set_navpose_rate',rate_msg)
-        self.publish_status()
-
-
-    def _logNavPoseStatusCb(self,msg):
-        data_product_list = msg.data_products
-        if 'navposes' in data_product_list:
-            self.log_navposes_enabled = msg.save_data_enabled
-            index = data_product_list.index('navposes')
-            self.log_navposes_rate = msg.save_data_rates[index]
 
 
     def _saveAllStatusCb(self,msg):
@@ -1368,13 +1374,8 @@ class SaveDataIF:
         if self.node_if is not None:
             self.node_if.save_config()
 
-    def _resetCb(self,reset_msg):
+    def _resetSaveDataCb(self,msg):
         self.reset()
-
-
-    def _factoryResetCb(self,reset_msg):
-        self.factory_reset
-
 
     def _publishStatusCb(self, timer):
         self.publish_status()
@@ -1403,7 +1404,7 @@ class Transform3DIF:
     has_transform = True
     supports_updates = True
 
-    status_msg = Frame3DTransformStatus()
+    status_msg = TransformStatus()
     
     #######################
     ### IF Initialization
@@ -1486,14 +1487,14 @@ class Transform3DIF:
         self.PUBS_DICT = {
             'status_pub': {
                 'namespace': self.namespace,
-                'msg': Frame3DTransformStatus,
+                'msg': TransformStatus,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'transform_pub': {
                 'namespace': self.namespace,
-                'msg': Frame3DTransform,
+                'msg': Transform,
                 'topic': '',
                 'qsize': 1,
                 'latch': True
@@ -1517,7 +1518,7 @@ class Transform3DIF:
                 'set_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'set_3d_transform',
-                    'msg': Frame3DTransform,
+                    'msg': Transform,
                     'qsize': 5,
                     'callback': self._setFrame3dTransformCb, 
                     'callback_args': ()
@@ -1601,13 +1602,15 @@ class Transform3DIF:
             if len(transform_list) == 7:
                 self.transform = transform_list
                 self.publish_transform()
-                self.node_if.set_param('transform',transform_list)
+                if self.node_if is not None:
+                    self.node_if.set_param('transform',transform_list)
 
     def clear_3d_transform(self):
         if self.supports_updates == True:
             self.transform = ZERO_TRANSFORM
             self.publish_transform()
-            self.node_if.set_param('transform',transform_list)
+            if self.node_if is not None:
+                self.node_if.set_param('transform',transform_list)
 
     def set_has_transform(self,has_transform):
         self.has_trasform = has_transform
@@ -1622,7 +1625,8 @@ class Transform3DIF:
     def set_source_description(self,source):
         self.source = source
         self.publish_transform()
-        self.node_if.set_param('source',source)
+        if self.node_if is not None:
+            self.node_if.set_param('source',source)
 
     def get_end_description(self):
         return self.end
@@ -1630,7 +1634,8 @@ class Transform3DIF:
     def set_end_description(self,end):
         self.end = end
         self.publish_transform()
-        self.node_if.set_param('end',end)
+        if self.node_if is not None:
+            self.node_if.set_param('end',end)
 
 
     def publish_transform(self):
@@ -1651,10 +1656,10 @@ class Transform3DIF:
             self.transform = self.node_if.get_param('transform')
             self.source = self.node_if.get_param('source')
             self.end = self.node_if.get_param('end')
-        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
-        if do_updates:
-            pass
-        self.publish_status()
+            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+            if do_updates:
+                pass
+            self.publish_status()
 
 
     def reset(self):
@@ -1665,7 +1670,7 @@ class Transform3DIF:
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -1805,7 +1810,7 @@ class SettingsIF:
         else:
             try:
                 capSettings = settings_dict['capSettings']
-                factorySettings = settings_dict['capSettings']
+                factorySettings = settings_dict['factorySettings']
                 setSettingFunction = settings_dict['setSettingFunction']
                 getSettingsFunction = settings_dict['getSettingsFunction']
             except Exception as e:
@@ -1822,11 +1827,7 @@ class SettingsIF:
         caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
         self.msg_if.pub_debug("Cap Settings: " + str(caps_response), log_name_list = self.log_name_list)
 
-        if factorySettings is None:
-            self.factory_settings = nepi_settings.NONE_SETTINGS
-        else:
-            self.factory_settings = factorySettings
-        self.msg_if.pub_debug(str(self.factory_settings), log_name_list = self.log_name_list)
+
 
         if setSettingFunction is None:
             self.setSettingFunction = nepi_settings.UPDATE_NONE_SETTINGS_FUNCTION
@@ -1839,6 +1840,17 @@ class SettingsIF:
             self.getSettingsFunction = getSettingsFunction
         #Reset Settings and Update Param Server
 
+
+        if factorySettings is None:
+            if self.getSettingsFunction is not None:
+                self.factory_settings = self.getSettingsFunction()
+            else:
+                self.factory_settings = nepi_settings.NONE_SETTINGS
+        else:
+            self.factory_settings = factorySettings
+        self.msg_if.pub_warn("Got factory settings: " + str(self.factory_settings), log_name_list = self.log_name_list)
+
+        self.init_settings = self.factory_settings
 
         ##############################  
         # Create NodeClassIF Class  
@@ -1855,7 +1867,7 @@ class SettingsIF:
         self.PARAMS_DICT = {
             'settings': {
                 'namespace': self.namespace,
-                'factory_val': dict()
+                'factory_val': self.init_settings
             }
         }
 
@@ -1969,7 +1981,6 @@ class SettingsIF:
     def publish_status(self):
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
-            self.node_if.set_param('settings', current_settings)
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
             status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
@@ -1999,18 +2010,29 @@ class SettingsIF:
         success = False
         current_settings = self.getSettingsFunction()
         updated_settings = copy.deepcopy(current_settings)
-        self.msg_if.pub_debug("New Setting:" + str(setting), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Update Setting:" + str(setting), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Updated With current settings dict: " + str(updated_settings), log_name_list = self.log_name_list)
         s_name = setting['name']
+        msg = ''
         if self.setSettingFunction != None:
-            [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
+            value_match = False
+            try:
+                [name_match,type_match,value_match] = nepi_settings.compare_setting_in_settings(setting,current_settings)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to Compare Setting: " + str(setting) + " : " +  str(e), log_name_list = self.log_name_list)
             if value_match == False: # name_match would be True for value_match to be True
-                self.msg_if.pub_debug("Will try to update setting " + str(setting), log_name_list = self.log_name_list)
+                
                 [success,msg] = nepi_settings.try_to_update_setting(setting,current_settings,self.cap_settings,self.setSettingFunction)
-                self.msg_if.pub_warn(msg, log_name_list = self.log_name_list)
+                if success == True:
+                    self.msg_if.pub_warn("Setting Updated" + str(setting), log_name_list = self.log_name_list)
+                else:
+                    self.msg_if.pub_warn("Setting update failed: "+ str(setting) + " : " + str(msg), log_name_list = self.log_name_list)
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting
-                        self.node_if.set_param('settings', updated_settings)
+                        if self.node_if is not None:
+                            self.node_if.set_param('settings', updated_settings)
+                            #self.msg_if.pub_warn("Updated settings dict: " + str(updated_settings), log_name_list = self.log_name_list)
                     if do_updates:
                         self.publish_status() 
         else:
@@ -2019,29 +2041,32 @@ class SettingsIF:
 
 
     def init(self, do_updates = True):
-        current_settings = self.getSettingsFunction()
         if self.node_if is not None:
-            self.init_settings = self.node_if.get_param('settings')
-        #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+            init_settings = self.node_if.get_param('settings')
+            if type(init_settings) != dict:
+                init_settings = self.getSettingsFunction()
+                self.node_if.set_param('settings', init_settings)
+            self.init_settings = init_settings
+
+        #self.msg_if.pub_warn("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
         if do_updates:
             self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
-            self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
+            #self.msg_if.pub_debug(self.init_settings, log_name_list = self.log_name_list)
             if self.init_settings is not None:
-                for setting_name in self.init_settings:
-                    setting = self.init_settings[setting_name]
-                    self.update_setting(setting, do_updates = False, update_param = False)
+                if type(self.init_settings) == dict:
+                    for setting_name in self.init_settings:
+                        setting = self.init_settings[setting_name]
+                        self.update_setting(setting, do_updates = False, update_param = False)
         self.publish_status()
 
 
     def reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
 
     def factory_reset(self):
         if self.node_if is not None:
-            self.msg_if.pub_info("Factory reseting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -2053,10 +2078,10 @@ class SettingsIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+        self.reset()
 
     def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+        self.factory_reset()
 
     def _resetSettingsCb(self, msg):
         self.reset()
@@ -2228,7 +2253,7 @@ class StatesIF:
         try:
             states_dict = self.get_states_dict_function()
             resp = nepi_states.create_query_resp(states_dict)
-        except:
+        except Exception as e:
             self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
         return resp
 
@@ -2374,7 +2399,8 @@ class TriggersIF:
 
     def publish_trigger(self, trigger_dict):
         trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
-        self.node_if.publish_pub('trigger_pub',trig_msg)
+        if self.node_if is not None:
+            self.node_if.publish_pub('trigger_pub',trig_msg)
  
 
     ###############################

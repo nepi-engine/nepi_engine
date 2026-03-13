@@ -35,9 +35,9 @@ from nepi_interfaces.msg import Reset
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
 
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
 
-from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap, SettingCaps
+
+from nepi_interfaces.msg import Setting, SettingsStatus
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import SystemState

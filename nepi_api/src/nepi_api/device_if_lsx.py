@@ -28,6 +28,9 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
+
+from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
+
 from nepi_interfaces.msg import DeviceLSXStatus
 from nepi_interfaces.srv import LSXCapabilitiesQuery, LSXCapabilitiesQueryRequest, LSXCapabilitiesQueryResponse
 
@@ -58,6 +61,8 @@ class LSXDeviceIF:
     ready = False
 
     status_msg = DeviceLSXStatus()
+    info_report = DeviceInfoQueryResponse()
+    caps_report = LSXCapabilitiesQueryResponse()
 
     getStatusFunction = None
     device_name = ""
@@ -77,7 +82,7 @@ class LSXDeviceIF:
 
     node_if = None
     settings_if = None
-
+    save_data_if = None
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
@@ -127,17 +132,33 @@ class LSXDeviceIF:
 
         ##############################
         # Initialize Class Variables
-
-        self.device_id = device_info["device_name"]
-        self.identifier = device_info["identifier"]
+        self.device_name = device_info["device_name"]
+        self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+        
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
-        self.device_name = self.device_id + "_" + self.identifier
+        
+        self.info_report.device_name = self.device_name
+        self.info_report.device_path = self.path
+        self.info_report.node_name = self.node_name
+        self.info_report.node_namespace = self.node_namespace
+        self.info_report.serial_num = self.serial_num
+        self.info_report.hw_version = self.hw_version
+        self.info_report.sw_version = self.sw_version
+        self.info_report.type = 'LSX'
 
-        self.data_source_description = data_source_description
-        self.data_ref_description = data_ref_description
+
+        self.caps_report.device_name = self.device_name
+        self.caps_report.device_path = self.path
+        self.caps_report.device_node_name = self.node_name
 
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
@@ -206,45 +227,40 @@ class LSXDeviceIF:
 
 
         # Populate and advertise LSX node capabilities report
-        self.capabilities_report = LSXCapabilitiesQueryResponse()
-        self.capabilities_report.has_standby_mode = self.has_standby_mode
-        self.capabilities_report.has_on_off_control = self.has_on_off_control
-        self.capabilities_report.has_intensity_control = self.has_intensity_control
-        self.capabilities_report.has_color_control = self.has_color_control
-        self.capabilities_report.color_options_list = self.color_options_list
-        self.capabilities_report.has_kelvin_control = self.has_kelvin_control
-        self.capabilities_report.kelvin_min = self.kelvin_limits_list[0]
-        self.capabilities_report.kelvin_max = self.kelvin_limits_list[1]
-        self.capabilities_report.has_blink_control = self.has_blink_control
-        self.capabilities_report.has_hw_strobe = self.has_hw_strobe
-        self.capabilities_report.reports_temperature = self.reports_temp
-        self.capabilities_report.reports_power = self.reports_power
+        self.caps_report.has_standby_mode = self.has_standby_mode
+        self.caps_report.has_on_off_control = self.has_on_off_control
+        self.caps_report.has_intensity_control = self.has_intensity_control
+        self.caps_report.has_color_control = self.has_color_control
+        self.caps_report.color_options_list = self.color_options_list
+        self.caps_report.has_kelvin_control = self.has_kelvin_control
+        self.caps_report.kelvin_min = self.kelvin_limits_list[0]
+        self.caps_report.kelvin_max = self.kelvin_limits_list[1]
+        self.caps_report.has_blink_control = self.has_blink_control
+        self.caps_report.has_hw_strobe = self.has_hw_strobe
+        self.caps_report.reports_temperature = self.reports_temp
+        self.caps_report.reports_power = self.reports_power
 
-
-        self.device_name = device_info["device_name"] + "_" + device_info["identifier"]
 
         self.getStatusFunction = getStatusFunction
 
-        # Initialize status message
-        self.status_msg.device_id = self.device_id
-        self.status_msg.identifier = self.identifier
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        alt_namespace = None
+        if self.device_name != self.node_name:
+            alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
         # Configs Config Dict ####################
         self.CONFIGS_DICT = {
                 'init_callback': self.initCb,
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.namespace
+                'namespace':  self.namespace,
+                'alt_namespace': alt_namespace
         }
 
 
@@ -252,10 +268,6 @@ class LSXDeviceIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
-            'device_name': {
-                'namespace': self.namespace,
-                'factory_val': self.device_name
-            },
             'standby_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("standby_enabled")
@@ -283,16 +295,20 @@ class LSXDeviceIF:
             'blink_interval_sec': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict.get("blink_interval_sec")
-            },
-            'navpose_frame': {
-                'namespace': self.namespace,
-                'factory_val': 'None'
             }
         }
 
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
+            'device_info_query': {
+                'namespace': self.namespace,
+                'topic': 'device_info_query',
+                'srv': DeviceInfoQuery,
+                'req': DeviceInfoQueryRequest(),
+                'resp': DeviceInfoQueryResponse(),
+                'callback': self.info_query_callback
+            },
             'capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
@@ -318,22 +334,6 @@ class LSXDeviceIF:
 
 
         self.SUBS_DICT = {
-            'set_device_name': {
-                'namespace': self.namespace,
-                'topic': 'set_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.namespace,
-                'topic': 'reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'set_standby': {
                 'namespace': self.namespace,
                 'topic': 'set_empty',
@@ -540,7 +540,14 @@ class LSXDeviceIF:
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
-        self.device_name = self.node_if.get_param('device_name')
+        self.init_standby_enabled = self.node_if.get_param('standby_enabled')
+        self.init_on_off_state = self.node_if.get_param('on_off_state')
+        self.init_intensity_ratio = self.node_if.get_param('intensity_ratio')
+        self.init_color_selection = self.node_if.get_param('color_selection')
+        self.init_kelvin_val = self.node_if.get_param('kelvin_val')
+        self.init_strobe_enbled = self.node_if.get_param('strobe_enbled')
+        self.init_blink_interval_sec = self.node_if.get_param('blink_interval_sec')
+
       if do_updates == True:
         self.updateDevice()
       self.publish_status()
@@ -606,7 +613,6 @@ class LSXDeviceIF:
             blink_interval = self.node_if.get_param('blink_interval_sec')
             if self.getStatusFunction is not None:
                 status_msg=self.getStatusFunction()
-                status_msg.user_name = self.node_if.get_param('device_name')
                 status_msg.on_off_state = self.node_if.get_param('on_off_state')
                 try:
                     if self.node_if is not None:
@@ -619,35 +625,14 @@ class LSXDeviceIF:
 
 
 
+    ### Info callback
+    def info_query_callback(self, _):
+        return self.info_report
+
+
     ### Capabilities callback
     def capabilities_query_callback(self, _):
-        return self.capabilities_report
-
-    ### Device Name callbacks
-    def updateDeviceNameCb(self, msg):
-        self.msg_if.pub_info("Received Device Name update msg:" + str(msg), log_name_list = self.log_name_list)
-        new_device_name = msg.data
-        self.updateDeviceName(new_device_name)
-
-    def updateDeviceName(self, new_device_name):
-        valid_name = True
-        for char in self.BAD_NAME_CHAR_LIST:
-            if new_device_name.find(char) != -1:
-                valid_name = False
-        if valid_name is False:
-            self.msg_if.pub_error("Received invalid device name update: " + new_device_name, log_name_list = self.log_name_list)
-        else:
-            self.node_if.set_param('device_name', new_device_name)
-        self.publish_status()
-
-
-    def resetDeviceNameCb(self,msg):
-        self.msg_if.pub_info("Received Device Name reset msg:" + str(msg), log_name_list = self.log_name_list)
-        self.resetDeviceName()
-
-    def resetDeviceName(self):
-        self.node_if.set_param('device_name', self.device_name)
-        self.publish_status()
+        return self.caps_report
 
     ### LSX callbacks
     def setStandbyCb(self, standby_msg):

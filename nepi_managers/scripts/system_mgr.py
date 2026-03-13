@@ -31,16 +31,8 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
+from nepi_sdk import nepi_mgrs
 
-#####################
-# Software
-from nepi_sdk import nepi_software
-from nepi_sdk import nepi_docker
-
-from nepi_interfaces.msg import MgrSoftwareStatus
-
-                           
-from nepi_interfaces.srv import  SoftwareStatusQuery, SoftwareStatusQueryRequest, SoftwareStatusQueryResponse
                  
 #####################
 # System         
@@ -50,13 +42,9 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateState
+                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateOrder
                       
-from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse, \
-                             OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse, \
-                             SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse, \
-                             DebugQuery, DebugQueryRequest, DebugQueryResponse, \
-                             AdminQuery, AdminQueryRequest, AdminQueryResponse
+from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
 from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus
@@ -78,6 +66,8 @@ BYTES_PER_MEGABYTE = 2**20
 NEPI_FOLDER='/opt/nepi'
 
 class SystemMgrNode():
+
+
     
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -89,6 +79,7 @@ class SystemMgrNode():
 
     STATES_DICT = dict()
 
+    RUN_MODES = ['develop','deploy']
 
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                         "ai_training",
@@ -106,7 +97,7 @@ class SystemMgrNode():
                         "nepi_src",
                         "nepi_scripts",
                         "user_cfg",
-                        "user_cfg/cal",]
+                        "user_cfg/cals",]
 
     REQD_CONFIG_SUBDIRS = ["docker_cfg", 
                             "factory_cfg",
@@ -119,54 +110,25 @@ class SystemMgrNode():
                             "logs/ros_log",
                             "logs/nepi_scripts_logs", 
                             "nepi_src",
-                            "tmp"]
+                            "tmp",
+                            "docker_cfg", 
+                            "factory_cfg",
+                            "system_cfg"]
+    
 
-    user_restrictions_options = {
-        'Sys-Admin': "Desc",
-        'Sys-Debug': "Desc",
-        'Cfg-Factory': "Desc",
-        'Cfg-System': "Desc",
-        'Cfg-User': "Desc",
-        'Mgr-Device': "Desc",        
-        'Mgr-Device-License': "Desc",
-        'Mgr-Time': "Desc",
-        'Mgr-Time_NTP': "Desc",
-        'Mgr-Time_Sync_Clocks': "Desc",
-        'Mgr-Network': "Desc",
-        'Mgr-Network-Wired': "Desc",
-        'Mgr-Network-DHCP': "Desc",
-        'Mgr-Network-WiFi': "Desc",
-        'Mgr-Network-Access Point': "Desc", 
-        'Mgr-Software Manager': "Desc",
-        'Mgr-NavPose Manager': "Desc",
-        'Mgr-Driver Manager': "Desc",
-        'Mgr-AI Manager': "Desc",
-        'Mgr-Apps Manager': "Desc",
-        'Dvc': "Desc",
-        'Dvc-Controls': "Desc",
-        'Dvc-Settings': "Desc",
-        'Dvc-Config': "Desc",
-        'Set-View': "Desc",
-        'Set-Controls': "Desc",
-        'Tfm-View': "Desc",
-        'Tfm-Controls': "Desc",
-        'Trig-View': "Desc",
-        'Tri-Controls': "Desc",
-        'Sta-View': "Desc",
-        'Sta-Controls': "Desc",
-        'Img-Stats': "Desc",
-        'Img-Controls': "Desc",
-        'Msg-View': "Desc",
-        'Msg-Controls': "Desc",
-        'Dat': "Desc",
-        'Dat-Controls': "Desc",
-        'Dat-Viwew': "Desc"
-    }
+    USER_RESTRICTION_OPTIONS =  \
+        ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
+        'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
+        ['SYSTEM-ADMIN','SYSTEM-MESSAGES','SYSTEM-SAVE','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES','SYSTEM-TRANSFORMS',] + \
+        ['DATA-IMAGE','DATA-IMAGE-RENDER','DATA-IMAGE-INFO','DATA-IMAGE-NAVPOSE','DATA-IMAGE-CONFIG'] + \
+        ['DATA-NAVPOSE'] + \
+        ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX']
+
 
 
     node_if = None
     status_msg = MgrSystemStatus()
-    sw_status_msg = MgrSoftwareStatus()
+    status_published = False
 
     storage_subdirs = dict()
     user_folders = dict()
@@ -177,17 +139,8 @@ class SystemMgrNode():
 
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
-
-
-    auto_switch_rootfs_on_new_img_install = True
-    sw_update_progress = ""
-    selected_new_img="none_detected"
-    installing_new_image = False
-    new_img_file = ""
-    new_img_version = ""
-    new_img_filesize = 0
-    install_status = True
-    saving_image = False
+    disk_required_percent = 10
+    disk_clean_percent = 10
 
     in_container = False
 
@@ -198,19 +151,42 @@ class SystemMgrNode():
 
     current_throttle_ratio = 1.0
 
-    debug_enabled = False
-    admin_enabled = True
-    user_restrictions_enabled = []
 
-    install_img = ''
-    install_img_version = ''
-    install_img_size = ''
+    admin_enabled = False
+    admin_password = None
+    admin_password_valid = False
+    admin_mode_set = False
+    admin_mode_updated = True
 
-    new_img_staging = None
+
+    managers_dict = dict()
+    managers_process_dict = dict()
+    managers_base_list = nepi_mgrs.BASE_MANAGERS
+    managers_failed_list = []
+    managers_active_list = []
+    managers_active_list_last = []
+    managers_running_list = []
+    managers_param_folder = '/opt/nepi/nepi_engine/share/nepi_managers/params'
+    
+    run_mode = 'deploy'
+    debug_mode_enabled = False
+
+    user_restriction_options = USER_RESTRICTION_OPTIONS
+    user_restrictions = []
+
+    user_login_enabled = False
+    user_login_password = None
+    user_login_password_valid = False
+
+
+
+
+
 
     init_complete = False
     ready = False
 
+    config_saved = False
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -248,6 +224,8 @@ class SystemMgrNode():
         # stat_info = os.stat(self.storage_folder)
         # self.folders_uid = stat_info.st_uid
         # self.folders_gid = stat_info.st_gid
+        self.user_login_password = self.nepi_config['NEPI_USER_PW']
+        self.admin_password = self.nepi_config['NEPI_ADMIN_PW']
         self.folders_uid = self.nepi_config['NEPI_USER']
         self.folders_gid = self.nepi_config['NEPI_USER']
 
@@ -270,26 +248,22 @@ class SystemMgrNode():
 
         nepi_system.set_nepi_config(self.nepi_config)
 
-        self.status_msg.serial_number = self.nepi_config['NEPI_DEVICE_SN']
-
-
-        self.status_msg.hw_type = self.nepi_config['NEPI_HW_TYPE']
-
-
+        self.status_msg.serial_number = str(self.nepi_config['NEPI_DEVICE_SN'])
+        hw_type = self.nepi_config['NEPI_HW_TYPE']
+        if hw_type != 'unknown':
+            self.status_msg.hw_type = hw_type
+        hw_model = self.nepi_config['NEPI_HW_MODEL']
+        if hw_model != 'unknown':
+            self.status_msg.hw_model = hw_model
         self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
-
-
         self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
-
-
         self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
-
-
         self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
         self.status_msg.in_container = self.in_container
 
+<<<<<<< HEAD
 
         self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
         self.has_ab_fs = self.nepi_config['NEPI_FS_AB'] == 1
@@ -303,33 +277,13 @@ class SystemMgrNode():
         self.emmc_device = "/dev/mmcblk0p"
         self.ssd_device = "/dev/nvme0n1p"
 
+=======
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
         self.config_folder = self.nepi_config['NEPI_CONFIG']
         self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
-        if self.in_container == True:
-            self.nepi_image = nepi_docker
-            self.msg_if.pub_warn("NEPI Running in Container")
-        else:
-            self.nepi_image = nepi_software
-            self.msg_if.pub_warn("Using first stage boot device: " + str(self.first_rootfs))
-
-        self.status_msg.inactive_rootfs_fw_version = "unknown"
-        '''
-        self.msg_if.pub_warn("Deleting old log files")
-        logs_path_subdir = os.path.join(self.storage_folder, 'logs/ros_log')
-        os.system('rm -r ' + logs_path_subdir + '/*')
-        '''
         
-        self.msg_if.pub_warn("Updating Rootfs Scheme")
-        # Need to identify the rootfs scheme because it is used in init_msgs()
-        self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
-        self.msg_if.pub_warn("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
-        
-
-
-
-
         self.SDK_PATH_DICT = {
             'sdk_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_sdk',
             'sdk_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_sdk',
@@ -352,7 +306,11 @@ class SystemMgrNode():
             'rui_bld': NEPI_FOLDER + '/rui/src/rui_webserver/rui-app',
             'rui_src': NEPI_FOLDER + '/rui/src/rui_webserver/rui-app/src'
             }
-            
+        self.MANAGERS_PATH_DICT = {
+            'managers_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_managers',
+            'managers_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_managers',
+            'managers_param': NEPI_FOLDER + '/nepi_engine/share/nepi_managers/params',
+            }
         self.DRIVERS_PATH_DICT = {
             'drivers_pkg': NEPI_FOLDER + '/nepi_engine/lib/python3/dist-packages/nepi_drivers',
             'drivers_lib': NEPI_FOLDER + '/nepi_engine/lib/nepi_drivers',
@@ -373,13 +331,14 @@ class SystemMgrNode():
             'apps_install': '/mnt/nepi_storage/install/apps'
             }
 
-        self.SYSTEM_CHECK_SKIP_LIST = ['rui']
+        self.SYSTEM_CHECK_SKIP_LIST = ['rui','etc']
         self.SYSTEM_PATH_DICT = {
             'sdk': self.SDK_PATH_DICT,
             'api': self.API_PATH_DICT,
             'etc': self.ETC_PATH_DICT,
             'cfg': self.CONFIG_FOLDER_DICT,
             'rui': self.RUI_PATH_DICT,
+            'managers': self.MANAGERS_PATH_DICT,
             'drivers': self.DRIVERS_PATH_DICT,
             'aifs': self.AIFS_PATH_DICT,
             'apps': self.APPS_PATH_DICT
@@ -413,9 +372,8 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Checking System Folders")
         # Ensure that the user partition is properly laid out
         self.storage_subdirs = {} # Populated in function below
-        if self.ensure_reqd_subdirs() is True:
-            # Now can advertise the system folder query
-            nepi_sdk.create_service('system_storage_folder_query', SystemStorageFolderQuery, self.provide_system_data_folder)
+        self.ensure_reqd_subdirs()
+
 
         self.msg_if.pub_warn("Storing User Folders")
         nepi_system.set_user_folders(self.user_folders)
@@ -439,22 +397,34 @@ class SystemMgrNode():
         self.valid_device_id_re = re.compile(r"^[a-zA-Z][\w]*$")
 
 
-        self.msg_if.pub_warn("Updating Rootfs Load Fail Counter")
-        # Reset the A/B rootfs boot fail counter -- if this node is running, pretty safe bet that we've booted successfully
-        # This should be redundant, as we need a non-ROS reset mechanism, too, in case e.g., ROS nodes are delayed waiting
-        # for a remote ROS master to start. That could be done in roslaunch.sh or a separate start-up script.
-        if self.rootfs_ab_scheme == 'nepi' or self.in_container == 1 : # The 'jetson' scheme handles this itself
-            status, err_msg = self.nepi_image.resetBootFailCounter(self.first_rootfs)
-            if status is False:
-                self.msg_if.pub_warn("Failed to reset boot fail counter: " + err_msg)
+        self.msg_if.pub_warn("Updating Boot Fail Counter")
+        nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT",0)
 
-        roptions=[]
-        for key in self.user_restrictions_options.keys():
-            ropt=DictStringEntry()
-            ropt.key = key
-            ropt.value = self.user_restrictions_options[key]
-        self.status_msg.user_restrictions_options = roptions
+
+        self.status_msg.sys_run_mode_options = self.RUN_MODES
+        self.status_msg.user_restriction_options = self.user_restriction_options
+        #self.status_msg.sys_managers_base_list = self.managers_base_list
         
+        ### Load System Manager Params
+        self.msg_if.pub_warn("Updating From Param Server")
+
+        user_cfg_file = self.node_name + '.yaml'
+        user_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['user_cfg'],user_cfg_file)
+        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
+        if len(list(params_dict.keys())) > 0:
+            self.msg_if.pub_warn("Loaded System Manager Params from: " + str(user_cfg_path) + " : " + str(params_dict))
+        else:
+            system_cfg_file = self.node_name + '.yaml'
+            system_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['system_cfg'],system_cfg_file)
+            params_dict = nepi_sdk.load_params_from_file(system_cfg_path,self.node_namespace)
+            if len(list(params_dict.keys())) > 0:
+                self.msg_if.pub_warn("Loaded System Manager Params from: " + str(system_cfg_path) + " : " + str(params_dict))
+        # system_cfg_file = self.node_name + '.yaml'
+        # system_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['system_cfg'],system_cfg_file)
+        # params_dict = nepi_sdk.load_params_from_file(system_cfg_path,self.node_namespace)
+        # if len(list(params_dict.keys())) > 0:
+        #     self.msg_if.pub_warn("Loaded System Manager Params from: " + str(system_cfg_path) + " : " + str(params_dict))
+        nepi_sdk.sleep(1)
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
         ##############################
@@ -466,110 +436,47 @@ class SystemMgrNode():
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
             'init_configs': True,
+            'clear_params': False,
             'namespace': self.node_namespace
         }
 
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'op_environment': {
-                'namespace': self.base_namespace,
-                'factory_val': OpEnvironmentQueryResponse.OP_ENV_AIR
+            'admin_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.admin_enabled
+            },
+            'managers_active_list': {
+                'namespace': self.node_namespace,
+                'factory_val': self.managers_active_list
+            },
+            'run_mode': {
+                'namespace': self.node_namespace,
+                'factory_val': self.run_mode
+            },
+            'user_restriction_options': {
+                'namespace': self.node_namespace,
+                'factory_val': self.user_restriction_options
+            },
+            'user_restrictions': {
+                'namespace': self.node_namespace,
+                'factory_val': self.user_restrictions
+            },
+            'user_login_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.user_login_enabled
             },
             'storage_folder': {
-                'namespace': self.base_namespace,
+                'namespace': self.node_namespace,
                 'factory_val': self.storage_folder
             },
-            'auto_switch_rootfs_on_new_img_install': {
-                'namespace': self.base_namespace,
-                'factory_val': self.auto_switch_rootfs_on_new_img_install
-            },
-            'first_rootfs': {
-                'namespace': self.base_namespace,
-                'factory_val': self.first_rootfs
-            },
-            'new_img_staging': {
-                'namespace': self.base_namespace,
-                'factory_val': self.new_img_staging
-            },
-            'new_img_staging_removable': {
-                'namespace': self.base_namespace,
-                'factory_val': self.new_img_staging_removable
-            },
-            'emmc_device': {
-                'namespace': self.base_namespace,
-                'factory_val': self.emmc_device
-            },
-            'usb_device': {
-                'namespace': self.base_namespace,
-                'factory_val': self.usb_device
-            },
-            'sd_card_device': {
-                'namespace': self.base_namespace,
-                'factory_val': self.sd_card_device
-            },
-            'ssd_device': {
-                'namespace': self.base_namespace,
-                'factory_val': self.ssd_device
-            },
-            'debug_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': False
-            },
-            'admin_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': False
-            },
-            'user_restrictions_enabled': {
-                'namespace': self.base_namespace,
-                'factory_val': []
-            }
         }
 
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'software_status_query': {
-                'namespace': self.base_namespace + '/softaware_mgr',
-                'topic': 'system_status_query',
-                'srv': SoftwareStatusQuery,
-                'req': SoftwareStatusQueryRequest(),
-                'resp': SoftwareStatusQueryResponse(),
-                'callback': self.provide_software_status
-            },
             'system_status_query': {
-                'namespace': self.base_namespace,
-                'topic': 'system_status_query',
-                'srv': SystemStatusQuery,
-                'req': SystemStatusQueryRequest(),
-                'resp': SystemStatusQueryResponse(),
-                'callback': self.provide_system_status
-            },
-            'op_environment_query': {
-                'namespace': self.base_namespace,
-                'topic': 'op_environment_query',
-                'srv': OpEnvironmentQuery,
-                'req': OpEnvironmentQueryRequest(),
-                'resp': OpEnvironmentQueryResponse(),
-                'callback': self.provide_op_environment
-            },
-            'debug_query': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode_query',
-                'srv': DebugQuery,
-                'req': DebugQueryRequest(),
-                'resp': DebugQueryResponse(),
-                'callback': self.provide_debug_status
-            },
-            'admin_query': {
-                'namespace': self.base_namespace,
-                'topic': 'admin_mode_query',
-                'srv': AdminQuery,
-                'req': AdminQueryRequest(),
-                'resp': AdminQueryResponse(),
-                'callback': self.provide_admin_status
-            },
-            'status_query': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status_query',
                 'srv': SystemStatusQuery,
@@ -583,13 +490,6 @@ class SystemMgrNode():
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
-            'software_status_pub': {
-                'namespace': self.base_namespace + '/softaware_mgr',
-                'topic': 'status',
-                'msg': MgrSoftwareStatus,
-                'qsize': 1,
-                'latch': True
-            },
             'status_pub': {
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -597,24 +497,10 @@ class SystemMgrNode():
                 'qsize': 1,
                 'latch': True
             },
-            'saveParamsCb': {
-                'namespace': self.base_namespace,
-                'topic': 'saveParamsCb',
-                'msg': String,
-                'qsize': 10,
-                'latch': True
-            },
             'apply_throttle': {
                 'namespace': self.base_namespace,
                 'topic': 'apply_throttle',
                 'msg': Float32,
-                'qsize': 3,
-                'latch': True
-            },
-            'set_op_environment': {
-                'namespace': self.base_namespace,
-                'topic': 'settings',
-                'msg': String,
                 'qsize': 3,
                 'latch': True
             },
@@ -650,6 +536,103 @@ class SystemMgrNode():
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'enable_admin': {
+                'namespace': self.base_namespace,
+                'topic': 'admin_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableAdminCb, 
+                'callback_args': ()
+            },
+            'set_admin_password': {
+                'namespace': self.base_namespace,
+                'topic': 'set_admin_password',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setAdminPasswordCb, 
+                'callback_args': ()
+            },            
+            'enable_all_managers': {
+                'namespace': self.node_namespace,
+                'topic': 'enable_all_managers',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.enableAllCb, 
+                'callback_args': ()
+            },
+            'disable_all_managers': {
+                'namespace': self.node_namespace,
+                'topic': 'disable_all_managers',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.disableAllCb, 
+                'callback_args': ()
+            },
+            'update_manager_state': {
+                'namespace': self.node_namespace,
+                'topic': 'update_manager_state',
+                'msg': UpdateBool,
+                'qsize': 10,
+                'callback': self.updateStateCb, 
+                'callback_args': ()
+            },
+            'update_manager_order': {
+                'namespace': self.node_namespace,
+                'topic': 'update_manager_order',
+                'msg': UpdateOrder,
+                'qsize': 10,
+                'callback': self.updateOrderCb, 
+                'callback_args': ()
+            },
+
+            'set_run_mode': {
+                'namespace': self.base_namespace,
+                'topic': 'set_run_mode',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setRuiModeCb, 
+                'callback_args': ()
+            },
+            'enable_debug_mode': {
+                'namespace': self.base_namespace,
+                'topic': 'enable_debug_mode',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableDebugCb, 
+                'callback_args': ()
+            },
+            'add_user_restriction': {
+                'namespace': self.base_namespace,
+                'topic': 'add_user_restriction',
+                'msg': String,
+                'qsize': None,
+                'callback': self.addUserRestrictionCb, 
+                'callback_args': ()
+            },
+            'remove_user_restriction': {
+                'namespace': self.base_namespace,
+                'topic': 'remove_user_restriction',
+                'msg': String,
+                'qsize': None,
+                'callback': self.removeUserRestrictionCb, 
+                'callback_args': ()
+            },
+            'enable_user_login': {
+                'namespace': self.base_namespace,
+                'topic': 'user_login_mode_enable',
+                'msg': Bool,
+                'qsize': None,
+                'callback': self.enableUserLoginCb, 
+                'callback_args': ()
+            },
+            'set_user_login_password': {
+                'namespace': self.base_namespace,
+                'topic': 'set_user_login_password',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setUserLoginPasswordCb, 
+                'callback_args': ()
+            },  
             'save_data': {
                 'namespace': self.base_namespace,
                 'topic': 'save_data',
@@ -666,14 +649,7 @@ class SystemMgrNode():
                 'callback': self.clearDataFolderCb, 
                 'callback_args': ()
             },
-            'set_op_environment': {
-                'namespace': self.base_namespace,
-                'topic': 'set_op_environment',
-                'msg': String,
-                'qsize': None,
-                'callback': self.setOpEnvCb, 
-                'callback_args': ()
-            },
+
             'set_device_id': {
                 'namespace': self.base_namespace,
                 'topic': 'set_device_id',
@@ -690,76 +666,12 @@ class SystemMgrNode():
                 'callback': self.systemErrorCb, 
                 'callback_args': ()
             },
-            'select_nepi_image': {
-                'namespace': self.base_namespace,
-                'topic': 'select_nepi_image',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.selectImageCb, 
-                'callback_args': ()
-            },
-            'install_nepi_image': {
-                'namespace': self.base_namespace,
-                'topic': 'install_nepi_image',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.installImageCb, 
-                'callback_args': ()
-            },
-            'switch_nepi_image': {
-                'namespace': self.base_namespace,
-                'topic': 'switch_nepi_image',
-                'msg': Empty,
-                'qsize': None,
-                'callback': self.handle_switch_active_inactive_image, 
-                'callback_args': ()
-            },
-            'save_nepi_image': {
-                'namespace': self.base_namespace,
-                'topic': 'save_nepi_image',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.saveImageCb, 
-                'callback_args': ()
-            },
-            'save_data_prefix': {
-                'namespace': self.base_namespace,
-                'topic': 'save_data_prefix',
-                'msg': String,
-                'qsize': None,
-                'callback': self.save_data_prefix_callback, 
-                'callback_args': ()
-            },
             'system_triggers': {
                 'namespace': self.base_namespace,
                 'topic': 'system_triggers',
                 'msg': SystemTrigger,
                 'qsize': None,
                 'callback': self.systemTriggersCb, 
-                'callback_args': ()
-            },
-            'enable_debug': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableDebugCb, 
-                'callback_args': ()
-            },
-            'enable_admin': {
-                'namespace': self.base_namespace,
-                'topic': 'admin_mode_enable',
-                'msg': Bool,
-                'qsize': None,
-                'callback': self.enableAdminCb, 
-                'callback_args': ()
-            },
-            'set_user_restrictions_enabled': {
-                'namespace': self.base_namespace,
-                'topic': 'set_user_restrictions_enabled',
-                'msg': UpdateState,
-                'qsize': None,
-                'callback': self.setAdminRestrictedCb, 
                 'callback_args': ()
             },
             'restart_nepi': {
@@ -769,7 +681,8 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.restartNepiCb, 
                 'callback_args': ()
-            }
+            },
+
         }
 
         # Create Node Class ####################
@@ -787,21 +700,20 @@ class SystemMgrNode():
         nepi_sdk.wait()
 
         # Config mgr not running yet, so have to load saved configs ourselfs
-        user_cfg_file = self.node_name + '.yaml'
-        user_cfg_path = nepi_sdk.create_namespace(self.CONFIG_FOLDER_DICT['user_cfg'],user_cfg_file)
-        self.msg_if.pub_warn("Updating From Param Server")
-        params_dict = nepi_sdk.load_params_from_file(user_cfg_path,self.node_namespace)
-        nepi_sdk.sleep(1)
+
+
         self.initCb(do_updates = True)
 
-        self.status_msg.sys_debug_enabled = self.debug_enabled
-        nepi_system.set_debug_mode(self.debug_enabled)
+        #######################
+        # Setup NEPI Managers Updater Process
+        self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
+        nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
-        self.status_msg.sys_admin_enabled = self.admin_enabled
-        nepi_system.set_admin_mode(self.admin_enabled)
 
-        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
-        #nepi_system.set_user_restrictions_enabled(self.user_restrictions_enabled)
+        #######################
+        # Setup System IF Classes
+        self.managers_param_folder = self.MANAGERS_PATH_DICT['managers_param']
+        self.msg_if.pub_info("Using Managers Param Folder: " + str(self.managers_param_folder))
 
 
         self.msg_if.pub_warn("Starting System IF Setup")   
@@ -855,7 +767,6 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Starting System Status Messages")
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.updateSoftwareStatusCb, oneshot = True)
         nepi_sdk.start_timer_process(5, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
 
@@ -896,59 +807,55 @@ class SystemMgrNode():
 
     def initConfig(self):
         if self.node_if is not None:
-            op_env = self.node_if.get_param("op_environment")
-            # Publish it to all subscribers (which includes this node) to ensure the parameter is applied
-            self.node_if.publish_pub('set_op_env_pub', String(op_env))
 
             # Now gather all the params and set members appropriately
             self.storage_folder = self.node_if.get_param("storage_folder")
-            
-            self.auto_switch_rootfs_on_new_img_install = nepi_sdk.get_param(
-                "~auto_switch_rootfs_on_new_img_install", self.auto_switch_rootfs_on_new_img_install)
 
-            self.first_rootfs = nepi_sdk.get_param(
-                "~first_rootfs", self.first_rootfs)
 
             # nepi_storage has some additional logic
             self.getNEPIStorageDevice()
             
-            if self.in_container==True:
-                self.new_img_staging = self.new_img_folder
 
-                self.new_img_staging_removable = False
-            else:
-                self.new_img_staging = self.new_img_staging
-
-                self.new_img_staging_removable = self.new_img_staging_removable
-
-            self.emmc_device = self.node_if.get_param("emmc_device")
-
-            self.usb_device = self.node_if.get_param("usb_device")
-
-            self.sd_card_device = self.node_if.get_param("sd_card_device")
-
-            self.ssd_device = self.node_if.get_param("ssd_device")
-
-            self.init_complete = True
-
-            self.init_msgs()
-
-            # Call the method to update s/w status once internally to prime the status fields now that we have all the parameters
-            # established
-            self.update_software_status()
+            fw_str = self.get_fw_rev()
+            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
+            self.status_msg.firmware_version = fw_str
 
 
+            # TODO: Determine how many temperature readings we have. On Jetson, for example
+            #      there are 8 "thermal zones" in /sys/class/thermal/
+            self.status_msg.temperature_sensor_names.append('CPU Zone 0')
+            # TODO: Configurable warning/error temperatures
+            self.status_msg.warning_temps.append(60.0)
+            self.status_msg.critical_temps.append(70.0)
 
+            statvfs = os.statvfs(self.storage_folder)
+            self.status_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
+                BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
+
+            for i in self.status_msg.temperature_sensor_names:
+                self.status_msg.temperatures.append(0.0)
+
+            # TODO: Should this be queried somehow e.g., from the param server
+            self.status_msg.save_all_enabled = False
 
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            self.debug_enabled = self.node_if.get_param('debug_enabled')
-            self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.user_restrictions_enabled = self.node_if.get_param('user_restrictions_enabled')
-        if do_updates == True:
-            pass
-        # self.publish_settings() # Make sure to always publish settings updates
+            #self.admin_enabled = self.node_if.get_param('admin_enabled')
+            self.managers_active_list = self.node_if.get_param('managers_active_list')
+            #self.run_mode = self.node_if.get_param('run_mode')
+            self.user_restriction_options = self.node_if.get_param('user_restriction_options')
+            self.user_restrictions = self.node_if.get_param('user_restrictions')
+            self.user_login_enabled = self.node_if.get_param('user_login_enabled')
+
+            if do_updates == True:
+                self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+                for manager_name in self.managers_dict:
+                    self.managers_dict[manager_name]['active'] = manager_name in self.managers_active_list
+                self.updateSystemAdminSettings()
+                if self.node_if is not None:
+                    self.node_if.set_param('managers_active_list', self.managers_active_list)
+            self.publish_status() 
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
@@ -1062,10 +969,13 @@ class SystemMgrNode():
 
     def update_temperatures(self):
         # Get the current temperatures
-
+        if len(self.status_msg.temperatures) == 0:
+            return
+        
         # TODO: Should the temperature sensor or the entire subproc. cmd line be configurable?
         temp_string_mdegC = subprocess.check_output(
             ["cat", "/sys/class/thermal/thermal_zone0/temp"])
+       
         self.status_msg.temperatures[0] = float(temp_string_mdegC) / 1000.0
 
         # Check for temperature warnings and do thermal throttling
@@ -1146,45 +1056,293 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(5, self.updateTopicsServicesCb, oneshot = True)
  
 
-    def updateSoftwareStatusCb(self, event):
-        self.update_software_status()
-        nepi_sdk.start_timer_process(5, self.updateSoftwareStatusCb, oneshot = True)
-
 
     def setSaveStatusCb(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
 
-    def enableDebugCb(self, msg):
-        self.debug_enabled = msg.data
-        self.status_msg.sys_debug_enabled = msg.data
+    #######################
+
+    def updaterCb(self,timer):
+        needs_update = False
+        managers_dict = copy.deepcopy(self.managers_dict)
+        managers_ordered_list = nepi_mgrs.getManagersOrderedList(managers_dict)
+        managers_active_list_last = self.managers_active_list_last
+        managers_active_list = self.managers_active_list
+        if (managers_active_list != managers_active_list_last):
+            needs_update = True
+            for manager_name in self.managers_dict:
+                self.managers_dict[manager_name]['active'] = manager_name in managers_active_list
+        self.managers_active_list_last = copy.deepcopy(self.managers_active_list)
+
+        ####################
+        # Running process check
+        managers_running_list = []
+        for manager_name in self.managers_process_dict.keys():
+            node_name = managers_dict[manager_name]['node_name']
+            running = nepi_sdk.check_node_by_name(node_name)
+            if running == True:
+                managers_running_list.append(manager_name)
+                #self.msg_if.pub_warn("Manager RUNNING: " + str(manager_name) + " node_name: " + str(node_name))
+            else:
+                #self.msg_if.pub_warn("Manager NOT running: " + str(manager_name) + " node_name: " + str(node_name))
+                pass
+        if self.managers_running_list != managers_running_list:
+            needs_update = True
+
+        ####################
+        # Run purge process check
+        purge_list = []
+        for manager_name in self.managers_process_dict.keys():
+            if manager_name not in managers_active_list:
+                purge_list.append(manager_name)
+        for manager_name in purge_list:
+            node_namespace = managers_dict[manager_name]['node_namespace']
+            subprocess = self.managers_process_dict[manager_name]
+            self.msg_if.pub_warn("Killing Deactivated Manager: " + str(manager_name))
+            success = nepi_mgrs.killManagerNode(node_namespace,subprocess)
+            del self.managers_process_dict[manager_name]
+            needs_update = True
+
+
+        ####################
+        # Launch process check
+        for manager_name in managers_ordered_list:
+            if  manager_name in managers_active_list and manager_name not in self.managers_process_dict.keys() and manager_name not in self.managers_failed_list:
+                file_name = managers_dict[manager_name]['node_file']
+                node_name = managers_dict[manager_name]['node_name']
+                etc_file = managers_dict[manager_name]['etc_file']
+                [success, msg, subprocess] = nepi_mgrs.launchManagerNode(file_name, node_name, etc_file)
+                if success == True:
+                    self.managers_process_dict[manager_name] = subprocess
+                    self.msg_if.pub_warn("Manager launched successfully: " + str(manager_name))
+                else:
+                    self.msg_if.pub_warn("Manager Failed to Launch. Will not retry: " + str(manager_name))
+                    self.managers_failed_list.append(manager_name)
+
+        self.managers_active_list = managers_active_list
+        self.managers_running_list = managers_running_list
+
+
+        if needs_update == True:
+            self.status_msg.sys_managers_ordered_list = nepi_mgrs.getManagersOrderedList(managers_dict)
+            self.status_msg.sys_managers_active_list = self.managers_active_list
+            self.status_msg.sys_managers_running_list = self.managers_running_list
+            self.publish_status()
+
+
+
+        needs_save = self.config_saved == False or needs_update == True
+        if needs_save == True and self.node_if is not None:
+            config_folders = nepi_system.get_config_folders()
+            if len(list(config_folders.keys())) != 0:
+                self.config_saved = True
+                self.node_if.set_param('managers_active_list', self.managers_active_list)
+                #self.msg_if.pub_warn("Config Mgr Ready. Saving System Config with managers dict: " + str(self.managers_dict))
+                self.node_if.save_config()
+
+
+        ###############
+        # Check free disk space
+        data_path = os.path.join(self.storage_folder, 'data')
+        space_good = nepi_utils.check_path_space(data_path,self.disk_required_percent)
+        if space_good == False:
+            self.msg_if.pub_warn("Data folder minimum free space percent limit reached: " + str(self.disk_required_percent))
+            free_space = self.disk_required_percent + self.disk_clean_percent
+            self.msg_if.pub_warn("Deleting old data files to free up space in folder: " + str(data_path))
+            nepi_utils.free_path_space(data_path,free_space)
+        
+            
+
+        nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
+
+
+
+    def updateSystemAdminSettings(self):
+       
+        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.run_mode == 'develop')
+        self.admin_mode_set = self.admin_enabled and admin_password_valid
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        self.status_msg.sys_admin_password_valid = admin_password_valid 
+        self.status_msg.sys_admin_mode_set = self.admin_mode_set   
+
+        self.status_msg.sys_run_mode = self.run_mode
+        self.status_msg.sys_debug_enabled = self.debug_mode_enabled
+
+
+        self.status_msg.user_restrictions = self.user_restrictions
+        user_restricted = []
+        if self.run_mode == 'deploy':
+            user_restricted = self.user_restrictions
+        self.status_msg.user_restricted = user_restricted
+
+        self.user_login_mode_set = self.user_login_enabled and self.user_login_password_valid
+        self.status_msg.user_login_enabled = self.user_login_enabled
+        self.status_msg.user_login_password_valid = self.user_login_password_valid 
+
+
+
         self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('debug_enabled',msg.data)
-            self.node_if.save_config()
+        nepi_system.set_admin_mode(self.admin_mode_set)
+        nepi_system.set_debug_mode(self.debug_mode_enabled)
+        nepi_system.set_managers_running(self.managers_running_list)
+
+
 
     def enableAdminCb(self, msg):
         self.admin_enabled = msg.data
-        self.status_msg.sys_admin_enabled = msg.data
-        self.publish_status()
-        #if self.node_if is not None:
-        #    self.node_if.set_param('admin_enabled',msg.data)
-        #    self.node_if.save_config()
-
-
-    def setAdminRestrictedCb(self, msg):
-        restricted = []
-        for key in msg.data:
-            if key in user_restrictions_options:
-                restricted.appen(key)
-        self.user_restrictions_enabled = restricted
-        self.publish_status()
+        if self.admin_enabled == False:
+            self.admin_password_valid = False
+        self.updateSystemAdminSettings()
         if self.node_if is not None:
-            self.node_if.set_param('user_restrictions_enabled',restricted)
+            self.node_if.set_param('admin_enabled',msg.data)
             self.node_if.save_config()
 
+    def setAdminPasswordCb(self, msg):
+        password = msg.data
+        if password == self.admin_password:
+            self.admin_password_valid = True
+            self.updateSystemAdminSettings()
+
+            
+
+    def setRuiModeCb(self, msg):
+        if self.admin_mode_set == True:
+            run_mode = msg.data
+            if run_mode in self.RUN_MODES:
+                self.run_mode = msg.data
+                self.updateSystemAdminSettings()
+                if self.node_if is not None:
+                    self.node_if.set_param('run_mode',msg.data)
+                    self.node_if.save_config()
+
+    def enableDebugCb(self, msg):
+        self.debug_mode_enabled = msg.data
+        self.updateSystemAdminSettings()
+
+
+    def enableUserLoginCb(self, msg):
+        if self.admin_mode_set == True:
+            self.user_login_enabled = msg.data
+            self.updateSystemAdminSettings()
+            if self.node_if is not None:
+                self.node_if.set_param('user_login_enabled',msg.data)
+                self.node_if.save_config()
+
+    def setUserLoginPasswordCb(self, msg):
+        if self.admin_mode_set == True:
+            password = msg.data
+            if password == self.user_login_password:
+                self.user_login_password_valid = True
+                self.updateSystemAdminSettings()
+
+
+    def addUserRestrictionCb(self, msg):
+        if self.admin_mode_set == True:
+            name = msg.data
+            if name not in self.user_restriction_options:
+                self.user_restriction_options.append(name)
+
+            if name not in self.user_restrictions:
+                self.user_restrictions.append(name)
+                self.updateSystemAdminSettings()
+        if self.node_if is not None:
+            self.node_if.set_param('user_restrictions',self.user_restrictions)
+            self.node_if.save_config()
+
+
+    def removeUserRestrictionCb(self, msg):
+        if self.admin_mode_set == True:
+            name = msg.data
+            if name in self.user_restrictions:  
+                self.user_restrictions.remove(name)
+                self.updateSystemAdminSettings()
+                if self.node_if is not None:
+                    self.node_if.set_param('user_restrictions',self.user_restrictions)
+                    self.node_if.save_config()
+
+
+  
+    ###################
+    ## Managers Mgr Callbacks
+    def enableAllCb(self,msg):
+        self.msg_if.pub_info("Got enable all msg: " + str(msg))
+        mgrs_names = list(self.managers_dict.keys())
+        for manager_name in mgrs_names and manager_name not in self.managers_base_list:
+            if manager_name not in self.managers_active_list:
+                self.managers_active_list.append(manager_name)
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param("managers_active_list",self.managers_active_list)
+                self.node_if.save_config() # Save config on options change
+
+    def disableAllCb(self,msg):
+        self.msg_if.pub_info("Got disable all msg: " + str(msg))
+        mgrs_names = list(self.managers_dict.keys())
+        for manager_name in mgrs_names and manager_name not in self.managers_base_list:
+            if manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param("managers_active_list",self.managers_active_list)
+                self.node_if.save_config() # Save config on options change
+
+
+    def updateStateCb(self,msg):
+        self.msg_if.pub_info("Got update manager state msg: " + str(msg))
+        manager_name = msg.name
+        enabled = msg.value
+        mgrs_names = list(self.managers_dict.keys())
+        if manager_name in mgrs_names and manager_name not in self.managers_base_list:
+
+            if enabled == True and manager_name not in self.managers_active_list:
+                self.managers_active_list.append(manager_name)
+            elif enabled == False and manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param("managers_active_list",self.managers_active_list)
+                self.node_if.save_config() # Save config on options change
+
+
+
+    def updateOrderCb(self,msg):
+        self.msg_if.pub_info("Got Update manager order msg: " + str(msg))
+        manager_name = msg.name
+        move_cmd = msg.move_cmd
+        moveFunction = self.getOrderUpdateFunction(move_cmd)
+        managers_dict = copy.deepcopy(self.managers_dict)
+        if manager_name in managers_dict.keys() and manager_name not in self.managers_base_list:
+            if manager_name in self.managers_active_list:
+                self.managers_active_list.remove(manager_name)
+            self.publish_status()
+            if self.node_if is not None:
+                self.node_if.set_param("managers_active_list",self.managers_active_list)
+                self.node_if.save_config() # Save config on options change
+
+
+    def getOrderUpdateFunction(self,move_cmd):
+        if move_cmd == 'top':
+            updateFunction = nepi_mgrs.moveManagerTop
+        elif move_cmd == 'bottom':
+            updateFunction = nepi_mgrs.moveManagerBottom
+        elif move_cmd == 'up':
+            updateFunction = nepi_mgrs.moveManagerUp
+        elif move_cmd == 'down':
+            updateFunction = nepi_mgrs.moveManagerDown
+        else:
+            updateFunction = self.moveManagerNone
+        return updateFunction
+
+    def moveManagerNone(self,manager_name,managers_dict):
+        return managers_dict
+
+
+    ###################
     def restartNepiCb(self, msg):
         if self.in_container == True:
             self.nepi_image.restart()
+
+
 
 
     def ensure_reqd_subdirs(self):
@@ -1197,11 +1355,11 @@ class SystemMgrNode():
                 os.makedirs(full_path_subdir)
                 # And set the owner:group and permissions. Do this every time to fix bad settings e.g., during SSD setup
                 # TODO: Different owner:group for different folders?
-            if False: # subdir not in self.STORAGE_CHECK_SKIP_LIST:
+            if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
-                os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                os.system('chown  ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
                 #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
-                os.system('chmod -R 0775 ' + full_path_subdir)
+                os.system('chmod  0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
 
@@ -1278,11 +1436,6 @@ class SystemMgrNode():
             except Exception as e:
                 self.msg_if.pub_warn('Failed to delete: ' + file_path + " " + str(e))
 
-    def setOpEnvCb(self, msg):
-        if (msg.data != OpEnvironmentQueryResponse.OP_ENV_AIR) and (msg.data != OpEnvironmentQueryResponse.OP_ENV_WATER):
-            self.msg_if.pub_warn(
-                "Setting environment parameter to a non-standard value: " + str(msg.data))
-        nepi_sdk.set_param("~op_environment", msg.data)
 
     def setDeviceIdCb(self, msg):
         # First, validate the characters in the msg as namespace chars -- blank string is okay here to clear the value
@@ -1326,142 +1479,6 @@ class SystemMgrNode():
 
     def systemErrorCb(self, msg):
         self.add_info_string(msg.data, StampedString.PRI_HIGH)
-
-    def receive_sw_update_progress(self, progress_val):
-        self.status_msg.sys_img_update_progress = progress_val
-        if progress_val > 0 and progress_val < 1:
-            self.status_msg.sys_img_update_status = 'flashing'
-
-    def receive_archive_progress(self, progress_val):
-        self.status_msg.sys_img_archive_progress = progress_val
-
-    def selectImageCb(self, msg):
-        selected_new_img = msg.data
-        if selected_new_img in self.new_img_files:
-            self.selected_new_img = selected_new_img
-            self.update_software_status() 
-            self.publish_status()       
-    
-    def installImageCb(self, msg):
-        if self.installing_new_image:
-            self.msg_if.pub_warn("New image is already being installed")
-            return
-
-        # Install Image
-        img_filename = msg.data
-        self.selected_new_img=img_filename
-        self.status_msg.sys_img_update_status = 'flashing'
-        self.installing_new_image = True
-        self.install_status = True
-    
-        
-        self.install_status, err_msg = self.nepi_image.installImage(self.new_img_staging, img_filename, self.inactive_rootfs, 
-                                                     do_slow_transfer=False, progress_cb=self.receive_sw_update_progress)
-
-        # Finished installing
-        self.installing_new_image = False
-        if self.install_status is False:
-            self.msg_if.pub_warn("Failed to flash image: " + err_msg)
-            self.status_msg.sys_img_update_status = 'failed'
-            return
-        else:
-            self.msg_if.pub_info("Finished flashing new image")
-            self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
-
-        # Check and repair the newly written filesystem as necessary
-        self.install_status, err_msg = self.nepi_image.checkAndRepairPartition(self.inactive_rootfs)
-        if self.install_status is False:
-            self.msg_if.pub_warn("Newly flashed image has irrepairable filesystem issues: ", err_msg)
-            self.status_msg.sys_img_update_status = 'failed - fs errors'
-            return
-        else:
-            self.msg_if.pub_info("New image filesystem checked and repaired (as necessary)")
-
-        # Do automatic rootfs switch if so configured
-        if self.auto_switch_rootfs_on_new_img_install:
-            if self.in_container == True:
-                status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
-            elif self.rootfs_ab_scheme == 'nepi':
-                status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
-            elif self.rootfs_ab_scheme == 'jetson':
-                status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
-            else:
-                err_msg = "Unknown ROOTFS A/B Scheme"
-                status = False
-                
-            if status is False:
-                self.msg_if.pub_warn("Automatic rootfs active/inactive switch failed: " + err_msg)
-            else:
-                self.msg_if.pub_info("Executed automatic rootfs A/B switch... on next reboot new image will load")
-                self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
-                self.status_msg.sys_img_update_status = 'complete - needs reboot'
-    
-    def handle_switch_active_inactive_image(self, msg):
-        self.msg_if.pub_warn("Received switch active/inactive nepi images msg")
-        if self.in_container == True:
-            self.msg_if.pub_warn("In Container")
-            status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
-        elif self.rootfs_ab_scheme == 'nepi':
-            self.msg_if.pub_warn("In Nepi")
-            status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
-        elif self.rootfs_ab_scheme == 'jetson':
-            self.msg_if.pub_warn("In Jetson")
-            status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
-        else:
-            err_msg = "Unknown ROOTFS A/B Scheme"
-            status = False
-            
-        if status is False:
-            self.msg_if.pub_warn("Failed to switch active/inactive rootfs: " + err_msg)
-            return
-
-        self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
-        self.msg_if.pub_warn(
-            "Switched active and inactive rootfs. Must reboot system for changes to take effect")
-
-    def saveImageCb(self, msg):
-        if self.saving_image is True:
-            self.msg_if.pub_warn("Already in the process of saving image")
-            return
-        
-        if self.in_container == True:
-            info_dict=self.nepi_image.getContainerInfo('Active')
-            fw_str = self.get_fw_rev()
-            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
-            info_dict['version']=fw_str
-            now = datetime.datetime.now()
-            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S")
-            self.msg_if.pub_warn("Saving NEPI File System to filename: -" + backup_file_basename)
-            self.status_msg.sys_img_archive_status = 'archiving'
-            self.status_msg.sys_img_archive_filename = backup_file_basename
-
-
-        else:
-            fw_str = self.status_msg.inactive_rootfs_fw_version
-            fw_str = fw_str.replace('.','p')
-            fw_str = fw_str.replace(' ','_')
-            fw_str = fw_str.replace('/','_')
-            now = datetime.datetime.now()
-            backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y%m%d")
-            self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
-            self.status_msg.sys_img_archive_status = 'archiving'
-            self.status_msg.sys_img_archive_filename = backup_file_basename
-
-        # Transfers to USB seem to have trouble with the standard block size, so allow those to proceed at a lower
-        # block size
-        slow_transfer = True if self.usb_device in self.new_img_staging else False
-                
-        self.saving_image = True
-        status, err_msg = self.nepi_image.saveImage(
-            self.inactive_rootfs, self.new_img_staging, backup_file_basename, slow_transfer, progress_cb = self.receive_archive_progress)
-        self.saving_image = False
-
-        if status is False:
-            self.msg_if.pub_warn("Failed to save image file: " + err_msg)
-            self.status_msg.sys_img_archive_status = 'failed'
-        else:
-            self.msg_if.pub_info("Finished saving image file")
-            self.status_msg.sys_img_archive_status = 'archive complete'
     
 
     def save_data_prefix_callback(self, msg):
@@ -1485,79 +1502,9 @@ class SystemMgrNode():
             new_dir_guid = stat_info.st_gid
 
             os.chown(parent_path, new_dir_uid, new_dir_guid)
-    
-    def get_friendly_name(self, devfs_name):
-        # Leave space for the partition number
-        friendly_name = devfs_name.replace(self.emmc_device, "EMMC Partition ")
-        friendly_name = friendly_name.replace(self.usb_device, "USB Partition ")
-        friendly_name = friendly_name.replace(self.sd_card_device, "SD Partition ")
-        friendly_name = friendly_name.replace(self.ssd_device, "SSD Partition ")
-        return friendly_name
-
-    def init_msgs(self):
-        if self.init_complete == True:
-            fw_str = self.get_fw_rev()
-            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
-            self.status_msg.firmware_version = fw_str
 
 
-            # TODO: Determine how many temperature readings we have. On Jetson, for example
-            #      there are 8 "thermal zones" in /sys/class/thermal/
-            self.status_msg.temperature_sensor_names.append('CPU Zone 0')
-            # TODO: Configurable warning/error temperatures
-            self.status_msg.warning_temps.append(60.0)
-            self.status_msg.critical_temps.append(70.0)
 
-            statvfs = os.statvfs(self.storage_folder)
-            self.status_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
-                BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
-
-            # Gather some info about ROOTFS A/B configuration
-            status = False
-            if self.in_container == True:
-                self.status_msg.first_rootfs = "container"
-                (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus()
-            else:
-                if self.rootfs_ab_scheme == 'nepi':
-                    self.status_msg.first_rootfs = self.get_friendly_name(self.first_rootfs)
-                    (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatus(self.first_rootfs)
-                elif self.rootfs_ab_scheme == 'jetson':
-                    self.status_msg.first_rootfs = 'N/A'
-                    (status, err_msg, ab_fs_dict) = self.nepi_image.getRootfsABStatusJetson()
-                else:
-                    self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
-
-            if status is True:
-                self.msg_if.pub_warn("Got Rootfs Dict: " + str(ab_fs_dict))
-                self.status_msg.active_rootfs = self.get_friendly_name(ab_fs_dict['active_part_device'])
-
-                self.status_msg.active_rootfs_size_mb = self.nepi_image.getPartitionByteCount(ab_fs_dict[
-                    'active_part_device']) / BYTES_PER_MEGABYTE
-                
-                self.inactive_rootfs = ab_fs_dict[
-                    'inactive_part_device']
-                self.status_msg.inactive_rootfs = self.get_friendly_name(self.inactive_rootfs)
-
-                self.status_msg.inactive_rootfs_size_mb = self.nepi_image.getPartitionByteCount(self.inactive_rootfs) / BYTES_PER_MEGABYTE
-                
-                self.status_msg.inactive_rootfs_fw_version = ab_fs_dict[
-                    'inactive_part_fw_version']
-                self.status_msg.max_boot_fail_count = ab_fs_dict[
-                    'max_boot_fail_count']
-            else:
-                self.msg_if.pub_warn(
-                    "Unable to gather ROOTFS A/B system definitions: " + err_msg)
-                self.status_msg.active_rootfs = "Unknown"
-                self.status_msg.inactive_rootfs = "Unknown"
-                self.inactive_rootfs = "Unknown"
-                self.status_msg.inactive_rootfs_fw_version = "Unknown"
-                self.status_msg.max_boot_fail_count = 0
-
-            for i in self.status_msg.temperature_sensor_names:
-                self.status_msg.temperatures.append(0.0)
-
-            # TODO: Should this be queried somehow e.g., from the param server
-            self.status_msg.save_all_enabled = False
 
 
     def getNEPIStorageDevice(self):
@@ -1582,39 +1529,11 @@ class SystemMgrNode():
           self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
     
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
    
-    def provide_system_data_folder(self, req):
-        response = SystemStorageFolderQueryResponse()
-        if req.type not in self.storage_subdirs:
-            response.folder_path = ''
-        else:
-            response.folder_path = self.storage_subdirs[req.type]
-        return response
-
-    def provide_driver_folder(self, req):
-        return self.DRIVERS_SHARE_PATH
-
-    def provide_debug_status(self, req):
-        response = DebugQueryResponse()
-        response.degug_enabled = self.debug_enabled
-        return response
-
-    def provide_admin_status(self, req):
-        response = AdminQueryResponse()
-        response.admin_enabled = self.admin_enabled
-        response.user_restrictions_options = self.user_restrictions_options
-        response.user_restrictions_enabled = self.user_restrictions_enabled
-        return response
-
-
-
-    def provide_op_environment(self, req):
-        # Just proxy the param server
-        if self.node_if is not None:
-            return OpEnvironmentQueryResponse(self.node_if.get_param("op_environment"))
-        else:
-            return OpEnvironmentQueryResponse(OpEnvironmentQueryResponse.OP_ENV_AIR)
-    
     def provide_system_status(self, req):
         response = SystemStatusQueryResponse()
         response.system_status = self.status_msg
@@ -1628,8 +1547,12 @@ class SystemMgrNode():
 
 
     def publish_status(self):
+<<<<<<< HEAD
         #########################
         #### System
+=======
+        
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
         self.update_temperatures()
         # Populate the rest of the message contents
         # Temperature(s)
@@ -1638,16 +1561,17 @@ class SystemMgrNode():
         # Disk usage
         self.update_storage()
 
-        # Update sys status and params if needed
-        self.status_msg.sys_debug_enabled = self.debug_enabled
-        self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.user_restrictions_enabled = self.user_restrictions_enabled
         # Now publish it
         if self.node_if is not None:
+            if self.status_published == False:
+                self.status_published = True
+                #self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
         # Always clear info strings after publishing
         del self.status_msg.info_strings[:]
+
+
 
     
 

@@ -39,6 +39,7 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_software
 from nepi_sdk import nepi_docker
 
+<<<<<<< HEAD
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import StatesIF, TriggersIF, SaveDataIF
@@ -48,6 +49,16 @@ from nepi_interfaces.msg import MgrSoftwareStatus
                            
 from nepi_interfaces.srv import  SoftwareStatusQuery, SoftwareStatusQueryRequest, SoftwareStatusQueryResponse
                  
+=======
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_interfaces.msg import MgrSoftwareStatus                           
+from nepi_interfaces.srv import  SoftwareStatusQuery, SoftwareStatusQueryRequest, SoftwareStatusQueryResponse
+
+from nepi_api.messages_if import MsgIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.system_if import StatesIF, TriggersIF, SaveDataIF
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
 BYTES_PER_MEGABYTE = 2**20
 
@@ -66,6 +77,7 @@ class SoftwareMgrNode():
     STATES_DICT = dict()
 
 
+<<<<<<< HEAD
     REQD_STORAGE_SUBDIRS = ["ai_models", 
                         "ai_training",
                         "data", 
@@ -85,6 +97,8 @@ class SoftwareMgrNode():
                         "user_cfg/cal",]
 
 
+=======
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
     node_if = None
     status_msg = MgrSoftwareStatus()
@@ -134,6 +148,7 @@ class SoftwareMgrNode():
         self.msg_if = MsgIF(log_name = None)
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
+<<<<<<< HEAD
 
         ###############################
         # Initialize Class Variables
@@ -167,6 +182,55 @@ class SoftwareMgrNode():
             os.mkdir(self.nepi_config['FACTORY_CONFIG'])
             os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
             os.mkdir(self.nepi_config['DOCKER_CONFIG'])
+=======
+
+        ###############################
+        # Initialize Class Variables
+
+
+        ##############################
+        # Get for System Folders
+        self.msg_if.pub_info("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        self.nepi_config = nepi_system.get_nepi_config()
+
+        self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
+        if self.nepi_config is None:
+            self.nepi_config = dict()
+        if len(self.nepi_config.keys()) == 0:
+            self.msg_if.pub_warn("Failed to Read NEPI config file")
+            nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
+            return
+
+
+
+        # Gather owner and group details for storage mountpoint
+        # stat_info = os.stat(self.storage_folder)
+        # self.folders_uid = stat_info.st_uid
+        # self.folders_gid = stat_info.st_gid
+        self.folders_uid = self.nepi_config['NEPI_USER']
+        self.folders_gid = self.nepi_config['NEPI_USER']
+
+        check_path=self.nepi_config['NEPI_STORAGE']
+        if os.path.exists(check_path)==False:
+            os.mkdir(check_path)
+        check_path=self.nepi_config['NEPI_CONFIG']
+        if os.path.exists(check_path)==False:
+            os.mkdir(check_path)
+            os.mkdir(self.nepi_config['FACTORY_CONFIG'])
+            os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
+            os.mkdir(self.nepi_config['DOCKER_CONFIG'])
+
+        # check_path=self.nepi_config['NEPI_IMPORT_PATH']
+        # if check_path not in self.REQD_STORAGE_SUBDIRS:
+        #     self.REQD_STORAGE_SUBDIRS.append(check_path)
+        # check_path=self.nepi_config['NEPI_EXPORT_PATH']
+        # if check_path not in self.REQD_STORAGE_SUBDIRS:
+        #     self.REQD_STORAGE_SUBDIRS.append(check_path)
+
+        #nepi_system.set_nepi_config(self.nepi_config)
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
         check_path=self.nepi_config['NEPI_IMPORT_PATH']
         if check_path not in self.REQD_STORAGE_SUBDIRS:
@@ -175,9 +239,26 @@ class SoftwareMgrNode():
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
 
+<<<<<<< HEAD
         #nepi_system.set_nepi_config(self.nepi_config)
 
 
+        self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
+
+
+
+        self.first_rootfs = self.nepi_config['NEPI_FS_DEVICE']
+        self.has_ab_fs = self.nepi_config['NEPI_FS_AB'] == 1
+        self.nepi_storage_device = self.nepi_config['NEPI_STORAGE_DEVICE']
+        self.new_img_staging = self.nepi_config['NEPI_STORAGE_DEVICE']
+        self.new_img_staging_removable = False
+        self.new_img_folder = self.nepi_config['NEPI_IMPORT_PATH']
+
+        self.usb_device = "/dev/sda" 
+        self.sd_card_device = "/dev/mmcblk1p"
+        self.emmc_device = "/dev/mmcblk0p"
+        self.ssd_device = "/dev/nvme0n1p"
+=======
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
 
 
@@ -198,6 +279,19 @@ class SoftwareMgrNode():
         self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
+        if self.in_container == True:
+            self.nepi_image = nepi_docker
+            self.msg_if.pub_warn("NEPI Running in Container")
+        else:
+            self.nepi_image = nepi_software
+            self.msg_if.pub_warn("Using first stage boot device: " + str(self.first_rootfs))
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
+
+        self.config_folder = self.nepi_config['NEPI_CONFIG']
+        self.storage_folder = self.nepi_config['NEPI_STORAGE']
+        self.data_folder = self.storage_folder + "/data"
+
+<<<<<<< HEAD
         if self.in_container == True:
             self.nepi_image = nepi_docker
             self.msg_if.pub_warn("NEPI Running in Container")
@@ -227,10 +321,41 @@ class SoftwareMgrNode():
                 #return False # Allow it continue on local storage...
 
         self.msg_if.pub_warn("Starting Node IF Setup")    
+=======
+    
+        self.msg_if.pub_warn("Waiting for Config Mgr")
+        config_folders = nepi_system.get_config_folders()    
+
+
+
+        self.status_msg.inactive_rootfs_fw_version = "unknown"
+       
+        self.msg_if.pub_warn("Updating Rootfs Scheme")
+        # Need to identify the rootfs scheme because it is used in init_msgs()
+        self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
+        self.msg_if.pub_warn("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
+        
+
+
+
+
+
+        # self.msg_if.pub_warn("Checking User Storage Partition")
+        # # First check that the storage partition is actually mounted
+        # if not os.path.ismount(self.storage_folder):
+        #     self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
+        #     ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
+        #     if ret is False:
+        #         self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+        #         #return False # Allow it continue on local storage...
+
+        # self.msg_if.pub_warn("Starting Node IF Setup")    
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
         ##############################
         ### Setup Node
 
         # Configs Config Dict ####################
+<<<<<<< HEAD
         self.CFGS_DICT = {
             'reset_callback': self.resetCb,
             'factory_reset_callback': self.factoryResetCb,
@@ -238,6 +363,9 @@ class SoftwareMgrNode():
             'namespace': self.node_namespace
         }
 
+=======
+        self.CFGS_DICT = None
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
@@ -276,6 +404,7 @@ class SoftwareMgrNode():
             'ssd_device': {
                 'namespace': self.base_namespace,
                 'factory_val': self.ssd_device
+<<<<<<< HEAD
             }
         }
 
@@ -291,13 +420,34 @@ class SoftwareMgrNode():
                 'callback': self.provide_software_status
             }
         }
+=======
+            }
+        }
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+            'software_status_query': {
+                'namespace': self.node_namespace,
+                'topic': 'system_status_query',
+                'srv': SoftwareStatusQuery,
+                'req': SoftwareStatusQueryRequest(),
+                'resp': SoftwareStatusQueryResponse(),
+                'callback': self.provide_software_status
+            }
+        }
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
 
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {
             'status_pub': {
+<<<<<<< HEAD
                 'namespace': self.base_namespace + '/softaware_mgr',
+=======
+                'namespace': self.node_namespace,
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
                 'topic': 'status',
                 'msg': MgrSoftwareStatus,
                 'qsize': 1,
@@ -465,6 +615,7 @@ class SoftwareMgrNode():
             # established
             self.update_software_status()
 
+<<<<<<< HEAD
 
     # def getStatesDictCb(self):
     #     return self.STATES_DICT
@@ -542,6 +693,8 @@ class SoftwareMgrNode():
     #     nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
 
+=======
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
 
     def get_fw_rev(self):
         if (os.path.exists(self.FW_VERSION_PATH) and (os.path.getsize(self.FW_VERSION_PATH) > 0)):
@@ -883,6 +1036,7 @@ class SoftwareMgrNode():
         return response
 
 
+<<<<<<< HEAD
     def initCb(self, do_updates = False):
         if self.node_if is not None:
             pass
@@ -903,6 +1057,8 @@ class SoftwareMgrNode():
             pass
         self.initCb(do_updates = do_updates)
 
+=======
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
     def publishStatusCb(self, event):
         self.publish_status()
 
@@ -911,6 +1067,10 @@ class SoftwareMgrNode():
     def publish_status(self):
         
         if self.node_if is not None:
+<<<<<<< HEAD
+=======
+            #self.msg_if.pub_warn("Returning status msg: " + str(self.status_msg))
+>>>>>>> b74df0a9a2a8a32181746446ad77d5d9cb933a21
             self.node_if.publish_pub('status_pub', self.status_msg)
 
     

@@ -43,7 +43,7 @@ from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF
+from nepi_api.system_if import SaveDataIF, Transform3DIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
@@ -137,18 +137,22 @@ class ConnectNavPoseIF:
     navposes_dict = dict()
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
 
+    navpose_ref_description = ''
+
     navpose_frame_selectable = True
     navpose_frame_options = ['None']
     sel_navpose_frame = 'None'
 
-    use_pantilt_for_heading = False
+    use_pannavpose_ref_descriptiontilt_for_heading = False
 
     connected = False
 
  
     def __init__(self, namespace = None,
                 callback_dict = dict(),
+                navpose_ref_description = '',
                 navpose_frame_selectable = True,
+                transform_if = None,
                 save_data_if = None,
                 log_name = None,
                 log_name_list = [],
@@ -188,6 +192,7 @@ class ConnectNavPoseIF:
         self.callback_dict = callback_dict
 
         self.navpose_frame_selectable = navpose_frame_selectable
+        self.navpose_ref_description = navpose_ref_description
 
         #########################
         # Initialize status message
@@ -248,14 +253,6 @@ class ConnectNavPoseIF:
      
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'navposes_sub': {
-                'namespace': self.base_namespace,
-                'topic': 'navposes',
-                'msg': NavPoses,
-                'qsize': 1,
-                'callback': self._navposesSubCb, 
-                'callback_args': ()
-            },
             'set_navpose_frame': {
                 'namespace': self.namespace,
                 'topic': 'set_navpose_frame',
@@ -284,9 +281,9 @@ class ConnectNavPoseIF:
 
         success = nepi_sdk.wait()
 
-        if save_data_if is not None:
+        if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
-        else:
+        elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization")
@@ -320,6 +317,23 @@ class ConnectNavPoseIF:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
 
+
+        #########################
+        if transform_if is not None and transform_if != 'None':
+            self.transform_if = transform_if
+        elif transform_if != 'None':
+            tf_namespace = self.namespace
+            self.transform_if = Transform3DIF(namespace = tf_namespace,
+                source_ref_description = '',
+                end_ref_description = self.node_name,
+                get_3d_transform_function = None,
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if)
+            nepi_sdk.sleep(1)
+       
+        if self.transform_if is not None:
+            self.status_msg.transform_topic = self.transform_if.get_namespace()
+            self.msg_if.pub_info("Using transform namespace: " + str(self.status_msg.transform_topic))
 
         ######################
 
@@ -383,6 +397,12 @@ class ConnectNavPoseIF:
 
     def get_navpose_frame_selectable(self):
         return self.navpose_frame_selectable
+    
+    def set_navpose_ref_desc(self,description):
+        self.self.navpose_ref_description = description
+
+    def get_navpose_ref_desc(self):
+        return self.self.navpose_ref_description
 
     def get_navpose_frames(self):
         return self.navpose_frame_options
@@ -403,9 +423,6 @@ class ConnectNavPoseIF:
         navpose_dict =  copy.deepcopy(self.navpose_dict)
         return navpose_dict
     
-    def get_navposes_dict(self):
-        navposes_dict =  copy.deepcopy(self.navposes_dict)
-        return navposes_dict
 
     def get_status_dict(self):
         status_dict = None
@@ -521,7 +538,7 @@ class ConnectNavPoseIF:
             self.node_if.set_param('use_pantilt_for_heading', enabled)
             self.node_if.save_config()
 
-    def _navposesSubCb(self,msg):
+    def _navposeCb(self,msg):
         self.connected = True
         self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
         self.navpose_frame_options = list(self.navposes_dict.keys())
@@ -539,6 +556,28 @@ class ConnectNavPoseIF:
             if self.node_if is not None:
                 navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict,self.log_name_list)
                 self.node_if.publish_pub('navpose_pub',navpose_msg)
+
+    def _navposeStatusCb(self,msg):
+        #source_ref_description
+        self.connected = True
+        self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
+        self.navpose_frame_options = list(self.navposes_dict.keys())
+        if 'navposes_updated_callback' in self.callback_dict.keys():
+            self.callback_dict['navposes_updated_callback'](self.navposes_dict)
+
+        last_navpose_dict = copy.deepcopy(self.navpose_dict)
+        sel_navpose_frame = copy.deepcopy(self.sel_navpose_frame)
+        if sel_navpose_frame in self.navposes_dict.keys():
+            self.navpose_dict = self.navposes_dict[sel_navpose_frame]
+        else:
+            self.navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        if last_navpose_dict != self.navpose_dict and 'navpose_updated_callback' in self.callback_dict.keys():
+            self.callback_dict['navpose_updated_callback'](self.navpose_dict)
+            if self.node_if is not None:
+                navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict,self.log_name_list)
+                self.node_if.publish_pub('navpose_pub',navpose_msg)
+
+        
 
 
     def _publishStatusCb(self,timer):
@@ -1372,9 +1411,9 @@ class ConnectPointcloudIF:
 
 #         success = nepi_sdk.wait()
 
-#         if save_data_if is not None:
-#             self.save_data_if = save_data_if
-#         else:
+#         if save_data_if is not None and save_data_if != 'None':
+#            self.save_data_if = save_data_if
+#         elif save_data_if != 'None':
             
 #             # Setup Save Data IF Class 
 #             self.msg_if.pub_info("Starting Save Data IF Initialization")

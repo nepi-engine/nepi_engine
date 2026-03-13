@@ -107,13 +107,13 @@ catkin_package(
 catkin_install_python(PROGRAMS
   scripts/system_mgr.py
   scripts/config_mgr.py
-  scripts/time_sync_mgr.py
+  scripts/time_mgr.py
   scripts/network_mgr.py
   scripts/drivers_mgr.py
   scripts/apps_mgr.py
   scripts/scripts_mgr.py
   scripts/software_mgr.py
-  scripts/ai_model_mgr.py
+  scripts/ai_models_mgr.py
   scripts/navpose_mgr.py
   scripts/targets_mgr.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -157,6 +157,16 @@ endif()
 install(DIRECTORY etc/
   DESTINATION ${CATKIN_GLOBAL_ETC_DESTINATION}
   USE_SOURCE_PERMISSIONS
+)
+
+## Install NEPI Engine App Files
+set( NEPI_MANAGERS_PARAMS_FOLDER 
+  # Must hard-coded 
+  ${NEPI_ENGINE}/share/nepi_managers/params
+)
+
+install(DIRECTORY params/
+  DESTINATION ${NEPI_MANAGERS_PARAMS_FOLDER} 
 )
 
 

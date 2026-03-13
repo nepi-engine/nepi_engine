@@ -51,10 +51,12 @@ from nepi_interfaces.msg import AxisControls, ErrorBounds
 from nepi_interfaces.msg import MotorControl
 from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorControl, GotoErrors
 
+from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
+
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryResponse, RBXCapabilitiesQueryRequest
 
 from nepi_interfaces.msg import NavPose, NavPoses
-from nepi_interfaces.msg import Frame3DTransform
+from nepi_interfaces.msg import Transform
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
@@ -128,6 +130,8 @@ class RBXRobotIF:
     # Define class variables
     ready = False
     status_msg=DeviceRBXStatus()
+    info_report = DeviceInfoQueryResponse()
+    caps_report = RBXCapabilitiesQueryResponse()
 
     factory_device_name = ''
 
@@ -228,13 +232,34 @@ class RBXRobotIF:
         ############################## 
         # Initialize Class Variables
         
-        self.device_id = device_info["device_name"]
-        self.identifier = device_info["identifier"]
+        self.device_name = device_info["device_name"]
+        self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
         self.hw_version = device_info["hw_version"]
         self.sw_version = device_info["sw_version"]
+        
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
-        self.device_name = self.device_id + "_" + self.identifier
+        self.info_report.device_name = self.device_name
+        self.info_report.device_path = self.path
+        self.info_report.node_name = self.node_name
+        self.info_report.node_namespace = self.node_namespace
+        self.info_report.serial_num = self.serial_num
+        self.info_report.hw_version = self.hw_version
+        self.info_report.sw_version = self.sw_version
+        self.info_report.type = 'RBX'
+
+        self.caps_report.device_name = self.device_name
+        self.caps_report.device_path = self.path
+        self.caps_report.device_node_name = self.node_name
+
+
+
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -301,7 +326,7 @@ class RBXRobotIF:
 
         # Create and start initializing Capabilities values
 
-        self.capabilities_report = RBXCapabilitiesQueryResponse()
+
 
         if axisControls == None:
           axis_controls = AxisControls()
@@ -311,20 +336,20 @@ class RBXRobotIF:
           axis_controls.roll = False
           axis_controls.pitch = False
           axis_controls.yaw = False
-        self.capabilities_report.control_support = axisControls
+        self.caps_report.control_support = axisControls
         
-        self.capabilities_report.state_options = states
-        self.capabilities_report.mode_options = modes
-        self.capabilities_report.setup_action_options = setup_actions
-        self.capabilities_report.go_action_options = go_actions
-        self.capabilities_report.data_products = self.data_products_list
+        self.caps_report.state_options = states
+        self.caps_report.mode_options = modes
+        self.caps_report.setup_action_options = setup_actions
+        self.caps_report.go_action_options = go_actions
+        self.caps_report.data_products = self.data_products_list
 
 
         self.getBatteryPercentFunction = getBatteryPercentFunction
         if self.getBatteryPercentFunction is not None:
-          self.capabilities_report.has_battery_feedback = True
+          self.caps_report.has_battery_feedback = True
         else:
-          self.capabilities_report.has_battery_feedback = False
+          self.caps_report.has_battery_feedback = False
 
         ## Setup Manual Controls
         self.manualControlsReadyFunction = manualControlsReadyFunction
@@ -349,9 +374,9 @@ class RBXRobotIF:
 
         self.setMotorControlRatio = setMotorControlRatio
         if self.setMotorControlRatio is None:
-            self.capabilities_report.has_manual_controls = False
+            self.caps_report.has_manual_controls = False
         else:
-            self.capabilities_report.has_manual_controls = True
+            self.caps_report.has_manual_controls = True
         self.getMotorControlRatios = getMotorControlRatios
         if self.getMotorControlRatios is not None:
             motor_controls_info_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
@@ -362,10 +387,10 @@ class RBXRobotIF:
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
         if self.autonomousControlsReadyFunction is not None:
           self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
-          self.capabilities_report.has_autonomous_controls = True
+          self.caps_report.has_autonomous_controls = True
         else:
           self.status_msg.autonomous_control_mode_ready = False
-          self.capabilities_report.has_autonomous_controls = False
+          self.caps_report.has_autonomous_controls = False
 
 
         self.go_actions = go_actions
@@ -375,50 +400,46 @@ class RBXRobotIF:
         self.getHomeFunction = getHomeFunction
         self.setHomeFunction  = setHomeFunction
         if self.setHomeFunction is None :
-            self.capabilities_report.has_set_home = False
+            self.caps_report.has_set_home = False
         else:
-            self.capabilities_report.has_set_home = True
+            self.caps_report.has_set_home = True
      
 
         self.goHomeFunction = goHomeFunction
         if self.goHomeFunction is None:
-            self.capabilities_report.has_go_home = False
+            self.caps_report.has_go_home = False
         else:
-            self.capabilities_report.has_go_home = True
+            self.caps_report.has_go_home = True
 
 
         self.goStopFunction = goStopFunction
         if self.goStopFunction is None:
-            self.capabilities_report.has_go_stop = False
+            self.caps_report.has_go_stop = False
         else:
-            self.capabilities_report.has_go_stop = True
+            self.caps_report.has_go_stop = True
 
 
         self.gotoPoseFunction = gotoPoseFunction
         if self.gotoPoseFunction is None:
-            self.capabilities_report.has_goto_pose = False
+            self.caps_report.has_goto_pose = False
         else:
-            self.capabilities_report.has_goto_pose = True            
+            self.caps_report.has_goto_pose = True            
 
         self.gotoPositionFunction = gotoPositionFunction
         if self.gotoPositionFunction is None:
-            self.capabilities_report.has_goto_position = False
+            self.caps_report.has_goto_position = False
         else:
-            self.capabilities_report.has_goto_position = True            
+            self.caps_report.has_goto_position = True            
 
         self.gotoLocationFunction = gotoLocationFunction
         if self.gotoLocationFunction is None:
-            self.capabilities_report.has_goto_location = False
+            self.caps_report.has_goto_location = False
         else:
-            self.capabilities_report.has_goto_location = True
+            self.caps_report.has_goto_location = True
 
         self.status_msg.cmd_success = False
 
-        self.status_msg.device_id = self.device_id
-        self.status_msg.identifier = self.identifier
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
+
 
 
         ##################################################
@@ -435,10 +456,6 @@ class RBXRobotIF:
         }
 
         self.PARAMS_DICT = {
-            'device_name': {
-                'namespace': self.namespace,
-                'factory_val': self.device_name
-            },
             'cmd_timeout': {
                 'namespace': self.namespace,
                 'factory_val': self.FACTORY_CMD_TIMEOUT_SEC
@@ -478,6 +495,14 @@ class RBXRobotIF:
         # Services Config Dict ####################
 
         self.SRVS_DICT = {
+            'device_info_query': {
+                'namespace': self.namespace,
+                'topic': 'device_info_query',
+                'srv': DeviceInfoQuery,
+                'req': DeviceInfoQueryRequest(),
+                'resp': DeviceInfoQueryResponse(),
+                'callback': self.info_query_callback
+            },
             'capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
@@ -513,22 +538,6 @@ class RBXRobotIF:
         }
      
         self.SUBS_DICT = {
-            'set_device_name': {
-                'namespace': self.namespace,
-                'topic': 'set_device_name',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.updateDeviceNameCb, 
-                'callback_args': ()
-            },
-            'reset_device_name': {
-                'namespace': self.namespace,
-                'topic': 'reset_device_name',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetDeviceNameCb, 
-                'callback_args': ()
-            },
             'set_goto_error_bounds': {
                 'namespace': self.namespace,
                 'topic': 'set_goto_error_bounds',
@@ -872,16 +881,12 @@ class RBXRobotIF:
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
 
-        
-    def initConfig(self):
-        self.initCb()         
-
-    def initConfig(self):
-        self.initCb(do_updates = True)
+             
 
     def initCb(self, do_updates = False):
       if self.node_if is not None:
-        self.device_name = self.node_if.get_param('device_name')
+        ########   ADD INIT FROM PARAMS
+        pass
       if do_updates == True:
         pass
       self.publish_status()
@@ -983,37 +988,6 @@ class RBXRobotIF:
             rate = self.navpose_update_rate
         delay = float(1.0) / rate - process_time
         nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
-
-
-
-    def updateDeviceNameCb(self, msg):
-        self.msg_if.pub_info("Received Device Name update msg", log_name_list = self.log_name_list)
-        #self.msg_if.pub_info(msg)
-        new_device_name = msg.data
-        self.updateDeviceName(new_device_name)
-
-    def updateDeviceName(self, new_device_name):
-        valid_name = True
-        for char in self.BAD_NAME_CHAR_LIST:
-            if new_device_name.find(char) != -1:
-                valid_name = False
-        if valid_name is False:
-            self.update_error_msg("Received invalid device name update: " + new_device_name)
-        else:
-            self.node_if.set_param('device_name', new_device_name)
-        self.node_if.save_config()
-        self.publishInfo()
-
-
-    def resetDeviceNameCb(self,msg):
-        self.msg_if.pub_info("Received Device Name reset msg", log_name_list = self.log_name_list)
-        #self.msg_if.pub_info(msg)
-        self.resetDeviceName()
-
-    def resetDeviceName(self):
-        self.node_if.set_param('device_name', self.device_name)
-        self.node_if.save_config()
-        self.publishInfo()
 
 
     
@@ -1392,11 +1366,13 @@ class RBXRobotIF:
           self.settings_if.initialize_settings(do_updates = False)
         pass # We only use the param server, no member variables to apply to param server
    
+    ### Info callback
+    def info_query_callback(self, _):
+        return self.info_report
+
     def capabilities_query_callback(self, _):
-        return self.capabilities_report
+        return self.caps_report
     
-    def navpose_capabilities_query_callback(self, _):
-        return self.navpose_capabilities_report  
 
            
 
@@ -1407,7 +1383,7 @@ class RBXRobotIF:
     
     
     def publishInfo(self):
-        self.rbx_info.device_name = self.node_if.get_param('device_name')
+        self.rbx_info.device_name = self.device_name
         error_bounds = ErrorBounds()
         error_bounds.max_distance_error_m = self.node_if.get_param('max_error_m')
         error_bounds.max_rotation_error_deg = self.node_if.get_param('max_error_deg')

@@ -27,11 +27,6 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
-from nepi_interfaces.srv import SystemDefsQuery, SystemDefsQueryRequest, SystemDefsQueryResponse
-from nepi_interfaces.srv import OpEnvironmentQuery, OpEnvironmentQueryRequest, OpEnvironmentQueryResponse                      
-from nepi_interfaces.srv import SystemSoftwareStatusQuery, SystemSoftwareStatusQueryRequest, SystemSoftwareStatusQueryResponse
-from nepi_interfaces.srv import SystemStorageFolderQuery, SystemStorageFolderQueryRequest, SystemStorageFolderQueryResponse
-from nepi_interfaces.srv import DebugQuery, DebugQueryRequest, DebugQueryResponse
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 from nepi_api.connect_node_if import ConnectNodeServicesIF, ConnectNodeClassIF
@@ -87,41 +82,7 @@ class ConnectMgrSystemServicesIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'sys_storage': {
-                'namespace': self.base_namespace,
-                'topic': 'system_storage_folder_query',
-                'srv': SystemStorageFolderQuery,
-                'req': SystemStorageFolderQueryRequest(),
-                'resp': SystemStorageFolderQueryResponse(),
-            },
-            'sys_env': {
-                'namespace': self.base_namespace,
-                'topic': 'op_environment_query',
-                'srv': OpEnvironmentQuery,
-                'req': OpEnvironmentQueryRequest(),
-                'resp': OpEnvironmentQueryResponse(),
-            },
-            'sw_status': {
-                'namespace': self.base_namespace,
-                'topic': 'sw_update_status_query',
-                'srv': SystemSoftwareStatusQuery,
-                'req': SystemSoftwareStatusQueryRequest(),
-                'resp': SystemSoftwareStatusQueryResponse(),
-            },
-            'sys_defs': {
-                'namespace': self.base_namespace,
-                'topic': 'system_defs_query',
-                'srv': SystemDefsQuery,
-                'req': SystemDefsQueryRequest(),
-                'resp': SystemDefsQueryResponse(),
-            },
-            'debug_query': {
-                'namespace': self.base_namespace,
-                'topic': 'debug_mode_query',
-                'srv': DebugQuery,
-                'req': DebugQueryRequest(),
-                'resp': DebugQueryResponse(),
-            },
+
             'status_query': {
                 'namespace': self.base_namespace,
                 'topic': 'system_status_query',
@@ -186,129 +147,9 @@ class ConnectMgrSystemServicesIF:
             self.msg_if.pub_debug("Failed to connect to status msg", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_debug("Services Connected", log_name_list = self.log_name_list)
-        return connected
-    
-
-    def get_sys_folder_path(self, folder_name, fallback_path = ""):
-        service_name = 'sys_storage'
-        folder_path = fallback_path
-        response = None
-        try:
-            request = self.services_if.create_request_msg(service_name)
-            request.type = folder_name
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
-        try:
-            response = self.services_if.call_service(service_name, request)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
-        # Process Response
-        if response is None or response == "":
-            self.msg_if.pub_warn("Returning fallback path: " + fallback_path)
-        else:
-            folder_path = response.folder_path
-            self.msg_if.pub_debug("Got folder path: " + folder_path + " for folder request: " + folder_name)
-
-        return folder_path
-        
-
-    def get_op_env_str(self):
-        service_name = 'sys_env'
-        env_str = None
-        response = None
-        try:
-            request = self.services_if.create_request_msg(service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
-        try:
-            response = self.services_if.call_service(service_name, request)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
-        # Process Response
-        if response is None:
-            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
-        else:
-            env_str = response.op_env
-            self.msg_if.pub_debug("Got system env response " + str(response) + " for service: " + service_name)
-
-        return env_str
-
-    def get_software_status_dict(self):
-        service_name = 'sw_status'
-        status_dict = None
-
-        response = None
-        try:
-            request = self.services_if.create_request_msg(service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
-        try:
-            response = self.services_if.call_service(service_name, request)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
-        # Process Response
-        if response is None:
-            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
-        else:
-            status_dict = nepi_sdk.convert_msg2dict(response)
-            #self.msg_if.pub_debug("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_debug("Got system software response " + str(status_dict) + " for service: " + service_name)
-
-        return status_dict
+        return connected     
 
 
-    def get_system_stats_dict(self):
-        service_name = 'sys_defs'
-        stats_dict = None
-        response = None
-        try:
-            request = self.services_if.create_request_msg(service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
-        try:
-            response = self.services_if.call_service(service_name, request)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
-        # Process Response
-        if response is None:
-            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
-            return states_dict
-        try:
-            stats_dict = nepi_sdk.convert_msg2dict(response)['defs']
-            #self.msg_if.pub_debug("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_debug("Got system stats dict " + str(stats_dict) + " for service: " + service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to convert service response to dict: " + service_name + " : " + str(response) + " : " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        return stats_dict
-
-
-    def get_system_debug_mode(self):
-        service_name = 'debug_query'
-        debug_mode = None
-        response = None
-        try:
-            request = self.services_if.create_request_msg(service_name)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
-        try:
-            response = self.services_if.call_service(service_name, request)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
-
-        # Process Response
-        if response is None:
-            self.msg_if.pub_warn("Failed to get response for service: " + service_name)
-        else:
-            debug_mode = response.debug_enabled
-            #self.msg_if.pub_debug("Got status response" + str(response) + " for service: " + service_name)
-            self.msg_if.pub_debug("Got system debug mode " + str(debug_mode) + " for service: " + service_name)
-
-        return debug_mode
 
     def get_system_status_dict(self, verbose = True):
         service_name = 'status_query'
@@ -474,23 +315,7 @@ class ConnectMgrSystemIF:
         services_connected = self.services_if.wait_for_services_path(timeout = timeout)
         return services_connected
 
-    def get_sys_folder_path(self, folder_name, fallback_path = ""):
-        return self.services_if.get_sys_folder_path(folder_name, fallback_path = fallback_path)
-        
-
-    def get_op_env_str(self):
-        return self.services_if.get_op_env_str()
-
-    def get_software_status_dict(self):
-        return self.services_if.get_software_status_dict()
-
-
-    def get_system_stats_dict(self):
-        return self.services_if.get_system_stats_dict()
-
-    def get_system_debug_mode(self):
-        return self.services_if.get_system_debug_mode()
-
+ 
     def get_system_status_dict(self):
         return self.services_if.get_system_status_dict()
 

@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-NETWORK
+  description: Manager for NEPI network
+  type: MANAGER
+  node_file: network_mgr.py
+  etc_file: network_mgr.yaml
+  node_name: network_mgr
+

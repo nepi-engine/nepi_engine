@@ -174,9 +174,9 @@ class ListIF:
             self.SUBS_DICT['update_state'] = {
                 'namespace': self.namespace,
                 'topic': 'update_state',
-                'msg': UpdateState,
+                'msg': UpdateBool,
                 'qsize': 10,
-                'callback': self.updateStateCb, 
+                'callback': self.updateBoolCb, 
                 'callback_args': ()
             },
         if self.order_updates_enabled == True:
@@ -329,10 +329,10 @@ class ListIF:
             self.signalSelect(item)
         self.publish_status()
 
-    def updateStateCb(self,msg):
+    def updateBoolCb(self,msg):
         self.msg_if.pub_info("Got update state msg: " + str(msg))
         item = msg.name
-        active_state = msg.active_state
+        active_state = msg.value
         self.signalSelect(item)
         self.update_state(item,active_state)
 

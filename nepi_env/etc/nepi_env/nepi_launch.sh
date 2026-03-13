@@ -15,6 +15,9 @@ ETC_FOLDER=/opt/nepi/etc
 NEPI_ETC_SCRIPTS=${ETC_FOLDER}/scripts
 SYS_BASH_FILE=/opt/nepi/etc/sys_env.bash
 
+BASHRC=/home/nepi/.bashrc
+echo "Sourcing NEPI Bashrc: ${BASHRC}"
+source $BASHRC
 
 nepi_count=$(process_count "nepi_engine")
 if [[ "$nepi_count" -gt 1 ]]; then
@@ -32,6 +35,11 @@ else
 		echo "Clearing old logs in: ${ros_log_path}"
 		sudo rm -r ${ros_log_path}/* 2>/dev/null
 	fi
+	rosclean purge -y
+	sudo rm -r /home/.ros  2>/dev/null
+	sudo rm -r /opt/nepi/nepi/.ros 2>/dev/null
+	sudo rm -r /home/nepi/.cache
+	sudo rm -r /opt/nepi/nepi/.cache
 
 	lost_found_path='/mnt/nepi_storage/lost+found'
 	if [[ -d "$lost_found_path" ]]; then
@@ -78,6 +86,7 @@ else
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
+	
 
 	script_file=update_sys_bash.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}

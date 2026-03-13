@@ -24,8 +24,7 @@ import copy
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 from nepi_interfaces.msg import MgrAiModelStatus
-from nepi_interfaces.srv import AiModelsInfoQuery, AiModelsInfoQueryRequest, AiModelsInfoQueryResponse
-from nepi_interfaces.srv import AiDetectorInfoQuery, AiDetectorInfoQueryRequest, AiDetectorInfoQueryResponse
+from nepi_interfaces.srv import AiModelStatusQuery, AiModelStatusQueryRequest, AiModelStatusQueryResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -62,7 +61,7 @@ EXAMPLE_AI_MGR_STATUS_DICT = {
 
 class ConnectMgrAiModelIF:
 
-    MGR_NODE_NAME = 'ai_model_mgr'
+    MGR_NODE_NAME = 'ai_models_mgr'
 
     ready = False
 
@@ -118,12 +117,12 @@ class ConnectMgrAiModelIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'active_models_query': {
+            'model_status_query': {
                 'namespace': self.mgr_namespace,
-                'topic': 'active_models_info_query',
-                'srv': AiModelsInfoQuery,
-                'req': AiModelsInfoQueryRequest(),
-                'resp': AiModelsInfoQueryResponse(),
+                'topic': 'model_status_query',
+                'srv': AiModelStatusQuery,
+                'req': AiModelStatusQueryRequest(),
+                'resp': AiModelStatusQueryResponse(),
             }
         }
 
@@ -217,9 +216,9 @@ class ConnectMgrAiModelIF:
             self.msg_if.pub_warn("Status Listener Not ready", log_name_list = self.log_name_list)
         return status_dict
 
-    def get_active_models_info_dict(self):
-        service_name = 'active_models_query'
-        models_info_dict = None
+    def get_model_status_dict(self, model_name):
+        service_name = 'model_status_query'
+        model_status_dict = None
 
         # Create service request
         request = self.node_if.create_request_msg(service_name)
@@ -232,11 +231,11 @@ class ConnectMgrAiModelIF:
         if response is None:
             self.msg_if.pub_warn("Failed to get response for service: " + service_name)
         else:
-            models_info_dict = nepi_sdk.convert_msg2dict(response)
+            model_status_dict = nepi_sdk.convert_msg2dict(response)
             #self.msg_if.pub_info("Got models response" + str(response) + " for service: " + service_name)
-            #self.msg_if.pub_info("Got models info response" + str(models_info_dict) + " for service: " + service_name)
+            #self.msg_if.pub_info("Got models info response" + str(model_status_dict) + " for service: " + service_name)
 
-        return models_info_dict
+        return model_status_dict
 
 
     #######################
@@ -249,18 +248,18 @@ class ConnectMgrAiModelIF:
         self.status_msg = msg
 
 
-    def getActiveModelsInfo(self):
-        if self.ai_models_info_query_service is not None:
-            req = AiModelsInfoQueryRequest()
-            try:
-                response = self.ai_models_info_query_service(req)
-                self.ai_models_info_response = response
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to obtain active models info response " + str(e))
-            if response is not None:
-                if "detector_name_list" in response.keys(detector_name_list):
-                    det_namespaces = response["detector_name_list"]
-                    for i, namespace in enumerate(det_namesapces):
-                        self.ai_detectors_info_dict[namespace] = response["detector_info_list"][i]
+    # def getActiveModelStatus(self):
+    #     if self.ai_models_info_query_service is not None:
+    #         req = AiModelStatusQueryRequest()
+    #         try:
+    #             response = self.ai_models_info_query_service(req)
+    #             self.ai_models_info_response = response
+    #         except Exception as e:
+    #             self.msg_if.pub_warn("Failed to obtain active models info response " + str(e))
+    #         if response is not None:
+    #             if "detector_name_list" in response.keys(detector_name_list):
+    #                 det_namespaces = response["detector_name_list"]
+    #                 for i, namespace in enumerate(det_namesapces):
+    #                     self.ai_detectors_info_dict[namespace] = response["detector_info_list"][i]
 
 

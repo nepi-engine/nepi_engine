@@ -58,11 +58,11 @@ from nepi_interfaces.srv import *
 from nepi_interfaces.msg import *
 
 
+
 #######################
 ### Setup some global variables
 BASE_NAMESPACE = None
-
-
+DEFUALT_CFG_FOLDERS = ['/mnt/nepi_storage/user_cfg','/mnt/nepi_config/system_cfg']
 
 #######################
 ### Log Utility Functions
@@ -122,9 +122,9 @@ def log_msg_error(msg, throttle_s = None, log_name_list = []):
   if len(log_name_list) > 0:
       msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
   if throttle_s is None:
-    log_msg_warn(msg_str)
+     rospy.logerror(msg_str)
   else:
-    log_msg_warn_throttle(throttle_s,msg_str)
+    rospy.logerror_throttle(throttle_s,msg_str)
 
 def log_msg_fatal(msg, throttle_s = None, log_name_list = []):
   msg_str = str(msg)
@@ -344,7 +344,8 @@ def check_node_by_process(sub_process):
     return running
 
 
-def kill_node(node_name, log_name_list = []):
+def kill_node(node_name, sub_process = None, log_name_list = []):
+  success = False
   kill_node = ""
   if check_for_node(node_name):
     nodes = os.popen("rosnode list").readlines()
@@ -354,9 +355,14 @@ def kill_node(node_name, log_name_list = []):
         break
   if kill_node != "":
     os.system("rosnode kill " + kill_node)
+    if sub_process is not None:
+      sleep(2)
+      success = kill_node_process(node_name, sub_process, log_name_list)
+  return success
+
 
 def kill_node_process(node_name, sub_process, log_name_list = []):
-    log_msg_warn("nepi_sdk: Killing app node: " + node_name, log_name_list = log_name_list)
+    log_msg_warn("nepi_sdk: Killing node: " + node_name, log_name_list = log_name_list)
     success = False
     if sub_process.poll() is None:
       sub_process.terminate()
@@ -375,17 +381,20 @@ def kill_node_process(node_name, sub_process, log_name_list = []):
         time.sleep(1)
     if sub_process.poll() is not None:
       success = True
-      log_msg_warn("nepi_sdk: Killed app node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: Killed node: " + node_name, log_name_list = log_name_list)
     else:
-      log_msg_warn("nepi_sdk: failed to app node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("nepi_sdk: failed to node: " + node_name, log_name_list = log_name_list)
     return success
         
 
 def kill_node_namespace(node_namespace, log_name_list = []):
+  success = False
   try:
     subprocess.call(["rosnode","kill", node_namespace])
+    success = True
   except Exception as e:
     log_msg_debug("nepi_sdk: Failed to kill node_namespace: " + node_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return success
 
 def spin():
   rospy.spin()
@@ -422,14 +431,67 @@ def load_params_from_file(file_path, namespace = None, prime_key = None, log_nam
             params_dict = get_params_dict[prime_key]
         else:
           params_dict = get_params_dict
-        for key in params_dict.keys():
-          ns = create_namespace(namespace,key)
-          value = params_dict[key]
-          set_param(ns,value)
-        log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
+        if params_dict is None:
+          params_dict = dict()
+          log_msg_warn("Failed to load params for " + str(namespace) +  " from file: " + str(file_path), log_name_list = log_name_list)
+        else:
+          for key in params_dict.keys():
+            ns = create_namespace(namespace,key)
+            value = params_dict[key]
+            set_param(ns,value)
+          log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
     else:
         log_msg_warn("Param file not found: " + file_path, log_name_list = log_name_list)
     return params_dict
+
+def load_node_config(node_name, load_name = None):
+  config_folders = DEFUALT_CFG_FOLDERS
+  param_namespace = create_namespace(get_base_namespace(),'config_folders')
+  sys_config_folders = get_param(param_namespace)
+  if sys_config_folders is not None:
+    config_folders = sys_config_folders
+  success = False
+  config_file = None
+  for config_folder in config_folders:
+
+    if load_name is not None:
+      load_file = os.path.join(config_folder, load_name + ".yaml")
+      if os.path.exists(load_file):
+        config_file = load_file
+      load_name_all = load_name[0].rsplit('_',1)[0] + '_ALL' # Split on last
+      load_file_all = os.path.join(config_folder, load_name_all + ".yaml")
+      if os.path.exists(load_file_all):
+        config_file = load_file_all
+        
+    if config_file is None:
+      node_file = os.path.join(config_folder, node_name + ".yaml")
+      if os.path.exists(node_file):
+        config_file = node_file
+        if load_name is not None:
+          shutil.copy2(config_file, load_file)
+
+      node_name_all = node_name[0].rsplit('_',1)[0] + '_ALL' # Split on last
+      node_file_all = os.path.join(config_folder, node_name_all + ".yaml")
+      if os.path.exists(node_file_all):
+        config_file = node_file_all
+        if load_name is not None:
+          shutil.copy2(node_file_all, load_file_all)
+    if load_name is None:
+      load_name = node_name
+
+    if config_file is None:
+      log_msg_info("No config file found for " + node_name + " in " + config_folder)
+  
+  if config_file is not None:
+    node_namespace = os.path.join(nepi_sdk.get_base_namespace(), load_name)
+    log_msg_warn("Loading parameters from " + config_file + " for " + node_namespace)
+    rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]
+    try:
+      subprocess.run(rosparam_load_cmd)
+      success = False
+    except:
+      logger.log_warn("Failed to load config_file: " + config_file)
+  return success
 
 
 def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
@@ -445,7 +507,7 @@ def save_params_to_file(file_path, namespace, save_all = False, log_name_list = 
             params_dict[key] = params[key]
     else:
       params_dict = params
-    #Try and initialize app param values
+    #Try and initialize param values
     try:
       rosparam.dump_params(file_path, namespace)
     except Exception as e:
@@ -493,6 +555,15 @@ def set_param(param_namespace,param_val, log_name_list = []):
     success = True
   except Exception as e:
     log_msg_warn("Failed to set param for: " + str(param_namespace) + " "  + str(param_val) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+  return success
+
+
+def delete_params(params_namespace, log_name_list = []):
+  success = False
+  if rospy.has_param(params_namespace):
+      rospy.delete_param(params_namespace)
+      rospy.loginfo("Deleted all parameters in namespace: " + str(params_namespace))  
+      success = True
   return success
 
 # Function to wait for a param
@@ -559,20 +630,6 @@ def find_service(service_name, exact = False):
       break
   return found_service
 
-# Function to find a service
-def find_services_by_msg(msg_type):
-  service_list = []
-  try:
-    services=get_service_list()
-    for service_entry in services:
-      service_str = service_entry[0]
-      msg_str = service_entry[1]
-      if isinstance(service_str,str) and isinstance(msg_str,str):
-        if msg_str.find(msg_type) != -1:
-          service_list.append(service_str)
-  except:
-    pass
-  return service_list
 
 # Function to find a service
 def find_services_by_name(service_name):
@@ -580,10 +637,8 @@ def find_services_by_name(service_name):
   try:
     services=get_service_list()
     for service_entry in services:
-      service_str = service_entry[0]
-      msg_str = service_entry[1]
-      if service_name == os.path.basename(service_str):
-        service_list.append(service_str)
+      if service_name == os.path.basename(service_entry):
+        service_list.append(service_entry)
   except:
     pass
   return service_list
@@ -687,6 +742,9 @@ def publish_pub(publisher, msg, log_name_list = []):
 
 # Function to get list of active topics
 def get_topics_data_list():
+  topics_list = []
+  types_list = []
+
   topics_data_list = []
   try:
     pubs, subs =rostopic.get_topic_list()
@@ -695,8 +753,7 @@ def get_topics_data_list():
     log_msg_warn("Nepi Sdk rostopic.get_topic_list failed: " + str(e))
     return topics_list,types_list
   
-  topics_list = []
-  types_list = []
+
   try:
     for topic_entry in topics_data_list:
       topic_str = topic_entry[0]
@@ -724,6 +781,7 @@ def get_published_topics():
 # Function to find a topic
 def find_topic(topic_name, exact = False):
   find_topic = ""
+  topics_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
   except:
@@ -749,6 +807,8 @@ def find_topics(topic_names_list):
   #log_msg_warn("msg find: " + str(msg_type_list))
 
   find_topics = []
+  topics_list = []
+
   try:
     [topics_list,types_list]=get_topics_data_list()
     for topic in topics_list:
@@ -784,6 +844,8 @@ def find_topics_by_msgs(msg_type_list):
 
   find_topics = []
   find_msgs = []
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for i, topic in enumerate(topics_list):
@@ -804,6 +866,8 @@ def find_topics_by_msgs(msg_type_list):
 # Function to find a topic
 def find_msg_by_topic(topic):
   find_msg = ''
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for i, topic in enumerate(topics_list):
@@ -819,6 +883,8 @@ def find_msg_by_topic(topic):
 def find_topics_by_name(topic_name):
 
   find_topics = []
+  topics_list = []
+  types_list = []
   try:
     [topics_list,types_list]=get_topics_data_list()
     for topic in topics_list:
@@ -859,24 +925,29 @@ def find_subscribers(topic_names,filters=[], log_name_list = []):
     """
     Checks if topics have any active subscribers.
     """
+    topic_names = list(topic_names)
     has_subs = False
     has_subs_dict = dict()
     if len(topic_names) > 0:
-      for topic in topic_names:
-        has_subs_dict[topic] = []
+
       try:
+          #log_msg_warn("nepi_sdk: Checking subscribers for: " + str(topic_names), log_name_list = log_name_list)
+          
+          for topic in topic_names:
+            has_subs_dict[topic] = []
           master = rosgraph.Master('/rospy_info')  # Create a Master proxy
           publishers, subscribers = master.getSystemState()[0], master.getSystemState()[1]
 
           # Check if the topic exists in the list of published topics
           for pub_topic, _ in publishers:
-              if pub_topic in topic_names:
-                  # If the topic is published, check if it has any subscribers
-                  for sub_topic, _ in subscribers:
-                      #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
-                      if sub_topic not in filters:
-                          has_subs = True
-                          has_subs_dict[pub_topic].append(sub_topic)  # Found subscribers for this 
+              for topic in topic_names:
+                if pub_topic == topic:
+                    # If the topic is published, check if it has any subscribers
+                    for sub_topic, _ in subscribers:
+                        #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
+                        if sub_topic not in filters:
+                            has_subs = True
+                            has_subs_dict[topic].append(sub_topic)  # Found subscribers for this 
 
       except rospy.ROSException as e:
           rospy.logerr(f"Error connecting to ROS Master: {e}")

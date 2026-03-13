@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-NAVPOSE
+  description: Manager for NEPI navpose
+  type: MANAGER
+  node_file: navpose_mgr.py
+  etc_file: navpose_mgr.yaml
+  node_name: navpose_mgr
+
