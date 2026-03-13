@@ -112,14 +112,13 @@ def refreshManagersDict(search_path,mgrs_dict):
   #logger.log_warn('From Get Dict: ' + str(get_mgrs_dict))
   for manager_name in get_mgrs_dict.keys():
     if manager_name not in mgrs_dict.keys():
-      logger.log_warn("Refresh initializing mgr : " + str(manager_name) + " to active state: " + str(True))
       get_mgrs_dict[manager_name]['active'] = False
     else:
       #.log_warn('')
       #logger.log_warn('Updating mgr: ' + manager_name)
       #logger.log_warn('Updating mgr: ' + str(mgrs_dict[manager_name]))
       active = mgrs_dict[manager_name]['active']
-      logger.log_warn("Refresh updating mgr : " + str(manager_name) + " to active state: " + str(active))
+      #logger.log_warn("Refresh updating mgr : " + str(manager_name) + " to active state: " + str(active))
       get_mgrs_dict[manager_name]['active'] = active
       get_mgrs_dict[manager_name]['order'] = mgrs_dict[manager_name]['order']
   #logger.log_warn('Updated to: ' + str(get_mgrs_dict))

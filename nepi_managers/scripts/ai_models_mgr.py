@@ -295,7 +295,8 @@ class AIDetectorManager:
         self.msg_if.pub_warn("Initializing Node Variables")
         self.aifs_dict = self.node_if.get_param('aifs_dict')
 
-        self.models_dict = self.node_if.get_param('models_dict')
+        models_dict = self.node_if.get_param('models_dict')
+        self.updateModelsDict(models_dict)
 
         self.msg_if.pub_warn("Calling Refresh Process")
         success = self.refresh()
@@ -543,16 +544,16 @@ class AIDetectorManager:
 
         ######## Launch Models
         active_models_list = self.getActiveModels()
-        # self.msg_if.pub_warn("Launch Check with active models list: " + str(active_models_list))
+        #self.msg_if.pub_warn("Launch Check with active models list: " + str(active_models_list))
         # self.msg_if.pub_warn("Launch Check with models_namespace_dict keys: " + str(self.models_namespace_dict.keys())) 
         for model_name in active_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in self.models_namespace_dict.keys() and model_aif in active_aifs:
-                #self.msg_if.pub_warn("Launching Node for Model: " + model_name)
+                self.msg_if.pub_warn("Call LaunchModel process for Model: " + model_name)
                 model_dict = models_dict[model_name]
                 node_namespace = self.loadModel(model_name, model_dict)
 
-                self.models_dict_lock.acquire()
+                #self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = False
 
                 if node_namespace is not None:
@@ -567,11 +568,11 @@ class AIDetectorManager:
                     if model_name in list(self.models_namespace_dict.keys()):
                         del self.models_namespace_dict[model_name]
                     self.models_dict[model_name]['active'] = False
-                self.models_dict_lock.release()
+                #self.models_dict_lock.release()
 
         ######## Check Running Models
         active_models_list = self.getActiveModels()
-        # self.msg_if.pub_warn("Run Check with active models list: " + str(active_models_list))
+        self.msg_if.pub_warn("Running Check with active models list: " + str(active_models_list))
         # self.msg_if.pub_warn("Run Check with models_namespace_dict keys: " + str(self.models_namespace_dict.keys())) 
         for model_name in models_dict.keys():
             if model_name in self.models_namespace_dict.keys():
@@ -580,8 +581,9 @@ class AIDetectorManager:
                 if 'running' in model_dict.keys():
                     was_running =  model_dict['running']
                 model_node_name = model_dict['node_name']
+                #self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name))
                 running = nepi_sdk.check_node_by_name(model_node_name)  
-                self.models_dict_lock.acquire()
+                #self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = running
                 if running == True:
                     self.models_dict[model_name]['msg'] = "Model running"
@@ -593,11 +595,11 @@ class AIDetectorManager:
                         self.models_dict[model_name]['active'] = False
                     else:
                         self.models_dict[model_name]['msg'] = "Model not running"
-                self.models_dict_lock.release()
+                #self.models_dict_lock.release()
             else:
-                self.models_dict_lock.acquire()
+                #self.models_dict_lock.acquire()
                 self.models_dict[model_name]['running'] = False
-                self.models_dict_lock.release()
+                #self.models_dict_lock.release()
 
                 
     

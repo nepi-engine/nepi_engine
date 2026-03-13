@@ -691,7 +691,6 @@ class NavPoseIF:
                 if data_msg is not None:
                     try:
                         self.node_if.publish_pub('navpose_pub', data_msg)
-                        self.status_msg.publishing = True
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                         success = False
@@ -711,9 +710,6 @@ class NavPoseIF:
                 pub_time_sec = cur_time - self.last_pub_time
                 self.last_pub_time = cur_time
 
-
-
-            self.status_msg.publishing = True
 
             self.time_list.pop(0)
             self.time_list.append(pub_time_sec)
@@ -1147,7 +1143,6 @@ class BaseImageIF:
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
-        self.status_msg.publishing = False
         self.status_msg.encoding = 'bgr8'
         self.status_msg.width_px = 0
         self.status_msg.height_px = 0

@@ -771,7 +771,9 @@ class NavPoseMgr(object):
                                 comp_info_msg.init_topic_last_time = round( nepi_utils.get_time() - times_dict['last_time'], 3)
 
                     transform_dict = connect_dict[comp_name]['init_transform']
-                    comp_info_msg.init_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict, source_ref_description = init_topic, end_ref_description = frame_name)
+                    transform_dict['source_ref_description'] = init_topic
+                    transform_dict['end_ref_description'] = frame_name
+                    comp_info_msg.init_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.init_options_list = connect_dict[comp_name]['init_options']
                     comp_info_msg.init_option = connect_dict[comp_name]['init_option']
@@ -807,7 +809,9 @@ class NavPoseMgr(object):
                                 comp_info_msg.source_topic_last_time = round( nepi_utils.get_time() - times_dict['last_time'], 3)
 
                     transform_dict = connect_dict[comp_name]['source_transform']
-                    comp_info_msg.source_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict, source_ref_description = source_topic, end_ref_description = frame_name)
+                    transform_dict['source_ref_description'] = source_topic
+                    transform_dict['end_ref_description'] = frame_name
+                    comp_info_msg.source_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.source_options_list = connect_dict[comp_name]['source_options']
                     comp_info_msg.source_option = connect_dict[comp_name]['source_option']
@@ -851,7 +855,9 @@ class NavPoseMgr(object):
                                 comp_info_msg.update_topic_last_time = round( nepi_utils.get_time() - times_dict['last_time'], 3)
 
                     transform_dict = connect_dict[comp_name]['update_transform']
-                    comp_info_msg.update_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict, source_ref_description = update_topic, end_ref_description = frame_name)
+                    transform_dict['source_ref_description'] = update_topic
+                    transform_dict['end_ref_description'] = frame_name
+                    comp_info_msg.update_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.update_options_list = connect_dict[comp_name]['update_options']
                     comp_info_msg.update_option = connect_dict[comp_name]['update_option']

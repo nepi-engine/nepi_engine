@@ -826,7 +826,10 @@ class SystemMgrNode():
     def initCb(self, do_updates = False):
         if self.node_if is not None:
             #self.admin_enabled = self.node_if.get_param('admin_enabled')
-            self.managers_active_list = self.node_if.get_param('managers_active_list')
+            managers_active_list = self.node_if.get_param('managers_active_list')
+            if managers_active_list is None:
+                managers_active_list = []
+            self.managers_active_list = managers_active_list
             #self.run_mode = self.node_if.get_param('run_mode')
             self.user_restriction_options = self.node_if.get_param('user_restriction_options')
             self.user_restrictions = self.node_if.get_param('user_restrictions')
@@ -834,8 +837,11 @@ class SystemMgrNode():
 
             if do_updates == True:
                 self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+
+
                 for manager_name in self.managers_dict:
                     self.managers_dict[manager_name]['active'] = manager_name in self.managers_active_list
+                
                 self.updateSystemAdminSettings()
                 if self.node_if is not None:
                     self.node_if.set_param('managers_active_list', self.managers_active_list)
