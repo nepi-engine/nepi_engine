@@ -662,12 +662,16 @@ class NetworkMgr:
 
     def bandwidthCheckCb(self, timer):
         #self.msg_if.pub_warn("Debugging: Checking Network Bandwidth")
-        with open('/sys/class/net/' + self.NET_IFACE + '/statistics/tx_bytes', 'r') as f:
-            tx_bytes = int(f.read())
-            self.tx_byte_cnt_deque.append(tx_bytes)
-        with open('/sys/class/net/' + self.NET_IFACE + '/statistics/rx_bytes', 'r') as f:
-            rx_bytes = int(f.read())
-            self.rx_byte_cnt_deque.append(rx_bytes)
+        tx_stats = '/sys/class/net/' + self.NET_IFACE + '/statistics/tx_bytes'
+        rx_stats = '/sys/class/net/' + self.NET_IFACE + '/statistics/rx_bytes'
+        if os.path.exists(tx_stats):
+            with open(tx_stats, 'r') as f:
+                tx_bytes = int(f.read())
+                self.tx_byte_cnt_deque.append(tx_bytes)
+        if os.path.exists(rx_stats):
+            with open(rx_stats, 'r') as f:
+                rx_bytes = int(f.read())
+                self.rx_byte_cnt_deque.append(rx_bytes)
 
 
     def networkIpCheckCb(self, timer):

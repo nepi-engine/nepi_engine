@@ -153,21 +153,10 @@ class SoftwareMgrNode():
             os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
             os.mkdir(self.nepi_config['DOCKER_CONFIG'])
 
-        # check_path=self.nepi_config['NEPI_IMPORT_PATH']
-        # if check_path not in self.REQD_STORAGE_SUBDIRS:
-        #     self.REQD_STORAGE_SUBDIRS.append(check_path)
-        # check_path=self.nepi_config['NEPI_EXPORT_PATH']
-        # if check_path not in self.REQD_STORAGE_SUBDIRS:
-        #     self.REQD_STORAGE_SUBDIRS.append(check_path)
-
-        #nepi_system.set_nepi_config(self.nepi_config)
+    
 
         check_path=self.nepi_config['NEPI_IMPORT_PATH']
-        if check_path not in self.REQD_STORAGE_SUBDIRS:
-            self.REQD_STORAGE_SUBDIRS.append(check_path)
         check_path=self.nepi_config['NEPI_EXPORT_PATH']
-        if check_path not in self.REQD_STORAGE_SUBDIRS:
-            self.REQD_STORAGE_SUBDIRS.append(check_path)
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
 
