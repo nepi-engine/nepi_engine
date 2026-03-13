@@ -549,7 +549,7 @@ class AIDetectorManager:
         for model_name in active_models_list:
             model_aif = models_dict[model_name]['framework']
             if model_name not in self.models_namespace_dict.keys() and model_aif in active_aifs:
-                self.msg_if.pub_warn("Call LaunchModel process for Model: " + model_name)
+                self.msg_if.pub_warn("Calling Launch Model process for Model: " + model_name)
                 model_dict = models_dict[model_name]
                 node_namespace = self.loadModel(model_name, model_dict)
 
@@ -572,7 +572,7 @@ class AIDetectorManager:
 
         ######## Check Running Models
         active_models_list = self.getActiveModels()
-        self.msg_if.pub_warn("Running Check with active models list: " + str(active_models_list))
+        #self.msg_if.pub_warn("Running Check with active models list: " + str(active_models_list))
         # self.msg_if.pub_warn("Run Check with models_namespace_dict keys: " + str(self.models_namespace_dict.keys())) 
         for model_name in models_dict.keys():
             if model_name in self.models_namespace_dict.keys():

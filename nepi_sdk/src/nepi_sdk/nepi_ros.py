@@ -143,6 +143,8 @@ class logger:
     #######################
     ### IF Initialization
     def __init__(self, log_name = None, log_name_list = []):
+        if log_name_list is None:
+          log_name_list = []
         if log_name is not None:
             log_name_list = [log_name] + log_name_list
         if len(log_name_list) > 0:
@@ -151,28 +153,34 @@ class logger:
     ###############################
     # Class Public Methods
     
-    def log(self, msg, level = "None", throttle_s = None):
+    def log(self, msg, level = "None", throttle_s = None, log_name_list = []):
+        if log_name_list is None:
+          log_name_list = []
+        if self.ln_str in log_name_list:
+          log_name_list.remove(self.ln_str)
+        log_name_list.append(self.ln_str)
         if msg is None:
             msg = "nepi_sdk logger got None msg"
         if msg is not None:
-          msg_str = self._createMsgString(msg)
-          log_msg(msg_str, level = level, throttle_s = throttle_s)
+          msg_str = str(msg)
+          #print('LOGNAME LIST: ' + str(log_name_list))
+          log_msg(msg_str, level = level, throttle_s = throttle_s, log_name_list = log_name_list)
 
     
-    def log_info(self, msg, throttle_s = None):
-        self.log(msg, level = 'info', throttle_s = throttle_s)
+    def log_info(self, msg, throttle_s = None, log_name_list = []):
+        self.log(msg, level = 'info', throttle_s = throttle_s, log_name_list = log_name_list)
     
-    def log_warn(self, msg, throttle_s = None):
-        self.log(msg,level = 'warn', throttle_s = throttle_s)
+    def log_warn(self, msg, throttle_s = None, log_name_list = []):
+        self.log(msg,level = 'warn', throttle_s = throttle_s, log_name_list = log_name_list)
     
-    def log_debug(self, msg, throttle_s = None):
-        self.log(msg,level = 'debug', throttle_s = throttle_s)
+    def log_debug(self, msg, throttle_s = None, log_name_list = []):
+        self.log(msg,level = 'debug', throttle_s = throttle_s, log_name_list = log_name_list)
     
-    def log_error(self, msg, throttle_s = None):
-        self.log(msg,level = 'error', throttle_s = throttle_s)
+    def log_error(self, msg, throttle_s = None, log_name_list = []):
+        self.log(msg,level = 'error', throttle_s = throttle_s, log_name_list = log_name_list)
     
-    def log_fatal(self, msg, throttle_s = None):
-        self.log(msg,level = 'fatal', throttle_s = throttle_s)
+    def log_fatal(self, msg, throttle_s = None, log_name_list = []):
+        self.log(msg,level = 'fatal', throttle_s = throttle_s, log_name_list = log_name_list)
 
     ###############################
     # Class Private Methods

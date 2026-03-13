@@ -56,7 +56,7 @@ logger = Logger(log_name = log_name)
 
 
 # try and import geoid height calculation module and databases
-GEOID_DATABASE_FILE='/opt/nepi/databases/geoids/egm2008-2_5.pgm' # Ignored if PyGeodesy module or Geoids Database is not available
+GEOID_DATABASE_FILE='/mnt/nepi_storage/databases/geoids/egm2008-2_5.pgm' # Ignored if PyGeodesy module or Geoids Database is not available
 FALLBACK_GEOID_HEIGHT_M = 0.0 # Ignored if if PyGeodesy module or Geoids Database are available
 file_loaded = False
 if os.path.exists(GEOID_DATABASE_FILE):
@@ -470,7 +470,8 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
 # 3D Frame Helper Functions
 
 BLANK_TRANSFORM_DICT = {
-
+    'source_ref_description': '',
+    'end_ref_descriptions': '',
 
     # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
     'x_m': 0.0,
@@ -496,21 +497,28 @@ BLANK_TRANSFORM_DICT = {
 }
 
 
+def check_tranform_dict(transform_dict):
+  for key in BLANK_TRANSFORM_DICT.keys():
+    if key not in transform_dict.keys():
+      transform_dict[key] = BLANK_TRANSFORM_DICT[key]
+  return transform_dict
+
 def convert_transform_dict2msg(transform_dict, log_name_list = []):
+  transform_dict = check_tranform_dict(transform_dict)
   transform_msg = Transform()
   if transform_dict is not None:
     try:
-      transform_msg.source_ref_description = transform_dict.source_ref_description
-      transform_msg.end_ref_description = transform_dict.end_ref_description
+      transform_msg.source_ref_description = transform_dict['source_ref_description']
+      transform_msg.end_ref_description = transform_dict['end_ref_description']
 
       transform_msg.heading_deg = transform_dict['heading_deg'] 
       transform_msg.heading_invert = transform_dict['heading_invert']
 
-      transform_msg.roll_deg = transform_dict['rol_deg']
+      transform_msg.roll_deg = transform_dict['roll_deg']
       transform_msg.pitch_deg = transform_dict['pitch_deg'] 
       transform_msg.yaw_deg = transform_dict['yaw_deg']
 
-      transform_msg.roll_invert = transform_dict['rol_invert']
+      transform_msg.roll_invert = transform_dict['roll_invert']
       transform_msg.pitch_invert = transform_dict['pitch_invert'] 
       transform_msg.yaw_invert = transform_dict['yaw_invert']
 
@@ -543,14 +551,23 @@ def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     if transform_dict != BLANK_TRANSFORM_DICT:
-      x = transform_dict[0]
-      y = transform_dict[1]
-      z = transform_dict[2]
-      translation_vector = [x, y, z]
-      roll = transform_dict[3]
-      pitch = transform_dict[4]
-      yaw = transform_dict[5]
-      rotate_vector = [roll, pitch, yaw]
+      invert = 1 if transform_dict['x_invert'] else -1
+      x = transform_dict['x_m'] * invert
+      invert = 1 if transform_dict['y_invert'] else -1
+      y = transform_dict['y_m'] * invert
+      invert = 1 if transform_dict['z_invert'] else -1
+      z = transform_dict['z_m'] * invert
+
+      invert = 1 if transform_dict['roll_invert'] else -1
+      roll = transform_dict['roll_deg']
+      invert = 1 if transform_dict['pitch_invert'] else -1
+      pitch = transform_dict['pitch_deg']
+      invert = 1 if transform_dict['yaw_invert'] else -1
+      yaw = transform_dict['yaw_deg']
+
+      invert = 1 if transform_dict['heading_invert'] else -1
+      heading = transform_dict['heading_deg']
+
       try:
 
         if npdata_dict['has_location'] == True:
@@ -566,7 +583,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
             navpose_dict['longitude'] = npdata_dict['longitude']
 
         if npdata_dict['has_heading'] == True:
-          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] + yaw
+          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] + heading
 
         if npdata_dict['has_orientation'] == True:
           navpose_dict['roll_deg'] = npdata_dict['roll_deg'] + roll

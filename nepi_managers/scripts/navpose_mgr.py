@@ -635,7 +635,7 @@ class NavPoseMgr(object):
                     
                     self.addNavpose(frame_name, init_dict_entry = navpose_info_dict, do_updates = False)
                     
-                self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(navpose_info_dict))
+                #self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
                 self.updateNavposesData()
                 if self.node_if is not None:
                     self.node_if.save_config()
@@ -773,6 +773,8 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['init_transform']
                     transform_dict['source_ref_description'] = init_topic
                     transform_dict['end_ref_description'] = frame_name
+                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    connect_dict[comp_name]['init_transform'] = transform_dict
                     comp_info_msg.init_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.init_options_list = connect_dict[comp_name]['init_options']
@@ -811,6 +813,8 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['source_transform']
                     transform_dict['source_ref_description'] = source_topic
                     transform_dict['end_ref_description'] = frame_name
+                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    connect_dict[comp_name]['source_transform'] = transform_dict
                     comp_info_msg.source_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.source_options_list = connect_dict[comp_name]['source_options']
@@ -857,6 +861,8 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['update_transform']
                     transform_dict['source_ref_description'] = update_topic
                     transform_dict['end_ref_description'] = frame_name
+                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    connect_dict[comp_name]['update_transform'] = transform_dict
                     comp_info_msg.update_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
                     comp_info_msg.update_options_list = connect_dict[comp_name]['update_options']

@@ -85,7 +85,6 @@ class SystemMgrNode():
                         "ai_training",
                         "data", 
                         "databases", 
-                        "databases/targets", 
                         "install",
                         "install/updates",
                         "install/apps",
