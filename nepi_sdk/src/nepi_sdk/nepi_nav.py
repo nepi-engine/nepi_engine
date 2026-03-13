@@ -259,7 +259,7 @@ def update_navpose_dict_from_offsets(npdata_dict_org, np_offsets_dict):
     return np_dict
 
 
-def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
+def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None):
     msg_type = msg._type
     
     if name == 'location':
@@ -460,59 +460,96 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform = None):
         except:
           pass
       
-      if transform is not None:
-        if transform != ZERO_TRANSFORM:
-          navpose_dict = transform_navpose_dict(navpose_dict,transform)
+      if transform_dict is not None:
+        if  transform_dict != BLANK_TRANSFORM_DICT:
+          navpose_dict = transform_navpose_dict(navpose_dict,transform_dict)
     return navpose_dict
 
 
 #######################
 # 3D Frame Helper Functions
 
-ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+BLANK_TRANSFORM_DICT = {
 
 
-def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = ''):
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'x_invert': False,
+    'y_invert': False,
+    'z_invert': False,
+  
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'roll_invert': False,
+    'pitch_invert': False,
+    'yaw_invert': False,
+
+    'heading_deg': 0.0,
+    'heading_invert': False
+
+}
+
+
+def convert_transform_dict2msg(transform_dict, log_name_list = []):
   transform_msg = Transform()
-  transform_msg.source_ref_description = source_ref_description
-  transform_msg.end_ref_description = end_ref_description
-  if len(transform_list) == 7:
-      transform_msg.translate_vector.x = transform_list[0]
-      transform_msg.translate_vector.y = transform_list[1]
-      transform_msg.translate_vector.z = transform_list[2]
-      transform_msg.rotate_vector.x = transform_list[3]
-      transform_msg.rotate_vector.y = transform_list[4]
-      transform_msg.rotate_vector.z = transform_list[5]
-      transform_msg.heading_offset = transform_list[6]
+  if transform_dict is not None:
+    try:
+      transform_msg.source_ref_description = transform_dict.source_ref_description
+      transform_msg.end_ref_description = transform_dict.end_ref_description
+
+      transform_msg.heading_deg = transform_dict['heading_deg'] 
+      transform_msg.heading_invert = transform_dict['heading_invert']
+
+      transform_msg.roll_deg = transform_dict['rol_deg']
+      transform_msg.pitch_deg = transform_dict['pitch_deg'] 
+      transform_msg.yaw_deg = transform_dict['yaw_deg']
+
+      transform_msg.roll_invert = transform_dict['rol_invert']
+      transform_msg.pitch_invert = transform_dict['pitch_invert'] 
+      transform_msg.yaw_invert = transform_dict['yaw_invert']
+
+      transform_msg.x_m = transform_dict['x_m'] 
+      transform_msg.y_m = transform_dict['y_m']
+      transform_msg.z_m = transform_dict['z_m']
+
+      transform_msg.x_invert = transform_dict['x_invert'] 
+      transform_msg.y_invert = transform_dict['y_invert']
+      transform_msg.z_invert = transform_dict['z_invert']
+
+    
+    except Exception as e:
+      logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return transform_msg
 
-def convert_transform_msg2list(transform_msg):
-  transform_list = ZERO_TRANSFORM
-  if len(transform_list) == 7:
-      transform_list[0] = transform_msg.translate_vector.x
-      transform_list[1] = transform_msg.translate_vector.y
-      transform_list[2] = transform_msg.translate_vector.z
-      transform_list[3] = transform_msg.rotate_vector.x
-      transform_list[4] = transform_msg.rotate_vector.y
-      transform_list[5] = transform_msg.rotate_vector.z
-      transform_list[6] = transform_msg.heading_offset
-  return transform_list
+def convert_transform_msg2dict(transform_msg):
+  transform_dict = None
+  try:
+    transform_dict = nepi_sdk.convert_msg2dict(transform_msg)
+  except Exception as e:
+    logger.log_warn("Failed to convert Transform Msg to dict: " + str(e), throttle_s = 5.0)
+  return transform_dict
 
-def transform_navpose_dict(npdata_dict, transform, log_name_list = []):
+def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
   success = True
   navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
   if npdata_dict is None:
     success = False
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
-    if transform != ZERO_TRANSFORM:
-      x = transform[0]
-      y = transform[1]
-      z = transform[2]
+    if transform_dict != BLANK_TRANSFORM_DICT:
+      x = transform_dict[0]
+      y = transform_dict[1]
+      z = transform_dict[2]
       translation_vector = [x, y, z]
-      roll = transform[3]
-      pitch = transform[4]
-      yaw = transform[5]
+      roll = transform_dict[3]
+      pitch = transform_dict[4]
+      yaw = transform_dict[5]
       rotate_vector = [roll, pitch, yaw]
       try:
 
@@ -843,14 +880,6 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
 
-def convert_navpose_msg2dict(npdata_msg, log_name_list = []):
-  npdata_dict = None
-  try:
-    npdata_dict = nepi_sdk.convert_msg2dict(npdata_msg)
-    del npdata_dict['header']
-  except Exception as e:
-    logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
-  return npdata_dict
 
 def convert_navposes_msg2dict(npsdata_msg, log_name_list = []):
   npsdata_dict = None

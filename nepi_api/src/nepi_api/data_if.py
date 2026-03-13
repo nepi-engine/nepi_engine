@@ -287,14 +287,6 @@ class NavPoseIF:
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
 
-        self.status_msg.is_navpose_publisher = self.pub_navpose
-
-        self.status_msg.is_navapose_subscriber = False
-        self.status_msg.navpose_frame_options = []
-        self.status_msg.sel_navpose_frame = 'None'
-        self.status_msg.transform_topic = ''
-        self.status_msg.connected = False
-
 
         ##############################   
         ## Node Setup
@@ -593,9 +585,9 @@ class NavPoseIF:
                 if np_dict['frame_depth'] == 'DEPTH':
                     pass # need to add conversions                 
 
-            self.status_msg.pub_frame_nav = np_dict['frame_nav']
-            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+            self.status_msg.frame_nav = np_dict['frame_nav']
+            self.status_msg.frame_altitude = np_dict['frame_altitude']
+            self.status_msg.frame_depth = np_dict['frame_depth']
 
             # Publish nav pose subs
             if self.pub_location == True:
@@ -684,9 +676,9 @@ class NavPoseIF:
             #    if np_dict['frame_depth'] == 'DEPTH':
             #        pass # need to add conversions                 
 
-            self.status_msg.pub_frame_nav = np_dict['frame_nav']
-            self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-            self.status_msg.pub_frame_depth = np_dict['frame_depth']
+            self.status_msg.frame_nav = np_dict['frame_nav']
+            self.status_msg.frame_altitude = np_dict['frame_altitude']
+            self.status_msg.frame_depth = np_dict['frame_depth']
 
             if self.pub_navpose == True:
                 data_msg = None
@@ -804,8 +796,6 @@ class NavPoseIF:
             needs_data = has_subs or needs_save or needs_snapshot
         else:
             needs_data = has_subs
-        if needs_data == False and self.status_msg is not None:
-            self.status_msg.publishing = False
         self.needs_data = needs_data
         #self.msg_if.pub_warn("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]), log_name_list = self.log_name_list)
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
@@ -5476,9 +5466,9 @@ class PointcloudImageIF(BaseImageIF):
 #                 if np_dict['frame_depth'] == 'DEPTH':
 #                     pass # need to add conversions                 
 
-#             self.status_msg.pub_frame_nav = np_dict['frame_nav']
-#             self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-#             self.status_msg.pub_frame_depth = np_dict['frame_depth']
+#             self.status_msg.frame_nav = np_dict['frame_nav']
+#             self.status_msg.frame_altitude = np_dict['frame_altitude']
+#             self.status_msg.frame_depth = np_dict['frame_depth']
 
 #             # Publish nav pose subs
 #             if self.pub_location == True:
@@ -5558,9 +5548,9 @@ class PointcloudImageIF(BaseImageIF):
 #             #    if np_dict['frame_depth'] == 'DEPTH':
 #             #        pass # need to add conversions                 
 
-#             self.status_msg.pub_frame_nav = np_dict['frame_nav']
-#             self.status_msg.pub_frame_altitude = np_dict['frame_altitude']
-#             self.status_msg.pub_frame_depth = np_dict['frame_depth']
+#             self.status_msg.frame_nav = np_dict['frame_nav']
+#             self.status_msg.frame_altitude = np_dict['frame_altitude']
+#             self.status_msg.frame_depth = np_dict['frame_depth']
 
 
 
