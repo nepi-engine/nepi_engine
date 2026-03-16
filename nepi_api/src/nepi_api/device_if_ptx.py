@@ -1200,9 +1200,7 @@ class PTXActuatorIF:
     
 
     def _gotoToPanRatioCb(self, msg):
-        # self.stopPanCb()
-        # if self.has_seperate_pan_tilt_control == False:
-        #     self.stopTiltCb()
+        self.stopPanCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid pan position ratio " + "%.2f" % ratio)
@@ -1220,9 +1218,7 @@ class PTXActuatorIF:
         
 
     def _gotoToTiltRatioCb(self, msg):
-        # self.stopTiltCb()
-        # if self.has_seperate_pan_tilt_control == False:
-        #     self.stopPanCb()
+        self.stopTiltCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid tilt position ratio " + "%.2f" % ratio)
@@ -1241,10 +1237,7 @@ class PTXActuatorIF:
         
 
     def _jogTimedPanCb(self, msg):
-        # self.msg_if.pub_warn("Got Jog Pan Timed msg")
-        # self.stopPanCb()
-        # if self.has_seperate_pan_tilt_control == False:
-        #     self.stopTiltCb()
+        self.stopPanCb()
         self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             self.pan_goal_deg = -999
@@ -1256,10 +1249,7 @@ class PTXActuatorIF:
         
 
     def _jogTimedTiltCb(self, msg):
-        # self.msg_if.pub_warn("Got Jog Tilt Timed msg")
-        # self.stopTiltCb()
-        # if self.has_seperate_pan_tilt_control == False:
-        #     self.stopPanCb()
+        self.stopTiltCb()
         self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             self.tilt_goal_deg = -999
