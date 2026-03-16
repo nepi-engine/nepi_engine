@@ -28,7 +28,7 @@ from nepi_sdk import nepi_targets
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import Reset
 
-from nepi_interfaces.msg import RangeWindow, Target, Targets, TargetFilter, TargetFilters, TargetingStatus
+from nepi_interfaces.msg import RangeWindow, Target, Targets, TargetingStatus
 
 
 from nepi_api.messages_if import MsgIF

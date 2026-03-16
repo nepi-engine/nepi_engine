@@ -413,7 +413,7 @@ class NodeParamsIF:
                 if param_name in ns_param_dict.keys():
                     init_val = ns_param_dict[param_name]
             if init_val is None:
-                init_val = self.get_param(param_name)
+                init_val = param_dict['factory_val']
                 self.set_param(param_name, init_val)
             self.params_dict[param_name]['init_val'] = init_val
         return True
@@ -453,16 +453,17 @@ class NodeParamsIF:
             param_dict = self.params_dict[param_name]
             namespace = self.get_param_namespace(param_name)
             if namespace is not None:
+                if namespace in self.params_ns_dict.keys():
+                    value = self.params_ns_dict[namespace]
+
                 if 'init_val' in param_dict.keys():
                     fallback = param_dict['init_val']
-                else:
+                
+                if fallback is None:  
                     fallback = param_dict['factory_val']
 
-                if fallback is not None:  
-                    if namespace in self.params_ns_dict.keys():
-                        value = self.params_ns_dict[namespace]
-                    else:
-                        value = fallback
+                if value is None:
+                    value = fallback
         return value
 
     def set_param(self, param_name, value):

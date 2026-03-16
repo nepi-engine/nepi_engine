@@ -30,8 +30,8 @@ from nepi_sdk import nepi_nav
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 
 from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes, AiBoundingBoxes
-from nepi_interfaces.msg import Target, Targets, TargetFilter, TargetFilters, TargetingStatus
-from nepi_interfaces.msg import Target
+
+from nepi_interfaces.msg import Target, Targets, TargetingStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_ais"
@@ -41,11 +41,85 @@ logger = Logger(log_name = log_name)
 ########################
 ## Library Data
 
-TARGET_SOURCE_MSG_LIST = [ "BoundingBoxes", "AiBoundingBoxes", "Targets", "Image", "NAVPOSE" ]
 
-TARGET_FILTER_OPTIONS = ['SMALLEST','LARGEST']
+BLANK_TARGET_DICT = {
+'''
+string target_name
+string target_uid
+float32 target_confidence
 
-BLANK_TARGETING_STATUS_DICT = {
+# 2D Data ENU Reference Frame
+int32 xmin_pixel
+int32 xmax_pixel
+
+int32 ymin_pixel
+int32 ymax_pixel
+
+int32 width_pixels
+int32 height_pixels
+
+float32 area_ratio 
+float32 area_pixels
+geometry_msgs/Vector3 vel_pixels
+
+# 3D Data in ENU Reference Frame
+float32 width_meters
+float32 height_meters
+float32 depth_meters
+float32 area_meters
+float32 volume_meters
+geometry_msgs/Vector3 vel_xyz_mps
+geometry_msgs/Vector3 center_xyz_meters
+
+# Range, Bearing, Nav, and Pose Data ENU Reference Frame
+float32 range_m
+float32 azimuth_deg
+float32 elevation_deg
+
+Target navpose
+
+# Color Distribution Percent 
+float32 color_black	
+float32 color_white	
+float32 color_red	
+float32 color_blue	
+float32 color_yellow	
+float32 color_cyan	
+float32 color_magenta	
+float32 color_green	
+
+# Contour Data
+int32[] contour_moments
+}
+
+
+BLANK_TARGETS_DICT = {
+string name
+float64 targeting_timestamp
+
+string source_topic
+string source_type
+string source_description
+float64 source_timestamp
+Target source_nav_pose
+
+bool has_2d_data
+bool has_3d_data
+bool has_range_data
+bool has_bearing_data
+bool has_nav_data
+bool has_pose_data
+bool has_color_data
+bool has_countour_data
+bool has_shape_data
+
+Target[] targets
+'''
+}
+
+TARGET_BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
+
+BLANK_TARGET_SETTINGS_DICT = {
 '''
 string name
 string namespace
@@ -101,81 +175,6 @@ float32 max_targeting_rate
 }
 
 
-BLANK_TARGET_DICT = {
-'''
-string target_name
-string target_uid
-float32 target_confidence
-
-# 2D Data ENU Reference Frame
-int32 xmin_pixel
-int32 xmax_pixel
-
-int32 ymin_pixel
-int32 ymax_pixel
-
-int32 width_pixels
-int32 height_pixels
-
-float32 area_ratio 
-float32 area_pixels
-geometry_msgs/Vector3 vel_pixels
-
-# 3D Data in ENU Reference Frame
-float32 width_meters
-float32 height_meters
-float32 depth_meters
-float32 area_meters
-float32 volume_meters
-geometry_msgs/Vector3 vel_xyz_mps
-geometry_msgs/Vector3 center_xyz_meters
-
-# Range, Bearing, Nav, and Pose Data ENU Reference Frame
-float32 range_m
-float32 azimuth_deg
-float32 elevation_deg
-
-Target source_nav_pose
-
-# Color Distribution Percent 
-float32 color_black	
-float32 color_white	
-float32 color_red	
-float32 color_blue	
-float32 color_yellow	
-float32 color_cyan	
-float32 color_magenta	
-float32 color_green	
-
-# Contour Data
-int32[] contour_moments
-}
-
-
-BLANK_TARGETS_DICT = {
-string name
-float64 targeting_timestamp
-
-string source_topic
-string source_type
-string source_description
-float64 source_timestamp
-Target source_nav_pose
-
-bool has_2d_data
-bool has_3d_data
-bool has_range_data
-bool has_bearing_data
-bool has_nav_data
-bool has_pose_data
-bool has_color_data
-bool has_countour_data
-bool has_shape_data
-
-Target[] targets
-'''
-}
-
 BLANK_TARGET_FILTER_DICT = {
 
 }
@@ -195,51 +194,6 @@ def get_targeting_source_publisher_namespaces():
         namespaces[i] = os.path.dirname(namespaces[i])
     return namespaces 
 
-
-def filter_targets_list(targets_dict_list, ordered_targets_list = ['person'], target_filter = 'LARGEST'):
-    #print(targets_dict_list)
-
-    filtered_name = None
-    for target in targets_dict_list:
-        for target_name in ordered_targets_list:
-            if target['target_name'] == target_name:
-                filtered_name = target_name
-                break
-    #logger.log_info("Got filtered_name " + str(filtered_name))
-    
-    
-    filtered_list = []
-    if filtered_name is not None:
-        for target in targets_dict_list:
-            if target['target_name'] == filtered_name:
-                filtered_list.append(target)
-    #logger.log_info("Got filtered_list " + str(filtered_list))
-
-
-
-    filtered_target = None
-    if len(filtered_list) > 0:
-        for target in filtered_list:
-           
-            best = True
-
-            if filtered_target is not None:
-                bsize = filtered_target['area_ratio']
-                tsize = target['area_ratio']
-                if target_filter == 'LARGEST' and tsize < bsize:
-                    best = False
-                elif target_filter == 'SMALLEST' and tsize > bsize:
-                    best = False
-
-            if best == True:
-                filtered_target = target
-    #logger.log_info("Got filtered_dict " + str(filtered_target))
-
-            
-    return filtered_target
-            
-
-   
 
 
 
@@ -287,7 +241,7 @@ def convert_target_dict2msg(target_data_dict, log_name_list = []):
             target_msg.source_nav_pose = navpose_msg       
     except Exception as e:
       target_msg = None
-      self.msg_if.pub_warn("Failed to convert Target Data dict: " + str(e), throttle_s = 5.0)
+      logger.log_warn("Failed to convert Target Data dict: " + str(e), throttle_s = 5.0)
   return target_msg
 
 def convert_target_msg2dict(target_msg, log_name_list = []):
@@ -295,5 +249,56 @@ def convert_target_msg2dict(target_msg, log_name_list = []):
   try:
     target_data_dict = nepi_sdk.convert_msg2dict(target_msg)
   except Exception as e:
-    self.msg_if.pub_warn("Failed to convert Target Data msg: " + str(e), throttle_s = 5.0)
+    logger.log_warn("Failed to convert Target Data msg: " + str(e), throttle_s = 5.0)
   return target_data_dict
+
+
+def filter_by_names(targets_dict_list, name_filter_list):
+    #print(targets_dict_list)
+
+    filtered_targets = []
+
+    for target in targets_dict_list:
+        if target['target_name'] in name_filter_list:
+            filtered_targets.append(target)
+    #logger.log_info("Got Names filtered_targets: " + str(filtered_targets))
+
+           
+    return filtered_targets
+
+
+def filter_by_area(targets_dict_list, min_area_ratio = .01, max_area_ratio = .99):
+    #print(targets_dict_list)
+
+    filtered_targets = []
+
+    for target in targets_dict_list:
+        target_area = target['area_ratio']
+        if target_area >= min_area_ratio and target_area <= max_area_ratio:
+            filtered_targets.append(target)
+    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
+    return filtered_targets
+
+
+def find_best(targets_dict_list, best_filter = 'LARGEST'):
+    #print(targets_dict_list)
+    best_target = None
+    for target in targets_dict_list:
+        
+        best = True
+
+        if best_target is not None:
+            bsize = best_target['area_ratio']
+            tsize = target['area_ratio']
+            if best_filter == 'LARGEST' and tsize < bsize:
+                best = False
+            elif best_filter == 'SMALLEST' and tsize > bsize:
+                best = False
+
+        if best == True:
+            best_target = target
+    #logger.log_info("Got filtered_dict " + str(filtered_target))
+
+            
+    return best_target
+            

@@ -56,11 +56,10 @@ from nepi_interfaces.msg import Transform
 #from nepi_interfaces.srv import TransformsRegister, TransformsRegisterRequest, TransformsRegisterResponse
 #from nepi_interfaces.srv import TransformsDelete, TransformsDeleteRequest, TransformsDeleteResponse
 
-from nepi_api.node_if import NodeClassIF
+from nepi_api.node_if import NodePublishersIF, NodeClassIF
 from nepi_api.messages_if import MsgIF
 from nepi_api.system_if import SaveDataIF
 
-from nepi_api.data_if import NavPoseIF
 
 
 #########################################
@@ -70,6 +69,8 @@ from nepi_api.data_if import NavPoseIF
 
 class NavPoseMgr(object):
     MGR_NODE_NAME = 'navpose_mgr'
+
+    
     NAVPOSE_BASE_FRAME = 'base_frame'
     NAVPOSE_BASE_FRAME_DESC = 'NEPI base navpose frame'
 
@@ -85,7 +86,7 @@ class NavPoseMgr(object):
 
     ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
 
-    times_list = [0,0,0,0,0,0,0]
+    NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_source','navpose_update','navpose_offsets']
 
     BLANK_CONNECT_DICT = {
             'init_topic': "",
@@ -106,7 +107,7 @@ class NavPoseMgr(object):
         }
     
     BLANK_TIMES = {
-            'times': times_list,
+            'times': [0,0,0,0,0,0,0],
             'last_time': 0.0
         }
 
@@ -222,8 +223,8 @@ class NavPoseMgr(object):
     
     
 
-    navposes_node_dict = dict()
-    navposes_node_dict_lock = threading.Lock()
+    navposes_pubs_dict = dict()
+    navposes_pubs_dict_lock = threading.Lock()
 
     navposes_max_pub_rate = 1
     last_navposes_pub_time = nepi_utils.get_time()
@@ -251,6 +252,7 @@ class NavPoseMgr(object):
 
     navposes_pub_times_dict = dict()
     navposes_solution_dict = dict()
+    navpose_pubs_published = False
 
     navposes_save_dict = dict()
 
@@ -291,8 +293,6 @@ class NavPoseMgr(object):
 
     
         self.status_msg.navposes_topic  = self.navposes_topic
-
-
 
 
 
@@ -564,7 +564,8 @@ class NavPoseMgr(object):
                         params_dict = self.PARAMS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT
+                        subs_dict = self.SUBS_DICT,
+                        msg_if = self.msg_if
         )
 
         #ready = self.node_if.wait_for_ready()
@@ -637,10 +638,11 @@ class NavPoseMgr(object):
                     
                 #self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
                 self.updateNavposesData()
-                if self.node_if is not None:
-                    self.node_if.save_config()
+
 
             self.publish_status()
+            self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+            self.node_if.save_config()
 
     def resetCb(self,do_updates = True):
         if self.node_if is not None:
@@ -875,7 +877,16 @@ class NavPoseMgr(object):
 
                 solution_msg = NavPoseSolution()
                 solution_msg.frame_name = frame_name
-                solution_msg.navpose_topic = navposes_info_dict[frame_name]['namespace']
+
+                namespace = navposes_info_dict[frame_name]['namespace'] 
+                solution_msg.frame_namespace = namespace     
+                solution_msg.navpose_topic = os.path.join(namespace,'navpose')
+                solution_msg.navpose_fixed_topic = os.path.join(namespace,'navpose_fixed')
+                navpose_component_topics = []
+                for navpose_name in self.NAVPOSE_COMPONENT_NAMES:
+                    navpose_component_topics.append( os.path.join(namespace,navpose_name))
+                solution_msg.navpose_component_topics = navpose_component_topics
+
 
                 states_true = 0
                 states_false = 0
@@ -1106,103 +1117,41 @@ class NavPoseMgr(object):
             
 
             ###################
-            # Add to navposes_node_dict      
+            # Add to navposes_pubs_dict      
             namespace = info_dict_entry['namespace']       
-            if frame_name not in self.navposes_node_dict.keys():
-                self.msg_if.pub_info("Creating navpose node entries for: " + str(frame_name) + ' : ' + str(data_product))
-                navepose_solution_if = NavPoseIF(namespace = namespace,
-                                    data_product = data_product,
-                                    data_source_description =  frame_name,
-                                    data_ref_description = info_dict_entry['description'],
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                init_update_namespace = os.path.join(namespace,data_product)
-                navpose_init_if = NavPoseIF(namespace = init_update_namespace,
-                                    data_product = data_product + "_init",
-                                    data_source_description =  frame_name + "_init",
-                                    data_ref_description = info_dict_entry['description'] + " init",
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                source_namespace = os.path.join(namespace,data_product)
-                navpose_source_if = NavPoseIF(namespace = source_namespace,
-                                    data_product = data_product + "_source",
-                                    data_source_description =  frame_name + "_source",
-                                    data_ref_description = info_dict_entry['description'] + " source",
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                fixed_namespace = os.path.join(namespace,data_product)
-                navpose_fixed_if = NavPoseIF(namespace = fixed_namespace,
-                                    data_product = data_product + "_fixed",
-                                    data_source_description =  frame_name,
-                                    data_ref_description = info_dict_entry['description'] + " fixed",
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                update_namespace = os.path.join(namespace,data_product)
-                navpose_update_if = NavPoseIF(namespace = update_namespace,
-                                    data_product = data_product + "_update",
-                                    data_source_description =  frame_name + "_update",
-                                    data_ref_description = info_dict_entry['description'] + " update",
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                offsets_namespace = os.path.join(namespace,data_product)
-                navpose_offsets_if = NavPoseIF(namespace = offsets_namespace,
-                                    data_product = data_product + "_offsets",
-                                    data_source_description =  frame_name + "_offsets",
-                                    data_ref_description = info_dict_entry['description'] + " init solution",
-                                    pub_navpose = True,
-                                    pub_location = False, pub_heading = False,
-                                    pub_orientation = False, pub_position = False,
-                                    pub_altitude = False, pub_depth = False,
-                                    pub_pan_tilt = False,
-                                    save_data_enabled = False,
-                                    msg_if = self.msg_if
-                                    )
-                # Add a local pub to start publishing before navepose_solution_if is ready
-                navpose_pub = nepi_sdk.create_publisher(namespace + '/navpose',NavPose, queue_size = 1, log_name_list = [])
+            if frame_name not in self.navposes_pubs_dict.keys():
+                self.msg_if.pub_info("Creating navpose publishers entries for: " + str(frame_name) + ' : ' + str(data_product))
+                # Publishers Config Dict ####################
+                PUBS_DICT = dict()
 
+                PUBS_DICT['navpose'] = {
+                    'namespace': namespace,
+                    'topic': 'navpose',
+                    'msg': NavPose,
+                    'qsize': 1,
+                }
+                PUBS_DICT['navpose_fixed'] = {
+                    'namespace': namespace,
+                    'topic': 'navpose_fixed',
+                    'msg': NavPose,
+                    'qsize': 1,
+                }
+                for navpose_name in self.NAVPOSE_COMPONENT_NAMES:
+                    PUBS_DICT[navpose_name] = {
+                        'namespace': namespace,
+                        'topic': navpose_name,
+                        'msg': NavPose,
+                        'qsize': 1,
+                    }
+                pubs_if = NodePublishersIF(PUBS_DICT,
+                                           log_name = frame_name,
+                                            msg_if = self.msg_if)
 
-                node_dict_entry = dict()
-                node_dict_entry['navepose_solution_if'] = navepose_solution_if
-                node_dict_entry['navpose_init_if'] = navpose_init_if
-                node_dict_entry['navpose_source_if'] = navpose_source_if
-                node_dict_entry['navpose_fixed_if'] = navpose_fixed_if
-                node_dict_entry['navpose_update_if'] = navpose_update_if
-                node_dict_entry['navpose_offsets_if'] = navpose_offsets_if
-                node_dict_entry['navpose_pub'] = navpose_pub
+                ready = pubs_if.wait_for_ready()
 
-                self.navposes_node_dict_lock.acquire()
-                self.navposes_node_dict[frame_name] = node_dict_entry
-                self.navposes_node_dict_lock.release()
+                self.navposes_pubs_dict_lock.acquire()
+                self.navposes_pubs_dict[frame_name] = pubs_if
+                self.navposes_pubs_dict_lock.release()
 
 
             #######################
@@ -1232,6 +1181,47 @@ class NavPoseMgr(object):
             if do_updates == True:
                 self.updateNavposesData()
 
+
+
+
+    def removeNavpose(self, frame_name):
+        if frame_name == self.NAVPOSE_BASE_FRAME:
+            self.msg_if.pub_info("Can't Remove Base Frame: " + str(frame_name))
+        elif frame_name not in self.navposes_info_dict.keys():
+            self.msg_if.pub_info("NavPose entry does not exist for: " + str(frame_name))
+        else:
+
+
+            # Unregister Register frame topics if set
+            topics = list(self.navpose_subs_dict.keys())
+            for comp_name in self.BLANK_CONNECTS_DICT.keys():
+                for topic in topics:
+                    try:
+                        self.unregisterCompTopic(frame_name, comp_name, topic)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to unregister topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
+
+
+            # Remove from info dict
+            self.navposes_info_dict_lock.acquire()
+            del self.navposes_info_dict[frame_name]
+            self.navposes_info_dict_lock.release()
+            nepi_sdk.sleep(1)
+
+
+            # Remove from node dict
+            self.navposes_pubs_dict_lock.acquire()
+            self.navposes_pubs_dict[frame_name].unregister_pubs()
+            nepi_sdk.sleep(1)
+            del self.navposes_pubs_dict[frame_name]
+            self.navposes_pubs_dict_lock.release()
+
+            # Remove from Navpose Dict
+            self.navposes_source_dict_lock.acquire()
+            del self.navposes_source_dict[frame_name]
+            self.navposes_source_dict_lock.release()
+
+            self.updateNavposesData()
 
 
 
@@ -1279,53 +1269,6 @@ class NavPoseMgr(object):
         return success
 
 
-
-
-
-    def removeNavpose(self, frame_name):
-        if frame_name == self.NAVPOSE_BASE_FRAME:
-            self.msg_if.pub_info("Can't Remove Base Frame: " + str(frame_name))
-        elif frame_name not in self.navposes_info_dict.keys():
-            self.msg_if.pub_info("NavPose entry does not exist for: " + str(frame_name))
-        else:
-
-
-            # Unregister Register frame topics if set
-            topics = list(self.navpose_subs_dict.keys())
-            for comp_name in self.BLANK_CONNECTS_DICT.keys():
-                for topic in topics:
-                    try:
-                        self.unregisterCompTopic(frame_name, comp_name, topic)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to unregister topic for frame: " + str(frame_name) + ' : ' + str(comp_name) + ' : ' + str(topic) + ' : ' + str(e))
-
-
-            # Remove from info dict
-            self.navposes_info_dict_lock.acquire()
-            del self.navposes_info_dict[frame_name]
-            self.navposes_info_dict_lock.release()
-            nepi_sdk.sleep(1)
-
-
-            # Remove from node dict
-            self.navposes_node_dict_lock.acquire()
-            self.navposes_node_dict[frame_name]['navepose_solution_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_init_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_source_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_fixed_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_update_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_offsets_if'].unregister()
-            self.navposes_node_dict[frame_name]['navpose_pub'].unregister()
-            nepi_sdk.sleep(1)
-            del self.navposes_node_dict[frame_name]
-            self.navposes_node_dict_lock.release()
-
-            # Remove from Navpose Dict
-            self.navposes_source_dict_lock.acquire()
-            del self.navposes_source_dict[frame_name]
-            self.navposes_source_dict_lock.release()
-
-            self.updateNavposesData()
 
 
 
@@ -2094,9 +2037,10 @@ class NavPoseMgr(object):
                        
 
                     ### Update Solution Navpose
-                    navepose_solution = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                    navpose_solution = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                    #self.msg_if.pub_warn("Navpose Solution Start: " + str(navpose_solution.keys()))
 
-                    ###############
+                    ###############navpose_solution
                     ## Apply Fixed and Init Updates
 
                     ### Update Fixed Navpose
@@ -2118,7 +2062,9 @@ class NavPoseMgr(object):
                         navpose_init_dict = nepi_nav.update_navpose_dict_from_dict(navpose_init_dict, navpose_fixed_dict)
                     
                     if navpose_init_dict != nepi_nav.BLANK_NAVPOSE_DICT:
-                        navepose_solution = nepi_nav.update_navpose_dict_from_dict(navepose_solution, navpose_init_dict)
+                        navpose_solution = nepi_nav.update_navpose_dict_from_dict(navpose_solution, navpose_init_dict)
+
+                    #self.msg_if.pub_warn("Navpose Solution Init: " + str(navpose_solution.keys()))
                         
                     ###############
                     ## Apply Source Updates
@@ -2137,8 +2083,10 @@ class NavPoseMgr(object):
                                 navpose_source_offsets_dict[has_name] = False
                             elif source_option == 'ADDS':
                                 navpose_source_updates_dict[has_name] = False
-                        navepose_solution = nepi_nav.update_navpose_dict_from_dict(navepose_solution, navpose_source_updates_dict)
-                        navepose_solution = nepi_nav.update_navpose_dict_from_offsets(navepose_solution, navpose_source_offsets_dict)
+                        navpose_solution = nepi_nav.update_navpose_dict_from_dict(navpose_solution, navpose_source_updates_dict)
+                        #self.msg_if.pub_warn("Navpose Solution Source Update: " + str(navpose_solution.keys()))
+                        navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_source_offsets_dict)
+                        #self.msg_if.pub_warn("Navpose Solution Source Offsets: " + str(navpose_solution.keys()))
 
 
                     ###############
@@ -2160,10 +2108,11 @@ class NavPoseMgr(object):
                             update_option = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_option']
                             has_name = 'has_' + comp_name
                             navpose_update_dict[has_name] = update_option == 'REPLACES'
-                            navepose_solution = nepi_nav.update_navpose_dict_from_dict(navepose_solution, navpose_update_dict)
-
+                            navpose_solution = nepi_nav.update_navpose_dict_from_dict(navpose_solution, navpose_update_dict)
+                            #self.msg_if.pub_warn("Navpose Solution Update Replace: " + str(navpose_solution.keys()))
                     if navpose_offsets_dict != nepi_nav.BLANK_NAVPOSE_DICT:
-                        navepose_solution = nepi_nav.update_navpose_dict_from_offsets(navepose_solution, navpose_offsets_dict)
+                        navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_offsets_dict)
+                        #self.msg_if.pub_warn("Navpose Solution Update Offsets: " + str(navpose_solution.keys()))
                     
 
 
@@ -2181,27 +2130,33 @@ class NavPoseMgr(object):
 
 
 
+                    ### Update Navposes Solutions
+                    self.navposes_solution_dict[frame_name] = navpose_solution
+                    navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navpose_solution)
+                    navposes_solution_msg.navpose_frames.append(frame_name)
+                    navposes_solution_msg.navposes.append(navpose_solution_msg)
         
 
-                    self.navposes_node_dict_lock.acquire()
+                    self.navposes_pubs_dict_lock.acquire()
 
-                    try:
-                        if_ready = self.navposes_node_dict[frame_name]['navepose_solution_if'].ready
-                    except:
-                        if_ready = False
-                    if if_ready == True:
-                        navepose_solution = self.navposes_node_dict[frame_name]['navepose_solution_if'].publish_navpose(navepose_solution)
-                        self.navposes_node_dict[frame_name]['navpose_fixed_if'].publish_navpose(navpose_fixed_dict)
-                        self.navposes_node_dict[frame_name]['navpose_init_if'].publish_navpose(navpose_init_dict)
-                        self.navposes_node_dict[frame_name]['navpose_source_if'].publish_navpose(navpose_source_dict)
-                        self.navposes_node_dict[frame_name]['navpose_update_if'].publish_navpose(navpose_update_dict)
-                        self.navposes_node_dict[frame_name]['navpose_offsets_if'].publish_navpose(navpose_offsets_dict)
-                    elif self.navposes_node_dict[frame_name]['navpose_pub'] is not None:
-                        navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navepose_solution)
-                        pub = self.navposes_node_dict[frame_name]['navpose_pub']
-                        nepi_sdk.publish_pub(pub, navpose_solution_msg)
+                    if frame_name in self.navposes_pubs_dict.keys():
+                        try:
+                            if self.navpose_pubs_published == False:
+                                #self.msg_if.pub_warn("Navpose Solution Msg: " + str(navpose_solution_msg))
+                                self.navpose_pubs_published = True
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose',navpose_solution_msg)
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_init',nepi_nav.convert_navpose_dict2msg(navpose_init_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_source',nepi_nav.convert_navpose_dict2msg(navpose_source_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_update',nepi_nav.convert_navpose_dict2msg(navpose_update_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_offsets',nepi_nav.convert_navpose_dict2msg(navpose_offsets_dict))
 
-                    self.navposes_node_dict_lock.release()
+                                
+
+                        except Exception as e:
+                            self.msg_if.pub_warn("Navpose Publishing Failed: " + str(e))
+
+                    self.navposes_pubs_dict_lock.release()
 
                     last_time = self.navposes_pub_times_dict[frame_name]['last_time']
                     cur_time = nepi_utils.get_time()
@@ -2211,11 +2166,6 @@ class NavPoseMgr(object):
                     self.navposes_pub_times_dict[frame_name]['times'] = times  # Assign back to dict
                     self.navposes_pub_times_dict[frame_name]['last_time'] = cur_time  # Assign back to dict
 
-                    ### Update Navposes Solutions
-                    self.navposes_solution_dict[frame_name] = navepose_solution
-                    navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navepose_solution)
-                    navposes_solution_msg.navpose_frames.append(frame_name)
-                    navposes_solution_msg.navposes.append(navpose_solution_msg)
         
                     
 

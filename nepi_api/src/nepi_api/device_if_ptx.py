@@ -31,8 +31,7 @@ from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_targets
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nav_msgs.msg import Odometry
-from nepi_interfaces.msg import RangeWindow, Target, Targets, TargetFilter, TargetFilters, TargetingStatus
+
 
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
@@ -58,18 +57,6 @@ class PTXActuatorIF:
                 'reverse_tilt_enabled' : False,
                 'speed_ratio' : 0.5
     }
-
-    AUTO_SCAN_SWITCH_DEG = 5 # If angle withing this bound, switch dir
-    AUTO_SCAN_UPDATE_INTERVAL = .5
-
-    TRACK_MAX_UPDATE_RATE = 1
-    TRACK_EXIT_FUNCTION = 'HOME'
-    TRACK_DEFAULT_TARGETS = ['person']
-
-    TRACK_FILTER_OPTIONS = nepi_targets.TARGET_FILTER_OPTIONS
-    TRACK_DEFAULT_FILTER = 'LARGEST'
-    TRACK_MIN_ERROR_DEG = 5
-    TRACK_DEFAULT_SOURCE = 'targets'
 
 
     orientation_dict = {
@@ -158,13 +145,9 @@ class PTXActuatorIF:
     is_moving = False
 
     speed_pan_dps = 0
-    scan_pan_speed = 0
-    scan_pan_deg = 0
     pan_last_time = 0
 
     speed_tilt_dps = 0
-    scan_tilt_speed = 0
-    scan_tilt_deg = 0
     tilt_last_time = 0
 
     last_time = 0
@@ -175,12 +158,7 @@ class PTXActuatorIF:
     delay = False
 
 
-    num_errors = 1
-    pan_errors = []
-    tilt_errors = []
 
-    last_track_msg = None
-    track_dict = None
 
 
     ### IF Initialization
