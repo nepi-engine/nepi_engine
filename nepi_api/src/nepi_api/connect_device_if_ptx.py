@@ -433,7 +433,7 @@ class ConnectPTXDeviceIF:
 
     def reverse_tilt_enabled(self, reverse_tilt):
         pub_name = 'reverse_tilt_enabled'
-        msg = reverse_pan
+        msg = reverse_tilt
         self.con_node_if.publish_pub(pub_name,msg)
 
     def go_home(self):
@@ -534,9 +534,11 @@ class ConnectPTXDeviceIF:
     
 
     def _stopPanCb(self,msg):    
+        self.msg_if.pub_warn("Got Stop Pan msg: " + str(msg))
         if self.stopPanCb is not None:
             self.stopPanCb()
 
     def _stopTiltCb(self,msg):    
+        self.msg_if.pub_warn("Got Stop Tilt msg: " + str(msg))
         if self.stopTiltCb is not None:
             self.stopTiltCb()
