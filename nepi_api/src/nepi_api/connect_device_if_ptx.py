@@ -49,17 +49,21 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 #########################################
 
 class ConnectPTXDeviceIF:
+    CONNECTED_TIMEOUT = 2
     msg_if = None
     ready = False
     namespace = '~'
 
     con_node_if = None
 
-    connected = False
     status_msg = None
-    status_connected = False
+    connected = False
+    last_status_time = 0
     navpose_msg = None
     pan_tilt_position = [0,0]
+    last_pan_tilt_position = [0,0]
+    pan_moving = False
+    tilt_moving = False
 
     statusCb = None
     navposeCb = None
@@ -273,6 +277,10 @@ class ConnectPTXDeviceIF:
 
 
         ##############################
+        # Start updater process
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)        
+
+        ##############################
         # Complete Initialization
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
@@ -324,21 +332,21 @@ class ConnectPTXDeviceIF:
 
 
     def check_status_connection(self):
-        return self.status_connected
+        return self.connected
 
     def wait_for_status_connection(self, timout = float('inf') ):
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection")
             timer = 0
             time_start = nepi_sdk.get_time()
-            while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
-            if self.status_connected == False:
+            if self.connected == False:
                 self.msg_if.pub_info("Failed to connect to status msg")
             else:
                 self.msg_if.pub_info("Status Connected")
-        return self.status_connected
+        return self.connected
 
     def get_status_dict(self):
         status_dict = None
@@ -364,6 +372,11 @@ class ConnectPTXDeviceIF:
     def get_pan_tilt_position(self):
         return [self.pan_tilt_position[0], self.pan_tilt_position[1]]
 
+    def check_pan_moving(self):
+        return self.pan_moving
+    
+    def check_tilt_moving(self):
+        return self.tilt_moving
 
     def unregister(self):
         self._unsubscribeTopic()
@@ -497,6 +510,23 @@ class ConnectPTXDeviceIF:
     # Class Private Methods
     ###############################
    
+    def updaterCb(self,timer):
+        cur_time = nepi_utils.get_time()
+        last_time = copy.deepcopy(self.last_status_time )
+        if self.connected == True:
+            if (cur_time - last_time) > self.CONNECTED_TIMEOUT:
+                self.connected = False 
+                self.status_msg = None
+                self.navpose_msg = None
+                self.data_dict = None
+                self.pan_moving = False
+                self.tilt_moving = False
+
+        if self.connected == True:
+            self.pan_moving = abs(self.pan_tilt_position[0] - self.last_pan_tilt_position[0]) > 0.1
+            self.tilt_moving = abs(self.pan_tilt_position[1] - self.last_pan_tilt_position[1]) > 0.1
+  
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
     def _unsubscribeTopic(self):
         success = False
@@ -508,7 +538,9 @@ class ConnectPTXDeviceIF:
                 time.sleep(1)
                 self.con_node_if = None
                 self.namespace = None
-                self.status_connected = False 
+                self.connected = False 
+                self.status_msg = None
+                self.navpose_msg = None
                 self.data_dict = None
                 success = True
             except Exception as e:
@@ -517,6 +549,7 @@ class ConnectPTXDeviceIF:
 
 
     def _statusCb(self,status_msg):  
+        self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
             self.msg_if.pub_warn("Connected to PT Status:  " + str(self.namespace))
         self.connected = True

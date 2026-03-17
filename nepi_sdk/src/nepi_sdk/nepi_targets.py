@@ -253,17 +253,18 @@ def convert_target_msg2dict(target_msg, log_name_list = []):
   return target_data_dict
 
 
-def filter_by_names(targets_dict_list, name_filter_list):
+def filter_by_names(targets_dict_list, targets_ordered_list):
     #print(targets_dict_list)
 
     filtered_targets = []
+    for name in targets_ordered_list:
+        for target_dict in targets_dict_list:
+            if target_dict['target_name'] == name:
+                filtered_targets.append(target_dict)
+                #logger.log_info("Added target with name: " + str(name))
 
-    for target in targets_dict_list:
-        if target['target_name'] in name_filter_list:
-            filtered_targets.append(target)
-    #logger.log_info("Got Names filtered_targets: " + str(filtered_targets))
-
-           
+    # for target_dict in filtered_targets:   
+    #     logger.log_info("Returning target with name: " + str(name))
     return filtered_targets
 
 
@@ -272,10 +273,10 @@ def filter_by_area(targets_dict_list, min_area_ratio = .01, max_area_ratio = .99
 
     filtered_targets = []
 
-    for target in targets_dict_list:
-        target_area = target['area_ratio']
+    for target_dict in targets_dict_list:
+        target_area = target_dict['area_ratio']
         if target_area >= min_area_ratio and target_area <= max_area_ratio:
-            filtered_targets.append(target)
+            filtered_targets.append(target_dict)
     #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
     return filtered_targets
 
@@ -283,20 +284,20 @@ def filter_by_area(targets_dict_list, min_area_ratio = .01, max_area_ratio = .99
 def find_best(targets_dict_list, best_filter = 'LARGEST'):
     #print(targets_dict_list)
     best_target = None
-    for target in targets_dict_list:
+    for target_dict in targets_dict_list:
         
         best = True
 
         if best_target is not None:
             bsize = best_target['area_ratio']
-            tsize = target['area_ratio']
+            tsize = target_dict['area_ratio']
             if best_filter == 'LARGEST' and tsize < bsize:
                 best = False
             elif best_filter == 'SMALLEST' and tsize > bsize:
                 best = False
 
         if best == True:
-            best_target = target
+            best_target = target_dict
     #logger.log_info("Got filtered_dict " + str(filtered_target))
 
             
