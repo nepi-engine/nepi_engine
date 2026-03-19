@@ -819,6 +819,25 @@ def free_path_space(path, required_percent=10):
                 os.remove(file)
     success = check_path_space(path, required_percent)
     return success
+
+
+
+def check_password(username, password):
+    """
+    Checks the password using the 'su' command in a subprocess.
+    Returns True for success, False otherwise.
+    """
+    cmd = ['su', '--command', 'true', '-', username]
+    process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    stdout, stderr = process.communicate(input=password + '\n')
+    
+    # Check the return code: 0 means success
+    if process.returncode == 0 or stdout == 'This account is currently not available.\n':
+        return True
+    else:
+        return False
+    
+    
 #########################
 ### List Helper Functions
 

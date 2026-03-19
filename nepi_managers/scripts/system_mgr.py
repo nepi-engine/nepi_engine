@@ -133,8 +133,15 @@ class SystemMgrNode():
     user_folders = dict()
     system_folders = dict()
 
-    folders_uid = 'nepi' #1000 # default to nepi
-    folders_gid = 'nepi'
+    nepi_uid = 'nepi' #1000 # default to nepi
+    nepi_gid = 'nepi'
+
+    nepiadmin_uid = 'nepiadmin' #1000 # default to nepi
+    nepiadmin_gid = 'nepiadmin'
+
+    nepihost_uid = 'nepihost' #1000 # default to nepi
+    nepihost_gid = 'nepihost'
+
 
     # Shorter period for more responsive updates
     disk_usage_deque = deque(maxlen=3)
@@ -152,7 +159,6 @@ class SystemMgrNode():
 
 
     admin_enabled = False
-    admin_password = None
     admin_password_valid = False
     admin_mode_set = False
     admin_mode_updated = True
@@ -174,7 +180,6 @@ class SystemMgrNode():
     user_restrictions = []
 
     user_login_enabled = False
-    user_login_password = None
     user_login_password_valid = False
 
 
@@ -221,12 +226,18 @@ class SystemMgrNode():
 
         # Gather owner and group details for storage mountpoint
         # stat_info = os.stat(self.storage_folder)
-        # self.folders_uid = stat_info.st_uid
-        # self.folders_gid = stat_info.st_gid
-        self.user_login_password = self.nepi_config['NEPI_USER_PW']
-        self.admin_password = self.nepi_config['NEPI_ADMIN_PW']
-        self.folders_uid = self.nepi_config['NEPI_USER']
-        self.folders_gid = self.nepi_config['NEPI_USER']
+        # self.nepi_uid = stat_info.st_uid
+        # self.nepi_gid = stat_info.st_gid
+
+        self.nepi_uid = self.nepi_config['NEPI_USER']
+        self.nepi_gid = self.nepi_config['NEPI_USER']
+
+
+        self.nepiadmin_uid = self.nepi_config['NEPI_ADMIN_USER']
+        self.nepiadmin_gid = self.nepi_config['NEPI_ADMIN_USER']
+
+        self.nepihost_uid = self.nepi_config['NEPI_HOST_USER']
+        self.nepihost_gid = self.nepi_config['NEPI_HOST_USER']
 
         check_path=self.nepi_config['NEPI_STORAGE']
         if os.path.exists(check_path)==False:
@@ -1187,8 +1198,10 @@ class SystemMgrNode():
             self.node_if.save_config()
 
     def setAdminPasswordCb(self, msg):
+        user = self.nepiadmin_uid
         password = msg.data
-        if password == self.admin_password:
+        password_valid = nepi_utils.check_password(user,password)
+        if password_valid:
             self.admin_password_valid = True
             self.updateSystemAdminSettings()
 
@@ -1218,9 +1231,10 @@ class SystemMgrNode():
                 self.node_if.save_config()
 
     def setUserLoginPasswordCb(self, msg):
-        if self.admin_mode_set == True:
-            password = msg.data
-            if password == self.user_login_password:
+        user = self.nepi_uid
+        password = msg.data
+        password_valid = nepi_utils.check_password(user,password)
+        if password_valid:
                 self.user_login_password_valid = True
                 self.updateSystemAdminSettings()
 
@@ -1346,8 +1360,8 @@ class SystemMgrNode():
                 # TODO: Different owner:group for different folders?
             if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking nepi config folder permissions: " + subdir)
-                os.system('chown  ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
-                #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
+                os.system('chown  ' + str(self.nepi_uid) + ':' + str(self.nepi_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                #os.chown(full_path_subdir, self.nepi_uid, self.nepi_gid)
                 os.system('chmod  0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
@@ -1363,8 +1377,8 @@ class SystemMgrNode():
                 # TODO: Different owner:group for different folders?
             if subdir not in self.STORAGE_CHECK_SKIP_LIST:
                 self.msg_if.pub_warn("Checking nepi storage folder permissions: " + subdir)
-                os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
-                #os.chown(full_path_subdir, self.folders_uid, self.folders_gid)
+                os.system('chown -R ' + str(self.nepi_uid) + ':' + str(self.nepi_gid) + ' ' + full_path_subdir) # Use os.system instead of os.chown to have a recursive option
+                #os.chown(full_path_subdir, self.nepi_uid, self.nepi_gid)
                 os.system('chmod -R 0775 ' + full_path_subdir)
             self.storage_subdirs[subdir] = full_path_subdir
             self.user_folders[subdir] = full_path_subdir
@@ -1376,7 +1390,7 @@ class SystemMgrNode():
         if not os.path.isdir(self.SYS_ETC_PATH):
                 self.msg_if.pub_warn("Folder " + self.SYS_ETC_PATH + " not present... will create")
                 os.makedirs(self.SYS_ETC_PATH)
-        os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
+        os.system('chown -R ' + str(self.nepi_uid) + ':' + str(self.nepi_gid) + ' ' + self.SYS_ETC_PATH) # Use os.system instead of os.chown to have a recursive option
         os.system('chmod -R 0775 ' + self.SYS_ETC_PATH)
         self.storage_subdirs['config'] = self.SYS_ETC_PATH
 
@@ -1391,7 +1405,7 @@ class SystemMgrNode():
                             self.msg_if.pub_warn("Folder " + path_entry + " not present... will create")
                             os.makedirs(path_entry)
                     
-                    os.system('chown -R ' + str(self.folders_uid) + ':' + str(self.folders_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
+                    os.system('chown -R ' + str(self.nepi_uid) + ':' + str(self.nepi_gid) + ' ' + path_entry) # Use os.system instead of os.chown to have a recursive option
                     os.system('chmod -R 0775 ' + path_entry)
                     #nepi_utils.remove_pycache_folders(path_entry)
                 self.storage_subdirs[key] = path_entry
