@@ -36,10 +36,14 @@ else
 		sudo rm -r ${ros_log_path}/* 2>/dev/null
 	fi
 	rosclean purge -y
+	sudo rm -r /root/.ros  2>/dev/null
+	sudo rm -r /root/.cache  2>/dev/null
 	sudo rm -r /home/.ros  2>/dev/null
+	sudo rm -r /home/.cache  2>/dev/null
+	sudo rm -r /home/nepi/.ros  2>/dev/null
+	sudo rm -r /home/nepi/.cache  2>/dev/null
 	sudo rm -r /opt/nepi/nepi/.ros 2>/dev/null
-	sudo rm -r /home/nepi/.cache
-	sudo rm -r /opt/nepi/nepi/.cache
+	sudo rm -r /opt/nepi/nepi/.cache  2>/dev/null
 
 	lost_found_path='/mnt/nepi_storage/lost+found'
 	if [[ -d "$lost_found_path" ]]; then
