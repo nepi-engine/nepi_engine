@@ -53,10 +53,13 @@ else
 		if [[ -n "$2" ]]; then
 			arg_1=$2
 		fi
+		if [[ -n "$3" ]]; then
+			arg_2=$3
+		fi
 		if [[ -f "${run_script}" ]]; then
 			cd $NEPI_ETC_SCRIPTS 
 			echo "Running ${run_script}"
-			bash ${run_script} $arg_1
+			bash ${run_script} $arg_1 $arg_2
 			wait
 		else
 			echo "Script file not found ${run_script}"
@@ -81,22 +84,23 @@ else
 	fi
 
 	LOAD_CONFIG=0
-
 	script_file=update_sys_config.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
 	
-
+	LOAD_CONFIG=0
 	script_file=update_sys_bash.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
-
+	LOAD_CONFIG=1
 	script_file=update_etc_users.sh
+	ETC_USER_CONFIG_FILE=${ETC_FOLDER}/user/user_config.yaml
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
+	run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
 
+	LOAD_CONFIG=0
 	script_file=update_etc_ssh_keys.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
