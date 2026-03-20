@@ -17,8 +17,23 @@
 # - mailto:nepi@numurus.com
 #
 
+"""IDX (Imaging Device eXtension) device interface for NEPI imaging sensors.
+
+Provides the IDXDeviceIF class that wraps imaging hardware drivers into the
+NEPI IDX API. Manages concurrent acquisition threads for color images, depth
+maps, and point clouds; exposes ROS topics for runtime control of imaging
+parameters (brightness, contrast, resolution, framerate, range, etc.); and
+integrates with the SaveDataIF and optional NPXDeviceIF for nav-pose tagging.
+
+Note:
+    ROS namespace is constructed as <node_namespace>/idx. Control topics such
+    as ``set_brightness_ratio``, ``set_max_framerate``, and ``set_range_window``
+    are advertised under that namespace. Status is published on
+    ``<namespace>/idx/status`` (latched, DeviceIDXStatus).
+"""
+
 import os
-import time 
+import time
 import copy
 import threading
 import subprocess
@@ -86,6 +101,31 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
 
 
 class IDXDeviceIF:
+    """NEPI IDX device interface — wraps an imaging driver into the IDX API.
+
+    Instantiate once per imaging node. The constructor registers all ROS
+    services, publishers, and subscribers; initialises imaging controls from
+    the ROS parameter server; and starts background threads for each enabled
+    data product.
+
+    Capabilities (has_color_image, has_depth_map, etc.) are determined by
+    which driver callbacks are supplied at construction time. A None callback
+    means the capability is absent.
+
+    Attributes:
+        ready (bool): True once initialisation is complete.
+        namespace (str): ROS namespace rooted at <node_namespace>/idx.
+        caps_report (IDXCapabilitiesQueryResponse): Cached capabilities.
+        status_msg (DeviceIDXStatus): Live status published periodically.
+        node_if (NodeClassIF): Underlying ROS node helper.
+        settings_if (SettingsIF): Driver settings interface.
+        save_data_if (SaveDataIF): Data-persistence interface.
+        npx_if (NPXDeviceIF): Nav-pose extension, or None if not configured.
+        data_products_list (list): Active data product names.
+        data_products_dict (dict): Per-product runtime state.
+        current_fps (dict): Rolling-average FPS per data product.
+    """
+
     # Default Global Values
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
     UPDATE_NAVPOSE_RATE_HZ = 10
@@ -169,22 +209,22 @@ class IDXDeviceIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, device_info, 
-                 capSettings=None, factorySettings=None, 
+    def __init__(self, device_info,
+                 capSettings=None, factorySettings=None,
                  settingUpdateFunction=None, getSettingsFunction=None,
-                 factoryControls = None, 
+                 factoryControls = None,
                  data_source_description = 'imaging_sensor',
                  data_ref_description = 'sensor',
                  getFOV=None, perspective = 'pov',
                  get_rtsp_url = None,
                  setResolutionRatio=None, setMaxFramerate=None,
-                 setContrastRatio=None, setBrightnessRatio=None, 
-                 setThresholdingRatio=None, setRangeRatio=None, 
+                 setContrastRatio=None, setBrightnessRatio=None,
+                 setThresholdingRatio=None, setRangeRatio=None,
                  setAutoAdjustRatio=None, autoAdjustControls=[],
                  getFramerate=None,
-                 getColorImage=None, stopColorImageAcquisition=None, 
-                 getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getPointcloud=None, stopPointcloudAcquisition=None, 
+                 getColorImage=None, stopColorImageAcquisition=None,
+                 getDepthMap=None, stopDepthMapAcquisition=None,
+                 getPointcloud=None, stopPointcloudAcquisition=None,
                  getNavPoseCb = None,
                  navpose_update_rate = 10,
                  data_products =  [],
@@ -192,6 +232,72 @@ class IDXDeviceIF:
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise the IDX interface and start acquisition threads.
+
+        Registers ROS services, publishers, and subscribers derived from the
+        supplied driver callbacks, initialises controls from the parameter
+        server, and starts a daemon thread for each enabled data product.
+
+        Args:
+            device_info (dict): Must contain keys ``device_name``, ``path``,
+                ``serial_number``, ``hw_version``, and ``sw_version``.
+            capSettings (dict, optional): Driver-reported capability settings.
+            factorySettings (dict, optional): Factory default settings dict.
+            settingUpdateFunction (callable, optional): Driver callback invoked
+                when a setting is updated via the Settings API.
+            getSettingsFunction (callable, optional): Returns current driver
+                settings as a dict.
+            factoryControls (dict, optional): Overrides for DEFAULT_CONTROLS_DICT
+                (brightness_ratio, contrast_ratio, resolution_ratio, etc.).
+            data_source_description (str): Human-readable sensor type label.
+            data_ref_description (str): Human-readable reference label.
+            getFOV (callable, optional): Returns ``[width_deg, height_deg]``
+                from the driver. Called once during init.
+            perspective (str): ``'pov'`` or ``'top'``.
+            get_rtsp_url (callable, optional): Returns
+                ``[rtsp_url, username, password]`` for the RTSP stream.
+            setResolutionRatio (callable, optional): Driver callback
+                ``fn(ratio) -> (status, err_str)``. Presence enables the
+                ``has_resolution`` capability.
+            setMaxFramerate (callable, optional): Driver callback
+                ``fn(rate) -> (status, err_str)``.
+            setContrastRatio (callable, optional): Driver callback
+                ``fn(ratio) -> (status, err_str)``.
+            setBrightnessRatio (callable, optional): Driver callback
+                ``fn(ratio) -> (status, err_str)``.
+            setThresholdingRatio (callable, optional): Driver callback
+                ``fn(ratio) -> (status, err_str)``.
+            setRangeRatio (callable, optional): Driver callback
+                ``fn(start, stop) -> (status, err_str)``.
+            setAutoAdjustRatio (callable, optional): Driver callback
+                ``fn(enabled) -> (status, err_str)``.
+            autoAdjustControls (list): Names of controls managed by auto-adjust.
+            getFramerate (callable, optional): Returns current framerate from
+                the driver.
+            getColorImage (callable, optional): Returns
+                ``(status, msg, cv2_img, timestamp, encoding)``.
+            stopColorImageAcquisition (callable, optional): Stops color capture.
+            getDepthMap (callable, optional): Returns
+                ``(status, msg, np_depth_map, timestamp, encoding)``.
+            stopDepthMapAcquisition (callable, optional): Stops depth capture.
+            getPointcloud (callable, optional): Returns
+                ``(status, msg, o3d_pc, timestamp, pc_frame)``.
+            stopPointcloudAcquisition (callable, optional): Stops PC capture.
+            getNavPoseCb (callable, optional): Returns navpose dict. When
+                provided, a NPXDeviceIF is created automatically.
+            navpose_update_rate (int): Nav-pose update rate in Hz (clamped
+                1–10). Defaults to 10.
+            data_products (list): Data product names the driver supports (e.g.
+                ``['color_image', 'depth_map']``). Must be a subset of
+                ``SUPPORTED_DATA_PRODUCTS``.
+            log_name (str, optional): Additional label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface; created if None.
+
+        Note:
+            Sleeps briefly after NodeClassIF setup to allow ROS to spin up.
+            Acquisition threads are daemons and are killed on node shutdown.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
@@ -744,9 +850,22 @@ class IDXDeviceIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state.
+
+        Returns:
+            bool: True if initialisation has completed successfully.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait. Defaults to infinity.
+
+        Returns:
+            bool: True if the interface became ready within the timeout.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -763,10 +882,17 @@ class IDXDeviceIF:
 
 
     def initConfig(self):
+        """Re-read all parameters from the ROS parameter server and apply them."""
         self.initCb(do_updates = True)
 
 
     def initCb(self,do_updates = False):
+      """Load current values from the ROS param server; optionally apply them.
+
+      Args:
+          do_updates (bool): When True, pushes the loaded values back to the
+              driver via the set* callbacks. Defaults to False.
+      """
       if self.node_if is not None:
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
@@ -803,6 +929,14 @@ class IDXDeviceIF:
       self.publish_status()
 
     def resetCb(self,do_updates = True):
+      """Reset controls and sub-interfaces, then re-initialise from params.
+
+      Resets ``save_data_if`` and ``settings_if`` if present, then calls
+      ``initCb`` to restore parameter-server values.
+
+      Args:
+          do_updates (bool): Forwarded to ``initCb``. Defaults to True.
+      """
       if self.node_if is not None:
         # self.node_if.reset_params()
         if self.getFOV is not None:
@@ -823,6 +957,14 @@ class IDXDeviceIF:
       self.initCb(do_updates = True)
 
     def factoryResetCb(self,do_updates = True):
+      """Factory-reset sub-interfaces and reload parameter defaults.
+
+      Equivalent to ``resetCb`` but calls factory_reset on each sub-interface
+      so that the ROS parameter server is also reverted to factory values.
+
+      Args:
+          do_updates (bool): Forwarded to ``initCb``. Defaults to True.
+      """
       if self.node_if is not None:
         #self.node_if.factory_reset_params()
         if self.getFOV is not None:
@@ -845,6 +987,12 @@ class IDXDeviceIF:
 
 
     def ApplyConfigUpdates(self):
+        """Push all current in-memory control values to the driver callbacks.
+
+        Calls each set* callback (auto-adjust, brightness, contrast, threshold,
+        resolution, framerate, range) only when the corresponding driver
+        callback is not None. Safe to call after loading from param server.
+        """
         self.msg_if.pub_warn("Apply Auto Updates from current values")
         if (self.setAutoAdjustRatio is not None):
             self.setAutoAdjustRatio(self.auto_adjust_ebabled)
@@ -867,6 +1015,19 @@ class IDXDeviceIF:
 
 
     def addDataProduct2Dict(self,data_product, start_data_function,stop_data_function,data_msg,data_status_msg):
+        """Register a data product and its driver callbacks in the runtime dict.
+
+        Args:
+            data_product (str): Product key, e.g. ``'color_image'``.
+            start_data_function (callable): Driver function that returns the
+                next data frame.
+            stop_data_function (callable): Driver function to stop acquisition.
+            data_msg (type): ROS message type for the data (e.g. ``Image``).
+            data_status_msg (type): ROS message type for status.
+
+        Returns:
+            bool: True on success.
+        """
         success = False
         data_product = data_product
         namespace = os.path.join(self.base_namespace,self.node_name,'idx')
@@ -891,6 +1052,14 @@ class IDXDeviceIF:
 
 
     def setWidthDegCb(self, msg):
+        """ROS subscriber callback — update horizontal field-of-view width.
+
+        Args:
+            msg (Int32): New width in degrees. Ignored if <= 0.
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_width_deg``
+        """
         #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
         width = msg.data
         if width > 0:
@@ -899,6 +1068,14 @@ class IDXDeviceIF:
             self.node_if.set_param('width_deg', width)
  
     def setHeightDegCb(self, msg):
+        """ROS subscriber callback — update vertical field-of-view height.
+
+        Args:
+            msg (Int32): New height in degrees. Ignored if <= 0.
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_height_deg``
+        """
         #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
         height = msg.data
         if height > 0:
@@ -907,6 +1084,17 @@ class IDXDeviceIF:
             self.node_if.set_param('height_deg', height)
             
     def setAutoAdjustEnableCb(self, msg):
+        """ROS subscriber callback — enable or disable auto-adjust.
+
+        Calls the driver's ``setAutoAdjustRatio`` callback if configured,
+        then updates the parameter server and publishes status.
+
+        Args:
+            msg (Bool): True to enable auto-adjust, False to disable.
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_auto_adjust_enable``
+        """
         #self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
         enabled = msg.data
         if self.setAutoAdjustRatio is not None:
@@ -928,6 +1116,17 @@ class IDXDeviceIF:
 
 
     def setBrightnessRatioCb(self, msg):
+        """ROS subscriber callback — update brightness ratio.
+
+        Clamps the value to [0.1, 1.0], calls the driver callback, and
+        persists to the ROS parameter server.
+
+        Args:
+            msg (Float32): Brightness ratio in [0.0, 1.0].
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_brightness_ratio``
+        """
         #self.msg_if.pub_info("Recived Brightness update message: " + str(msg))
         ratio = msg.data
  
@@ -947,8 +1146,19 @@ class IDXDeviceIF:
 
 
     def setContrastRatioCb(self, msg):
+        """ROS subscriber callback — update contrast ratio.
+
+        Clamps the value to [0.1, 1.0], calls the driver callback, and
+        persists to the ROS parameter server.
+
+        Args:
+            msg (Float32): Contrast ratio in [0.0, 1.0].
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_contrast_ratio``
+        """
         ratio = msg.data
- 
+
         if ratio < 0.1:
             ratio = 0.1
         if ratio > 1.0:
@@ -966,6 +1176,17 @@ class IDXDeviceIF:
 
 
     def setThresholdingRatioCb(self, msg):
+        """ROS subscriber callback — update threshold/sharpness ratio.
+
+        Clamps the value to [0.1, 1.0], calls the driver callback, and
+        persists to the ROS parameter server.
+
+        Args:
+            msg (Float32): Threshold ratio in [0.0, 1.0].
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_threshold_ratio``
+        """
         self.msg_if.pub_info("Received Threshold update message: " + str(msg))
         ratio = msg.data
  
@@ -985,6 +1206,17 @@ class IDXDeviceIF:
         
 
     def setResolutionRatioCb(self, msg):
+        """ROS subscriber callback — update output resolution ratio.
+
+        Clamps the value to [0.1, 1.0] and calls the driver callback.
+
+        Args:
+            msg (Float32): Resolution scale factor in [0.0, 1.0] where 1.0 is
+                full native resolution.
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_resolution_ratio``
+        """
         #self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
         ratio = msg.data
  
@@ -1006,6 +1238,17 @@ class IDXDeviceIF:
 
         
     def setMaxFramerateCb(self, msg):
+        """ROS subscriber callback — update maximum acquisition framerate.
+
+        Clamps to [1, 100] fps, calls the driver callback, and resets the
+        rolling FPS queue for all data products.
+
+        Args:
+            msg (Float32): Target framerate in frames per second.
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_max_framerate``
+        """
         #self.msg_if.pub_info("Recived Max Framerate update message: " + str(msg))
         rate = msg.data
  
@@ -1034,6 +1277,18 @@ class IDXDeviceIF:
 
  
     def setRangeRatioCb(self, msg):
+        """ROS subscriber callback — update range window ratios.
+
+        Validates that start_range ∈ [0,1], stop_range ∈ [0,1], and
+        start ≤ stop. Calls the driver's ``setRangeRatio`` callback on success.
+
+        Args:
+            msg (RangeWindow): Contains ``start_range`` and ``stop_range``
+                as ratios in [0.0, 1.0].
+
+        Note:
+            ROS topic: ``<namespace>/idx/set_range_window``
+        """
         #self.msg_if.pub_info("Recived Range update message: " + str(msg))
         #self.msg_if.pub_info("Recived update message: " + str(msg))
         new_start_range_ratio = msg.start_range
@@ -1058,6 +1313,18 @@ class IDXDeviceIF:
   
 
     def resetControlsCb(self, msg):
+        """ROS subscriber callback — reset all imaging controls to defaults.
+
+        Resets every control parameter on the ROS parameter server to its
+        factory value, then calls ``ApplyConfigUpdates`` to push the values
+        to the driver.
+
+        Args:
+            msg (Empty): Trigger message; content is ignored.
+
+        Note:
+            ROS topic: ``<namespace>/idx/reset_controls``
+        """
         #self.msg_if.pub_info("Recived reset controls message: " + str(msg))
         self.node_if.reset_param('controls_enable')
         self.node_if.reset_param('auto_adjust_ebabled')       
@@ -1074,6 +1341,16 @@ class IDXDeviceIF:
 
   
     def update_fps(self,data_product):
+        """Record a new frame arrival and update the rolling-average FPS.
+
+        Maintains a 100-sample FPS queue per data product. Publishes status
+        whenever the average FPS changes by more than 1 fps or the queue still
+        contains zero-padded entries (ramp-up phase).
+
+        Args:
+            data_product (str): Key into ``fps_queue`` / ``current_fps`` dicts,
+                e.g. ``'color_image'`` or ``'depth_map'``.
+        """
         last_data_time = copy.deepcopy(self.last_data_time[data_product])
         self.last_data_time[data_product] = nepi_utils.get_time()
         last_fps = copy.deepcopy(self.current_fps[data_product])
@@ -1095,6 +1372,22 @@ class IDXDeviceIF:
 
     # Image from img_get_function can be CV2 or ROS image.  Will be converted as needed in the thread
     def image_thread_proccess(self,data_product):
+        """Acquisition loop for color/BW image data products.
+
+        Runs in a daemon thread. On each iteration checks whether the
+        ``ColorImageIF`` has subscribers or a save request, calls the driver's
+        ``get_data`` callback when needed, and publishes the resulting CV2
+        image via the data IF. Stops acquisition when no consumers are active.
+
+        Args:
+            data_product (str): The product key to service, e.g.
+                ``'color_image'``. Must already be registered in
+                ``data_products_dict``.
+
+        Note:
+            Yields 10 ms between iterations. Blocks until ``save_data_if``
+            is initialised.
+        """
         cv2_img = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1186,6 +1479,21 @@ class IDXDeviceIF:
 
 
     def depth_map_thread_proccess(self,data_product):
+        """Acquisition loop for depth-map data products.
+
+        Runs in a daemon thread. Fetches NumPy float32 depth maps from the
+        driver, applies min/max range scaling from the current range-ratio
+        controls, and publishes via ``DepthMapIF``.
+
+        Args:
+            data_product (str): The product key, e.g. ``'depth_map'``. Must
+                already be registered in ``data_products_dict``.
+
+        Note:
+            Range values passed to ``publish_np_depth_map`` are computed as:
+            ``min_range_m + start_range_ratio * (max_range_m - min_range_m)``
+            and the corresponding stop formula for max.
+        """
         np_depth_map = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1285,6 +1593,19 @@ class IDXDeviceIF:
    
     # Pointcloud from pointcloud_get_function can be open3D or ROS pointcloud.  Will be converted as needed in the thread
     def pointcloud_thread_proccess(self,data_product):
+        """Acquisition loop for point-cloud data products.
+
+        Runs in a daemon thread. Fetches Open3D point clouds from the driver,
+        applies range clipping, and publishes via ``PointcloudIF``.
+
+        Args:
+            data_product (str): The product key, e.g. ``'pointcloud'``. Must
+                already be registered in ``data_products_dict``.
+
+        Note:
+            Currently the pointcloud path is disabled in ``__init__`` (wrapped
+            in a triple-quoted comment). This method is present for future use.
+        """
         o3d_pc = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1386,6 +1707,21 @@ class IDXDeviceIF:
 
 
     def publish_status(self, do_updates = True):
+        """Assemble and publish the DeviceIDXStatus message.
+
+        Populates all status fields from current in-memory values (device info,
+        resolution, framerate, control ratios, range, etc.). When
+        ``do_updates`` is True, also queries the RTSP URL from the driver.
+
+        Args:
+            do_updates (bool): When True, calls ``get_rtsp_url`` (if set) to
+                refresh RTSP credentials in the status message. Defaults to
+                True.
+
+        Note:
+            Publishes on the latched topic ``<namespace>/idx/status``
+            (``DeviceIDXStatus``).
+        """
         self.status_msg.device_name = self.device_name
 
         self.status_msg.width_deg = self.width_deg

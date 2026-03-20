@@ -18,8 +18,37 @@
 #
 
 
+"""Data interface classes for NEPI imaging and nav-pose data products.
+
+Provides the full family of data interfaces consumed by NEPI device drivers
+and apps. Each class wraps a ROS namespace with publishers, subscribers, and
+a parameter server, and integrates with ``SaveDataIF`` for on-demand saving.
+
+Classes:
+    NavPoseIF: Publishes nav-pose data (location, heading, orientation, etc.)
+        with optional coordinate-frame conversion.
+    BaseImageIF: Base class for all image data interfaces. Manages controls
+        (brightness, contrast, resolution, zoom, overlays, etc.) and
+        publishes processed CV2 images as ROS ``sensor_msgs/Image``.
+    ImageIF: Minimal concrete image interface (no processing applied).
+    ColorImageIF: Full-featured color image interface with resolution,
+        orientation, zoom, pan, window, filter, and adjustment controls.
+    DepthMapIF: Publishes raw float32 depth maps (``32FC1``) and drives an
+        optional ``DepthMapImageIF`` for colorised image output.
+    DepthMapImageIF: Colorises depth maps from ``DepthMapIF`` and republishes
+        as a ``bgr8`` image with the standard ``BaseImageIF`` control stack.
+    PointcloudIF: Publishes Open3D / ROS ``PointCloud2`` data and drives an
+        optional ``PointcloudImageIF`` for 2D projection output.
+    PointcloudImageIF: Projects point clouds from ``PointcloudIF`` to a 2D
+        image and publishes via ``BaseImageIF``.
+
+Note:
+    All classes require an active ROS node. Namespaces are automatically
+    expanded to absolute paths via ``nepi_sdk.get_full_namespace``.
+"""
+
 import os
-import time 
+import time
 import copy
 import numpy as np
 import copy
@@ -155,6 +184,21 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
 
 
 class NavPoseIF:
+    """Nav-pose data interface — publishes position, orientation, and altitude.
+
+    Wraps a ROS namespace with a ``NavPose`` publisher and optional
+    sub-publishers for location, heading, orientation, position, altitude,
+    depth, and pan/tilt. Converts incoming navpose dicts to NEPI standard
+    frames (ENU / WGS84) before publishing.
+
+    Attributes:
+        ready (bool): True once initialisation completes.
+        namespace (str): Absolute ROS namespace for this interface.
+        navpose_dict (dict): Most recently published navpose dict.
+        status_msg (NavPoseStatus): Live status, published periodically.
+        save_data_if (SaveDataIF): Save interface, or None.
+        node_if (NodeClassIF): Underlying ROS node helper.
+    """
 
 
     NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
@@ -213,6 +257,30 @@ class NavPoseIF:
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise the NavPose interface and start ROS infrastructure.
+
+        Args:
+            namespace (str, optional): Base ROS namespace. Defaults to the
+                node namespace if None.
+            data_product (str, optional): Data-product key; defaults to
+                ``'navpose'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            pub_navpose (bool): Publish the combined ``NavPose`` message.
+            pub_location (bool): Publish ``NavPoseLocation`` sub-topic.
+            pub_heading (bool): Publish ``NavPoseHeading`` sub-topic.
+            pub_orientation (bool): Publish ``NavPoseOrientation`` sub-topic.
+            pub_position (bool): Publish ``NavPosePosition`` sub-topic.
+            pub_altitude (bool): Publish ``NavPoseAltitude`` sub-topic.
+            pub_depth (bool): Publish ``NavPoseDepth`` sub-topic.
+            pub_pan_tilt (bool): Publish ``NavPosePanTilt`` sub-topic.
+            save_data_if (SaveDataIF, optional): Shared save interface.
+                Creates its own if None (and save_data_enabled is True).
+            save_data_enabled (bool): Whether to register a save-data product.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
@@ -496,6 +564,14 @@ class NavPoseIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait. Defaults to infinity.
+
+        Returns:
+            bool: True if ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -508,11 +584,11 @@ class NavPoseIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
         return self.namespace
-    
+
     def get_frame_nav_options(self):
         return self.NAVPOSE_NAV_FRAME_OPTIONS
 
@@ -541,15 +617,46 @@ class NavPoseIF:
 
 
     def needs_data_check(self):
+        """Return whether any consumer currently requires navpose data.
+
+        Returns:
+            bool: True when at least one subscriber or save/snapshot request
+                is active.
+        """
         needs_data = copy.deepcopy(self.needs_data)
         # self.msg_if.pub_debug("Returning: " + self.namespace + " " "needs data: " + str(needs_data), log_name_list = self.log_name_list, throttle_s = 5.0)
         return needs_data
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, 
-                        timestamp = None, 
+    def publish_navpose(self,navpose_dict,
+                        timestamp = None,
                         transform = None,
-                        ):      
+                        ):
+        """Convert and publish a navpose dict to all configured ROS topics.
+
+        Converts the incoming dict from its declared frame to NEPI standard
+        (ENU / WGS84), applies an optional spatial transform, then publishes
+        all enabled sub-topics (location, heading, orientation, position,
+        altitude, depth, pan/tilt) and the combined ``NavPose`` message.
+        Also triggers saving via ``save_data_if`` if configured.
+
+        Args:
+            navpose_dict (dict): Source navpose data. Keys should match
+                ``nepi_nav.BLANK_NAVPOSE_DICT`` (e.g. ``'latitude'``,
+                ``'heading_deg'``, ``'frame_nav'``, etc.).
+            timestamp (float or rospy.Time, optional): Data timestamp in
+                seconds or ROS time. Uses current time if None.
+            transform (dict, optional): Spatial transform applied after frame
+                conversion via ``nepi_nav.transform_navpose_dict``.
+
+        Returns:
+            dict: The normalised navpose dict (in NEPI standard frames)
+                that was published.
+
+        Note:
+            Frame conversion sequence: input frame → ENU/WGS84 for internal
+            storage → system-configured output frame before final publish.
+        """
         np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
@@ -859,6 +966,31 @@ EXAMPLE_CONTROLS_DICT = dict(
 
 
 class BaseImageIF:
+    """Abstract base class for all NEPI image data interfaces.
+
+    Manages the full image-control stack (resolution, auto-adjust, brightness,
+    contrast, threshold, 2-D rotation/flip, range, zoom, pan, window, 3-D
+    rotate/tilt, overlays, and optional plugin filters), exposes all controls
+    as ROS subscribers, and publishes processed images together with a latched
+    ``ImageStatus`` message.
+
+    Concrete subclasses override ``process_cv2_img`` to apply class-specific
+    image processing before the generic overlay and publish step.
+
+    Attributes:
+        ready (bool): True once initialisation completes.
+        namespace (str): Absolute ROS namespace for this data product.
+        node_if (NodeClassIF): Underlying ROS node helper.
+        save_data_if (SaveDataIF): Save interface, or None.
+        navpose_if: NavPose interface, or None.
+        status_msg (ImageStatus): Live status published periodically.
+        controls_dict (dict): Current imaging control values.
+        caps_dict (dict): Capability flags (has_zoom, has_range, etc.).
+        filter_dict (dict): Active filter functions and their ratios.
+        overlays_dict (dict): Overlay enable flags and text lists.
+        needs_data (bool): True when at least one subscriber or save request
+            is active.
+    """
 
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
@@ -1016,14 +1148,14 @@ class BaseImageIF:
     pubs_dict = dict()
     subs_dict = dict()
 
-    def __init__(self, 
-                namespace , 
+    def __init__(self,
+                namespace,
                 data_product,
                 data_source_description,
                 data_ref_description,
                 perspective,
                 caps_dict,
-                controls_dict, 
+                controls_dict,
                 filter_dict,
                 params_dict,
                 services_dict,
@@ -1037,6 +1169,43 @@ class BaseImageIF:
                 log_name_list,
                 msg_if
                 ):
+        """Initialise the image interface, ROS infrastructure, and control stack.
+
+        Called by concrete subclasses via ``super().__init__()``. Builds the
+        full ``PARAMS_DICT``, ``SRVS_DICT``, ``PUBS_DICT``, and ``SUBS_DICT``
+        from capabilities, creates the ``NodeClassIF``, registers a save-data
+        product, and starts the updater, subscriber-check, and status-publisher
+        timers.
+
+        Args:
+            namespace (str): Base ROS namespace for this data product.
+            data_product (str): Product key, e.g. ``'color_image'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            perspective (str): ``'pov'`` or ``'top'``.
+            caps_dict (dict): Capability flags (see ``DEFAULT_CAPS_DICT``).
+                Controls which set_* subscribers are created.
+            controls_dict (dict): Initial control values (see
+                ``DEFAULT_CONTROLS_DICT``).
+            filter_dict (dict): Named filter functions keyed by filter name,
+                each with ``'enabled'``, ``'function'``, and ``'ratio'``.
+            params_dict (dict, optional): Additional ROS param definitions
+                merged into the default ``PARAMS_DICT``.
+            services_dict (dict, optional): Additional ROS service definitions
+                merged into the default ``SRVS_DICT``.
+            pubs_dict (dict, optional): Additional publisher definitions merged
+                into the default ``PUBS_DICT``.
+            subs_dict (dict, optional): Additional subscriber definitions
+                merged into the default ``SUBS_DICT``.
+            save_data_if (SaveDataIF, optional): Shared save interface. Creates
+                its own per-product interface if None.
+            navpose_if: NavPose interface instance, or None.
+            navpose_namespace (str, optional): Alternate namespace for navpose.
+            init_overlay_list (list): Fixed overlay strings always applied.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
@@ -1686,6 +1855,15 @@ class BaseImageIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait. Defaults to infinity.
+
+        Returns:
+            bool or None: ``True`` when ready, ``False`` on timeout,
+            ``None`` if ``self.ready`` was never initialised.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1698,12 +1876,26 @@ class BaseImageIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
         return self.namespace
 
     def add_pub_namespace(self,namespace):
+        """Register an additional image/status publisher on a secondary namespace.
+
+        Creates a ``data_pub`` (Image) and ``status_pub`` (ImageStatus)
+        publisher under ``<namespace>/<data_product>`` and
+        ``<namespace>/<data_product>/status`` respectively.
+
+        Args:
+            namespace (str): Parent namespace to add a mirrored publisher on.
+                Ignored if it matches the primary namespace or is already
+                registered.
+
+        Returns:
+            bool: True on success, False if skipped or namespace was None.
+        """
         success = False
         if namespace is None:
             return success
@@ -1736,6 +1928,17 @@ class BaseImageIF:
         return success
 
     def remove_pub_namespace(self,namespace):
+        """Unregister a previously added secondary publisher namespace.
+
+        Args:
+            namespace (str): The namespace passed to ``add_pub_namespace``.
+
+        Returns:
+            bool: True if the namespace was found and removed, False otherwise.
+
+        Raises:
+            Nothing — silently skips if namespace was never registered.
+        """
         success = False
         if namespace is None:
             return success
@@ -1823,9 +2026,9 @@ class BaseImageIF:
     def process_cv2_img(self, cv2_img):
         return cv2_img
 
-    def publish_cv2_img(self, cv2_img, 
-                        encoding = "bgr8", 
-                        timestamp = None, 
+    def publish_cv2_img(self, cv2_img,
+                        encoding = "bgr8",
+                        timestamp = None,
                         width_deg = 100,
                         height_deg = 70,
                         min_range_m = 0,
@@ -1835,6 +2038,42 @@ class BaseImageIF:
                         pub_twice = False,
                         add_pubs = []
                         ):
+        """Process and publish a CV2 image to all registered ROS topics.
+
+        Calls ``process_cv2_img`` (if ``process_data`` is True), applies text
+        overlays (source name, datetime, nav, pose, plus any supplied list),
+        converts to a ROS ``Image`` with the correct header, and publishes.
+        Also triggers saving via ``save_data_if`` and updates timing stats.
+
+        Reentrancy-guarded: drops duplicate calls while a publish is in
+        progress.
+
+        Args:
+            cv2_img (numpy.ndarray): Input image in any supported encoding.
+            encoding (str): OpenCV encoding string, e.g. ``'bgr8'``,
+                ``'mono8'``, ``'32FC1'``. Defaults to ``'bgr8'``.
+            timestamp (float or rospy.Time, optional): Source timestamp.
+                Uses current time if None.
+            width_deg (float): Horizontal field-of-view in degrees.
+            height_deg (float): Vertical field-of-view in degrees.
+            min_range_m (float): Minimum sensor range in metres.
+            max_range_m (float): Maximum sensor range in metres.
+            add_overlay_list (list): Extra overlay strings for this frame only.
+            process_data (bool): When True, calls ``process_cv2_img`` before
+                publishing. Defaults to True.
+            pub_twice (bool): Publish the ROS message twice with a 10 ms gap
+                (workaround for subscribers that miss the first message).
+            add_pubs (list): Additional namespaces registered via
+                ``add_pub_namespace`` to mirror the image to.
+
+        Returns:
+            numpy.ndarray: The processed CV2 image (may differ from input if
+                process_data was True), or the original if processing failed.
+
+        Note:
+            Publishing is skipped when ``self.needs_data`` is False (no
+            active subscribers or save requests).
+        """
         
 
         if self.navpose_if is not None:
@@ -2018,6 +2257,18 @@ class BaseImageIF:
         
 
     def publish_msg_img(self, msg_text, timestamp = None, navpose_frame = 'None'):
+        """Overlay text on a blank image and publish it as a status image.
+
+        Useful for communicating driver state (e.g. "Connecting…") before real
+        data is available.
+
+        Args:
+            msg_text (str): Text to render on the blank image.
+            timestamp (float, optional): Timestamp in seconds. Uses current
+                time if None.
+            navpose_frame (str): Frame ID for the ROS header. Defaults to
+                ``'None'``.
+        """
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, msg_text)
 
         if timestamp == None:
@@ -2202,6 +2453,15 @@ class BaseImageIF:
 
 
     def set_zoom_ratio(self, ratio):
+        """Set zoom level and recompute the window_ratios crop rectangle.
+
+        Zoom is applied symmetrically around the current pan centre. A ratio
+        of 0.0 means no zoom (full image); 1.0 means maximum zoom. Clears
+        any pending drag state.
+
+        Args:
+            ratio (float): Zoom level in [0.0, 1.0].
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2249,7 +2509,17 @@ class BaseImageIF:
 
 
     def set_pixel(self, pixel, color_bgr = [0,0,0,0]):
+        """Pan the view so the given pixel is centred, preserving zoom level.
 
+        Converts pixel coordinates to ratio space and recomputes
+        ``window_ratios`` around that centre. Requires a valid raw image size
+        (> 10 px) to compute ratios; does nothing otherwise.
+
+        Args:
+            pixel (list[int]): ``[x, y]`` pixel coordinates in the raw image.
+            color_bgr (list): BGRA colour hint (unused by this method but
+                forwarded from click callbacks).
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2291,7 +2561,15 @@ class BaseImageIF:
 
 
     def set_x_ratio(self, ratio):
+        """Pan the view horizontally, preserving the current zoom level.
 
+        Translates a normalised horizontal ratio to a window_ratios update,
+        clamped so the window stays within [0, 1].
+
+        Args:
+            ratio (float): Horizontal pan position in [0.0, 1.0] where 0.5 is
+                centre.
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2332,8 +2610,13 @@ class BaseImageIF:
         self.publish_status() 
         self.needs_update()
 
-    def set_y_ratio(self, ratio): 
+    def set_y_ratio(self, ratio):
+        """Pan the view vertically, preserving the current zoom level.
 
+        Args:
+            ratio (float): Vertical pan position in [0.0, 1.0] where 0.5 is
+                centre.
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2376,10 +2659,20 @@ class BaseImageIF:
 
 
     def set_window(self, window):
+        """Set the image crop window from pixel coordinates.
 
+        Converts the pixel-space window ``[x_min, x_max, y_min, y_max]`` to
+        normalised ratio space and updates ``window_ratios``. The window is
+        made square (using the larger of x/y extents) and clamped within
+        [0, 1]. Requires a valid raw image size.
+
+        Args:
+            window (list[int]): ``[x_min, x_max, y_min, y_max]`` in raw
+                image pixel coordinates.
+        """
         self.drag_pixel = None
         self.drag_window = None
- 
+
         if self.raw_width > 10 and self.raw_height > 10:
             # Update Ratios
             xr_len = (window[1] - window[0]) / self.raw_width
@@ -2502,7 +2795,12 @@ class BaseImageIF:
 
 
     def reset_filters(self):
-        
+        """Reset all image filter and adjustment controls to factory values.
+
+        Reverts auto-adjust, brightness, contrast, threshold, and filter
+        ratios to their factory defaults on the ROS parameter server, then
+        reads them back into ``controls_dict`` and ``filter_dict``.
+        """
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
 
@@ -2527,6 +2825,7 @@ class BaseImageIF:
 
 
     def reset_overlays(self):
+        """Reset all overlay settings to factory defaults on the param server."""
         self.node_if.factory_reset_param('overlay_size_ratio')
         self.node_if.factory_reset_param('overlay_img_name')
         self.node_if.factory_reset_param('overlay_date_time')
@@ -2545,7 +2844,7 @@ class BaseImageIF:
 
 
     def reset_settings(self):
-        
+        """Reset resolution and orientation controls to factory defaults."""
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
 
@@ -2568,6 +2867,12 @@ class BaseImageIF:
         self.needs_update()
 
     def reset_renders(self):
+        """Reset all pan/zoom/window/3-D render controls to their defaults.
+
+        Clears drag state, resets zoom to 0, pan to centre (0.5, 0.5), window
+        ratios to full frame, and 3-D rotate/tilt to 0.5. Persists range
+        ratios to the param server.
+        """
         self.msg_if.pub_warn("Reseting render values", log_name_list = self.log_name_list)
         self.drag_pixel = None
         self.drag_window = None
@@ -2600,8 +2905,18 @@ class BaseImageIF:
 
 
     def publish_status(self):
+        """Pack current controls/overlays/rate into the status message and publish.
+
+        Populates ``self.status_msg`` with the current values of all image
+        controls (brightness, contrast, threshold, resolution, range, window,
+        zoom, pan, rotate, flip), active filter state, overlay settings, and
+        the rolling-average publish rate, then latches the message via
+        ``status_pub``.
+
+        No-ops when ``node_if`` or ``status_msg`` is ``None``.
+        """
         if self.node_if is not None and self.status_msg is not None:
-            
+
             self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
             self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
             self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
@@ -2661,6 +2976,18 @@ class BaseImageIF:
 
 
     def init(self, do_updates = False):
+        """Load persisted image-control parameters from the ROS param server.
+
+        Reads all image controls (resolution, auto-adjust, brightness,
+        contrast, threshold, rotation, flip, filter dict, overlays) from the
+        param server into ``controls_dict`` and resets zoom/pan state to
+        defaults.  Calls ``publish_status`` at the end regardless of
+        ``do_updates``.
+
+        Args:
+            do_updates (bool): Reserved; has no effect in current
+                implementation. Defaults to ``False``.
+        """
         if self.node_if is not None:
             self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
             self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
@@ -2727,9 +3054,17 @@ class BaseImageIF:
 
     def _provide_capabilities(self, _):
         return self.caps_report
-    
+
     def _updaterCb(self, timer):
-        
+        """Timer callback — discover sibling data-product topics and update status.
+
+        Probes for ``color_image``, ``depth_map``, and ``pointcloud`` topics
+        under the parent namespace and records their paths in the status
+        message. Reschedules itself every 1 s.
+
+        Args:
+            timer: ROS timer argument (unused).
+        """
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
@@ -2781,6 +3116,20 @@ class BaseImageIF:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
     def _clickCb(self,msg):
+        """ROS subscriber callback — handle a mouse-click event on the image.
+
+        Single-click pans the view to centre on the clicked pixel (with a
+        300 ms debounce). Double-click (< 300 ms) resets all render controls.
+        If ``click_pixel_callback`` or ``click_angle_callback`` is set in
+        ``callback_dict``, those functions are called instead of the default
+        pan behaviour.
+
+        Args:
+            msg (ImagePixel): Contains x, y pixel coordinates and BGRA colour.
+
+        Note:
+            ROS topic: ``<namespace>/set_click``
+        """
         self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
         pixel = [int(msg.x   + self.x_offset), int(msg.y   + self.y_offset)]
 
@@ -2821,6 +3170,18 @@ class BaseImageIF:
 
  
     def _dragCb(self,msg):
+        """ROS subscriber callback — handle a mouse-drag event on the image.
+
+        Accumulates drag start/end pixels into ``drag_window`` which is
+        rendered as a selection rectangle by ``process_cv2_img``. If a
+        ``drag_callback`` is set it is called instead.
+
+        Args:
+            msg (ImagePixel): Contains x, y pixel coordinates and BGRA colour.
+
+        Note:
+            ROS topic: ``<namespace>/set_drag``
+        """
         self.msg_if.pub_info("Received set drag mouse message: " + str(msg), log_name_list = self.log_name_list)
         self.last_click_time = None
         pixel = [int(msg.x), int(msg.y)]
@@ -3042,9 +3403,15 @@ class BaseImageIF:
 # ImageIF
 
 class ImageIF(BaseImageIF):
+    """Minimal concrete image interface — passes images through unmodified.
 
-    #Default Control Values 
-    DEFAULT_CAPS_DICT = dict( 
+    Inherits the full ``BaseImageIF`` control stack but ``process_cv2_img``
+    is a no-op; all image processing is left to the driver or caller.
+    No capabilities are enabled by default.
+    """
+
+    #Default Control Values
+    DEFAULT_CAPS_DICT = dict(
         has_resolution = False,
         has_auto_adjust = False,
         has_contrast = False,
@@ -3091,7 +3458,7 @@ class ImageIF(BaseImageIF):
 
 
     
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'image',
                 data_ref_description = 'image',
@@ -3104,16 +3471,32 @@ class ImageIF(BaseImageIF):
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise a pass-through image interface.
+
+        Args:
+            namespace (str, optional): Base ROS namespace.
+            data_product (str, optional): Product key. Defaults to ``'image'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            perspective (str): ``'pov'`` or ``'top'``.
+            init_overlay_list (list): Fixed overlay strings always applied.
+            navpose_if: NavPose interface, or None.
+            navpose_namespace (str, optional): Alternate navpose namespace.
+            save_data_if (SaveDataIF, optional): Shared save interface.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
 
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
             if data_product is not None:
                 self.data_product = data_product
-    
+
         self.save_data_if = save_data_if
         self.navpose_if = navpose_if
         # Call the parent class constructor
-        super().__init__(namespace , 
+        super().__init__(namespace,
                 self.data_product,
                 data_source_description,
                 data_ref_description,
@@ -3157,9 +3540,22 @@ class ImageIF(BaseImageIF):
 # ColorImageIF
 
 class ColorImageIF(BaseImageIF):
+    """Full-featured color image interface with the complete control stack.
 
-    #Default Control Values 
-    DEFAULT_CAPS_DICT = dict( 
+    Enables resolution, auto-adjust, brightness, contrast, threshold, 2-D
+    rotation, horizontal/vertical flip, zoom, and pan/window capabilities.
+    ``process_cv2_img`` applies all enabled controls in order: resolution →
+    orientation → window crop → drag-selection overlay → filters →
+    brightness/contrast/threshold (or auto-adjust).
+
+    Attributes:
+        auto_adjust_controls (list): ``['brightness', 'contrast', 'threshold']``
+            — controls managed by the auto-adjust algorithm.
+        data_product (str): ``'color_image'``
+    """
+
+    #Default Control Values
+    DEFAULT_CAPS_DICT = dict(
         has_resolution = True,
         has_auto_adjust = True,
         has_contrast = True,
@@ -3211,7 +3607,7 @@ class ColorImageIF(BaseImageIF):
 
 
     
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
@@ -3224,6 +3620,23 @@ class ColorImageIF(BaseImageIF):
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise a full-featured color image interface.
+
+        Args:
+            namespace (str, optional): Base ROS namespace.
+            data_product (str, optional): Product key. Defaults to
+                ``'color_image'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            perspective (str): ``'pov'`` or ``'top'``.
+            init_overlay_list (list): Fixed overlay strings always applied.
+            navpose_if: NavPose interface, or None.
+            navpose_namespace (str, optional): Alternate navpose namespace.
+            save_data_if (SaveDataIF, optional): Shared save interface.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
 
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
@@ -3232,14 +3645,14 @@ class ColorImageIF(BaseImageIF):
         self.save_data_if = save_data_if
         self.navpose_if = navpose_if
         # Call the parent class constructor
-        super().__init__(namespace , 
+        super().__init__(namespace,
                 self.data_product,
                 data_source_description,
                 data_ref_description,
                 perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
-                self.DEFAULT_FILTERS_DICT, 
+                self.DEFAULT_FILTERS_DICT,
                 self.params_dict,
                 self.services_dict,
                 self.pubs_dict,
@@ -3264,14 +3677,25 @@ class ColorImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        """Apply the image processing pipeline (resolution, orientation, crop, filters, adjustments).
 
+        Steps: resolution scale → 2-D rotate/flip → window crop →
+        drag-selection overlay → plugin filters → brightness/contrast/threshold
+        or auto-adjust.
+
+        Args:
+            cv2_img (numpy.ndarray): Input image in any BGR/mono encoding.
+
+        Returns:
+            numpy.ndarray: Processed image.
+        """
 
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         # cv2_shape = cv2_img.shape
-        # img_width1 = cv2_shape[1] 
-        # img_height1 = cv2_shape[0] 
+        # img_width1 = cv2_shape[1]
+        # img_height1 = cv2_shape[0]
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
@@ -3386,6 +3810,23 @@ class ColorImageIF(BaseImageIF):
 # DepthMapIF
 
 class DepthMapIF:
+    """Depth-map data interface — publishes raw float32 depth maps.
+
+    Accepts NumPy float32 arrays (``32FC1`` encoding) from a driver and
+    publishes them as ROS ``sensor_msgs/Image``. Optionally drives a
+    ``DepthMapImageIF`` instance to produce a colourised preview image.
+    Integrates with ``SaveDataIF`` for on-demand persistence.
+
+    Attributes:
+        ready (bool): True once initialisation completes.
+        namespace (str): Absolute ROS namespace for this data product.
+        data_product (str): ``'depth_map'``
+        min_range_m (float): Current minimum sensor range in metres.
+        max_range_m (float): Current maximum sensor range in metres.
+        image_if (DepthMapImageIF): Colourised image sub-interface, or None.
+        save_data_if (SaveDataIF): Save interface, or None.
+        needs_data (bool): True when subscribers or a save request is active.
+    """
 
     DEFUALT_IMG_WIDTH_PX = 700
     DEFUALT_IMG_HEIGHT_PX = 400
@@ -3458,6 +3899,25 @@ class DepthMapIF:
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise the DepthMapIF and optionally create a DepthMapImageIF.
+
+        Args:
+            namespace (str, optional): Base ROS namespace.
+            data_product (str, optional): Product key. Defaults to
+                ``'depth_map'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            perspective (str): ``'pov'`` or ``'top'``.
+            pub_image (bool): When True, creates a ``DepthMapImageIF``
+                sub-interface that produces a colourised preview image.
+            save_data_if (SaveDataIF, optional): Shared save interface.
+            navpose_if: NavPose interface, or None.
+            navpose_namespace (str, optional): Alternate navpose namespace.
+            init_overlay_list (list): Fixed overlay strings for the image IF.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
@@ -3681,6 +4141,15 @@ class DepthMapIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait. Defaults to infinity.
+
+        Returns:
+            bool or None: ``True`` when ready, ``False`` on timeout,
+            ``None`` if ``self.ready`` was never initialised.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -3693,11 +4162,11 @@ class DepthMapIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
         return self.namespace
-    
+
 
     def get_blank_navpose_dict(self):
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -3763,15 +4232,40 @@ class DepthMapIF:
     def needs_data_check(self):
         return self.needs_data
     
-    def publish_np_depth_map(self, np_depth_map, 
+    def publish_np_depth_map(self, np_depth_map,
                             encoding = '32FC1',
                             width_deg = 100,
                             height_deg = 70,
-                             min_range_m = 0, 
-                             max_range_m = 100,
-                             timestamp = None,
-                             pub_twice = False
+                            min_range_m = 0,
+                            max_range_m = 100,
+                            timestamp = None,
+                            pub_twice = False
                             ):
+        """Publish a NumPy depth map as a ROS Image and drive the image sub-IF.
+
+        Converts the float32 array to a ROS ``sensor_msgs/Image``, updates
+        range metadata in the status message, and — when ``image_if`` is
+        present and has active consumers — also triggers
+        ``DepthMapImageIF.publish_depth_map_img`` for a colourised preview.
+
+        Reentrancy-guarded: drops duplicate calls while a publish is in
+        progress.
+
+        Args:
+            np_depth_map (numpy.ndarray): Float32 depth array (H × W).
+            encoding (str): ROS encoding string. Defaults to ``'32FC1'``.
+            width_deg (float): Horizontal FOV in degrees.
+            height_deg (float): Vertical FOV in degrees.
+            min_range_m (float): Minimum valid depth in metres.
+            max_range_m (float): Maximum valid depth in metres.
+            timestamp (float or rospy.Time, optional): Source timestamp.
+                Uses current time if None.
+            pub_twice (bool): Publish twice with a 10 ms gap (see
+                ``publish_cv2_img``).
+
+        Returns:
+            numpy.ndarray: The input depth map (unchanged).
+        """
         
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -3889,10 +4383,17 @@ class DepthMapIF:
 
 
     def publish_status(self, do_updates = True):
+        """Update range fields in the status message and publish it.
 
+        Copies the current ``min_range_m`` and ``max_range_m`` into the status
+        message, computes the rolling-average publish rate, and latches the
+        message via ``status_pub``.  No-ops when ``node_if`` is ``None``.
 
+        Args:
+            do_updates (bool): Reserved; unused in current implementation.
+        """
         if self.node_if is not None:
-            
+
             self.status_msg.min_range_m = self.min_range_m
             self.status_msg.max_range_m = self.max_range_m
             avg_rate = 0
@@ -3907,6 +4408,14 @@ class DepthMapIF:
 
 
     def init(self, do_updates = False):
+        """Initialise persisted state and publish the current depth-map status.
+
+        For DepthMapIF there are no param-server values to restore at present;
+        ``publish_status`` is called unconditionally.
+
+        Args:
+            do_updates (bool): Reserved; unused. Defaults to ``False``.
+        """
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -3997,9 +4506,20 @@ class DepthMapIF:
 # DepthMapImageIF
 
 class DepthMapImageIF(BaseImageIF):
+    """Colourised depth-map image interface driven by ``DepthMapIF``.
 
-    #Default Control Values 
-    DEFAULT_CAPS_DICT = dict( 
+    Converts raw float32 depth maps to ``bgr8`` false-colour images via
+    ``nepi_img.npDepthMap_to_cv2ColorImg``, then applies the
+    ``BaseImageIF`` processing pipeline (rotation, flip, zoom, filters, etc.)
+    and publishes the result.
+
+    Typically instantiated automatically by ``DepthMapIF`` when
+    ``pub_image=True``. Consumers subscribe to the image topic under
+    the depth-map namespace.
+    """
+
+    #Default Control Values
+    DEFAULT_CAPS_DICT = dict(
         has_resolution = False,
         has_auto_adjust = False,
         has_contrast = False,
@@ -4101,13 +4621,32 @@ class DepthMapImageIF(BaseImageIF):
     ###############################
 
     def publish_depth_map_img(self,np_depth_map,
-                            min_range_m = 0, 
+                            min_range_m = 0,
                             max_range_m = 100,
                             width_deg = 100,
                             height_deg = 70,
                             timestamp = None,
                             pub_twice = False
                             ):
+        """Colourise a depth map and publish it as a BGR image.
+
+        Uses ``nepi_img.npDepthMap_to_cv2ColorImg`` with the current range-
+        ratio window controls, then delegates to ``publish_cv2_img`` for
+        overlay and ROS publish.
+
+        Args:
+            np_depth_map (numpy.ndarray): Float32 depth array (H × W).
+            min_range_m (float): Minimum depth in metres.
+            max_range_m (float): Maximum depth in metres.
+            width_deg (float): Horizontal FOV in degrees.
+            height_deg (float): Vertical FOV in degrees.
+            timestamp (float or rospy.Time, optional): Source timestamp.
+            pub_twice (bool): Publish twice (see ``publish_cv2_img``).
+
+        Returns:
+            numpy.ndarray: The colourised CV2 image, or None if conversion
+                failed.
+        """
 
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -4142,14 +4681,25 @@ class DepthMapImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        """Apply the image processing pipeline (resolution, orientation, crop, filters, adjustments).
 
+        Steps: resolution scale → 2-D rotate/flip → window crop →
+        drag-selection overlay → plugin filters → brightness/contrast/threshold
+        or auto-adjust.
+
+        Args:
+            cv2_img (numpy.ndarray): Input image in any BGR/mono encoding.
+
+        Returns:
+            numpy.ndarray: Processed image.
+        """
 
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         # cv2_shape = cv2_img.shape
-        # img_width1 = cv2_shape[1] 
-        # img_height1 = cv2_shape[0] 
+        # img_width1 = cv2_shape[1]
+        # img_height1 = cv2_shape[0]
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
@@ -4259,6 +4809,24 @@ class DepthMapImageIF(BaseImageIF):
 
 
 class PointcloudIF:
+    """Point-cloud data interface — publishes Open3D / ROS PointCloud2 data.
+
+    Accepts Open3D point clouds from a driver, converts them to ROS
+    ``sensor_msgs/PointCloud2``, and publishes them. Optionally drives a
+    ``PointcloudImageIF`` instance for 2-D projection image output.
+    Integrates with ``SaveDataIF`` for on-demand persistence.
+
+    Attributes:
+        ready (bool): True once initialisation completes.
+        namespace (str): Absolute ROS namespace for this data product.
+        data_product (str): ``'pointcloud'``
+        min_range_m (float): Current minimum sensor range in metres.
+        max_range_m (float): Current maximum sensor range in metres.
+        image_if (PointcloudImageIF): 2-D projection sub-interface, or None.
+        voxel (list): Voxel-filter size ``[x, y, z]`` in metres; ``[0,0,0]``
+            disables voxel filtering.
+        needs_data (bool): True when subscribers or a save request is active.
+    """
 
     DEFAULT_WIDTH_DEG = 100
     DEFAULT_HEIGHT_DEG = 70
@@ -4351,14 +4919,33 @@ class PointcloudIF:
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise the PointcloudIF and optionally create a PointcloudImageIF.
+
+        Args:
+            namespace (str, optional): Base ROS namespace.
+            data_product (str, optional): Product key. Defaults to
+                ``'pointcloud'``.
+            data_source_description (str): Human-readable sensor label.
+            data_ref_description (str): Human-readable reference label.
+            perspective (str): ``'pov'`` or ``'top'``.
+            pub_image (bool): When True, creates a ``PointcloudImageIF``
+                sub-interface for 2-D projection image output.
+            save_data_if (SaveDataIF, optional): Shared save interface.
+            navpose_if: NavPose interface, or None.
+            navpose_namespace (str, optional): Alternate navpose namespace.
+            init_overlay_list (list): Fixed overlay strings for the image IF.
+            log_name (str, optional): Label appended to log entries.
+            log_name_list (list): Inherited log-name context list.
+            msg_if (MsgIF, optional): Shared message interface.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
+        ##############################
+
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
@@ -4371,7 +4958,7 @@ class PointcloudIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
-        ##############################    
+        ##############################
         # Initialize Class Variables
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
@@ -4576,6 +5163,15 @@ class PointcloudIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait. Defaults to infinity.
+
+        Returns:
+            bool or None: ``True`` when ready, ``False`` on timeout,
+            ``None`` if ``self.ready`` was never initialised.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -4588,7 +5184,7 @@ class PointcloudIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
         return self.namespace
@@ -4597,7 +5193,7 @@ class PointcloudIF:
     def get_blank_navpose_dict(self):
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
+
     def get_navpose_dict(self):
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -4666,15 +5262,41 @@ class PointcloudIF:
             self.callback_dict['voxel_callback'](self.voxel)
 
     def publish_o3d_pc(self,o3d_pc,
-                        timestamp = None, 
+                        timestamp = None,
                         width_deg = 100,
                         height_deg = 70,
                         min_range_m = None,
-                        max_range_m = None,               
+                        max_range_m = None,
                         process_data = True,
                         pub_twice = False,
                         frame_id = 'sensor',
                         add_pubs = []):
+        """Publish an Open3D point cloud as a ROS PointCloud2 message.
+
+        Converts the Open3D point cloud to ``sensor_msgs/PointCloud2``, adds
+        a timestamped header, and publishes. Also triggers
+        ``PointcloudImageIF.publish_pointcloud_img`` when the image sub-IF
+        has active consumers, and saves via ``save_data_if`` if configured.
+
+        Reentrancy-guarded: drops duplicate calls while a publish is in
+        progress.
+
+        Args:
+            o3d_pc (open3d.geometry.PointCloud): Source point cloud.
+            timestamp (float or rospy.Time, optional): Source timestamp.
+                Uses current time if None.
+            width_deg (float): Horizontal FOV in degrees (for status).
+            height_deg (float): Vertical FOV in degrees (for status).
+            min_range_m (float, optional): Minimum range in metres.
+            max_range_m (float, optional): Maximum range in metres.
+            process_data (bool): Reserved for future use.
+            pub_twice (bool): Publish twice (see ``publish_cv2_img``).
+            frame_id (str): ROS frame ID for the PointCloud2 header.
+            add_pubs (list): Additional publisher namespaces to mirror to.
+
+        Returns:
+            open3d.geometry.PointCloud: The input point cloud (unchanged).
+        """
         
 
         if self.navpose_if is not None:
@@ -4788,8 +5410,20 @@ class PointcloudIF:
 
 
     def publish_status(self, do_updates = True):
+        """Pack current pointcloud control values into the status message and publish.
+
+        When ``do_updates`` is ``True``, re-reads image dimensions, range
+        ratios, zoom, 3-D rotate/tilt, camera FOV/view/position/rotation, and
+        white-background flag from the ROS param server before publishing.
+        Always computes the rolling-average publish rate.  No-ops when
+        ``node_if`` is ``None``.
+
+        Args:
+            do_updates (bool): When ``True``, refresh params from the param
+                server before publishing. Defaults to ``True``.
+        """
         if self.node_if is not None:
-           
+
             if do_updates == True:
                 self.status_msg.image_width = self.node_if.get_param('image_width')
                 self.status_msg.image_height = self.node_if.get_param('image_height')
@@ -4841,6 +5475,14 @@ class PointcloudIF:
 
 
     def init(self, do_updates = False):
+        """Initialise persisted state and publish the current pointcloud status.
+
+        For PointcloudIF there are no param-server values to restore at
+        present; ``publish_status`` is called unconditionally.
+
+        Args:
+            do_updates (bool): Reserved; unused. Defaults to ``False``.
+        """
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -4933,8 +5575,18 @@ class PointcloudIF:
 # PointcloudImageIF
 
 class PointcloudImageIF(BaseImageIF):
+    """Image sub-interface for rendering point clouds as 2-D images.
 
-    #Default Control Values 
+    Extends ``BaseImageIF`` to accept Open3D point clouds and project them
+    into coloured 2-D images for ROS publication and save-data integration.
+    Attached automatically by ``PointcloudIF`` when ``pub_image=True``.
+
+    Inherits all image-control capabilities (flip, rotate, range window) from
+    ``BaseImageIF`` but disables resolution, auto-adjust, contrast, brightness,
+    threshold, zoom, pan, and window controls.
+    """
+
+    #Default Control Values
     DEFAULT_CAPS_DICT = dict( 
         has_resolution = False,
         has_auto_adjust = False,
@@ -4978,7 +5630,7 @@ class PointcloudImageIF(BaseImageIF):
 
     auto_adjust_controls = []
 
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None ,
                 data_product = None,
                 data_source_description = 'sensor',
                 data_ref_description = 'sensor',
@@ -4991,6 +5643,26 @@ class PointcloudImageIF(BaseImageIF):
                 log_name_list = [],
                 msg_if = None
                 ):
+        """Initialise a pointcloud image sub-interface.
+
+        Delegates to ``BaseImageIF.__init__`` with the fixed capability
+        and control dictionaries defined on this class.
+
+        Args:
+            namespace (str, optional): ROS namespace for the image topics.
+            data_product (str, optional): Override the default
+                ``'pointcloud_image'`` data-product name.
+            data_source_description (str): Human-readable sensor description.
+            data_ref_description (str): Human-readable reference-frame description.
+            perspective (str): Rendering perspective hint (e.g. ``'pov'``).
+            init_overlay_list (list): Overlays to activate at init.
+            save_data_if (SaveDataIF, optional): Pre-created save-data interface.
+            navpose_if (NavPoseIF, optional): Nav-pose provider for overlay stamping.
+            navpose_namespace (str, optional): ROS namespace for nav-pose topics.
+            log_name (str, optional): Extra tag for log messages.
+            log_name_list (list): Additional log-name tags.
+            msg_if: NEPI message interface for ``pub_info``/``pub_warn``.
+        """
 
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
@@ -5039,6 +5711,29 @@ class PointcloudImageIF(BaseImageIF):
                             timestamp = None,
                             pub_twice = False
                             ):
+        """Render an Open3D point cloud to a 2-D image and publish it.
+
+        Retrieves the current nav-pose (or a blank pose when ``navpose_if``
+        is ``None``), attempts to project ``o3d_pc`` into a CV2 image, and
+        delegates publication to ``BaseImageIF.publish_cv2_img``.
+
+        Note:
+            The projection/colorisation pipeline is currently commented out;
+            the method returns the raw ``(o3d_pc, None)`` pair until the
+            implementation is completed.
+
+        Args:
+            o3d_pc (open3d.geometry.PointCloud): Source point cloud.
+            width_deg (float): Horizontal FOV in degrees (for status/metadata).
+            height_deg (float): Vertical FOV in degrees (for status/metadata).
+            timestamp (float or rospy.Time, optional): Source timestamp.
+                Uses current time if ``None``.
+            pub_twice (bool): Publish the image twice (see ``publish_cv2_img``).
+
+        Returns:
+            tuple: ``(o3d_pc, cv2_img)`` — the original point cloud and the
+            rendered CV2 image (currently always ``None``).
+        """
 
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
