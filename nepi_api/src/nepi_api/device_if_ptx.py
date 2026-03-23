@@ -49,6 +49,42 @@ from nepi_api.system_if import SettingsIF
 
 
 class PTXActuatorIF:
+    """ROS interface layer for pan/tilt (PTX) actuator driver nodes.
+
+    Provides the full ROS plumbing — subscribers, publishers, services, and
+    parameter management — for a PTX device driver.  Driver authors instantiate
+    this class inside their ROS node, passing callback functions for hardware
+    operations.  The class handles direction reversal, soft-limit enforcement,
+    ratio/degree conversions, status publishing, and navpose integration.
+
+    Capabilities are determined by which callbacks are supplied at construction
+    time.  Missing callbacks disable the corresponding feature and clear the
+    corresponding ``has_*`` flag in the capabilities report.
+
+    Attributes:
+        MAX_STATUS_UPDATE_RATE (int): Maximum allowed status publish rate in Hz.
+        FACTORY_CONTROLS_DICT (dict): Default factory values for speed ratio and
+            reverse-direction flags.
+        ready (bool): True once initialization completes successfully.
+        namespace (str): Full ROS namespace under which PTX topics are
+            advertised (``<node_namespace>/ptx``).
+        status_msg (DevicePTXStatus): Continuously updated status message.
+        caps_report (PTXCapabilitiesQueryResponse): Capability flags snapshot
+            built at init time from the supplied callbacks.
+        has_position_feedback (bool): True if a ``getPositionCb`` was provided.
+        has_absolute_positioning (bool): True if ``gotoPositionCb`` or
+            ``gotoPanPositionCb`` was provided.
+        has_timed_positioning (bool): True if both ``movePanCb`` and
+            ``moveTiltCb`` were provided.
+        has_seperate_pan_tilt_control (bool): True if both
+            ``gotoPanPositionCb`` and ``gotoTiltPositionCb`` were provided.
+        has_adjustable_speed (bool): True if both speed ratio callbacks were
+            provided.
+        has_homing (bool): True if ``goHomeCb`` was provided.
+        has_set_home (bool): True if ``setHomePositionHereCb`` was provided.
+        has_calibration (bool): True if ``calibrateCenterCB`` was provided.
+    """
+
     MAX_STATUS_UPDATE_RATE = 3
 
     # Backup Factory Control Values 
@@ -162,27 +198,27 @@ class PTXActuatorIF:
 
 
     ### IF Initialization
-    def __init__(self,  device_info, 
-                 capSettings, factorySettings, 
+    def __init__(self, device_info,
+                 capSettings, factorySettings,
                  settingUpdateFunction, getSettingsFunction,
-                 factoryControls , # Dictionary to be supplied by parent, specific key set is required
+                 factoryControls,  # Dictionary to be supplied by parent, specific key set is required
                  factoryLimits = None,
                  data_source_description = 'pan_tilt',
                  data_ref_description = 'tilt_axis_center',
-                 stopMovingCb = None, # Required; no args
-                 movePanCb = None, # Required; direction and time args
-                 moveTiltCb = None, # Required; direction and time args
+                 stopMovingCb = None,  # Required; no args
+                 movePanCb = None,  # Required; direction and time args
+                 moveTiltCb = None,  # Required; direction and time args
                  setSoftLimitsCb=None,
                  getSoftLimitsCb=None,
-                 setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
-                 getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
+                 setSpeedRatioCb=None,  # None ==> No speed adjustment capability; Speed ratio arg
+                 getSpeedRatioCb=None,  # None ==> No speed adjustment capability; Returns speed ratio
                  getPositionCb=None,
-                 gotoPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
-                 gotoPanPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
-                 gotoTiltPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
-                 goHomeCb=None, # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
-                 setHomePositionCb=None, # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
-                 setHomePositionHereCb=None, # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
+                 gotoPositionCb=None,  # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s)
+                 gotoPanPositionCb=None,  # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s)
+                 gotoTiltPositionCb=None,  # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s)
+                 goHomeCb=None,  # None ==> No native driver homing capability, can still use homing if absolute positioning is supported
+                 setHomePositionCb=None,  # None ==> No native driver home absolute setting capability, can still use it if absolute positioning is supported
+                 setHomePositionHereCb=None,  # None ==> No native driver home instant capture capability, can still use it if absolute positioning is supported
                  getNavPoseCb=None,
                  navpose_update_rate = 10,
                  deviceResetCb = None,
@@ -191,6 +227,74 @@ class PTXActuatorIF:
                  log_name_list = [],
                  msg_if = None
                 ):
+        """Initialize the PTXActuatorIF and register all ROS topics and services.
+
+        Builds capability flags from the supplied callbacks, configures ROS
+        subscribers and publishers via ``NodeClassIF``, initializes the
+        ``SettingsIF``, and starts the periodic status-publish timer.
+
+        Args:
+            device_info (dict): Device metadata with keys ``device_name``,
+                ``path``, ``serial_number``, ``hw_version``, ``sw_version``.
+            capSettings: Capability settings descriptor passed to ``SettingsIF``.
+            factorySettings: Factory settings descriptor passed to ``SettingsIF``.
+            settingUpdateFunction (callable): Called by ``SettingsIF`` when a
+                setting value changes.
+            getSettingsFunction (callable): Called by ``SettingsIF`` to read
+                current settings.
+            factoryControls (dict): Override values for factory control defaults.
+                Recognized keys: ``reverse_pan_enabled``,
+                ``reverse_tilt_enabled``, ``speed_ratio``.
+            factoryLimits (dict, optional): Hard- and soft-stop limit values.
+                Keys: ``min/max_pan/tilt_hardstop_deg``,
+                ``min/max_pan/tilt_softstop_deg``.  Defaults to all zeros if
+                None.
+            data_source_description (str): Human-readable description of the
+                data source frame.  Defaults to ``'pan_tilt'``.
+            data_ref_description (str): Human-readable description of the
+                reference frame.  Defaults to ``'tilt_axis_center'``.
+            stopMovingCb (callable, optional): No-arg callback to immediately
+                stop all axes.
+            movePanCb (callable, optional): ``(direction, time_s)`` callback to
+                jog the pan axis.
+            moveTiltCb (callable, optional): ``(direction, time_s)`` callback to
+                jog the tilt axis.
+            setSoftLimitsCb (callable, optional): ``(min_pan, max_pan, min_tilt,
+                max_tilt)`` callback to push soft limits to the hardware.
+            getSoftLimitsCb (callable, optional): No-arg callback returning
+                ``[min_pan, max_pan, min_tilt, max_tilt]`` from the hardware.
+            setSpeedRatioCb (callable, optional): ``(speed_ratio)`` callback.
+                Enables speed control if provided together with
+                ``getSpeedRatioCb``.
+            getSpeedRatioCb (callable, optional): No-arg callback returning
+                current speed ratio.
+            getPositionCb (callable, optional): No-arg callback returning
+                ``[pan_deg, tilt_deg]``.  Enables position feedback and limit
+                controls.
+            gotoPositionCb (callable, optional): ``(pan_deg, tilt_deg)``
+                callback.  Enables absolute positioning.
+            gotoPanPositionCb (callable, optional): ``(pan_deg)`` callback.
+            gotoTiltPositionCb (callable, optional): ``(tilt_deg)`` callback.
+                When both pan and tilt position callbacks are provided,
+                ``has_seperate_pan_tilt_control`` is set True.
+            goHomeCb (callable, optional): No-arg callback for native homing.
+            setHomePositionCb (callable, optional): ``(pan_deg, tilt_deg)``
+                callback to set the home position in the driver.
+            setHomePositionHereCb (callable, optional): No-arg callback to
+                capture the current position as home.
+            getNavPoseCb (callable, optional): No-arg callback returning a
+                navpose dict; used by the navpose update process.
+            navpose_update_rate (int): Status publish rate in Hz, clamped to
+                [1, 10].  Defaults to 10.
+            deviceResetCb (callable, optional): No-arg callback for device-level
+                reset.
+            calibrateCenterCB (callable, optional): No-arg callback for center
+                calibration.
+            log_name (str, optional): Additional log tag.
+            log_name_list (list, optional): Initial log tag list.
+            msg_if (MsgIF, optional): Shared MsgIF instance; a new one is
+                created if None.
+        """
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
@@ -801,7 +905,7 @@ class PTXActuatorIF:
             pass
         self.publish_status()
 
-    def resetCb(self,do_updates = True):
+    def resetCb(self, do_updates = True):
         if self.node_if is not None:
             pass # self.node_if.reset_params()
         if self.save_data_if is not None:
@@ -812,7 +916,7 @@ class PTXActuatorIF:
             pass
         self.initCb(do_updates = True)
 
-    def factoryResetCb(self,do_updates = True):
+    def factoryResetCb(self, do_updates = True):
         if self.node_if is not None:
             pass # self.node_if.factory_reset_params()
         if self.save_data_if is not None:
@@ -828,28 +932,28 @@ class PTXActuatorIF:
     ###############################
     # Class Methods
 
-    def getPanAdj(self,pan_deg):
+    def getPanAdj(self, pan_deg):
         return pan_deg * self.rpi
 
-    def getPanRatioAdj(self,ratio):
+    def getPanRatioAdj(self, ratio):
         if self.reverse_pan_enabled == True:
             ratio = 1 - ratio
         return ratio
 
-    def getTiltAdj(self,tilt_deg):
+    def getTiltAdj(self, tilt_deg):
         return tilt_deg * self.rti
 
-    def getPanTiltAdj(self,pan_deg,tilt_deg):
+    def getPanTiltAdj(self, pan_deg, tilt_deg):
         adj_pan = self.getPanAdj(pan_deg)
         adj_tilt = self.getTiltAdj(tilt_deg)
         return adj_pan,adj_tilt
 
-    def getTiltRatioAdj(self,ratio):
+    def getTiltRatioAdj(self, ratio):
         if self.reverse_tilt_enabled == True:
             ratio = 1 - ratio
         return ratio
 
-    def getPanMinMaxAdj(self,min_deg,max_deg):
+    def getPanMinMaxAdj(self, min_deg, max_deg):
         if self.reverse_pan_enabled == True:
             adj_min = copy.deepcopy(max_deg) * -1
             adj_max = copy.deepcopy(min_deg) * -1
@@ -858,7 +962,7 @@ class PTXActuatorIF:
             adj_max = max_deg
         return adj_min,adj_max
 
-    def getTiltMinMaxAdj(self,min_deg,max_deg):
+    def getTiltMinMaxAdj(self, min_deg, max_deg):
         if self.reverse_tilt_enabled == True:
             adj_min = copy.deepcopy(max_deg) * -1
             adj_max = copy.deepcopy(min_deg) * -1
@@ -867,7 +971,7 @@ class PTXActuatorIF:
             adj_max = max_deg
         return adj_min,adj_max
 
-    def getLimitsAdj(self,pan_min,pan_max,tilt_min,tilt_max):
+    def getLimitsAdj(self, pan_min, pan_max, tilt_min, tilt_max):
         [adj_pan_min,adj_pan_max] = self.getPanMinMaxAdj(pan_min,pan_max)
         [adj_tilt_min,adj_tilt_max] = self.getTiltMinMaxAdj(tilt_min,tilt_max)
         return adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max
@@ -957,9 +1061,22 @@ class PTXActuatorIF:
            
 
     def check_ready(self):
-        return self.ready  
+        """Return whether initialization has completed.
+
+        Returns:
+            bool: True if ``__init__`` completed successfully, False otherwise.
+        """
+        return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until initialization is complete or the timeout expires.
+
+        Args:
+            timeout (float): Maximum seconds to wait.  Defaults to infinity.
+
+        Returns:
+            bool: True if ready, False if timed out.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1303,10 +1420,30 @@ class PTXActuatorIF:
 
     ### Info callback
     def info_query_callback(self, _):
+        """Handle a ROS DeviceInfoQuery service request.
+
+        Returns:
+            DeviceInfoQueryResponse: Static device info populated at init time
+            (name, path, node name, namespace, serial number, hw/sw versions,
+            type).
+
+        Note:
+            Registered as the ``device_info_query`` service callback in
+            SRVS_DICT.
+        """
         return self.info_report
-        
 
     def capabilities_query_callback(self, _):
+        """Handle a ROS PTXCapabilitiesQuery service request.
+
+        Returns:
+            PTXCapabilitiesQueryResponse: Capability flags snapshot built at
+            init time from the supplied driver callbacks.
+
+        Note:
+            Registered as the ``capabilities_query`` service callback in
+            SRVS_DICT.
+        """
         return self.caps_report
     
   
@@ -1318,6 +1455,25 @@ class PTXActuatorIF:
 
 
     def publish_status(self, do_updates = False):
+        """Compute and publish the current PTX status and pan/tilt position.
+
+        If position feedback is available, reads the current position via
+        ``getPositionCb``, calculates pan/tilt speeds using a smoothed history
+        window, updates goal/home/limit fields in the status message, and
+        publishes both the ``DevicePTXStatus`` and ``NavPosePanTilt`` messages.
+
+        Args:
+            do_updates (bool): Reserved parameter, currently unused.
+                Defaults to False.
+
+        Returns:
+            float: Time in seconds spent computing and publishing the status.
+
+        Note:
+            Called periodically by ``_publishStatusCb`` at the configured
+            status update rate, and also called directly after any command
+            that changes actuator state.
+        """
         #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
