@@ -104,10 +104,10 @@ else
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
 
-	LOAD_CONFIG=0
-	script_file=update_etc_ssh_keys.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
+	# LOAD_CONFIG=0
+	# script_file=update_etc_ssh_keys.sh
+	# script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	# run_script $script_path $LOAD_CONFIG
 
 	#########################################
 
