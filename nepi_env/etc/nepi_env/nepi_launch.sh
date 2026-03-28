@@ -40,10 +40,13 @@ else
 	sudo rm -r /root/.cache  2>/dev/null
 	sudo rm -r /home/.ros  2>/dev/null
 	sudo rm -r /home/.cache  2>/dev/null
-	sudo rm -r /home/nepi/.ros  2>/dev/null
-	sudo rm -r /home/nepi/.cache  2>/dev/null
+
 	sudo rm -r /opt/nepi/nepi/.ros 2>/dev/null
 	sudo rm -r /opt/nepi/nepi/.cache  2>/dev/null
+	
+	sudo rm -r /home/${NEPI_USER}/.ros  2>/dev/null
+	sudo rm -r /home/${NEPI_USER}/.cache  2>/dev/null
+	sudo rm -r /home/${NEPI_USER}/.local/share/Trash/*
 
 	lost_found_path='/mnt/nepi_storage/lost+found'
 	if [[ -d "$lost_found_path" ]]; then
