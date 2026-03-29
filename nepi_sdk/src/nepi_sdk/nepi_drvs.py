@@ -276,7 +276,9 @@ def getDriversOrderedList(drvs_dict):
   for driver_name in drvs_dict.keys():
     name_list.append(driver_name)
     drv_dict = drvs_dict[driver_name]
-    order = drv_dict['order']
+    order = -1
+    if 'order' in drv_dict.keys():
+      order = drv_dict['order']
     if order == -1:
       order = 1000
     while(order in order_list):
