@@ -182,7 +182,7 @@ class SystemMgrNode():
     user_login_enabled = False
     user_login_password_valid = False
 
-
+    space_available = True
 
 
 
@@ -1144,12 +1144,19 @@ class SystemMgrNode():
         ###############
         # Check free disk space
         data_path = os.path.join(self.storage_folder, 'data')
-        space_good = nepi_utils.check_path_space(data_path,self.disk_required_percent)
-        if space_good == False:
+        space_available = nepi_utils.check_path_space(data_path,self.disk_required_percent)
+        if space_available == False and self.space_available == True:
             self.msg_if.pub_warn("Data folder minimum free space percent limit reached: " + str(self.disk_required_percent))
             free_space = self.disk_required_percent + self.disk_clean_percent
             self.msg_if.pub_warn("Deleting old data files to free up space in folder: " + str(data_path))
             nepi_utils.free_path_space(data_path,free_space)
+        space_available = nepi_utils.check_path_space(data_path,self.disk_required_percent)
+        if space_available == False:
+            self.space_available = False
+            self.msg_if.pub_warn("Failed to free disk space percent to: " + str(self.disk_required_percent))
+            self.msg_if.pub_warn("Data Saving Disabled")
+            
+        nepi_system.set_space_available(space_available)
         
             
 

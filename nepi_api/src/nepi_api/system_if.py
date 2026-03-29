@@ -579,6 +579,8 @@ class SaveDataIF:
     save_all_enabled = False
     save_all_rate = 0.0
 
+    space_available = False
+
 
     file_prefix = ""
     subfolder = ""
@@ -1170,23 +1172,24 @@ class SaveDataIF:
     #***************************
     # NEPI data saving utility functions
     def save(self,data_product,data,timestamp = None,save_check=True):
-        should_save = self.data_product_should_save(data_product)
-        snapshot_enabled = self.data_product_snapshot_enabled(data_product)
-        # Save data if enabled
-        self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
-        save_check = [should_save, snapshot_enabled, save_check]
-        self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check) , log_name_list = self.log_name_list, throttle_s = 5)
-        if should_save or snapshot_enabled or save_check == False:
-            if self.filename_dict['use_utc_tz'] == False:
-                timezone = self.timezone
-            else:
-                timezone = 'UTC'
-            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
-            self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
-            self.data_product_snapshot_reset(data_product)
-            self.save_rate_dict[data_product][1] = nepi_utils.get_time()
-        self.msg_if.pub_debug("Finished Checking save data: " + data_product , log_name_list = self.log_name_list, throttle_s = 5)
-        self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
+        if self.space_available == True:
+            should_save = self.data_product_should_save(data_product)
+            snapshot_enabled = self.data_product_snapshot_enabled(data_product)
+            # Save data if enabled
+            self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
+            save_check = [should_save, snapshot_enabled, save_check]
+            self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check) , log_name_list = self.log_name_list, throttle_s = 5)
+            if should_save or snapshot_enabled or save_check == False:
+                if self.filename_dict['use_utc_tz'] == False:
+                    timezone = self.timezone
+                else:
+                    timezone = 'UTC'
+                self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
+                self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
+                self.data_product_snapshot_reset(data_product)
+                self.save_rate_dict[data_product][1] = nepi_utils.get_time()
+            self.msg_if.pub_debug("Finished Checking save data: " + data_product , log_name_list = self.log_name_list, throttle_s = 5)
+            self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
 
 
     def create_filename_msg(self):
@@ -1293,6 +1296,8 @@ class SaveDataIF:
         last_tz = copy.deepcopy(self.timezone)
         self.timezone = tzd
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
+
+        self.space_available = nepi_system.get_space_available()
 
 
     def _capabilitiesHandler(self, req):

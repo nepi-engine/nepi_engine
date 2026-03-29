@@ -722,7 +722,7 @@ class NetworkMgr:
                         return primary_ip_addr
             return "Unknown Primary IP"
         else:
-            primary_ip_addr = self.nepi_config['NEPI_IP']
+            primary_ip_addr = self.nepi_config['NEPI_STATIC_IP']
             return primary_ip_addr
             # """
             # Attempts to find the primary IP address of the local machine.
