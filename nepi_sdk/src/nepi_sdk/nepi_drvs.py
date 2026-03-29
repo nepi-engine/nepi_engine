@@ -153,10 +153,15 @@ def refreshDriversDict(drivers_path,drvs_dict):
       #.log_warn('')
       #logger.log_warn('Updating drv: ' + driver_name)
       #logger.log_warn('Updating drv: ' + str(drvs_dict[driver_name]))
-      active = drvs_dict[driver_name]['active']
+      active = False
+      if 'active' in drvs_dict[driver_name].keys():
+        active = drvs_dict[driver_name]['active']
       #logger.log_warn("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
       get_drvs_dict[driver_name]['active'] = active
-      get_drvs_dict[driver_name]['order'] = drvs_dict[driver_name]['order']
+      order = -1
+      if 'order' in drvs_dict[driver_name].keys():
+        order = drvs_dict[driver_name]['order']
+      get_drvs_dict[driver_name]['order'] = order
       drv_dict = drvs_dict[driver_name]
       if 'DISCOVERY_DICT' in drv_dict.keys():
         if 'OPTIONS' in drv_dict['DISCOVERY_DICT'].keys():
