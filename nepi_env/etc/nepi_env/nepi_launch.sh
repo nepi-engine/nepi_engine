@@ -48,6 +48,7 @@ else
 	sudo rm -r /home/${NEPI_USER}/.cache  2>/dev/null
 	sudo rm -r /home/${NEPI_USER}/.local/share/Trash/*
 
+
 	lost_found_path='/mnt/nepi_storage/lost+found'
 	if [[ -d "$lost_found_path" ]]; then
 		echo "Clearing lost and found in: ${lost_found_path}"
