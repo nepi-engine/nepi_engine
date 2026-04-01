@@ -27,7 +27,7 @@
 
 
 import numpy as np
-import ros_numpy
+import ros_numpy as rnp
 import os
 import math
 
@@ -91,7 +91,7 @@ def o3dpc_to_rospc(o3d_pc, stamp=None, frame_id=None):
     Args:
         o3dpc (o3d.geometry.PointCloud): open3d point cloud
         frame_id (string): frame id of ros point cloud header
-        stamp (rospy.Time): time stamp of ros point cloud header
+        stamp (nepi_sdk.Time): time stamp of ros point cloud header
     Returns:
         rospc (sensor.msg.PointCloud2): ros point cloud message
     '''
@@ -102,7 +102,7 @@ def o3dpc_to_rospc(o3d_pc, stamp=None, frame_id=None):
 
 def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     np_array = np.asarray(o3d_img)
-    ros_img_msg = ros_numpy.image.numpy_to_image(np_array, encoding)
+    ros_img_msg = rnp.image.numpy_to_image(np_array, encoding)
     
     if stamp is None:
         ros_img_msg.header.stamp = nepi_sdk.get_msg_stamp()
@@ -117,7 +117,7 @@ def o3dimg_to_rosimg(o3d_img, stamp=None, frame_id=None, encoding="rgb8"):
     
 
 def rosimg_to_o3dimg(ros_img_msg):
-    np_array = ros_numpy.image.image_to_numpy(ros_img_msg)  
+    np_array = rnp.image.image_to_numpy(ros_img_msg)  
     o3d_img = o3d.geometry.Image(np_array)
     return o3d_img
 

@@ -95,7 +95,7 @@ def launch_scripts(script_list,launch_script_service,get_installed_scripts_servi
             if script_launch:
               logger.log_info("Script launch call success")
               script_running = False
-              while script_running is False and not rospy.is_shutdown():
+              while script_running is False and not nepi_sdk.is_shutdown():
                 running_scripts = get_running_scripts(get_running_scripts_service)
                 script_running = nepi_utils.nepi_utils.val_in_list(script2launch,running_scripts)
                 logger.log_info("Waiting for script to launch")
@@ -152,34 +152,34 @@ def startup_script_initialize(self,NEPI_BASE_NAMESPACE):
   AUTO_LAUNCH_SCRIPT_SERVICE_NAME = NEPI_BASE_NAMESPACE + "launch_script"
   AUTO_STOP_SCRIPT_SERVICE_NAME = NEPI_BASE_NAMESPACE + "stop_script"
   ## Create Class Service Calls
-  self.get_installed_scripts_service = rospy.ServiceProxy(AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME, GetScriptsQuery )
-  self.get_running_scripts_service = rospy.ServiceProxy(AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME, GetRunningScriptsQuery )
-  self.launch_script_service = rospy.ServiceProxy(AUTO_LAUNCH_SCRIPT_SERVICE_NAME, LaunchScript)
-  self.stop_script_service = rospy.ServiceProxy(AUTO_STOP_SCRIPT_SERVICE_NAME, StopScript)
+  self.get_installed_scripts_service = nepi_sdk.connect_service(AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME, GetScriptsQuery )
+  self.get_running_scripts_service = nepi_sdk.connect_service(AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME, GetRunningScriptsQuery )
+  self.launch_script_service = nepi_sdk.connect_service(AUTO_LAUNCH_SCRIPT_SERVICE_NAME, LaunchScript)
+  self.stop_script_service = nepi_sdk.connect_service(AUTO_STOP_SCRIPT_SERVICE_NAME, StopScript)
   ## Create Class Publishers
   ## Start Class Subscribers
   ## Start Node Processes
-  rospy.loginfo("NEPI_ROS: ")
-  rospy.loginfo("NEPI_ROS: ***********************")
-  rospy.loginfo("NEPI_ROS: Starting Initialization")
+  nepi_sdk.log_msg_info("NEPI_ROS: ")
+  nepi_sdk.log_msg_info("NEPI_ROS: ***********************")
+  nepi_sdk.log_msg_info("NEPI_ROS: Starting Initialization")
   ### Get list of installed scripts
-  rospy.loginfo("NEPI_ROS: Getting list of installed scripts")
-  rospy.loginfo(["Calling service name: " + AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME])
-  while self.scripts_installed_at_start == None and not rospy.is_shutdown():
+  nepi_sdk.log_msg_info("NEPI_ROS: Getting list of installed scripts")
+  nepi_sdk.log_msg_info(["Calling service name: " + AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME])
+  while self.scripts_installed_at_start == None and not nepi_sdk.is_shutdown():
       self.scripts_installed_at_start = get_installed_scripts(self.get_installed_scripts_service)
       if self.scripts_installed_at_start == None:
-        rospy.loginfo("NEPI_ROS: Service call failed, waiting 1 second then retrying")
+        nepi_sdk.log_msg_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
         time.sleep(1)
-  #rospy.loginfo("NEPI_ROS: Scripts installed at start:")
-  #rospy.loginfo(self.scripts_installed_at_start)
+  #nepi_sdk.log_msg_info("NEPI_ROS: Scripts installed at start:")
+  #nepi_sdk.log_msg_info(self.scripts_installed_at_start)
   ### Get list of running scripts
-  rospy.loginfo("NEPI_ROS: ")
-  rospy.loginfo("NEPI_ROS: Getting list of running scripts at start")
-  rospy.loginfo(["Calling service name: " + AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME])
-  while self.scripts_running_at_start == None and not rospy.is_shutdown():
+  nepi_sdk.log_msg_info("NEPI_ROS: ")
+  nepi_sdk.log_msg_info("NEPI_ROS: Getting list of running scripts at start")
+  nepi_sdk.log_msg_info(["Calling service name: " + AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME])
+  while self.scripts_running_at_start == None and not nepi_sdk.is_shutdown():
       self.scripts_running_at_start = get_running_scripts(self.get_running_scripts_service)
       if self.scripts_running_at_start == None:
-        rospy.loginfo("NEPI_ROS: Service call failed, waiting 1 second then retrying")
+        nepi_sdk.log_msg_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
         time.sleep(1)
-  #rospy.loginfo("NEPI_ROS: Scripts running at start:")
-  #rospy.loginfo(self.scripts_running_at_start)
+  #nepi_sdk.log_msg_info("NEPI_ROS: Scripts running at start:")
+  #nepi_sdk.log_msg_info(self.scripts_running_at_start)

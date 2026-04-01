@@ -24,14 +24,15 @@
 # 3. Stops scripts from list
 # 4. Relaunchs any scripts that were running at Start
 
-import rospy
+
 import os
 import sys
 import numpy as np
 import math
 import time
 
-import nepi_utils
+from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
 
 from std_srvs.srv import Empty, EmptyRequest, Trigger
 from nepi_interfaces.srv import GetScriptsQuery,GetRunningScriptsQuery ,LaunchScript, StopScript
@@ -54,10 +55,10 @@ AUTO_STOP_SCRIPT_SERVICE_NAME = NEPI_BASE_NAMESPACE + "stop_script"
 #####################################################################################
 # Globals
 #####################################################################################
-get_installed_scripts_service = rospy.ServiceProxy(AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME, GetScriptsQuery )
-get_running_scripts_service = rospy.ServiceProxy(AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME, GetRunningScriptsQuery )
-launch_script_service = rospy.ServiceProxy(AUTO_LAUNCH_SCRIPT_SERVICE_NAME, LaunchScript)
-stop_script_service = rospy.ServiceProxy(AUTO_STOP_SCRIPT_SERVICE_NAME, StopScript)
+get_installed_scripts_service = nepi_sdk.connect_service(AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME, GetScriptsQuery )
+get_running_scripts_service = nepi_sdk.connect_service(AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME, GetRunningScriptsQuery )
+launch_script_service = nepi_sdk.connect_service(AUTO_LAUNCH_SCRIPT_SERVICE_NAME, LaunchScript)
+stop_script_service = nepi_sdk.connect_service(AUTO_STOP_SCRIPT_SERVICE_NAME, StopScript)
 scripts_installed_at_start = None
 scripts_running_at_start = None
 #####################################################################################
@@ -74,7 +75,7 @@ def initialize_actions():
   ### Get list of installed scripts
   print("Getting list of installed scripts")
   print(["Calling service name: " + AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME])
-  while scripts_installed_at_start == None and not rospy.is_shutdown():
+  while scripts_installed_at_start == None and not nepi_sdk.is_shutdown():
       scripts_installed_at_start = get_installed_scripts()
       if scripts_installed_at_start == None:
         print("Service call failed, waiting 1 second then retrying")
@@ -85,7 +86,7 @@ def initialize_actions():
   print("")
   print("Getting list of running scripts at start")
   print(["Calling service name: " + AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME])
-  while scripts_running_at_start == None and not rospy.is_shutdown():
+  while scripts_running_at_start == None and not nepi_sdk.is_shutdown():
       scripts_running_at_start = get_running_scripts()
       if scripts_running_at_start == None:
         print("Service call failed, waiting 1 second then retrying")
@@ -160,7 +161,7 @@ def launch_scripts(script_list):
             if script_launch:
               print("Script launch call success")
               script_running = False
-              while script_running is False and not rospy.is_shutdown():
+              while script_running is False and not nepi_sdk.is_shutdown():
                 running_scripts = get_running_scripts()
                 script_running = nepi_utils.val_in_list(script2launch,running_scripts)
                 print("Waiting for script to launch")
@@ -227,16 +228,16 @@ def cleanup_actions():
 
 ### Script Entrypoint
 def startNode():
-  rospy.init_node("start_stop_scripts_helper_script")
-  rospy.loginfo("Starting Start Stop Scripts helper script")
+  nepi_sdk.init_node("start_stop_scripts_helper_script")
+  nepi_sdk.log_msg_info("Starting Start Stop Scripts helper script")
   # Run initialization processes
   initialize_actions()
   # Launch scripts from list
   launch_scripts(SCRIPT_LIST)
   # run cleanup actions on shutdown
-  rospy.on_shutdown(cleanup_actions)
+  nepi_sdk.on_shutdown(cleanup_actions)
   # Spin forever
-  rospy.spin()
+  nepi_sdk.spin()
 
 #####################################################################################
 # Main

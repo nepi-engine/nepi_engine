@@ -23,12 +23,16 @@
 # Adapted from https://github.com/hirschmanner/open3d-ros-helper/blob/master/open3d_ros_helper/open3d_ros_helper.py
 # Updated for use in NEPI Engine
 
-import ros_numpy
+import ros_numpy as rnp
+
+
 import open3d as o3d
 import tf.transformations as t
-import rospy
+
 import copy
 import cv2
+
+from nepi_sdk import nepi_sdk
 from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import Pose, PoseStamped, Transform, TransformStamped
 import numpy as np
@@ -133,7 +137,7 @@ def pq_to_pose_stamped(p, q, source_frame, target_frame, stamp=None):
     """
     pose_stamped = PoseStamped()
     pose_stamped.header.frame_id = source_frame
-    if stamp is None: stamp = rospy.Time.now() 
+    if stamp is None: stamp = nepi_sdk.get_msg_stamp() 
     pose_stamped.header.stamp = stamp
     pose_stamped.child_frame_id = target_frame
     pose_stamped.pose = pq_to_pose(p, q)
@@ -191,7 +195,7 @@ def pq_to_transform_stamped(p, q, source_frame, target_frame, stamp=None):
 
     transform_stamped = TransformStamped()
     transform_stamped.header.frame_id = source_frame
-    if stamp is None: stamp = rospy.Time.now() 
+    if stamp is None: stamp = nepi_sdk.get_msg_stamp() 
     transform_stamped.header.stamp = stamp
     transform_stamped.child_frame_id = target_frame
     transform_stamped.transform = pq_to_transform(p, q)
@@ -222,7 +226,7 @@ def se3_to_transform_stamped(transform_nparray, source_frame, target_frame, stam
     """
     pos = transform_nparray[:3, 3] 
     quat = t.quaternion_from_matrix(transform_nparray)
-    if stamp is None: stamp = rospy.Time.now() 
+    if stamp is None: stamp = nepi_sdk.get_msg_stamp() 
     transform_stamped = pq_to_transform_stamped(pos, quat, source_frame, target_frame, stamp)
     return transform_stamped
 
@@ -282,7 +286,7 @@ def rospc_to_o3dpc(rospc, remove_nans=False):
     Returns: 
         o3dpc (o3d.geometry.PointCloud): Open3D PointCloud
     """
-    cloud_array = ros_numpy.point_cloud2.pointcloud2_to_array(rospc).ravel()
+    cloud_array = rnp.point_cloud2.pointcloud2_to_array(rospc).ravel()
 
     if remove_nans:
         # Remove NaN values
@@ -319,7 +323,7 @@ def o3dpc_to_rospc(o3dpc, stamp=None, frame_id=None):
     Args:
         o3dpc (o3d.geometry.PointCloud): open3d point cloud
         frame_id (string): frame id of ros point cloud header
-        stamp (rospy.Time): time stamp of ros point cloud header
+        stamp (nepi_sdk.TimeMsgClasss): time stamp of ros point cloud header
     Returns:
         rospc (sensor.msg.PointCloud2): ros point cloud message
     """
@@ -353,10 +357,10 @@ def o3dpc_to_rospc(o3dpc, stamp=None, frame_id=None):
         rgb_npy = rgb_npy.astype(np.uint32)
         data['rgb'] = rgb_npy
 
-    rospc = ros_numpy.msgify(PointCloud2, data)
+    rospc = rnp.msgify(PointCloud2, data)
 
     if stamp is None:
-        rospc.header.stamp = rospy.Time.now()
+        rospc.header.stamp = nepi_sdk.get_msg_stamp()
     else:
         rospc.header.stamp = stamp
     

@@ -23,10 +23,11 @@
 # Requires the following additional scripts are running
 # a)
 
-import rospy
+
 import time
 import sys
-from resources import nepi
+
+from nepi_sdk import nepi_sdk
 
 from std_msgs.msg import Empty, Float32
 
@@ -51,7 +52,7 @@ class name_of_file_without_script(object):
   #######################
   ### Node Initialization
   def __init__(self):
-    rospy.loginfo("Starting Initialization Processes")
+    nepi_sdk.log_msg_info("Starting Initialization Processes")
     ## Initialize Class Variables
     ## Define Class Namespaces
     ## Define Class Services Calls
@@ -60,7 +61,7 @@ class name_of_file_without_script(object):
     ## Start Class Subscribers
     ## Start Node Processes
     ## Initiation Complete
-    rospy.loginfo("Initialization Complete")
+    nepi_sdk.log_msg_info("Initialization Complete")
 
   #######################
   ### Node Methods
@@ -70,7 +71,7 @@ class name_of_file_without_script(object):
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    rospy.loginfo("Shutting down: Executing script cleanup actions")
+    nepi_sdk.log_msg_info("Shutting down: Executing script cleanup actions")
 
 
 #########################################
@@ -79,15 +80,15 @@ class name_of_file_without_script(object):
 if __name__ == '__main__':
   current_filename = sys.argv[0].split('/')[-1]
   current_filename = current_filename.split('.')[0]
-  rospy.loginfo(("Starting " + current_filename), disable_signals=True) # Disable signals so we can force a shutdown
-  rospy.init_node(name=current_filename)
+  nepi_sdk.log_msg_info(("Starting " + current_filename), disable_signals=True) # Disable signals so we can force a shutdown
+  nepi_sdk.init_node(name=current_filename)
   #Launch the node
   node_name = current_filename.rpartition("_")[0]
-  rospy.loginfo("Launching node named: " + node_name)
+  nepi_sdk.log_msg_info("Launching node named: " + node_name)
   node_class = eval(node_name)
   node = node_class()
   #Set up node shutdown
-  rospy.on_shutdown(node.cleanup_actions)
+  nepi_sdk.on_shutdown(node.cleanup_actions)
   # Spin forever (until object is detected)
-  rospy.spin()
+  nepi_sdk.spin()
 

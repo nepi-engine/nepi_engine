@@ -241,6 +241,9 @@ def get_unique_name_from_namespace(namespace,base_namespace, add_name = None):
 #######################
 ### Node Utility Functions
 
+def myargv():
+  return rospy.myargv(sys.argv)
+
 def init_node(name,disable_signals=False):
   rospy.init_node(name,disable_signals=disable_signals)
 
@@ -984,6 +987,9 @@ def start_timer_process(duration, callback_function, oneshot = False, log_name_l
 #########################
 ### Time Helper Functions
 
+def TimeMsgClasss():
+  return rospy.Time
+
 def get_time():
   return time.time_ns() / 1000000000
 
@@ -1171,5 +1177,4 @@ def signal_shutdown(msg):
 def on_shutdown(shutdown_fuction):
   rospy.on_shutdown(shutdown_fuction)
 
-def Time(float):
-  rospy.Time(float)
+

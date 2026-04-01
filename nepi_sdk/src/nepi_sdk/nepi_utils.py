@@ -339,7 +339,7 @@ def check_make_folder(pathname):
     try:
       os.makedirs(pathname)
       logger.log_info("Made folder: " + pathname)
-    except rospy.ServiceException as e:
+    except Exception as e:
       logger.log_info("Failed to make folder: " + pathname + " with exeption" + str(e))
   return os.path.exists(pathname)
 

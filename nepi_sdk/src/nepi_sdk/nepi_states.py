@@ -22,7 +22,6 @@
 
   
 import os
-import rospy
 import time
 import copy
 

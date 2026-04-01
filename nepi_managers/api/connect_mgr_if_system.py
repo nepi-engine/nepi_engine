@@ -233,15 +233,15 @@ class ConnectMgrSystemIF:
         # Publishers Config Dict ####################
         self.PUBS_DICT = None
         '''  #  Need to add publishers
-        self.save_data_pub = rospy.Publisher(self._get_ns('save_data'), SaveData, queue_size=10)
-        self.clear_data_folder_pub = rospy.Publisher(self._get_ns('clear_data_folder'), Empty, queue_size=10)
-        self.set_op_environment_pub = rospy.Publisher(self._get_ns('set_op_environment'), String, queue_size=10)
-        self.set_device_id_pub = rospy.Publisher(self._get_ns('set_device_id'), String, queue_size=10)
-        self.submit_system_error_msg_pub = rospy.Publisher(self._get_ns('submit_system_error_msg'), String, queue_size=10)
-        self.install_new_image_pub = rospy.Publisher(self._get_ns('install_new_image'), String, queue_size=10)
-        self.switch_active_inactive_rootfs_pub = rospy.Publisher(self._get_ns('switch_active_inactive_rootfs'), Empty, queue_size=10)
-        self.archive_inactive_rootfs_pub = rospy.Publisher(self._get_ns('archive_inactive_rootfs'), Empty, queue_size=10)
-        self.save_data_prefix_pub = rospy.Publisher(self._get_ns('save_data_prefix'), String, queue_size=10)
+        self.save_data_pub = nepi_sdk.create_publisher(self._get_ns('save_data'), SaveData, queue_size=10)
+        self.clear_data_folder_pub = nepi_sdk.create_publisher(self._get_ns('clear_data_folder'), Empty, queue_size=10)
+        self.set_op_environment_pub = nepi_sdk.create_publisher(self._get_ns('set_op_environment'), String, queue_size=10)
+        self.set_device_id_pub = nepi_sdk.create_publisher(self._get_ns('set_device_id'), String, queue_size=10)
+        self.submit_system_error_msg_pub = nepi_sdk.create_publisher(self._get_ns('submit_system_error_msg'), String, queue_size=10)
+        self.install_new_image_pub = nepi_sdk.create_publisher(self._get_ns('install_new_image'), String, queue_size=10)
+        self.switch_active_inactive_rootfs_pub = nepi_sdk.create_publisher(self._get_ns('switch_active_inactive_rootfs'), Empty, queue_size=10)
+        self.archive_inactive_rootfs_pub = nepi_sdk.create_publisher(self._get_ns('archive_inactive_rootfs'), Empty, queue_size=10)
+        self.save_data_prefix_pub = nepi_sdk.create_publisher(self._get_ns('save_data_prefix'), String, queue_size=10)
 
         # Publishers Config Dict ####################
         self.PUBS_DICT = {

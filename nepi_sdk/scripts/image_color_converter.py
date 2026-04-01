@@ -18,7 +18,7 @@
 #
 
 import sys
-import rospy
+from nepi_sdk import nepi_sdk
 from sensor_msgs.msg import Image, CameraInfo
 import cv2 # Must come before cv_bridge on Jetson Ubuntu 20.04 for some reason!
 from cv_bridge import CvBridge
@@ -33,17 +33,16 @@ ROS_NAMESPACE=/numurus/dev_3dx/device_0/sensor_3dx/stereo_cam_driver/left_raw py
 class ColorSwapper(object):
     def __init__(self, name_topic_in, output_color_encoding):
         self.cv_bridge = CvBridge()
-        rospy.loginfo("Converting Images from topic " + name_topic_in +
-                      " to " + output_color_encoding)
+        nepi_sdk.log_msg_info("Converting Images from topic " + name_topic_in + "" to " + output_color_encoding)
         self.output_color_encoding = output_color_encoding
         self.ci_msg = None
 
-        self.sub = rospy.Subscriber(
+        self.sub = nepi_sdk.create_subscriber(
             name_topic_in, Image, self.image_cb, queue_size=5)
-        self.ci_sub = rospy.Subscriber('camera_info', CameraInfo, self.ci_cb, queue_size=5)
+        self.ci_sub = nepi_sdk.create_subscriber('camera_info', CameraInfo, self.ci_cb, queue_size=5)
 
-        self.pub = rospy.Publisher(name_topic_in + '_' + self.output_color_encoding, Image, queue_size=5)
-        self.ci_pub = rospy.Publisher('camera_info_' + output_color_encoding, CameraInfo, queue_size=5)
+        self.pub = nepi_sdk.create_publisher(name_topic_in + '_' + self.output_color_encoding, Image, queue_size=5)
+        self.ci_pub = nepi_sdk.create_publisher('camera_info_' + output_color_encoding, CameraInfo, queue_size=5)
 
     def image_cb(self, img_msg):
         # Transform to cv2/numpy image
@@ -79,8 +78,8 @@ class ColorSwapper(object):
         return None
 
 if __name__ == '__main__':
-    argv = rospy.myargv(sys.argv)
-    rospy.init_node(argv[1])
+    argv = nepi_sdk.myargv()
+    nepi_sdk.init_node(argv[1])
     cs = ColorSwapper(argv[2], argv[3])
 
-    rospy.spin()
+    nepi_sdk.spin()
