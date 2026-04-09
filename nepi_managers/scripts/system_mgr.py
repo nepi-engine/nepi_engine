@@ -989,7 +989,7 @@ class SystemMgrNode():
                 self.add_info_string(
                     WarningFlags.CRITICAL_TEMPERATURE_STRING, StampedString.PRI_HIGH)
                 # Set the throttle ratio to 0% globally
-                self.msg_if.log_msg_warn("temperature: " + str(WarningFlags.CRITICAL_TEMPERATURE_STRING) + " " + str(t))
+                self.msg_if.pub_error("temperature: " + str(WarningFlags.CRITICAL_TEMPERATURE_STRING) + " " + str(t), throttle_s = 600)
                 throttle_ratio_min = 0.0
             else:
                 self.status_msg.warnings.flags[WarningFlags.CRITICAL_TEMPERATURE] = False
