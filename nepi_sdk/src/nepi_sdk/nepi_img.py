@@ -1006,6 +1006,30 @@ def write_image_file(file_path,cv2_img, log_name_list = []):
 #########################
 # Image Analysis Functions
 
+
+def adjust_bgr_color(color_bgr = (147, 175, 35), h_sensitivity = 0.5, s_sensitivity = 0.5, v_sensitivity = 0.5):
+
+    color_array = np.array([[[color_bgr[0], color_bgr[1], color_bgr[2]]]], dtype=np.uint8)
+    hsv_color = cv2.cvtColor(color_array, cv2.COLOR_BGR2HSV)[0,0,:]
+    #logger.log_warn("Using HSV Color " + str(hsv_color ))
+
+  
+  
+    hsv_color_adjusted = np.uint8([[[
+      int(min(90, max(0, hsv_color[0] + 90 * (-0.5 + h_sensitivity )))),
+      int(min(255, max(0, hsv_color[1] + 128 * (-0.5 + s_sensitivity )))),
+      int(min(255, max(0, hsv_color[2] + 128 * (-0.5 + v_sensitivity ))))
+    ]]])
+    logger.log_warn("Got hbr adjust color: " + str(hsv_color_adjusted))
+    # hsv_color = np.uint8([[[120, 255, 255]]]) # Example: Pure Green in OpenCV HSV
+    bgr_color = cv2.cvtColor(hsv_color_adjusted, cv2.COLOR_HSV2BGR)
+    logger.log_warn("Got bgr adjust color: " + str(bgr_color))
+
+    color_bgr_adjusted = (int(bgr_color[0,0,0]),int(bgr_color[0,0,1]),int(bgr_color[0,0,2]))
+    return color_bgr_adjusted
+
+
+
 def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , hscalers = [2,2], sscalers = [2,2], vscalers = [2,2]):
 
     # Convert to HSV and isolate laser color (example for red laser)
