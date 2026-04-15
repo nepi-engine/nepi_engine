@@ -127,10 +127,10 @@ else
 		return 1
 	fi
 
-	LOAD_CONFIG=0
-	script_file=update_sys_config.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
+	# LOAD_CONFIG=0
+	# script_file=update_sys_config.sh
+	# script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	# run_script $script_path $LOAD_CONFIG
 
 	
 	LOAD_CONFIG=0

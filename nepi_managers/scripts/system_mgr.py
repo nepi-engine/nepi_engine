@@ -1453,22 +1453,7 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Invalid device ID: " +  str(msg.data))
             return
 
-        # Otherwise, overwrite the DEVICE_ID in sys_env.bash
-        file_lines = []
-        with open(self.SYS_ENV_PATH, "r") as f:
-            for line in f:
-                if line.startswith("export DEVICE_ID"):
-                    file_lines.append("export DEVICE_ID=" + msg.data + '\n')
-                else:
-                    file_lines.append(line)
-        tmp_filename = self.SYS_ENV_PATH + ".tmp"
-        with open(tmp_filename, "w") as f:
-            for line in file_lines:
-                f.write(line)
-
-        # Now overwrite the original file as an autonomous operation
-        os.rename(tmp_filename, self.SYS_ENV_PATH)
-        # Update etc files
+        # Otherwise, overwrite the NEPI_DEVICE_ID in sys_env.bash
         nepi_system.update_nepi_system_config("NEPI_DEVICE_ID",msg.data)
         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_hostname.sh"
         subprocess.call([etc_update_script])
