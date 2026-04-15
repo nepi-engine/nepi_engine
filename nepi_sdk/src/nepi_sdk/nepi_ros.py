@@ -143,12 +143,13 @@ class logger:
     #######################
     ### IF Initialization
     def __init__(self, log_name = None, log_name_list = []):
-        if log_name_list is None:
-          log_name_list = []
-        if log_name is not None:
-            log_name_list = [log_name] + log_name_list
-        if len(log_name_list) > 0:
-          self.ln_str = str(' : '.join(log_name_list)) + ": " 
+        # if log_name_list is None:
+        #   log_name_list = []
+        # if log_name is not None:
+        #     log_name_list = [log_name] + log_name_list
+        # if len(log_name_list) > 0:
+        #   self.ln_str = str(' : '.join(log_name_list)) + ": " 
+        self.ln_str = str(log_name) + ": " 
 
     ###############################
     # Class Public Methods

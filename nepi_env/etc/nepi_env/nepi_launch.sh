@@ -19,6 +19,10 @@ BASHRC=/home/nepi/.bashrc
 echo "Sourcing NEPI Bashrc: ${BASHRC}"
 source $BASHRC
 
+
+
+
+
 nepi_count=$(process_count "nepi_engine")
 if [[ "$nepi_count" -gt 1 ]]; then
 	echo ""
@@ -29,6 +33,38 @@ else
 
 
 	#####################################
+
+	echo "Running NEPI Setup Scripts"
+	source /opt/nepi/nepi_engine/setup.sh
+	if [[ "$?" -ne 0 ]]; then
+		echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
+		return 1
+	fi
+
+	if [ ! -f ${SYS_BASH_FILE} ]; then
+		echo "ERROR! Could not find ${SYS_BASH_FILE}"
+		return 1
+	fi
+
+	echo ""
+	echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
+	source ${SYS_BASH_FILE}
+
+	# CHECK FOR VALID ROS Package
+	if [ "$ROS1_PACKAGE" = "TBD" ] || [ "$ROS1_LAUNCH_FILE" = "TBD" ]; then
+		echo "ERROR! No ROS defs in ${SYS_BASH_FILE}... nothing to launch"
+		return 0
+	fi
+
+	# This is a good place to monitor and purge large log sets
+	ROS_LOG_SIZE=($(rosclean check))
+	echo ROS Log Size: $ROS_LOG_SIZE
+	# A "G" in the size indicates logs are over 1GB, so we purge
+	if grep -q "G" <<< "$ROS_LOG_SIZE"; then
+		echo "Purging ROS logs because they exceed 1GB"
+		yes | rosclean purge
+	fi
+
 
 	ros_log_path=/mnt/nepi_storage/logs/ros_log
 	if [[ -d "$ros_log_path" ]]; then
@@ -115,36 +151,7 @@ else
 
 	#########################################
 
-	echo "Running NEPI Setup Script"
-	source /opt/nepi/nepi_engine/setup.sh
-	if [[ "$?" -ne 0 ]]; then
-		echo "ERROR! Failed to call nepi_engine setup script from /opt/nepi/nepi_engine/setup.sh"
-		return 1
-	fi
 
-	if [ ! -f ${SYS_BASH_FILE} ]; then
-		echo "ERROR! Could not find ${SYS_BASH_FILE}"
-		return 1
-	fi
-
-	echo ""
-	echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
-	source ${SYS_BASH_FILE}
-
-	# CHECK FOR VALID ROS Package
-	if [ "$ROS1_PACKAGE" = "TBD" ] || [ "$ROS1_LAUNCH_FILE" = "TBD" ]; then
-		echo "ERROR! No ROS defs in ${SYS_BASH_FILE}... nothing to launch"
-		return 0
-	fi
-
-	# This is a good place to monitor and purge large log sets
-	ROS_LOG_SIZE=($(rosclean check))
-	echo ROS Log Size: $ROS_LOG_SIZE
-	# A "G" in the size indicates logs are over 1GB, so we purge
-	if grep -q "G" <<< "$ROS_LOG_SIZE"; then
-		echo "Purging ROS logs because they exceed 1GB"
-		yes | rosclean purge
-	fi
 
 
 	# # Check for and restore any broken config files, since that will cause roslaunch to fail
