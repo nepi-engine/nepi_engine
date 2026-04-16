@@ -1040,11 +1040,6 @@ class PTXActuatorIF:
                 self.min_tilt_softstop_deg = min_tilt_adj
                 self.max_tilt_softstop_deg = max_tilt_adj
 
-                #self.msg_if.pub_info("Calling set auto pan limits with: " + str([min_pan_adj, max_pan_adj]))
-                self.setAutoPanWindow( min_pan_adj, max_pan_adj)
-                #self.msg_if.pub_info("Calling set auto tilt limits with: " + str([min_tilt_adj, max_tilt_adj]))
-                self.setAutoTiltWindow( min_tilt_adj, max_tilt_adj)
-
                 if None not in [min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj]:
                     if self.setSoftLimitsCb is not None:
                         self.setSoftLimitsCb(min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj)
