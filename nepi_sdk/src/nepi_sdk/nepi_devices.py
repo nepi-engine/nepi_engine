@@ -57,8 +57,8 @@ def get_idx_device_namespaces(name):
     s_topics = nepi_sdk.find_topics_by_msg(msg_type)
     topics = []
     for topic in s_topics:
-    	topic = topic.replace('/status','')
-    	topics.append(topic)
+        topic = topic.replace('/status','')
+        topics.append(topic)
     return topics
 
 
@@ -70,8 +70,8 @@ def get_ptx_device_namespaces(name):
     s_topics = nepi_sdk.find_topics_by_msg(msg_type)
     topics = []
     for topic in s_topics:
-    	topic = topic.replace('/status','')
-    	topics.append(topic)
+        topic = topic.replace('/status','')
+        topics.append(topic)
     return topics
     
 ###########################################
@@ -82,8 +82,8 @@ def get_lsx_device_namespaces(name):
     s_topics = nepi_sdk.find_topics_by_msg(msg_type)
     topics = []
     for topic in s_topics:
-    	topic = topic.replace('/status','')
-    	topics.append(topic)
+        topic = topic.replace('/status','')
+        topics.append(topic)
     return topics
     
 ###########################################
@@ -94,8 +94,8 @@ def get_npx_device_namespaces(name):
     s_topics = nepi_sdk.find_topics_by_msg(msg_type)
     topics = []
     for topic in s_topics:
-    	topic = topic.replace('/status','')
-    	topics.append(topic)
+        topic = topic.replace('/status','')
+        topics.append(topic)
     return topics
     
 
@@ -107,7 +107,7 @@ def get_rbx_device_namespaces(name):
     s_topics = nepi_sdk.find_topics_by_msg(msg_type)
     topics = []
     for topic in s_topics:
-    	topic = topic.replace('/status','')
-    	topics.append(topic)
+        topic = topic.replace('/status','')
+        topics.append(topic)
     return topics
     

@@ -760,6 +760,7 @@ class SystemMgrNode():
         self.msg_if.pub_warn("Starting System Status Messages")
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
+        nepi_sdk.start_timer_process(60000, self.ClearLogsCb, oneshot = True)
         nepi_sdk.start_timer_process(5, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
 
@@ -1053,7 +1054,15 @@ class SystemMgrNode():
         #self.msg_if.pub_warn("Got Services List: " + str(servicess_list))
         self.status_msg.active_services = servicess_list
         nepi_sdk.start_timer_process(5, self.updateTopicsServicesCb, oneshot = True)
+
+
+
+    def ClearLogsCb(self, event):
+        subprocess.run(["rosclean", "purge", "-y"])
+        nepi_sdk.start_timer_process(60000, self.ClearLogsCb, oneshot = True)
  
+
+
 
 
     def setSaveStatusCb(self, save_msg):
