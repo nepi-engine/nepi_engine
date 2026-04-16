@@ -13,7 +13,6 @@ cur_dir=$(pwd)
 
 ETC_FOLDER=/opt/nepi/etc
 NEPI_ETC_SCRIPTS=${ETC_FOLDER}/scripts
-SYS_BASH_FILE=/opt/nepi/etc/sys_env.bash
 
 BASHRC=/home/nepi/.bashrc
 echo "Sourcing NEPI Bashrc: ${BASHRC}"
@@ -41,20 +40,6 @@ else
 		return 1
 	fi
 
-	if [ ! -f ${SYS_BASH_FILE} ]; then
-		echo "ERROR! Could not find ${SYS_BASH_FILE}"
-		return 1
-	fi
-
-	echo ""
-	echo "Sourcing nepi sys bash file ${SYS_BASH_FILE}"
-	source ${SYS_BASH_FILE}
-
-	# CHECK FOR VALID ROS Package
-	if [ "$ROS1_PACKAGE" = "TBD" ] || [ "$ROS1_LAUNCH_FILE" = "TBD" ]; then
-		echo "ERROR! No ROS defs in ${SYS_BASH_FILE}... nothing to launch"
-		return 0
-	fi
 
 	# This is a good place to monitor and purge large log sets
 	ROS_LOG_SIZE=($(rosclean check))
@@ -127,12 +112,7 @@ else
 		return 1
 	fi
 
-	# LOAD_CONFIG=0
-	# script_file=update_sys_config.sh
-	# script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	# run_script $script_path $LOAD_CONFIG
 
-	
 	LOAD_CONFIG=0
 	script_file=update_sys_bash.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
@@ -158,8 +138,16 @@ else
 	# echo "Running pre-launch config file checks"
 	# python /opt/nepi/nepi_engine/etc/nepi_env/fix_broken_cfg_file_links.py
 
-	########################
+	# ########################
+	# echo ""
+	# echo "Reloading Updated NEPI System Config"
+	# source ${ETC_FOLDER}/load_system_config.sh
+	# if [[ "$?" -ne 0 ]]; then
+	# 	echo "ERROR! Failed to load system configuration values from ${ETC_FOLDER}/load_system_config.sh"
+	# 	return 1
+	# fi
 
+	ROS1_PACKAGE=nepi_env
 	echo "Running roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
 	roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}
 fi

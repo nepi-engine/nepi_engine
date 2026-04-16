@@ -62,7 +62,7 @@ class NetworkMgr:
     USER_IP_ALIASES_FILE_PREFACE = "# This file includes all user-added IP address aliases. It is sourced by the top-level static IP addr file.\n\n"
 
     # Following are to support changing rosmaster IP address
-    SYS_ENV_FILE = "/opt/nepi/sys_env.bash"
+    # SYS_ENV_FILE = "/opt/nepi/sys_env.bash"
     ROS_MASTER_PORT = 11311
     ROSLAUNCH_FILE = "/opt/nepi/nepi_engine/etc/roslaunch.sh"
     REMOTE_ROS_NODE_ENV_LOADER_FILES = ["numurus@num-sb1-zynq:/opt/nepi/nepi_engine/etc/env_loader.sh"]
@@ -966,77 +966,77 @@ class NetworkMgr:
     def set_rosmaster_impl(self, master_ip):
         auto_comment = " # Modified by network_mgr " + str(datetime.now()) + "\n"
 
-        # First, determine if the master is local, either as localhost or one of the configured IP addrs
-        master_is_local = True if (master_ip == "localhost") else False
-        if master_is_local is False:
-            local_ips = copy.deepcopy(self.found_ip_addrs)
-            for ip_cidr in local_ips:
-                ip = ip_cidr.split('/')[0]
-                if master_ip == ip:
-                    master_is_local = True
-                    break
+        # # First, determine if the master is local, either as localhost or one of the configured IP addrs
+        # master_is_local = True if (master_ip == "localhost") else False
+        # if master_is_local is False:
+        #     local_ips = copy.deepcopy(self.found_ip_addrs)
+        #     for ip_cidr in local_ips:
+        #         ip = ip_cidr.split('/')[0]
+        #         if master_ip == ip:
+        #             master_is_local = True
+        #             break
 
-        if master_is_local is True:
-            master_ip = "localhost" # Force 'localhost' whenever the "new" master is a local IP in case that local IP (alias) is later removed
-            master_ip_for_remote_hosts = self.get_primary_ip_addr().split('/')[0]
-        else:
-            master_ip_for_remote_hosts = master_ip
-            # Now ensure we can contact the new rosmaster -- if not, bail out
-            ret_code = subprocess.call(['nc', '-zvw5', master_ip,  str(self.ROS_MASTER_PORT)])
-            if (ret_code != 0):
-                self.msg_if.pub_warn("Failed to detect a remote rosmaster at " + master_ip + ":" + str(self.ROS_MASTER_PORT) + "... refusing to update ROS_MASTER_URI")
-                return
+        # if master_is_local is True:
+        #     master_ip = "localhost" # Force 'localhost' whenever the "new" master is a local IP in case that local IP (alias) is later removed
+        #     master_ip_for_remote_hosts = self.get_primary_ip_addr().split('/')[0]
+        # else:
+        #     master_ip_for_remote_hosts = master_ip
+        #     # Now ensure we can contact the new rosmaster -- if not, bail out
+        #     ret_code = subprocess.call(['nc', '-zvw5', master_ip,  str(self.ROS_MASTER_PORT)])
+        #     if (ret_code != 0):
+        #         self.msg_if.pub_warn("Failed to detect a remote rosmaster at " + master_ip + ":" + str(self.ROS_MASTER_PORT) + "... refusing to update ROS_MASTER_URI")
+        #         return
 
-        # Edit the sys_env file appropriately
-        rosmaster_line_prefix = "export ROS_MASTER_URI="
-        new_rosmaster_line = rosmaster_line_prefix + "http://" + master_ip + ":" + str(self.ROS_MASTER_PORT) + auto_comment
-        sys_env_output_lines = []
-        with open(self.SYS_ENV_FILE, "r") as f_in:
-            for line in f_in:
-                if rosmaster_line_prefix in line:
-                    line = new_rosmaster_line
-                sys_env_output_lines.append(line)
-        with open(self.SYS_ENV_FILE, "w") as f_out:
-            f_out.writelines(sys_env_output_lines)
+        # # Edit the sys_env file appropriately
+        # rosmaster_line_prefix = "export ROS_MASTER_URI="
+        # new_rosmaster_line = rosmaster_line_prefix + "http://" + master_ip + ":" + str(self.ROS_MASTER_PORT) + auto_comment
+        # sys_env_output_lines = []
+        # with open(self.SYS_ENV_FILE, "r") as f_in:
+        #     for line in f_in:
+        #         if rosmaster_line_prefix in line:
+        #             line = new_rosmaster_line
+        #         sys_env_output_lines.append(line)
+        # with open(self.SYS_ENV_FILE, "w") as f_out:
+        #     f_out.writelines(sys_env_output_lines)
 
-        # And the roslaunch file (add --wait for remote ros master)
-        roslaunch_line_prefix = "roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
-        new_roslaunch_line = roslaunch_line_prefix
-        if master_is_local is False:
-            new_roslaunch_line += " --wait"
-        new_roslaunch_line += auto_comment
-        roslaunch_output_lines = []
-        with open(self.ROSLAUNCH_FILE, "r") as f_in:
-            for line in f_in:
-                if roslaunch_line_prefix in line:
-                    line = new_roslaunch_line
-                roslaunch_output_lines.append(line)
-        with open(self.ROSLAUNCH_FILE, "w") as f_out:
-            f_out.writelines(roslaunch_output_lines)
+        # # And the roslaunch file (add --wait for remote ros master)
+        # roslaunch_line_prefix = "roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
+        # new_roslaunch_line = roslaunch_line_prefix
+        # if master_is_local is False:
+        #     new_roslaunch_line += " --wait"
+        # new_roslaunch_line += auto_comment
+        # roslaunch_output_lines = []
+        # with open(self.ROSLAUNCH_FILE, "r") as f_in:
+        #     for line in f_in:
+        #         if roslaunch_line_prefix in line:
+        #             line = new_roslaunch_line
+        #         roslaunch_output_lines.append(line)
+        # with open(self.ROSLAUNCH_FILE, "w") as f_out:
+        #     f_out.writelines(roslaunch_output_lines)
 
-        # And the env_loader files for remote machines
-        new_rosmaster_line = rosmaster_line_prefix + "http://" + master_ip_for_remote_hosts + ":" + str(self.ROS_MASTER_PORT) + auto_comment
-        tmp_env_loader_file = "./env_loader_file.tmp"
-        for remote_env_loader_file in self.REMOTE_ROS_NODE_ENV_LOADER_FILES:
-            env_loader_lines = []
-            ret_code = subprocess.call(['scp', remote_env_loader_file, tmp_env_loader_file])
-            if (ret_code != 0):
-                self.msg_if.pub_warn("Failed to get copy of remote file " + remote_env_loader_file + "... not updating ROS_MASTER_URI for that remote host")
-                continue
-            with open(tmp_env_loader_file, "r") as f_in:
-                for line in f_in:
-                    if rosmaster_line_prefix in line:
-                        line = new_rosmaster_line
-                    env_loader_lines.append(line)
-            with open(tmp_env_loader_file, "w") as f_out:
-                f_out.writelines(env_loader_lines)
-            ret_code = subprocess.call(['scp', tmp_env_loader_file, remote_env_loader_file])
-            if (ret_code != 0):
-                self.msg_if.pub_warn("Failed to update remote file " + remote_env_loader_file)
-            os.remove(tmp_env_loader_file)
+        # # And the env_loader files for remote machines
+        # new_rosmaster_line = rosmaster_line_prefix + "http://" + master_ip_for_remote_hosts + ":" + str(self.ROS_MASTER_PORT) + auto_comment
+        # tmp_env_loader_file = "./env_loader_file.tmp"
+        # for remote_env_loader_file in self.REMOTE_ROS_NODE_ENV_LOADER_FILES:
+        #     env_loader_lines = []
+        #     ret_code = subprocess.call(['scp', remote_env_loader_file, tmp_env_loader_file])
+        #     if (ret_code != 0):
+        #         self.msg_if.pub_warn("Failed to get copy of remote file " + remote_env_loader_file + "... not updating ROS_MASTER_URI for that remote host")
+        #         continue
+        #     with open(tmp_env_loader_file, "r") as f_in:
+        #         for line in f_in:
+        #             if rosmaster_line_prefix in line:
+        #                 line = new_rosmaster_line
+        #             env_loader_lines.append(line)
+        #     with open(tmp_env_loader_file, "w") as f_out:
+        #         f_out.writelines(env_loader_lines)
+        #     ret_code = subprocess.call(['scp', tmp_env_loader_file, remote_env_loader_file])
+        #     if (ret_code != 0):
+        #         self.msg_if.pub_warn("Failed to update remote file " + remote_env_loader_file)
+        #     os.remove(tmp_env_loader_file)
 
-        self.msg_if.pub_warn("Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
-        success = self.save_config()
+        # self.msg_if.pub_warn("Updated ROS_MASTER_URI to " + master_ip + "... requires reboot to complete the switch")
+        # success = self.save_config()
 
     #######################
     ### Wired IP Manager Functions

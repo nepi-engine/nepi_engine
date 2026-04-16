@@ -74,7 +74,6 @@ class SystemMgrNode():
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
-    SYS_ENV_PATH = SYS_ETC_PATH + "/sys_env.bash"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
 
     STATES_DICT = dict()
@@ -1453,7 +1452,6 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Invalid device ID: " +  str(msg.data))
             return
 
-        # Otherwise, overwrite the NEPI_DEVICE_ID in sys_env.bash
         nepi_system.update_nepi_system_config("NEPI_DEVICE_ID",msg.data)
         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_hostname.sh"
         subprocess.call([etc_update_script])
